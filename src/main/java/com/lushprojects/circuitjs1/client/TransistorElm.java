@@ -231,9 +231,9 @@ class TransistorElm extends CircuitElm {
 	void doStep() {
 	    double vbc = pnp*(volts[0]-volts[1]); // typically negative
 	    double vbe = pnp*(volts[0]-volts[2]); // typically positive
-	    if (Math.abs(vbc-lastvbc) > .01 || // .01
-		Math.abs(vbe-lastvbe) > .01)
-		sim.converged = false;
+	    if (!sim.isConverged(vbc,lastvbc) || !sim.isConverged(vbe,lastvbe))
+			System.out.println("Convergence failed: vbc=" + vbc + ", lastvbc=" + lastvbc + ", vbe=" + vbe + ", lastvbe=" + lastvbe);
+			sim.converged = false;
 
 	    // To prevent a possible singular matrix, put a tiny conductance in parallel
 	    // with each P-N junction.

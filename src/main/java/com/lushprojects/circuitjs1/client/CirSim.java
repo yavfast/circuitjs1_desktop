@@ -3419,6 +3419,16 @@ MouseOutHandler, MouseWheelHandler {
 //	System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
     }
 
+	public boolean isConverged(double v1, double v2) {
+		double delta = Math.abs(v2 - v1);
+		double mean = Math.abs((v1 + v2) / 2.0);
+		if (mean > 0.0) {
+			double e = delta / mean;
+			return e < 0.01; // < 1%
+		}
+		return true;
+    }
+
     // set node voltages given right side found by solving matrix
     void applySolvedRightSide(double rs[]) {
 //	console("setvoltages " + rs);
