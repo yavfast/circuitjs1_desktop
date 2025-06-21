@@ -3420,7 +3420,7 @@ MouseOutHandler, MouseWheelHandler {
     }
 
 	public boolean isConverged(double v1, double v2) {
-		double delta = Math.abs(v2 - v1);
+        double delta = Math.abs(v2 - v1);
 		double mean = Math.abs((v1 + v2) / 2.0);
 		if (mean > 0.0) {
 			double e = delta / mean;

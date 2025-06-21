@@ -267,12 +267,12 @@ async function buildRelease(platform, arch){
 function getAllBins(){
     // TODO: Make archive checker
     return Promise.all([
-        getBin('win', 'ia32'),
-        getBin('win', 'x64'),
-        getBin('linux', 'ia32'),
+//        getBin('win', 'ia32'),
+//        getBin('win', 'x64'),
+//        getBin('linux', 'ia32'),
         getBin('linux', 'x64'),
-        getBin('osx', 'x64'),
-        getBin('osx', 'arm64')
+//        getBin('osx', 'x64'),
+//        getBin('osx', 'arm64')
     ]).then(()=>{checkSteps(false);});
 }
 
@@ -280,12 +280,12 @@ async function buildAll(){
     if (!stateOfSteps[1]) await buildGWT();
     if (!isDownloadComplite) await getAllBins();
     return await Promise.all([
-        buildRelease('win', 'ia32'),
-        buildRelease('win', 'x64'),
-        buildRelease('linux', 'ia32'),
+//        buildRelease('win', 'ia32'),
+//        buildRelease('win', 'x64'),
+//        buildRelease('linux', 'ia32'),
         buildRelease('linux', 'x64'),
-        buildRelease('osx', 'x64'),
-        buildRelease('osx', 'arm64')
+//        buildRelease('osx', 'x64'),
+//        buildRelease('osx', 'arm64')
     ]).then(()=>{checkSteps(false);});
 }
 
