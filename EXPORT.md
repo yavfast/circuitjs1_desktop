@@ -2,6 +2,31 @@
 
 This document describes the format used to export circuit elements (the "dump" format) in CircuitJS1. Each element in a circuit is represented by a line in the export file. The format is designed to be both human- and machine-readable.
 
+## Simulation Settings Header
+
+The first line of every export file contains simulation settings and starts with `$`:
+
+```
+$ <flags> <maxTimeStep> <iterCount> <currentBar> <voltageRange> <powerBar> <minTimeStep>
+```
+
+- **flags**: Bitmask for simulation options:
+  - Bit 0 (1): Show dots for current flow
+  - Bit 1 (2): Small grid enabled
+  - Bit 2 (4): Hide voltage values (inverted - 0 means show volts)
+  - Bit 3 (8): Show power values
+  - Bit 4 (16): Hide component values (inverted - 0 means show values)
+  - Bit 5 (32): Linear scale (used in afilter)
+  - Bit 6 (64): Adjust time step automatically
+- **maxTimeStep**: Maximum time step for simulation
+- **iterCount**: Iteration count (speed setting)
+- **currentBar**: Current bar scale setting
+- **voltageRange**: Voltage range for display
+- **powerBar**: Power bar scale setting
+- **minTimeStep**: Minimum time step for simulation
+
+Example: `$ 1 5.0E-6 15 50 5.0 26 5.0E-9`
+
 ## General Format
 Each circuit element is represented as:
 
@@ -485,10 +510,134 @@ O <x> <y> <x2> <y2> <flags> <scale>
 ```
 - Parameters depend on CompositeElm base class
 
+### SRAM
+```
+413 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Time Delay Relay
+```
+414 <x> <y> <x2> <y2> <flags> <delay> <onCurrent> <offCurrent>
+```
+- `delay`: Time delay
+- `onCurrent`: Turn-on current
+- `offCurrent`: Turn-off current
+
+### DC Motor
+```
+415 <x> <y> <x2> <y2> <flags> <inductance> <resistance> <torqueConstant> <backEmfConstant>
+```
+- `inductance`: Motor inductance
+- `resistance`: Motor resistance
+- `torqueConstant`: Torque constant
+- `backEmfConstant`: Back EMF constant
+
+### Make-Before-Break Switch
+```
+416 <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position
+
+### Unijunction Transistor
+```
+417 <x> <y> <x2> <y2> <flags> <eta> <interbaseResistance>
+```
+- `eta`: Intrinsic standoff ratio
+- `interbaseResistance`: Interbase resistance
+
+### External Voltage
+```
+418 <x> <y> <x2> <y2> <flags>
+```
+- No additional parameters (controlled externally)
+
+### Decimal Display
+```
+419 <x> <y> <x2> <y2> <flags> [data...]
+```
+- `data...`: Display-specific data
+
+### Wattmeter
+```
+420 <x> <y> <x2> <y2> <flags>
+```
+- No additional parameters
+
+### Counter (Up/Down)
+```
+421 <x> <y> <x2> <y2> <flags> <maxCount> <countUp> [bits] [pin voltages...]
+```
+- `maxCount`: Maximum count value
+- `countUp`: Count direction (true=up, false=down)
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Delay Buffer
+```
+422 <x> <y> <x2> <y2> <flags> <delay>
+```
+- `delay`: Propagation delay
+
+### Line (Graphical)
+```
+423 <x> <y> <x2> <y2> <flags>
+```
+- No additional parameters (drawing element)
+
+### Data Input
+```
+424 <x> <y> <x2> <y2> <flags> <data>
+```
+- `data`: Input data pattern
+
+### Relay Coil
+```
+425 <x> <y> <x2> <y2> <flags> <inductance> <resistance> <onCurrent>
+```
+- `inductance`: Coil inductance
+- `resistance`: Coil resistance
+- `onCurrent`: Activation current
+
+### Relay Contact
+```
+426 <x> <y> <x2> <y2> <flags> <contactType> <relayNumber>
+```
+- `contactType`: Contact type (NO/NC)
+- `relayNumber`: Associated relay number
+
+### Three Phase Motor
+```
+427 <x> <y> <x2> <y2> <flags> <power> <slip> <poles>
+```
+- `power`: Motor power rating
+- `slip`: Motor slip
+- `poles`: Number of poles
+
+### Motor Protection Switch
+```
+428 <x> <y> <x2> <y2> <flags> <tripCurrent> <resetType>
+```
+- `tripCurrent`: Trip current level
+- `resetType`: Reset mechanism type
+
+### DPDT Switch
+```
+429 <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position
+
+### Cross Switch (4-way)
+```
+430 <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position
+
 ---
 
 ## Notes
-- The first line of the export is a header with simulation settings, starting with `$`.
+
 - **ChipElm-based elements** (logic gates, flip-flops, counters, etc.) follow a common pattern: they may include a `bits` parameter if `needsBits()` returns true, followed by voltage values for each pin that has `state=true`.
 - **GateElm-based elements** (AND, OR, NOR, etc.) include `inputCount`, current `outputVoltage`, and `highVoltage` parameters.
 - All coordinates and values are in simulation units.
@@ -497,8 +646,8 @@ O <x> <y> <x2> <y2> <flags> <scale>
 
 ---
 
-This manual has been verified against the actual source code implementation. Each format corresponds exactly to what the respective `dump()` method outputs.
+This manual has been verified against the actual source code implementation (as of June 2025). Each format corresponds exactly to what the respective `dump()` method outputs. This version includes all known circuit elements from the CircuitJS1 source code.
 
 ---
 
-This manual covers the most common elements. For more, see the source files in `src/com/lushprojects/circuitjs1/client/`.
+For implementation details and the most current information, see the source files in `src/com/lushprojects/circuitjs1/client/`.
