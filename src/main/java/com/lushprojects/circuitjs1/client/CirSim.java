@@ -2808,8 +2808,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         connectUnconnectedNodes();
 
         // stamp linear circuit elements
-        for (i = 0; i != elmList.size(); i++) {
-            CircuitElm ce = getElm(i);
+        for (i = 0; i < elmList.size(); i++) {
+            CircuitElm ce = elmList.get(i);
             ce.setParentList(elmList);
             ce.stamp();
         }
@@ -2973,7 +2973,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         HashMap<Point, Integer> postCountMap = new HashMap<Point, Integer>();
         int i, j;
         for (i = 0; i != elmList.size(); i++) {
-            CircuitElm ce = getElm(i);
+            CircuitElm ce = elmList.get(i);
             int posts = ce.getPostCount();
             for (j = 0; j != posts; j++) {
                 Point pt = ce.getPost(j);
@@ -3270,9 +3270,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         for (i = 0; i != scopeCount; i++)
             if (scopes[i].viewingWire())
                 return false;
-        for (i = 0; i != elmList.size(); i++)
-            if (getElm(i) instanceof ScopeElm && ((ScopeElm) getElm(i)).elmScope.viewingWire())
+        for (i = 0; i != elmList.size(); i++) {
+            CircuitElm elm = elmList.get(i);
+            if (elm instanceof ScopeElm && ((ScopeElm) elm).elmScope.viewingWire())
                 return false;
+        }
         return true;
     }
 
@@ -3320,8 +3322,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             }
 
             int i, j, subiter;
-            for (i = 0; i != elmArr.length; i++)
+            for (i = 0; i != elmArr.length; i++) {
                 elmArr[i].startIteration();
+            }
             steps++;
             int subiterCount = (adjustTimeStep && timeStep / 2 > minTimeStep) ? 100 : 5000;
             for (subiter = 0; subiter != subiterCount; subiter++) {
@@ -3369,14 +3372,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                     // stop if converged (elements check for convergence in doStep())
                     if (converged && subiter > 0)
                         break;
-                    if (!lu_factor(circuitMatrix, circuitMatrixSize,
-                            circuitPermute)) {
+                    if (!lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
                         stop("Singular matrix!", null);
                         return;
                     }
                 }
-                lu_solve(circuitMatrix, circuitMatrixSize, circuitPermute,
-                        circuitRightSide);
+                lu_solve(circuitMatrix, circuitMatrixSize, circuitPermute, circuitRightSide);
                 applySolvedRightSide(circuitRightSide);
                 if (!circuitNonLinear)
                     break;
@@ -6107,7 +6108,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             ipvt[0] = 0;
             return a[0][0] != 0.0;
         }
-        
+
         // Check for singular matrix by scanning for all-zero rows
         // Combined with finding the first pivot
         for (int i = 0; i < n; i++) {
@@ -6122,10 +6123,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 return false;
             }
         }
-        
+
         // Use Crout's method with partial pivoting
         for (int j = 0; j < n; j++) {
-            
+
             // Calculate upper triangular elements for this column
             for (int i = 0; i < j; i++) {
                 double sum = a[i][j];
@@ -6138,26 +6139,26 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             // Calculate lower triangular elements and find pivot
             double largest = 0.0;
             int largestRow = j; // Initialize to current row
-            
+
             for (int i = j; i < n; i++) {
                 double sum = a[i][j];
                 for (int k = 0; k < j; k++) {
                     sum -= a[i][k] * a[k][j];
                 }
                 a[i][j] = sum;
-                
+
                 double abs = Math.abs(sum);
                 if (abs > largest) {
                     largest = abs;
                     largestRow = i;
                 }
             }
-            
+
             // Check for near-zero pivot (singular matrix)
             if (largest < 1e-14) {
                 return false;
             }
-            
+
             // Perform row interchange if necessary
             if (largestRow != j) {
                 // Swap entire rows
@@ -6165,10 +6166,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 a[j] = a[largestRow];
                 a[largestRow] = temp;
             }
-            
+
             // Store pivot information
             ipvt[j] = largestRow;
-            
+
             // Scale the lower triangular elements
             if (j < n - 1) {
                 double pivotInv = 1.0 / a[j][j];
@@ -6177,18 +6178,18 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 }
             }
         }
-        
+
         return true;
     }
-    
+
     // Solves the set of n linear equations using a LU factorization
     // previously performed by lu_factor.  On input, b[0..n-1] is the right
     // hand side of the equations, and on output, contains the solution.
     static void lu_solve(double a[][], int n, int ipvt[], double b[]) {
         if (n <= 0) return;
-        
+
         int i, j;
-        
+
         // Forward substitution with row interchanges
         for (i = 0; i < n; i++) {
             int row = ipvt[i];
@@ -6197,7 +6198,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 b[row] = b[i];
                 b[i] = swap;
             }
-            
+
             // Forward substitution using the lower triangular matrix
             double sum = b[i];
             for (j = 0; j < i; j++) {
@@ -6205,7 +6206,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             }
             b[i] = sum;
         }
-        
+
         // Back substitution using the upper triangular matrix
         for (i = n - 1; i >= 0; i--) {
             double sum = b[i];
