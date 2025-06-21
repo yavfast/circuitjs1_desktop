@@ -6185,39 +6185,34 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     // previously performed by lu_factor.  On input, b[0..n-1] is the right
     // hand side of the equations, and on output, contains the solution.
     static void lu_solve(double a[][], int n, int ipvt[], double b[]) {
-        int i;
-
-        // find first nonzero b element
-        for (i = 0; i != n; i++) {
+        if (n <= 0) return;
+        
+        int i, j;
+        
+        // Forward substitution with row interchanges
+        for (i = 0; i < n; i++) {
             int row = ipvt[i];
-
-            double swap = b[row];
-            b[row] = b[i];
-            b[i] = swap;
-            if (swap != 0)
-                break;
+            if (row != i) {
+                double swap = b[row];
+                b[row] = b[i];
+                b[i] = swap;
+            }
+            
+            // Forward substitution using the lower triangular matrix
+            double sum = b[i];
+            for (j = 0; j < i; j++) {
+                sum -= a[i][j] * b[j];
+            }
+            b[i] = sum;
         }
-
-        int bi = i++;
-        for (; i < n; i++) {
-            int row = ipvt[i];
-            int j;
-            double tot = b[row];
-
-            b[row] = b[i];
-            // forward substitution using the lower triangular matrix
-            for (j = bi; j < i; j++)
-                tot -= a[i][j] * b[j];
-            b[i] = tot;
-        }
+        
+        // Back substitution using the upper triangular matrix
         for (i = n - 1; i >= 0; i--) {
-            double tot = b[i];
-
-            // back-substitution using the upper triangular matrix
-            int j;
-            for (j = i + 1; j != n; j++)
-                tot -= a[i][j] * b[j];
-            b[i] = tot / a[i][i];
+            double sum = b[i];
+            for (j = i + 1; j < n; j++) {
+                sum -= a[i][j] * b[j];
+            }
+            b[i] = sum / a[i][i];
         }
     }
 
