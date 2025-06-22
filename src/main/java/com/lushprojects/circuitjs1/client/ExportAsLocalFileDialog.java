@@ -19,32 +19,31 @@
 
 package com.lushprojects.circuitjs1.client;
 
-import java.util.Date;
-import com.google.gwt.user.client.ui.HasHorizontalAlignment;
-import com.google.gwt.user.client.ui.HorizontalPanel;
-import com.google.gwt.user.client.ui.Anchor;
-import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.VerticalPanel;
-import com.lushprojects.circuitjs1.client.util.Locale;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.i18n.client.DateTimeFormat;
+import com.google.gwt.user.client.ui.Anchor;
+import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.HasHorizontalAlignment;
+import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
-import com.google.gwt.i18n.client.DateTimeFormat;
+import com.google.gwt.user.client.ui.VerticalPanel;
+import com.lushprojects.circuitjs1.client.util.Locale;
+
+import java.util.Date;
 
 public class ExportAsLocalFileDialog extends Dialog {
-	
-	VerticalPanel vp;
-	
-	static public final native boolean downloadIsSupported() 
+
+    VerticalPanel vp;
+
+    static public final native boolean downloadIsSupported()
 	/*-{
 		return !!(("download" in $doc.createElement("a")));
 	 }-*/;
-	
-	static public final native String getBlobUrl(String data) 
+
+    static public final native String getBlobUrl(String data)
 	/*-{
 		var datain=[""];
 		datain[0]=data;
@@ -56,75 +55,75 @@ public class ExportAsLocalFileDialog extends Dialog {
 		$doc.exportBlob = url;
 		return url;
 	}-*/;
-	
-	TextBox textBox;
-	static String lastFileName;
-	String url;
-	
-	public static void setLastFileName(String s) {
-	    // remember filename for use when saving a new file.
-	    // if s is null or automatically generated then just clear out old filename.
-	    if (s == null || s.startsWith("circuitjs-"))
-		lastFileName = null;
-	    else
-		lastFileName = s;
-	}
 
-	public ExportAsLocalFileDialog(String data) {
-		super();
-		Button okButton, cancelButton;
-		vp=new VerticalPanel();
-		setWidget(vp);
-		setText(Locale.LS("Export as Local File"));
-		vp.add(new Label(Locale.LS("File name:")));
-		textBox = new TextBox();
-		textBox.setWidth("250px"); // "90%");
-		vp.add(textBox);
-		url=getBlobUrl(data);
-		Date date = new Date();
-		String fname;
-		if (lastFileName != null)
-		    fname = lastFileName;
-		else {
-		    DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmmss");
-		    fname = "circuitjs-"+ dtf.format(date) + ".txt";
-		}
-		textBox.setText(fname);
-		
-                HorizontalPanel hp = new HorizontalPanel();
-                hp.setWidth("100%");
-                hp.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
-                hp.setStyleName("topSpace");
-                vp.add(hp);
-                hp.add(okButton = new Button(Locale.LS("OK")));
-                hp.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_RIGHT);
-		hp.add(cancelButton = new Button(Locale.LS("Cancel")));
-		okButton.addClickHandler(new ClickHandler() {
-			public void onClick(ClickEvent event) {
-			    apply();
-			    closeDialog();
-			}
-		});
-		cancelButton.addClickHandler(new ClickHandler() {
-			public void onClick(ClickEvent event) {
-			    closeDialog();
-			}
-		});
-		this.center();
-	}
-	
-	static native void click(Element elem) /*-{
+    TextBox textBox;
+    static String lastFileName;
+    String url;
+
+    public static void setLastFileName(String s) {
+        // remember filename for use when saving a new file.
+        // if s is null or automatically generated then just clear out old filename.
+        if (s == null || s.startsWith("circuitjs-"))
+            lastFileName = null;
+        else
+            lastFileName = s;
+    }
+
+    public ExportAsLocalFileDialog(String data) {
+        super();
+        Button okButton, cancelButton;
+        vp = new VerticalPanel();
+        setWidget(vp);
+        setText(Locale.LS("Export as Local File"));
+        vp.add(new Label(Locale.LS("File name:")));
+        textBox = new TextBox();
+        textBox.setWidth("250px"); // "90%");
+        vp.add(textBox);
+        url = getBlobUrl(data);
+        Date date = new Date();
+        String fname;
+        if (lastFileName != null)
+            fname = lastFileName;
+        else {
+            DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmmss");
+            fname = "circuitjs-" + dtf.format(date) + ".txt";
+        }
+        textBox.setText(fname);
+
+        HorizontalPanel hp = new HorizontalPanel();
+        hp.setWidth("100%");
+        hp.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_LEFT);
+        hp.setStyleName("topSpace");
+        vp.add(hp);
+        hp.add(okButton = new Button(Locale.LS("OK")));
+        hp.setHorizontalAlignment(HasHorizontalAlignment.ALIGN_RIGHT);
+        hp.add(cancelButton = new Button(Locale.LS("Cancel")));
+        okButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                apply();
+                closeDialog();
+            }
+        });
+        cancelButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                closeDialog();
+            }
+        });
+        this.center();
+    }
+
+    static native void click(Element elem) /*-{
 	    elem.click();
 	}-*/;
-	
-	void apply() {
-	    String fname = textBox.getText();
-	    if (!fname.contains("."))
-		fname += ".txt";
-	    setLastFileName(fname);
-	    Anchor a  = new Anchor(fname, url);
-	    a.getElement().setAttribute("Download", fname);
-	    vp.add(a);
-	    click(a.getElement());
-	}
+
+    void apply() {
+        String fname = textBox.getText();
+        if (!fname.contains("."))
+            fname += ".txt";
+        setLastFileName(fname);
+        Anchor a = new Anchor(fname, url);
+        a.getElement().setAttribute("Download", fname);
+        vp.add(a);
+        click(a.getElement());
+    }
 }

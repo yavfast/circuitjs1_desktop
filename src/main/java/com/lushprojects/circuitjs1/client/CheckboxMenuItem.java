@@ -19,8 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.ui.MenuItem;
 
 public class CheckboxMenuItem extends MenuItem implements Command {
 	private boolean on=false;
@@ -65,7 +65,7 @@ public class CheckboxMenuItem extends MenuItem implements Command {
 		setState(!on);
 		if (extcmd!=null) {
 		    extcmd.execute();
-		    CircuitElm.sim.repaint();
+		    CircuitElm.simUi.repaint();
 		}
       }
 

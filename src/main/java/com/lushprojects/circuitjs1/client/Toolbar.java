@@ -1,19 +1,16 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.core.client.EntryPoint;
-import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.dom.client.DivElement;
-import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Style;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.dom.client.DomEvent;
 import com.google.gwt.event.dom.client.MouseOutEvent;
 import com.google.gwt.event.dom.client.MouseOverEvent;
-import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.*;
-import com.lushprojects.circuitjs1.client.util.Locale;
+import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.HTML;
+import com.google.gwt.user.client.ui.HorizontalPanel;
+import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.RootPanel;
+import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.HashMap;
 
@@ -28,65 +25,65 @@ public class Toolbar extends HorizontalPanel {
 
     public Toolbar() {
         // Set the overall style of the toolbar
-	Style style = getElement().getStyle();
+        Style style = getElement().getStyle();
         style.setPadding(2, Style.Unit.PX);
         style.setBackgroundColor("#f8f8f8");
         style.setBorderWidth(1, Style.Unit.PX);
         style.setBorderStyle(Style.BorderStyle.SOLID);
         style.setBorderColor("#ccc");
         style.setDisplay(Style.Display.FLEX);
-	setVerticalAlignment(ALIGN_MIDDLE);
+        setVerticalAlignment(ALIGN_MIDDLE);
 
-	add(createIconButton("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
-	add(createIconButton("folder",  "Open File...", new MyCommand("file", "importfromlocalfile")));
-	add(createIconButton("floppy", "Save", new MyCommand("file", "save")));
-	add(createIconButton("floppy",  "Save As...", new MyCommand("file", "saveas")));
-	add(new HTML("<sup style=\"margin-left:-12px;\"><strong>+</strong></sup>")); // add symbol to "Save As" icon
-    add(new HTML(SEPARATOR));
-	add(createIconButton("ccw", "Undo", new MyCommand("edit", "undo")));
-	add(createIconButton("cw",  "Redo", new MyCommand("edit", "redo")));
-    add(new HTML(SEPARATOR));
-	add(createIconButton("scissors", "Cut", new MyCommand("edit", "cut")));
-	add(createIconButton("copy", "Copy", new MyCommand("edit", "copy")));
-	add(createIconButton("paste", "Paste", new MyCommand("edit", "paste")));
-	add(createIconButton("clone", "Duplicate", new MyCommand("edit", "duplicate")));
-    add(new HTML(SEPARATOR));
-	add(createIconButton("search", "Find Component...", new MyCommand("edit", "search")));
-    add(new HTML(SEPARATOR));
+        add(createIconButton("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
+        add(createIconButton("folder", "Open File...", new MyCommand("file", "importfromlocalfile")));
+        add(createIconButton("floppy", "Save", new MyCommand("file", "save")));
+        add(createIconButton("floppy", "Save As...", new MyCommand("file", "saveas")));
+        add(new HTML("<sup style=\"margin-left:-12px;\"><strong>+</strong></sup>")); // add symbol to "Save As" icon
+        add(new HTML(SEPARATOR));
+        add(createIconButton("ccw", "Undo", new MyCommand("edit", "undo")));
+        add(createIconButton("cw", "Redo", new MyCommand("edit", "redo")));
+        add(new HTML(SEPARATOR));
+        add(createIconButton("scissors", "Cut", new MyCommand("edit", "cut")));
+        add(createIconButton("copy", "Copy", new MyCommand("edit", "copy")));
+        add(createIconButton("paste", "Paste", new MyCommand("edit", "paste")));
+        add(createIconButton("clone", "Duplicate", new MyCommand("edit", "duplicate")));
+        add(new HTML(SEPARATOR));
+        add(createIconButton("search", "Find Component...", new MyCommand("edit", "search")));
+        add(new HTML(SEPARATOR));
 
-	add(createIconButton("target", "Centre Circuit", new MyCommand("edit", "centrecircuit")));
-	add(createIconButton("zoom-11", "Zoom 100%", new MyCommand("zoom", "zoom100")));
-	add(createIconButton("zoom-in", "Zoom In", new MyCommand("zoom", "zoomin")));
-	add(createIconButton("zoom-out", "Zoom Out", new MyCommand("zoom", "zoomout")));
-    add(new HTML(SEPARATOR));
+        add(createIconButton("target", "Centre Circuit", new MyCommand("edit", "centrecircuit")));
+        add(createIconButton("zoom-11", "Zoom 100%", new MyCommand("zoom", "zoom100")));
+        add(createIconButton("zoom-in", "Zoom In", new MyCommand("zoom", "zoomin")));
+        add(createIconButton("zoom-out", "Zoom Out", new MyCommand("zoom", "zoomout")));
+        add(new HTML(SEPARATOR));
 
-	add(createIconButton(wireIcon, "WireElm"));
-	add(resistorButton = createIconButton(resistorIcon, "ResistorElm"));
-	add(createIconButton(groundIcon, "GroundElm"));
-	add(createIconButton(capacitorIcon, "CapacitorElm"));
-	add(createIconButton(inductIcon, "InductorElm"));
-	add(createIconButton(diodeIcon, "DiodeElm"));
-	String srcInfo[] = { voltage2Icon, "DCVoltageElm", acSrcIcon, "ACVoltageElm" };
-	add(createButtonSet(srcInfo));
-	add(createIconButton(railIcon, "RailElm"));
+        add(createIconButton(wireIcon, "WireElm"));
+        add(resistorButton = createIconButton(resistorIcon, "ResistorElm"));
+        add(createIconButton(groundIcon, "GroundElm"));
+        add(createIconButton(capacitorIcon, "CapacitorElm"));
+        add(createIconButton(inductIcon, "InductorElm"));
+        add(createIconButton(diodeIcon, "DiodeElm"));
+        String srcInfo[] = {voltage2Icon, "DCVoltageElm", acSrcIcon, "ACVoltageElm"};
+        add(createButtonSet(srcInfo));
+        add(createIconButton(railIcon, "RailElm"));
 
-	String switchInfo[] = { switchIcon, "SwitchElm", spdtIcon, "Switch2Elm", aswitch1Icon, "AnalogSwitchElm",
-				aswitch2Icon, "AnalogSwitch2Elm" };
-	add(createButtonSet(switchInfo));
+        String switchInfo[] = {switchIcon, "SwitchElm", spdtIcon, "Switch2Elm", aswitch1Icon, "AnalogSwitchElm",
+                aswitch2Icon, "AnalogSwitch2Elm"};
+        add(createButtonSet(switchInfo));
 
-	String opAmpInfo[] = { opAmpBotIcon, "OpAmpElm", opAmpTopIcon, "OpAmpSwapElm" };
-	add(createButtonSet(opAmpInfo));
+        String opAmpInfo[] = {opAmpBotIcon, "OpAmpElm", opAmpTopIcon, "OpAmpSwapElm"};
+        add(createButtonSet(opAmpInfo));
 
-	String transistorInfo[] = { transistorIcon, "NTransistorElm", pnpTransistorIcon, "PTransistorElm" };
-	add(createButtonSet(transistorInfo));
+        String transistorInfo[] = {transistorIcon, "NTransistorElm", pnpTransistorIcon, "PTransistorElm"};
+        add(createButtonSet(transistorInfo));
 
-	String fetInfo[] = { fetIcon, "NMosfetElm", fetIcon2, "PMosfetElm" };
-	add(createButtonSet(fetInfo));
+        String fetInfo[] = {fetIcon, "NMosfetElm", fetIcon2, "PMosfetElm"};
+        add(createButtonSet(fetInfo));
 
-	add(createIconButton(inverterIcon, "InverterElm"));
-	String gateInfo[] = { andIcon, "AndGateElm", nandIcon, "NandGateElm", 
-			      orIcon, "OrGateElm", norIcon, "NorGateElm", xorIcon, "XorGateElm" };
-	add(createButtonSet(gateInfo));
+        add(createIconButton(inverterIcon, "InverterElm"));
+        String gateInfo[] = {andIcon, "AndGateElm", nandIcon, "NandGateElm",
+                orIcon, "OrGateElm", norIcon, "NorGateElm", xorIcon, "XorGateElm"};
+        add(createButtonSet(gateInfo));
 /*
         // Spacer to push the mode label to the right
         HorizontalPanel spacer = new HorizontalPanel();
@@ -103,29 +100,29 @@ public class Toolbar extends HorizontalPanel {
     //public void setModeLabel(String text) { modeLabel.setText(Locale.LS("Mode: ") + text); }
 
     private Label createIconButton(String icon, String cls) {
-	CirSim sim = CirSim.theSim;
-	return createIconButton(icon, sim.getLabelTextForClass(cls), new MyCommand("main", cls));
+        CirSim sim = CirSim.theSim;
+        return createIconButton(icon, sim.getLabelTextForClass(cls), new MyCommand("main", cls));
     }
 
     private Label createIconButton(String iconClass, String tooltip, MyCommand command) {
         // Create a label to hold the icon
         Label iconLabel = new Label();
         iconLabel.setText(""); // No text, just an icon
-	if (iconClass.startsWith("<svg"))
-	    iconLabel.getElement().setInnerHTML(makeSvg(iconClass, 24));
+        if (iconClass.startsWith("<svg"))
+            iconLabel.getElement().setInnerHTML(makeSvg(iconClass, 24));
         else
-	    iconLabel.getElement().addClassName("cirjsicon-" + iconClass);
+            iconLabel.getElement().addClassName("cirjsicon-" + iconClass);
         iconLabel.setTitle(Locale.LS(tooltip));
 
         // Style the icon button
-	Style style = iconLabel.getElement().getStyle();
+        Style style = iconLabel.getElement().getStyle();
         style.setFontSize(24, Style.Unit.PX);
         style.setColor("#333");
         style.setPadding(1, Style.Unit.PX);
         style.setMarginRight(5, Style.Unit.PX);
         style.setCursor(Style.Cursor.POINTER);
-	if (iconClass.startsWith("<svg"))
-	    style.setPaddingTop(5, Style.Unit.PX);
+        if (iconClass.startsWith("<svg"))
+            style.setPaddingTop(5, Style.Unit.PX);
 
         // Add hover effect for the button
         iconLabel.addMouseOverHandler(event -> iconLabel.getElement().getStyle().setColor("#007bff"));
@@ -135,13 +132,13 @@ public class Toolbar extends HorizontalPanel {
         iconLabel.addClickHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
-		// un-highlight
-        	iconLabel.getElement().getStyle().setColor("#333");
-		if (iconLabel == activeButton) {
-		    new MyCommand("main", "Select").execute();
-		    activeButton = null;
-		} else
-		    command.execute();
+                // un-highlight
+                iconLabel.getElement().getStyle().setColor("#333");
+                if (iconLabel == activeButton) {
+                    new MyCommand("main", "Select").execute();
+                    activeButton = null;
+                } else
+                    command.execute();
             }
         });
 
@@ -153,93 +150,97 @@ public class Toolbar extends HorizontalPanel {
     }
 
     String makeSvg(String s, int size) {
-	double scale = size/24.0;
-	return "<svg width='" + size + "' height='" + size + "'><g transform='scale(" + scale + ")'>" +
-                 s.substring(5, s.length()-5) + "<g></svg>";
+        double scale = size / 24.0;
+        return "<svg width='" + size + "' height='" + size + "'><g transform='scale(" + scale + ")'>" +
+                s.substring(5, s.length() - 5) + "<g></svg>";
     }
 
     // New method for creating variant buttons
     private Label createButtonSet(String info[]) {
-	MyCommand mainCommand = new MyCommand("main", info[1]);
-	CirSim sim = CirSim.theSim;
-	Label iconLabel = createIconButton(info[0], sim.getLabelTextForClass(info[1]), mainCommand);
-	
-	FlowPanel paletteContainer = new FlowPanel();
-	paletteContainer.setVisible(false); // Hidden by default
-	paletteContainer.setStyleName("palette-container");
+        MyCommand mainCommand = new MyCommand("main", info[1]);
+        CirSim sim = CirSim.theSim;
+        Label iconLabel = createIconButton(info[0], sim.getLabelTextForClass(info[1]), mainCommand);
 
-	// Apply CSS styles for positioning and visibility
-	Style paletteStyle = paletteContainer.getElement().getStyle();
-	paletteStyle.setPosition(Style.Position.ABSOLUTE);
-	paletteStyle.setZIndex(1000); // High z-index to appear on top
-	paletteStyle.setBackgroundColor("#ffffff");
-	paletteStyle.setBorderWidth(1, Style.Unit.PX);
-	paletteStyle.setBorderColor("#ccc");
-	paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);
-	paletteStyle.setPadding(5, Style.Unit.PX);
+        FlowPanel paletteContainer = new FlowPanel();
+        paletteContainer.setVisible(false); // Hidden by default
+        paletteContainer.setStyleName("palette-container");
 
-	int i;
-	for (i = 0; i < info.length; i += 2) {
-	    // Create each variant button
-	    Label variantButton = new Label();
-	    variantButton.setText(""); // No text, just an icon
-	    variantButton.getElement().setInnerHTML(makeSvg(info[i], 40));
-	    variantButton.setTitle(sim.getLabelTextForClass(info[i+1]));
+        // Apply CSS styles for positioning and visibility
+        Style paletteStyle = paletteContainer.getElement().getStyle();
+        paletteStyle.setPosition(Style.Position.ABSOLUTE);
+        paletteStyle.setZIndex(1000); // High z-index to appear on top
+        paletteStyle.setBackgroundColor("#ffffff");
+        paletteStyle.setBorderWidth(1, Style.Unit.PX);
+        paletteStyle.setBorderColor("#ccc");
+        paletteStyle.setBorderStyle(Style.BorderStyle.SOLID);
+        paletteStyle.setPadding(5, Style.Unit.PX);
 
-	    // Style the variant button
-	    Style variantStyle = variantButton.getElement().getStyle();
-	    variantStyle.setColor("#333");
-	    //variantStyle.setPadding(5, Style.Unit.PX);
-	    variantStyle.setCursor(Style.Cursor.POINTER);
+        int i;
+        for (i = 0; i < info.length; i += 2) {
+            // Create each variant button
+            Label variantButton = new Label();
+            variantButton.setText(""); // No text, just an icon
+            variantButton.getElement().setInnerHTML(makeSvg(info[i], 40));
+            variantButton.setTitle(sim.getLabelTextForClass(info[i + 1]));
 
-	    final MyCommand command = new MyCommand("main", info[i+1]);
-	    final String smallSvg = makeSvg(info[i], 24);
+            // Style the variant button
+            Style variantStyle = variantButton.getElement().getStyle();
+            variantStyle.setColor("#333");
+            //variantStyle.setPadding(5, Style.Unit.PX);
+            variantStyle.setCursor(Style.Cursor.POINTER);
 
-	    // Add click handler to update the main button and execute the command
-	    variantButton.addClickHandler(event -> {
-		// Change the icon of the main button to reflect the variant selected
-		iconLabel.getElement().setInnerHTML(smallSvg);
-		highlightableButtons.remove(mainCommand.getItemName());
+            final MyCommand command = new MyCommand("main", info[i + 1]);
+            final String smallSvg = makeSvg(info[i], 24);
+
+            // Add click handler to update the main button and execute the command
+            variantButton.addClickHandler(event -> {
+                // Change the icon of the main button to reflect the variant selected
+                iconLabel.getElement().setInnerHTML(smallSvg);
+                highlightableButtons.remove(mainCommand.getItemName());
                 highlightableButtons.put(command.getItemName(), iconLabel);
-		paletteContainer.setVisible(false);
-		mainCommand.setItemName(command.getItemName());
-		command.execute();  // Execute the corresponding command for the selected variant
-	    });
+                paletteContainer.setVisible(false);
+                mainCommand.setItemName(command.getItemName());
+                command.execute();  // Execute the corresponding command for the selected variant
+            });
 
-	    // Append the variant button to the palette container
-	    paletteContainer.add(variantButton);
-	}
+            // Append the variant button to the palette container
+            paletteContainer.add(variantButton);
+        }
 
-	// Add the palette container to the document (or you could append it to the toolbar directly)
-	RootPanel.get().add(paletteContainer);
+        // Add the palette container to the document (or you could append it to the toolbar directly)
+        RootPanel.get().add(paletteContainer);
 
-	// Show palette on mouse-over
-	iconLabel.addMouseOverHandler(event -> {
-	    paletteContainer.setVisible(true);
+        // Show palette on mouse-over
+        iconLabel.addMouseOverHandler(event -> {
+            paletteContainer.setVisible(true);
 
-	    // Position the palette relative to the icon label
-	    int leftOffset = iconLabel.getAbsoluteLeft() - 12;
-	    int topOffset = iconLabel.getAbsoluteTop() + iconLabel.getOffsetHeight() - 2;
-	    paletteContainer.getElement().getStyle().setLeft(leftOffset, Style.Unit.PX);
-	    paletteContainer.getElement().getStyle().setTop(topOffset, Style.Unit.PX);
-	});
+            // Position the palette relative to the icon label
+            int leftOffset = iconLabel.getAbsoluteLeft() - 12;
+            int topOffset = iconLabel.getAbsoluteTop() + iconLabel.getOffsetHeight() - 2;
+            paletteContainer.getElement().getStyle().setLeft(leftOffset, Style.Unit.PX);
+            paletteContainer.getElement().getStyle().setTop(topOffset, Style.Unit.PX);
+        });
 
-	// Hide palette on mouse-out
-	iconLabel.addMouseOutHandler(event -> { paletteContainer.setVisible(false); });
+        // Hide palette on mouse-out
+        iconLabel.addMouseOutHandler(event -> {
+            paletteContainer.setVisible(false);
+        });
 
-	// Keep the palette visible when hovering over it
-	paletteContainer.addDomHandler(event -> paletteContainer.setVisible(true), MouseOverEvent.getType());
-	paletteContainer.addDomHandler(event -> { paletteContainer.setVisible(false); }, MouseOutEvent.getType());
+        // Keep the palette visible when hovering over it
+        paletteContainer.addDomHandler(event -> paletteContainer.setVisible(true), MouseOverEvent.getType());
+        paletteContainer.addDomHandler(event -> {
+            paletteContainer.setVisible(false);
+        }, MouseOutEvent.getType());
 
-	return iconLabel;
+        return iconLabel;
     }
 
     private void styleModeLabel(Label label) {
-	Style style = label.getElement().getStyle();
+        Style style = label.getElement().getStyle();
         style.setFontSize(16, Style.Unit.PX);
         style.setColor("#333");
         style.setPaddingRight(10, Style.Unit.PX);
-	style.setProperty("whiteSpace", "nowrap");
+        style.setProperty("whiteSpace", "nowrap");
     }
 
     public void highlightButton(String key) {
@@ -259,19 +260,19 @@ public class Toolbar extends HorizontalPanel {
     }
 
     public void setEuroResistors(boolean euro) {
-	resistorButton.getElement().setInnerHTML(makeSvg(euro ? euroResistorIcon : resistorIcon, 24));
+        resistorButton.getElement().setInnerHTML(makeSvg(euro ? euroResistorIcon : resistorIcon, 24));
     }
 
     final String wireIcon = "<svg><g transform='scale(0.208) translate(7.5, 32)'>" +
-           "<line x1='5' y1='45' x2='95' y2='5' stroke='currentColor' stroke-width='8' /> " +
-           "<circle cx='5' cy='45' r='10' fill='currentColor' /><circle cx='95' cy='5' r='10' fill='currentColor' /> " +
-           "</g></svg>";
+            "<line x1='5' y1='45' x2='95' y2='5' stroke='currentColor' stroke-width='8' /> " +
+            "<circle cx='5' cy='45' r='10' fill='currentColor' /><circle cx='95' cy='5' r='10' fill='currentColor' /> " +
+            "</g></svg>";
 
     final String resistorIcon = "<svg> <g transform='scale(.5,.5) translate(-544,-297)'>" +
-      "<path stroke='#000000' d=' M 544 320 L 552 320' stroke-width='3'/>" +
-      "<path stroke='#000000' d=' M 584 320 L 592 320' stroke-width='3'/>" +
-      "<g transform='matrix(1,0,0,1,552,320)'><path fill='none' stroke='currentColor' " +
-      "d=' M 0 0 L 2 6 L 6 -6 L 10 6 L 14 -6 L 18 6 L 22 -6 L 26 6 L 30 -6 L 32 0' stroke-width='2'/> </g> </g> </svg>";
+            "<path stroke='#000000' d=' M 544 320 L 552 320' stroke-width='3'/>" +
+            "<path stroke='#000000' d=' M 584 320 L 592 320' stroke-width='3'/>" +
+            "<g transform='matrix(1,0,0,1,552,320)'><path fill='none' stroke='currentColor' " +
+            "d=' M 0 0 L 2 6 L 6 -6 L 10 6 L 14 -6 L 18 6 L 22 -6 L 26 6 L 30 -6 L 32 0' stroke-width='2'/> </g> </g> </svg>";
     final String euroResistorIcon = "<svg><g transform='translate(97.71,-28.71) scale(0.428571)'><path fill='none' stroke='currentColor' d=' M -224 96 L -216 96' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M -184 96 L -176 96' stroke-linecap='round' stroke-width='3' /><g transform='matrix(1,0,0,1,-216,96)'><rect fill='none' stroke='currentColor' x='0' y='-6' width='32' height='12' stroke-linecap='round' stroke-width='3' /></g><path fill='currentColor' stroke='currentColor' d=' M -221 96 A 3 3 0 1 1 -221.00026077471009 95.96044522459944 Z' /><path fill='currentColor' stroke='currentColor' d=' M -173 96 A 3 3 0 1 1 -173.00026077471009 95.96044522459944 Z' /></g></svg>";
 
     final String groundIcon = "<svg><defs /><g transform='scale(.6) translate(-826.46,-231.31) scale(1.230769)'><path fill='none' stroke='currentColor' d=' M 688 192 L 688 208' stroke-linecap='round' stroke-width='3' /> <path fill='none' stroke='currentColor' d=' M 698 208 L 678 208' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 694 213 L 682 213' stroke-linecap='round' stroke-width='3' /><path fill='none' stroke='currentColor' d=' M 690 218 L 686 218' stroke-linecap='round' stroke-width='3' /><path fill='currentColor' stroke='currentColor' d=' M 691 192 A 3 3 0 1 1 690.9997392252899 191.96044522459943 Z' /> </g></svg>";

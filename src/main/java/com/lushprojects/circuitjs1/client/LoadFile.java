@@ -19,60 +19,59 @@
 
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.user.client.ui.FileUpload;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
+import com.google.gwt.user.client.ui.FileUpload;
 
-public class LoadFile extends FileUpload implements  ChangeHandler {
-	
-	static CirSim sim;
-	
-	static public final native boolean isSupported() 
+public class LoadFile extends FileUpload implements ChangeHandler {
+
+    static CirSim sim;
+
+    static public final native boolean isSupported()
 		/*-{
 			return !!($wnd.File && $wnd.FileReader);
 		 }-*/;
-	
-	static public void doLoadCallback(String s, String t) {
-		sim.pushUndo();
-		sim.readCircuit(s);
-		sim.createNewLoadFile();
-		sim.setCircuitTitle(t);
-		sim.setLastFileName(t);
-		sim.unsavedChanges = false;
-	}
-	
-	LoadFile(CirSim s) {
-		super();
-		sim=s;
-		this.setName("Import");
-		this.getElement().setId("LoadFileElement");
-		this.addChangeHandler(this);
-		this.addStyleName("offScreen");
-	}
-	
-	
-	
-	public void onChange(ChangeEvent e) {
-		doLoad();
-	}
-	
-	
-	public native String getPath() 
+
+    static public void doLoadCallback(String s, String t) {
+        sim.pushUndo();
+        sim.readCircuit(s);
+        sim.createNewLoadFile();
+        sim.setCircuitTitle(t);
+        sim.setLastFileName(t);
+        sim.unsavedChanges = false;
+    }
+
+    LoadFile(CirSim s) {
+        super();
+        sim = s;
+        this.setName("Import");
+        this.getElement().setId("LoadFileElement");
+        this.addChangeHandler(this);
+        this.addStyleName("offScreen");
+    }
+
+
+    public void onChange(ChangeEvent e) {
+        doLoad();
+    }
+
+
+    public native String getPath()
 	/*-{
 		return $doc.getElementById("LoadFileElement").value;
 	 }-*/;
 
-	public native String getFileName() 
+    public native String getFileName()
 	/*-{
 		return $doc.getElementById("LoadFileElement").files[0].name;
 	 }-*/;
 
-	public final native void click() 
+    public final native void click()
 	/*-{
 		$doc.getElementById("LoadFileElement").click();
 	 }-*/;
-	
-	static public final native void doLoad()
+
+    static public final native void doLoad()
 		/*-{
 			var oFiles = $doc.getElementById("LoadFileElement").files,
     		nFiles = oFiles.length;
@@ -90,5 +89,5 @@ public class LoadFile extends FileUpload implements  ChangeHandler {
     		    }
     		}
 		 }-*/;
-	
+
 }

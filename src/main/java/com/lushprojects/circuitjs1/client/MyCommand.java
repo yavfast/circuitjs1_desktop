@@ -22,19 +22,27 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.user.client.Command;
 
 public class MyCommand implements Command {
-	private String menuName;
-	private String itemName;
-	
-	public MyCommand(String name, String item){
-		menuName=name;
-		itemName=item;
-	}
-	
-	public void execute() {
-		circuitjs1.mysim.menuPerformed(menuName, itemName);
-	}
+    private String menuName;
+    private String itemName;
 
-	public String getMenuName() { return menuName; }
-	public String getItemName() { return itemName; }
-	public void setItemName(String x) { itemName = x; }
+    public MyCommand(String name, String item) {
+        menuName = name;
+        itemName = item;
+    }
+
+    public void execute() {
+        circuitjs1.mysim.menuPerformed(menuName, itemName);
+    }
+
+    public String getMenuName() {
+        return menuName;
+    }
+
+    public String getItemName() {
+        return itemName;
+    }
+
+    public void setItemName(String x) {
+        itemName = x;
+    }
 }

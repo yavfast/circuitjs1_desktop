@@ -1,14 +1,12 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.*;
-import com.google.gwt.user.client.ui.DialogBox;
+import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.ListBox;
+import com.google.gwt.user.client.ui.VerticalPanel;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Vector;
 
 public class SubcircuitDialog extends Dialog {
@@ -27,8 +25,8 @@ public class SubcircuitDialog extends Dialog {
 
         mainPanel = new VerticalPanel();
         mainPanel.setSpacing(10);
-	mainPanel.setWidth("400px");
-	//mainPanel.setHeight("400px");
+        mainPanel.setWidth("400px");
+        //mainPanel.setHeight("400px");
 
         //Label selectLabel = new Label("Select a subcircuit to delete:");
         //mainPanel.add(selectLabel);
@@ -37,13 +35,13 @@ public class SubcircuitDialog extends Dialog {
         subcircuitListBox.setVisibleItemCount(5);
         subcircuitListBox.setWidth("100%");
 
-	subcircuits = CustomCompositeModel.getModelList();
-	subcircuits.removeIf(CustomCompositeModel::isBuiltin);
-	int i;
-	for (i = 0; i != subcircuits.size(); i++) {
-	    String name = subcircuits.get(i).name;
-	    subcircuitListBox.addItem(name);
-	}
+        subcircuits = CustomCompositeModel.getModelList();
+        subcircuits.removeIf(CustomCompositeModel::isBuiltin);
+        int i;
+        for (i = 0; i != subcircuits.size(); i++) {
+            String name = subcircuits.get(i).name;
+            subcircuitListBox.addItem(name);
+        }
 
         mainPanel.add(subcircuitListBox);
 
@@ -66,7 +64,7 @@ public class SubcircuitDialog extends Dialog {
         mainPanel.add(doneButton);
 
         setWidget(mainPanel);
-	this.center();
+        this.center();
     }
 
     private void handleDelete() {
@@ -80,9 +78,9 @@ public class SubcircuitDialog extends Dialog {
         boolean confirm = Window.confirm("Are you sure you want to delete " + selectedSubcircuit + "?");
 
         if (confirm) {
-	    CustomCompositeModel model = subcircuits.get(selectedIndex);
+            CustomCompositeModel model = subcircuits.get(selectedIndex);
             subcircuits.remove(model);
-	    model.remove();
+            model.remove();
             subcircuitListBox.removeItem(selectedIndex);
         }
     }

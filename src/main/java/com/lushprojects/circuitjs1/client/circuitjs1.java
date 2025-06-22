@@ -19,8 +19,6 @@
 
 package com.lushprojects.circuitjs1.client;
 
-import java.util.HashMap;
-
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.logical.shared.ResizeEvent;
@@ -33,6 +31,8 @@ import com.google.gwt.http.client.Response;
 import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.util.Locale;
+
+import java.util.HashMap;
 
 public class circuitjs1 implements EntryPoint {
 
@@ -90,7 +90,7 @@ public class circuitjs1 implements EntryPoint {
             loadSimulator(localizationMap);
             return;
         }
-        
+
         url = GWT.getModuleBaseURL() + "locale_" + lang + ".txt";
         RequestBuilder requestBuilder = new RequestBuilder(RequestBuilder.GET, url);
         try {
@@ -120,8 +120,8 @@ public class circuitjs1 implements EntryPoint {
     }
 
     static String convertUnicodeEscapes(String input) {
-	if (input.indexOf("\\u") < 0)
-	    return input;
+        if (input.indexOf("\\u") < 0)
+            return input;
         StringBuilder result = new StringBuilder();
         int length = input.length();
         int i = 0;
@@ -160,12 +160,12 @@ public class circuitjs1 implements EntryPoint {
                 CirSim.console("ignoring line in string catalog: " + line);
                 continue;
             }
-	    line = convertUnicodeEscapes(line);
+            line = convertUnicodeEscapes(line);
             int q2 = line.indexOf('"', 1);
             if ((q2 < 0)
-                || (line.charAt(q2 + 1) != '=')
-                || (line.charAt(q2 + 2) != '"')
-                || (line.charAt(line.length() - 1) != '"')) {
+                    || (line.charAt(q2 + 1) != '=')
+                    || (line.charAt(q2 + 2) != '"')
+                    || (line.charAt(line.length() - 1) != '"')) {
                 CirSim.console("ignoring line in string catalog: " + line);
                 continue;
             }

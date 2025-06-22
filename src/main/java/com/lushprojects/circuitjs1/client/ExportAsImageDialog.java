@@ -19,54 +19,55 @@
 
 package com.lushprojects.circuitjs1.client;
 
-import java.util.Date;
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.i18n.client.DateTimeFormat;
+
+import java.util.Date;
 
 public class ExportAsImageDialog extends Dialog {
-	
-	VerticalPanel vp;
-	
-	private static native String b64encode(String a) /*-{
+
+    VerticalPanel vp;
+
+    private static native String b64encode(String a) /*-{
 	  // string may have unicode text strings in it, so we don't just call btoa() 
 	  return window.btoa(unescape(encodeURIComponent(a)));
 	}-*/;
 
-	public ExportAsImageDialog(int type) {
-		super();
-		Button okButton;
-		Anchor a;
-		vp=new VerticalPanel();
-		setWidget(vp);
-		setText(Locale.LS("Export as Image"));
-		vp.add(new Label(Locale.LS("Click on the link below to save your image")));
-		Date date = new Date();
-		DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmm");
-		String dataURL;
-		String ext = ".png";
-		if (type == CirSim.CAC_IMAGE) {
-		    dataURL = CirSim.theSim.getCircuitAsCanvas(type).toDataUrl();
-		} else {
-		    String data = CirSim.theSim.getCircuitAsSVG();
-		    dataURL = "data:text/plain;base64," + b64encode(data);
-		    ext = ".svg";
-		}
-		a=new Anchor("image" + ext, dataURL);
-		String fname = "circuit-"+ dtf.format(date) + ext;
-		a.getElement().setAttribute("Download", fname);
-		vp.add(a);
-		vp.add(okButton = new Button(Locale.LS("OK")));
-		okButton.addClickHandler(new ClickHandler() {
-			public void onClick(ClickEvent event) {
-				closeDialog();
-			}
-		});
-		this.center();
-	}
+    public ExportAsImageDialog(int type) {
+        super();
+        Button okButton;
+        Anchor a;
+        vp = new VerticalPanel();
+        setWidget(vp);
+        setText(Locale.LS("Export as Image"));
+        vp.add(new Label(Locale.LS("Click on the link below to save your image")));
+        Date date = new Date();
+        DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmm");
+        String dataURL;
+        String ext = ".png";
+        if (type == CirSim.CAC_IMAGE) {
+            dataURL = CirSim.theSim.getCircuitAsCanvas(type).toDataUrl();
+        } else {
+            String data = CirSim.theSim.getCircuitAsSVG();
+            dataURL = "data:text/plain;base64," + b64encode(data);
+            ext = ".svg";
+        }
+        a = new Anchor("image" + ext, dataURL);
+        String fname = "circuit-" + dtf.format(date) + ext;
+        a.getElement().setAttribute("Download", fname);
+        vp.add(a);
+        vp.add(okButton = new Button(Locale.LS("OK")));
+        okButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                closeDialog();
+            }
+        });
+        this.center();
+    }
 }
