@@ -188,7 +188,7 @@ public class circuitjs1 implements EntryPoint {
             }
         });
 
-        mysim.updateCircuit();
+        mysim.circuitRenderer.updateCircuit();
     }
 
 }

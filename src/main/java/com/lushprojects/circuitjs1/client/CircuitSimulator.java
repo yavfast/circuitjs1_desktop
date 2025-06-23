@@ -11,6 +11,8 @@ import java.util.Vector;
 
 public class CircuitSimulator {
 
+    private final CirSim cirSim;
+
     // current timestep (time between iterations)
     double timeStep;
     // maximum timestep (== timeStep unless we reduce it because of trouble
@@ -49,8 +51,9 @@ public class CircuitSimulator {
     CircuitElm voltageSources[];
 
 
-    public CircuitSimulator() {
-        elmList = new Vector<CircuitElm>();
+    public CircuitSimulator(CirSim cirSim) {
+        this.cirSim = cirSim;
+        elmList = new Vector<>();
 
     }
 
@@ -1264,7 +1267,7 @@ public class CircuitSimulator {
         //int maxIter = getIterCount();
         boolean debugprint = dumpMatrix;
         dumpMatrix = false;
-        long steprate = (long) (160 * CirSim.theSim.getIterCount());
+        long steprate = (long) (160 * cirSim.getIterCount());
         long tm = System.currentTimeMillis();
         long lit = lastIterTime;
         if (lit == 0) {
@@ -1277,7 +1280,7 @@ public class CircuitSimulator {
         if (1000 >= steprate * (tm - lastIterTime) && !didAnalyze)
             return;
 
-        boolean delayWireProcessing = CirSim.theSim.canDelayWireProcessing();
+        boolean delayWireProcessing = cirSim.scopeManager.canDelayWireProcessing();
 
         int timeStepCountAtFrameStart = timeStepCount;
 
@@ -1379,7 +1382,7 @@ public class CircuitSimulator {
                 goodIterations++;
             else
                 goodIterations = 0;
-            CirSim.theSim.t += timeStep;
+            cirSim.t += timeStep;
             timeStepAccum += timeStep;
             if (timeStepAccum >= maxTimeStep) {
                 timeStepAccum -= maxTimeStep;
@@ -1389,11 +1392,11 @@ public class CircuitSimulator {
                 elmArr[i].stepFinished();
             if (!delayWireProcessing)
                 calcWireCurrents();
-            for (i = 0; i != CirSim.theSim.scopeCount; i++)
-                CirSim.theSim.scopes[i].timeStep();
+            for (i = 0; i != cirSim.scopeManager.scopeCount; i++)
+                cirSim.scopeManager.scopes[i].timeStep();
             for (i = 0; i != scopeElmArr.length; i++)
                 scopeElmArr[i].stepScope();
-            CirSim.theSim.callTimeStepHook();
+            cirSim.callTimeStepHook();
             // save last node voltages so we can restart the next iteration if necessary
             for (i = 0; i != lastNodeVoltages.length; i++)
                 lastNodeVoltages[i] = nodeVoltages[i];
@@ -1403,7 +1406,7 @@ public class CircuitSimulator {
             lit = tm;
             // Check whether enough time has elapsed to perform an *additional* iteration after
             // those we have already completed.  But limit total computation time to 50ms (20fps) by default
-            if ((timeStepCount - timeStepCountAtFrameStart) * 1000 >= steprate * (tm - lastIterTime) || (tm - CirSim.theSim.lastFrameTime > frameTimeLimit))
+            if ((timeStepCount - timeStepCountAtFrameStart) * 1000 >= steprate * (tm - lastIterTime) || (tm - cirSim.circuitRenderer.lastFrameTime > frameTimeLimit))
                 break;
             if (!simRunning)
                 break;

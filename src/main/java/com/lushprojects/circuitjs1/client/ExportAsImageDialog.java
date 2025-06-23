@@ -52,9 +52,9 @@ public class ExportAsImageDialog extends Dialog {
         String dataURL;
         String ext = ".png";
         if (type == CirSim.CAC_IMAGE) {
-            dataURL = CirSim.theSim.getCircuitAsCanvas(type).toDataUrl();
+            dataURL = CirSim.theSim.circuitRenderer.getCircuitAsCanvas(type).toDataUrl();
         } else {
-            String data = CirSim.theSim.getCircuitAsSVG();
+            String data = CirSim.theSim.circuitRenderer.getCircuitAsSVG();
             dataURL = "data:text/plain;base64," + b64encode(data);
             ext = ".svg";
         }

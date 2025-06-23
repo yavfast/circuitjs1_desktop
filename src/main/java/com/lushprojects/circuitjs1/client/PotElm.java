@@ -88,7 +88,7 @@ class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public void execute() {
-        simUi.analyzeFlag = true;
+        simUi.circuitRenderer.analyzeFlag = true;
         setPoints();
     }
 
