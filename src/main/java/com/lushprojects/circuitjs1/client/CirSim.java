@@ -113,7 +113,6 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Random;
 import java.util.Vector;
 
 public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandler,
@@ -135,9 +134,19 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     static final int MODE_SELECT = 6;
     static final int MODE_DRAG_SPLITTER = 7;
 
-    static final int infoWidth = 160;
+    static int MENU_BAR_HEIGHT = 30;
+    static final int TOOLBAR_HEIGHT = 40;
+    static int VERTICAL_PANEL_WIDTH = 166; // default
+    static final int POST_GRAB_SQ = 25;
+    static final int MIN_POST_GRAB_SIZE = 256;
 
-    Random random;
+    static final int INFO_WIDTH = 160;
+
+    CircuitSimulator simulator = new CircuitSimulator(this);
+    CircuitRenderer circuitRenderer = new CircuitRenderer(this);
+    ScopeManager scopeManager = new ScopeManager(this);
+    ClipboardManager clipboardManager = new ClipboardManager(this);
+
     Button resetButton;
     Button runStopButton;
     Button dumpMatrixButton;
@@ -205,30 +214,33 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     // Class addingClass;
     PopupPanel contextPanel = null;
+
     int mouseMode = MODE_SELECT;
     int tempMouseMode = MODE_SELECT;
+
     String mouseModeStr = "Select";
+
     int dragGridX, dragGridY, dragScreenX, dragScreenY, initDragGridX, initDragGridY;
+    boolean dragging;
+
     long mouseDownTime;
     long zoomTime;
     int mouseCursorX = -1;
     int mouseCursorY = -1;
     Rectangle selectedArea;
     int gridSize, gridMask, gridRound;
-    boolean dragging;
     boolean savedFlag;
     boolean dcAnalysisFlag;
     // boolean useBufferedImage;
+
     boolean isMac;
     String ctrlMetaKey;
+
     double t; // TODO: tick ???
+
     int pause = 10;
     int menuPlot = -1;
     int hintType = -1, hintItem1, hintItem2;
-
-    CircuitSimulator simulator = new CircuitSimulator(this);
-    CircuitRenderer circuitRenderer = new CircuitRenderer(this);
-    ScopeManager scopeManager = new ScopeManager(this);
 
     Vector<Adjustable> adjustables;
     // Vector setupList;
@@ -258,7 +270,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     static AboutBox aboutBox;
     // Class dumpTypes[], shortcuts[];
     String shortcuts[];
-    String clipboard;
     String recovery;
     Vector<UndoItem> undoStack, redoStack;
     static boolean unsavedChanges;
@@ -286,11 +297,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     static Button absResetBtn;
     static Button absRunStopBtn;
 
-    static int MENUBARHEIGHT = 30;
-    static final int TOOLBARHEIGHT = 40;
-    static int VERTICALPANELWIDTH = 166; // default
-    static final int POSTGRABSQ = 25;
-    static final int MINPOSTGRABSIZE = 256;
+    @Deprecated
+    static CirSim theSim;
 
     final Timer timer = new Timer() {
         public void run() {
@@ -299,20 +307,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     };
     final int FASTTIMER = 16;
 
-    int getrand(int x) {
-        int q = random.nextInt();
-        if (q < 0)
-            q = -q;
-        return q % x;
-    }
-
     static native float devicePixelRatio() /*-{
         return window.devicePixelRatio;
     }-*/;
 
     void redrawCanvasSize() {
-        layoutPanel.setWidgetSize(menuBar, MENUBARHEIGHT);
-        if (MENUBARHEIGHT < 30) menuBar.addStyleName("modSmallMenuBar");
+        layoutPanel.setWidgetSize(menuBar, MENU_BAR_HEIGHT);
+        if (MENU_BAR_HEIGHT < 30) menuBar.addStyleName("modSmallMenuBar");
         else menuBar.removeStyleName("modSmallMenuBar");
         setCanvasSize();
         repaint();
@@ -331,12 +332,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         int width, height;
         width = (int) RootLayoutPanel.get().getOffsetWidth();
         height = (int) RootLayoutPanel.get().getOffsetHeight();
-        height = height - (hideMenu ? 0 : MENUBARHEIGHT);
+        height = height - (hideMenu ? 0 : MENU_BAR_HEIGHT);
 
         if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
-            width = width - VERTICALPANELWIDTH;
+            width = width - VERTICAL_PANEL_WIDTH;
         if (toolbarCheckItem.getState())
-            height -= TOOLBARHEIGHT;
+            height -= TOOLBAR_HEIGHT;
 
         width = Math.max(width, 0);   // avoid exception when setting negative width
         height = Math.max(height, 0);
@@ -415,7 +416,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         Storage lstor = Storage.getLocalStorageIfSupported();
         int top = 50;
         if (lstor.getItem("MOD_TopMenuBar") == "small") top -= 11;
-        if (lstor.getItem("toolbar") != "false") top += TOOLBARHEIGHT;
+        if (lstor.getItem("toolbar") != "false") top += TOOLBAR_HEIGHT;
         return top;
     }
 
@@ -441,7 +442,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         } else executeJS("nw.Window.get().zoomLevel = " + MOD_UIScale);
         if (MOD_TopMenuBar == null) lstor.setItem("MOD_TopMenuBar", "standart");
         else if (MOD_TopMenuBar == "small") {
-            MENUBARHEIGHT = 20;
+            MENU_BAR_HEIGHT = 20;
             redrawCanvasSize();
         }
         if (MOD_absBtnTheme == null) lstor.setItem("MOD_absBtnTheme", "default");
@@ -479,12 +480,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             lstor.setItem("MOD_setPauseWhenWinUnfocused", "true");
     }
 
-//    Circuit applet;
-
     CirSim() {
-//	super("Circuit Simulator v1.6d");
-//	applet = a;
-//	useFrame = false;
         theSim = this;
     }
 
@@ -649,7 +645,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 	aboutItem.setScheduledCommand(new MyCommand("file","about"));
 	*/
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
-        VERTICALPANELWIDTH = 166; /* = width/5;
+        VERTICAL_PANEL_WIDTH = 166; /* = width/5;
 	if (VERTICALPANELWIDTH > 166)
 	    VERTICALPANELWIDTH = 166;
 	if (VERTICALPANELWIDTH < 128)
@@ -679,9 +675,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                     setCanvasSize();
                     if (lstor.getItem("MOD_overlayingSidebar") == "false") {
                         if (isSidePanelCheckboxChecked())
-                            circuitRenderer.transform[4] -= VERTICALPANELWIDTH / 2;
+                            circuitRenderer.transform[4] -= VERTICAL_PANEL_WIDTH / 2;
                         else
-                            circuitRenderer.transform[4] += VERTICALPANELWIDTH / 2;
+                            circuitRenderer.transform[4] += VERTICAL_PANEL_WIDTH / 2;
                     }
                 }
             }
@@ -694,7 +690,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         topPanelCheckboxLabel.setAttribute("for", "toptrigger");
 
         // make buttons side by side if there's room
-        buttonPanel = (VERTICALPANELWIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
+        buttonPanel = (VERTICAL_PANEL_WIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
 
         m = new MenuBar(true);
         m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit", "undo")));
@@ -853,17 +849,17 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         toolbar = new Toolbar();
         toolbar.setEuroResistors(euroSetting);
         if (!hideMenu)
-            layoutPanel.addNorth(menuBar, MENUBARHEIGHT);
+            layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
 
         // add toolbar immediately after menuBar
-        layoutPanel.addNorth(toolbar, TOOLBARHEIGHT);
+        layoutPanel.addNorth(toolbar, TOOLBAR_HEIGHT);
 
         if (hideSidebar)
-            VERTICALPANELWIDTH = 0;
+            VERTICAL_PANEL_WIDTH = 0;
         else {
             DOM.appendChild(layoutPanel.getElement(), sidePanelCheckbox);
             DOM.appendChild(layoutPanel.getElement(), sidePanelCheckboxLabel);
-            layoutPanel.addEast(verticalPanel, VERTICALPANELWIDTH);
+            layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
         }
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
@@ -976,7 +972,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         redoStack = new Vector<UndoItem>();
 
 
-        random = new Random();
         //	cv.setBackground(Color.black);
         //	cv.setForeground(Color.lightGray);
 
@@ -1534,9 +1529,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                     cumheight += 12;
             }
         }
-        int ih = RootLayoutPanel.get().getOffsetHeight() - MENUBARHEIGHT - cumheight;
+        int ih = RootLayoutPanel.get().getOffsetHeight() - MENU_BAR_HEIGHT - cumheight;
         if (toolbarCheckItem.getState())
-            ih -= TOOLBARHEIGHT;
+            ih -= TOOLBAR_HEIGHT;
         if (ih < 0)
             ih = 0;
         slidersPanel.setHeight(ih + "px");
@@ -1581,12 +1576,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         mainMenuItemNames.add(t);
         return mi;
     }
-
-
-
-    @Deprecated
-    static CirSim theSim;
-
 
     public void setSimRunning(boolean s) {
         if (s) {
@@ -3013,7 +3002,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
 
         if (circuitRenderer.circuitArea.contains(sx, sy)) {
-            if (mouseElm != null && (mouseElm.getHandleGrabbedClose(gx, gy, POSTGRABSQ, MINPOSTGRABSIZE) >= 0)) {
+            if (mouseElm != null && (mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0)) {
                 newMouseElm = mouseElm;
             } else {
                 int bestDist = 100000000;
@@ -3047,7 +3036,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             for (i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm ce = getElm(i);
                 if (mouseMode == MODE_DRAG_POST) {
-                    if (ce.getHandleGrabbedClose(gx, gy, POSTGRABSQ, 0) > 0) {
+                    if (ce.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, 0) > 0) {
                         newMouseElm = ce;
                         break;
                     }
@@ -3288,7 +3277,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         // IES - Grab resize handles in select mode if they are far enough apart and you are on top of them
         if (tempMouseMode == MODE_SELECT && mouseElm != null && !noEditCheckItem.getState() &&
-                mouseElm.getHandleGrabbedClose(gx, gy, POSTGRABSQ, MINPOSTGRABSIZE) >= 0 &&
+                mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0 &&
                 !anySelectedButMouse())
             tempMouseMode = MODE_DRAG_POST;
 
@@ -3601,34 +3590,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         int i;
         pushUndo();
         setMenuSelection();
-        clipboard = "";
-        for (i = simulator.elmList.size() - 1; i >= 0; i--) {
-            CircuitElm ce = getElm(i);
-            // ScopeElms don't cut-paste well because their reference to a parent
-            // elm by number get's messed up in the dump. For now we will just ignore them
-            // until I can be bothered to come up with something better
-            if (willDelete(ce) && !(ce instanceof ScopeElm)) {
-                clipboard += ce.dump() + "\n";
-            }
-        }
-        writeClipboardToStorage();
+
+        clipboardManager.doCut();
+
         doDelete(true);
         enablePaste();
     }
 
-    void writeClipboardToStorage() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        stor.setItem("circuitClipboard", clipboard);
-    }
-
-    void readClipboardFromStorage() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        clipboard = stor.getItem("circuitClipboard");
-    }
 
     void writeRecoveryToStorage() {
         console("write recovery");
@@ -3704,15 +3672,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         CustomCompositeModel.clearDumpedFlags();
         DiodeModel.clearDumpedFlags();
         TransistorModel.clearDumpedFlags();
-        for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
-            CircuitElm ce = getElm(i);
-            String m = ce.dumpModel();
-            if (m != null && !m.isEmpty())
-                r += m + "\n";
-            // See notes on do cut why we don't copy ScopeElms.
-            if (ce.isSelected() && !(ce instanceof ScopeElm))
-                r += ce.dump() + "\n";
-        }
+
+        r += simulator.dumpSelectedItems();
+
         return r;
     }
 
@@ -3721,19 +3683,17 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         boolean clearSel = (menuElm != null && !menuElm.selected);
 
         setMenuSelection();
-        clipboard = copyOfSelectedElms();
+
+        clipboardManager.doCopy();
 
         if (clearSel)
             clearSelection();
 
-        writeClipboardToStorage();
         enablePaste();
     }
 
     void enablePaste() {
-        if (clipboard == null || clipboard.length() == 0)
-            readClipboardFromStorage();
-        pasteItem.setEnabled(clipboard != null && clipboard.length() > 0);
+        pasteItem.setEnabled(clipboardManager.hasClipboardData());
     }
 
     void doDuplicate() {
@@ -3744,6 +3704,14 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void doPaste(String dump) {
+        if (dump == null) {
+            dump = clipboardManager.getClipboard();
+            if (dump == null) {
+                return;
+            }
+        }
+
+
         pushUndo();
         clearSelection();
         int i;
@@ -3770,12 +3738,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (oldsz > 0)
             flags |= RC_NO_CENTER;
 
-        if (dump != null)
-            readCircuit(dump, flags);
-        else {
-            readClipboardFromStorage();
-            readCircuit(clipboard, flags);
-        }
+        readCircuit(dump, flags);
 
         // select new items and get their bounding box
         Rectangle newbb = null;
@@ -4213,6 +4176,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 	    return context.getSerializedSvg();
 	}-*/;
 
+    // JSInterface
     double getLabeledNodeVoltage(String name) {
         Integer node = LabeledNodeElm.getByName(name);
         if (node == null || node == 0)
@@ -4221,6 +4185,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         return simulator.nodeVoltages[node.intValue() - 1];
     }
 
+    // JSInterface
     void setExtVoltage(String name, double v) {
         int i;
         for (i = 0; i != simulator.elmList.size(); i++) {
@@ -4235,6 +4200,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     native JsArray<JavaScriptObject> getJSArray() /*-{ return []; }-*/;
 
+    // JSInterface
     JsArray<JavaScriptObject> getJSElements() {
         int i;
         JsArray<JavaScriptObject> arr = getJSArray();
@@ -4246,6 +4212,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         return arr;
     }
 
+    // JSInterface
     void zoomCircuit(double dy) {
         circuitRenderer.zoomCircuit(dy);
     }

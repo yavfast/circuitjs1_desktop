@@ -167,13 +167,13 @@ public class ModDialog extends DialogBox {
         topMenuBarVars.setWidth("100%");
         topMenuBarVars.add(setStandartTopMenu = new CheckBox("Standart"));
         topMenuBarVars.add(setSmallTopMenu = new CheckBox("Small"));
-        if (CirSim.MENUBARHEIGHT < 30) setSmallTopMenu.setValue(true);
+        if (CirSim.MENU_BAR_HEIGHT < 30) setSmallTopMenu.setValue(true);
         else setStandartTopMenu.setValue(true);
 
         setStandartTopMenu.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 if (setSmallTopMenu.getValue()) {
-                    CirSim.MENUBARHEIGHT = 30;
+                    CirSim.MENU_BAR_HEIGHT = 30;
                     //CirSim.layoutPanel.setWidgetSize(menuBar, 30);
                     setSmallTopMenu.setValue(false);
                     setStandartTopMenu.setValue(true);
@@ -189,7 +189,7 @@ public class ModDialog extends DialogBox {
         setSmallTopMenu.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 if (setStandartTopMenu.getValue()) {
-                    CirSim.MENUBARHEIGHT = 20;
+                    CirSim.MENU_BAR_HEIGHT = 20;
                     //CirSim.layoutPanel.setWidgetSize(menuBar, 19);
                     setStandartTopMenu.setValue(false);
                     setSmallTopMenu.setValue(true);

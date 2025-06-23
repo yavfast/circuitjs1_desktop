@@ -2,11 +2,7 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.storage.client.Storage;
 
-public class ScopeManager {
-
-    private final CirSim cirSim;
-    private final CircuitSimulator simulator;
-    private final CircuitRenderer renderer;
+public class ScopeManager extends BaseCirSimDelegate {
 
     int scopeCount;
     Scope[] scopes;
@@ -18,9 +14,7 @@ public class ScopeManager {
 
 
     public ScopeManager(CirSim cirSim) {
-        this.cirSim = cirSim;
-        this.simulator = cirSim.simulator;
-        this.renderer = cirSim.circuitRenderer;
+        super(cirSim);
 
         scopes = new Scope[20];
         scopeColCount = new int[20];
@@ -245,12 +239,12 @@ public class ScopeManager {
             scopeColCount[scopes[i].position]++;
         }
         int colct = pos + 1;
-        int iw = CirSim.infoWidth;
+        int iw = CirSim.INFO_WIDTH;
         if (colct <= 2)
             iw = iw * 3 / 2;
         int w = (renderer.canvasWidth - iw) / colct;
         if (cirSim.isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "true")
-            w = (renderer.canvasWidth - iw - CirSim.VERTICALPANELWIDTH) / colct;
+            w = (renderer.canvasWidth - iw - CirSim.VERTICAL_PANEL_WIDTH) / colct;
         int marg = 10;
         if (w < marg * 2)
             w = marg * 2;

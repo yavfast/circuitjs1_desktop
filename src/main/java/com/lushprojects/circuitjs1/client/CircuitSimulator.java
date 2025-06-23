@@ -9,9 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
 
-public class CircuitSimulator {
-
-    private final CirSim cirSim;
+public class CircuitSimulator extends BaseCirSimDelegate {
 
     // current timestep (time between iterations)
     double timeStep;
@@ -52,9 +50,8 @@ public class CircuitSimulator {
 
 
     public CircuitSimulator(CirSim cirSim) {
-        this.cirSim = cirSim;
+        super(cirSim);
         elmList = new Vector<>();
-
     }
 
     // find groups of nodes connected by wire equivalents and map them to the same node.  this speeds things
@@ -1415,6 +1412,20 @@ public class CircuitSimulator {
         if (delayWireProcessing)
             calcWireCurrents();
 //	System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
+    }
+
+    String dumpSelectedItems() {
+        String data = "";
+        for (int i = elmList.size() - 1; i >= 0; i--) {
+            CircuitElm ce = elmList.get(i);
+            String m = ce.dumpModel();
+            if (m != null && !m.isEmpty())
+                data += m + "\n";
+            // See notes on do cut why we don't copy ScopeElms.
+            if (ce.isSelected() && !(ce instanceof ScopeElm))
+                data += ce.dump() + "\n";
+        }
+        return data;
     }
 
 }

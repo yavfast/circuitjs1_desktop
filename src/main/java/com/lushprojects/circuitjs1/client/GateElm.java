@@ -239,7 +239,7 @@ abstract class GateElm extends CircuitElm {
                 if (oscillationCount++ > 50) {
                     // output is oscillating too much, randomly leave output the same
                     oscillationCount = 0;
-                    if (simUi.getrand(10) > 5)
+                    if (RandomUtils.getRand(10) > 5)
                         f = lastOutput;
                 }
             } else

@@ -181,10 +181,10 @@ class OpAmpElm extends CircuitElm {
         double dx = 0;
         double maxAdj = maxOut - midpoint;
         double minAdj = minOut - midpoint;
-        if (vd >= maxAdj / gain && (lastvd >= 0 || simUi.getrand(4) == 1)) {
+        if (vd >= maxAdj / gain && (lastvd >= 0 || RandomUtils.getRand(4) == 1)) {
             dx = 1e-4;
             x = maxOut - dx * maxAdj / gain;
-        } else if (vd <= minAdj / gain && (lastvd <= 0 || simUi.getrand(4) == 1)) {
+        } else if (vd <= minAdj / gain && (lastvd <= 0 || RandomUtils.getRand(4) == 1)) {
             dx = 1e-4;
             x = minOut - dx * minAdj / gain;
         } else {

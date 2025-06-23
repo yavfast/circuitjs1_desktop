@@ -8,10 +8,7 @@ import com.lushprojects.circuitjs1.client.util.PerfMonitor;
 
 import java.util.Arrays;
 
-public class CircuitRenderer {
-
-    private final CirSim cirSim;
-    private final CircuitSimulator simulator;
+public class CircuitRenderer extends BaseCirSimDelegate {
 
     Canvas cv;
     Context2d cvcontext;
@@ -32,8 +29,7 @@ public class CircuitRenderer {
     double scopeHeightFraction = 0.2;
 
     public CircuitRenderer(CirSim cirSim) {
-        this.cirSim = cirSim;
-        this.simulator = cirSim.simulator;
+        super(cirSim);
     }
 
     public Canvas initCanvas() {
@@ -355,7 +351,7 @@ public class CircuitRenderer {
         int leftX = 0;
         int h = 0;
         if (simulator.stopMessage == null && cirSim.scopeManager.scopeCount == 0) {
-            leftX = Math.max(canvasWidth - CirSim.infoWidth, 0);
+            leftX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
             h = (cirSim.mouseElm == null) ? 70 : h0;
             if (cirSim.hideInfoBox)

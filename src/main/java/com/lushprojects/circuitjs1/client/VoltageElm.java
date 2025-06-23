@@ -125,7 +125,7 @@ class VoltageElm extends CircuitElm {
 
     void stepFinished() {
         if (waveform == WF_NOISE)
-            noiseValue = (simUi.random.nextDouble() * 2 - 1) * maxVoltage + bias;
+            noiseValue = (RandomUtils.getRandom().nextDouble() * 2 - 1) * maxVoltage + bias;
     }
 
     double getVoltage() {
