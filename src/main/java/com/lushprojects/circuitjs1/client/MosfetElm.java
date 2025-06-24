@@ -151,7 +151,7 @@ class MosfetElm extends CircuitElm {
         int segments = 6;
         int i;
         setPowerColor(g, true);
-        boolean power = simUi.powerCheckItem.getState();
+        boolean power = simUi.menuManager.powerCheckItem.getState();
         double segf = 1. / segments;
         boolean enhancement = vt > 0 && showBulk();
         for (i = 0; i != segments; i++) {

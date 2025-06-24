@@ -324,7 +324,7 @@ class Scope extends BaseCirSimDelegate {
 
             // create plot for current if applicable
             if (ce != null &&
-                    cirSim.dotsCheckItem.getState() &&
+                    cirSim.menuManager.dotsCheckItem.getState() &&
                     !(ce instanceof OutputElm ||
                             ce instanceof LogicOutputElm ||
                             ce instanceof AudioOutputElm ||
@@ -493,7 +493,7 @@ class Scope extends BaseCirSimDelegate {
             draw_ox = x2;
             draw_oy = y2;
         }
-        if (cirSim.printableCheckItem.getState()) {
+        if (cirSim.menuManager.printableCheckItem.getState()) {
             imageContext.setStrokeStyle("#000000");
         } else {
             imageContext.setStrokeStyle("#ffffff");
@@ -508,7 +508,7 @@ class Scope extends BaseCirSimDelegate {
 
     void clear2dView() {
         if (imageContext != null) {
-            if (cirSim.printableCheckItem.getState()) {
+            if (cirSim.menuManager.printableCheckItem.getState()) {
                 imageContext.setFillStyle("#eee");
             } else {
                 imageContext.setFillStyle("#111");
@@ -672,7 +672,7 @@ class Scope extends BaseCirSimDelegate {
             // fade out plot
             alphaCounter = 0;
             imageContext.setGlobalAlpha(0.01);
-            if (cirSim.printableCheckItem.getState()) {
+            if (cirSim.menuManager.printableCheckItem.getState()) {
                 imageContext.setFillStyle("#ffffff");
             } else {
                 imageContext.setFillStyle("#000000");
@@ -1001,7 +1001,7 @@ class Scope extends BaseCirSimDelegate {
 
         String minorDiv = "#404040";
         String majorDiv = "#A0A0A0";
-        if (cirSim.printableCheckItem.getState()) {
+        if (cirSim.menuManager.printableCheckItem.getState()) {
             minorDiv = "#D0D0D0";
             majorDiv = "#808080";
             curColor = "#A0A000";
@@ -1207,7 +1207,7 @@ class Scope extends BaseCirSimDelegate {
         g.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY)
             g.drawLine(rect.x, cirSim.mouseCursorY, rect.x + rect.width, cirSim.mouseCursorY);
-        g.setColor(cirSim.printableCheckItem.getState() ? Color.white : Color.black);
+        g.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
         int bx = x;
         if (bx < szw / 2)
             bx = szw / 2;

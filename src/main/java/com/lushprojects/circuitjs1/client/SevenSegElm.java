@@ -294,7 +294,7 @@ class SevenSegElm extends ChipElm {
     }
 
     void setColor(Graphics g, int p) {
-        boolean whiteBkg = simUi.printableCheckItem.getState();
+        boolean whiteBkg = simUi.menuManager.printableCheckItem.getState();
         if (diodeDirection == 0) {
             g.setColor(pins[p].value ? Color.red :
                     whiteBkg ? lightgray : darkred);

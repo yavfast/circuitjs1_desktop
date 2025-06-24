@@ -149,7 +149,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         Graphics g = new Graphics(cvcontext);
 
-        if (cirSim.printableCheckItem.getState()) {
+        if (cirSim.menuManager.printableCheckItem.getState()) {
             CircuitElm.whiteColor = Color.black;
             CircuitElm.lightGrayColor = Color.black;
             g.setColor(Color.white);
@@ -187,7 +187,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 double c = cirSim.currentBar.getValue();
                 c = java.lang.Math.exp(c / 3.5 - 14.2);
                 CircuitElm.currentMult = 1.7 * inc * c;
-                if (!cirSim.conventionCheckItem.getState())
+                if (!cirSim.menuManager.conventionCheckItem.getState())
                     CircuitElm.currentMult = -CircuitElm.currentMult;
             }
             lastTime = sysTime;
@@ -211,7 +211,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         g.context.setLineCap(Context2d.LineCap.ROUND);
 
-        if (cirSim.noEditCheckItem.getState())
+        if (cirSim.menuManager.noEditCheckItem.getState())
             g.drawLock(20, 30);
 
         g.setColor(Color.white);
@@ -223,7 +223,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         // Draw each element
         perfmon.startContext("elm.draw()");
         for (int i = 0; i != simulator.elmList.size(); i++) {
-            if (cirSim.powerCheckItem.getState())
+            if (cirSim.menuManager.powerCheckItem.getState())
                 g.setColor(Color.gray);
 
             cirSim.getElm(i).draw(g);
@@ -281,7 +281,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // draw the crosshair cursor
-        if (cirSim.crossHairCheckItem.getState() && cirSim.mouseCursorX >= 0
+        if (cirSim.menuManager.crossHairCheckItem.getState() && cirSim.mouseCursorX >= 0
                 && cirSim.mouseCursorX <= circuitArea.width && cirSim.mouseCursorY <= circuitArea.height) {
             g.setColor(Color.gray);
             int x = cirSim.snapGrid(inverseTransformX(cirSim.mouseCursorX));
@@ -337,8 +337,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // Add info about mouse mode in graphics
-        if (cirSim.mouseModeCheckItem.getState()) {
-            if (cirSim.printableCheckItem.getState()) g.setColor(Color.black);
+        if (cirSim.menuManager.mouseModeCheckItem.getState()) {
+            if (cirSim.menuManager.printableCheckItem.getState()) g.setColor(Color.black);
             g.drawString(Locale.LS("Mode: ") + cirSim.classToLabelMap.get(cirSim.mouseModeStr), 10, 29);
         }
 
@@ -359,7 +359,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
         if (simulator.stopMessage != null && circuitArea.height > canvasHeight - 30)
             h = 30;
-        g.setColor(cirSim.printableCheckItem.getState() ? "#eee" : "#111");
+        g.setColor(cirSim.menuManager.printableCheckItem.getState() ? "#eee" : "#111");
         g.fillRect(leftX, circuitArea.height - h, circuitArea.width, canvasHeight - circuitArea.height + h);
         g.setFont(CircuitElm.unitsFont);
         int ct = cirSim.scopeManager.scopeCount;
@@ -561,12 +561,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         double scale = 1;
 
         // turn on white background, turn off current display
-        boolean p = cirSim.printableCheckItem.getState();
-        boolean c = cirSim.dotsCheckItem.getState();
+        boolean p = cirSim.menuManager.printableCheckItem.getState();
+        boolean c = cirSim.menuManager.dotsCheckItem.getState();
         boolean print = (type == cirSim.CAC_PRINT);
         if (print)
-            cirSim.printableCheckItem.setState(true);
-        if (cirSim.printableCheckItem.getState()) {
+            cirSim.menuManager.printableCheckItem.setState(true);
+        if (cirSim.menuManager.printableCheckItem.getState()) {
             CircuitElm.whiteColor = Color.black;
             CircuitElm.lightGrayColor = Color.black;
             g.setColor(Color.white);
@@ -576,7 +576,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             g.setColor(Color.black);
         }
         g.fillRect(0, 0, w, h);
-        cirSim.dotsCheckItem.setState(false);
+        cirSim.menuManager.dotsCheckItem.setState(false);
 
         int wmargin = 140;
         int hmargin = 100;
@@ -602,8 +602,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // restore everything
-        cirSim.printableCheckItem.setState(p);
-        cirSim.dotsCheckItem.setState(c);
+        cirSim.menuManager.printableCheckItem.setState(p);
+        cirSim.menuManager.dotsCheckItem.setState(c);
         transform = oldTransform;
     }
 

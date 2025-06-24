@@ -130,10 +130,10 @@ class ScopePlot {
                 color = CircuitElm.positiveColor.getHexValue();
                 break;
             case Scope.UNITS_A:
-                color = (CirSim.theSim.printableCheckItem.getState()) ? "#A0A000" : "#FFFF00";
+                color = (CirSim.theSim.menuManager.printableCheckItem.getState()) ? "#A0A000" : "#FFFF00";
                 break;
             default:
-                color = (CirSim.theSim.printableCheckItem.getState()) ? "#000000" : "#FFFFFF";
+                color = (CirSim.theSim.menuManager.printableCheckItem.getState()) ? "#000000" : "#FFFFFF";
                 break;
         }
     }

@@ -272,7 +272,7 @@ class VoltageElm extends CircuitElm {
                 break;
             }
         }
-        if (simUi.showValuesCheckItem.getState() && waveform != WF_NOISE) {
+        if (simUi.menuManager.showValuesCheckItem.getState() && waveform != WF_NOISE) {
             String s = getShortUnitText(frequency, "Hz");
             if (dx == 0 || dy == 0)
                 drawValues(g, s, circleSize);

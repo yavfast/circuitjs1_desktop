@@ -36,7 +36,7 @@ class OpAmpElm extends CircuitElm {
         gbw = 1e6;
         flags = FLAG_GAIN; // need to do this before setSize()
         gain = 100000;
-        setSize(simUi.smallGridCheckItem.getState() ? 1 : 2);
+        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
     }
 
     public OpAmpElm(int xa, int ya, int xb, int yb, int f,

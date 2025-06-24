@@ -82,9 +82,7 @@ import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.http.client.URL;
 import com.google.gwt.i18n.client.DateTimeFormat;
-import com.google.gwt.safehtml.shared.SafeHtmlUtils;
 import com.google.gwt.storage.client.Storage;
-import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Event;
@@ -94,7 +92,6 @@ import com.google.gwt.user.client.EventListener;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.Window.ClosingEvent;
-import com.google.gwt.user.client.Window.Navigator;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CellPanel;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
@@ -103,7 +100,6 @@ import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
-import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.ScrollPanel;
@@ -148,73 +144,23 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     ScopeManager scopeManager = new ScopeManager(this);
     ClipboardManager clipboardManager = new ClipboardManager(this);
     DialogManager dialogManager = new DialogManager(this);
+    MenuManager menuManager = new MenuManager(this);
 
     Button resetButton;
     Button runStopButton;
     Button dumpMatrixButton;
-    MenuItem aboutItem;
-    MenuItem helpItem;
-    MenuItem licenseItem;
-    // MenuItem testItem;
-    MenuItem aboutCircuitsItem;
-    MenuItem aboutCircuitsPLItem;
-    MenuItem closeItem;
-    //CheckboxMenuItem fullscreenCheckItem;
-    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
-            printItem, recoverItem, saveFileItem;
-    //MenuItem importFromDropboxItem;
-    MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem, modItem;
-    MenuBar optionsMenuBar;
-    CheckboxMenuItem dotsCheckItem;
-    CheckboxMenuItem voltsCheckItem;
-    CheckboxMenuItem powerCheckItem;
-    CheckboxMenuItem smallGridCheckItem;
-    CheckboxMenuItem crossHairCheckItem;
-    CheckboxMenuItem showValuesCheckItem;
-    CheckboxMenuItem conductanceCheckItem;
-    CheckboxMenuItem euroResistorCheckItem;
-    CheckboxMenuItem euroGatesCheckItem;
-    CheckboxMenuItem printableCheckItem;
-    CheckboxMenuItem conventionCheckItem;
-    CheckboxMenuItem noEditCheckItem;
-    CheckboxMenuItem mouseWheelEditCheckItem;
-    CheckboxMenuItem toolbarCheckItem;
-    CheckboxMenuItem mouseModeCheckItem;
+
     Label powerLabel;
     Label titleLabel;
     Scrollbar speedBar;
     Scrollbar currentBar;
     Scrollbar powerBar;
-    MenuBar elmMenuBar;
-    MenuItem elmEditMenuItem;
-    MenuItem elmCutMenuItem;
-    MenuItem elmCopyMenuItem;
-    MenuItem elmDeleteMenuItem;
-    MenuItem elmScopeMenuItem;
-    MenuItem elmFloatScopeMenuItem;
-    MenuItem elmAddScopeMenuItem;
-    MenuItem elmSplitMenuItem;
-    MenuItem elmSliderMenuItem;
-    MenuItem elmFlipXMenuItem, elmFlipYMenuItem, elmFlipXYMenuItem;
-    MenuItem elmSwapMenuItem;
-    MenuItem stackAllItem;
-    MenuItem unstackAllItem;
-    MenuItem combineAllItem;
-    MenuItem separateAllItem;
-    MenuBar mainMenuBar;
-    boolean hideMenu = false;
-    MenuBar selectScopeMenuBar;
-    Vector<MenuItem> selectScopeMenuItems;
-    MenuBar subcircuitMenuBar[];
-    MenuItem scopeRemovePlotMenuItem;
-    MenuItem scopeSelectYMenuItem;
-    ScopePopupMenu scopePopupMenu;
+
     Element sidePanelCheckboxLabel;
 
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
 
-    PopupPanel contextPanel = null;
 
     int mouseMode = MODE_SELECT;
     int tempMouseMode = MODE_SELECT;
@@ -233,9 +179,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     boolean savedFlag;
     boolean dcAnalysisFlag;
     // boolean useBufferedImage;
-
-    boolean isMac;
-    String ctrlMetaKey;
 
     double t; // TODO: tick ???
 
@@ -263,33 +206,33 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
 
     // Class dumpTypes[], shortcuts[];
-    String shortcuts[];
+    String[] shortcuts;
     String recovery;
     Vector<UndoItem> undoStack, redoStack;
     static boolean unsavedChanges;
     static String filePath;
     static String fileName;
     static String lastFileName;
-    HashMap<String, String> classToLabelMap;
+    HashMap<String, String> classToLabelMap = new HashMap<>();
     Toolbar toolbar;
 
     DockLayoutPanel layoutPanel;
-    MenuBar menuBar;
-    MenuBar fileMenuBar;
     VerticalPanel verticalPanel;
     VerticalPanel verticalPanel2;
     ScrollPanel slidersPanel;
     CellPanel buttonPanel;
     private boolean mouseDragging;
 
-    Vector<CheckboxMenuItem> mainMenuItems = new Vector<CheckboxMenuItem>();
-    Vector<String> mainMenuItemNames = new Vector<String>();
+    boolean hideMenu = false;
 
     LoadFile loadFileInput;
     Frame iFrame = null;
 
     static Button absResetBtn;
     static Button absRunStopBtn;
+
+    boolean euroSetting;
+    boolean euroGates = false;
 
     @Deprecated
     static CirSim theSim;
@@ -306,9 +249,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }-*/;
 
     void redrawCanvasSize() {
-        layoutPanel.setWidgetSize(menuBar, MENU_BAR_HEIGHT);
-        if (MENU_BAR_HEIGHT < 30) menuBar.addStyleName("modSmallMenuBar");
-        else menuBar.removeStyleName("modSmallMenuBar");
+        layoutPanel.setWidgetSize(menuManager.menuBar, MENU_BAR_HEIGHT);
+        if (MENU_BAR_HEIGHT < 30)
+            menuManager.menuBar.addStyleName("modSmallMenuBar");
+        else
+            menuManager.menuBar.removeStyleName("modSmallMenuBar");
         setCanvasSize();
         repaint();
     }
@@ -330,7 +275,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
             width = width - VERTICAL_PANEL_WIDTH;
-        if (toolbarCheckItem.getState())
+        if (menuManager.toolbarCheckItem.getState())
             height -= TOOLBAR_HEIGHT;
 
         width = Math.max(width, 0);   // avoid exception when setting negative width
@@ -484,6 +429,15 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     String startCircuitLink = null;
 //    String baseURL = "http://www.falstad.com/circuit/";
 
+    boolean printable = false;
+    boolean convention = true;
+    boolean euroRes = false;
+    boolean usRes = false;
+    boolean running = true;
+    boolean hideSidebar = false;
+    boolean noEditing = false;
+    boolean mouseWheelEdit = false;
+
     public void init() {
 
         //sets the meta tag to allow the css media queries to work
@@ -494,15 +448,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         node.getItem(0).appendChild(meta);
 
 
-        boolean printable = false;
-        boolean convention = true;
-        boolean euroRes = false;
-        boolean usRes = false;
-        boolean running = true;
-        boolean hideSidebar = false;
-        boolean noEditing = false;
-        boolean mouseWheelEdit = false;
-        MenuBar m;
 
         CircuitElm.initClass(this);
         readRecovery();
@@ -514,7 +459,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         String selectColor = null;
         String currentColor = null;
         String mouseModeReq = null;
-        boolean euroGates = false;
 
         try {
             //baseURL = applet.getDocumentBase().getFile();
@@ -532,16 +476,16 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             startLabel = qp.getValue("startLabel");
             startCircuitLink = qp.getValue("startCircuitLink");
             euroRes = qp.getBooleanValue("euroResistors", false);
-            euroGates = qp.getBooleanValue("IECGates", getOptionFromStorage("euroGates", weAreInGermany()));
+            euroGates = qp.getBooleanValue("IECGates", OptionsManager.getBoolOptionFromStorage("euroGates", weAreInGermany()));
             usRes = qp.getBooleanValue("usResistors", false);
             running = qp.getBooleanValue("running", true);
             hideSidebar = qp.getBooleanValue("hideSidebar", false);
             hideMenu = qp.getBooleanValue("hideMenu", false);
-            printable = qp.getBooleanValue("whiteBackground", getOptionFromStorage("whiteBackground", false));
+            printable = qp.getBooleanValue("whiteBackground", OptionsManager.getBoolOptionFromStorage("whiteBackground", false));
             convention = qp.getBooleanValue("conventionalCurrent",
-                    getOptionFromStorage("conventionalCurrent", true));
+                    OptionsManager.getBoolOptionFromStorage("conventionalCurrent", true));
             noEditing = !qp.getBooleanValue("editable", true);
-            mouseWheelEdit = qp.getBooleanValue("mouseWheelEdit", getOptionFromStorage("mouseWheelEdit", true));
+            mouseWheelEdit = qp.getBooleanValue("mouseWheelEdit", OptionsManager.getBoolOptionFromStorage("mouseWheelEdit", true));
             positiveColor = qp.getValue("positiveColor");
             negativeColor = qp.getValue("negativeColor");
             neutralColor = qp.getValue("neutralColor");
@@ -552,17 +496,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         } catch (Exception e) {
         }
 
-        boolean euroSetting = false;
+        euroSetting = false;
         if (euroRes)
             euroSetting = true;
         else if (usRes)
             euroSetting = false;
         else
-            euroSetting = getOptionFromStorage("euroResistors", !weAreInUS(true));
-
-        String os = Navigator.getPlatform();
-        isMac = (os.toLowerCase().contains("mac"));
-        ctrlMetaKey = (isMac) ? Locale.LS("Cmd-") : Locale.LS("Ctrl-");
+            euroSetting = OptionsManager.getBoolOptionFromStorage("euroResistors", !weAreInUS(true));
 
         shortcuts = new String[127];
 
@@ -588,56 +528,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
 
-        fileMenuBar = new MenuBar(true);
-        fileMenuBar.addItem(menuItemWithShortcut("window", "New Window...", Locale.LS(ctrlMetaKey + "N"),
-                new MyCommand("file", "newwindow")));
-        fileMenuBar.addItem(iconMenuItem("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
-        importFromLocalFileItem = menuItemWithShortcut("folder", "Open File...", Locale.LS(ctrlMetaKey + "O"),
-                new MyCommand("file", "importfromlocalfile"));
-        importFromLocalFileItem.setEnabled(LoadFile.isSupported());
-        fileMenuBar.addItem(importFromLocalFileItem);
-        importFromTextItem = iconMenuItem("doc-text", "Import From Text...", new MyCommand("file", "importfromtext"));
-        fileMenuBar.addItem(importFromTextItem);
-        //importFromDropboxItem = iconMenuItem("dropbox", "Import From Dropbox...", new MyCommand("file", "importfromdropbox"));
-        //fileMenuBar.addItem(importFromDropboxItem);
-        //if (isElectron()) {
-        saveFileItem = fileMenuBar.addItem(menuItemWithShortcut("floppy", "Save", Locale.LS(ctrlMetaKey + "S"),
-                new MyCommand("file", "save")));
-        fileMenuBar.addItem(iconMenuItem("floppy", "Save As...", new MyCommand("file", "saveas")));
-	/*} else {
-	    exportAsLocalFileItem = menuItemWithShortcut("floppy", "Save As...", Locale.LS(ctrlMetaKey + "S"),
-		    new MyCommand("file","exportaslocalfile"));
-	    exportAsLocalFileItem.setEnabled(ExportAsLocalFileDialog.downloadIsSupported());
-	    fileMenuBar.addItem(exportAsLocalFileItem);
-	}*/
-        exportAsUrlItem = iconMenuItem("export", "Export As Link...", new MyCommand("file", "exportasurl"));
-        fileMenuBar.addItem(exportAsUrlItem);
-        exportAsTextItem = iconMenuItem("export", "Export As Text...", new MyCommand("file", "exportastext"));
-        fileMenuBar.addItem(exportAsTextItem);
-        fileMenuBar.addItem(iconMenuItem("image", "Export As Image...", new MyCommand("file", "exportasimage")));
-        fileMenuBar.addItem(iconMenuItem("image", "Copy Circuit Image to Clipboard", new MyCommand("file", "copypng")));
-        fileMenuBar.addItem(iconMenuItem("image", "Export As SVG...", new MyCommand("file", "exportassvg")));
-        fileMenuBar.addItem(iconMenuItem("microchip", "Create Subcircuit...", new MyCommand("file", "createsubcircuit")));
-        fileMenuBar.addItem(iconMenuItem("magic", "Find DC Operating Point", new MyCommand("file", "dcanalysis")));
-        recoverItem = iconMenuItem("back-in-time", "Recover Auto-Save", new MyCommand("file", "recover"));
-        recoverItem.setEnabled(recovery != null);
-        fileMenuBar.addItem(recoverItem);
-        printItem = menuItemWithShortcut("print", "Print...", Locale.LS(ctrlMetaKey + "P"), new MyCommand("file", "print"));
-        fileMenuBar.addItem(printItem);
-        fileMenuBar.addSeparator();
-        fileMenuBar.addItem(iconMenuItem("resize-full-alt", "Toggle Full Screen", new MyCommand("view", "fullscreen")));
-        fileMenuBar.addSeparator();
-        fileMenuBar.addItem(iconMenuItem("exit", "Exit",
-                new Command() {
-                    public void execute() {
-                        executeJS("nw.Window.get().close(true)");
-                    }
-                }));
-	/*
-	aboutItem = iconMenuItem("info-circled", "About...", (Command)null);
-	fileMenuBar.addItem(aboutItem);
-	aboutItem.setScheduledCommand(new MyCommand("file","about"));
-	*/
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
         VERTICAL_PANEL_WIDTH = 166; /* = width/5;
 	if (VERTICALPANELWIDTH > 166)
@@ -645,8 +535,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 	if (VERTICALPANELWIDTH < 128)
 	    VERTICALPANELWIDTH = 128;*/
 
-        menuBar = new MenuBar();
-        menuBar.addItem(Locale.LS("File"), fileMenuBar);
         verticalPanel = new VerticalPanel();
         slidersPanel = new ScrollPanel();
         verticalPanel2 = new VerticalPanel();
@@ -686,155 +574,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         // make buttons side by side if there's room
         buttonPanel = (VERTICAL_PANEL_WIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
 
-        m = new MenuBar(true);
-        m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit", "undo")));
-        m.addItem(redoItem = menuItemWithShortcut("cw", "Redo", Locale.LS(ctrlMetaKey + "Y"), new MyCommand("edit", "redo")));
-        m.addSeparator();
-        m.addItem(cutItem = menuItemWithShortcut("scissors", "Cut", Locale.LS(ctrlMetaKey + "X"), new MyCommand("edit", "cut")));
-        m.addItem(copyItem = menuItemWithShortcut("copy", "Copy", Locale.LS(ctrlMetaKey + "C"), new MyCommand("edit", "copy")));
-        m.addItem(pasteItem = menuItemWithShortcut("paste", "Paste", Locale.LS(ctrlMetaKey + "V"), new MyCommand("edit", "paste")));
-        pasteItem.setEnabled(false);
+        menuManager.initMainMenuBar();
+        MenuBar menuBar = menuManager.menuBar;
 
-        m.addItem(menuItemWithShortcut("clone", "Duplicate", Locale.LS(ctrlMetaKey + "D"), new MyCommand("edit", "duplicate")));
-
-        m.addSeparator();
-        m.addItem(selectAllItem = menuItemWithShortcut("select-all", "Select All", Locale.LS(ctrlMetaKey + "A"), new MyCommand("edit", "selectAll")));
-        m.addSeparator();
-        m.addItem(menuItemWithShortcut("search", "Find Component...", "/", new MyCommand("edit", "search")));
-        m.addItem(iconMenuItem("target", weAreInUS(false) ? "Center Circuit" : "Centre Circuit", new MyCommand("edit", "centrecircuit")));
-        m.addItem(menuItemWithShortcut("zoom-11", "Zoom 100%", "0", new MyCommand("zoom", "zoom100")));
-        m.addItem(menuItemWithShortcut("zoom-in", "Zoom In", "+", new MyCommand("zoom", "zoomin")));
-        m.addItem(menuItemWithShortcut("zoom-out", "Zoom Out", "-", new MyCommand("zoom", "zoomout")));
-        m.addItem(flipXItem = iconMenuItem("flip-x", "Flip X", new MyCommand("edit", "flipx")));
-        m.addItem(flipYItem = iconMenuItem("flip-y", "Flip Y", new MyCommand("edit", "flipy")));
-        m.addItem(flipXYItem = iconMenuItem("flip-x-y", "Flip XY", new MyCommand("edit", "flipxy")));
-        menuBar.addItem(Locale.LS("Edit"), m);
-
-        MenuBar drawMenuBar = new MenuBar(true);
-        drawMenuBar.setAutoOpen(true);
-
-        menuBar.addItem(Locale.LS("Draw"), drawMenuBar);
-
-        m = new MenuBar(true);
-        m.addItem(stackAllItem = iconMenuItem("lines", "Stack All", new MyCommand("scopes", "stackAll")));
-        m.addItem(unstackAllItem = iconMenuItem("columns", "Unstack All", new MyCommand("scopes", "unstackAll")));
-        m.addItem(combineAllItem = iconMenuItem("object-group", "Combine All", new MyCommand("scopes", "combineAll")));
-        m.addItem(separateAllItem = iconMenuItem("object-ungroup", "Separate All", new MyCommand("scopes", "separateAll")));
-        menuBar.addItem(Locale.LS("Scopes"), m);
-
-        optionsMenuBar = m = new MenuBar(true);
-        menuBar.addItem(Locale.LS("Options"), optionsMenuBar);
-        m.addItem(dotsCheckItem = new CheckboxMenuItem(Locale.LS("Show Current")));
-        dotsCheckItem.setState(true);
-        m.addItem(voltsCheckItem = new CheckboxMenuItem(Locale.LS("Show Voltage"),
-                new Command() {
-                    public void execute() {
-                        if (voltsCheckItem.getState())
-                            powerCheckItem.setState(false);
-                        setPowerBarEnable();
-                    }
-                }));
-        voltsCheckItem.setState(true);
-        m.addItem(powerCheckItem = new CheckboxMenuItem(Locale.LS("Show Power"),
-                new Command() {
-                    public void execute() {
-                        if (powerCheckItem.getState())
-                            voltsCheckItem.setState(false);
-                        setPowerBarEnable();
-                    }
-                }));
-        m.addItem(showValuesCheckItem = new CheckboxMenuItem(Locale.LS("Show Values")));
-        showValuesCheckItem.setState(true);
-        //m.add(conductanceCheckItem = getCheckItem(LS("Show Conductance")));
-        m.addItem(smallGridCheckItem = new CheckboxMenuItem(Locale.LS("Small Grid"),
-                new Command() {
-                    public void execute() {
-                        setGrid();
-                    }
-                }));
-        m.addItem(toolbarCheckItem = new CheckboxMenuItem(Locale.LS("Toolbar"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("toolbar", toolbarCheckItem.getState());
-                        setToolbar();
-                    }
-                }));
-        toolbarCheckItem.setState(getOptionFromStorage("toolbar", true));
-        m.addItem(mouseModeCheckItem = new CheckboxMenuItem(Locale.LS("Show Mode"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("showMouseMode", mouseModeCheckItem.getState());
-                    }
-                }));
-        mouseModeCheckItem.setState(getOptionFromStorage("showMouseMode", true));
-        m.addItem(crossHairCheckItem = new CheckboxMenuItem(Locale.LS("Show Cursor Cross Hairs"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("crossHair", crossHairCheckItem.getState());
-                    }
-                }));
-        crossHairCheckItem.setState(getOptionFromStorage("crossHair", false));
-        m.addItem(euroResistorCheckItem = new CheckboxMenuItem(Locale.LS("European Resistors"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("euroResistors", euroResistorCheckItem.getState());
-                        toolbar.setEuroResistors(euroResistorCheckItem.getState());
-                    }
-                }));
-        euroResistorCheckItem.setState(euroSetting);
-        m.addItem(euroGatesCheckItem = new CheckboxMenuItem(Locale.LS("IEC Gates"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("euroGates", euroGatesCheckItem.getState());
-                        int i;
-                        for (i = 0; i != simulator.elmList.size(); i++)
-                            getElm(i).setPoints();
-                    }
-                }));
-        euroGatesCheckItem.setState(euroGates);
-        m.addItem(printableCheckItem = new CheckboxMenuItem(Locale.LS("White Background"),
-                new Command() {
-                    public void execute() {
-                        scopeManager.updateScopes();
-                        setOptionInStorage("whiteBackground", printableCheckItem.getState());
-                    }
-                }));
-        printableCheckItem.setState(printable);
-
-        m.addItem(conventionCheckItem = new CheckboxMenuItem(Locale.LS("Conventional Current Motion"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("conventionalCurrent", conventionCheckItem.getState());
-                        String cc = CircuitElm.currentColor.getHexValue();
-                        // change the current color if it hasn't changed from the default
-                        if (cc.equals("#ffff00") || cc.equals("#00ffff"))
-                            CircuitElm.currentColor = conventionCheckItem.getState() ? Color.yellow : Color.cyan;
-                    }
-                }));
-        conventionCheckItem.setState(convention);
-        m.addItem(noEditCheckItem = new CheckboxMenuItem(Locale.LS("Disable Editing")));
-        noEditCheckItem.setState(noEditing);
-
-        m.addItem(mouseWheelEditCheckItem = new CheckboxMenuItem(Locale.LS("Edit Values With Mouse Wheel"),
-                new Command() {
-                    public void execute() {
-                        setOptionInStorage("mouseWheelEdit", mouseWheelEditCheckItem.getState());
-                    }
-                }));
-        mouseWheelEditCheckItem.setState(mouseWheelEdit);
-
-        m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Shortcuts..."), new MyCommand("options", "shortcuts")));
-        m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Subcircuits..."), new MyCommand("options", "subcircuits")));
-        m.addItem(optionsItem = new CheckboxAlignedMenuItem(Locale.LS("Other Options..."), new MyCommand("options", "other")));
-        m.addItem(modItem = new CheckboxAlignedMenuItem("Modification Setup...", new MyCommand("options", "modsetup")));
-        modItem.addStyleName("modItem");
-        if (isElectron())
-            m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options", "devtools")));
-
-        mainMenuBar = new MenuBar(true);
-        mainMenuBar.setAutoOpen(true);
-        composeMainMenu(mainMenuBar, 0);
-        composeMainMenu(drawMenuBar, 1);
         loadShortcuts();
 
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckbox);
@@ -855,8 +597,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             DOM.appendChild(layoutPanel.getElement(), sidePanelCheckboxLabel);
             layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
         }
+
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
+
         RootLayoutPanel.get().add(layoutPanel);
 
         Canvas cv = renderer.initCanvas();
@@ -969,50 +713,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         //	cv.setBackground(Color.black);
         //	cv.setForeground(Color.lightGray);
 
-        elmMenuBar = new MenuBar(true);
-        elmMenuBar.setAutoOpen(true);
-        selectScopeMenuBar = new MenuBar(true) {
-            @Override
+        menuManager.initElmMenuBar();
 
-            // when mousing over scope menu item, select associated scope
-            public void onBrowserEvent(Event event) {
-                int currentItem = -1;
-                int i;
-                for (i = 0; i != selectScopeMenuItems.size(); i++) {
-                    MenuItem item = selectScopeMenuItems.get(i);
-                    if (DOM.isOrHasChild(item.getElement(), DOM.eventGetTarget(event))) {
-                        //MenuItem found here
-                        currentItem = i;
-                    }
-                }
-                switch (DOM.eventGetType(event)) {
-                    case Event.ONMOUSEOVER:
-                        scopeManager.scopeMenuSelected = currentItem;
-                        break;
-                    case Event.ONMOUSEOUT:
-                        scopeManager.scopeMenuSelected = -1;
-                        break;
-                }
-                super.onBrowserEvent(event);
-            }
-        };
-
-        elmMenuBar.addItem(elmEditMenuItem = new MenuItem(Locale.LS("Edit..."), new MyCommand("elm", "edit")));
-        elmMenuBar.addItem(elmScopeMenuItem = new MenuItem(Locale.LS("View in New Scope"), new MyCommand("elm", "viewInScope")));
-        elmMenuBar.addItem(elmFloatScopeMenuItem = new MenuItem(Locale.LS("View in New Undocked Scope"), new MyCommand("elm", "viewInFloatScope")));
-        elmMenuBar.addItem(elmAddScopeMenuItem = new MenuItem(Locale.LS("Add to Existing Scope"), new MyCommand("elm", "addToScope0")));
-        elmMenuBar.addItem(elmCutMenuItem = new MenuItem(Locale.LS("Cut"), new MyCommand("elm", "cut")));
-        elmMenuBar.addItem(elmCopyMenuItem = new MenuItem(Locale.LS("Copy"), new MyCommand("elm", "copy")));
-        elmMenuBar.addItem(elmDeleteMenuItem = new MenuItem(Locale.LS("Delete"), new MyCommand("elm", "delete")));
-        elmMenuBar.addItem(new MenuItem(Locale.LS("Duplicate"), new MyCommand("elm", "duplicate")));
-        elmMenuBar.addItem(elmSwapMenuItem = new MenuItem(Locale.LS("Swap Terminals"), new MyCommand("elm", "flip")));
-        elmMenuBar.addItem(elmFlipXMenuItem = new MenuItem(Locale.LS("Flip X"), new MyCommand("elm", "flipx")));
-        elmMenuBar.addItem(elmFlipYMenuItem = new MenuItem(Locale.LS("Flip Y"), new MyCommand("elm", "flipy")));
-        elmMenuBar.addItem(elmFlipXYMenuItem = new MenuItem(Locale.LS("Flip XY"), new MyCommand("elm", "flipxy")));
-        elmMenuBar.addItem(elmSplitMenuItem = menuItemWithShortcut("", "Split Wire", Locale.LS(ctrlMetaKey + "click"), new MyCommand("elm", "split")));
-        elmMenuBar.addItem(elmSliderMenuItem = new MenuItem(Locale.LS("Sliders..."), new MyCommand("elm", "sliders")));
-
-        scopePopupMenu = new ScopePopupMenu();
 
         setColors(positiveColor, negativeColor, neutralColor, selectColor, currentColor);
         setWheelSensitivity();
@@ -1055,7 +757,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         cv.addDomHandler(this, ContextMenuEvent.getType());
         menuBar.addDomHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
-                doMainMenuChecks();
+                menuManager.doMainMenuChecks();
             }
         }, ClickEvent.getType());
         Event.addNativePreviewHandler(this);
@@ -1090,7 +792,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         if (positiveColor != null)
             CircuitElm.positiveColor = new Color(URL.decodeQueryString(positiveColor));
-        else if (getOptionFromStorage("alternativeColor", false))
+        else if (OptionsManager.getBoolOptionFromStorage("alternativeColor", false))
             CircuitElm.positiveColor = Color.blue;
 
         if (negativeColor != null)
@@ -1106,7 +808,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (currentColor != null)
             CircuitElm.currentColor = new Color(URL.decodeQueryString(currentColor));
         else
-            CircuitElm.currentColor = conventionCheckItem.getState() ? Color.yellow : Color.cyan;
+            CircuitElm.currentColor = menuManager.conventionCheckItem.getState() ? Color.yellow : Color.cyan;
 
         CircuitElm.setColorScale();
     }
@@ -1118,36 +820,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             wheelSensitivity = Double.parseDouble(stor.getItem("wheelSensitivity"));
         } catch (Exception e) {
         }
-    }
-
-    MenuItem menuItemWithShortcut(String icon, String text, String shortcut, MyCommand cmd) {
-        final String edithtml = "<div style=\"white-space:nowrap\"><div style=\"display:inline-block;width:100%;\"><i class=\"cirjsicon-";
-        String nbsp = "&nbsp;";
-        if (icon == "") nbsp = "";
-        String sn = edithtml + icon + "\"></i>" + nbsp + Locale.LS(text) + "</div>" + shortcut + "</div>";
-        return new MenuItem(SafeHtmlUtils.fromTrustedString(sn), cmd);
-    }
-
-    MenuItem iconMenuItem(String icon, String text, Command cmd) {
-        String icoStr = "<i class=\"cirjsicon-" + icon + "\"></i>&nbsp;" + Locale.LS(text); //<i class="cirjsicon-"></i>&nbsp;
-        return new MenuItem(SafeHtmlUtils.fromTrustedString(icoStr), cmd);
-    }
-
-    boolean getOptionFromStorage(String key, boolean val) {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return val;
-        String s = stor.getItem(key);
-        if (s == null)
-            return val;
-        return s == "true";
-    }
-
-    void setOptionInStorage(String key, boolean val) {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        stor.setItem(key, val ? "true" : "false");
     }
 
     // save shortcuts to local storage
@@ -1182,14 +854,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         for (i = 0; i != shortcuts.length; i++)
             shortcuts[i] = null;
 
-        // clear shortcuts from menu
-        for (i = 0; i != mainMenuItems.size(); i++) {
-            CheckboxMenuItem item = mainMenuItems.get(i);
-            // stop when we get to drag menu items
-            if (item.getShortcut().length() > 1)
-                break;
-            item.setShortcut("");
-        }
+        menuManager.clearShortcuts();
 
         // go through keys (skipping version at start)
         for (i = 1; i < keys.length; i++) {
@@ -1200,15 +865,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             String className = arr[1];
             shortcuts[c] = className;
 
-            // find menu item and fix it
-            int j;
-            for (j = 0; j != mainMenuItems.size(); j++) {
-                if (mainMenuItemNames.get(j) == className) {
-                    CheckboxMenuItem item = mainMenuItems.get(j);
-                    item.setShortcut(Character.toString((char) c));
-                    break;
-                }
-            }
+            menuManager.setShortcut(className, c);
         }
     }
 
@@ -1286,232 +943,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     boolean shown = false;
 
-    // this is called twice, once for the Draw menu, once for the right mouse popup menu
-    public void composeMainMenu(MenuBar mainMenuBar, int num) {
-        mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Wire"), "WireElm"));
-        mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Resistor"), "ResistorElm"));
-
-        MenuBar passMenuBar = new MenuBar(true);
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Capacitor"), "CapacitorElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Capacitor (polarized)"), "PolarCapacitorElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Inductor"), "InductorElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Switch"), "SwitchElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Push Switch"), "PushSwitchElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add SPDT Switch"), "Switch2Elm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add DPDT Switch"), "DPDTSwitchElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Make-Before-Break Switch"), "MBBSwitchElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Potentiometer"), "PotElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Transformer"), "TransformerElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Tapped Transformer"), "TappedTransformerElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Custom Transformer"), "CustomTransformerElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Transmission Line"), "TransLineElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Relay"), "RelayElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Relay Coil"), "RelayCoilElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Relay Contact"), "RelayContactElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Photoresistor"), "LDRElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Thermistor"), "ThermistorNTCElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Memristor"), "MemristorElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Spark Gap"), "SparkGapElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Fuse"), "FuseElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Crystal"), "CrystalElm"));
-        passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Cross Switch"), "CrossSwitchElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Passive Components")), passMenuBar);
-
-        MenuBar inputMenuBar = new MenuBar(true);
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Ground"), "GroundElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage Source (2-terminal)"), "DCVoltageElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add A/C Voltage Source (2-terminal)"), "ACVoltageElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage Source (1-terminal)"), "RailElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add A/C Voltage Source (1-terminal)"), "ACRailElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Square Wave Source (1-terminal)"), "SquareRailElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Clock"), "ClockElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add A/C Sweep"), "SweepElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Variable Voltage"), "VarRailElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Antenna"), "AntennaElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add AM Source"), "AMElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add FM Source"), "FMElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Current Source"), "CurrentElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Noise Generator"), "NoiseElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Audio Input"), "AudioInputElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Data Input"), "DataInputElm"));
-        inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add External Voltage (JavaScript)"), "ExtVoltageElm"));
-
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Inputs and Sources")), inputMenuBar);
-
-        MenuBar outputMenuBar = new MenuBar(true);
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Analog Output"), "OutputElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add LED"), "LEDElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Lamp"), "LampElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Text"), "TextElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Box"), "BoxElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Line"), "LineElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Labeled Node"), "LabeledNodeElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltmeter/Scope Probe"), "ProbeElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Ohmmeter"), "OhmMeterElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Ammeter"), "AmmeterElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Wattmeter"), "WattmeterElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Test Point"), "TestPointElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Decimal Display"), "DecimalDisplayElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add LED Array"), "LEDArrayElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Data Export"), "DataRecorderElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Audio Output"), "AudioOutputElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Stop Trigger"), "StopTriggerElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add DC Motor"), "DCMotorElm"));
-        outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add 3-Phase Motor"), "ThreePhaseMotorElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Outputs and Labels")), outputMenuBar);
-
-        MenuBar activeMenuBar = new MenuBar(true);
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Diode"), "DiodeElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Zener Diode"), "ZenerElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Transistor (bipolar, NPN)"), "NTransistorElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Transistor (bipolar, PNP)"), "PTransistorElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add MOSFET (N-Channel)"), "NMosfetElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add MOSFET (P-Channel)"), "PMosfetElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add JFET (N-Channel)"), "NJfetElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add JFET (P-Channel)"), "PJfetElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add SCR"), "SCRElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add DIAC"), "DiacElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add TRIAC"), "TriacElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Darlington Pair (NPN)"), "NDarlingtonElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Darlington Pair (PNP)"), "PDarlingtonElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Varactor/Varicap"), "VaractorElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Tunnel Diode"), "TunnelDiodeElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Triode"), "TriodeElm"));
-        activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Unijunction Transistor"), "UnijunctionElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Components")), activeMenuBar);
-
-        MenuBar activeBlocMenuBar = new MenuBar(true);
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Op Amp (ideal, - on top)"), "OpAmpElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Op Amp (ideal, + on top)"), "OpAmpSwapElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Op Amp (real)"), "OpAmpRealElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Analog Switch (SPST)"), "AnalogSwitchElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Analog Switch (SPDT)"), "AnalogSwitch2Elm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Tristate Buffer"), "TriStateElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Schmitt Trigger"), "SchmittElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Schmitt Trigger (Inverting)"), "InvertingSchmittElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Delay Buffer"), "DelayBufferElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add CCII+"), "CC2Elm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add CCII-"), "CC2NegElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Comparator (Hi-Z/GND output)"), "ComparatorElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add OTA (LM13700 style)"), "OTAElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Voltage Source (VCVS)"), "VCVSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Current Source (VCCS)"), "VCCSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Voltage Source (CCVS)"), "CCVSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Current Source (CCCS)"), "CCCSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Optocoupler"), "OptocouplerElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Time Delay Relay"), "TimeDelayRelayElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add LM317"), "CustomCompositeElm:~LM317-v2"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add TL431"), "CustomCompositeElm:~TL431"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Motor Protection Switch"), "MotorProtectionSwitchElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Subcircuit Instance"), "CustomCompositeElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Building Blocks")), activeBlocMenuBar);
-
-        MenuBar gateMenuBar = new MenuBar(true);
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add Logic Input"), "LogicInputElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add Logic Output"), "LogicOutputElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add Inverter"), "InverterElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add NAND Gate"), "NandGateElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add NOR Gate"), "NorGateElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add AND Gate"), "AndGateElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add OR Gate"), "OrGateElm"));
-        gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add XOR Gate"), "XorGateElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Logic Gates, Input and Output")), gateMenuBar);
-
-        MenuBar chipMenuBar = new MenuBar(true);
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add D Flip-Flop"), "DFlipFlopElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add JK Flip-Flop"), "JKFlipFlopElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add T Flip-Flop"), "TFlipFlopElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 7 Segment LED"), "SevenSegElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 7 Segment Decoder"), "SevenSegDecoderElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Multiplexer"), "MultiplexerElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Demultiplexer"), "DeMultiplexerElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add SIPO shift register"), "SipoShiftElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add PISO shift register"), "PisoShiftElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Counter"), "CounterElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Counter w/ Load"), "Counter2Elm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Ring Counter"), "DecadeElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Latch"), "LatchElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Sequence generator"), "SeqGenElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Adder"), "FullAdderElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Half Adder"), "HalfAdderElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Custom Logic"), "UserDefinedLogicElm")); // don't change this, it will break people's saved shortcuts
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Static RAM"), "SRAMElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Digital Chips")), chipMenuBar);
-
-        MenuBar achipMenuBar = new MenuBar(true);
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 555 Timer"), "TimerElm"));
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Phase Comparator"), "PhaseCompElm"));
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add DAC"), "DACElm"));
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add ADC"), "ADCElm"));
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add VCO"), "VCOElm"));
-        achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Monostable"), "MonostableElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Analog and Hybrid Chips")), achipMenuBar);
-
-        if (subcircuitMenuBar == null)
-            subcircuitMenuBar = new MenuBar[2];
-        subcircuitMenuBar[num] = new MenuBar(true);
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Subcircuits")), subcircuitMenuBar[num]);
-
-        MenuBar otherMenuBar = new MenuBar(true);
-        CheckboxMenuItem mi;
-        otherMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Drag All"), "DragAll"));
-        mi.setShortcut(Locale.LS("(Alt-drag)"));
-        otherMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Drag Row"), "DragRow"));
-        mi.setShortcut(Locale.LS("(A-S-drag)"));
-        otherMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Drag Column"), "DragColumn"));
-        mi.setShortcut(isMac ? Locale.LS("(A-Cmd-drag)") : Locale.LS("(A-M-drag)"));
-        otherMenuBar.addItem(getClassCheckItem(Locale.LS("Drag Selected"), "DragSelected"));
-        otherMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Drag Post"), "DragPost"));
-        mi.setShortcut("(" + ctrlMetaKey + "drag)");
-
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Drag")), otherMenuBar);
-
-        mainMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Select/Drag Sel"), "Select"));
-        mi.setShortcut(Locale.LS("(space or Shift-drag)"));
-    }
-
-    void composeSubcircuitMenu() {
-        if (subcircuitMenuBar == null)
-            return;
-        int mi;
-
-        // there are two menus to update: the one in the Draw menu, and the one in the right mouse menu
-        for (mi = 0; mi != 2; mi++) {
-            MenuBar menu = subcircuitMenuBar[mi];
-            menu.clearItems();
-            Vector<CustomCompositeModel> list = CustomCompositeModel.getModelList();
-            int i;
-            for (i = 0; i != list.size(); i++) {
-                String name = list.get(i).name;
-                menu.addItem(getClassCheckItem(Locale.LS("Add ") + name, "CustomCompositeElm:" + name));
-            }
-        }
-        lastSubcircuitMenuUpdate = CustomCompositeModel.sequenceNumber;
-    }
-
-    public void composeSelectScopeMenu(MenuBar sb) {
-        sb.clearItems();
-        selectScopeMenuItems = new Vector<MenuItem>();
-        for (int i = 0; i < scopeManager.scopeCount; i++) {
-            String s, l;
-            s = Locale.LS("Scope") + " " + Integer.toString(i + 1);
-            l = scopeManager.scopes[i].getScopeLabelOrText();
-            if (l != "")
-                s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
-            selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(i))));
-        }
-        int c = simulator.countScopeElms();
-        for (int j = 0; j < c; j++) {
-            String s, l;
-            s = Locale.LS("Undocked Scope") + " " + Integer.toString(j + 1);
-            l = simulator.getNthScopeElm(j).elmScope.getScopeLabelOrText();
-            if (l != "")
-                s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
-            selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(scopeManager.scopeCount + j))));
-        }
-        for (MenuItem mi : selectScopeMenuItems)
-            sb.addItem(mi);
-    }
 
     public void setSlidersPanelHeight() {
         int i;
@@ -1524,51 +955,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             }
         }
         int ih = RootLayoutPanel.get().getOffsetHeight() - MENU_BAR_HEIGHT - cumheight;
-        if (toolbarCheckItem.getState())
+        if (menuManager.toolbarCheckItem.getState())
             ih -= TOOLBAR_HEIGHT;
         if (ih < 0)
             ih = 0;
         slidersPanel.setHeight(ih + "px");
-    }
-
-
-    CheckboxMenuItem getClassCheckItem(String s, String t) {
-        if (classToLabelMap == null)
-            classToLabelMap = new HashMap<String, String>();
-        classToLabelMap.put(t, s);
-
-        // try {
-        //   Class c = Class.forName(t);
-        String shortcut = "";
-        CircuitElm elm = null;
-        try {
-            elm = CircuitElmCreator.constructElement(t, 0, 0);
-        } catch (Exception e) {
-        }
-        CheckboxMenuItem mi;
-        //  register(c, elm);
-        if (elm != null) {
-            if (elm.needsShortcut()) {
-                shortcut += (char) elm.getShortcut();
-                if (shortcuts[elm.getShortcut()] != null && !shortcuts[elm.getShortcut()].equals(t))
-                    console("already have shortcut for " + (char) elm.getShortcut() + " " + elm);
-                shortcuts[elm.getShortcut()] = t;
-            }
-            elm.delete();
-        }
-//    	else
-//    		GWT.log("Coudn't create class: "+t);
-        //	} catch (Exception ee) {
-        //	    ee.printStackTrace();
-        //	}
-        if (shortcut == "")
-            mi = new CheckboxMenuItem(s);
-        else
-            mi = new CheckboxMenuItem(s, shortcut);
-        mi.setScheduledCommand(new MyCommand("main", t));
-        mainMenuItems.add(mi);
-        mainMenuItemNames.add(t);
-        return mi;
     }
 
     public void setSimRunning(boolean s) {
@@ -1608,7 +999,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     Color getBackgroundColor() {
-        if (printableCheckItem.getState())
+        if (menuManager.printableCheckItem.getState())
             return Color.white;
         return Color.black;
     }
@@ -1792,12 +1183,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }-*/;
 
     void allowSave(boolean b) {
-        if (saveFileItem != null)
-            saveFileItem.setEnabled(b);
+        if (menuManager.saveFileItem != null)
+            menuManager.saveFileItem.setEnabled(b);
     }
 
     public void menuPerformed(String menu, String item) {
-        if ((menu == "edit" || menu == "main" || menu == "scopes") && noEditCheckItem.getState()) {
+        if ((menu == "edit" || menu == "main" || menu == "scopes") && menuManager.noEditCheckItem.getState()) {
             Window.alert(Locale.LS("Editing disabled.  Re-enable from the Options menu."));
             return;
         }
@@ -1853,8 +1244,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             doExportAsImage();
         if (item == "copypng") {
             doImageToClipboard();
-            if (contextPanel != null)
-                contextPanel.hide();
+            if (menuManager.contextPanel != null)
+                menuManager.contextPanel.hide();
         }
         if (item == "exportassvg")
             doExportAsSVG();
@@ -1867,8 +1258,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (item == "recover")
             doRecover();
 
-        if ((menu == "elm" || menu == "scopepop") && contextPanel != null)
-            contextPanel.hide();
+        if ((menu == "elm" || menu == "scopepop") && menuManager.contextPanel != null)
+            menuManager.contextPanel.hide();
         if (menu == "options" && item == "shortcuts") {
             dialogManager.showShortcutsDialog();
         }
@@ -2040,8 +1431,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         // IES: Moved from itemStateChanged()
         if (menu == "main") {
-            if (contextPanel != null)
-                contextPanel.hide();
+            if (menuManager.contextPanel != null)
+                menuManager.contextPanel.hide();
             //	MenuItem mmi = (MenuItem) mi;
             //		int prevMouseMode = mouseMode;
             setMouseMode(MODE_ADD_ELM);
@@ -2155,11 +1546,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     String dumpOptions() {
-        int f = (dotsCheckItem.getState()) ? 1 : 0;
-        f |= (smallGridCheckItem.getState()) ? 2 : 0;
-        f |= (voltsCheckItem.getState()) ? 0 : 4;
-        f |= (powerCheckItem.getState()) ? 8 : 0;
-        f |= (showValuesCheckItem.getState()) ? 0 : 16;
+        int f = (menuManager.dotsCheckItem.getState()) ? 1 : 0;
+        f |= (menuManager.smallGridCheckItem.getState()) ? 2 : 0;
+        f |= (menuManager.voltsCheckItem.getState()) ? 0 : 4;
+        f |= (menuManager.powerCheckItem.getState()) ? 8 : 0;
+        f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
         // 32 = linear scale in afilter
         f |= simulator.adjustTimeStep ? 64 : 0;
         String dump = "$ " + f + " " +
@@ -2230,41 +1621,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void processSetupList(byte b[], final boolean openDefault) {
+        MenuBar circuitsMenuBar = menuManager.circuitsMenuBar;
+
         int len = b.length;
-        MenuBar currentMenuBar;
         MenuBar stack[] = new MenuBar[6];
         int stackptr = 0;
-        currentMenuBar = new MenuBar(true);
-        currentMenuBar.setAutoOpen(true);
-        menuBar.addItem(Locale.LS("Circuits"), currentMenuBar);
-
-        MenuBar h = new MenuBar(true);
-        helpItem = iconMenuItem("book-open", "User Guide", (Command) null);
-        h.addItem(helpItem);
-        helpItem.setScheduledCommand(new MyCommand("file", "help"));
-        licenseItem = iconMenuItem("license", "License", (Command) null);
-        h.addItem(licenseItem);
-        licenseItem.setScheduledCommand(new MyCommand("file", "license"));
-        aboutItem = iconMenuItem("info-circled", "About...", (Command) null);
-        h.addItem(aboutItem);
-        aboutItem.setScheduledCommand(new MyCommand("file", "about"));
-        h.addSeparator();
-        h.addItem(aboutCircuitsItem = iconMenuItem("link", "About Circuits",
-                new Command() {
-                    public void execute() {
-                        executeJS("nw.Shell.openExternal('https://www.falstad.com/circuit/e-index.html')");
-                    }
-                }));
-        h.addItem(aboutCircuitsPLItem = iconMenuItem("link", "About Circuits (Polish ver.)",
-                new Command() {
-                    public void execute() {
-                        executeJS("nw.Shell.openExternal('https://www.falstad.com/circuit/polish/e-index.html');");
-                    }
-                }));
-
-        menuBar.addItem(Locale.LS("Help"), h);
-
-        stack[stackptr++] = currentMenuBar;
+        stack[stackptr++] = circuitsMenuBar;
         int p;
         for (p = 0; p < len; ) {
             int l;
@@ -2280,10 +1642,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 //	MenuBar n = new Menu(line.substring(1));
                 MenuBar n = new MenuBar(true);
                 n.setAutoOpen(true);
-                currentMenuBar.addItem(Locale.LS(line.substring(1)), n);
-                currentMenuBar = stack[stackptr++] = n;
+                circuitsMenuBar.addItem(Locale.LS(line.substring(1)), n);
+                circuitsMenuBar = stack[stackptr++] = n;
             } else if (line.charAt(0) == '-') {
-                currentMenuBar = stack[--stackptr - 1];
+                circuitsMenuBar = stack[--stackptr - 1];
             } else {
                 int i = line.indexOf(' ');
                 if (i > 0) {
@@ -2292,8 +1654,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                     if (line.charAt(0) == '>')
                         first = true;
                     String file = line.substring(first ? 1 : 0, i);
-                    currentMenuBar.addItem(new MenuItem(title,
+                    circuitsMenuBar.addItem(new MenuItem(title,
                             new MyCommand("circuits", "setup " + file + " " + title)));
+
+                    // TODO:
                     if (file.equals(startCircuit) && startLabel == null) {
                         startLabel = title;
                         titleLabel.setText(title);
@@ -2394,11 +1758,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             hintType = -1;
             simulator.maxTimeStep = 5e-6;
             simulator.minTimeStep = 50e-12;
-            dotsCheckItem.setState(false);
-            smallGridCheckItem.setState(false);
-            powerCheckItem.setState(false);
-            voltsCheckItem.setState(true);
-            showValuesCheckItem.setState(true);
+            menuManager.dotsCheckItem.setState(false);
+            menuManager.smallGridCheckItem.setState(false);
+            menuManager.powerCheckItem.setState(false);
+            menuManager.voltsCheckItem.setState(true);
+            menuManager.showValuesCheckItem.setState(true);
             setGrid();
             speedBar.setValue(117); // 57
             currentBar.setValue(50);
@@ -2553,15 +1917,15 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if ((importFlags & RC_RETAIN) != 0) {
             // need to set small grid if pasted circuit uses it
             if ((flags & 2) != 0)
-                smallGridCheckItem.setState(true);
+                menuManager.smallGridCheckItem.setState(true);
             return;
         }
 
-        dotsCheckItem.setState((flags & 1) != 0);
-        smallGridCheckItem.setState((flags & 2) != 0);
-        voltsCheckItem.setState((flags & 4) == 0);
-        powerCheckItem.setState((flags & 8) == 8);
-        showValuesCheckItem.setState((flags & 16) == 0);
+        menuManager.dotsCheckItem.setState((flags & 1) != 0);
+        menuManager.smallGridCheckItem.setState((flags & 2) != 0);
+        menuManager.voltsCheckItem.setState((flags & 4) == 0);
+        menuManager.powerCheckItem.setState((flags & 8) == 8);
+        menuManager.showValuesCheckItem.setState((flags & 16) == 0);
         simulator.adjustTimeStep = (flags & 64) != 0;
         simulator.maxTimeStep = simulator.timeStep = new Double(st.nextToken()).doubleValue();
         double sp = new Double(st.nextToken()).doubleValue();
@@ -2650,7 +2014,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             case MODE_SELECT:
                 if (mouseElm == null)
                     selectArea(gx, gy, e.isShiftKeyDown());
-                else if (!noEditCheckItem.getState()) {
+                else if (!menuManager.noEditCheckItem.getState()) {
                     // wait short delay before dragging.  This is to fix problem where switches were accidentally getting
                     // dragged when tapped on mobile devices
                     if (System.currentTimeMillis() - mouseDownTime < 150)
@@ -2885,11 +2249,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 if (!elm.canFlipXY())
                     canFlipXY = false;
             }
-        cutItem.setEnabled(selCount > 0);
-        copyItem.setEnabled(selCount > 0);
-        flipXItem.setEnabled(canFlipX);
-        flipYItem.setEnabled(canFlipY);
-        flipXYItem.setEnabled(canFlipXY);
+        menuManager.cutItem.setEnabled(selCount > 0);
+        menuManager.copyItem.setEnabled(selCount > 0);
+        menuManager.flipXItem.setEnabled(canFlipX);
+        menuManager.flipYItem.setEnabled(canFlipY);
+        menuManager.flipXYItem.setEnabled(canFlipXY);
     }
 
     void setMouseElm(CircuitElm ce) {
@@ -3049,91 +2413,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (!dialogIsShowing()) {
             menuClientX = e.getNativeEvent().getClientX();
             menuClientY = e.getNativeEvent().getClientY();
-            doPopupMenu();
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    void doPopupMenu() {
-        if (noEditCheckItem.getState() || dialogIsShowing())
-            return;
-        menuElm = mouseElm;
-        scopeManager.menuScope = -1;
-        menuPlot = -1;
-        int x, y;
-        if (scopeManager.scopeSelected != -1) {
-            if (scopeManager.scopes[scopeManager.scopeSelected].canMenu()) {
-                scopeManager.menuScope = scopeManager.scopeSelected;
-                menuPlot = scopeManager.scopes[scopeManager.scopeSelected].selectedPlot;
-                scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected), scopeManager.canCombineScope(scopeManager.scopeSelected),
-                        scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
-                contextPanel = new PopupPanel(true);
-                contextPanel.add(scopePopupMenu.getMenuBar());
-                y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 160));
-                contextPanel.setPopupPosition(menuClientX, y);
-                contextPanel.show();
-            }
-        } else if (mouseElm != null) {
-            if (!(mouseElm instanceof ScopeElm)) {
-                elmScopeMenuItem.setEnabled(mouseElm.canViewInScope());
-                elmFloatScopeMenuItem.setEnabled(mouseElm.canViewInScope());
-                if ((scopeManager.scopeCount + simulator.countScopeElms()) <= 1) {
-                    elmAddScopeMenuItem.setCommand(new MyCommand("elm", "addToScope0"));
-                    elmAddScopeMenuItem.setSubMenu(null);
-                    elmAddScopeMenuItem.setEnabled(mouseElm.canViewInScope() && (scopeManager.scopeCount + simulator.countScopeElms()) > 0);
-                } else {
-                    composeSelectScopeMenu(selectScopeMenuBar);
-                    elmAddScopeMenuItem.setCommand(null);
-                    elmAddScopeMenuItem.setSubMenu(selectScopeMenuBar);
-                    elmAddScopeMenuItem.setEnabled(mouseElm.canViewInScope());
-                }
-                elmEditMenuItem.setEnabled(mouseElm.getEditInfo(0) != null);
-                elmSwapMenuItem.setEnabled(mouseElm.getPostCount() == 2);
-                elmSplitMenuItem.setEnabled(CircuitUtils.canSplit(mouseElm));
-                elmSliderMenuItem.setEnabled(CircuitUtils.sliderItemEnabled(mouseElm));
-                boolean canFlipX = mouseElm.canFlipX();
-                boolean canFlipY = mouseElm.canFlipY();
-                boolean canFlipXY = mouseElm.canFlipXY();
-                for (CircuitElm elm : simulator.elmList)
-                    if (elm.isSelected()) {
-                        if (!elm.canFlipX())
-                            canFlipX = false;
-                        if (!elm.canFlipY())
-                            canFlipY = false;
-                        if (!elm.canFlipXY())
-                            canFlipXY = false;
-                    }
-                elmFlipXMenuItem.setEnabled(canFlipX);
-                elmFlipYMenuItem.setEnabled(canFlipY);
-                elmFlipXYMenuItem.setEnabled(canFlipXY);
-                contextPanel = new PopupPanel(true);
-                contextPanel.add(elmMenuBar);
-                contextPanel.setPopupPosition(menuClientX, menuClientY);
-                contextPanel.show();
-            } else {
-                ScopeElm s = (ScopeElm) mouseElm;
-                if (s.elmScope.canMenu()) {
-                    menuPlot = s.elmScope.selectedPlot;
-                    scopePopupMenu.doScopePopupChecks(true, false, false, false, s.elmScope);
-                    contextPanel = new PopupPanel(true);
-                    contextPanel.add(scopePopupMenu.getMenuBar());
-                    contextPanel.setPopupPosition(menuClientX, menuClientY);
-                    contextPanel.show();
-                }
-            }
-        } else {
-            doMainMenuChecks();
-            contextPanel = new PopupPanel(true);
-            contextPanel.add(mainMenuBar);
-            x = Math.max(0, Math.min(menuClientX, renderer.canvasWidth - 400));
-            y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 450));
-            contextPanel.setPopupPosition(x, y);
-            contextPanel.show();
+            menuManager.doPopupMenu();
         }
     }
 
     void longPress() {
-        doPopupMenu();
+        menuManager.doPopupMenu();
     }
 
     void twoFingerTouch(int x, int y) {
@@ -3159,7 +2444,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     public void onDoubleClick(DoubleClickEvent e) {
         e.preventDefault();
         //   	if (!didSwitch && mouseElm != null)
-        if (mouseElm != null && !(mouseElm instanceof SwitchElm) && !noEditCheckItem.getState())
+        if (mouseElm != null && !(mouseElm instanceof SwitchElm) && !menuManager.noEditCheckItem.getState())
             doEdit(mouseElm);
     }
 
@@ -3225,12 +2510,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             tempMouseMode = MODE_DRAG_ALL;
 
 
-        if (noEditCheckItem.getState())
+        if (menuManager.noEditCheckItem.getState())
             tempMouseMode = MODE_SELECT;
 
         if (!(dialogIsShowing()) && ((scopeManager.scopeSelected != -1 && scopeManager.scopes[scopeManager.scopeSelected].cursorInSettingsWheel()) ||
                 (scopeManager.scopeSelected == -1 && mouseElm instanceof ScopeElm && ((ScopeElm) mouseElm).elmScope.cursorInSettingsWheel()))) {
-            if (noEditCheckItem.getState())
+            if (menuManager.noEditCheckItem.getState())
                 return;
             Scope s;
             if (scopeManager.scopeSelected != -1)
@@ -3253,7 +2538,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
 
         // IES - Grab resize handles in select mode if they are far enough apart and you are on top of them
-        if (tempMouseMode == MODE_SELECT && mouseElm != null && !noEditCheckItem.getState() &&
+        if (tempMouseMode == MODE_SELECT && mouseElm != null && !menuManager.noEditCheckItem.getState() &&
                 mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0 &&
                 !anySelectedButMouse())
             tempMouseMode = MODE_DRAG_POST;
@@ -3279,33 +2564,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             debugger();
         }
     }
-
-    static int lastSubcircuitMenuUpdate;
-
-    // check/uncheck/enable/disable menu items as appropriate when menu bar clicked on, or when
-    // right mouse menu accessed.  also displays shortcuts as a side effect
-    void doMainMenuChecks() {
-        int c = mainMenuItems.size();
-        int i;
-        for (i = 0; i < c; i++) {
-            String s = mainMenuItemNames.get(i);
-            mainMenuItems.get(i).setState(s == mouseModeStr);
-
-            // Code to disable draw menu items when cct is not editable, but no used in this version as it
-            // puts up a dialog box instead (see menuPerformed).
-            //if (s.length() > 3 && s.substring(s.length()-3)=="Elm")
-            //mainMenuItems.get(i).setEnabled(!noEditCheckItem.getState());
-        }
-        stackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position > 0);
-        unstackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position != scopeManager.scopeCount - 1);
-        combineAllItem.setEnabled(scopeManager.scopeCount > 1);
-        separateAllItem.setEnabled(scopeManager.scopeCount > 0);
-
-        // also update the subcircuit menu if necessary
-        if (lastSubcircuitMenuUpdate != CustomCompositeModel.sequenceNumber)
-            composeSubcircuitMenu();
-    }
-
 
     public void onMouseUp(MouseUpEvent e) {
         e.preventDefault();
@@ -3362,7 +2620,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         // so we don't accidentally edit a resistor value while zooming
         boolean zoomOnly = System.currentTimeMillis() < zoomTime + 1000;
 
-        if (noEditCheckItem.getState() || !mouseWheelEditCheckItem.getState())
+        if (menuManager.noEditCheckItem.getState() || !menuManager.mouseWheelEditCheckItem.getState())
             zoomOnly = true;
 
         if (!zoomOnly)
@@ -3382,7 +2640,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void setPowerBarEnable() {
-        if (powerCheckItem.getState()) {
+        if (menuManager.powerCheckItem.getState()) {
             powerLabel.setStyleName("disabled", false);
             powerBar.enable();
         } else {
@@ -3406,13 +2664,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void setGrid() {
-        gridSize = (smallGridCheckItem.getState()) ? 8 : 16;
+        gridSize = (menuManager.smallGridCheckItem.getState()) ? 8 : 16;
         gridMask = ~(gridSize - 1);
         gridRound = gridSize / 2 - 1;
     }
 
     void setToolbar() {
-        layoutPanel.setWidgetHidden(toolbar, !toolbarCheckItem.getState());
+        layoutPanel.setWidgetHidden(toolbar, !menuManager.toolbarCheckItem.getState());
         executeJS("setAllAbsBtnsTopPos(\"" + getAbsBtnsTopPos() + "px\")");
         setSlidersPanelHeight();
         setCanvasSize();
@@ -3462,15 +2720,15 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         pushUndo();
         readCircuit(recovery);
         allowSave(false);
-        recoverItem.setEnabled(false);
+        menuManager.recoverItem.setEnabled(false);
         filePath = null;
         fileName = null;
         changeWindowTitle(unsavedChanges);
     }
 
     void enableUndoRedo() {
-        redoItem.setEnabled(redoStack.size() > 0);
-        undoItem.setEnabled(undoStack.size() > 0);
+        menuManager.redoItem.setEnabled(redoStack.size() > 0);
+        menuManager.undoItem.setEnabled(undoStack.size() > 0);
     }
 
     void setMouseMode(int mode) {
@@ -3672,7 +2930,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void enablePaste() {
-        pasteItem.setEnabled(clipboardManager.hasClipboardData());
+        menuManager.pasteItem.setEnabled(clipboardManager.hasClipboardData());
     }
 
     void doDuplicate() {
@@ -3809,7 +3067,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 //    public void keyReleased(KeyEvent e) {}
 
     boolean dialogIsShowing() {
-        if (contextPanel != null && contextPanel.isShowing())
+        if (menuManager.contextPanel != null && menuManager.contextPanel.isShowing())
             return true;
         if (scrollValuePopup != null && scrollValuePopup.isShowing())
             return true;
@@ -3865,7 +3123,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
 
         // all other shortcuts are ignored when editing disabled
-        if (noEditCheckItem.getState())
+        if (menuManager.noEditCheckItem.getState())
             return;
 
         if ((t & Event.ONKEYDOWN) != 0) {

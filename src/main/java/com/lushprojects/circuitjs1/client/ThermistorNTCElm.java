@@ -133,7 +133,7 @@ class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelHandler 
         grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
         grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
         g.context.setStrokeStyle(grad);
-        if (!simUi.euroResistorCheckItem.getState()) {
+        if (!simUi.menuManager.euroResistorCheckItem.getState()) {
             g.context.beginPath();
             g.context.moveTo(0, 0);
             for (i = 0; i < 4; i++) {
@@ -155,7 +155,7 @@ class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelHandler 
 
 
         g.context.restore();
-        if (simUi.showValuesCheckItem.getState()) {
+        if (simUi.menuManager.showValuesCheckItem.getState()) {
             temperature = temprFromSliderPos();
             resistance = calcResistance(temperature);
             String s = getShortUnitText(resistance, "");

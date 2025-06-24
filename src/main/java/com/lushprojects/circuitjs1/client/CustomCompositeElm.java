@@ -25,7 +25,7 @@ public class CustomCompositeElm extends CompositeElm {
         modelName = (xx == 0 && yy == 0) ? "default" : lastModelName;
 
         flags |= FLAG_ESCAPE;
-        if (simUi.smallGridCheckItem.getState())
+        if (simUi.menuManager.smallGridCheckItem.getState())
             flags |= FLAG_SMALL;
         updateModels();
     }
@@ -34,7 +34,7 @@ public class CustomCompositeElm extends CompositeElm {
         super(xx, yy);
         modelName = name;
         flags |= FLAG_ESCAPE;
-        if (simUi.smallGridCheckItem.getState())
+        if (simUi.menuManager.smallGridCheckItem.getState())
             flags |= FLAG_SMALL;
         updateModels();
     }

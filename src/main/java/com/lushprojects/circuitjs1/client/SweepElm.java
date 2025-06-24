@@ -98,7 +98,7 @@ class SweepElm extends CircuitElm {
         g.context.stroke();
         g.context.setLineWidth(1.0);
 
-        if (simUi.showValuesCheckItem.getState()) {
+        if (simUi.menuManager.showValuesCheckItem.getState()) {
             String s = getShortUnitText(frequency, "Hz");
             if (dx == 0 || dy == 0)
                 drawValues(g, s, circleSize);

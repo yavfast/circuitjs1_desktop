@@ -37,7 +37,7 @@ abstract class ChipElm extends CircuitElm {
         highVoltage = 5;
         noDiagonal = true;
         setupPins();
-        setSize(simUi.smallGridCheckItem.getState() ? 1 : 2);
+        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
     }
 
     public ChipElm(int xa, int ya, int xb, int yb, int f,

@@ -39,7 +39,7 @@ abstract class GateElm extends CircuitElm {
         if (lastSchmitt)
             flags |= FLAG_SCHMITT;
 
-        setSize(simUi.smallGridCheckItem.getState() ? 1 : 2);
+        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
     }
 
     public GateElm(int xa, int ya, int xb, int yb, int f,
@@ -142,7 +142,7 @@ abstract class GateElm extends CircuitElm {
     }
 
     static boolean useEuroGates() {
-        return simUi.euroGatesCheckItem.getState();
+        return simUi.menuManager.euroGatesCheckItem.getState();
     }
 
     void drawGatePolygon(Graphics g) {

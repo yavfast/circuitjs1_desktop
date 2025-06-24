@@ -71,7 +71,7 @@ class CurrentElm extends CircuitElm {
         g.fillPolygon(arrow);
         setBbox(point1, point2, cr);
         doDots(g);
-        if (simUi.showValuesCheckItem.getState() && current != 0) {
+        if (simUi.menuManager.showValuesCheckItem.getState() && current != 0) {
             String s = getShortUnitText(current, "A");
             if (dx == 0 || dy == 0)
                 drawValues(g, s, cr);

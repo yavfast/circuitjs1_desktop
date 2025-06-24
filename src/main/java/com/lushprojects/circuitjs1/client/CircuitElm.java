@@ -426,7 +426,7 @@ public abstract class CircuitElm implements Editable {
 
     // draw current dots from point a to b
     void drawDots(Graphics g, Point pa, Point pb, double pos) {
-        if ((!simUi.simIsRunning()) || pos == 0 || !simUi.dotsCheckItem.getState())
+        if ((!simUi.simIsRunning()) || pos == 0 || !simUi.menuManager.dotsCheckItem.getState())
             return;
         int dx = pb.x - pa.x;
         int dy = pb.y - pa.y;
@@ -879,7 +879,7 @@ public abstract class CircuitElm implements Editable {
         g.context.setLineWidth(3.0);
         g.context.transform(((double) (p2.x - p1.x)) / len, ((double) (p2.y - p1.y)) / len,
                 -((double) (p2.y - p1.y)) / len, ((double) (p2.x - p1.x)) / len, p1.x, p1.y);
-        if (simUi.voltsCheckItem.getState()) {
+        if (simUi.menuManager.voltsCheckItem.getState()) {
             CanvasGradient grad = g.context.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
             grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
@@ -1101,7 +1101,7 @@ public abstract class CircuitElm implements Editable {
         if (needsHighlight()) {
             return (selectColor);
         }
-        if (!simUi.voltsCheckItem.getState()) {
+        if (!simUi.menuManager.voltsCheckItem.getState()) {
             return (whiteColor);
         }
         int c = (int) ((volts + voltageRange) * (colorScaleCount - 1) /
@@ -1124,13 +1124,13 @@ public abstract class CircuitElm implements Editable {
 	  setConductanceColor(g, current/getVoltageDiff());
 	  return;
 	  }*/
-        if (!simUi.powerCheckItem.getState())
+        if (!simUi.menuManager.powerCheckItem.getState())
             return;
         setPowerColor(g, getPower());
     }
 
     void setPowerColor(Graphics g, double w0) {
-        if (!simUi.powerCheckItem.getState())
+        if (!simUi.menuManager.powerCheckItem.getState())
             return;
         if (needsHighlight()) {
             g.setColor(selectColor);

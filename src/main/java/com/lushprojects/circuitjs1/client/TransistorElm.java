@@ -137,7 +137,7 @@ class TransistorElm extends CircuitElm {
         g.fillPolygon(arrowPoly);
         // draw base
         setVoltageColor(g, volts[0]);
-        if (simUi.powerCheckItem.getState())
+        if (simUi.menuManager.powerCheckItem.getState())
             g.setColor(Color.gray);
         drawThickLine(g, point1, base);
         // draw dots

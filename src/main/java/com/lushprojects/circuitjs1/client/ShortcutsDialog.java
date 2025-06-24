@@ -59,8 +59,8 @@ public class ShortcutsDialog extends Dialog {
         FlexTable table = new FlexTable();
         sp.add(table);
         int i;
-        for (i = 0; i != asim.mainMenuItems.size(); i++) {
-            CheckboxMenuItem item = sim.mainMenuItems.get(i);
+        for (i = 0; i != sim.menuManager.mainMenuItems.size(); i++) {
+            CheckboxMenuItem item = sim.menuManager.mainMenuItems.get(i);
             if (item.getShortcut().length() > 1)
                 break;
             table.setText(i, 0, item.getName());
@@ -107,10 +107,10 @@ public class ShortcutsDialog extends Dialog {
         // load new ones
         for (i = 0; i != textBoxes.size(); i++) {
             String str = textBoxes.get(i).getText();
-            CheckboxMenuItem item = sim.mainMenuItems.get(i);
+            CheckboxMenuItem item = sim.menuManager.mainMenuItems.get(i);
             item.setShortcut(str);
             if (str.length() > 0)
-                sim.shortcuts[str.charAt(0)] = sim.mainMenuItemNames.get(i);
+                sim.shortcuts[str.charAt(0)] = sim.menuManager.mainMenuItemNames.get(i);
         }
         // save to local storage
         sim.saveShortcuts();
