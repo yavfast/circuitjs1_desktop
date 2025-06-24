@@ -557,9 +557,7 @@ class TransistorElm extends CircuitElm {
         }
         if (n == 4) {
             TransistorModel newModel = new TransistorModel(model);
-            EditDialog editDialog = new EditTransistorModelDialog(newModel, simUi, this);
-            CirSim.diodeModelEditDialog = editDialog;
-            editDialog.show();
+            simUi.dialogManager.showEditTransistorModelDialog(newModel, this);
             return;
         }
         if (n == 5) {
@@ -568,9 +566,7 @@ class TransistorElm extends CircuitElm {
                 Window.alert(Locale.LS("This model cannot be modified.  Change the model name to allow customization."));
                 return;
             }
-            EditDialog editDialog = new EditTransistorModelDialog(model, simUi, null);
-            CirSim.diodeModelEditDialog = editDialog;
-            editDialog.show();
+            simUi.dialogManager.showEditTransistorModelDialog(model, null);
             return;
         }
     }

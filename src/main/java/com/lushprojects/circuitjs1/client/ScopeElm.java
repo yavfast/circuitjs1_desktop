@@ -50,10 +50,10 @@ class ScopeElm extends CircuitElm {
     }
 
     public void setScopeRect() {
-        int i1 = simUi.circuitRenderer.transformX(min(x, x2));
-        int i2 = simUi.circuitRenderer.transformX(max(x, x2));
-        int j1 = simUi.circuitRenderer.transformY(min(y, y2));
-        int j2 = simUi.circuitRenderer.transformY(max(y, y2));
+        int i1 = simUi.renderer.transformX(min(x, x2));
+        int i2 = simUi.renderer.transformX(max(x, x2));
+        int j1 = simUi.renderer.transformY(min(y, y2));
+        int j2 = simUi.renderer.transformY(max(y, y2));
         Rectangle r = new Rectangle(i1, j1, i2 - i1, j2 - j1);
         if (!r.equals(elmScope.rect))
             elmScope.setRect(r);
@@ -104,8 +104,8 @@ class ScopeElm extends CircuitElm {
         g.setColor(needsHighlight() ? selectColor : whiteColor);
         g.context.save();
         // setTransform() doesn't work in version of canvas2svg we are using
-        g.context.scale(1 / simUi.circuitRenderer.transform[0], 1 / simUi.circuitRenderer.transform[3]);
-        g.context.translate(-simUi.circuitRenderer.transform[4], -simUi.circuitRenderer.transform[5]);
+        g.context.scale(1 / simUi.renderer.transform[0], 1 / simUi.renderer.transform[3]);
+        g.context.translate(-simUi.renderer.transform[4], -simUi.renderer.transform[5]);
         //g.context.scale(CirSim.devicePixelRatio(), CirSim.devicePixelRatio());
 
         setScopeRect();

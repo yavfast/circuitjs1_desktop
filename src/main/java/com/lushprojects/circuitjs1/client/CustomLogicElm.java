@@ -251,9 +251,7 @@ public class CustomLogicElm extends ChipElm {
             return;
         }
         if (n == 1) {
-            EditDialog editDialog = new EditDialog(model, simUi);
-            CirSim.customLogicEditDialog = editDialog;
-            editDialog.show();
+            simUi.dialogManager.showEditDialog(model);
             return;
         }
     }

@@ -228,16 +228,12 @@ public class CustomCompositeElm extends CompositeElm {
                 Window.alert(Locale.LS("Can't edit this model."));
                 return;
             }
-            EditCompositeModelDialog dlg = new EditCompositeModelDialog();
-            dlg.setModel(model);
-            dlg.createDialog();
-            CirSim.dialogShowing = dlg;
-            dlg.show();
+            CirSim.theSim.dialogManager.showEditCompositeModelDialog(model);
             return;
         }
         if (n == 2) {
             simUi.readCircuit(model.modelCircuit);
-            CirSim.editDialog.closeDialog();
+            CirSim.theSim.dialogManager.closeDialog();
         }
     }
 
@@ -245,7 +241,7 @@ public class CustomCompositeElm extends CompositeElm {
         return 410;
     }
 
-    void getInfo(String arr[]) {
+    void getInfo(String[] arr) {
         super.getInfo(arr);
         if (model.builtin)
             arr[0] = model.name.substring(1);

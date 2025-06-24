@@ -93,7 +93,7 @@ class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelHandler 
     }
 
     public void execute() {
-        simUi.circuitRenderer.analyzeFlag = true;
+        simUi.renderer.analyzeFlag = true;
         setPoints();
     }
 

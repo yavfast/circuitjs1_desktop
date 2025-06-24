@@ -25,15 +25,21 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     double minFrameRate = 20;
     boolean adjustTimeStep;
     Vector<CircuitElm> elmList;
-    CircuitElm elmArr[];
-    ScopeElm scopeElmArr[];
-    double circuitMatrix[][], circuitRightSide[], lastNodeVoltages[], nodeVoltages[], origRightSide[], origMatrix[][];
-    RowInfo circuitRowInfo[];
-    int circuitPermute[];
+    CircuitElm[] elmArr;
+    ScopeElm[] scopeElmArr;
+    double[][] circuitMatrix;
+    double[][] origMatrix;
+    double[] circuitRightSide;
+    double[] lastNodeVoltages;
+    double[] nodeVoltages;
+    double[] origRightSide;
+    RowInfo[] circuitRowInfo;
+    int[] circuitPermute;
     boolean simRunning;
     boolean circuitNonLinear;
     int voltageSourceCount;
-    int circuitMatrixSize, circuitMatrixFullSize;
+    int circuitMatrixSize;
+    int circuitMatrixFullSize;
     boolean circuitNeedsMap;
 
     Vector<CircuitNode> nodeList;
@@ -44,9 +50,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // info about each wire and its neighbors, used to calculate wire currents
     Vector<WireInfo> wireInfoList;
 
-    Vector<Point> postDrawList = new Vector<Point>();
-    Vector<Point> badConnectionList = new Vector<Point>();
-    CircuitElm voltageSources[];
+    Vector<Point> postDrawList = new Vector<>();
+    Vector<Point> badConnectionList = new Vector<>();
+    CircuitElm[] voltageSources;
 
 
     public CircuitSimulator(CirSim cirSim) {
@@ -183,7 +189,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 wireInfoList.add(wireInfoList.remove(i--));
                 moved++;
                 if (moved > wireInfoList.size() * 2) {
-                    CirSim.theSim.stop("wire loop detected", wire);
+                    cirSim.stop("wire loop detected", wire);
                     return false;
                 }
             }
@@ -415,12 +421,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // show resistance in voltage sources if there's only one.
         // can't use voltageSourceCount here since that counts internal voltage sources, like the one in GroundElm
         boolean gotVoltageSource = false;
-        CirSim.theSim.showResistanceInVoltageSources = true;
+        cirSim.showResistanceInVoltageSources = true;
         for (i = 0; i != elmList.size(); i++) {
             CircuitElm ce = elmList.get(i);
             if (ce instanceof VoltageElm) {
                 if (gotVoltageSource)
-                    CirSim.theSim.showResistanceInVoltageSources = false;
+                    cirSim.showResistanceInVoltageSources = false;
                 else
                     gotVoltageSource = true;
             }
@@ -437,7 +443,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         timeStep = maxTimeStep;
         needsStamp = true;
 
-        CirSim.theSim.callAnalyzeHook();
+        cirSim.callAnalyzeHook();
         return true;
     }
 
@@ -453,7 +459,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (stopMessage != null)
             return;
         if (i == 10) {
-            CirSim.theSim.stop("failed to stamp circuit", null);
+            cirSim.stop("failed to stamp circuit", null);
             return;
         }
 
@@ -499,7 +505,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // needing to do it every frame
         if (!circuitNonLinear) {
             if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                CirSim.theSim.stop("Singular matrix!", null);
+                cirSim.stop("Singular matrix!", null);
                 return;
             }
         }
@@ -565,7 +571,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (j == matrixSize) {
                 if (qp == -1) {
                     // probably a singular matrix, try disabling matrix simplification above to check this
-                    CirSim.theSim.stop("Matrix error", null);
+                    cirSim.stop("Matrix error", null);
                     return false;
                 }
                 RowInfo elt = circuitRowInfo[qp];
@@ -834,7 +840,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     FindPathInfo fpi = new FindPathInfo(FindPathInfo.VOLTAGE, ce,
                             ce.getNode(1));
                     if (fpi.findPath(ce.getNode(0))) {
-                        CirSim.theSim.stop("Voltage source/wire loop with no resistance!", ce);
+                        cirSim.stop("Voltage source/wire loop with no resistance!", ce);
                         return false;
                     }
                 }
@@ -844,7 +850,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (ce instanceof RailElm || ce instanceof LogicInputElm) {
                 FindPathInfo fpi = new FindPathInfo(FindPathInfo.VOLTAGE, ce, ce.getNode(0));
                 if (fpi.findPath(0)) {
-                    CirSim.theSim.stop("Path to ground with no resistance!", ce);
+                    cirSim.stop("Path to ground with no resistance!", ce);
                     return false;
                 }
             }
@@ -1290,7 +1296,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
                 // things are going well, double the time step
                 timeStep = Math.min(timeStep * 2, maxTimeStep);
-                console("timestep up = " + timeStep + " at " + CirSim.theSim.t);
+                console("timestep up = " + timeStep + " at " + cirSim.t);
                 stampCircuit();
                 goodIterations = 0;
             }
@@ -1325,7 +1331,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         for (i = 0; i != circuitMatrixSize; i++) {
                             double x = circuitMatrix[i][j];
                             if (Double.isNaN(x) || Double.isInfinite(x)) {
-                                CirSim.theSim.stop("nan/infinite matrix!", null);
+                                cirSim.stop("nan/infinite matrix!", null);
                                 console("circuitMatrix " + i + " " + j + " is " + x);
                                 return;
                             }
@@ -1347,7 +1353,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     if (converged && subiter > 0)
                         break;
                     if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                        CirSim.theSim.stop("Singular matrix!", null);
+                        cirSim.stop("Singular matrix!", null);
                         return;
                     }
                 }
@@ -1361,11 +1367,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 goodIterations = 0;
                 if (adjustTimeStep) {
                     timeStep /= 2;
-                    console("timestep down to " + timeStep + " at " + CirSim.theSim.t);
+                    console("timestep down to " + timeStep + " at " + cirSim.t);
                 }
                 if (timeStep < minTimeStep || !adjustTimeStep) {
                     console("convergence failed after " + subiter + " iterations");
-                    CirSim.theSim.stop("Convergence failed!", null);
+                    cirSim.stop("Convergence failed!", null);
                     break;
                 }
                 // we reduced the timestep.  reset circuit state to the way it was at start of iteration
@@ -1403,7 +1409,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             lit = tm;
             // Check whether enough time has elapsed to perform an *additional* iteration after
             // those we have already completed.  But limit total computation time to 50ms (20fps) by default
-            if ((timeStepCount - timeStepCountAtFrameStart) * 1000 >= steprate * (tm - lastIterTime) || (tm - cirSim.circuitRenderer.lastFrameTime > frameTimeLimit))
+            if ((timeStepCount - timeStepCountAtFrameStart) * 1000 >= steprate * (tm - lastIterTime) || (tm - cirSim.renderer.lastFrameTime > frameTimeLimit))
                 break;
             if (!simRunning)
                 break;

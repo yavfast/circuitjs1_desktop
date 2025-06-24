@@ -143,9 +143,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     static final int INFO_WIDTH = 160;
 
     CircuitSimulator simulator = new CircuitSimulator(this);
-    CircuitRenderer circuitRenderer = new CircuitRenderer(this);
+    CircuitRenderer renderer = new CircuitRenderer(this);
+
     ScopeManager scopeManager = new ScopeManager(this);
     ClipboardManager clipboardManager = new ClipboardManager(this);
+    DialogManager dialogManager = new DialogManager(this);
 
     Button resetButton;
     Button runStopButton;
@@ -212,7 +214,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
 
-    // Class addingClass;
     PopupPanel contextPanel = null;
 
     int mouseMode = MODE_SELECT;
@@ -261,13 +262,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     boolean hideInfoBox;
 
 
-    static EditDialog editDialog, customLogicEditDialog, diodeModelEditDialog;
-    static HelpDialog helpDialog;
-    static LicenseDialog licenseDialog;
-    static ModDialog modDialog;
-    static ScrollValuePopup scrollValuePopup;
-    static Dialog dialogShowing;
-    static AboutBox aboutBox;
     // Class dumpTypes[], shortcuts[];
     String shortcuts[];
     String recovery;
@@ -302,7 +296,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     final Timer timer = new Timer() {
         public void run() {
-            circuitRenderer.updateCircuit();
+            renderer.updateCircuit();
         }
     };
     final int FASTTIMER = 16;
@@ -320,10 +314,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     native boolean isMobile(Element element) /*-{
-	if (!element)
-	    return false;
-	var style = getComputedStyle(element);
-	return style.display != 'none';
+        if (!element)
+            return false;
+        var style = getComputedStyle(element);
+        return style.display != 'none';
     }-*/;
 
     public void setCanvasSize() {
@@ -342,13 +336,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         width = Math.max(width, 0);   // avoid exception when setting negative width
         height = Math.max(height, 0);
 
-        circuitRenderer.setCanvasSize(width, height);
+        renderer.setCanvasSize(width, height);
 
-        circuitRenderer.setCircuitArea();
+        renderer.setCircuitArea();
 
         // recenter circuit in case canvas was hidden at startup
-        if (circuitRenderer.transform[0] == 0)
-            circuitRenderer.centreCircuit();
+        if (renderer.transform[0] == 0)
+            renderer.centreCircuit();
     }
 
     native String decompress(String dump) /*-{
@@ -675,9 +669,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                     setCanvasSize();
                     if (lstor.getItem("MOD_overlayingSidebar") == "false") {
                         if (isSidePanelCheckboxChecked())
-                            circuitRenderer.transform[4] -= VERTICAL_PANEL_WIDTH / 2;
+                            renderer.transform[4] -= VERTICAL_PANEL_WIDTH / 2;
                         else
-                            circuitRenderer.transform[4] += VERTICAL_PANEL_WIDTH / 2;
+                            renderer.transform[4] += VERTICAL_PANEL_WIDTH / 2;
                     }
                 }
             }
@@ -865,7 +859,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
         RootLayoutPanel.get().add(layoutPanel);
 
-        Canvas cv = circuitRenderer.initCanvas();
+        Canvas cv = renderer.initCanvas();
         if (cv == null) {
             RootPanel.get().add(new Label("Not working. You need a browser that supports the CANVAS element."));
             return;
@@ -1605,7 +1599,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             needsRepaint = true;
             Scheduler.get().scheduleFixedDelay(new Scheduler.RepeatingCommand() {
                 public boolean execute() {
-                    circuitRenderer.updateCircuit();
+                    renderer.updateCircuit();
                     needsRepaint = false;
                     return false;
                 }
@@ -1640,7 +1634,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 //    }
 
     void needAnalyze() {
-        circuitRenderer.analyzeFlag = true;
+        renderer.analyzeFlag = true;
         repaint();
         enableDisableMenuItems();
     }
@@ -1675,7 +1669,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         simulator.stopElm = ce;
 
         setSimRunning(false);
-        circuitRenderer.analyzeFlag = false;
+        renderer.analyzeFlag = false;
     }
 
 
@@ -1690,7 +1684,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     public void resetAction() {
         int i;
-        circuitRenderer.analyzeFlag = true;
+        renderer.analyzeFlag = true;
         if (t == 0)
             setSimRunning(true);
         t = simulator.timeStepAccum = 0;
@@ -1745,6 +1739,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 		});
     }-*/;
 
+    // JSInterface
     static void electronSaveAsCallback(String s) {
         s = s.substring(s.lastIndexOf('/') + 1);
         s = s.substring(s.lastIndexOf('\\') + 1);
@@ -1807,13 +1802,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             return;
         }
         if (item == "help")
-            helpDialog = new HelpDialog();
+            dialogManager.showHelpDialog();
         if (item == "license")
-            licenseDialog = new LicenseDialog();
+            dialogManager.showLicenseDialog();
         if (item == "about")
-            aboutBox = new AboutBox(circuitjs1.versionString);
+            dialogManager.showAboutBox();
         if (item == "modsetup")
-            modDialog = new ModDialog();
+            dialogManager.showModDialog();
         if (item == "importfromlocalfile") {
             pushUndo();
             loadFileInput.click();
@@ -1837,7 +1832,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
 
         if (item == "importfromtext") {
-            dialogShowing = new ImportFromTextDialog(this);
+            dialogManager.showImportFromTextDialog();
         }
     	/*if (item=="importfromdropbox") {
     		dialogShowing = new ImportFromDropboxDialog(this);
@@ -1875,16 +1870,13 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if ((menu == "elm" || menu == "scopepop") && contextPanel != null)
             contextPanel.hide();
         if (menu == "options" && item == "shortcuts") {
-            dialogShowing = new ShortcutsDialog(this);
-            dialogShowing.show();
+            dialogManager.showShortcutsDialog();
         }
         if (menu == "options" && item == "subcircuits") {
-            dialogShowing = new SubcircuitDialog(this);
-            dialogShowing.show();
+            dialogManager.showSubcircuitDialog();
         }
         if (item == "search") {
-            dialogShowing = new SearchDialog(this);
-            dialogShowing.show();
+            dialogManager.showSearchDialog();
         }
         if (menu == "options" && item == "other")
             doEdit(new EditOptions(this));
@@ -1927,7 +1919,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         if (item == "centrecircuit") {
             pushUndo();
-            circuitRenderer.centreCircuit();
+            renderer.centreCircuit();
         }
         if (item == "flipx") {
             pushUndo();
@@ -1950,11 +1942,11 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (item == "separateAll")
             scopeManager.separateAll();
         if (item == "zoomin")
-            circuitRenderer.zoomCircuit(20, true);
+            renderer.zoomCircuit(20, true);
         if (item == "zoomout")
-            circuitRenderer.zoomCircuit(-20, true);
+            renderer.zoomCircuit(-20, true);
         if (item == "zoom100")
-            circuitRenderer.setCircuitScale(1, true);
+            renderer.setCircuitScale(1, true);
         if (menu == "elm" && item == "edit")
             doEdit(menuElm);
         if (item == "delete") {
@@ -2088,7 +2080,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 setSlidersPanelHeight();
             } else {
                 Graphics.exitFullScreen();
-                circuitRenderer.centreCircuit();
+                renderer.centreCircuit();
                 setSlidersPanelHeight();
             }
         }
@@ -2104,38 +2096,28 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     void doEdit(Editable eable) {
         clearSelection();
         pushUndo();
-        if (editDialog != null) {
-            //		requestFocus();
-            editDialog.setVisible(false);
-            editDialog = null;
-        }
-        editDialog = new EditDialog(eable, this);
-        editDialog.show();
+        dialogManager.showEditDialog(eable);
     }
 
     void doSliders(CircuitElm ce) {
         clearSelection();
         pushUndo();
-        dialogShowing = new SliderDialog(ce, this);
-        dialogShowing.show();
+        dialogManager.showSliderDialog(ce);
     }
 
 
     void doExportAsUrl() {
         String dump = dumpCircuit();
-        dialogShowing = new ExportAsUrlDialog(dump);
-        dialogShowing.show();
+        dialogManager.showExportAsUrlDialog(dump);
     }
 
     void doExportAsText() {
         String dump = dumpCircuit();
-        dialogShowing = new ExportAsTextDialog(this, dump);
-        dialogShowing.show();
+        dialogManager.showExportAsTextDialog(dump);
     }
 
     void doExportAsImage() {
-        dialogShowing = new ExportAsImageDialog(CAC_IMAGE);
-        dialogShowing.show();
+        dialogManager.showExportAsImageDialog(CAC_IMAGE);
     }
 
     private static native void clipboardWriteImage(CanvasElement cv) /*-{
@@ -2146,17 +2128,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }-*/;
 
     void doImageToClipboard() {
-        Canvas cv = circuitRenderer.getCircuitAsCanvas(CAC_IMAGE);
+        Canvas cv = renderer.getCircuitAsCanvas(CAC_IMAGE);
         clipboardWriteImage(cv.getCanvasElement());
     }
 
     void doCreateSubcircuit() {
-        EditCompositeModelDialog dlg = new EditCompositeModelDialog();
-        if (!dlg.createModel())
-            return;
-        dlg.createDialog();
-        dialogShowing = dlg;
-        dialogShowing.show();
+        dialogManager.showEditCompositeModelDialog(null);
     }
 
     /*
@@ -2542,7 +2519,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         //    handleResize(); // for scopes
         needAnalyze();
         if ((flags & RC_NO_CENTER) == 0)
-            circuitRenderer.centreCircuit();
+            renderer.centreCircuit();
         if ((flags & RC_SUBCIRCUITS) != 0)
             simulator.updateModels();
 
@@ -2644,9 +2621,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             dragSplitter(e.getX(), e.getY());
             return;
         }
-        int gx = circuitRenderer.inverseTransformX(e.getX());
-        int gy = circuitRenderer.inverseTransformY(e.getY());
-        if (!circuitRenderer.circuitArea.contains(e.getX(), e.getY()))
+        int gx = renderer.inverseTransformX(e.getX());
+        int gy = renderer.inverseTransformY(e.getY());
+        if (!renderer.circuitArea.contains(e.getX(), e.getY()))
             return;
         boolean changed = false;
         if (dragElm != null)
@@ -2693,8 +2670,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             dragScreenX = e.getX();
             dragScreenY = e.getY();
             //	    console("setting dragGridx in mousedragged");
-            dragGridX = circuitRenderer.inverseTransformX(dragScreenX);
-            dragGridY = circuitRenderer.inverseTransformY(dragScreenY);
+            dragGridX = renderer.inverseTransformX(dragScreenX);
+            dragGridY = renderer.inverseTransformY(dragScreenY);
             if (!(tempMouseMode == MODE_DRAG_SELECTED && onlyGraphicsElmsSelected())) {
                 dragGridX = snapGrid(dragGridX);
                 dragGridY = snapGrid(dragGridY);
@@ -2710,7 +2687,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void dragSplitter(int x, int y) {
-        double h = (double) circuitRenderer.canvasHeight;
+        double h = (double) renderer.canvasHeight;
         if (h < 1)
             h = 1;
         double scopeHeightFraction = 1.0 - (((double) y) / h);
@@ -2718,8 +2695,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             scopeHeightFraction = 0.1;
         if (scopeHeightFraction > 0.9)
             scopeHeightFraction = 0.9;
-        circuitRenderer.scopeHeightFraction = scopeHeightFraction;
-        circuitRenderer.setCircuitArea();
+        renderer.scopeHeightFraction = scopeHeightFraction;
+        renderer.setCircuitArea();
         repaint();
     }
 
@@ -2728,8 +2705,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         int dy = y - dragScreenY;
         if (dx == 0 && dy == 0)
             return;
-        circuitRenderer.transform[4] += dx;
-        circuitRenderer.transform[5] += dy;
+        renderer.transform[4] += dx;
+        renderer.transform[5] += dy;
         dragScreenX = x;
         dragScreenY = y;
     }
@@ -2860,8 +2837,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void doSplit(CircuitElm ce) {
-        int x = snapGrid(circuitRenderer.inverseTransformX(menuX));
-        int y = snapGrid(circuitRenderer.inverseTransformY(menuY));
+        int x = snapGrid(renderer.inverseTransformX(menuX));
+        int y = snapGrid(renderer.inverseTransformY(menuY));
         if (ce == null || !(ce instanceof WireElm))
             return;
         if (ce.x == ce.x2)
@@ -2946,8 +2923,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         boolean isOverSplitter;
         if (scopeManager.scopeCount == 0)
             return false;
-        isOverSplitter = ((x >= 0) && (x < circuitRenderer.circuitArea.width) &&
-                (y >= circuitRenderer.circuitArea.height - 5) && (y < circuitRenderer.circuitArea.height));
+        isOverSplitter = ((x >= 0) && (x < renderer.circuitArea.width) &&
+                (y >= renderer.circuitArea.height - 5) && (y < renderer.circuitArea.height));
         if (isOverSplitter != mouseWasOverSplitter) {
             if (isOverSplitter)
                 setCursorStyle("cursorSplitter");
@@ -2982,8 +2959,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         mouseCursorY = e.getY();
         int sx = e.getX();
         int sy = e.getY();
-        int gx = circuitRenderer.inverseTransformX(sx);
-        int gy = circuitRenderer.inverseTransformY(sy);
+        int gx = renderer.inverseTransformX(sx);
+        int gy = renderer.inverseTransformY(sy);
         // 	console("Settingd draggridx in mouseEvent");
         dragGridX = snapGrid(gx);
         dragGridY = snapGrid(gy);
@@ -3001,7 +2978,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             return;
         }
 
-        if (circuitRenderer.circuitArea.contains(sx, sy)) {
+        if (renderer.circuitArea.contains(sx, sy)) {
             if (mouseElm != null && (mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0)) {
                 newMouseElm = mouseElm;
             } else {
@@ -3092,7 +3069,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                         scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
                 contextPanel = new PopupPanel(true);
                 contextPanel.add(scopePopupMenu.getMenuBar());
-                y = Math.max(0, Math.min(menuClientY, circuitRenderer.canvasHeight - 160));
+                y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 160));
                 contextPanel.setPopupPosition(menuClientX, y);
                 contextPanel.show();
             }
@@ -3148,8 +3125,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             doMainMenuChecks();
             contextPanel = new PopupPanel(true);
             contextPanel.add(mainMenuBar);
-            x = Math.max(0, Math.min(menuClientX, circuitRenderer.canvasWidth - 400));
-            y = Math.max(0, Math.min(menuClientY, circuitRenderer.canvasHeight - 450));
+            x = Math.max(0, Math.min(menuClientX, renderer.canvasWidth - 400));
+            y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 450));
             contextPanel.setPopupPosition(x, y);
             contextPanel.show();
         }
@@ -3207,7 +3184,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         e.preventDefault();
 
         // make sure canvas has focus, not stop button or something else, so all shortcuts work
-        circuitRenderer.cv.setFocus(true);
+        renderer.cv.setFocus(true);
 
         simulator.stopElm = null; // if stopped, allow user to select other elements to fix circuit
         menuX = menuClientX = e.getX();
@@ -3266,8 +3243,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             return;
         }
 
-        int gx = circuitRenderer.inverseTransformX(e.getX());
-        int gy = circuitRenderer.inverseTransformY(e.getY());
+        int gx = renderer.inverseTransformX(e.getX());
+        int gy = renderer.inverseTransformY(e.getY());
         if (doSwitch(gx, gy)) {
             // do this BEFORE we change the mouse mode to MODE_DRAG_POST!  Or else logic inputs
             // will add dots to the whole circuit when we click on them!
@@ -3293,7 +3270,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 //
         int x0 = snapGrid(gx);
         int y0 = snapGrid(gy);
-        if (!circuitRenderer.circuitArea.contains(e.getX(), e.getY()))
+        if (!renderer.circuitArea.contains(e.getX(), e.getY()))
             return;
 
         try {
@@ -3398,7 +3375,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         else if (!dialogIsShowing()) {
             mouseCursorX = e.getX();
             mouseCursorY = e.getY();
-            circuitRenderer.zoomCircuit(-e.getDeltaY() * wheelSensitivity, false);
+            renderer.zoomCircuit(-e.getDeltaY() * wheelSensitivity, false);
             zoomTime = System.currentTimeMillis();
         }
         repaint();
@@ -3413,6 +3390,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             powerBar.disable();
         }
     }
+
+    ScrollValuePopup scrollValuePopup;
 
     void scrollValues(int x, int y, int deltay) {
         if (mouseElm != null && !dialogIsShowing() && scopeManager.scopeSelected == -1)
@@ -3474,9 +3453,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     void loadUndoItem(UndoItem ui) {
         readCircuit(ui.dump, RC_NO_CENTER);
-        circuitRenderer.transform[0] = circuitRenderer.transform[3] = ui.scale;
-        circuitRenderer.transform[4] = ui.transform4;
-        circuitRenderer.transform[5] = ui.transform5;
+        renderer.transform[0] = renderer.transform[3] = ui.scale;
+        renderer.transform[4] = ui.transform4;
+        renderer.transform[5] = ui.transform5;
     }
 
     void doRecover() {
@@ -3505,8 +3484,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     void setCursorStyle(String s) {
         if (lastCursorStyle != null)
-            circuitRenderer.cv.removeStyleName(lastCursorStyle);
-        circuitRenderer.cv.addStyleName(s);
+            renderer.cv.removeStyleName(lastCursorStyle);
+        renderer.cv.addStyleName(s);
         lastCursorStyle = s;
     }
 
@@ -3755,8 +3734,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (oldbb != null && newbb != null /*&& oldbb.intersects(newbb)*/) {
             // find a place on the edge for new items
             int dx = 0, dy = 0;
-            int spacew = circuitRenderer.circuitArea.width - oldbb.width - newbb.width;
-            int spaceh = circuitRenderer.circuitArea.height - oldbb.height - newbb.height;
+            int spacew = renderer.circuitArea.width - oldbb.width - newbb.width;
+            int spaceh = renderer.circuitArea.height - oldbb.height - newbb.height;
 
             if (!oldbb.intersects(newbb)) {
                 // old coordinates may be really far away so move them to same origin as current circuit
@@ -3771,9 +3750,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             }
 
             // move new items near the mouse if possible
-            if (mouseCursorX > 0 && circuitRenderer.circuitArea.contains(mouseCursorX, mouseCursorY)) {
-                int gx = circuitRenderer.inverseTransformX(mouseCursorX);
-                int gy = circuitRenderer.inverseTransformY(mouseCursorY);
+            if (mouseCursorX > 0 && renderer.circuitArea.contains(mouseCursorX, mouseCursorY)) {
+                int gx = renderer.inverseTransformX(mouseCursorX);
+                int gy = renderer.inverseTransformY(mouseCursorY);
                 int mdx = snapGrid(gx - (newbb.x + newbb.width / 2));
                 int mdy = snapGrid(gy - (newbb.y + newbb.height / 2));
                 for (i = oldsz; i != simulator.elmList.size(); i++) {
@@ -3830,26 +3809,14 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 //    public void keyReleased(KeyEvent e) {}
 
     boolean dialogIsShowing() {
-        if (editDialog != null && editDialog.isShowing())
-            return true;
-        if (customLogicEditDialog != null && customLogicEditDialog.isShowing())
-            return true;
-        if (diodeModelEditDialog != null && diodeModelEditDialog.isShowing())
-            return true;
-        if (dialogShowing != null && dialogShowing.isShowing())
-            return true;
         if (contextPanel != null && contextPanel.isShowing())
             return true;
         if (scrollValuePopup != null && scrollValuePopup.isShowing())
             return true;
-        if (aboutBox != null && aboutBox.isShowing())
+        if (dialogManager.dialogIsShowing()) {
             return true;
-        if (helpDialog != null && helpDialog.isShowing())
-            return true;
-        if (licenseDialog != null && licenseDialog.isShowing())
-            return true;
-        if (modDialog != null && modDialog.isShowing())
-            return true;
+        }
+
         return false;
     }
 
@@ -3868,15 +3835,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
             // process escape/enter for dialogs
             // multiple edit dialogs could be displayed at once, pick the one in front
-            Dialog dlg = editDialog;
-            if (diodeModelEditDialog != null)
-                dlg = diodeModelEditDialog;
-            if (customLogicEditDialog != null)
-                dlg = customLogicEditDialog;
-            if (dialogShowing != null)
-                dlg = dialogShowing;
-            if (dlg != null && dlg.isShowing() &&
-                    (t & Event.ONKEYDOWN) != 0) {
+            Dialog dlg = dialogManager.getShowingDialog();
+            if (dlg != null && dlg.isShowing() && (t & Event.ONKEYDOWN) != 0) {
                 if (code == KEY_ESCAPE)
                     dlg.closeDialog();
                 if (code == KEY_ENTER)
@@ -4118,7 +4078,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void doPrint() {
-        Canvas cv = circuitRenderer.getCircuitAsCanvas(CAC_PRINT);
+        Canvas cv = renderer.getCircuitAsCanvas(CAC_PRINT);
         printCanvas(cv.getCanvasElement());
     }
 
@@ -4150,15 +4110,14 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (!initializeSVGScriptIfNecessary("doExportAsSVG")) {
             return;
         }
-        dialogShowing = new ExportAsImageDialog(CAC_SVG);
-        dialogShowing.show();
+        dialogManager.showExportAsImageDialog(CAC_SVG);
     }
 
     public void doExportAsSVGFromAPI() {
         if (!initializeSVGScriptIfNecessary("doExportAsSVGFromAPI")) {
             return;
         }
-        String svg = circuitRenderer.getCircuitAsSVG();
+        String svg = renderer.getCircuitAsSVG();
         callSVGRenderedHook(svg);
     }
 
@@ -4214,7 +4173,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     // JSInterface
     void zoomCircuit(double dy) {
-        circuitRenderer.zoomCircuit(dy);
+        renderer.zoomCircuit(dy);
     }
 
     native void setupJSInterface() /*-{
@@ -4249,10 +4208,10 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 	}-*/;
 
     native void callAnalyzeHook() /*-{
-            var hook = $wnd.CircuitJS1.onanalyze;
-            if (hook)
-                hook($wnd.CircuitJS1);
-    	}-*/;
+        var hook = $wnd.CircuitJS1.onanalyze;
+        if (hook)
+            hook($wnd.CircuitJS1);
+    }-*/;
 
 
     native void callTimeStepHook() /*-{
@@ -4273,9 +4232,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         UndoItem(String d) {
             dump = d;
-            scale = circuitRenderer.transform[0];
-            transform4 = circuitRenderer.transform[4];
-            transform5 = circuitRenderer.transform[5];
+            scale = renderer.transform[0];
+            transform4 = renderer.transform[4];
+            transform5 = renderer.transform[5];
         }
     }
 

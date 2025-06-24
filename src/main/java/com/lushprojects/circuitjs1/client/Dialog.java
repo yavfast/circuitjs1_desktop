@@ -32,8 +32,6 @@ class Dialog extends DialogBox {
 
     public void closeDialog() {
         hide();
-        if (CirSim.dialogShowing == this)
-            CirSim.dialogShowing = null;
     }
 
 

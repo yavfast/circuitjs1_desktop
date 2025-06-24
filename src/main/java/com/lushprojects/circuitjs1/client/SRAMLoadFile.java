@@ -46,7 +46,7 @@ public class SRAMLoadFile extends EditDialogLoadFile {
 
     static public void doLoadCallback(String data) {
         SRAMElm.contentsOverride = data;
-        CirSim.editDialog.resetDialog();
+        CirSim.theSim.dialogManager.resetEditDialog();
         SRAMElm.contentsOverride = null;
     }
 }

@@ -98,6 +98,12 @@ class EditDialog extends Dialog {
         this.center();
     }
 
+    @Override
+    public void closeDialog() {
+        super.closeDialog();
+        resetDialog();
+    }
+
     void buildDialog() {
         int i;
         HorizontalPanel hp = new HorizontalPanel();
@@ -346,12 +352,5 @@ class EditDialog extends Dialog {
             mainPanel.remove(0);
     }
 
-    public void closeDialog() {
-        super.closeDialog();
-        if (CirSim.editDialog == this)
-            CirSim.editDialog = null;
-        if (CirSim.customLogicEditDialog == this)
-            CirSim.customLogicEditDialog = null;
-    }
 }
 

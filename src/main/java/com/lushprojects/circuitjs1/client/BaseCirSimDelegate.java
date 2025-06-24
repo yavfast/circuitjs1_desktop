@@ -9,6 +9,6 @@ public class BaseCirSimDelegate {
     protected BaseCirSimDelegate(CirSim cirSim) {
         this.cirSim = cirSim;
         this.simulator = cirSim.simulator;
-        this.renderer = cirSim.circuitRenderer;
+        this.renderer = cirSim.renderer;
     }
 }

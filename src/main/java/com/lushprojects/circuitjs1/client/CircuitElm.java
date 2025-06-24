@@ -35,7 +35,7 @@ import java.util.Vector;
 public abstract class CircuitElm implements Editable {
     static double voltageRange = 5;
     static int colorScaleCount = 201; // odd so ground = gray 
-    static Color colorScale[];
+    static Color[] colorScale;
     static double currentMult, powerMult;
 
     // scratch points for convenience
@@ -65,7 +65,9 @@ public abstract class CircuitElm implements Editable {
     // point to which user dragged out element.  For simple two-terminal elements, this is the second node/post
     int x2, y2;
 
-    int flags, nodes[], voltSource;
+    int flags;
+    int[] nodes;
+    int voltSource;
 
     // length along x and y axes, and sign of difference
     int dx, dy, dsign;
@@ -84,7 +86,7 @@ public abstract class CircuitElm implements Editable {
     Point lead1, lead2;
 
     // voltages at each node
-    double volts[];
+    double[] volts;
 
     double current, curcount;
     Rectangle boundingBox;
