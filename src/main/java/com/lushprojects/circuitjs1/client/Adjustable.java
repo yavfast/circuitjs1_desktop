@@ -7,7 +7,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 import java.util.Vector;
 
 // values with sliders
-public class Adjustable implements Command {
+public class Adjustable extends BaseCirSimDelegate implements Command {
     CircuitElm elm;
     double minValue, maxValue;
     int flags;
@@ -25,7 +25,8 @@ public class Adjustable implements Command {
     Scrollbar slider;
     boolean settingValue;
 
-    Adjustable(CircuitElm ce, int item) {
+    Adjustable(CirSim cirSim, CircuitElm ce, int item) {
+        super(cirSim);
         minValue = 1;
         maxValue = 1000;
         flags = 0;
@@ -40,6 +41,7 @@ public class Adjustable implements Command {
 
     // undump
     Adjustable(StringTokenizer st, CirSim sim) {
+        super(sim);
         int e = Integer.parseInt(st.nextToken());
         if (e == -1)
             return;
@@ -57,7 +59,7 @@ public class Adjustable implements Command {
             maxValue = Double.parseDouble(st.nextToken());
             if ((flags & FLAG_SHARED) != 0) {
                 int ano = Integer.parseInt(st.nextToken());
-                sharedSlider = ano == -1 ? null : sim.adjustables.get(ano);
+                sharedSlider = ano == -1 ? null : sim.adjustableManager.adjustables.get(ano);
             }
             sliderText = CustomLogicModel.unescape(st.nextToken());
         } catch (Exception ex) {
@@ -68,7 +70,7 @@ public class Adjustable implements Command {
         }
     }
 
-    boolean createSlider(CirSim sim) {
+    boolean createSlider() {
         if (elm == null)
             return false;
         EditInfo ei = elm.getEditInfo(editItem);
@@ -79,15 +81,15 @@ public class Adjustable implements Command {
         if (sliderText.length() == 0)
             return false;
         double value = ei.value;
-        createSlider(sim, value);
+        createSlider(value);
         return true;
     }
 
-    void createSlider(CirSim sim, double value) {
-        sim.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
+    void createSlider(double value) {
+        cirSim.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
         label.addStyleName("topSpace");
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
-        sim.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm));
+        cirSim.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm));
     }
 
     void setSliderValue(double value) {
@@ -105,20 +107,20 @@ public class Adjustable implements Command {
         if (settingValue)
             return;
         int i;
-        CirSim sim = CirSim.theSim;
-        for (i = 0; i != sim.adjustables.size(); i++) {
-            Adjustable adj = sim.adjustables.get(i);
+        Vector<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        for (i = 0; i != adjustables.size(); i++) {
+            Adjustable adj = adjustables.get(i);
             if (adj == this || adj.sharedSlider == this)
                 adj.executeSlider();
         }
     }
 
     void executeSlider() {
-        elm.simUi.renderer.analyzeFlag = true;
+        renderer.analyzeFlag = true;
         EditInfo ei = elm.getEditInfo(editItem);
         ei.value = getSliderValue();
         elm.setEditValue(editItem, ei);
-        elm.simUi.repaint();
+        cirSim.repaint();
     }
 
     double getSliderValue() {
@@ -140,9 +142,9 @@ public class Adjustable implements Command {
     }
 
     boolean sliderBeingShared() {
-        int i;
-        for (i = 0; i != CirSim.theSim.adjustables.size(); i++) {
-            Adjustable adj = CirSim.theSim.adjustables.get(i);
+        Vector<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        for (int i = 0; i != adjustables.size(); i++) {
+            Adjustable adj = adjustables.get(i);
             if (adj.sharedSlider == this)
                 return true;
         }
@@ -152,29 +154,10 @@ public class Adjustable implements Command {
     String dump() {
         int ano = -1;
         if (sharedSlider != null)
-            ano = CirSim.theSim.adjustables.indexOf(sharedSlider);
+            ano = cirSim.adjustableManager.adjustables.indexOf(sharedSlider);
 
-        return elm.simUi.locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
+        return cirSim.locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
                 CustomLogicModel.escape(sliderText);
     }
 
-    // reorder adjustables so that items with sliders come first in the list, followed by items that reference them.
-    // this simplifies the UI code, and also makes it much easier to dump/undump the adjustables list, since we will
-    // always be undumping the adjustables with sliders first, then the adjustables that reference them.
-    static void reorderAdjustables() {
-        Vector<Adjustable> newList = new Vector<Adjustable>();
-        Vector<Adjustable> oldList = CirSim.theSim.adjustables;
-        int i;
-        for (i = 0; i != oldList.size(); i++) {
-            Adjustable adj = oldList.get(i);
-            if (adj.sharedSlider == null)
-                newList.add(adj);
-        }
-        for (i = 0; i != oldList.size(); i++) {
-            Adjustable adj = oldList.get(i);
-            if (adj.sharedSlider != null)
-                newList.add(adj);
-        }
-        CirSim.theSim.adjustables = newList;
-    }
 }

@@ -276,7 +276,7 @@ public abstract class CircuitElm implements Editable {
     void delete() {
         if (mouseElmRef == this)
             mouseElmRef = null;
-		simUi.deleteSliders(this);
+		simUi.adjustableManager.deleteSliders(this);
     }
 
     void startIteration() {

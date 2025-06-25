@@ -146,6 +146,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     DialogManager dialogManager = new DialogManager(this);
     MenuManager menuManager = new MenuManager(this);
     UndoManager undoManager = new UndoManager(this);
+    AdjustableManager adjustableManager = new AdjustableManager(this);
 
     Button resetButton;
     Button runStopButton;
@@ -187,7 +188,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     int menuPlot = -1;
     int hintType = -1, hintItem1, hintItem2;
 
-    Vector<Adjustable> adjustables;
     // Vector setupList;
     CircuitElm dragElm, menuElm;
 
@@ -698,7 +698,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         slidersPanel.getElement().getStyle().setOverflowY(Overflow.SCROLL);
 
         setGrid();
-        adjustables = new Vector<Adjustable>();
         //	setupList = new Vector();
 
 
@@ -979,16 +978,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (n >= simulator.elmList.size())
             return null;
         return simulator.elmList.elementAt(n);
-    }
-
-    public Adjustable findAdjustable(CircuitElm elm, int item) {
-        int i;
-        for (i = 0; i != adjustables.size(); i++) {
-            Adjustable a = adjustables.get(i);
-            if (a.elm == elm && a.editItem == item)
-                return a;
-        }
-        return null;
     }
 
     public static native void console(String text)
@@ -1524,10 +1513,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             if (d != null)
                 dump += d + "\n";
         }
-        for (i = 0; i != adjustables.size(); i++) {
-            Adjustable adj = adjustables.get(i);
-            dump += "38 " + adj.dump() + "\n";
-        }
+        dump += adjustableManager.dump();
         if (hintType != -1)
             dump += "h " + hintType + " " + hintItem1 + " " +
                     hintItem2 + "\n";
@@ -1771,9 +1757,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                         break;
                     }
                     if (tint == 38) {
-                        Adjustable adj = new Adjustable(st, this);
-                        if (adj.elm != null)
-                            adjustables.add(adj);
+                        adjustableManager.addAdjustable(st);
                         break;
                     }
                     if (tint == '.') {
@@ -1815,10 +1799,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         enableItems();
         if ((flags & RC_RETAIN) == 0) {
             // create sliders as needed
-            for (i = 0; i < adjustables.size(); i++) {
-                if (!adjustables.get(i).createSlider(this))
-                    adjustables.remove(i--);
-            }
+            adjustableManager.createSliders();
         }
 //	if (!retain)
         //    handleResize(); // for scopes
@@ -1830,20 +1811,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
         AudioInputElm.clearCache();  // to save memory
         DataInputElm.clearCache();  // to save memory
-    }
-
-    // delete sliders for an element
-    void deleteSliders(CircuitElm elm) {
-        int i;
-        if (adjustables == null)
-            return;
-        for (i = adjustables.size() - 1; i >= 0; i--) {
-            Adjustable adj = adjustables.get(i);
-            if (adj.elm == elm) {
-                adj.deleteSlider(this);
-                adjustables.remove(i);
-            }
-        }
     }
 
     void readHint(StringTokenizer st) {
@@ -2202,9 +2169,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             if (ce != null)
                 ce.setMouseElm(true);
             mouseElm = ce;
-            int i;
-            for (i = 0; i < adjustables.size(); i++)
-                adjustables.get(i).setMouseElm(ce);
+
+            adjustableManager.setMouseElm(ce);
         }
     }
 

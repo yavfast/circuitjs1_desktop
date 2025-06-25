@@ -300,7 +300,7 @@ class EditDialog extends Dialog {
 
             // update slider if any
             if (elm instanceof CircuitElm) {
-                Adjustable adj = cframe.findAdjustable((CircuitElm) elm, i);
+                Adjustable adj = cframe.adjustableManager.findAdjustable((CircuitElm) elm, i);
                 if (adj != null)
                     adj.setSliderValue(ei.value);
             }

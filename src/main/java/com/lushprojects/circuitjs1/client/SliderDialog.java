@@ -121,8 +121,8 @@ class SliderDialog extends Dialog {
                     });
                     ch.add("New Slider");
                     int j;
-                    for (j = 0; j != sim.adjustables.size(); j++) {
-                        Adjustable adji = sim.adjustables.get(j);
+                    for (j = 0; j != sim.adjustableManager.adjustables.size(); j++) {
+                        Adjustable adji = sim.adjustableManager.adjustables.get(j);
                         // don't share with an object sharing with someone else
                         if (adji.sharedSlider != null)
                             break;
@@ -157,7 +157,7 @@ class SliderDialog extends Dialog {
     }
 
     Adjustable findAdjustable(int item) {
-        return sim.findAdjustable(elm, item);
+        return sim.adjustableManager.findAdjustable(elm, item);
     }
 
     void apply() {
@@ -194,14 +194,14 @@ class SliderDialog extends Dialog {
             if (ei.checkbox == src) {
                 apply();
                 if (ei.checkbox.getState()) {
-                    Adjustable adj = new Adjustable(elm, i);
+                    Adjustable adj = new Adjustable(sim, elm, i);
                     adj.sliderText = ei.name.replaceAll(" \\(.*\\)$", "");
-                    adj.createSlider(sim, ei.value);
-                    sim.adjustables.add(adj);
+                    adj.createSlider(ei.value);
+                    sim.adjustableManager.adjustables.add(adj);
                 } else {
                     Adjustable adj = findAdjustable(i);
                     adj.deleteSlider(sim);
-                    sim.adjustables.remove(adj);
+                    sim.adjustableManager.adjustables.remove(adj);
                 }
                 changed = true;
             }
@@ -211,14 +211,14 @@ class SliderDialog extends Dialog {
                 if (ei.choice.getSelectedIndex() == 0) {
                     // new slider
                     adj.sharedSlider = null;
-                    if (adj.sliderText == null || adj.sliderText.length() == 0)
+                    if (adj.sliderText == null || adj.sliderText.isEmpty())
                         adj.sliderText = ei.name.replaceAll(" \\(.*\\)$", "");
-                    adj.createSlider(sim, ei.value);
+                    adj.createSlider(ei.value);
                 } else {
                     int j;
                     int ct = 0;
-                    for (j = 0; j != sim.adjustables.size(); j++) {
-                        Adjustable adji = sim.adjustables.get(j);
+                    for (j = 0; j != sim.adjustableManager.adjustables.size(); j++) {
+                        Adjustable adji = sim.adjustableManager.adjustables.get(j);
                         if (adji.sharedSlider != null)
                             break;
                         if (adji == adj)
@@ -233,7 +233,7 @@ class SliderDialog extends Dialog {
             }
         }
         if (changed) {
-            Adjustable.reorderAdjustables();
+            sim.adjustableManager.reorderAdjustables();
             clearDialog();
             buildDialog();
         }
