@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.safehtml.shared.SafeHtmlUtils;
+import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
@@ -75,11 +76,13 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuBar circuitsMenuBar;
 
 
-    Vector<CheckboxMenuItem> mainMenuItems = new Vector<CheckboxMenuItem>();
-    Vector<String> mainMenuItemNames = new Vector<String>();
+    Vector<CheckboxMenuItem> mainMenuItems = new Vector<>();
+    Vector<String> mainMenuItemNames = new Vector<>();
 
     boolean isMac;
     String ctrlMetaKey;
+
+    String[] shortcuts = new String[127];
 
 
     protected MenuManager(CirSim cirSim) {
@@ -521,7 +524,7 @@ public class MenuManager extends BaseCirSimDelegate {
             if (elm.needsShortcut()) {
                 int sc = elm.getShortcut();
                 shortcut += (char) sc;
-                String[] shortcuts = cirSim.shortcuts;
+                String[] shortcuts = this.shortcuts;
                 if (shortcuts[sc] != null && !shortcuts[sc].equals(t)) {
                     CirSim.console("already have shortcut for " + (char) sc + " " + elm);
                 }
@@ -817,6 +820,49 @@ public class MenuManager extends BaseCirSimDelegate {
             composeSubcircuitMenu();
     }
 
+    // save shortcuts to local storage
+    void saveShortcuts() {
+        String str = "1";
+        int i;
+        // format: version;code1=ClassName;code2=ClassName;etc
+        for (i = 0; i != shortcuts.length; i++) {
+            String sh = shortcuts[i];
+            if (sh == null)
+                continue;
+            str += ";" + i + "=" + sh;
+        }
+        OptionsManager.setOptionInStorage("shortcuts", str);
+    }
+
+    // load shortcuts from local storage
+    void loadShortcuts() {
+        Storage stor = Storage.getLocalStorageIfSupported();
+        if (stor == null)
+            return;
+        String str = stor.getItem("shortcuts");
+        if (str == null)
+            return;
+        String keys[] = str.split(";");
+
+        // clear existing shortcuts
+        int i;
+        for (i = 0; i != shortcuts.length; i++)
+            shortcuts[i] = null;
+
+        clearShortcuts();
+
+        // go through keys (skipping version at start)
+        for (i = 1; i < keys.length; i++) {
+            String arr[] = keys[i].split("=");
+            if (arr.length != 2)
+                continue;
+            int c = Integer.parseInt(arr[0]);
+            String className = arr[1];
+            shortcuts[c] = className;
+
+            setShortcut(className, c);
+        }
+    }
 
 
 }

@@ -205,9 +205,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     boolean showResistanceInVoltageSources;
     boolean hideInfoBox;
 
-
-    // Class dumpTypes[], shortcuts[];
-    String[] shortcuts;
     static boolean unsavedChanges;
     static String filePath;
     static String fileName;
@@ -503,8 +500,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         else
             euroSetting = OptionsManager.getBoolOptionFromStorage("euroResistors", !weAreInUS(true));
 
-        shortcuts = new String[127];
-
         RootLayoutPanel.get().add(absResetBtn = new Button("&#8634;",
                 new ClickHandler() {
                     public void onClick(ClickEvent event) {
@@ -576,7 +571,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         menuManager.initMainMenuBar();
         MenuBar menuBar = menuManager.menuBar;
 
-        loadShortcuts();
+        menuManager.loadShortcuts();
 
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckbox);
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckboxLabel);
@@ -818,52 +813,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
     }
 
-    // save shortcuts to local storage
-    void saveShortcuts() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        String str = "1";
-        int i;
-        // format: version;code1=ClassName;code2=ClassName;etc
-        for (i = 0; i != shortcuts.length; i++) {
-            String sh = shortcuts[i];
-            if (sh == null)
-                continue;
-            str += ";" + i + "=" + sh;
-        }
-        stor.setItem("shortcuts", str);
-    }
-
-    // load shortcuts from local storage
-    void loadShortcuts() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        String str = stor.getItem("shortcuts");
-        if (str == null)
-            return;
-        String keys[] = str.split(";");
-
-        // clear existing shortcuts
-        int i;
-        for (i = 0; i != shortcuts.length; i++)
-            shortcuts[i] = null;
-
-        menuManager.clearShortcuts();
-
-        // go through keys (skipping version at start)
-        for (i = 1; i < keys.length; i++) {
-            String arr[] = keys[i].split("=");
-            if (arr.length != 2)
-                continue;
-            int c = Integer.parseInt(arr[0]);
-            String className = arr[1];
-            shortcuts[c] = className;
-
-            menuManager.setShortcut(className, c);
-        }
-    }
 
     // install touch handlers
     // don't feel like rewriting this in java.  Anyway, java doesn't let us create mouse
@@ -3063,7 +3012,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 menuPerformed("key", "zoom100");
                 e.cancel();
             }
-            if (cc == '/' && shortcuts['/'] == null) {
+            if (cc == '/' && menuManager.shortcuts['/'] == null) {
                 menuPerformed("key", "search");
                 e.cancel();
             }
@@ -3144,7 +3093,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         }
         if ((t & Event.ONKEYPRESS) != 0) {
             if (cc > 32 && cc < 127) {
-                String c = shortcuts[cc];
+                String c = menuManager.shortcuts[cc];
                 e.cancel();
                 if (c == null)
                     return;

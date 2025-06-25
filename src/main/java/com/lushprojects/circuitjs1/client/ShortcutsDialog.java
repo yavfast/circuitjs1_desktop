@@ -102,18 +102,18 @@ public class ShortcutsDialog extends Dialog {
         if (checkForDuplicates())
             return;
         // clear existing shortcuts
-        for (i = 0; i != sim.shortcuts.length; i++)
-            sim.shortcuts[i] = null;
+        for (i = 0; i != sim.menuManager.shortcuts.length; i++)
+            sim.menuManager.shortcuts[i] = null;
         // load new ones
         for (i = 0; i != textBoxes.size(); i++) {
             String str = textBoxes.get(i).getText();
             CheckboxMenuItem item = sim.menuManager.mainMenuItems.get(i);
             item.setShortcut(str);
-            if (str.length() > 0)
-                sim.shortcuts[str.charAt(0)] = sim.menuManager.mainMenuItemNames.get(i);
+            if (!str.isEmpty())
+                sim.menuManager.shortcuts[str.charAt(0)] = sim.menuManager.mainMenuItemNames.get(i);
         }
         // save to local storage
-        sim.saveShortcuts();
+        sim.menuManager.saveShortcuts();
         closeDialog();
     }
 
@@ -124,7 +124,7 @@ public class ShortcutsDialog extends Dialog {
         for (i = 0; i != textBoxes.size(); i++) {
             TextBox box = textBoxes.get(i);
             String str = box.getText();
-            if (str.length() == 0)
+            if (str.isEmpty())
                 continue;
             char c = str.charAt(0);
 
