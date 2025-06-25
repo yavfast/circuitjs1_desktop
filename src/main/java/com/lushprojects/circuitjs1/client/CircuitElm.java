@@ -57,6 +57,8 @@ public abstract class CircuitElm implements Editable {
     static final int SCALE_M = 2;
     static final int SCALE_MU = 3;
 
+    final static double THICK_LINE_WIDTH = 2.0;
+
     static int decimalDigits, shortDecimalDigits;
 
     // initial point where user created element.  For simple two-terminal elements, this is the first node/post.
@@ -177,9 +179,6 @@ public abstract class CircuitElm implements Editable {
     }
 
     static void setColorScale() {
-
-        int i;
-
         if (positiveColor == null)
             positiveColor = Color.green;
         if (negativeColor == null)
@@ -187,7 +186,7 @@ public abstract class CircuitElm implements Editable {
         if (neutralColor == null)
             neutralColor = Color.gray;
 
-        for (i = 0; i != colorScaleCount; i++) {
+        for (int i = 0; i != colorScaleCount; i++) {
             double v = i * 2. / colorScaleCount - 1;
             if (v < 0) {
                 colorScale[i] = new Color(neutralColor, negativeColor, -v);
@@ -394,8 +393,6 @@ public abstract class CircuitElm implements Editable {
      * @param g Fraction perpendicular to line
      */
     void interpPoint2(Point a, Point b, Point c, Point d, double f, double g) {
-//	int xpd = b.x-a.x;
-//	int ypd = b.y-a.y;
         int gx = b.y - a.y;
         int gy = a.x - b.x;
         g /= Math.sqrt(gx * gx + gy * gy);
@@ -416,7 +413,7 @@ public abstract class CircuitElm implements Editable {
     }
 
     Point[] newPointArray(int n) {
-        Point a[] = new Point[n];
+        Point[] a = new Point[n];
         while (n > 0)
             a[--n] = new Point();
         return a;
@@ -621,11 +618,9 @@ public abstract class CircuitElm implements Editable {
         // this element is selected or is being created
         if (simUi.dragElm == null && !needsHighlight())
             return;
-        if (simUi.mouseMode == CirSim.MODE_DRAG_ROW ||
-                simUi.mouseMode == CirSim.MODE_DRAG_COLUMN)
+        if (simUi.mouseMode == CirSim.MODE_DRAG_ROW || simUi.mouseMode == CirSim.MODE_DRAG_COLUMN)
             return;
-        int i;
-        for (i = 0; i != getPostCount(); i++) {
+        for (int i = 0; i != getPostCount(); i++) {
             Point p = getPost(i);
             drawPost(g, p);
         }
@@ -788,14 +783,6 @@ public abstract class CircuitElm implements Editable {
     }
 
     void drawCenteredText(Graphics g, String s, int x, int y, boolean cx) {
-        // FontMetrics fm = g.getFontMetrics();
-        //int w = fm.stringWidth(s);
-//    	int w=0;
-//	if (cx)
-//	    x -= w/2;
-//	g.drawString(s, x, y+fm.getAscent()/2);
-//	adjustBbox(x, y-fm.getAscent()/2,
-//		   x+w, y+fm.getAscent()/2+fm.getDescent());
         int w = (int) g.context.measureText(s).getWidth();
         int h2 = (int) g.currentFontSize / 2;
         g.save();
@@ -815,8 +802,9 @@ public abstract class CircuitElm implements Editable {
 
     // draw component values (number of resistor ohms, etc).  hs = offset
     void drawValues(Graphics g, String s, double hs) {
-        if (s == null)
+        if (s == null || s.isEmpty()) {
             return;
+        }
         g.setFont(unitsFont);
         //FontMetrics fm = g.getFontMetrics();
         int w = (int) g.context.measureText(s).getWidth();
@@ -876,7 +864,7 @@ public abstract class CircuitElm implements Editable {
         double len = distance(p1, p2);
 
         g.save();
-        g.context.setLineWidth(3.0);
+        g.context.setLineWidth(THICK_LINE_WIDTH);
         g.context.transform(((double) (p2.x - p1.x)) / len, ((double) (p2.y - p1.y)) / len,
                 -((double) (p2.y - p1.y)) / len, ((double) (p2.x - p1.x)) / len, p1.x, p1.y);
         if (simUi.menuManager.voltsCheckItem.getState()) {
@@ -903,24 +891,21 @@ public abstract class CircuitElm implements Editable {
         g.restore();
     }
 
+
     static void drawThickLine(Graphics g, int x, int y, int x2, int y2) {
-        g.setLineWidth(3.0);
+        g.setLineWidth(THICK_LINE_WIDTH);
         g.drawLine(x, y, x2, y2);
         g.setLineWidth(1.0);
     }
 
     static void drawThickLine(Graphics g, Point pa, Point pb) {
-        g.setLineWidth(3.0);
+        g.setLineWidth(THICK_LINE_WIDTH);
         g.drawLine(pa.x, pa.y, pb.x, pb.y);
         g.setLineWidth(1.0);
     }
 
-    static void drawThickPolygon(Graphics g, int xs[], int ys[], int c) {
-//	int i;
-//	for (i = 0; i != c-1; i++)
-//	    drawThickLine(g, xs[i], ys[i], xs[i+1], ys[i+1]);
-//	drawThickLine(g, xs[i], ys[i], xs[0], ys[0]);
-        g.setLineWidth(3.0);
+    static void drawThickPolygon(Graphics g, int[] xs, int[] ys, int c) {
+        g.setLineWidth(THICK_LINE_WIDTH);
         g.drawPolyline(xs, ys, c);
         g.setLineWidth(1.0);
     }
@@ -931,18 +916,10 @@ public abstract class CircuitElm implements Editable {
 
     static void drawPolygon(Graphics g, Polygon p) {
         g.drawPolyline(p.xpoints, p.ypoints, p.npoints);
-/*	int i;
-	int xs[] = p.xpoints;
-	int ys[] = p.ypoints;
-	int np = p.npoints;
-	np -= 3;
-	for (i = 0; i != np-1; i++)
-	    g.drawLine(xs[i], ys[i], xs[i+1], ys[i+1]);
-	g.drawLine(xs[i], ys[i], xs[0], ys[0]);*/
     }
 
     static void drawThickCircle(Graphics g, int cx, int cy, int ri) {
-        g.setLineWidth(3.0);
+        g.setLineWidth(THICK_LINE_WIDTH);
         g.context.beginPath();
         g.context.arc(cx, cy, ri * .98, 0, 2 * Math.PI);
         g.context.stroke();
@@ -950,7 +927,7 @@ public abstract class CircuitElm implements Editable {
     }
 
     Polygon getSchmittPolygon(float gsize, float ctr) {
-        Point pts[] = newPointArray(6);
+        Point[] pts = newPointArray(6);
         float hs = 3 * gsize;
         float h1 = 3 * gsize;
         float h2 = h1 * 2;
@@ -986,8 +963,6 @@ public abstract class CircuitElm implements Editable {
     }
 
     static String format(double v, boolean sf) {
-//	if (sf && Math.abs(v) > 10)
-//	    return shortFormat.format(Math.round(v));
         return (sf ? shortFormat : showFormat).format(v);
     }
 
@@ -1056,7 +1031,6 @@ public abstract class CircuitElm implements Editable {
 
     // update dot positions (curcount) for drawing current (general case for multiple currents)
     double updateDotCount(double cur, double cc) {
-
         if (!simUi.simIsRunning())
             return cc;
         double cadd = cur * currentMult;
@@ -1082,17 +1056,17 @@ public abstract class CircuitElm implements Editable {
     }
 
     // get component info for display in lower right
-    void getInfo(String arr[]) {
+    void getInfo(String[] arr) {
     }
 
-    int getBasicInfo(String arr[]) {
+    int getBasicInfo(String[] arr) {
         arr[1] = "I = " + getCurrentDText(getCurrent());
         arr[2] = "Vd = " + getVoltageDText(getVoltageDiff());
         return 3;
     }
 
     String getScopeText(int v) {
-        String info[] = new String[10];
+        String[] info = new String[10];
         getInfo(info);
         return info[0];
     }
@@ -1119,11 +1093,6 @@ public abstract class CircuitElm implements Editable {
 
     // yellow argument is unused, can't remember why it was there
     void setPowerColor(Graphics g, boolean yellow) {
-
-	/*if (conductanceCheckItem.getState()) {
-	  setConductanceColor(g, current/getVoltageDiff());
-	  return;
-	  }*/
         if (!simUi.menuManager.powerCheckItem.getState())
             return;
         setPowerColor(g, getPower());

@@ -42,7 +42,7 @@ class WireElm extends CircuitElm {
             s = getShortUnitText(Math.abs(getCurrent()), "A");
         }
         if (mustShowVoltage()) {
-            s = (s.length() > 0 ? s + " " : "") + getShortUnitText(volts[0], "V");
+            s = (!s.isEmpty() ? s + " " : "") + getShortUnitText(volts[0], "V");
         }
         drawValues(g, s, 4);
         drawPosts(g);
@@ -61,7 +61,7 @@ class WireElm extends CircuitElm {
     }
 
     //	int getVoltageSourceCount() { return 1; }
-    void getInfo(String arr[]) {
+    void getInfo(String[] arr) {
         arr[0] = "wire";
         arr[1] = "I = " + getCurrentDText(getCurrent());
         arr[2] = "V = " + getVoltageText(volts[0]);

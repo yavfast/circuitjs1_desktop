@@ -25,7 +25,7 @@ public class Graphics {
 
     Context2d context;
     int currentFontSize;
-    Color lastColor;
+    String lastColor;
     int savedFontSize;
     static boolean isFullScreen = false;
 
@@ -36,19 +36,17 @@ public class Graphics {
 
     public void setColor(Color color) {
         if (color != null) {
-            String colorString = color.getHexValue();
-            context.setStrokeStyle(colorString);
-            context.setFillStyle(colorString);
-        } else {
-            System.out.println("Ignoring null-Color");
+            setColor(color.getHexValue());
         }
-        lastColor = color;
     }
 
     public void setColor(String color) {
+        if (lastColor == color) {
+            return;
+        }
         context.setStrokeStyle(color);
         context.setFillStyle(color);
-        lastColor = null;
+        lastColor = color;
     }
 
     public void clipRect(int x, int y, int width, int height) {
@@ -104,7 +102,6 @@ public class Graphics {
         context.moveTo(x1, y1);
         context.lineTo(x2, y2);
         context.stroke();
-        //	  context.closePath();
     }
 
     public void drawLine(Point x1, Point x2) {
@@ -112,7 +109,6 @@ public class Graphics {
         context.moveTo(x1.x, x1.y);
         context.lineTo(x2.x, x2.y);
         context.stroke();
-        //	  context.closePath();
     }
 
     public void drawPolyline(int[] xpoints, int[] ypoints, int n) {
