@@ -143,7 +143,7 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(iconMenuItem("microchip", "Create Subcircuit...", new MyCommand("file", "createsubcircuit")));
         fileMenuBar.addItem(iconMenuItem("magic", "Find DC Operating Point", new MyCommand("file", "dcanalysis")));
         recoverItem = iconMenuItem("back-in-time", "Recover Auto-Save", new MyCommand("file", "recover"));
-        recoverItem.setEnabled(cirSim.recovery != null);
+        recoverItem.setEnabled(cirSim.undoManager.recovery != null);
         fileMenuBar.addItem(recoverItem);
         printItem = menuItemWithShortcut("print", "Print...", Locale.LS(ctrlMetaKey + "P"), new MyCommand("file", "print"));
         fileMenuBar.addItem(printItem);

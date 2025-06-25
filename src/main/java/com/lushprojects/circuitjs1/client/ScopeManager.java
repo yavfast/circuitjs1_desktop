@@ -110,7 +110,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         for (s++; s < scopeCount; s++)
             scopes[s].position--;
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void unstackScope(int s) {
@@ -124,7 +124,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         for (; s < scopeCount; s++)
             scopes[s].position++;
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void combineScope(int s) {
@@ -136,7 +136,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         scopes[s - 1].combine(scopes[s]);
         scopes[s].setElm(null);
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
 
@@ -147,7 +147,7 @@ public class ScopeManager extends BaseCirSimDelegate {
             scopes[i].showMax = scopes[i].showMin = false;
         }
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void unstackAll() {
@@ -157,7 +157,7 @@ public class ScopeManager extends BaseCirSimDelegate {
             scopes[i].showMax = true;
         }
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void combineAll() {
@@ -167,7 +167,7 @@ public class ScopeManager extends BaseCirSimDelegate {
             scopes[i + 1].setElm(null);
         }
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void separateAll() {
@@ -179,7 +179,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         scopes = newscopes;
         scopeCount = ct;
 
-        cirSim.setUnsavedChanges();
+        cirSim.setUnsavedChanges(true);
     }
 
     void addScope(CircuitElm ce) {

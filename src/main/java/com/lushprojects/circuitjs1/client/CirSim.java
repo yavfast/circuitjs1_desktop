@@ -145,6 +145,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     ClipboardManager clipboardManager = new ClipboardManager(this);
     DialogManager dialogManager = new DialogManager(this);
     MenuManager menuManager = new MenuManager(this);
+    UndoManager undoManager = new UndoManager(this);
 
     Button resetButton;
     Button runStopButton;
@@ -207,8 +208,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
     // Class dumpTypes[], shortcuts[];
     String[] shortcuts;
-    String recovery;
-    Vector<UndoItem> undoStack, redoStack;
     static boolean unsavedChanges;
     static String filePath;
     static String fileName;
@@ -450,7 +449,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 
 
         CircuitElm.initClass(this);
-        readRecovery();
+        undoManager.readRecovery();
 
         QueryParameters qp = new QueryParameters();
         String positiveColor = null;
@@ -706,8 +705,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         setGrid();
         adjustables = new Vector<Adjustable>();
         //	setupList = new Vector();
-        undoStack = new Vector<UndoItem>();
-        redoStack = new Vector<UndoItem>();
 
 
         //	cv.setBackground(Color.black);
@@ -722,8 +719,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (startCircuitText != null) {
             getSetupList(false);
             readCircuit(startCircuitText);
-            unsavedChanges = false;
-            changeWindowTitle(unsavedChanges);
+            setUnsavedChanges(false);
         } else {
             if (simulator.stopMessage == null && startCircuitLink != null) {
                 readCircuit("");
@@ -1212,14 +1208,12 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (item == "save") {
             if (filePath != null) nodeSave(filePath, dumpCircuit());
             else nodeSaveAs(dumpCircuit(), getLastFileName());
-            unsavedChanges = false;
-            changeWindowTitle(unsavedChanges);
+            setUnsavedChanges(false);
         }
 
         if (item == "saveas") {
             nodeSaveAs(dumpCircuit(), getLastFileName());
-            unsavedChanges = false;
-            changeWindowTitle(unsavedChanges);
+            setUnsavedChanges(false);
         }
 
         if (item == "importfromtext") {
@@ -1230,7 +1224,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     	}*/
         if (item == "exportasurl") {
             doExportAsUrl();
-            unsavedChanges = false;
+            setUnsavedChanges(false);
         }
     	/*if (item=="exportaslocalfile") {
     		doExportAsLocalFile();
@@ -1238,7 +1232,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     	}*/
         if (item == "exportastext") {
             doExportAsText();
-            unsavedChanges = false;
+            setUnsavedChanges(false);
         }
         if (item == "exportasimage")
             doExportAsImage();
@@ -1479,9 +1473,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         repaint();
     }
 
-    void setUnsavedChanges() {
-        unsavedChanges = true;
-        changeWindowTitle(unsavedChanges);
+    void setUnsavedChanges(boolean hasChanges) {
+        unsavedChanges = hasChanges;
+        changeWindowTitle(hasChanges);
     }
 
     void doEdit(Editable eable) {
@@ -1702,10 +1696,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (title != null)
             titleLabel.setText(title);
         setSlidersPanelHeight();
-        unsavedChanges = false;
         filePath = null;
         fileName = null;
-        changeWindowTitle(unsavedChanges);
+        setUnsavedChanges(false);
     }
 
     void loadFileFromURL(String url) {
@@ -1723,10 +1716,9 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                         String text = response.getText();
                         readCircuit(text, RC_KEEP_TITLE);
                         allowSave(false);
-                        unsavedChanges = false;
                         filePath = null;
                         fileName = null;
-                        changeWindowTitle(unsavedChanges);
+                        setUnsavedChanges(false);
                     } else {
                         Window.alert(Locale.LS("Can't load circuit!"));
                         GWT.log("Bad file server response:" + response.getStatusText());
@@ -1958,8 +1950,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             heldSwitchElm = se;
         if (!(se instanceof LogicInputElm))
             needAnalyze();
-        unsavedChanges = true;
-        changeWindowTitle(unsavedChanges);
+        setUnsavedChanges(true);
         return true;
     }
 
@@ -2042,9 +2033,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             }
         }
         if (changed) {
-            writeRecoveryToStorage();
-            unsavedChanges = true;
-            changeWindowTitle(unsavedChanges);
+            undoManager.writeRecoveryToStorage();
+            setUnsavedChanges(true);
         }
 
         repaint();
@@ -2597,15 +2587,14 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
                 simulator.elmList.addElement(dragElm);
                 dragElm.draggingDone();
                 circuitChanged = true;
-                writeRecoveryToStorage();
+                undoManager.writeRecoveryToStorage();
             }
             dragElm = null;
         }
         if (circuitChanged) {
             needAnalyze();
             pushUndo();
-            unsavedChanges = true;
-            changeWindowTitle(unsavedChanges);
+            setUnsavedChanges(true);
         }
         if (dragElm != null)
             dragElm.delete();
@@ -2655,8 +2644,7 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (mouseElm != null && !dialogIsShowing() && scopeManager.scopeSelected == -1)
             if (mouseElm instanceof ResistorElm || mouseElm instanceof CapacitorElm || mouseElm instanceof InductorElm) {
                 scrollValuePopup = new ScrollValuePopup(x, y, deltay, mouseElm, this);
-                unsavedChanges = true;
-                changeWindowTitle(unsavedChanges);
+                setUnsavedChanges(true);
             }
     }
 
@@ -2677,48 +2665,26 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void pushUndo() {
-        redoStack.removeAllElements();
-        String s = dumpCircuit();
-        if (undoStack.size() > 0 &&
-                s.compareTo(undoStack.lastElement().dump) == 0)
-            return;
-        undoStack.add(new UndoItem(s));
+        undoManager.pushUndo();
         enableUndoRedo();
         savedFlag = false;
     }
 
     void doUndo() {
-        if (undoStack.size() == 0)
-            return;
-        redoStack.add(new UndoItem(dumpCircuit()));
-        UndoItem ui = undoStack.remove(undoStack.size() - 1);
-        loadUndoItem(ui);
+        undoManager.doUndo();
         enableUndoRedo();
-        unsavedChanges = true;
-        changeWindowTitle(unsavedChanges);
+        setUnsavedChanges(true);
     }
 
     void doRedo() {
-        if (redoStack.size() == 0)
-            return;
-        undoStack.add(new UndoItem(dumpCircuit()));
-        UndoItem ui = redoStack.remove(redoStack.size() - 1);
-        loadUndoItem(ui);
+        undoManager.doRedo();
         enableUndoRedo();
-        unsavedChanges = true;
-        changeWindowTitle(unsavedChanges);
-    }
-
-    void loadUndoItem(UndoItem ui) {
-        readCircuit(ui.dump, RC_NO_CENTER);
-        renderer.transform[0] = renderer.transform[3] = ui.scale;
-        renderer.transform[4] = ui.transform4;
-        renderer.transform[5] = ui.transform5;
+        setUnsavedChanges(true);
     }
 
     void doRecover() {
         pushUndo();
-        readCircuit(recovery);
+        readCircuit(undoManager.recovery);
         allowSave(false);
         menuManager.recoverItem.setEnabled(false);
         filePath = null;
@@ -2727,8 +2693,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void enableUndoRedo() {
-        menuManager.redoItem.setEnabled(redoStack.size() > 0);
-        menuManager.undoItem.setEnabled(undoStack.size() > 0);
+        menuManager.redoItem.setEnabled(undoManager.hasRedoStack());
+        menuManager.undoItem.setEnabled(undoManager.hasUndoStack());
     }
 
     void setMouseMode(int mode) {
@@ -2835,23 +2801,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
 
-    void writeRecoveryToStorage() {
-        console("write recovery");
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        String s = dumpCircuit();
-        stor.setItem("circuitRecovery", s);
-    }
-
-    void readRecovery() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        recovery = stor.getItem("circuitRecovery");
-    }
-
-
     void deleteUnusedScopeElms() {
         // Remove any scopeElms for elements that no longer exist
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
@@ -2886,9 +2835,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
         if (hasDeleted) {
             deleteUnusedScopeElms();
             needAnalyze();
-            writeRecoveryToStorage();
-            unsavedChanges = true;
-            changeWindowTitle(unsavedChanges);
+            undoManager.writeRecoveryToStorage();
+            setUnsavedChanges(true);
         }
     }
 
@@ -3033,9 +2981,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
             //	handleResize();
         }
         needAnalyze();
-        writeRecoveryToStorage();
-        unsavedChanges = true;
-        changeWindowTitle(unsavedChanges);
+        undoManager.writeRecoveryToStorage();
+        setUnsavedChanges(true);
     }
 
     void clearSelection() {
@@ -3483,18 +3430,6 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
 		if (hook)
 			hook($wnd.CircuitJS1, svgData);
 	}-*/;
-
-    class UndoItem {
-        public String dump;
-        public double scale, transform4, transform5;
-
-        UndoItem(String d) {
-            dump = d;
-            scale = renderer.transform[0];
-            transform4 = renderer.transform[4];
-            transform5 = renderer.transform[5];
-        }
-    }
 
 }
 
