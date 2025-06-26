@@ -25,7 +25,6 @@ public class Graphics {
 
     Context2d context;
     int currentFontSize;
-    String lastColor;
     int savedFontSize;
     static boolean isFullScreen = false;
 
@@ -41,12 +40,8 @@ public class Graphics {
     }
 
     public void setColor(String color) {
-        if (lastColor == color) {
-            return;
-        }
         context.setStrokeStyle(color);
         context.setFillStyle(color);
-        lastColor = color;
     }
 
     public void clipRect(int x, int y, int width, int height) {

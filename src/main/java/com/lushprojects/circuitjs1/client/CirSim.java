@@ -2175,9 +2175,8 @@ public class CirSim implements MouseDownHandler, MouseMoveHandler, MouseUpHandle
     }
 
     void removeZeroLengthElements() {
-        int i;
         boolean changed = false;
-        for (i = simulator.elmList.size() - 1; i >= 0; i--) {
+        for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = getElm(i);
             if (ce.x == ce.x2 && ce.y == ce.y2) {
                 simulator.elmList.removeElementAt(i);
