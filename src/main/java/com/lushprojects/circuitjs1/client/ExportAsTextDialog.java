@@ -77,7 +77,7 @@ public class ExportAsTextDialog extends Dialog {
         importButton.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 String s;
-                sim.pushUndo();
+                sim.circuitEditor.pushUndo();
                 closeDialog();
 //				s=textBox.getHTML();
 //				s=s.replace("<br>", "\r");

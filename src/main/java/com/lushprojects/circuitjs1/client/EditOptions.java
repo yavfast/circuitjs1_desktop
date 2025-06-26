@@ -97,7 +97,7 @@ class EditOptions implements Editable {
 		if (n == 11)
 		    return new EditInfo("Minimum Target Frame Rate", sim.simulator.minFrameRate);
 		if (n == 12)
-		    return new EditInfo("Mouse Wheel Sensitivity", sim.wheelSensitivity);
+		    return new EditInfo("Mouse Wheel Sensitivity", sim.circuitEditor.wheelSensitivity);
 		if (n == 13) {
 		    EditInfo ei = new EditInfo("", 0, -1, -1);
 		    ei.checkbox = new Checkbox("Auto-Adjust Timestep", sim.simulator.adjustTimeStep);
@@ -176,10 +176,10 @@ class EditOptions implements Editable {
 		if (n == 11 && ei.value > 0)
 		    sim.simulator.minFrameRate = ei.value;
 		if (n == 12 && ei.value > 0) {
-		    sim.wheelSensitivity = ei.value;
+		    sim.circuitEditor.wheelSensitivity = ei.value;
 		    Storage stor = Storage.getLocalStorageIfSupported();
 		    if (stor != null)
-			stor.setItem("wheelSensitivity", Double.toString(sim.wheelSensitivity));
+			stor.setItem("wheelSensitivity", Double.toString(sim.circuitEditor.wheelSensitivity));
 		}
 		if (n == 13) {
 		    sim.simulator.adjustTimeStep = ei.checkbox.getState();

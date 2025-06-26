@@ -60,6 +60,36 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         elmList = new Vector<>();
     }
 
+    int locateElm(CircuitElm elm) {
+        for (int i = 0; i != elmList.size(); i++)
+            if (elm == elmList.elementAt(i))
+                return i;
+        return -1;
+    }
+
+    int countSelected() {
+        int count = 0;
+        for (CircuitElm ce : elmList)
+            if (ce.isSelected())
+                count++;
+        return count;
+    }
+
+    void deleteUnusedScopeElms() {
+        // Remove any scopeElms for elements that no longer exist
+        for (int i = elmList.size() - 1; i >= 0; i--) {
+            CircuitElm ce = elmList.get(i);
+            if (ce instanceof ScopeElm && (((ScopeElm) ce).elmScope.needToRemove())) {
+                ce.delete();
+                elmList.removeElementAt(i);
+
+                // need to rebuild scopeElmArr
+                cirSim.needAnalyze();
+            }
+        }
+
+    }
+
     // find groups of nodes connected by wire equivalents and map them to the same node.  this speeds things
     // up considerably by reducing the size of the matrix.  We do this for wires, labeled nodes, and ground.
     // The actual node we map to is not assigned yet.  Instead we map to the same NodeMapEntry.

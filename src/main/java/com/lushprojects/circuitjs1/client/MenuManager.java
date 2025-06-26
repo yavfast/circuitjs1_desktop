@@ -240,7 +240,7 @@ public class MenuManager extends BaseCirSimDelegate {
         m.addItem(smallGridCheckItem = new CheckboxMenuItem(Locale.LS("Small Grid"),
                 new Command() {
                     public void execute() {
-                        cirSim.setGrid();
+                        circuitEditor.setGrid();
                     }
                 }));
         m.addItem(toolbarCheckItem = new CheckboxMenuItem(Locale.LS("Toolbar"),
@@ -710,11 +710,11 @@ public class MenuManager extends BaseCirSimDelegate {
         if (noEditCheckItem.getState() || cirSim.dialogIsShowing())
             return;
 
-        CircuitElm mouseElm = cirSim.mouseElm;
+        CircuitElm mouseElm = circuitEditor.mouseElm;
         cirSim.menuElm = mouseElm;
 
-        int menuClientX = cirSim.menuClientX;
-        int menuClientY = cirSim.menuClientY;
+        int menuClientX = circuitEditor.menuClientX;
+        int menuClientY = circuitEditor.menuClientY;
 
         ScopeManager scopeManager = cirSim.scopeManager;
         scopeManager.menuScope = -1;
@@ -800,7 +800,7 @@ public class MenuManager extends BaseCirSimDelegate {
         int i;
         for (i = 0; i < c; i++) {
             String s = mainMenuItemNames.get(i);
-            mainMenuItems.get(i).setState(s == cirSim.mouseModeStr);
+            mainMenuItems.get(i).setState(s == circuitEditor.mouseModeStr);
 
             // Code to disable draw menu items when cct is not editable, but no used in this version as it
             // puts up a dialog box instead (see menuPerformed).

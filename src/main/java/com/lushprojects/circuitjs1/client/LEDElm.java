@@ -74,7 +74,7 @@ class LEDElm extends DiodeElm {
     }
 
     void draw(Graphics g) {
-        if (needsHighlight() || this == simUi.dragElm) {
+        if (needsHighlight() || this == circuitEditor.dragElm) {
             super.draw(g);
             return;
         }

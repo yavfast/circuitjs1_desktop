@@ -3,6 +3,8 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.util.Locale;
 import com.lushprojects.circuitjs1.client.util.PerfMonitor;
 
@@ -83,8 +85,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     void setCircuitScale(double newScale, boolean menu) {
-        int constX = !menu ? cirSim.mouseCursorX : circuitArea.width / 2;
-        int constY = !menu ? cirSim.mouseCursorY : circuitArea.height / 2;
+        int constX = !menu ? circuitEditor.mouseCursorX : circuitArea.width / 2;
+        int constY = !menu ? circuitEditor.mouseCursorY : circuitArea.height / 2;
         int cx = inverseTransformX(constX);
         int cy = inverseTransformY(constY);
         transform[0] = transform[3] = newScale;
@@ -115,6 +117,34 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
 
+    boolean needsRepaint;
+    final int FASTTIMER = 16;
+
+    final Timer timer = new Timer() {
+        public void run() {
+            updateCircuit();
+        }
+    };
+
+    void startTimer() {
+        timer.scheduleRepeating(FASTTIMER);
+    }
+
+    void stopTimer() {
+        timer.cancel();
+    }
+
+    void repaint() {
+        if (!needsRepaint) {
+            needsRepaint = true;
+            Scheduler.get().scheduleFixedDelay(() -> {
+                updateCircuit();
+                needsRepaint = false;
+                return false;
+            }, FASTTIMER);
+        }
+    }
+
     public void updateCircuit() {
         PerfMonitor perfmon = new PerfMonitor();
         perfmon.startContext("updateCircuit()");
@@ -142,7 +172,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             perfmon.stopContext();
         }
 
-        if (simulator.stopElm != null && simulator.stopElm != cirSim.mouseElm)
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor.mouseElm)
             simulator.stopElm.setMouseElm(true);
 
         cirSim.scopeManager.setupScopes();
@@ -231,22 +261,22 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         perfmon.stopContext();
 
         // Draw posts normally
-        if (cirSim.mouseMode != CirSim.MODE_DRAG_ROW && cirSim.mouseMode != CirSim.MODE_DRAG_COLUMN) {
+        if (circuitEditor.mouseMode != circuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != circuitEditor.MODE_DRAG_COLUMN) {
             for (int i = 0; i != simulator.postDrawList.size(); i++)
                 CircuitElm.drawPost(g, simulator.postDrawList.get(i));
         }
 
         // for some mouse modes, what matters is not the posts but the endpoints (which
         // are only the same for 2-terminal elements). We draw those now if needed
-        if (cirSim.tempMouseMode == CirSim.MODE_DRAG_ROW ||
-                cirSim.tempMouseMode == CirSim.MODE_DRAG_COLUMN ||
-                cirSim.tempMouseMode == CirSim.MODE_DRAG_POST ||
-                cirSim.tempMouseMode == CirSim.MODE_DRAG_SELECTED) {
+        if (circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_ROW ||
+                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_COLUMN ||
+                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_POST ||
+                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_SELECTED) {
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm ce = simulator.elmList.get(i);
                 // ce.drawPost(g, ce.x , ce.y );
                 // ce.drawPost(g, ce.x2, ce.y2);
-                if (ce != cirSim.mouseElm || cirSim.tempMouseMode != CirSim.MODE_DRAG_POST) {
+                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != circuitEditor.MODE_DRAG_POST) {
                     g.setColor(Color.gray);
                     g.fillOval(ce.x - 3, ce.y - 3, 7, 7);
                     g.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
@@ -257,14 +287,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // draw handles for elm we're creating
-        if (cirSim.tempMouseMode == CirSim.MODE_SELECT && cirSim.mouseElm != null) {
-            cirSim.mouseElm.drawHandles(g, CircuitElm.selectColor);
+        if (circuitEditor.tempMouseMode == circuitEditor.MODE_SELECT && circuitEditor.mouseElm != null) {
+            circuitEditor.mouseElm.drawHandles(g, CircuitElm.selectColor);
         }
 
         // draw handles for elm we're dragging
-        if (cirSim.dragElm != null && (cirSim.dragElm.x != cirSim.dragElm.x2 || cirSim.dragElm.y != cirSim.dragElm.y2)) {
-            cirSim.dragElm.draw(g);
-            cirSim.dragElm.drawHandles(g, CircuitElm.selectColor);
+        if (circuitEditor.dragElm != null && (circuitEditor.dragElm.x != circuitEditor.dragElm.x2 || circuitEditor.dragElm.y != circuitEditor.dragElm.y2)) {
+            circuitEditor.dragElm.draw(g);
+            circuitEditor.dragElm.drawHandles(g, CircuitElm.selectColor);
         }
 
         // draw bad connections. do this last so they will not be overdrawn.
@@ -275,17 +305,17 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // draw the selection rect
-        if (cirSim.selectedArea != null) {
+        if (circuitEditor.selectedArea != null) {
             g.setColor(CircuitElm.selectColor);
-            g.drawRect(cirSim.selectedArea.x, cirSim.selectedArea.y, cirSim.selectedArea.width, cirSim.selectedArea.height);
+            g.drawRect(circuitEditor.selectedArea.x, circuitEditor.selectedArea.y, circuitEditor.selectedArea.width, circuitEditor.selectedArea.height);
         }
 
         // draw the crosshair cursor
-        if (cirSim.menuManager.crossHairCheckItem.getState() && cirSim.mouseCursorX >= 0
-                && cirSim.mouseCursorX <= circuitArea.width && cirSim.mouseCursorY <= circuitArea.height) {
+        if (cirSim.menuManager.crossHairCheckItem.getState() && circuitEditor.mouseCursorX >= 0
+                && circuitEditor.mouseCursorX <= circuitArea.width && circuitEditor.mouseCursorY <= circuitArea.height) {
             g.setColor(Color.gray);
-            int x = cirSim.snapGrid(inverseTransformX(cirSim.mouseCursorX));
-            int y = cirSim.snapGrid(inverseTransformY(cirSim.mouseCursorY));
+            int x = circuitEditor.snapGrid(inverseTransformX(circuitEditor.mouseCursorX));
+            int y = circuitEditor.snapGrid(inverseTransformY(circuitEditor.mouseCursorY));
             g.drawLine(x, inverseTransformY(0), x, inverseTransformY(circuitArea.height));
             g.drawLine(inverseTransformX(0), y, inverseTransformX(circuitArea.width), y);
         }
@@ -302,7 +332,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         perfmon.stopContext(); // graphics
 
-        if (simulator.stopElm != null && simulator.stopElm != cirSim.mouseElm)
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor.mouseElm)
             simulator.stopElm.setMouseElm(false);
 
         frames++;
@@ -339,7 +369,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         // Add info about mouse mode in graphics
         if (cirSim.menuManager.mouseModeCheckItem.getState()) {
             if (cirSim.menuManager.printableCheckItem.getState()) g.setColor(Color.black);
-            g.drawString(Locale.LS("Mode: ") + cirSim.classToLabelMap.get(cirSim.mouseModeStr), 10, 29);
+            g.drawString(Locale.LS("Mode: ") + cirSim.classToLabelMap.get(circuitEditor.mouseModeStr), 10, 29);
         }
 
         // This should always be the last
@@ -353,7 +383,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         if (simulator.stopMessage == null && cirSim.scopeManager.scopeCount == 0) {
             leftX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
-            h = (cirSim.mouseElm == null) ? 70 : h0;
+            h = (circuitEditor.mouseElm == null) ? 70 : h0;
             if (cirSim.hideInfoBox)
                 h = 0;
         }
@@ -368,13 +398,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         int i;
         Scope.clearCursorInfo();
         for (i = 0; i != ct; i++)
-            cirSim.scopeManager.scopes[i].selectScope(cirSim.mouseCursorX, cirSim.mouseCursorY);
+            cirSim.scopeManager.scopes[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
         if (simulator.scopeElmArr != null)
             for (i = 0; i != simulator.scopeElmArr.length; i++)
-                simulator.scopeElmArr[i].selectScope(cirSim.mouseCursorX, cirSim.mouseCursorY);
+                simulator.scopeElmArr[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
         for (i = 0; i != ct; i++)
             cirSim.scopeManager.scopes[i].draw(g);
-        if (cirSim.mouseWasOverSplitter) {
+        if (circuitEditor.mouseWasOverSplitter) {
             g.setColor(CircuitElm.selectColor);
             g.setLineWidth(4.0);
             g.drawLine(0, circuitArea.height - 2, circuitArea.width, circuitArea.height - 2);
@@ -387,15 +417,15 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         } else if (!cirSim.hideInfoBox) {
             // in JS it doesn't matter how big this is, there's no out-of-bounds exception
             String info[] = new String[10];
-            if (cirSim.mouseElm != null) {
-                if (cirSim.mousePost == -1) {
-                    cirSim.mouseElm.getInfo(info);
+            if (circuitEditor.mouseElm != null) {
+                if (circuitEditor.mousePost == -1) {
+                    circuitEditor.mouseElm.getInfo(info);
                     info[0] = Locale.LS(info[0]);
                     if (info[1] != null)
                         info[1] = Locale.LS(info[1]);
                 } else
                     info[0] = "V = " +
-                            CircuitElm.getUnitText(cirSim.mouseElm.getPostVoltage(cirSim.mousePost), "V");
+                            CircuitElm.getUnitText(circuitEditor.mouseElm.getPostVoltage(circuitEditor.mousePost), "V");
 //		/* //shownodes
 //		for (i = 0; i != mouseElm.getPostCount(); i++)
 //		    info[0] += " " + mouseElm.nodes[i];

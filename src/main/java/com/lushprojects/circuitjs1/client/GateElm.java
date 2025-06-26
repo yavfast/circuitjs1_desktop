@@ -85,7 +85,7 @@ abstract class GateElm extends CircuitElm {
     void setPoints() {
         super.setPoints();
         inputStates = new boolean[inputCount];
-        if (dn > 150 && this == simUi.dragElm)
+        if (dn > 150 && this == circuitEditor.dragElm)
             setSize(2);
         int hs = gheight;
         int i;

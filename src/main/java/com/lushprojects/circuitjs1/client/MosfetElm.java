@@ -214,7 +214,7 @@ class MosfetElm extends CircuitElm {
         }
 
         // label pins when highlighted
-        if (needsHighlight() || simUi.dragElm == this) {
+        if (needsHighlight() || circuitEditor.dragElm == this) {
             g.setColor(whiteColor);
             g.setFont(unitsFont);
 

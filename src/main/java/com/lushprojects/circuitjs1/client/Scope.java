@@ -714,7 +714,7 @@ class Scope extends BaseCirSimDelegate {
         }
         g.context.restore();
         drawSettingsWheel(g);
-        if (!cirSim.dialogIsShowing() && rect.contains(cirSim.mouseCursorX, cirSim.mouseCursorY) && plots.size() >= 2) {
+        if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY) && plots.size() >= 2) {
             double gridPx = calc2dGridPx(rect.width, rect.height);
             String info[] = new String[2];
             ScopePlot px = plots.get(0);
@@ -722,16 +722,16 @@ class Scope extends BaseCirSimDelegate {
             double xValue;
             double yValue;
             if (isManualScale()) {
-                xValue = px.manScale * ((double) (cirSim.mouseCursorX - rect.x - rect.width / 2) / gridPx - manDivisions * px.manVPosition / (double) (V_POSITION_STEPS));
-                yValue = py.manScale * ((double) (-cirSim.mouseCursorY + rect.y + rect.height / 2) / gridPx - manDivisions * py.manVPosition / (double) (V_POSITION_STEPS));
+                xValue = px.manScale * ((double) (circuitEditor.mouseCursorX - rect.x - rect.width / 2) / gridPx - manDivisions * px.manVPosition / (double) (V_POSITION_STEPS));
+                yValue = py.manScale * ((double) (-circuitEditor.mouseCursorY + rect.y + rect.height / 2) / gridPx - manDivisions * py.manVPosition / (double) (V_POSITION_STEPS));
             } else {
-                xValue = ((double) (cirSim.mouseCursorX - rect.x) / (0.499 * (double) (rect.width)) - 1.0) * scaleX;
-                yValue = -((double) (cirSim.mouseCursorY - rect.y) / (0.499 * (double) (rect.height)) - 1.0) * scaleY;
+                xValue = ((double) (circuitEditor.mouseCursorX - rect.x) / (0.499 * (double) (rect.width)) - 1.0) * scaleX;
+                yValue = -((double) (circuitEditor.mouseCursorY - rect.y) / (0.499 * (double) (rect.height)) - 1.0) * scaleY;
             }
             info[0] = px.getUnitText(xValue);
             info[1] = py.getUnitText(yValue);
 
-            drawCursorInfo(g, info, 2, cirSim.mouseCursorX, true);
+            drawCursorInfo(g, info, 2, circuitEditor.mouseCursorX, true);
 
         }
     }
@@ -743,10 +743,10 @@ class Scope extends BaseCirSimDelegate {
 
     boolean cursorInSettingsWheel() {
         return showSettingsWheel() &&
-                cirSim.mouseCursorX >= rect.x &&
-                cirSim.mouseCursorX <= rect.x + 36 &&
-                cirSim.mouseCursorY >= rect.y + rect.height - 36 &&
-                cirSim.mouseCursorY <= rect.y + rect.height;
+                circuitEditor.mouseCursorX >= rect.x &&
+                circuitEditor.mouseCursorX <= rect.x + 36 &&
+                circuitEditor.mouseCursorY >= rect.y + rect.height - 36 &&
+                circuitEditor.mouseCursorY <= rect.y + rect.height;
     }
 
     // does another scope have something selected?
@@ -1175,8 +1175,8 @@ class Scope extends BaseCirSimDelegate {
         if (showFFT && cursorScope == this) {
             double maxFrequency = 1 / (cirSim.simulator.maxTimeStep * speed * 2);
             if (cursorX < 0)
-                cursorX = cirSim.mouseCursorX;
-            info[ct++] = CircuitElm.getUnitText(maxFrequency * (cirSim.mouseCursorX - rect.x) / rect.width, "Hz");
+                cursorX = circuitEditor.mouseCursorX;
+            info[ct++] = CircuitElm.getUnitText(maxFrequency * (circuitEditor.mouseCursorX - rect.x) / rect.width, "Hz");
         } else if (cursorX < rect.x)
             return;
 
@@ -1206,7 +1206,7 @@ class Scope extends BaseCirSimDelegate {
         g.setColor(CircuitElm.whiteColor);
         g.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY)
-            g.drawLine(rect.x, cirSim.mouseCursorY, rect.x + rect.width, cirSim.mouseCursorY);
+            g.drawLine(rect.x, circuitEditor.mouseCursorY, rect.x + rect.width, circuitEditor.mouseCursorY);
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
         int bx = x;
         if (bx < szw / 2)
@@ -1693,7 +1693,7 @@ class Scope extends BaseCirSimDelegate {
         if (elm == null)
             return null;
         int flags = getFlags();
-        int eno = cirSim.locateElm(elm);
+        int eno = simulator.locateElm(elm);
         if (eno < 0)
             return null;
         String x = "o " + eno + " " +
@@ -1709,7 +1709,7 @@ class Scope extends BaseCirSimDelegate {
             if ((flags & FLAG_PERPLOTFLAGS) != 0)
                 x += " " + Integer.toHexString(p.getPlotFlags()); // NB always export in Hex (no prefix)
             if (i > 0)
-                x += " " + cirSim.locateElm(p.elm) + " " + p.value;
+                x += " " + simulator.locateElm(p.elm) + " " + p.value;
             // dump scale if units are not V or A
             if (p.units > UNITS_A)
                 x += " " + scale[p.units];
@@ -1962,7 +1962,7 @@ class Scope extends BaseCirSimDelegate {
 
     void selectY() {
         CircuitElm yElm = (plots.size() == 2) ? plots.get(1).elm : null;
-        int e = (yElm == null) ? -1 : cirSim.locateElm(yElm);
+        int e = (yElm == null) ? -1 : simulator.locateElm(yElm);
         int firstE = e;
         while (true) {
             for (e++; e < cirSim.simulator.elmList.size(); e++) {
@@ -1987,7 +1987,7 @@ class Scope extends BaseCirSimDelegate {
     }
 
     void onMouseWheel(MouseWheelEvent e) {
-        wheelDeltaY += e.getDeltaY() * cirSim.wheelSensitivity;
+        wheelDeltaY += e.getDeltaY() * circuitEditor.wheelSensitivity;
         if (wheelDeltaY > 5) {
             slowDown();
             wheelDeltaY = 0;
@@ -2028,7 +2028,7 @@ class Scope extends BaseCirSimDelegate {
         int i;
         for (i = 0; i != plots.size(); i++) {
             ScopePlot plot = plots.get(i);
-            if (cirSim.locateElm(plot.elm) < 0) {
+            if (simulator.locateElm(plot.elm) < 0) {
                 plots.remove(i--);
                 removed = true;
             } else

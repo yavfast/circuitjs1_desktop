@@ -71,8 +71,8 @@ class CustomTransformerElm extends CircuitElm {
     }
 
     void drag(int xx, int yy) {
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
+        xx = circuitEditor.snapGrid(xx);
+        yy = circuitEditor.snapGrid(yy);
 //	    width = max(32, abs(yy-y));
         if (xx == x)
             yy = y;

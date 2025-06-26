@@ -115,7 +115,7 @@ class OpAmpElm extends CircuitElm {
 
     void setPoints() {
         super.setPoints();
-        if (dn > 150 && this == simUi.dragElm)
+        if (dn > 150 && this == circuitEditor.dragElm)
             setSize(2);
         int ww = opwidth;
         if (ww > dn / 2)

@@ -64,8 +64,8 @@ class TransformerElm extends CircuitElm {
     }
 
     void drag(int xx, int yy) {
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
+        xx = circuitEditor.snapGrid(xx);
+        yy = circuitEditor.snapGrid(yy);
         if (abs(xx - x) > abs(yy - y)) {
             flags &= ~FLAG_VERTICAL;
         } else

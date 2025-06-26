@@ -118,7 +118,7 @@ class CapacitorElm extends CircuitElm {
         }
 
         updateDotCount();
-        if (simUi.dragElm != this) {
+        if (circuitEditor.dragElm != this) {
             drawDots(g, point1, lead1, curcount);
             drawDots(g, point2, lead2, -curcount);
         }

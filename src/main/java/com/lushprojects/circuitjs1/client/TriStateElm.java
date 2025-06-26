@@ -162,8 +162,8 @@ class TriStateElm extends CircuitElm {
         // use mouse to select which side the buffer enable should be on
         boolean flip = (xx < x) == (yy < y);
 
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
+        xx = circuitEditor.snapGrid(xx);
+        yy = circuitEditor.snapGrid(yy);
         if (abs(x - xx) < abs(y - yy))
             xx = x;
         else {

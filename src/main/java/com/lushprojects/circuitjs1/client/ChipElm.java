@@ -176,13 +176,13 @@ abstract class ChipElm extends CircuitElm {
     boolean lastClock;
 
     void drag(int xx, int yy) {
-        yy = simUi.snapGrid(yy);
+        yy = circuitEditor.snapGrid(yy);
         if (xx < x) {
             xx = x;
             yy = y;
         } else {
             y = y2 = yy;
-            x2 = simUi.snapGrid(xx);
+            x2 = circuitEditor.snapGrid(xx);
         }
         setPoints();
     }
@@ -193,7 +193,7 @@ abstract class ChipElm extends CircuitElm {
     int labelX, labelY;
 
     void setPoints() {
-        if (x2 - x > sizeX * cspc2 && this == simUi.dragElm)
+        if (x2 - x > sizeX * cspc2 && this == circuitEditor.dragElm)
             setSize(2);
         int x0 = x + cspc2;
         int y0 = y;

@@ -60,10 +60,10 @@ class WattmeterElm extends CircuitElm {
     }
 
     void drag(int xx, int yy) {
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
-        int w1 = max(simUi.gridSize, abs(yy - y));
-        int w2 = max(simUi.gridSize, abs(xx - x));
+        xx = simUi.circuitEditor.snapGrid(xx);
+        yy = simUi.circuitEditor.snapGrid(yy);
+        int w1 = max(simUi.circuitEditor.gridSize, abs(yy - y));
+        int w2 = max(simUi.circuitEditor.gridSize, abs(xx - x));
         if (w1 > w2) {
             xx = x;
             width = w2;
@@ -89,7 +89,7 @@ class WattmeterElm extends CircuitElm {
         Point p4 = interpPoint(point1, point2, 1, -width * ds);
 
         // get stubs
-        int sep = simUi.gridSize;
+        int sep = simUi.circuitEditor.gridSize;
         Point p5 = interpPoint(point1, point2, sep / dn);
         Point p6 = interpPoint(point1, point2, 1 - sep / dn);
         Point p7 = interpPoint(p3, p4, sep / dn);

@@ -43,6 +43,7 @@ public abstract class CircuitElm implements Editable {
 
     static CirSim simUi;
     static CircuitSimulator simulator;
+    static CircuitEditor circuitEditor;
 
     static public Color whiteColor, lightGrayColor, selectColor;
     static public Color positiveColor, negativeColor, neutralColor, currentColor;
@@ -125,6 +126,7 @@ public abstract class CircuitElm implements Editable {
         unitsFont = new Font("SansSerif", 0, 12);
         simUi = s;
         simulator = s.simulator;
+        circuitEditor = s.circuitEditor;
 
         colorScale = new Color[colorScaleCount];
 
@@ -330,8 +332,8 @@ public abstract class CircuitElm implements Editable {
         int roundx = (flipX) ? 1 : -1;
         int roundy = (flipY) ? 1 : -1;
 
-        int adjx = simUi.snapGrid(cx + roundx) - cx;
-        int adjy = simUi.snapGrid(cy + roundy) - cy;
+        int adjx = simUi.circuitEditor.snapGrid(cx + roundx) - cx;
+        int adjy = simUi.circuitEditor.snapGrid(cy + roundy) - cy;
         lead1.move(adjx, adjy);
         lead2.move(adjx, adjy);
     }
@@ -502,8 +504,8 @@ public abstract class CircuitElm implements Editable {
 
     // draw second point to xx, yy
     void drag(int xx, int yy) {
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
+        xx = simUi.circuitEditor.snapGrid(xx);
+        yy = simUi.circuitEditor.snapGrid(yy);
         if (noDiagonal) {
             if (Math.abs(x - xx) < Math.abs(y - yy)) {
                 xx = x;
@@ -616,9 +618,9 @@ public abstract class CircuitElm implements Editable {
         // we normally do this in updateCircuit() now because the logic is more complicated.
         // we only handle the case where we have to draw all the posts.  That happens when
         // this element is selected or is being created
-        if (simUi.dragElm == null && !needsHighlight())
+        if (simUi.circuitEditor.dragElm == null && !needsHighlight())
             return;
-        if (simUi.mouseMode == CirSim.MODE_DRAG_ROW || simUi.mouseMode == CirSim.MODE_DRAG_COLUMN)
+        if (simUi.circuitEditor.mouseMode == CircuitEditor.MODE_DRAG_ROW || simUi.circuitEditor.mouseMode == CircuitEditor.MODE_DRAG_COLUMN)
             return;
         for (int i = 0; i != getPostCount(); i++) {
             Point p = getPost(i);
@@ -1045,7 +1047,7 @@ public abstract class CircuitElm implements Editable {
     // update and draw current for simple two-terminal element
     void doDots(Graphics g) {
         updateDotCount();
-        if (simUi.dragElm != this)
+        if (simUi.circuitEditor.dragElm != this)
             drawDots(g, point1, point2, curcount);
     }
 
@@ -1203,7 +1205,7 @@ public abstract class CircuitElm implements Editable {
     }
 
     boolean needsHighlight() {
-        return mouseElmRef == this || selected || simUi.plotYElm == this ||
+        return mouseElmRef == this || selected || simUi.circuitEditor.plotYElm == this ||
                 // Test if the current mouseElm is a ScopeElm and, if so, does it belong to this elm
                 (mouseElmRef instanceof ScopeElm && ((ScopeElm) mouseElmRef).elmScope.getElm() == this);
     }

@@ -31,7 +31,7 @@ public class ClipboardManager extends BaseCirSimDelegate {
             // ScopeElms don't cut-paste well because their reference to a parent
             // elm by number get's messed up in the dump. For now we will just ignore them
             // until I can be bothered to come up with something better
-            if (cirSim.willDelete(ce) && !(ce instanceof ScopeElm)) {
+            if (circuitEditor.willDelete(ce) && !(ce instanceof ScopeElm)) {
                 clipData += ce.dump() + "\n";
             }
         }
@@ -40,7 +40,7 @@ public class ClipboardManager extends BaseCirSimDelegate {
     }
 
     void doCopy() {
-        clipboard = cirSim.copyOfSelectedElms();
+        clipboard = circuitEditor.copyOfSelectedElms();
         writeClipboardToStorage();
     }
 

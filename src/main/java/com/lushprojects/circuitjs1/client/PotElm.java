@@ -106,13 +106,14 @@ class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         super.setPoints();
         int offset = 0;
         int myLen = 0;
+        int gridSize = simUi.circuitEditor.gridSize;
         if (abs(dx) > abs(dy) != hasFlag(FLAG_FLIP)) {
-            myLen = 2 * simUi.gridSize * Integer.signum(dx) * ((((int) Math.abs(dx)) + 2 * simUi.gridSize - 1) / (2 * simUi.gridSize));
+            myLen = 2 * gridSize * Integer.signum(dx) * ((((int) Math.abs(dx)) + 2 * gridSize - 1) / (2 * gridSize));
             point2.x = point1.x + myLen;
             offset = (dx < 0) ? dy : -dy;
             point2.y = point1.y;
         } else {
-            myLen = 2 * simUi.gridSize * Integer.signum(dy) * ((((int) Math.abs(dy)) + 2 * simUi.gridSize - 1) / (2 * simUi.gridSize));
+            myLen = 2 * gridSize * Integer.signum(dy) * ((((int) Math.abs(dy)) + 2 * gridSize - 1) / (2 * gridSize));
             if (dy != 0) {
                 point2.y = point1.y + myLen;
                 offset = (dy > 0) ? dx : -dx;
@@ -120,7 +121,7 @@ class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             }
         }
         if (offset == 0)
-            offset = (hasFlag(FLAG_FLIP_OFFSET)) ? -simUi.gridSize : simUi.gridSize;
+            offset = (hasFlag(FLAG_FLIP_OFFSET)) ? -gridSize : gridSize;
         dn = distance(point1, point2);
         int bodyLen = 32;
         calcLeads(bodyLen);
@@ -204,7 +205,7 @@ class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         curcount1 = updateDotCount(current1, curcount1);
         curcount2 = updateDotCount(current2, curcount2);
         curcount3 = updateDotCount(current3, curcount3);
-        if (simUi.dragElm != this) {
+        if (simUi.circuitEditor.dragElm != this) {
             drawDots(g, point1, midpoint, curcount1);
             drawDots(g, point2, midpoint, curcount2);
             drawDots(g, post3, corner2, curcount3);

@@ -64,10 +64,10 @@ class TransLineElm extends CircuitElm {
     }
 
     void drag(int xx, int yy) {
-        xx = simUi.snapGrid(xx);
-        yy = simUi.snapGrid(yy);
-        int w1 = max(simUi.gridSize, abs(yy - y));
-        int w2 = max(simUi.gridSize, abs(xx - x));
+        xx = simUi.circuitEditor.snapGrid(xx);
+        yy = simUi.circuitEditor.snapGrid(yy);
+        int w1 = max(simUi.circuitEditor.gridSize, abs(yy - y));
+        int w2 = max(simUi.circuitEditor.gridSize, abs(xx - x));
         if (w1 > w2) {
             xx = x;
             width = w2;
@@ -103,7 +103,7 @@ class TransLineElm extends CircuitElm {
         int ds = (dy == 0) ? sign(dx) : -sign(dy);
         Point p3 = interpPoint(point1, point2, 0, -width * ds);
         Point p4 = interpPoint(point1, point2, 1, -width * ds);
-        int sep = simUi.gridSize / 2;
+        int sep = simUi.circuitEditor.gridSize / 2;
         Point p5 = interpPoint(point1, point2, 0, -(width / 2 - sep) * ds);
         Point p6 = interpPoint(point1, point2, 1, -(width / 2 - sep) * ds);
         Point p7 = interpPoint(point1, point2, 0, -(width / 2 + sep) * ds);
@@ -149,7 +149,7 @@ class TransLineElm extends CircuitElm {
 
         curCount1 = updateDotCount(-current1, curCount1);
         curCount2 = updateDotCount(current2, curCount2);
-        if (simUi.dragElm != this) {
+        if (simUi.circuitEditor.dragElm != this) {
             drawDots(g, posts[0], inner[0], curCount1);
             drawDots(g, posts[2], inner[2], -curCount1);
             drawDots(g, posts[1], inner[1], -curCount2);
