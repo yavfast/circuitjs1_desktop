@@ -707,8 +707,15 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     void doPopupMenu() {
-        if (noEditCheckItem.getState() || cirSim.dialogIsShowing())
+        // Діагностичні повідомлення для налагодження
+        CirSim.console("doPopupMenu called");
+        CirSim.console("noEditCheckItem state: " + noEditCheckItem.getState());
+        CirSim.console("dialogIsShowing: " + cirSim.dialogIsShowing());
+
+        if (noEditCheckItem.getState() || cirSim.dialogIsShowing()) {
+            CirSim.console("Popup menu blocked - editing disabled or dialog showing");
             return;
+        }
 
         CircuitElm mouseElm = circuitEditor.mouseElm;
         cirSim.menuElm = mouseElm;
@@ -716,23 +723,38 @@ public class MenuManager extends BaseCirSimDelegate {
         int menuClientX = circuitEditor.menuClientX;
         int menuClientY = circuitEditor.menuClientY;
 
+        CirSim.console("Menu position: " + menuClientX + ", " + menuClientY);
+        CirSim.console("mouseElm: " + (mouseElm != null ? mouseElm.getClass().getSimpleName() : "null"));
+
         ScopeManager scopeManager = cirSim.scopeManager;
         scopeManager.menuScope = -1;
         cirSim.menuPlot = -1;
         int x, y;
+
         if (scopeManager.scopeSelected != -1) {
+            CirSim.console("Scope selected: " + scopeManager.scopeSelected);
             if (scopeManager.scopes[scopeManager.scopeSelected].canMenu()) {
                 scopeManager.menuScope = scopeManager.scopeSelected;
                 cirSim.menuPlot = scopeManager.scopes[scopeManager.scopeSelected].selectedPlot;
                 scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected), scopeManager.canCombineScope(scopeManager.scopeSelected),
                         scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
+
+                // Закриваємо попереднє контекстне меню, якщо воно існує
+                if (contextPanel != null && contextPanel.isShowing()) {
+                    contextPanel.hide();
+                }
+
                 contextPanel = new PopupPanel(true);
                 contextPanel.add(scopePopupMenu.getMenuBar());
                 y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 160));
                 contextPanel.setPopupPosition(menuClientX, y);
                 contextPanel.show();
+                CirSim.console("Scope popup menu shown");
+            } else {
+                CirSim.console("Scope cannot show menu");
             }
         } else if (mouseElm != null) {
+            CirSim.console("Element menu for: " + mouseElm.getClass().getSimpleName());
             if (!(mouseElm instanceof ScopeElm)) {
                 elmScopeMenuItem.setEnabled(mouseElm.canViewInScope());
                 elmFloatScopeMenuItem.setEnabled(mouseElm.canViewInScope());
@@ -765,29 +787,53 @@ public class MenuManager extends BaseCirSimDelegate {
                 elmFlipXMenuItem.setEnabled(canFlipX);
                 elmFlipYMenuItem.setEnabled(canFlipY);
                 elmFlipXYMenuItem.setEnabled(canFlipXY);
+
+                // Закриваємо попереднє контекстне меню, якщо воно існує
+                if (contextPanel != null && contextPanel.isShowing()) {
+                    contextPanel.hide();
+                }
+
                 contextPanel = new PopupPanel(true);
                 contextPanel.add(elmMenuBar);
                 contextPanel.setPopupPosition(menuClientX, menuClientY);
                 contextPanel.show();
+                CirSim.console("Element popup menu shown");
             } else {
                 ScopeElm s = (ScopeElm) mouseElm;
                 if (s.elmScope.canMenu()) {
                     cirSim.menuPlot = s.elmScope.selectedPlot;
                     scopePopupMenu.doScopePopupChecks(true, false, false, false, s.elmScope);
+
+                    // Закриваємо попереднє контекстне меню, якщо воно існує
+                    if (contextPanel != null && contextPanel.isShowing()) {
+                        contextPanel.hide();
+                    }
+
                     contextPanel = new PopupPanel(true);
                     contextPanel.add(scopePopupMenu.getMenuBar());
                     contextPanel.setPopupPosition(menuClientX, menuClientY);
                     contextPanel.show();
+                    CirSim.console("ScopeElm popup menu shown");
+                } else {
+                    CirSim.console("ScopeElm cannot show menu");
                 }
             }
         } else {
+            CirSim.console("Main popup menu");
             doMainMenuChecks();
+
+            // Закриваємо попереднє контекстне меню, якщо воно існує
+            if (contextPanel != null && contextPanel.isShowing()) {
+                contextPanel.hide();
+            }
+
             contextPanel = new PopupPanel(true);
             contextPanel.add(mainMenuBar);
             x = Math.max(0, Math.min(menuClientX, renderer.canvasWidth - 400));
             y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 450));
             contextPanel.setPopupPosition(x, y);
             contextPanel.show();
+            CirSim.console("Main popup menu shown at: " + x + ", " + y);
         }
     }
 

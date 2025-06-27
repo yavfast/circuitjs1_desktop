@@ -1,4 +1,7 @@
 const { statSync } = require('node:fs');
+const { existsSync } = require('node:fs');
+const fs = require('fs');
+const path = require('path');
 const readline = require('readline').createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -8,15 +11,40 @@ const mvn = require('maven').create({cwd: '.'});
 const child_process = require('child_process');
 const { resolve } = require('node:path');
 
+function cleanTargetDirectory() {
+    const targetPath = './target';
+    if (existsSync(targetPath)) {
+        console.log('Cleaning target directory...');
+        try {
+            fs.rmSync(targetPath, { recursive: true, force: true });
+            console.log('Target directory cleaned successfully!');
+        } catch (error) {
+            console.warn('Warning: Could not fully clean target directory:', error.message);
+            // Спробуємо використати Maven clean як fallback
+        }
+    }
+}
+
+function cleanGWTCache() {
+    const gwtCachePath = './gwt-unitCache';
+    if (existsSync(gwtCachePath)) {
+        console.log('Cleaning GWT unit cache...');
+        try {
+            fs.rmSync(gwtCachePath, { recursive: true, force: true });
+            console.log('GWT cache cleaned successfully!');
+        } catch (error) {
+            console.warn('Warning: Could not clean GWT cache:', error.message);
+        }
+    }
+}
+
 const nw_version = '0.64.1-mod1';
 //const nw_version = '0.20.0';
 
 const menu="\n1 - check steps      | 2 - run devmode        | 3 - run GWT app\n"
             +"4 - build GWT app    | 5 - get all nw.js bin  | 6 - build from all bin\n"
             +"7 [x32,x64] - (win)* | 8 [x32,x64] - (linux)* | 9 [x64,arm64] - (macOS)*\n"
-            //+"'7 [x32,x64]' - build from bin for windows only\n"
-            //+"'8 [x32,x64]' - build from bin for linux only\n"
-            //+"'9 [x64,arm64]' - build from bin for macOS only\n"
+            +"10 - run release     | 11 - run release debug | clean - deep clean\n"
             +"   full - full (re)build for all platforms    | 0 - exit \n"
             +"(* - build from bin for windows (win), linux or macOS only)\n";
 
@@ -172,7 +200,7 @@ function runDevmode(){
                     {
                         cwd: ".",
                         detached: true,
-                        stdio: 'ignore'
+                        stdio: 'inherit'
                     }
                 ).unref();
                     return console.log(response.status);
@@ -191,20 +219,31 @@ function runDevmode(){
 
 }
 
-async function runGWT(){
+async function runGWT() {
     if (!stateOfSteps[1]) await buildGWT();
+
+    const nwPath = require('nw').findpath();
+    if (typeof nwPath !== 'string') {
+        throw new TypeError('Invalid path for NW.js binary');
+    }
+
     child_process.spawn(
-        require('nw').findpath(),
+        nwPath,
         ['./target/site'],
         {
-            cwd: ".",
+            cwd: '.',
             detached: true,
-            stdio: 'ignore'
+            stdio: 'inherit'
         }
     ).unref();
 }
 
 function buildGWT(){
+    // Спочатку очищуємо каталоги для забезпечення чистої збірки
+    cleanTargetDirectory();
+    cleanGWTCache();
+
+    console.log('Starting GWT build with full cleanup...');
     return Promise.all([
         mvn.execute(['clean', 'install'], { 'skipTests': true }).then(() => {
             console.log("GWT app completed successfully!");
@@ -277,7 +316,8 @@ function getAllBins(){
 }
 
 async function buildAll(){
-    if (!stateOfSteps[1]) await buildGWT();
+    console.log('Starting buildAll with forced GWT rebuild...');
+    await buildGWT();
     if (!isDownloadComplite) await getAllBins();
     return await Promise.all([
 //        buildRelease('win', 'ia32'),
@@ -304,9 +344,38 @@ async function platformBuild(platform,arch1,arch2){
 }
 
 async function fullBuild(){
+    console.log('Starting full rebuild with complete cleanup...');
+    // Повне очищення перед збіркою
+    cleanTargetDirectory();
+    cleanGWTCache();
     await buildGWT();
     await getAllBins();
     await buildAll();
+}
+
+// Функція для повного очищення всіх артефактів збірки
+function deepClean() {
+    console.log('Performing deep clean...');
+
+    // Очищуємо target
+    cleanTargetDirectory();
+
+    // Очищуємо GWT кеш
+    cleanGWTCache();
+
+    // Очищуємо out каталог
+    const outPath = './out';
+    if (existsSync(outPath)) {
+        console.log('Cleaning out directory...');
+        try {
+            fs.rmSync(outPath, { recursive: true, force: true });
+            console.log('Out directory cleaned successfully!');
+        } catch (error) {
+            console.warn('Warning: Could not clean out directory:', error.message);
+        }
+    }
+
+    console.log('Deep clean completed!');
 }
 
 function runMenu(){
@@ -377,6 +446,18 @@ function runMenu(){
                 console.log("RUN BUILD FOR MAC OS ARM64");
                 await platformBuild('osx','arm64');
                 break;
+            case '10':
+            case '10 release':
+                console.log("RUN RELEASE VERSION");
+                await runRelease();
+                break;
+            case '11':
+            case '11 release':
+            case '11 debug':
+                console.log("RUN RELEASE DEBUG VERSION");
+                await runReleaseDebug();
+                break;
+            case 'clean': deepClean(); break;
             case 'full': await fullBuild();
         }})()
     .then(()=>{
@@ -401,5 +482,48 @@ function runMenu(){
         case "--rungwt": await runGWT(); process.exit(0);
         case "--buildall": await buildAll(); process.exit(0);
         case "--fullrebuild": await fullBuild(); process.exit(0);
+        case "--clean": deepClean(); process.exit(0);
     }
 })()
+
+async function runRelease() {
+    const executablePath = './out/linux-x64/CircuitJS1 Desktop Mod/CircuitSimulator';
+
+    if (!existsSync(executablePath)) {
+        console.error(`Error: Release executable not found at: ${executablePath}`);
+        console.error('Please build the release version first using option 6 or 8');
+        return;
+    }
+
+    console.log("Starting release version...");
+    child_process.spawn(
+        executablePath,
+        [],
+        {
+            cwd: '.',
+            detached: true,
+            stdio: 'inherit'
+        }
+    ).unref();
+}
+
+async function runReleaseDebug() {
+    const executablePath = './out/linux-x64/CircuitJS1 Desktop Mod/CircuitSimulator';
+
+    if (!existsSync(executablePath)) {
+        console.error(`Error: Release executable not found at: ${executablePath}`);
+        console.error('Please build the release version first using option 6 or 8');
+        return;
+    }
+
+    console.log("Starting release version with debug logging...");
+    child_process.spawn(
+        executablePath,
+        ['--enable-logging', '--v=1', '--log-level=0'],
+        {
+            cwd: '.',
+            detached: true,
+            stdio: 'inherit'
+        }
+    ).unref();
+}

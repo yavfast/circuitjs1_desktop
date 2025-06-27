@@ -97,3 +97,66 @@ try it:
 		padding-top: 0.5vw;
 	}
 }
+
+/* Log Panel Styles */
+.logPanel {
+    background-color: #f8f8f8;
+    border-right: 1px solid #ccc;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+.logHeader {
+    background-color: #e0e0e0;
+    border-bottom: 1px solid #ccc;
+    padding: 5px 10px;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+}
+
+.logCount {
+    font-size: 10px;
+    color: #666;
+    margin-left: 10px;
+}
+
+.logScrollPanel {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    margin: 5px;
+}
+
+.logEntry {
+    padding: 2px 5px;
+    border-bottom: 1px solid #eee;
+    font-family: monospace;
+    font-size: 11px;
+    color: #333;
+    word-wrap: break-word;
+}
+
+.logEntry:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.logEntry:hover {
+    background-color: #e6f3ff;
+}
+
+.logResizeHandle {
+    background-color: rgba(128, 128, 128, 0.2);
+    border-right: 2px solid #888;
+    transition: background-color 0.2s ease;
+}
+
+.logResizeHandle:hover {
+    background-color: rgba(128, 128, 128, 0.4);
+    border-right: 2px solid #555;
+}
+
+.logResizeHandle:active {
+    background-color: rgba(128, 128, 128, 0.6);
+    border-right: 2px solid #333;
+}

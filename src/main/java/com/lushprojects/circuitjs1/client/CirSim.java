@@ -47,7 +47,6 @@ import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
-import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.ScriptInjector;
 import com.google.gwt.dom.client.CanvasElement;
 import com.google.gwt.dom.client.Document;
@@ -58,19 +57,6 @@ import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
-import com.google.gwt.event.dom.client.ContextMenuHandler;
-import com.google.gwt.event.dom.client.DoubleClickEvent;
-import com.google.gwt.event.dom.client.DoubleClickHandler;
-import com.google.gwt.event.dom.client.MouseDownEvent;
-import com.google.gwt.event.dom.client.MouseDownHandler;
-import com.google.gwt.event.dom.client.MouseMoveEvent;
-import com.google.gwt.event.dom.client.MouseMoveHandler;
-import com.google.gwt.event.dom.client.MouseOutEvent;
-import com.google.gwt.event.dom.client.MouseOutHandler;
-import com.google.gwt.event.dom.client.MouseUpEvent;
-import com.google.gwt.event.dom.client.MouseUpHandler;
-import com.google.gwt.event.dom.client.MouseWheelEvent;
-import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.event.logical.shared.ResizeEvent;
 import com.google.gwt.event.logical.shared.ResizeHandler;
 import com.google.gwt.http.client.Request;
@@ -107,7 +93,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 import java.util.Date;
 import java.util.HashMap;
 
-public class CirSim implements ContextMenuHandler, NativePreviewHandler {
+public class CirSim implements NativePreviewHandler {
 
     static final int HINT_LC = 1;
     static final int HINT_RC = 2;
@@ -120,6 +106,8 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
     static int VERTICAL_PANEL_WIDTH = 166; // default
 
     static final int INFO_WIDTH = 160;
+
+    LogManager logManager = new LogManager(this);
 
     CircuitSimulator simulator = new CircuitSimulator(this);
     CircuitRenderer renderer = new CircuitRenderer(this);
@@ -223,6 +211,8 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
         width = (int) RootLayoutPanel.get().getOffsetWidth();
         height = (int) RootLayoutPanel.get().getOffsetHeight();
         height = height - (hideMenu ? 0 : MENU_BAR_HEIGHT);
+
+        width = width - logManager.logPanelWidth;
 
         if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
             width = width - VERTICAL_PANEL_WIDTH;
@@ -398,8 +388,6 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
         NodeList<com.google.gwt.dom.client.Element> node = Document.get().getElementsByTagName("head");
         node.getItem(0).appendChild(meta);
 
-
-
         CircuitElm.initClass(this);
         undoManager.readRecovery();
 
@@ -479,10 +467,10 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
 
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
         VERTICAL_PANEL_WIDTH = 166; /* = width/5;
-	if (VERTICALPANELWIDTH > 166)
-	    VERTICALPANELWIDTH = 166;
-	if (VERTICALPANELWIDTH < 128)
-	    VERTICALPANELWIDTH = 128;*/
+	if (VERTICAL_PANEL_WIDTH > 166)
+	    VERTICAL_PANEL_WIDTH = 166;
+	if (VERTICAL_PANEL_WIDTH < 128)
+	    VERTICAL_PANEL_WIDTH = 128;*/
 
         verticalPanel = new VerticalPanel();
         slidersPanel = new ScrollPanel();
@@ -547,6 +535,8 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
             layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
         }
 
+        layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
+
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
 
@@ -567,7 +557,7 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
         cv.addMouseWheelHandler(circuitEditor);
 
         doTouchHandlers(this, cv.getCanvasElement());
-        cv.addDomHandler(this, ContextMenuEvent.getType());
+        cv.addDomHandler(circuitEditor, ContextMenuEvent.getType());
 
         modSetDefault();
 
@@ -713,16 +703,6 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
         setupJSInterface();
 
         setSimRunning(running);
-    }
-
-    @Override
-    public void onContextMenu(ContextMenuEvent e) {
-        e.preventDefault();
-        if (!dialogIsShowing()) {
-            circuitEditor.menuClientX = e.getNativeEvent().getClientX();
-            circuitEditor.menuClientY = e.getNativeEvent().getClientY();
-            menuManager.doPopupMenu();
-        }
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
@@ -871,6 +851,8 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
             runStopButton.setStylePrimaryName("topButton-red");
             renderer.stopTimer();
             renderer.repaint();
+            // Ensure selection functionality works even when simulation is stopped
+            circuitEditor.setMouseMode("Select");
         }
     }
 
@@ -920,13 +902,17 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
         return simulator.elmList.elementAt(n);
     }
 
-    public static native void console(String text)
+    public static native void debugger() /*-{ debugger; }-*/;
+
+    public static native void js_console(String text)
     /*-{
 	    console.log(text);
 	}-*/;
 
-    public static native void debugger() /*-{ debugger; }-*/;
-
+    public static void console(String text) {
+        js_console(text);
+        CirSim.theSim.logManager.addLogEntry(text);
+    }
 
     void stop(String s, CircuitElm ce) {
         simulator.stopMessage = Locale.LS(s);
@@ -2238,5 +2224,21 @@ public class CirSim implements ContextMenuHandler, NativePreviewHandler {
 			hook($wnd.CircuitJS1, svgData);
 	}-*/;
 
+    public void updateLogPanelWidth(int newWidth) {
+        // AI_THINK: Calculate available height for the log panel based on current layout
+        int totalHeight = (int) RootLayoutPanel.get().getOffsetHeight();
+        int availableHeight = totalHeight - (hideMenu ? 0 : MENU_BAR_HEIGHT);
+        if (menuManager.toolbarCheckItem.getState())
+            availableHeight -= TOOLBAR_HEIGHT;
+
+        // AI_TODO: Update layout panel size and notify LogManager with both dimensions
+        layoutPanel.setWidgetSize(logManager.logPanel, newWidth);
+
+        // Pass both width and available height to LogManager for proper sizing
+        logManager.updatePanelSize(newWidth, availableHeight);
+
+        setCanvasSize();
+        repaint();
+    }
 }
 

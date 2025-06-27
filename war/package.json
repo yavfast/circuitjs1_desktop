@@ -1,6 +1,6 @@
 {
     "app_name": "CircuitSimulator",
-    "chromium-args": "--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --enable-drdc --canvas-oop-rasterization --enable-parallel-downloading --back-forward-cache --enable-smooth-scrolling",
+    "chromium-args": "--ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --enable-drdc --canvas-oop-rasterization --enable-parallel-downloading --back-forward-cache --enable-smooth-scrolling --enable-logging --v=1 --log-level=0",
     "description": "CircuitJS1 Desktop Mod version 1.3.2",
     "main": "circuitjs.html",
     "name": "CircuitSimulator",
