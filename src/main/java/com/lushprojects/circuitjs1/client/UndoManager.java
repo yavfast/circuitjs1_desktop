@@ -8,10 +8,13 @@ public class UndoManager extends BaseCirSimDelegate {
 
     class UndoItem {
         public String dump;
-        public double scale, transform4, transform5;
+        public double scale;
+        public double transform4;
+        public double transform5;
 
         UndoItem(String d) {
             dump = d;
+            CircuitRenderer renderer = renderer();
             scale = renderer.transform[0];
             transform4 = renderer.transform[4];
             transform5 = renderer.transform[5];
@@ -64,6 +67,7 @@ public class UndoManager extends BaseCirSimDelegate {
 
     void loadUndoItem(UndoItem ui) {
         cirSim.readCircuit(ui.dump, CirSim.RC_NO_CENTER);
+        CircuitRenderer renderer = renderer();
         renderer.transform[0] = renderer.transform[3] = ui.scale;
         renderer.transform[4] = ui.transform4;
         renderer.transform[5] = ui.transform5;

@@ -85,8 +85,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     void setCircuitScale(double newScale, boolean menu) {
-        int constX = !menu ? circuitEditor.mouseCursorX : circuitArea.width / 2;
-        int constY = !menu ? circuitEditor.mouseCursorY : circuitArea.height / 2;
+        int constX = !menu ? circuitEditor().mouseCursorX : circuitArea.width / 2;
+        int constY = !menu ? circuitEditor().mouseCursorY : circuitArea.height / 2;
         int cx = inverseTransformX(constX);
         int cy = inverseTransformY(constY);
         transform[0] = transform[3] = newScale;
@@ -151,7 +151,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         checkCanvasSize();
 
-        // Analyze circuit
+        CircuitSimulator simulator = simulator();
+// Analyze circuit
         boolean didAnalyze = analyzeFlag;
         if (analyzeFlag || cirSim.dcAnalysisFlag) {
             perfmon.startContext("analyzeCircuit()");
@@ -172,7 +173,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             perfmon.stopContext();
         }
 
-        if (simulator.stopElm != null && simulator.stopElm != circuitEditor.mouseElm)
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm)
             simulator.stopElm.setMouseElm(true);
 
         cirSim.scopeManager.setupScopes();
@@ -260,6 +261,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
         perfmon.stopContext();
 
+        CircuitEditor circuitEditor = circuitEditor();
         // Draw posts normally
         if (circuitEditor.mouseMode != circuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != circuitEditor.MODE_DRAG_COLUMN) {
             for (int i = 0; i != simulator.postDrawList.size(); i++)
@@ -380,6 +382,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     void drawBottomArea(Graphics g) {
         int leftX = 0;
         int h = 0;
+        CircuitSimulator simulator = simulator();
+        CircuitEditor circuitEditor = circuitEditor();
         if (simulator.stopMessage == null && cirSim.scopeManager.scopeCount == 0) {
             leftX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
@@ -530,7 +534,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     void centreCircuit() {
-        if (simulator.elmList == null)  // avoid exception if called during initialization
+        if (simulator().elmList == null)  // avoid exception if called during initialization
             return;
 
         Rectangle bounds = getCircuitBounds();
@@ -565,9 +569,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     // get circuit bounds.  remember this doesn't use setBbox().  That is calculated when we draw
     // the circuit, but this needs to be ready before we first draw it, so we use this crude method
     Rectangle getCircuitBounds() {
-        int i;
         int minx = 30000, maxx = -30000, miny = 30000, maxy = -30000;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = cirSim.getElm(i);
             // centered text causes problems when trying to center the circuit,
             // so we special-case it here
@@ -623,11 +627,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         context.setLineCap(Context2d.LineCap.ROUND);
 
         // draw elements
-        int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             cirSim.getElm(i).draw(g);
         }
-        for (i = 0; i != simulator.postDrawList.size(); i++) {
+        for (int i = 0; i != simulator.postDrawList.size(); i++) {
             CircuitElm.drawPost(g, simulator.postDrawList.get(i));
         }
 

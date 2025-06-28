@@ -714,6 +714,7 @@ class Scope extends BaseCirSimDelegate {
         }
         g.context.restore();
         drawSettingsWheel(g);
+        CircuitEditor circuitEditor = circuitEditor();
         if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY) && plots.size() >= 2) {
             double gridPx = calc2dGridPx(rect.width, rect.height);
             String info[] = new String[2];
@@ -742,6 +743,7 @@ class Scope extends BaseCirSimDelegate {
     }
 
     boolean cursorInSettingsWheel() {
+        CircuitEditor circuitEditor = circuitEditor();
         return showSettingsWheel() &&
                 circuitEditor.mouseCursorX >= rect.x &&
                 circuitEditor.mouseCursorX <= rect.x + 36 &&
@@ -1175,8 +1177,8 @@ class Scope extends BaseCirSimDelegate {
         if (showFFT && cursorScope == this) {
             double maxFrequency = 1 / (cirSim.simulator.maxTimeStep * speed * 2);
             if (cursorX < 0)
-                cursorX = circuitEditor.mouseCursorX;
-            info[ct++] = CircuitElm.getUnitText(maxFrequency * (circuitEditor.mouseCursorX - rect.x) / rect.width, "Hz");
+                cursorX = circuitEditor().mouseCursorX;
+            info[ct++] = CircuitElm.getUnitText(maxFrequency * (circuitEditor().mouseCursorX - rect.x) / rect.width, "Hz");
         } else if (cursorX < rect.x)
             return;
 
@@ -1206,7 +1208,7 @@ class Scope extends BaseCirSimDelegate {
         g.setColor(CircuitElm.whiteColor);
         g.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY)
-            g.drawLine(rect.x, circuitEditor.mouseCursorY, rect.x + rect.width, circuitEditor.mouseCursorY);
+            g.drawLine(rect.x, circuitEditor().mouseCursorY, rect.x + rect.width, circuitEditor().mouseCursorY);
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
         int bx = x;
         if (bx < szw / 2)
@@ -1689,6 +1691,7 @@ class Scope extends BaseCirSimDelegate {
     String dump() {
         ScopePlot vPlot = plots.get(0);
 
+        CircuitSimulator simulator = simulator();
         CircuitElm elm = vPlot.elm;
         if (elm == null)
             return null;
@@ -1962,7 +1965,7 @@ class Scope extends BaseCirSimDelegate {
 
     void selectY() {
         CircuitElm yElm = (plots.size() == 2) ? plots.get(1).elm : null;
-        int e = (yElm == null) ? -1 : simulator.locateElm(yElm);
+        int e = (yElm == null) ? -1 : simulator().locateElm(yElm);
         int firstE = e;
         while (true) {
             for (e++; e < cirSim.simulator.elmList.size(); e++) {
@@ -1987,7 +1990,7 @@ class Scope extends BaseCirSimDelegate {
     }
 
     void onMouseWheel(MouseWheelEvent e) {
-        wheelDeltaY += e.getDeltaY() * circuitEditor.wheelSensitivity;
+        wheelDeltaY += e.getDeltaY() * circuitEditor().wheelSensitivity;
         if (wheelDeltaY > 5) {
             slowDown();
             wheelDeltaY = 0;
@@ -2025,8 +2028,8 @@ class Scope extends BaseCirSimDelegate {
     boolean needToRemove() {
         boolean ret = true;
         boolean removed = false;
-        int i;
-        for (i = 0; i != plots.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != plots.size(); i++) {
             ScopePlot plot = plots.get(i);
             if (simulator.locateElm(plot.elm) < 0) {
                 plots.remove(i--);

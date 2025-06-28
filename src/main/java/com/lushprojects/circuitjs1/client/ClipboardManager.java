@@ -26,12 +26,13 @@ public class ClipboardManager extends BaseCirSimDelegate {
 
     void doCut() {
         String clipData = "";
+        CircuitSimulator simulator = simulator();
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = simulator.elmList.get(i);
             // ScopeElms don't cut-paste well because their reference to a parent
             // elm by number get's messed up in the dump. For now we will just ignore them
             // until I can be bothered to come up with something better
-            if (circuitEditor.willDelete(ce) && !(ce instanceof ScopeElm)) {
+            if (circuitEditor().willDelete(ce) && !(ce instanceof ScopeElm)) {
                 clipData += ce.dump() + "\n";
             }
         }
@@ -40,7 +41,7 @@ public class ClipboardManager extends BaseCirSimDelegate {
     }
 
     void doCopy() {
-        clipboard = circuitEditor.copyOfSelectedElms();
+        clipboard = circuitEditor().copyOfSelectedElms();
         writeClipboardToStorage();
     }
 

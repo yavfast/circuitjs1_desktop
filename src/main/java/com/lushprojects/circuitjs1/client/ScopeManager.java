@@ -34,17 +34,17 @@ public class ScopeManager extends BaseCirSimDelegate {
             return false;
         if (scopeMenuSelected < scopeCount)
             return scopes[scopeMenuSelected] == s;
-        return simulator.getNthScopeElm(scopeMenuSelected - scopeCount).elmScope == s;
+        return simulator().getNthScopeElm(scopeMenuSelected - scopeCount).elmScope == s;
     }
 
     // we need to calculate wire currents for every iteration if someone is viewing a wire in the
     // scope.  Otherwise we can do it only once per frame.
     boolean canDelayWireProcessing() {
-        int i;
-        for (i = 0; i != scopeCount; i++)
+        for (int i = 0; i != scopeCount; i++)
             if (scopes[i].viewingWire())
                 return false;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm elm = simulator.elmList.get(i);
             if (elm instanceof ScopeElm && ((ScopeElm) elm).elmScope.viewingWire())
                 return false;
@@ -62,7 +62,7 @@ public class ScopeManager extends BaseCirSimDelegate {
     }
 
     void undockScope(ScopeElm newScope) {
-        simulator.elmList.addElement(newScope);
+        simulator().elmList.addElement(newScope);
         newScope.setElmScope(scopes[menuScope]);
 
         int i;
@@ -201,6 +201,7 @@ public class ScopeManager extends BaseCirSimDelegate {
     }
 
     void addToScope(int n, CircuitElm ce) {
+        CircuitSimulator simulator = simulator();
         if (n < scopeCount + simulator.countScopeElms()) {
             if (n < scopeCount)
                 scopes[n].addElm(ce);
@@ -230,6 +231,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         }
         while (scopeCount > 0 && scopes[scopeCount - 1].getElm() == null)
             scopeCount--;
+        CircuitRenderer renderer = renderer();
         int h = renderer.canvasHeight - renderer.circuitArea.height;
         pos = 0;
         for (i = 0; i != scopeCount; i++)

@@ -68,8 +68,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     int gridSize, gridMask, gridRound;
     SwitchElm heldSwitchElm;
 
-    int menuX, menuY;
-    int menuClientX, menuClientY;
+    int menuX = 0;
+    int menuY = 0;
+    int menuClientX = 0;
+    int menuClientY = 0;
 
 
     protected CircuitEditor(CirSim cirSim) {
@@ -112,8 +114,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void setCursorStyle(String s) {
         if (lastCursorStyle != null)
-            renderer.cv.removeStyleName(lastCursorStyle);
-        renderer.cv.addStyleName(s);
+            renderer().cv.removeStyleName(lastCursorStyle);
+        renderer().cv.addStyleName(s);
         lastCursorStyle = s;
     }
 
@@ -131,9 +133,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             dragSplitter(e.getX(), e.getY());
             return;
         }
-        int gx = renderer.inverseTransformX(e.getX());
-        int gy = renderer.inverseTransformY(e.getY());
-        if (!renderer.circuitArea.contains(e.getX(), e.getY()))
+        int gx = renderer().inverseTransformX(e.getX());
+        int gy = renderer().inverseTransformY(e.getY());
+        if (!renderer().circuitArea.contains(e.getX(), e.getY()))
             return;
         boolean changed = false;
         if (dragElm != null)
@@ -160,7 +162,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             case MODE_SELECT:
                 if (mouseElm == null) {
                     selectArea(gx, gy, e.isShiftKeyDown());
-                } else if (!menuManager.noEditCheckItem.getState()) {
+                } else if (!menuManager().noEditCheckItem.getState()) {
                     // wait short delay before dragging.  This is to fix problem where switches were accidentally getting
                     // dragged when tapped on mobile devices
                     if (System.currentTimeMillis() - mouseDownTime < 150)
@@ -180,23 +182,23 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             dragScreenX = e.getX();
             dragScreenY = e.getY();
             //	    console("setting dragGridx in mousedragged");
-            dragGridX = renderer.inverseTransformX(dragScreenX);
-            dragGridY = renderer.inverseTransformY(dragScreenY);
+            dragGridX = renderer().inverseTransformX(dragScreenX);
+            dragGridY = renderer().inverseTransformY(dragScreenY);
             if (!(tempMouseMode == MODE_DRAG_SELECTED && onlyGraphicsElmsSelected())) {
                 dragGridX = snapGrid(dragGridX);
                 dragGridY = snapGrid(dragGridY);
             }
         }
         if (changed) {
-            undoManager.writeRecoveryToStorage();
+            undoManager().writeRecoveryToStorage();
             cirSim.setUnsavedChanges(true);
         }
 
-        renderer.repaint();
+        renderer().repaint();
     }
 
     void dragSplitter(int x, int y) {
-        double h = (double) renderer.canvasHeight;
+        double h = (double) renderer().canvasHeight;
         if (h < 1)
             h = 1;
         double scopeHeightFraction = 1.0 - (((double) y) / h);
@@ -204,8 +206,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             scopeHeightFraction = 0.1;
         if (scopeHeightFraction > 0.9)
             scopeHeightFraction = 0.9;
-        renderer.scopeHeightFraction = scopeHeightFraction;
-        renderer.setCircuitArea();
+        renderer().scopeHeightFraction = scopeHeightFraction;
+        renderer().setCircuitArea();
         cirSim.repaint();
     }
 
@@ -214,8 +216,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int dy = y - dragScreenY;
         if (dx == 0 && dy == 0)
             return;
-        renderer.transform[4] += dx;
-        renderer.transform[5] += dy;
+        renderer().transform[4] += dx;
+        renderer().transform[5] += dy;
         dragScreenX = x;
         dragScreenY = y;
     }
@@ -225,6 +227,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (dy == 0)
             return;
         int i;
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.y == dragGridY)
@@ -239,8 +242,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int dx = x - dragGridX;
         if (dx == 0)
             return;
-        int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.x == dragGridX)
                 ce.movePoint(0, dx, 0);
@@ -274,6 +277,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         boolean allowed = true;
 
         // check if moves are allowed
+        CircuitSimulator simulator = simulator();
         for (i = 0; allowed && i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.isSelected() && !ce.allowMove(dx, dy))
@@ -309,8 +313,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
         if (all) {
             // go through all elms
-            int i;
-            for (i = 0; i != simulator.elmList.size(); i++) {
+            CircuitSimulator simulator = simulator();
+            for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm e = simulator.elmList.get(i);
 
                 // which post do we move?
@@ -335,6 +339,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int y2 = Math.max(y, initDragGridY);
         selectedArea = new Rectangle(x1, y1, x2 - x1, y2 - y1);
         int i;
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             ce.selectRect(selectedArea, add);
@@ -353,11 +358,12 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             cirSim.adjustableManager.setMouseElm(ce);
         }
         // Ensure the display is updated even when simulation is stopped
-        renderer.repaint();
+        renderer().repaint();
     }
 
     void removeZeroLengthElements() {
         boolean changed = false;
+        CircuitSimulator simulator = simulator();
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.x == ce.x2 && ce.y == ce.y2) {
@@ -371,10 +377,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     boolean mouseIsOverSplitter(int x, int y) {
         boolean isOverSplitter;
-        if (scopeManager.scopeCount == 0)
+        if (scopeManager().scopeCount == 0)
             return false;
-        isOverSplitter = ((x >= 0) && (x < renderer.circuitArea.width) &&
-                (y >= renderer.circuitArea.height - 5) && (y < renderer.circuitArea.height));
+        isOverSplitter = ((x >= 0) && (x < renderer().circuitArea.width) &&
+                (y >= renderer().circuitArea.height - 5) && (y < renderer().circuitArea.height));
         if (isOverSplitter != mouseWasOverSplitter) {
             if (isOverSplitter)
                 setCursorStyle("cursorSplitter");
@@ -394,7 +400,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             return;
         }
         mouseSelect(e);
-        scopeManager.scopeMenuSelected = -1;
+        scopeManager().scopeMenuSelected = -1;
     }
 
     // need to break this out into a separate routine to handle selection,
@@ -408,15 +414,14 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         mouseCursorY = e.getY();
         int sx = e.getX();
         int sy = e.getY();
-        int gx = renderer.inverseTransformX(sx);
-        int gy = renderer.inverseTransformY(sy);
+        int gx = renderer().inverseTransformX(sx);
+        int gy = renderer().inverseTransformY(sy);
         // 	console("Settingd draggridx in mouseEvent");
         dragGridX = snapGrid(gx);
         dragGridY = snapGrid(gy);
         dragScreenX = sx;
         dragScreenY = sy;
         draggingPost = -1;
-        int i;
         //	CircuitElm origMouse = mouseElm;
 
         mousePost = -1;
@@ -427,7 +432,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             return;
         }
 
-        if (renderer.circuitArea.contains(sx, sy)) {
+        if (renderer().circuitArea.contains(sx, sy)) {
             // First check if we're near a handle of the current mouse element
             if (mouseElm != null && (mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0)) {
                 newMouseElm = mouseElm;
@@ -436,7 +441,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 int bestDist = 100000000;
                 CircuitElm bestElm = null;
 
-                for (i = 0; i != simulator.elmList.size(); i++) {
+                CircuitSimulator simulator = simulator();
+                for (int i = 0; i != simulator.elmList.size(); i++) {
                     CircuitElm ce = simulator.elmList.get(i);
                     if (ce.boundingBox.contains(gx, gy)) {
                         int dist = ce.getMouseDistance(gx, gy);
@@ -456,10 +462,11 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             }
         }
 
-        scopeManager.scopeSelected = -1;
+        scopeManager().scopeSelected = -1;
         if (newMouseElm == null) {
             // Check scopes
-            for (i = 0; i != scopeManager.scopeCount; i++) {
+            ScopeManager scopeManager = scopeManager();
+            for (int i = 0; i != scopeManager.scopeCount; i++) {
                 Scope s = scopeManager.scopes[i];
                 if (s.rect.contains(sx, sy)) {
                     newMouseElm = s.getElm();
@@ -478,7 +485,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 CircuitElm bestPostElm = null;
                 int bestPost = -1;
 
-                for (i = 0; i != simulator.elmList.size(); i++) {
+                CircuitSimulator simulator = simulator();
+                for (int i = 0; i != simulator.elmList.size(); i++) {
                     CircuitElm ce = simulator.elmList.get(i);
 
                     // Check for drag post mode
@@ -513,7 +521,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             int bestPostDist = 26;
             int bestPost = -1;
 
-            for (i = 0; i != newMouseElm.getPostCount(); i++) {
+            for (int i = 0; i != newMouseElm.getPostCount(); i++) {
                 Point pt = newMouseElm.getPost(i);
                 int dist = Graphics.distanceSq(pt.x, pt.y, gx, gy);
                 if (dist < bestPostDist) {
@@ -537,7 +545,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void clearMouseElm() {
-        scopeManager.scopeSelected = -1;
+        scopeManager().scopeSelected = -1;
         setMouseElm(null);
         plotXElm = plotYElm = null;
     }
@@ -547,9 +555,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         e.preventDefault();
 
         // make sure canvas has focus, not stop button or something else, so all shortcuts work
-        renderer.cv.setFocus(true);
+        renderer().cv.setFocus(true);
 
-        simulator.stopElm = null; // if stopped, allow user to select other elements to fix circuit
+        simulator().stopElm = null; // if stopped, allow user to select other elements to fix circuit
         menuX = menuClientX = e.getX();
         menuY = menuClientY = e.getY();
         mouseDownTime = System.currentTimeMillis();
@@ -588,12 +596,13 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             tempMouseMode = MODE_DRAG_ALL;
 
 
-        if (menuManager.noEditCheckItem.getState())
+        if (menuManager().noEditCheckItem.getState())
             tempMouseMode = MODE_SELECT;
 
+        ScopeManager scopeManager = scopeManager();
         if (!(cirSim.dialogIsShowing()) && ((scopeManager.scopeSelected != -1 && scopeManager.scopes[scopeManager.scopeSelected].cursorInSettingsWheel()) ||
                 (scopeManager.scopeSelected == -1 && mouseElm instanceof ScopeElm && ((ScopeElm) mouseElm).elmScope.cursorInSettingsWheel()))) {
-            if (menuManager.noEditCheckItem.getState())
+            if (menuManager().noEditCheckItem.getState())
                 return;
             Scope s;
             if (scopeManager.scopeSelected != -1)
@@ -606,8 +615,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             return;
         }
 
-        int gx = renderer.inverseTransformX(e.getX());
-        int gy = renderer.inverseTransformY(e.getY());
+        int gx = renderer().inverseTransformX(e.getX());
+        int gy = renderer().inverseTransformY(e.getY());
         if (doSwitch(gx, gy)) {
             // do this BEFORE we change the mouse mode to MODE_DRAG_POST!  Or else logic inputs
             // will add dots to the whole circuit when we click on them!
@@ -616,7 +625,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
 
         // IES - Grab resize handles in select mode if they are far enough apart and you are on top of them
-        if (tempMouseMode == MODE_SELECT && mouseElm != null && !menuManager.noEditCheckItem.getState() &&
+        if (tempMouseMode == MODE_SELECT && mouseElm != null && !menuManager().noEditCheckItem.getState() &&
                 mouseElm.getHandleGrabbedClose(gx, gy, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0 &&
                 !anySelectedButMouse())
             tempMouseMode = MODE_DRAG_POST;
@@ -633,7 +642,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 //
         int x0 = snapGrid(gx);
         int y0 = snapGrid(gy);
-        if (!renderer.circuitArea.contains(e.getX(), e.getY()))
+        if (!renderer().circuitArea.contains(e.getX(), e.getY()))
             return;
 
         try {
@@ -672,10 +681,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 if (mouseMode == MODE_SELECT || mouseMode == MODE_DRAG_SELECTED)
                     clearSelection();
             } else {
-                simulator.elmList.addElement(dragElm);
+                simulator().elmList.addElement(dragElm);
                 dragElm.draggingDone();
                 circuitChanged = true;
-                undoManager.writeRecoveryToStorage();
+                undoManager().writeRecoveryToStorage();
             }
             dragElm = null;
         }
@@ -687,7 +696,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (dragElm != null)
             dragElm.delete();
         dragElm = null;
-        renderer.repaint();
+        renderer().repaint();
     }
 
     public void onMouseWheel(MouseWheelEvent e) {
@@ -701,7 +710,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         // so we don't accidentally edit a resistor value while zooming
         boolean zoomOnly = System.currentTimeMillis() < zoomTime + 1000;
 
-        if (menuManager.noEditCheckItem.getState() || !menuManager.mouseWheelEditCheckItem.getState())
+        if (menuManager().noEditCheckItem.getState() || !menuManager().mouseWheelEditCheckItem.getState())
             zoomOnly = true;
 
         if (!zoomOnly)
@@ -709,8 +718,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
         if (mouseElm instanceof MouseWheelHandler && !zoomOnly)
             ((MouseWheelHandler) mouseElm).onMouseWheel(e);
-        else if (scopeManager.scopeSelected != -1 && !zoomOnly)
-            scopeManager.scopes[scopeManager.scopeSelected].onMouseWheel(e);
+        else if (scopeManager().scopeSelected != -1 && !zoomOnly)
+            scopeManager().scopes[scopeManager().scopeSelected].onMouseWheel(e);
         else if (!cirSim.dialogIsShowing()) {
             // Ensure we're zooming around the correct mouse position
             double zoomDelta = -e.getDeltaY() * wheelSensitivity;
@@ -718,10 +727,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             // Clamp zoom delta to prevent too aggressive zooming
             zoomDelta = Math.max(-50, Math.min(50, zoomDelta));
 
-            renderer.zoomCircuit(zoomDelta, false);
+            renderer().zoomCircuit(zoomDelta, false);
             zoomTime = System.currentTimeMillis();
         }
-        renderer.repaint();
+        renderer().repaint();
     }
 
     public void onMouseOut(MouseOutEvent e) {
@@ -740,19 +749,20 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         menuY = e.getNativeEvent().getClientY();
         menuClientX = menuX;
         menuClientY = menuY;
+
         cirSim.menuManager.doPopupMenu();
     }
 
     public void onDoubleClick(DoubleClickEvent e) {
         e.preventDefault();
-        if (mouseElm != null && !(mouseElm instanceof SwitchElm) && !menuManager.noEditCheckItem.getState())
+        if (mouseElm != null && !(mouseElm instanceof SwitchElm) && !menuManager().noEditCheckItem.getState())
             doEdit(mouseElm);
     }
 
     ScrollValuePopup scrollValuePopup;
 
     void scrollValues(int x, int y, int deltay) {
-        if (mouseElm != null && !cirSim.dialogIsShowing() && scopeManager.scopeSelected == -1)
+        if (mouseElm != null && !cirSim.dialogIsShowing() && scopeManager().scopeSelected == -1)
             if (mouseElm instanceof ResistorElm || mouseElm instanceof CapacitorElm || mouseElm instanceof InductorElm) {
                 scrollValuePopup = new ScrollValuePopup(x, y, deltay, mouseElm, cirSim);
                 cirSim.setUnsavedChanges(true);
@@ -764,7 +774,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void setGrid() {
-        gridSize = (menuManager.smallGridCheckItem.getState()) ? 8 : 16;
+        gridSize = (menuManager().smallGridCheckItem.getState()) ? 8 : 16;
         gridMask = ~(gridSize - 1);
         gridRound = gridSize / 2 - 1;
     }
@@ -787,8 +797,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     boolean onlyGraphicsElmsSelected() {
         if (mouseElm != null && !(mouseElm instanceof GraphicElm))
             return false;
-        int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.isSelected() && !(ce instanceof GraphicElm))
                 return false;
@@ -802,8 +812,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void doSplit(CircuitElm ce) {
-        int x = snapGrid(renderer.inverseTransformX(menuX));
-        int y = snapGrid(renderer.inverseTransformY(menuY));
+        int x = snapGrid(renderer().inverseTransformX(menuX));
+        int y = snapGrid(renderer().inverseTransformY(menuY));
         if (ce == null || !(ce instanceof WireElm))
             return;
         if (ce.x == ce.x2)
@@ -818,7 +828,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         WireElm newWire = new WireElm(x, y);
         newWire.drag(ce.x2, ce.y2);
         ce.drag(x, y);
-        simulator.elmList.addElement(newWire);
+        simulator().elmList.addElement(newWire);
         cirSim.needAnalyze();
     }
 
@@ -827,13 +837,13 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     FlipInfo prepareFlip() {
-        int i;
         pushUndo();
         cirSim.setMenuSelection();
         int minx = 30000, maxx = -30000;
         int miny = 30000, maxy = -30000;
+        CircuitSimulator simulator = simulator();
         int count = simulator.countSelected();
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.isSelected() || count == 0) {
                 minx = Math.min(ce.x, Math.min(ce.x2, minx));
@@ -852,6 +862,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     void flipX() {
         FlipInfo fi = prepareFlip();
         int center2 = fi.cx * 2;
+        CircuitSimulator simulator = simulator();
         for (CircuitElm ce : simulator.elmList) {
             if (ce.isSelected() || fi.count == 0)
                 ce.flipX(center2, fi.count);
@@ -862,6 +873,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     void flipY() {
         FlipInfo fi = prepareFlip();
         int center2 = fi.cy * 2;
+        CircuitSimulator simulator = simulator();
         for (CircuitElm ce : simulator.elmList) {
             if (ce.isSelected() || fi.count == 0)
                 ce.flipY(center2, fi.count);
@@ -873,6 +885,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         FlipInfo fi = prepareFlip();
         int xmy = snapGrid(fi.cx - fi.cy);
         CirSim.console("xmy " + xmy + " grid " + gridSize + " " + fi.cx + " " + fi.cy);
+        CircuitSimulator simulator = simulator();
         for (CircuitElm ce : simulator.elmList) {
             if (ce.isSelected() || fi.count == 0)
                 ce.flipXY(xmy, fi.count);
@@ -881,28 +894,28 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void pushUndo() {
-        undoManager.pushUndo();
+        undoManager().pushUndo();
         cirSim.enableUndoRedo();
         cirSim.savedFlag = false;
     }
 
     void doUndo() {
-        undoManager.doUndo();
+        undoManager().doUndo();
         cirSim.enableUndoRedo();
         cirSim.setUnsavedChanges(true);
     }
 
     void doRedo() {
-        undoManager.doRedo();
+        undoManager().doRedo();
         cirSim.enableUndoRedo();
         cirSim.setUnsavedChanges(true);
     }
 
     void doRecover() {
         pushUndo();
-        cirSim.readCircuit(undoManager.recovery);
+        cirSim.readCircuit(undoManager().recovery);
         cirSim.allowSave(false);
-        menuManager.recoverItem.setEnabled(false);
+        menuManager().recoverItem.setEnabled(false);
         cirSim.filePath = null;
         cirSim.fileName = null;
         cirSim.changeWindowTitle(cirSim.unsavedChanges);
@@ -925,6 +938,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             pushUndo();
         boolean hasDeleted = false;
 
+        CircuitSimulator simulator = simulator();
         for (i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = simulator.elmList.get(i);
             if (willDelete(ce)) {
@@ -938,7 +952,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (hasDeleted) {
             simulator.deleteUnusedScopeElms();
             cirSim.needAnalyze();
-            undoManager.writeRecoveryToStorage();
+            undoManager().writeRecoveryToStorage();
             cirSim.setUnsavedChanges(true);
         }
     }
@@ -961,7 +975,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         DiodeModel.clearDumpedFlags();
         TransistorModel.clearDumpedFlags();
 
-        r += simulator.dumpSelectedItems();
+        r += simulator().dumpSelectedItems();
 
         return r;
     }
@@ -1002,6 +1016,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         Rectangle oldbb = null;
 
         // get old bounding box
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             Rectangle bb = ce.getBoundingBox();
@@ -1039,8 +1054,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (oldbb != null && newbb != null /*&& oldbb.intersects(newbb)*/) {
             // find a place on the edge for new items
             int dx = 0, dy = 0;
-            int spacew = renderer.circuitArea.width - oldbb.width - newbb.width;
-            int spaceh = renderer.circuitArea.height - oldbb.height - newbb.height;
+            int spacew = renderer().circuitArea.width - oldbb.width - newbb.width;
+            int spaceh = renderer().circuitArea.height - oldbb.height - newbb.height;
 
             if (!oldbb.intersects(newbb)) {
                 // old coordinates may be really far away so move them to same origin as current circuit
@@ -1055,9 +1070,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             }
 
             // move new items near the mouse if possible
-            if (mouseCursorX > 0 && renderer.circuitArea.contains(mouseCursorX, mouseCursorY)) {
-                int gx = renderer.inverseTransformX(mouseCursorX);
-                int gy = renderer.inverseTransformY(mouseCursorY);
+            if (mouseCursorX > 0 && renderer().circuitArea.contains(mouseCursorX, mouseCursorY)) {
+                int gx = renderer().inverseTransformX(mouseCursorX);
+                int gy = renderer().inverseTransformY(mouseCursorY);
                 int mdx = snapGrid(gx - (newbb.x + newbb.width / 2));
                 int mdy = snapGrid(gy - (newbb.y + newbb.height / 2));
                 for (i = oldsz; i != simulator.elmList.size(); i++) {
@@ -1080,13 +1095,13 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             //	handleResize();
         }
         cirSim.needAnalyze();
-        undoManager.writeRecoveryToStorage();
+        undoManager().writeRecoveryToStorage();
         cirSim.setUnsavedChanges(true);
     }
 
     void clearSelection() {
-        int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             ce.setSelected(false);
         }
@@ -1094,8 +1109,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void doSelectAll() {
-        int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             ce.setSelected(true);
         }
@@ -1103,6 +1118,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     boolean anySelectedButMouse() {
+        CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++)
             if (simulator.elmList.get(i) != mouseElm && simulator.elmList.get(i).selected)
                 return true;

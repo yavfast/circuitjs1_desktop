@@ -116,7 +116,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     void executeSlider() {
-        renderer.analyzeFlag = true;
+        renderer().analyzeFlag = true;
         EditInfo ei = elm.getEditInfo(editItem);
         ei.value = getSliderValue();
         elm.setEditValue(editItem, ei);
@@ -156,7 +156,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         if (sharedSlider != null)
             ano = cirSim.adjustableManager.adjustables.indexOf(sharedSlider);
 
-        return simulator.locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
+        return simulator().locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
                 CustomLogicModel.escape(sliderText);
     }
 

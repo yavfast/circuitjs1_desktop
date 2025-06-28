@@ -240,7 +240,7 @@ public class MenuManager extends BaseCirSimDelegate {
         m.addItem(smallGridCheckItem = new CheckboxMenuItem(Locale.LS("Small Grid"),
                 new Command() {
                     public void execute() {
-                        circuitEditor.setGrid();
+                        circuitEditor().setGrid();
                     }
                 }));
         m.addItem(toolbarCheckItem = new CheckboxMenuItem(Locale.LS("Toolbar"),
@@ -277,8 +277,8 @@ public class MenuManager extends BaseCirSimDelegate {
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("euroGates", euroGatesCheckItem.getState());
-                        int i;
-                        for (i = 0; i != simulator.elmList.size(); i++)
+                        CircuitSimulator simulator = simulator();
+                        for (int i = 0; i != simulator.elmList.size(); i++)
                             simulator.elmList.get(i).setPoints();
                     }
                 }));
@@ -577,6 +577,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
             selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(i))));
         }
+        CircuitSimulator simulator = simulator();
         int c = simulator.countScopeElms();
         for (int j = 0; j < c; j++) {
             String s, l;
@@ -707,7 +708,6 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     void doPopupMenu() {
-        // Діагностичні повідомлення для налагодження
         CirSim.console("doPopupMenu called");
         CirSim.console("noEditCheckItem state: " + noEditCheckItem.getState());
         CirSim.console("dialogIsShowing: " + cirSim.dialogIsShowing());
@@ -717,11 +717,11 @@ public class MenuManager extends BaseCirSimDelegate {
             return;
         }
 
-        CircuitElm mouseElm = circuitEditor.mouseElm;
+        CircuitElm mouseElm = circuitEditor().mouseElm;
         cirSim.menuElm = mouseElm;
 
-        int menuClientX = circuitEditor.menuClientX;
-        int menuClientY = circuitEditor.menuClientY;
+        int menuClientX = circuitEditor().menuClientX;
+        int menuClientY = circuitEditor().menuClientY;
 
         CirSim.console("Menu position: " + menuClientX + ", " + menuClientY);
         CirSim.console("mouseElm: " + (mouseElm != null ? mouseElm.getClass().getSimpleName() : "null"));
@@ -739,14 +739,13 @@ public class MenuManager extends BaseCirSimDelegate {
                 scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected), scopeManager.canCombineScope(scopeManager.scopeSelected),
                         scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
 
-                // Закриваємо попереднє контекстне меню, якщо воно існує
                 if (contextPanel != null && contextPanel.isShowing()) {
                     contextPanel.hide();
                 }
 
                 contextPanel = new PopupPanel(true);
                 contextPanel.add(scopePopupMenu.getMenuBar());
-                y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 160));
+                y = Math.max(0, Math.min(menuClientY, renderer().canvasHeight - 160));
                 contextPanel.setPopupPosition(menuClientX, y);
                 contextPanel.show();
                 CirSim.console("Scope popup menu shown");
@@ -758,6 +757,7 @@ public class MenuManager extends BaseCirSimDelegate {
             if (!(mouseElm instanceof ScopeElm)) {
                 elmScopeMenuItem.setEnabled(mouseElm.canViewInScope());
                 elmFloatScopeMenuItem.setEnabled(mouseElm.canViewInScope());
+                CircuitSimulator simulator = simulator();
                 if ((scopeManager.scopeCount + simulator.countScopeElms()) <= 1) {
                     elmAddScopeMenuItem.setCommand(new MyCommand("elm", "addToScope0"));
                     elmAddScopeMenuItem.setSubMenu(null);
@@ -822,15 +822,14 @@ public class MenuManager extends BaseCirSimDelegate {
             CirSim.console("Main popup menu");
             doMainMenuChecks();
 
-            // Закриваємо попереднє контекстне меню, якщо воно існує
             if (contextPanel != null && contextPanel.isShowing()) {
                 contextPanel.hide();
             }
 
             contextPanel = new PopupPanel(true);
             contextPanel.add(mainMenuBar);
-            x = Math.max(0, Math.min(menuClientX, renderer.canvasWidth - 400));
-            y = Math.max(0, Math.min(menuClientY, renderer.canvasHeight - 450));
+            x = Math.max(0, Math.min(menuClientX, renderer().canvasWidth - 400));
+            y = Math.max(0, Math.min(menuClientY, renderer().canvasHeight - 450));
             contextPanel.setPopupPosition(x, y);
             contextPanel.show();
             CirSim.console("Main popup menu shown at: " + x + ", " + y);
@@ -846,7 +845,7 @@ public class MenuManager extends BaseCirSimDelegate {
         int i;
         for (i = 0; i < c; i++) {
             String s = mainMenuItemNames.get(i);
-            mainMenuItems.get(i).setState(s == circuitEditor.mouseModeStr);
+            mainMenuItems.get(i).setState(s == circuitEditor().mouseModeStr);
 
             // Code to disable draw menu items when cct is not editable, but no used in this version as it
             // puts up a dialog box instead (see menuPerformed).
