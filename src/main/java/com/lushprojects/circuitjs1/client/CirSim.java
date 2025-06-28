@@ -380,6 +380,7 @@ public class CirSim implements NativePreviewHandler {
     boolean mouseWheelEdit = false;
 
     public void init() {
+        console("Start");
 
         //sets the meta tag to allow the css media queries to work
         MetaElement meta = Document.get().createMetaElement();
