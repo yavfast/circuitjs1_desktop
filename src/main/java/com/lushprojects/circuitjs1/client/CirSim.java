@@ -145,7 +145,7 @@ public class CirSim implements NativePreviewHandler {
     int menuPlot = -1;
     int hintType = -1, hintItem1, hintItem2;
 
-    boolean developerMode;
+    boolean developerMode = false;
 
     boolean showResistanceInVoltageSources;
     boolean hideInfoBox;
@@ -1130,7 +1130,7 @@ public class CirSim implements NativePreviewHandler {
             dialogManager.showSearchDialog();
         }
         if (menu == "options" && item == "other")
-            circuitEditor.doEdit(new EditOptions(this));
+            circuitEditor.doEditOptions();
         if (item == "devtools")
             toggleDevTools();
         if (item == "undo")
@@ -1195,7 +1195,7 @@ public class CirSim implements NativePreviewHandler {
         if (item == "zoom100")
             renderer.setCircuitScale(1, true);
         if (menu == "elm" && item == "edit")
-            circuitEditor.doEdit(menuElm);
+            circuitEditor.doEditElementOptions(menuElm);
         if (item == "delete") {
             if (menu != "elm")
                 menuElm = null;

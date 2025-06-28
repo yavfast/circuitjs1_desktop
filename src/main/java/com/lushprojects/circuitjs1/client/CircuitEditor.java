@@ -18,7 +18,6 @@ import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
-import com.google.gwt.storage.client.Storage;
 
 public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandler, MouseMoveHandler, MouseUpHandler,
         ClickHandler, DoubleClickHandler, ContextMenuHandler, MouseOutHandler, MouseWheelHandler {
@@ -756,7 +755,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     public void onDoubleClick(DoubleClickEvent e) {
         e.preventDefault();
         if (mouseElm != null && !(mouseElm instanceof SwitchElm) && !menuManager().noEditCheckItem.getState())
-            doEdit(mouseElm);
+            doEditElementOptions(mouseElm);
     }
 
     ScrollValuePopup scrollValuePopup;
@@ -1125,10 +1124,16 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         return false;
     }
 
-    void doEdit(Editable eable) {
+    void doEditOptions() {
         clearSelection();
         pushUndo();
-        cirSim.dialogManager.showEditDialog(eable);
+        cirSim.dialogManager.showEditOptionsDialog();
+    }
+
+    void doEditElementOptions(CircuitElm elm) {
+        clearSelection();
+        pushUndo();
+        cirSim.dialogManager.showEditElementDialog(elm);
     }
 
     void doSliders(CircuitElm ce) {

@@ -251,7 +251,7 @@ public class CustomLogicElm extends ChipElm {
             return;
         }
         if (n == 1) {
-            simUi.dialogManager.showEditDialog(model);
+            simUi.dialogManager.showEditElementDialog(model);
             return;
         }
     }

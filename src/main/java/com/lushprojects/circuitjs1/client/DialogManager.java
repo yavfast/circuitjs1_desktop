@@ -71,12 +71,13 @@ public class DialogManager extends BaseCirSimDelegate {
         activeDialog.show();
     }
 
-    void showEditDialog(Editable eable) {
-        if (activeDialog != null) {
-            activeDialog.setVisible(false);
-            activeDialog = null;
-        }
-        activeDialog = new EditDialog(eable, cirSim);
+    void showEditOptionsDialog() {
+        activeDialog = new EditDialog(new EditOptions(cirSim), cirSim);
+        activeDialog.show();
+    }
+
+    void showEditElementDialog(Editable editable) {
+        activeDialog = new EditDialog(editable, cirSim);
         activeDialog.show();
     }
 
