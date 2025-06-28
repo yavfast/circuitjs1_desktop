@@ -21,7 +21,7 @@ public class LogManager extends BaseCirSimDelegate {
 
     public static final int MIN_LOG_PANEL_WIDTH = 200;
     public static final int MAX_LOG_PANEL_WIDTH = 800;
-    public static final int MIN_LOG_PANEL_HEIGHT = 150;
+    public static final int MIN_LOG_PANEL_HEIGHT = 400;
 
     public VerticalPanel logPanel;
     private HorizontalPanel controlPanel;
@@ -37,7 +37,7 @@ public class LogManager extends BaseCirSimDelegate {
     public int startX;
     public int startWidth;
 
-    public int logPanelWidth = 600;
+    public int logPanelWidth = 400;
     public int logPanelHeight = 800;
 
     // File logging fields
@@ -676,7 +676,7 @@ public class LogManager extends BaseCirSimDelegate {
 
     // Combined method to update both width and height
     public void updatePanelSize() {
-        updatePanelSize(logPanel.getElement().getOffsetWidth(), logPanel.getElement().getOffsetHeight());
+        cirSim.updateLogPanelWidth(logPanel.getElement().getClientWidth());
     }
 
     public void updatePanelSize(int newWidth, int availableHeight) {

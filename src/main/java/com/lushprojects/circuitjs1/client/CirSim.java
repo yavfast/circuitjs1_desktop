@@ -742,6 +742,7 @@ public class CirSim implements NativePreviewHandler {
             CircuitElm.currentColor = menuManager.conventionCheckItem.getState() ? Color.yellow : Color.cyan;
 
         CircuitElm.setColorScale();
+        logManager.updatePanelSize();
     }
 
 
