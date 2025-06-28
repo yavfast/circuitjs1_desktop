@@ -97,23 +97,17 @@ public class LogManager extends BaseCirSimDelegate {
 
     // NEW: Initialize async logging timer for batched writes
     private void initializeAsyncLogTimer() {
-        logWriteCommand = new Scheduler.RepeatingCommand() {
-            @Override
-            public boolean execute() {
-                flushLogQueue();
-                return false; // Do not repeat automatically
-            }
+        logWriteCommand = () -> {
+            flushLogQueue();
+            return false; // Do not repeat automatically
         };
     }
 
     // NEW: Initialize async UI update timer for batched UI updates
     private void initializeAsyncUITimer() {
-        uiUpdateCommand = new Scheduler.RepeatingCommand() {
-            @Override
-            public boolean execute() {
-                flushUIUpdateQueue();
-                return false; // Do not repeat automatically
-            }
+        uiUpdateCommand = () -> {
+            flushUIUpdateQueue();
+            return false; // Do not repeat automatically
         };
     }
 
@@ -229,16 +223,13 @@ public class LogManager extends BaseCirSimDelegate {
         final int[] waitCount = {0};
         final int maxWaitCount = timeoutMs / 10; // 10ms intervals
 
-        Scheduler.RepeatingCommand waitCommand = new Scheduler.RepeatingCommand() {
-            @Override
-            public boolean execute() {
-                if (condition.getAsBoolean() || waitCount[0] >= maxWaitCount) {
-                    onComplete.run();
-                    return false; // Stop repeating
-                }
-                waitCount[0]++;
-                return true; // Continue repeating
+        Scheduler.RepeatingCommand waitCommand = () -> {
+            if (condition.getAsBoolean() || waitCount[0] >= maxWaitCount) {
+                onComplete.run();
+                return false; // Stop repeating
             }
+            waitCount[0]++;
+            return true; // Continue repeating
         };
 
         Scheduler.get().scheduleFixedPeriod(waitCommand, 10); // Check every 10ms
@@ -257,17 +248,9 @@ public class LogManager extends BaseCirSimDelegate {
         flushLogQueue();
 
         // Wait for async write to complete (with timeout) using Scheduler
-        waitForAsyncOperation(new Runnable() {
-            @Override
-            public void run() {
-                // Operation completed or timed out
-            }
-        }, new BooleanSupplier() {
-            @Override
-            public boolean getAsBoolean() {
-                return !isWriting;
-            }
-        }, 500); // Max 500ms wait
+        waitForAsyncOperation(() -> {
+            // Operation completed or timed out
+        }, () -> !isWriting, 500); // Max 500ms wait
     }
 
     // NEW: Enhanced writeLogToFile for async operation
@@ -525,16 +508,13 @@ public class LogManager extends BaseCirSimDelegate {
     }
 
     public void setupResizeHandlers() {
-        resizeHandle.addMouseDownHandler(new MouseDownHandler() {
-            public void onMouseDown(MouseDownEvent event) {
-                isResizing = true;
-                startX = event.getClientX();
-                startWidth = logPanelWidth;
-                event.preventDefault();
+        resizeHandle.addMouseDownHandler(event -> {
+            isResizing = true;
+            startX = event.getClientX();
+            startWidth = logPanelWidth;
+            event.preventDefault();
 
-                // Додаємо обробники до document для відстеження миші за межами елемента
-                addDocumentMouseHandlers();
-            }
+            addDocumentMouseHandlers();
         });
     }
 
@@ -1012,32 +992,29 @@ public class LogManager extends BaseCirSimDelegate {
         final int batchSize = 10; // Process 10 labels at a time
         final int[] currentIndex = {0};
 
-        Scheduler.RepeatingCommand batchCommand = new Scheduler.RepeatingCommand() {
-            @Override
-            public boolean execute() {
-                int endIndex = Math.min(currentIndex[0] + batchSize, labels.size());
+        Scheduler.RepeatingCommand batchCommand = () -> {
+            int endIndex = Math.min(currentIndex[0] + batchSize, labels.size());
 
-                // Add batch of labels to UI
-                for (int i = currentIndex[0]; i < endIndex; i++) {
-                    Label logLabel = labels.get(i);
-                    logEntriesPanel.add(logLabel);
-                }
+            // Add batch of labels to UI
+            for (int i = currentIndex[0]; i < endIndex; i++) {
+                Label logLabel = labels.get(i);
+                logEntriesPanel.add(logLabel);
+            }
 
-                currentIndex[0] = endIndex;
+            currentIndex[0] = endIndex;
 
-                // Continue processing if there are more labels
-                if (currentIndex[0] < labels.size()) {
-                    return true; // Continue repeating
-                } else {
-                    // All labels processed, update UI state
-                    isUpdatingUI = false;
-                    updateLogCount();
-                    scrollToBottom();
+            // Continue processing if there are more labels
+            if (currentIndex[0] < labels.size()) {
+                return true; // Continue repeating
+            } else {
+                // All labels processed, update UI state
+                isUpdatingUI = false;
+                updateLogCount();
+                scrollToBottom();
 
-                    // Check if there are more UI updates pending
-                    checkForPendingUIUpdates();
-                    return false; // Stop repeating
-                }
+                // Check if there are more UI updates pending
+                checkForPendingUIUpdates();
+                return false; // Stop repeating
             }
         };
 
@@ -1061,16 +1038,8 @@ public class LogManager extends BaseCirSimDelegate {
         flushUIUpdateQueue();
 
         // Wait for async UI update to complete using Scheduler
-        waitForAsyncOperation(new Runnable() {
-            @Override
-            public void run() {
-                // UI updates completed or timed out
-            }
-        }, new BooleanSupplier() {
-            @Override
-            public boolean getAsBoolean() {
-                return !isUpdatingUI;
-            }
-        }, 500); // Max 500ms wait
+        waitForAsyncOperation(() -> {
+            // UI updates completed or timed out
+        }, () -> !isUpdatingUI, 500); // Max 500ms wait
     }
 }
