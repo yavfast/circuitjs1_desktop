@@ -40,4 +40,8 @@ public class BaseCirSimDelegate {
     ActionManager actionManager() {
         return cirSim.actionManager;
     }
+
+    CircuitInfo circuitInfo() {
+        return cirSim.circuitInfo;
+    }
 }
