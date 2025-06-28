@@ -453,12 +453,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // show resistance in voltage sources if there's only one.
         // can't use voltageSourceCount here since that counts internal voltage sources, like the one in GroundElm
         boolean gotVoltageSource = false;
-        cirSim.showResistanceInVoltageSources = true;
+        cirSim.circuitInfo.showResistanceInVoltageSources = true;
         for (i = 0; i != elmList.size(); i++) {
             CircuitElm ce = elmList.get(i);
             if (ce instanceof VoltageElm) {
                 if (gotVoltageSource)
-                    cirSim.showResistanceInVoltageSources = false;
+                    cirSim.circuitInfo.showResistanceInVoltageSources = false;
                 else
                     gotVoltageSource = true;
             }

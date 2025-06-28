@@ -130,7 +130,7 @@ class CapacitorElm extends CircuitElm {
     }
 
     void stamp() {
-        if (simUi.dcAnalysisFlag) {
+        if (simUi.circuitInfo.dcAnalysisFlag) {
             // when finding DC operating point, replace cap with a 100M resistor
             simulator.stampResistor(nodes[0], nodes[1], 1e8);
             curSourceValue = 0;
@@ -181,7 +181,7 @@ class CapacitorElm extends CircuitElm {
 
     void calculateCurrent() {
         double voltdiff = volts[0] - volts[capNode2];
-        if (simUi.dcAnalysisFlag) {
+        if (simUi.circuitInfo.dcAnalysisFlag) {
             current = voltdiff / 1e8;
             return;
         }
@@ -195,13 +195,13 @@ class CapacitorElm extends CircuitElm {
     double curSourceValue;
 
     void doStep() {
-        if (simUi.dcAnalysisFlag)
+        if (simUi.circuitInfo.dcAnalysisFlag)
             return;
         simulator.stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
     }
 
     int getInternalNodeCount() {
-        return (!simUi.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
+        return (!simUi.circuitInfo.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
     }
 
     void getInfo(String arr[]) {

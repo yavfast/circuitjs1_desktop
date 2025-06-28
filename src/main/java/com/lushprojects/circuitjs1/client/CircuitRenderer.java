@@ -156,7 +156,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         CircuitSimulator simulator = simulator();
 // Analyze circuit
         boolean didAnalyze = analyzeFlag;
-        if (analyzeFlag || cirSim.dcAnalysisFlag) {
+        if (analyzeFlag || cirSim.circuitInfo.dcAnalysisFlag) {
             perfmon.startContext("analyzeCircuit()");
             simulator.analyzeCircuit();
             analyzeFlag = false;
@@ -343,8 +343,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         // if we did DC analysis, we need to re-analyze the circuit with that flag
         // cleared.
-        if (cirSim.dcAnalysisFlag) {
-            cirSim.dcAnalysisFlag = false;
+        if (cirSim.circuitInfo.dcAnalysisFlag) {
+            cirSim.circuitInfo.dcAnalysisFlag = false;
             analyzeFlag = true;
         }
 
@@ -352,7 +352,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         perfmon.stopContext(); // updateCircuit
 
-        if (cirSim.developerMode) {
+        if (cirSim.circuitInfo.developerMode) {
             int height = 45;
             int increment = 15;
             g.drawString("Framerate: " + CircuitElm.showFormat.format(framerate), 10, height);
@@ -390,7 +390,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             leftX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
             h = (circuitEditor.mouseElm == null) ? 70 : h0;
-            if (cirSim.hideInfoBox)
+            if (cirSim.circuitInfo.hideInfoBox)
                 h = 0;
         }
         if (simulator.stopMessage != null && circuitArea.height > canvasHeight - 30)
@@ -420,7 +420,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         if (simulator.stopMessage != null) {
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
-        } else if (!cirSim.hideInfoBox) {
+        } else if (!cirSim.circuitInfo.hideInfoBox) {
             // in JS it doesn't matter how big this is, there's no out-of-bounds exception
             String info[] = new String[10];
             if (circuitEditor.mouseElm != null) {
@@ -468,7 +468,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             if (badnodes > 0)
                 info[i++] = badnodes + ((badnodes == 1) ?
                         Locale.LS(" bad connection") : Locale.LS(" bad connections"));
-            if (cirSim.savedFlag)
+            if (cirSim.circuitInfo.savedFlag)
                 info[i++] = "(saved)";
 
             int ybase = circuitArea.height - h;

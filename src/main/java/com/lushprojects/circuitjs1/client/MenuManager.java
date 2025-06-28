@@ -84,6 +84,7 @@ public class MenuManager extends BaseCirSimDelegate {
 
     String[] shortcuts = new String[127];
 
+    int menuPlot = -1;
 
     protected MenuManager(CirSim cirSim) {
         super(cirSim);
@@ -272,7 +273,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         cirSim.toolbar.setEuroResistors(euroResistorCheckItem.getState());
                     }
                 }));
-        euroResistorCheckItem.setState(cirSim.euroSetting);
+        euroResistorCheckItem.setState(cirSim.circuitInfo.euroSetting);
         m.addItem(euroGatesCheckItem = new CheckboxMenuItem(Locale.LS("IEC Gates"),
                 new Command() {
                     public void execute() {
@@ -282,7 +283,7 @@ public class MenuManager extends BaseCirSimDelegate {
                             simulator.elmList.get(i).setPoints();
                     }
                 }));
-        euroGatesCheckItem.setState(cirSim.euroGates);
+        euroGatesCheckItem.setState(cirSim.circuitInfo.euroGates);
         m.addItem(printableCheckItem = new CheckboxMenuItem(Locale.LS("White Background"),
                 new Command() {
                     public void execute() {
@@ -290,7 +291,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         OptionsManager.setOptionInStorage("whiteBackground", printableCheckItem.getState());
                     }
                 }));
-        printableCheckItem.setState(cirSim.printable);
+        printableCheckItem.setState(cirSim.circuitInfo.printable);
 
         m.addItem(conventionCheckItem = new CheckboxMenuItem(Locale.LS("Conventional Current Motion"),
                 new Command() {
@@ -302,9 +303,9 @@ public class MenuManager extends BaseCirSimDelegate {
                             CircuitElm.currentColor = conventionCheckItem.getState() ? Color.yellow : Color.cyan;
                     }
                 }));
-        conventionCheckItem.setState(cirSim.convention);
+        conventionCheckItem.setState(cirSim.circuitInfo.convention);
         m.addItem(noEditCheckItem = new CheckboxMenuItem(Locale.LS("Disable Editing")));
-        noEditCheckItem.setState(cirSim.noEditing);
+        noEditCheckItem.setState(cirSim.circuitInfo.noEditing);
 
         m.addItem(mouseWheelEditCheckItem = new CheckboxMenuItem(Locale.LS("Edit Values With Mouse Wheel"),
                 new Command() {
@@ -312,7 +313,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         OptionsManager.setOptionInStorage("mouseWheelEdit", mouseWheelEditCheckItem.getState());
                     }
                 }));
-        mouseWheelEditCheckItem.setState(cirSim.mouseWheelEdit);
+        mouseWheelEditCheckItem.setState(cirSim.circuitInfo.mouseWheelEdit);
 
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Shortcuts..."), new MyCommand("options", "shortcuts")));
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Subcircuits..."), new MyCommand("options", "subcircuits")));
@@ -728,14 +729,14 @@ public class MenuManager extends BaseCirSimDelegate {
 
         ScopeManager scopeManager = cirSim.scopeManager;
         scopeManager.menuScope = -1;
-        cirSim.menuPlot = -1;
+        menuPlot = -1;
         int x, y;
 
         if (scopeManager.scopeSelected != -1) {
             CirSim.console("Scope selected: " + scopeManager.scopeSelected);
             if (scopeManager.scopes[scopeManager.scopeSelected].canMenu()) {
                 scopeManager.menuScope = scopeManager.scopeSelected;
-                cirSim.menuPlot = scopeManager.scopes[scopeManager.scopeSelected].selectedPlot;
+                menuPlot = scopeManager.scopes[scopeManager.scopeSelected].selectedPlot;
                 scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected), scopeManager.canCombineScope(scopeManager.scopeSelected),
                         scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
 
@@ -801,7 +802,7 @@ public class MenuManager extends BaseCirSimDelegate {
             } else {
                 ScopeElm s = (ScopeElm) mouseElm;
                 if (s.elmScope.canMenu()) {
-                    cirSim.menuPlot = s.elmScope.selectedPlot;
+                    menuPlot = s.elmScope.selectedPlot;
                     scopePopupMenu.doScopePopupChecks(true, false, false, false, s.elmScope);
 
                     // Закриваємо попереднє контекстне меню, якщо воно існує

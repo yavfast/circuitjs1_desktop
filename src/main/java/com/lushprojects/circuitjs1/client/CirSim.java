@@ -84,7 +84,7 @@ public class CirSim implements NativePreviewHandler {
 
     static final int INFO_WIDTH = 160;
 
-    final CircuitInfo circuitInfo = new CircuitInfo();
+    final CircuitInfo circuitInfo = new CircuitInfo(this);
     final LogManager logManager = new LogManager(this);
 
     final CircuitSimulator simulator = new CircuitSimulator(this);
@@ -102,28 +102,12 @@ public class CirSim implements NativePreviewHandler {
 
     Button resetButton;
     Button runStopButton;
-    Button dumpMatrixButton;
 
     Label powerLabel;
     Label titleLabel;
     Scrollbar speedBar;
     Scrollbar currentBar;
     Scrollbar powerBar;
-
-    Element sidePanelCheckboxLabel;
-
-
-    boolean savedFlag;
-    boolean dcAnalysisFlag;
-    // boolean useBufferedImage;
-
-    int pause = 10;
-    int menuPlot = -1;
-
-    boolean developerMode = false;
-
-    boolean showResistanceInVoltageSources;
-    boolean hideInfoBox;
 
     HashMap<String, String> classToLabelMap = new HashMap<>();
     Toolbar toolbar;
@@ -134,17 +118,11 @@ public class CirSim implements NativePreviewHandler {
     ScrollPanel slidersPanel;
     CellPanel buttonPanel;
 
-    boolean hideMenu = false;
-
     LoadFile loadFileInput = new LoadFile(this);
     Frame iFrame = null;
 
     static Button absResetBtn;
     static Button absRunStopBtn;
-
-    boolean euroSetting;
-    boolean euroGates = false;
-
 
     @Deprecated
     static CirSim theSim;
@@ -178,7 +156,7 @@ public class CirSim implements NativePreviewHandler {
         Storage lstor = Storage.getLocalStorageIfSupported();
         int width = RootLayoutPanel.get().getOffsetWidth();
         int height = RootLayoutPanel.get().getOffsetHeight();
-        height = height - (hideMenu ? 0 : MENU_BAR_HEIGHT);
+        height = height - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
 
         if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
             width = width - VERTICAL_PANEL_WIDTH;
@@ -327,20 +305,7 @@ public class CirSim implements NativePreviewHandler {
         theSim = this;
     }
 
-    String startCircuit = null;
-    String startLabel = null;
-    String startCircuitText = null;
-    String startCircuitLink = null;
 //    String baseURL = "http://www.falstad.com/circuit/";
-
-    boolean printable = false;
-    boolean convention = true;
-    boolean euroRes = false;
-    boolean usRes = false;
-    boolean running = true;
-    boolean hideSidebar = false;
-    boolean noEditing = false;
-    boolean mouseWheelEdit = false;
 
     public void init() {
         console("Start");
@@ -355,57 +320,7 @@ public class CirSim implements NativePreviewHandler {
         CircuitElm.initClass(this);
         undoManager.readRecovery();
 
-        QueryParameters qp = new QueryParameters();
-        String positiveColor = null;
-        String negativeColor = null;
-        String neutralColor = null;
-        String selectColor = null;
-        String currentColor = null;
-        String mouseModeReq = null;
-
-        try {
-            //baseURL = applet.getDocumentBase().getFile();
-            // look for circuit embedded in URL
-            //		String doc = applet.getDocumentBase().toString();
-            String cct = qp.getValue("cct");
-            if (cct != null)
-                startCircuitText = cct.replace("%24", "$");
-            if (startCircuitText == null)
-                startCircuitText = getElectronStartCircuitText();
-            String ctz = qp.getValue("ctz");
-            if (ctz != null)
-                startCircuitText = decompress(ctz);
-            startCircuit = qp.getValue("startCircuit");
-            startLabel = qp.getValue("startLabel");
-            startCircuitLink = qp.getValue("startCircuitLink");
-            euroRes = qp.getBooleanValue("euroResistors", false);
-            euroGates = qp.getBooleanValue("IECGates", OptionsManager.getBoolOptionFromStorage("euroGates", weAreInGermany()));
-            usRes = qp.getBooleanValue("usResistors", false);
-            running = qp.getBooleanValue("running", true);
-            hideSidebar = qp.getBooleanValue("hideSidebar", false);
-            hideMenu = qp.getBooleanValue("hideMenu", false);
-            printable = qp.getBooleanValue("whiteBackground", OptionsManager.getBoolOptionFromStorage("whiteBackground", false));
-            convention = qp.getBooleanValue("conventionalCurrent",
-                    OptionsManager.getBoolOptionFromStorage("conventionalCurrent", true));
-            noEditing = !qp.getBooleanValue("editable", true);
-            mouseWheelEdit = qp.getBooleanValue("mouseWheelEdit", OptionsManager.getBoolOptionFromStorage("mouseWheelEdit", true));
-            positiveColor = qp.getValue("positiveColor");
-            negativeColor = qp.getValue("negativeColor");
-            neutralColor = qp.getValue("neutralColor");
-            selectColor = qp.getValue("selectColor");
-            currentColor = qp.getValue("currentColor");
-            mouseModeReq = qp.getValue("mouseMode");
-            hideInfoBox = qp.getBooleanValue("hideInfoBox", false);
-        } catch (Exception e) {
-        }
-
-        euroSetting = false;
-        if (euroRes)
-            euroSetting = true;
-        else if (usRes)
-            euroSetting = false;
-        else
-            euroSetting = OptionsManager.getBoolOptionFromStorage("euroResistors", !weAreInUS(true));
+        circuitInfo.loadQueryParameters();
 
         RootLayoutPanel.get().add(absResetBtn = new Button("&#8634;",
                 new ClickHandler() {
@@ -429,11 +344,7 @@ public class CirSim implements NativePreviewHandler {
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
-        VERTICAL_PANEL_WIDTH = 166; /* = width/5;
-	if (VERTICAL_PANEL_WIDTH > 166)
-	    VERTICAL_PANEL_WIDTH = 166;
-	if (VERTICAL_PANEL_WIDTH < 128)
-	    VERTICAL_PANEL_WIDTH = 128;*/
+        VERTICAL_PANEL_WIDTH = 166;
 
         verticalPanel = new VerticalPanel();
         slidersPanel = new ScrollPanel();
@@ -442,7 +353,7 @@ public class CirSim implements NativePreviewHandler {
         verticalPanel.getElement().addClassName("verticalPanel");
         verticalPanel.getElement().setId("painel");
         Element sidePanelCheckbox = DOM.createInputCheck();
-        sidePanelCheckboxLabel = DOM.createLabel();
+        Element sidePanelCheckboxLabel = DOM.createLabel();
         sidePanelCheckboxLabel.addClassName("triggerLabel");
         sidePanelCheckbox.setId("trigger");
         sidePanelCheckboxLabel.setAttribute("for", "trigger");
@@ -483,14 +394,14 @@ public class CirSim implements NativePreviewHandler {
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckboxLabel);
 
         toolbar = new Toolbar();
-        toolbar.setEuroResistors(euroSetting);
-        if (!hideMenu)
+        toolbar.setEuroResistors(circuitInfo.euroSetting);
+        if (!circuitInfo.hideMenu)
             layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
 
         // add toolbar immediately after menuBar
         layoutPanel.addNorth(toolbar, TOOLBAR_HEIGHT);
 
-        if (hideSidebar)
+        if (circuitInfo.hideSidebar)
             VERTICAL_PANEL_WIDTH = 0;
         else {
             DOM.appendChild(layoutPanel.getElement(), sidePanelCheckbox);
@@ -499,7 +410,7 @@ public class CirSim implements NativePreviewHandler {
         }
 
         // Only add log panel if developerMode is enabled
-        if (developerMode) {
+        if (circuitInfo.developerMode) {
             layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
         }
 
@@ -552,15 +463,6 @@ public class CirSim implements NativePreviewHandler {
             }
         });
 
-
-/*
-	dumpMatrixButton = new Button("Dump Matrix");
-	dumpMatrixButton.addClickHandler(new ClickHandler() {
-	    public void onClick(ClickEvent event) { dumpMatrix = true; }});
-	verticalPanel.add(dumpMatrixButton);// IES for debugging
-*/
-
-
         if (LoadFile.isSupported()) {
             verticalPanel.add(loadFileInput);
             loadFileInput.addStyleName("sidePanelElm");
@@ -593,15 +495,11 @@ public class CirSim implements NativePreviewHandler {
         powerBar.addStyleName("sidePanelElm");
         setPowerBarEnable();
 
-        //	verticalPanel.add(new Label(""));
-        //        Font f = new Font("SansSerif", 0, 10);
         l = new Label(Locale.LS("Current Circuit:"));
         l.addStyleName("topSpace");
         l.addStyleName("sidePanelElm");
-        //        l.setFont(f);
         titleLabel = new Label("Label");
         titleLabel.addStyleName("sidePanelElm");
-        //        titleLabel.setFont(f);
         verticalPanel.add(l);
         verticalPanel.add(titleLabel);
 
@@ -615,7 +513,6 @@ public class CirSim implements NativePreviewHandler {
         verticalPanel2.addStyleName("sidePanelvp2");
         verticalPanel2.setWidth("150px");
 
-        //slidersPanel.setAlwaysShowScrollBars(true);
         slidersPanel.getElement().getStyle().setOverflowX(Overflow.HIDDEN);
         slidersPanel.getElement().getStyle().setOverflowY(Overflow.SCROLL);
 
@@ -623,30 +520,31 @@ public class CirSim implements NativePreviewHandler {
 
         menuManager.initElmMenuBar();
 
-        setColors(positiveColor, negativeColor, neutralColor, selectColor, currentColor);
+        setColors(circuitInfo.positiveColor, circuitInfo.negativeColor, circuitInfo.neutralColor,
+                circuitInfo.selectColor, circuitInfo.currentColor);
 
-        if (startCircuitText != null) {
+        if (circuitInfo.startCircuitText != null) {
             getSetupList(false);
-            circuitLoader.readCircuit(startCircuitText);
+            circuitLoader.readCircuit(circuitInfo.startCircuitText);
             setUnsavedChanges(false);
         } else {
-            if (simulator.stopMessage == null && startCircuitLink != null) {
+            if (simulator.stopMessage == null && circuitInfo.startCircuitLink != null) {
                 circuitLoader.readCircuit("");
                 getSetupList(false);
                 //ImportFromDropboxDialog.setSim(this);
                 //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
             } else {
                 circuitLoader.readCircuit("");
-                if (simulator.stopMessage == null && startCircuit != null) {
+                if (simulator.stopMessage == null && circuitInfo.startCircuit != null) {
                     getSetupList(false);
-                    readSetupFile(startCircuit, startLabel);
+                    readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
                 } else
                     getSetupList(true);
             }
         }
 
-        if (mouseModeReq != null)
-            actionManager.menuPerformed("main", mouseModeReq);
+        if (circuitInfo.mouseModeReq != null)
+            actionManager.menuPerformed("main", circuitInfo.mouseModeReq);
 
         enableUndoRedo();
         enablePaste();
@@ -668,15 +566,15 @@ public class CirSim implements NativePreviewHandler {
         });
         setupJSInterface();
 
-        setSimRunning(running);
+        setSimRunning(circuitInfo.running);
     }
 
     public void setDeveloperMode(boolean enabled) {
-        if (this.developerMode == enabled) {
+        if (circuitInfo.developerMode == enabled) {
             return;
         }
 
-        this.developerMode = enabled;
+        circuitInfo.developerMode = enabled;
 
         // TODO: Fix developer mode switch
 //        boolean logPanelPresent = layoutPanel.getWidgetIndex(logManager.logPanel) != -1;
@@ -965,12 +863,12 @@ public class CirSim implements NativePreviewHandler {
         s = s.substring(s.lastIndexOf('\\') + 1);
         theSim.setCircuitTitle(s);
         theSim.allowSave(true);
-        theSim.savedFlag = true;
+        theSim.circuitInfo.savedFlag = true;
         theSim.repaint();
     }
 
     static void electronSaveCallback() {
-        theSim.savedFlag = true;
+        theSim.circuitInfo.savedFlag = true;
         theSim.repaint();
     }
 
@@ -1105,16 +1003,16 @@ public class CirSim implements NativePreviewHandler {
                             new MyCommand("circuits", "setup " + file + " " + title)));
 
                     // TODO:
-                    if (file.equals(startCircuit) && startLabel == null) {
-                        startLabel = title;
+                    if (file.equals(circuitInfo.startCircuit) && circuitInfo.startLabel == null) {
+                        circuitInfo.startLabel = title;
                         titleLabel.setText(title);
                         setSlidersPanelHeight();
                     }
-                    if (first && startCircuit == null) {
-                        startCircuit = file;
-                        startLabel = title;
+                    if (first && circuitInfo.startCircuit == null) {
+                        circuitInfo.startCircuit = file;
+                        circuitInfo.startLabel = title;
                         if (openDefault && simulator.stopMessage == null)
-                            readSetupFile(startCircuit, startLabel);
+                            readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
                     }
                 }
             }
@@ -1358,7 +1256,7 @@ public class CirSim implements NativePreviewHandler {
 	}-*/;
 
     void doDCAnalysis() {
-        dcAnalysisFlag = true;
+        circuitInfo.dcAnalysisFlag = true;
         resetAction();
     }
 
@@ -1522,13 +1420,13 @@ public class CirSim implements NativePreviewHandler {
 	}-*/;
 
     public void updateLogPanelWidth(int newWidth) {
-        if (!developerMode) {
+        if (!circuitInfo.developerMode) {
             return;
         }
 
         // AI_THINK: Calculate available height for the log panel based on current layout
         int totalHeight = RootLayoutPanel.get().getOffsetHeight();
-        int availableHeight = totalHeight - (hideMenu ? 0 : MENU_BAR_HEIGHT);
+        int availableHeight = totalHeight - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
         if (menuManager.toolbarCheckItem.getState())
             availableHeight -= TOOLBAR_HEIGHT;
 

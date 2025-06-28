@@ -675,7 +675,7 @@ public class LogManager extends BaseCirSimDelegate {
     }
 
     public void updatePanelSize() {
-        if (cirSim.developerMode) {
+        if (cirSim.circuitInfo.developerMode) {
             cirSim.updateLogPanelWidth(logPanel.getElement().getClientWidth());
         }
     }
@@ -756,7 +756,7 @@ public class LogManager extends BaseCirSimDelegate {
         logEntries.add(logEntry);
 
         // Queue UI label for asynchronous addition to prevent blocking
-        if (cirSim.developerMode) {
+        if (cirSim.circuitInfo.developerMode) {
             queueUIUpdate(logEntry);
         }
 
