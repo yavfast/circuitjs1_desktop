@@ -179,8 +179,6 @@ public class CirSim implements NativePreviewHandler {
                 .inject();
     }
 
-    // this code is taken from original ExportAsLocalFileDialog.java:
-
     public void setLastFileName(String s) {
         // remember filename for use when saving a new file.
         // if s is null or automatically generated then just clear out old filename.
@@ -696,9 +694,6 @@ public class CirSim implements NativePreviewHandler {
 
     }-*/;
 
-    boolean shown = false;
-
-
     public void setSlidersPanelHeight() {
         int i;
         int cumheight = 0;
@@ -758,12 +753,6 @@ public class CirSim implements NativePreviewHandler {
         renderer.analyzeFlag = true;
         repaint();
         enableDisableMenuItems();
-    }
-
-    public CircuitElm getElm(int n) {
-        if (n >= simulator.elmList.size())
-            return null;
-        return simulator.elmList.elementAt(n);
     }
 
     public static native void debugger() /*-{ debugger; }-*/;
@@ -1335,7 +1324,7 @@ public class CirSim implements NativePreviewHandler {
     void setExtVoltage(String name, double v) {
         int i;
         for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = getElm(i);
+            CircuitElm ce = simulator.elmList.get(i);
             if (ce instanceof ExtVoltageElm) {
                 ExtVoltageElm eve = (ExtVoltageElm) ce;
                 if (eve.getName().equals(name))
@@ -1351,7 +1340,7 @@ public class CirSim implements NativePreviewHandler {
         int i;
         JsArray<JavaScriptObject> arr = getJSArray();
         for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = getElm(i);
+            CircuitElm ce = simulator.elmList.get(i);
             ce.addJSMethods();
             arr.push(ce.getJavaScriptObject());
         }

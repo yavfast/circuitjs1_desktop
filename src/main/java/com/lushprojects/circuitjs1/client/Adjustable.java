@@ -65,7 +65,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         } catch (Exception ex) {
         }
         try {
-            elm = sim.getElm(e);
+            elm = simulator().getElm(e);
         } catch (Exception ex) {
         }
     }

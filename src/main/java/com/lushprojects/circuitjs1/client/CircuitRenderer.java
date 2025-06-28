@@ -259,7 +259,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             if (cirSim.menuManager.powerCheckItem.getState())
                 g.setColor(Color.gray);
 
-            cirSim.getElm(i).draw(g);
+            simulator.elmList.get(i).draw(g);
         }
         perfmon.stopContext();
 
@@ -478,8 +478,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     String getHint() {
-        CircuitElm c1 = cirSim.getElm(hintItem1);
-        CircuitElm c2 = cirSim.getElm(hintItem2);
+        CircuitElm c1 = simulator().getElm(hintItem1);
+        CircuitElm c2 = simulator().getElm(hintItem2);
         if (c1 == null || c2 == null)
             return null;
         if (hintType == CircuitConst.HINT_LC) {
@@ -574,7 +574,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         int minx = 30000, maxx = -30000, miny = 30000, maxy = -30000;
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = cirSim.getElm(i);
+            CircuitElm ce = simulator.elmList.get(i);
             // centered text causes problems when trying to center the circuit,
             // so we special-case it here
             if (!ce.isCenteredText()) {
@@ -631,7 +631,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         // draw elements
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++) {
-            cirSim.getElm(i).draw(g);
+            simulator.elmList.get(i).draw(g);
         }
         for (int i = 0; i != simulator.postDrawList.size(); i++) {
             CircuitElm.drawPost(g, simulator.postDrawList.get(i));

@@ -69,7 +69,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return -1;
     }
 
-    int countSelected() {
+    public CircuitElm getElm(int n) {
+        return elmList.get(n);
+    }
+
+
+        int countSelected() {
         int count = 0;
         for (CircuitElm ce : elmList)
             if (ce.isSelected())

@@ -549,7 +549,7 @@ public abstract class CircuitElm implements Editable {
         int ny2 = y2 + dy;
         int i;
         for (i = 0; i != simUi.simulator.elmList.size(); i++) {
-            CircuitElm ce = simUi.getElm(i);
+            CircuitElm ce = simUi.simulator.elmList.get(i);
             if (ce.x == nx && ce.y == ny && ce.x2 == nx2 && ce.y2 == ny2)
                 return false;
             if (ce.x == nx2 && ce.y == ny2 && ce.x2 == nx && ce.y2 == ny)

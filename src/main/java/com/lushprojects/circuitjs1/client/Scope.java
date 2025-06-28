@@ -1731,7 +1731,7 @@ class Scope extends BaseCirSimDelegate {
         int e = new Integer(st.nextToken()).intValue();
         if (e == -1)
             return;
-        CircuitElm ce = cirSim.getElm(e);
+        CircuitElm ce = simulator().getElm(e);
         setElm(ce);
         speed = new Integer(st.nextToken()).intValue();
         int value = new Integer(st.nextToken()).intValue();
@@ -1777,7 +1777,7 @@ class Scope extends BaseCirSimDelegate {
                     if (i != 0) {
                         int ne = Integer.parseInt(st.nextToken());
                         int val = Integer.parseInt(st.nextToken());
-                        CircuitElm elm = cirSim.getElm(ne);
+                        CircuitElm elm = simulator().getElm(ne);
                         u = elm.getScopeUnits(val);
                         if (u > UNITS_A)
                             scale[u] = Double.parseDouble(st.nextToken());
@@ -1810,7 +1810,7 @@ class Scope extends BaseCirSimDelegate {
                 if ((flags & FLAG_YELM) != 0) {
                     ye = new Integer(st.nextToken()).intValue();
                     if (ye != -1)
-                        yElm = cirSim.getElm(ye);
+                        yElm = simulator().getElm(ye);
                     // sinediode.txt has yElm set to something even though there's no xy plot...?
                     if (!plot2dFlag)
                         yElm = null;
@@ -1826,7 +1826,7 @@ class Scope extends BaseCirSimDelegate {
                 }
             } catch (Exception ee) {
             }
-            setValues(value, ivalue, cirSim.getElm(e), yElm);
+            setValues(value, ivalue, simulator().getElm(e), yElm);
         }
         if (text != null)
             text = CustomLogicModel.unescape(text);
@@ -1969,7 +1969,7 @@ class Scope extends BaseCirSimDelegate {
         int firstE = e;
         while (true) {
             for (e++; e < cirSim.simulator.elmList.size(); e++) {
-                CircuitElm ce = cirSim.getElm(e);
+                CircuitElm ce = cirSim.simulator.elmList.get(e);
                 if ((ce instanceof OutputElm || ce instanceof ProbeElm) &&
                         ce != plots.get(0).elm) {
                     yElm = ce;
