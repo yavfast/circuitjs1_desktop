@@ -83,7 +83,7 @@ public class ExportAsTextDialog extends Dialog {
 //				s=s.replace("<br>", "\r");
                 s = textArea.getText();
                 if (s != null) {
-                    sim.readCircuit(s);
+                    sim.circuitLoader.readCircuit(s);
                     sim.allowSave(false);
                 }
             }

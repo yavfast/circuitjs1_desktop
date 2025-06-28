@@ -75,7 +75,7 @@ class AMElm extends CircuitElm {
     }
 
     double getVoltage() {
-        double w = 2 * pi * (simUi.t - freqTimeZero);
+        double w = 2 * pi * (simulator.t - freqTimeZero);
         return ((Math.sin(w * signalfreq) + 1) / 2) * Math.sin(w * carrierfreq) * maxVoltage;
     }
 

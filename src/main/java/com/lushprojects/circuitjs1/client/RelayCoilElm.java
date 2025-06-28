@@ -273,13 +273,13 @@ class RelayCoilElm extends CircuitElm {
 
         if (state == 0) {
             if (avgCurrent > onCurrent) {
-                lastTransition = simUi.t;
+                lastTransition = simulator.t;
                 state = 1;
             }
         } else if (state == 1) {
             if (avgCurrent < offCurrent)
                 state = 0;
-            else if (simUi.t - lastTransition > switchingTimeOn) {
+            else if (simulator.t - lastTransition > switchingTimeOn) {
                 state = 2;
                 if (type == TYPE_LATCHING)
                     switchPosition = 1 - switchPosition;
@@ -288,13 +288,13 @@ class RelayCoilElm extends CircuitElm {
             }
         } else if (state == 2) {
             if (avgCurrent < offCurrent) {
-                lastTransition = simUi.t;
+                lastTransition = simulator.t;
                 state = 3;
             }
         } else if (state == 3) {
             if (avgCurrent > onCurrent)
                 state = 2;
-            else if (simUi.t - lastTransition > switchingTimeOff) {
+            else if (simulator.t - lastTransition > switchingTimeOff) {
                 state = 0;
                 if (type != TYPE_LATCHING)
                     switchPosition = 0;

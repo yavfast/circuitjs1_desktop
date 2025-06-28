@@ -38,13 +38,13 @@ class AntennaElm extends RailElm {
 
     double getVoltage() {
         double fm = 3 * Math.sin(fmphase);
-        return Math.sin(2 * pi * simUi.t * 3000) * (1.3 + Math.sin(2 * pi * simUi.t * 12)) * 3 +
-                Math.sin(2 * pi * simUi.t * 2710) * (1.3 + Math.sin(2 * pi * simUi.t * 13)) * 3 +
-                Math.sin(2 * pi * simUi.t * 2433) * (1.3 + Math.sin(2 * pi * simUi.t * 14)) * 3 + fm;
+        return Math.sin(2 * pi * simulator.t * 3000) * (1.3 + Math.sin(2 * pi * simulator.t * 12)) * 3 +
+                Math.sin(2 * pi * simulator.t * 2710) * (1.3 + Math.sin(2 * pi * simulator.t * 13)) * 3 +
+                Math.sin(2 * pi * simulator.t * 2433) * (1.3 + Math.sin(2 * pi * simulator.t * 14)) * 3 + fm;
     }
 
     void stepFinished() {
-        fmphase += 2 * pi * (2200 + Math.sin(2 * pi * simUi.t * 13) * 100) * simulator.timeStep;
+        fmphase += 2 * pi * (2200 + Math.sin(2 * pi * simulator.t * 13) * 100) * simulator.timeStep;
     }
 
     int getDumpType() {

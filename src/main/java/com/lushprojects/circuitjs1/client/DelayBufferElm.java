@@ -107,10 +107,10 @@ class DelayBufferElm extends CircuitElm {
         boolean inState = volts[0] > threshold;
         boolean outState = volts[1] > threshold;
         if (inState != outState) {
-            if (simUi.t >= delayEndTime)
+            if (simulator.t >= delayEndTime)
                 outState = inState;
         } else
-            delayEndTime = simUi.t + delay;
+            delayEndTime = simulator.t + delay;
         simulator.updateVoltageSource(0, nodes[1], voltSource, outState ? highVoltage : 0);
     }
 

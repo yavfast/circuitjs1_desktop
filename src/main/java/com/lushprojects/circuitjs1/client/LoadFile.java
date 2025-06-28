@@ -25,16 +25,22 @@ import com.google.gwt.user.client.ui.FileUpload;
 
 public class LoadFile extends FileUpload implements ChangeHandler {
 
-    static CirSim sim;
+    final CirSim sim;
 
-    static public final native boolean isSupported()
+    static LoadFile sLoadFile;
+
+    static public native boolean isSupported()
 		/*-{
 			return !!($wnd.File && $wnd.FileReader);
 		 }-*/;
 
-    static public void doLoadCallback(String s, String t) {
+    public static void doLoadCallback(String s, String t) {
+        sLoadFile.doLoad(s, t);
+    }
+
+    public void doLoad(String s, String t) {
         sim.circuitEditor.pushUndo();
-        sim.readCircuit(s);
+        sim.circuitLoader.readCircuit(s);
         sim.createNewLoadFile();
         sim.setCircuitTitle(t);
         sim.setLastFileName(t);
@@ -48,6 +54,7 @@ public class LoadFile extends FileUpload implements ChangeHandler {
         this.getElement().setId("LoadFileElement");
         this.addChangeHandler(this);
         this.addStyleName("offScreen");
+        sLoadFile = this;
     }
 
 

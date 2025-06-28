@@ -11,6 +11,8 @@ import java.util.Vector;
 
 public class CircuitSimulator extends BaseCirSimDelegate {
 
+    double t; // TODO: tick ???
+
     // current timestep (time between iterations)
     double timeStep;
     // maximum timestep (== timeStep unless we reduce it because of trouble
@@ -1326,7 +1328,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
                 // things are going well, double the time step
                 timeStep = Math.min(timeStep * 2, maxTimeStep);
-                console("timestep up = " + timeStep + " at " + cirSim.t);
+                console("timestep up = " + timeStep + " at " + t);
                 stampCircuit();
                 goodIterations = 0;
             }
@@ -1397,7 +1399,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 goodIterations = 0;
                 if (adjustTimeStep) {
                     timeStep /= 2;
-                    console("timestep down to " + timeStep + " at " + cirSim.t);
+                    console("timestep down to " + timeStep + " at " + t);
                 }
                 if (timeStep < minTimeStep || !adjustTimeStep) {
                     console("convergence failed after " + subiter + " iterations");
@@ -1415,7 +1417,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 goodIterations++;
             else
                 goodIterations = 0;
-            cirSim.t += timeStep;
+            this.t += timeStep;
             timeStepAccum += timeStep;
             if (timeStepAccum >= maxTimeStep) {
                 timeStepAccum -= maxTimeStep;

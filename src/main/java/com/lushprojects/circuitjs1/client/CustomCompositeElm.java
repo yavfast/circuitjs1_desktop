@@ -228,12 +228,12 @@ public class CustomCompositeElm extends CompositeElm {
                 Window.alert(Locale.LS("Can't edit this model."));
                 return;
             }
-            CirSim.theSim.dialogManager.showEditCompositeModelDialog(model);
+            simUi.dialogManager.showEditCompositeModelDialog(model);
             return;
         }
         if (n == 2) {
-            simUi.readCircuit(model.modelCircuit);
-            CirSim.theSim.dialogManager.closeDialog();
+            simUi.circuitLoader.readCircuit(model.modelCircuit);
+            simUi.dialogManager.closeDialog();
         }
     }
 

@@ -122,7 +122,7 @@ public class AudioOutputElm extends CircuitElm {
         arr[1] = "V = " + getVoltageText(volts[0]);
         int ct = (dataFull ? dataCount : dataPtr);
         double dur = sampleStep * ct;
-        arr[2] = "start = " + getUnitText(dataFull ? simUi.t - duration : dataStart, "s");
+        arr[2] = "start = " + getUnitText(dataFull ? simulator.t - duration : dataStart, "s");
         arr[3] = "dur = " + getUnitText(dur, "s");
         arr[4] = "samples = " + ct + (dataFull ? "" : "/" + dataCount);
     }
@@ -134,7 +134,7 @@ public class AudioOutputElm extends CircuitElm {
     void stepFinished() {
         dataSample += volts[0];
         dataSampleCount++;
-        if (simUi.t >= nextDataSample) {
+        if (simulator.t >= nextDataSample) {
             nextDataSample += sampleStep;
             data[dataPtr++] = dataSample / dataSampleCount;
             dataSampleCount = 0;
@@ -149,11 +149,11 @@ public class AudioOutputElm extends CircuitElm {
     void setDataCount() {
         dataCount = (int) (samplingRate * duration);
         data = new double[dataCount];
-        dataStart = simUi.t;
+        dataStart = simulator.t;
         dataPtr = 0;
         dataFull = false;
         sampleStep = 1. / samplingRate;
-        nextDataSample = simUi.t + sampleStep;
+        nextDataSample = simulator.t + sampleStep;
     }
 
     int samplingRateChoices[] = {8000, 11025, 16000, 22050, 44100, 48000};

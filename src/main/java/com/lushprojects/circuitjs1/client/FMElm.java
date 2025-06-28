@@ -79,9 +79,9 @@ class FMElm extends CircuitElm {
     }
 
     double getVoltage() {
-        double deltaT = simUi.t - lasttime;
-        lasttime = simUi.t;
-        double signalamplitude = Math.sin((2 * pi * (simUi.t - freqTimeZero)) * signalfreq);
+        double deltaT = simulator.t - lasttime;
+        lasttime = simulator.t;
+        double signalamplitude = Math.sin((2 * pi * (simulator.t - freqTimeZero)) * signalfreq);
         funcx += deltaT * (carrierfreq + (signalamplitude * deviation));
         double w = 2 * pi * funcx;
         return Math.sin(w) * maxVoltage;

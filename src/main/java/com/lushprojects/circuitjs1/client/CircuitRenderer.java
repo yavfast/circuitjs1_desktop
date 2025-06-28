@@ -25,6 +25,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     int frames = 0;
     int framerate = 0, steprate = 0;
 
+    int hintType = -1, hintItem1, hintItem2;
+
     double[] transform = new double[6];
     Rectangle circuitArea;
 
@@ -438,18 +440,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 //		*/
 
             } else {
-                info[0] = "t = " + CircuitElm.getTimeText(cirSim.t);
+                info[0] = "t = " + CircuitElm.getTimeText(simulator.t);
                 double timerate = 160 * cirSim.getIterCount() * simulator.timeStep;
                 if (timerate >= .1)
                     info[0] += " (" + CircuitElm.showFormat.format(timerate) + "x)";
                 info[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator.timeStep);
             }
-            if (cirSim.hintType != -1) {
+            if (hintType != -1) {
                 for (i = 0; info[i] != null; i++)
                     ;
                 String s = getHint();
                 if (s == null)
-                    cirSim.hintType = -1;
+                    hintType = -1;
                 else
                     info[i] = s;
             }
@@ -476,11 +478,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     String getHint() {
-        CircuitElm c1 = cirSim.getElm(cirSim.hintItem1);
-        CircuitElm c2 = cirSim.getElm(cirSim.hintItem2);
+        CircuitElm c1 = cirSim.getElm(hintItem1);
+        CircuitElm c2 = cirSim.getElm(hintItem2);
         if (c1 == null || c2 == null)
             return null;
-        if (cirSim.hintType == cirSim.HINT_LC) {
+        if (hintType == CircuitConst.HINT_LC) {
             if (!(c1 instanceof InductorElm))
                 return null;
             if (!(c2 instanceof CapacitorElm))
@@ -490,7 +492,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             return Locale.LS("res.f = ") + CircuitElm.getUnitText(1 / (2 * Math.PI * Math.sqrt(ie.inductance *
                     ce.capacitance)), "Hz");
         }
-        if (cirSim.hintType == cirSim.HINT_RC) {
+        if (hintType == CircuitConst.HINT_RC) {
             if (!(c1 instanceof ResistorElm))
                 return null;
             if (!(c2 instanceof CapacitorElm))
@@ -500,7 +502,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             return "RC = " + CircuitElm.getUnitText(re.resistance * ce.capacitance,
                     "s");
         }
-        if (cirSim.hintType == cirSim.HINT_3DB_C) {
+        if (hintType == CircuitConst.HINT_3DB_C) {
             if (!(c1 instanceof ResistorElm))
                 return null;
             if (!(c2 instanceof CapacitorElm))
@@ -510,7 +512,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             return Locale.LS("f.3db = ") +
                     CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
         }
-        if (cirSim.hintType == cirSim.HINT_3DB_L) {
+        if (hintType == CircuitConst.HINT_3DB_L) {
             if (!(c1 instanceof ResistorElm))
                 return null;
             if (!(c2 instanceof InductorElm))
@@ -520,7 +522,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             return Locale.LS("f.3db = ") +
                     CircuitElm.getUnitText(re.resistance / (2 * Math.PI * ie.inductance), "Hz");
         }
-        if (cirSim.hintType == cirSim.HINT_TWINT) {
+        if (hintType == CircuitConst.HINT_TWINT) {
             if (!(c1 instanceof ResistorElm))
                 return null;
             if (!(c2 instanceof CapacitorElm))

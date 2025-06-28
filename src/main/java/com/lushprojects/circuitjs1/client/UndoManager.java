@@ -66,7 +66,7 @@ public class UndoManager extends BaseCirSimDelegate {
     }
 
     void loadUndoItem(UndoItem ui) {
-        cirSim.readCircuit(ui.dump, CirSim.RC_NO_CENTER);
+        cirSim.circuitLoader.readCircuit(ui.dump, CircuitConst.RC_NO_CENTER);
         CircuitRenderer renderer = renderer();
         renderer.transform[0] = renderer.transform[3] = ui.scale;
         renderer.transform[4] = ui.transform4;

@@ -921,12 +921,12 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void doRecover() {
         pushUndo();
-        cirSim.readCircuit(undoManager().recovery);
+        cirSim.circuitLoader.readCircuit(undoManager().recovery);
         cirSim.allowSave(false);
         menuManager().recoverItem.setEnabled(false);
-        cirSim.filePath = null;
-        cirSim.fileName = null;
-        cirSim.changeWindowTitle(cirSim.unsavedChanges);
+        cirSim.circuitInfo.filePath = null;
+        cirSim.circuitInfo.fileName = null;
+        CirSim.changeWindowTitle(cirSim.circuitInfo.unsavedChanges);
     }
 
     void doCut() {
@@ -1036,16 +1036,16 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
         // add new items
         int oldsz = simulator.elmList.size();
-        int flags = cirSim.RC_RETAIN;
+        int flags = CircuitConst.RC_RETAIN;
 
         // don't recenter circuit if we're going to paste in place because that will change the transform
 //	if (mouseCursorX > 0 && circuitArea.contains(mouseCursorX, mouseCursorY))
 
         // in fact, don't ever recenter circuit, unless old circuit was empty
         if (oldsz > 0)
-            flags |= cirSim.RC_NO_CENTER;
+            flags |= CircuitConst.RC_NO_CENTER;
 
-        cirSim.readCircuit(dump, flags);
+        cirSim.circuitLoader.readCircuit(dump, flags);
 
         // select new items and get their bounding box
         Rectangle newbb = null;

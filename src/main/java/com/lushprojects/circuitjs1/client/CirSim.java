@@ -78,31 +78,27 @@ import java.util.HashMap;
 
 public class CirSim implements NativePreviewHandler {
 
-    static final int HINT_LC = 1;
-    static final int HINT_RC = 2;
-    static final int HINT_3DB_C = 3;
-    static final int HINT_TWINT = 4;
-    static final int HINT_3DB_L = 5;
-
     static int MENU_BAR_HEIGHT = 30;
     static final int TOOLBAR_HEIGHT = 40;
     static int VERTICAL_PANEL_WIDTH = 166; // default
 
     static final int INFO_WIDTH = 160;
 
-    LogManager logManager = new LogManager(this);
+    final CircuitInfo circuitInfo = new CircuitInfo();
+    final LogManager logManager = new LogManager(this);
 
-    CircuitSimulator simulator = new CircuitSimulator(this);
-    CircuitRenderer renderer = new CircuitRenderer(this);
+    final CircuitSimulator simulator = new CircuitSimulator(this);
+    final CircuitRenderer renderer = new CircuitRenderer(this);
 
-    ScopeManager scopeManager = new ScopeManager(this);
-    ClipboardManager clipboardManager = new ClipboardManager(this);
-    DialogManager dialogManager = new DialogManager(this);
-    MenuManager menuManager = new MenuManager(this);
-    UndoManager undoManager = new UndoManager(this);
-    AdjustableManager adjustableManager = new AdjustableManager(this);
-    CircuitEditor circuitEditor = new CircuitEditor(this);
-    ActionManager actionManager = new ActionManager(this);
+    final ScopeManager scopeManager = new ScopeManager(this);
+    final ClipboardManager clipboardManager = new ClipboardManager(this);
+    final DialogManager dialogManager = new DialogManager(this);
+    final MenuManager menuManager = new MenuManager(this);
+    final UndoManager undoManager = new UndoManager(this);
+    final AdjustableManager adjustableManager = new AdjustableManager(this);
+    final CircuitEditor circuitEditor = new CircuitEditor(this);
+    final ActionManager actionManager = new ActionManager(this);
+    final CircuitLoader circuitLoader = new CircuitLoader(this);
 
     Button resetButton;
     Button runStopButton;
@@ -121,21 +117,13 @@ public class CirSim implements NativePreviewHandler {
     boolean dcAnalysisFlag;
     // boolean useBufferedImage;
 
-    double t; // TODO: tick ???
-
     int pause = 10;
     int menuPlot = -1;
-    int hintType = -1, hintItem1, hintItem2;
 
     boolean developerMode = false;
 
     boolean showResistanceInVoltageSources;
     boolean hideInfoBox;
-
-    static boolean unsavedChanges;
-    static String filePath;
-    static String fileName;
-    static String lastFileName;
 
     HashMap<String, String> classToLabelMap = new HashMap<>();
     Toolbar toolbar;
@@ -148,7 +136,7 @@ public class CirSim implements NativePreviewHandler {
 
     boolean hideMenu = false;
 
-    LoadFile loadFileInput;
+    LoadFile loadFileInput = new LoadFile(this);
     Frame iFrame = null;
 
     static Button absResetBtn;
@@ -218,20 +206,20 @@ public class CirSim implements NativePreviewHandler {
 
     // this code is taken from original ExportAsLocalFileDialog.java:
 
-    public static void setLastFileName(String s) {
+    public void setLastFileName(String s) {
         // remember filename for use when saving a new file.
         // if s is null or automatically generated then just clear out old filename.
         if (s == null || s.startsWith("circuitjs-"))
-            lastFileName = null;
+            circuitInfo.lastFileName = null;
         else
-            lastFileName = s;
+            circuitInfo.lastFileName = s;
     }
 
     public String getLastFileName() {
         Date date = new Date();
         String fname;
-        if (lastFileName != null)
-            fname = lastFileName;
+        if (circuitInfo.lastFileName != null)
+            fname = circuitInfo.lastFileName;
         else {
             DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmmss");
             fname = "circuitjs-" + dtf.format(date) + ".txt";
@@ -574,7 +562,7 @@ public class CirSim implements NativePreviewHandler {
 
 
         if (LoadFile.isSupported()) {
-            verticalPanel.add(loadFileInput = new LoadFile(this));
+            verticalPanel.add(loadFileInput);
             loadFileInput.addStyleName("sidePanelElm");
             setSlidersPanelHeight();
         }
@@ -639,16 +627,16 @@ public class CirSim implements NativePreviewHandler {
 
         if (startCircuitText != null) {
             getSetupList(false);
-            readCircuit(startCircuitText);
+            circuitLoader.readCircuit(startCircuitText);
             setUnsavedChanges(false);
         } else {
             if (simulator.stopMessage == null && startCircuitLink != null) {
-                readCircuit("");
+                circuitLoader.readCircuit("");
                 getSetupList(false);
                 //ImportFromDropboxDialog.setSim(this);
                 //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
             } else {
-                readCircuit("");
+                circuitLoader.readCircuit("");
                 if (simulator.stopMessage == null && startCircuit != null) {
                     getSetupList(false);
                     readSetupFile(startCircuit, startLabel);
@@ -674,7 +662,7 @@ public class CirSim implements NativePreviewHandler {
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             public void onWindowClosing(ClosingEvent event) {
                 // there is a bug in electron that makes it impossible to close the app if this warning is given
-                if (unsavedChanges && !isElectron())
+                if (circuitInfo.unsavedChanges && !isElectron())
                     event.setMessage(Locale.LS("Are you sure?  There are unsaved changes."));
             }
         });
@@ -871,22 +859,6 @@ public class CirSim implements NativePreviewHandler {
 		return $doc.getElementById("trigger").checked;
     }-*/;
 
-//    public void toggleSwitch(int n) {
-//	int i;
-//	for (i = 0; i != elmList.size(); i++) {
-//	    CircuitElm ce = getElm(i);
-//	    if (ce instanceof SwitchElm) {
-//		n--;
-//		if (n == 0) {
-//		    ((SwitchElm) ce).toggle();
-//		    analyzeFlag = true;
-//		    cv.repaint();
-//		    return;
-//		}
-//	    }
-//	}
-//    }
-
     void needAnalyze() {
         renderer.analyzeFlag = true;
         repaint();
@@ -931,22 +903,21 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void resetAction() {
-        int i;
         renderer.analyzeFlag = true;
-        if (t == 0)
+        if (simulator.t == 0)
             setSimRunning(true);
-        t = simulator.timeStepAccum = 0;
+        simulator.t = simulator.timeStepAccum = 0;
         simulator.timeStepCount = 0;
-        for (i = 0; i != simulator.elmList.size(); i++)
-            getElm(i).reset();
-        for (i = 0; i != scopeManager.scopeCount; i++)
+        for (int i = 0; i != simulator.elmList.size(); i++)
+            simulator.elmList.get(i).reset();
+        for (int i = 0; i != scopeManager.scopeCount; i++)
             scopeManager.scopes[i].resetGraph(true);
         repaint();
     }
 
     static native void changeWindowTitle(boolean isCircuitChanged)/*-{
 		var newTitle = "CircuitJS1 Desktop Mod";
-		var filename = @com.lushprojects.circuitjs1.client.CirSim::fileName;
+		var filename = @com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName;
 		var changed = (isCircuitChanged) ? "*" : "";
 		if (filename!=null) $doc.title = changed+filename+" - "+newTitle;
 		else $doc.title = $wnd.nw.App.manifest.window.title;
@@ -975,9 +946,10 @@ public class CirSim implements NativePreviewHandler {
 			saveasInput.remove()
 		});
 		saveasInput.addEventListener('change', function(){
-			@com.lushprojects.circuitjs1.client.CirSim::filePath = saveasInput.value;
-			@com.lushprojects.circuitjs1.client.CirSim::fileName = saveasInput.files[0].name;
-			@com.lushprojects.circuitjs1.client.CirSim::lastFileName = saveasInput.files[0].name;
+			// AI_THINK: Fixed to access circuitInfo fields through theSim instance instead of non-existent static fields
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::filePath = saveasInput.value;
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName = saveasInput.files[0].name;
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::lastFileName = saveasInput.files[0].name;
 			@com.lushprojects.circuitjs1.client.CirSim::nodeSave(Ljava/lang/String;Ljava/lang/String;)(saveasInput.value, dump);
 			console.log(saveasInput.value);
 			console.log(saveasInput.files[0].name);
@@ -1017,7 +989,7 @@ public class CirSim implements NativePreviewHandler {
     }-*/;
 
     static void electronOpenFileCallback(String text, String name) {
-        LoadFile.doLoadCallback(text, name);
+        theSim.loadFileInput.doLoadCallback(text, name);
         theSim.allowSave(true);
     }
 
@@ -1055,7 +1027,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void setUnsavedChanges(boolean hasChanges) {
-        unsavedChanges = hasChanges;
+        circuitInfo.unsavedChanges = hasChanges;
         changeWindowTitle(hasChanges);
     }
 
@@ -1150,19 +1122,6 @@ public class CirSim implements NativePreviewHandler {
         }
     }
 
-    void readCircuit(String text, int flags) {
-        readCircuit(text.getBytes(), flags);
-        if ((flags & RC_KEEP_TITLE) == 0)
-            titleLabel.setText(null);
-        setSlidersPanelHeight();
-    }
-
-    void readCircuit(String text) {
-        readCircuit(text.getBytes(), 0);
-        titleLabel.setText(null);
-        setSlidersPanelHeight();
-    }
-
     void setCircuitTitle(String s) {
         if (s != null)
             titleLabel.setText(s);
@@ -1177,8 +1136,8 @@ public class CirSim implements NativePreviewHandler {
         if (title != null)
             titleLabel.setText(title);
         setSlidersPanelHeight();
-        filePath = null;
-        fileName = null;
+        circuitInfo.filePath = null;
+        circuitInfo.fileName = null;
         setUnsavedChanges(false);
     }
 
@@ -1195,10 +1154,10 @@ public class CirSim implements NativePreviewHandler {
                 public void onResponseReceived(Request request, Response response) {
                     if (response.getStatusCode() == Response.SC_OK) {
                         String text = response.getText();
-                        readCircuit(text, RC_KEEP_TITLE);
+                        circuitLoader.readCircuit(text, CircuitConst.RC_KEEP_TITLE);
                         allowSave(false);
-                        filePath = null;
-                        fileName = null;
+                        circuitInfo.filePath = null;
+                        circuitInfo.fileName = null;
                         setUnsavedChanges(false);
                     } else {
                         Window.alert(Locale.LS("Can't load circuit!"));
@@ -1210,191 +1169,6 @@ public class CirSim implements NativePreviewHandler {
             GWT.log("failed file reading", e);
         }
 
-    }
-
-    static final int RC_RETAIN = 1;
-    static final int RC_NO_CENTER = 2;
-    static final int RC_SUBCIRCUITS = 4;
-    static final int RC_KEEP_TITLE = 8;
-
-    void readCircuit(byte[] b, int flags) {
-        int i;
-        int len = b.length;
-        if ((flags & RC_RETAIN) == 0) {
-            circuitEditor.clearMouseElm();
-            for (i = 0; i != simulator.elmList.size(); i++) {
-                CircuitElm ce = getElm(i);
-                ce.delete();
-            }
-            t = simulator.timeStepAccum = 0;
-            simulator.elmList.removeAllElements();
-            hintType = -1;
-            simulator.maxTimeStep = 5e-6;
-            simulator.minTimeStep = 50e-12;
-            menuManager.dotsCheckItem.setState(false);
-            menuManager.smallGridCheckItem.setState(false);
-            menuManager.powerCheckItem.setState(false);
-            menuManager.voltsCheckItem.setState(true);
-            menuManager.showValuesCheckItem.setState(true);
-            circuitEditor.setGrid();
-            speedBar.setValue(117); // 57
-            currentBar.setValue(50);
-            powerBar.setValue(50);
-            CircuitElm.voltageRange = 5;
-            scopeManager.scopeCount = 0;
-            simulator.lastIterTime = 0;
-        }
-        boolean subs = (flags & RC_SUBCIRCUITS) != 0;
-        //cv.repaint();
-        int p;
-        for (p = 0; p < len; ) {
-            int l;
-            int linelen = len - p; // IES - changed to allow the last line to not end with a delim.
-            for (l = 0; l != len - p; l++)
-                if (b[l + p] == '\n' || b[l + p] == '\r') {
-                    linelen = l++;
-                    if (l + p < b.length && b[l + p] == '\n')
-                        l++;
-                    break;
-                }
-            String line = new String(b, p, linelen);
-            StringTokenizer st = new StringTokenizer(line, " +\t\n\r\f");
-            while (st.hasMoreTokens()) {
-                String type = st.nextToken();
-                int tint = type.charAt(0);
-                try {
-                    if (subs && tint != '.')
-                        continue;
-                    if (tint == 'o') {
-                        Scope sc = new Scope(this);
-                        sc.position = scopeManager.scopeCount;
-                        sc.undump(st);
-                        scopeManager.scopes[scopeManager.scopeCount++] = sc;
-                        break;
-                    }
-                    if (tint == 'h') {
-                        readHint(st);
-                        break;
-                    }
-                    if (tint == '$') {
-                        readOptions(st, flags);
-                        break;
-                    }
-                    if (tint == '!') {
-                        CustomLogicModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == '%' || tint == '?' || tint == 'B') {
-                        // ignore afilter-specific stuff
-                        break;
-                    }
-                    // do not add new symbols here without testing export as link
-
-                    // if first character is a digit then parse the type as a number
-                    if (tint >= '0' && tint <= '9')
-                        tint = new Integer(type).intValue();
-
-                    if (tint == 34) {
-                        DiodeModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == 32) {
-                        TransistorModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == 38) {
-                        adjustableManager.addAdjustable(st);
-                        break;
-                    }
-                    if (tint == '.') {
-                        CustomCompositeModel.undumpModel(st);
-                        break;
-                    }
-                    int x1 = new Integer(st.nextToken()).intValue();
-                    int y1 = new Integer(st.nextToken()).intValue();
-                    int x2 = new Integer(st.nextToken()).intValue();
-                    int y2 = new Integer(st.nextToken()).intValue();
-                    int f = new Integer(st.nextToken()).intValue();
-
-                    CircuitElm newce = CircuitElmCreator.createCe(tint, x1, y1, x2, y2, f, st);
-                    if (newce == null) {
-                        System.out.println("unrecognized dump type: " + type);
-                        break;
-                    }
-		    /*
-		     * debug code to check if allocNodes() is called in constructor.  It gets called in
-		     * setPoints() but that doesn't get called for subcircuits.
-		    double vv[] = newce.volts;
-		    int vc = newce.getPostCount() + newce.getInternalNodeCount();
-		    if (vv.length != vc)
-			console("allocnodes not called! " + tint);
-		     */
-                    newce.setPoints();
-                    simulator.elmList.addElement(newce);
-                } catch (Exception ee) {
-                    ee.printStackTrace();
-                    console("exception while undumping " + ee);
-                    break;
-                }
-                break;
-            }
-            p += l;
-
-        }
-        setPowerBarEnable();
-        enableItems();
-        if ((flags & RC_RETAIN) == 0) {
-            // create sliders as needed
-            adjustableManager.createSliders();
-        }
-//	if (!retain)
-        //    handleResize(); // for scopes
-        needAnalyze();
-        if ((flags & RC_NO_CENTER) == 0)
-            renderer.centreCircuit();
-        if ((flags & RC_SUBCIRCUITS) != 0)
-            simulator.updateModels();
-
-        AudioInputElm.clearCache();  // to save memory
-        DataInputElm.clearCache();  // to save memory
-    }
-
-    void readHint(StringTokenizer st) {
-        hintType = new Integer(st.nextToken()).intValue();
-        hintItem1 = new Integer(st.nextToken()).intValue();
-        hintItem2 = new Integer(st.nextToken()).intValue();
-    }
-
-    void readOptions(StringTokenizer st, int importFlags) {
-        int flags = new Integer(st.nextToken()).intValue();
-
-        if ((importFlags & RC_RETAIN) != 0) {
-            // need to set small grid if pasted circuit uses it
-            if ((flags & 2) != 0)
-                menuManager.smallGridCheckItem.setState(true);
-            return;
-        }
-
-        menuManager.dotsCheckItem.setState((flags & 1) != 0);
-        menuManager.smallGridCheckItem.setState((flags & 2) != 0);
-        menuManager.voltsCheckItem.setState((flags & 4) == 0);
-        menuManager.powerCheckItem.setState((flags & 8) == 8);
-        menuManager.showValuesCheckItem.setState((flags & 16) == 0);
-        simulator.adjustTimeStep = (flags & 64) != 0;
-        simulator.maxTimeStep = simulator.timeStep = new Double(st.nextToken()).doubleValue();
-        double sp = new Double(st.nextToken()).doubleValue();
-        int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
-        //int sp2 = (int) (Math.log(sp)*24+1.5);
-        speedBar.setValue(sp2);
-        currentBar.setValue(new Integer(st.nextToken()).intValue());
-        CircuitElm.voltageRange = new Double(st.nextToken()).doubleValue();
-
-        try {
-            powerBar.setValue(new Integer(st.nextToken()).intValue());
-            simulator.minTimeStep = Double.parseDouble(st.nextToken());
-        } catch (Exception e) {
-        }
-        circuitEditor.setGrid();
     }
 
     void enableDisableMenuItems() {
@@ -1483,11 +1257,11 @@ public class CirSim implements NativePreviewHandler {
         // reloading the same file doesn't create a change event so importing the same file twice
         // doesn't work unless you destroy the original input element and replace it with a new one
         int idx = verticalPanel.getWidgetIndex(loadFileInput);
-        filePath = loadFileInput.getPath();
-        console("filePath: " + filePath);
-        fileName = loadFileInput.getFileName();
-        console("fileName: " + fileName);
-        if (filePath != null)
+        circuitInfo.filePath = loadFileInput.getPath();
+        console("filePath: " + circuitInfo.filePath);
+        circuitInfo.fileName = loadFileInput.getFileName();
+        console("fileName: " + circuitInfo.fileName);
+        if (circuitInfo.filePath != null)
             allowSave(true);
         changeWindowTitle(false);
         LoadFile newlf = new LoadFile(this);
@@ -1701,12 +1475,12 @@ public class CirSim implements NativePreviewHandler {
 	    var that = this;
 	    $wnd.CircuitJS1 = {
 	        setSimRunning: $entry(function(run) { that.@com.lushprojects.circuitjs1.client.CirSim::setSimRunning(Z)(run); } ),
-	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::t; } ),
-	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep; } ),
-	        setTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ), // don't use this, see #843
-	        getMaxTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep; } ),
-	        setMaxTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep =
-                                                      that.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ),
+	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::t; } ),
+	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep; } ),
+	        setTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ), // don't use this, see #843
+	        getMaxTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep; } ),
+	        setMaxTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep =
+                                                      that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ),
 	        isRunning: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simIsRunning()(); } ),
 	        getNodeVoltage: $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CirSim::getLabeledNodeVoltage(Ljava/lang/String;)(n); } ),
 	        setExtVoltage: $entry(function(n, v) { that.@com.lushprojects.circuitjs1.client.CirSim::setExtVoltage(Ljava/lang/String;D)(n, v); } ),

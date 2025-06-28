@@ -88,8 +88,8 @@ class TimeDelayRelayElm extends ChipElm {
         boolean oldState = poweredState;
         poweredState = (volts[0] - volts[1] > 2.5);
         if (oldState != poweredState)
-            lastTransition = simUi.t;
-        if (simUi.t > lastTransition + (poweredState ? onDelay : offDelay))
+            lastTransition = simulator.t;
+        if (simulator.t > lastTransition + (poweredState ? onDelay : offDelay))
             onState = poweredState;
     }
 

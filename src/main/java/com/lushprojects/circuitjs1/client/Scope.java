@@ -1034,8 +1034,8 @@ class Scope extends BaseCirSimDelegate {
             }
 
             // vertical gridlines
-            double tstart = cirSim.t - cirSim.simulator.maxTimeStep * speed * rect.width;
-            double tx = cirSim.t - (cirSim.t % gridStepX);
+            double tstart = cirSim.simulator.t - cirSim.simulator.maxTimeStep * speed * rect.width;
+            double tx = cirSim.simulator.t - (cirSim.simulator.t % gridStepX);
 
             for (int ll = 0; ; ll++) {
                 double tl = tx - gridStepX * ll;
@@ -1110,7 +1110,7 @@ class Scope extends BaseCirSimDelegate {
         if (plot2d || visiblePlots.size() == 0)
             cursorTime = -1;
         else
-            cursorTime = cirSim.t - cirSim.simulator.maxTimeStep * speed * (rect.x + rect.width - mouseX);
+            cursorTime = cirSim.simulator.t - cirSim.simulator.maxTimeStep * speed * (rect.x + rect.width - mouseX);
         checkForSelection(mouseX, mouseY);
         cursorScope = this;
     }
@@ -1157,7 +1157,7 @@ class Scope extends BaseCirSimDelegate {
         int cursorX = -1;
         int ct = 0;
         if (cursorTime >= 0) {
-            cursorX = -(int) ((cirSim.t - cursorTime) / (cirSim.simulator.maxTimeStep * speed) - rect.x - rect.width);
+            cursorX = -(int) ((cirSim.simulator.t - cursorTime) / (cirSim.simulator.maxTimeStep * speed) - rect.x - rect.width);
             if (cursorX >= rect.x) {
                 int ipa = plots.get(0).startIndex(rect.width);
                 int ip = (cursorX - rect.x + ipa) & (scopePointCount - 1);

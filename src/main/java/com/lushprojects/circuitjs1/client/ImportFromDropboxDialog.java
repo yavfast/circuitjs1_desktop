@@ -31,7 +31,7 @@ public class ImportFromDropboxDialog extends Dialog {
 
     static public void doLoadCallback(String s) {
         sim.circuitEditor.pushUndo();
-        sim.readCircuit(s);
+        sim.circuitLoader.readCircuit(s);
         sim.allowSave(false);
     }
 

@@ -132,7 +132,7 @@ class VoltageElm extends CircuitElm {
         if (waveform != WF_DC && simUi.dcAnalysisFlag)
             return bias;
 
-        double w = 2 * pi * (simUi.t - freqTimeZero) * frequency + phaseShift;
+        double w = 2 * pi * (simulator.t - freqTimeZero) * frequency + phaseShift;
         switch (waveform) {
             case WF_DC:
                 return maxVoltage + bias;
@@ -386,7 +386,7 @@ class VoltageElm extends CircuitElm {
                     frequency = maxfreq;
             }
             double adj = frequency - oldfreq;
-            freqTimeZero = (frequency == 0) ? 0 : simUi.t - oldfreq * (simUi.t - freqTimeZero) / frequency;
+            freqTimeZero = (frequency == 0) ? 0 : simulator.t - oldfreq * (simulator.t - freqTimeZero) / frequency;
         }
         if (n == 1) {
             int ow = waveform;

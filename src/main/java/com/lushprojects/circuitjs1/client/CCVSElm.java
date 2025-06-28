@@ -110,7 +110,7 @@ class CCVSElm extends VCCSElm {
             // calculate output
             for (i = 0; i != inputPairCount; i++)
                 setCurrentExprValue(i, pins[i * 2 + 1].current);
-            exprState.t = simUi.t;
+            exprState.t = simulator.t;
             double v0 = expr.eval(exprState);
             double rs = v0;
 

@@ -233,7 +233,7 @@ abstract class GateElm extends CircuitElm {
         if (isInverting())
             f = !f;
 
-        if (lastTime != simUi.t) {
+        if (lastTime != simulator.t) {
             // detect oscillation (using same strategy as Atanua)
             if (lastOutput == !f) {
                 if (oscillationCount++ > 50) {
@@ -246,7 +246,7 @@ abstract class GateElm extends CircuitElm {
                 oscillationCount = 0;
 
             lastOutput = f;
-            lastTime = simUi.t;
+            lastTime = simulator.t;
         }
 
         double res = f ? highVoltage : 0;

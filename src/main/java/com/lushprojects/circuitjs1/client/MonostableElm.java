@@ -75,13 +75,13 @@ class MonostableElm extends ChipElm {
     void execute() {
 
         if (pins[0].value && prevInputValue != pins[0].value && (retriggerable || !triggered)) {
-            lastRisingEdge = simUi.t;
+            lastRisingEdge = simulator.t;
             pins[1].value = true;
             pins[2].value = false;
             triggered = true;
         }
 
-        if (triggered && simUi.t > lastRisingEdge + delay) {
+        if (triggered && simulator.t > lastRisingEdge + delay) {
             pins[1].value = false;
             pins[2].value = true;
             triggered = false;
