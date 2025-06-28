@@ -202,7 +202,7 @@ class EditOptions implements Editable {
         if (n == 9)
             CircuitElm.setDecimalDigits((int) ei.value, false, true);
         if (n == 10)
-            sim.developerMode = ei.checkbox.getState();
+            sim.setDeveloperMode(ei.checkbox.getState());
         if (n == 11 && ei.value > 0)
             sim.simulator.minFrameRate = ei.value;
         if (n == 12 && ei.value > 0) {

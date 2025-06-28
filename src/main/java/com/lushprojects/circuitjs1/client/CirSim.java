@@ -206,26 +206,19 @@ public class CirSim implements NativePreviewHandler {
 
     public void setCanvasSize() {
         Storage lstor = Storage.getLocalStorageIfSupported();
-
-        int width, height;
-        width = (int) RootLayoutPanel.get().getOffsetWidth();
-        height = (int) RootLayoutPanel.get().getOffsetHeight();
+        int width = RootLayoutPanel.get().getOffsetWidth();
+        int height = RootLayoutPanel.get().getOffsetHeight();
         height = height - (hideMenu ? 0 : MENU_BAR_HEIGHT);
-
-        width = width - logManager.logPanelWidth;
 
         if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
             width = width - VERTICAL_PANEL_WIDTH;
         if (menuManager.toolbarCheckItem.getState())
             height -= TOOLBAR_HEIGHT;
 
-        width = Math.max(width, 0);   // avoid exception when setting negative width
+        width = Math.max(width, 0);
         height = Math.max(height, 0);
-
         renderer.setCanvasSize(width, height);
-
         renderer.setCircuitArea();
-
         // recenter circuit in case canvas was hidden at startup
         if (renderer.transform[0] == 0)
             renderer.centreCircuit();
@@ -465,7 +458,6 @@ public class CirSim implements NativePreviewHandler {
         absRunStopBtn.getElement().setTitle("Run/Stop");
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
-
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
         VERTICAL_PANEL_WIDTH = 166; /* = width/5;
 	if (VERTICAL_PANEL_WIDTH > 166)
@@ -536,7 +528,10 @@ public class CirSim implements NativePreviewHandler {
             layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
         }
 
-        layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
+        // Only add log panel if developerMode is enabled
+        if (developerMode) {
+            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
+        }
 
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
@@ -706,6 +701,25 @@ public class CirSim implements NativePreviewHandler {
         setSimRunning(running);
     }
 
+    public void setDeveloperMode(boolean enabled) {
+        if (this.developerMode == enabled) {
+            return;
+        }
+
+        this.developerMode = enabled;
+
+        // TODO: Fix developer mode switch
+//        boolean logPanelPresent = layoutPanel.getWidgetIndex(logManager.logPanel) != -1;
+//        if (enabled && !logPanelPresent) {
+//            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
+//        } else if (!enabled && logPanelPresent) {
+//            layoutPanel.remove(logManager.logPanel);
+//        }
+//
+//        setCanvasSize();
+//        repaint();
+    }
+
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
         Storage stor = Storage.getLocalStorageIfSupported();
         if (stor != null) {
@@ -742,7 +756,6 @@ public class CirSim implements NativePreviewHandler {
             CircuitElm.currentColor = menuManager.conventionCheckItem.getState() ? Color.yellow : Color.cyan;
 
         CircuitElm.setColorScale();
-        logManager.updatePanelSize();
     }
 
 
@@ -2227,16 +2240,17 @@ public class CirSim implements NativePreviewHandler {
 	}-*/;
 
     public void updateLogPanelWidth(int newWidth) {
+        if (!developerMode) {
+            return;
+        }
+
         // AI_THINK: Calculate available height for the log panel based on current layout
-        int totalHeight = (int) RootLayoutPanel.get().getOffsetHeight();
+        int totalHeight = RootLayoutPanel.get().getOffsetHeight();
         int availableHeight = totalHeight - (hideMenu ? 0 : MENU_BAR_HEIGHT);
         if (menuManager.toolbarCheckItem.getState())
             availableHeight -= TOOLBAR_HEIGHT;
 
-        // AI_TODO: Update layout panel size and notify LogManager with both dimensions
         layoutPanel.setWidgetSize(logManager.logPanel, newWidth);
-
-        // Pass both width and available height to LogManager for proper sizing
         logManager.updatePanelSize(newWidth, availableHeight);
 
         setCanvasSize();

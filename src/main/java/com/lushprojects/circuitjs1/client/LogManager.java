@@ -56,7 +56,7 @@ public class LogManager extends BaseCirSimDelegate {
     private static final int MAX_QUEUE_SIZE = 1000; // Maximum queued entries before forcing write
 
     // NEW: Asynchronous UI update fields
-    private final ArrayList<Label> uiUpdateQueue = new ArrayList<>();
+    private final ArrayList<String> uiUpdateQueue = new ArrayList<>();
     private Scheduler.RepeatingCommand uiUpdateCommand;
     private boolean isUpdatingUI = false;
     private static final int UI_UPDATE_DELAY_MS = 50; // Update UI every 50ms
@@ -674,9 +674,10 @@ public class LogManager extends BaseCirSimDelegate {
         updatePanelHeight(availableHeight);
     }
 
-    // Combined method to update both width and height
     public void updatePanelSize() {
-        cirSim.updateLogPanelWidth(logPanel.getElement().getClientWidth());
+        if (cirSim.developerMode) {
+            cirSim.updateLogPanelWidth(logPanel.getElement().getClientWidth());
+        }
     }
 
     public void updatePanelSize(int newWidth, int availableHeight) {
@@ -754,6 +755,16 @@ public class LogManager extends BaseCirSimDelegate {
         // Add to memory collection
         logEntries.add(logEntry);
 
+        // Queue UI label for asynchronous addition to prevent blocking
+        if (cirSim.developerMode) {
+            queueUIUpdate(logEntry);
+        }
+
+        // Write to file asynchronously to avoid blocking UI
+        writeLogToFileAsync(logEntry);
+    }
+
+    Label createLogLabel(String logEntry) {
         // Create UI label for display
         Label logLabel = new Label(logEntry);
         logLabel.getElement().addClassName("logEntry");
@@ -761,32 +772,28 @@ public class LogManager extends BaseCirSimDelegate {
 
         // Style the log entry label
         GWTUtils.setStyles(logLabel,
-            "padding", "4px 8px",
-            "borderBottom", "1px solid #eee",
-            "fontSize", "11px",
-            "fontFamily", "monospace",
-            "lineHeight", "1.4",
-            "wordWrap", "break-word",
-            "overflow", "hidden",
-            "textOverflow", "ellipsis",
-            "whiteSpace", "nowrap"
+                "padding", "4px 8px",
+                "borderBottom", "1px solid #eee",
+                "fontSize", "11px",
+                "fontFamily", "monospace",
+                "lineHeight", "1.4",
+                "wordWrap", "break-word",
+                "overflow", "hidden",
+                "textOverflow", "ellipsis",
+                "whiteSpace", "nowrap"
         );
 
         // Dynamic width calculation based on current panel width
         if (logEntriesPanel != null) {
             int availableWidth = logPanelWidth - 20; // Account for scroll panel and borders
             GWTUtils.setStyles(logLabel,
-                "width", "100%",
-                "maxWidth", availableWidth + "px",
-                "boxSizing", "border-box"
+                    "width", "100%",
+                    "maxWidth", availableWidth + "px",
+                    "boxSizing", "border-box"
             );
         }
 
-        // Queue UI label for asynchronous addition to prevent blocking
-        queueUIUpdate(logLabel);
-
-        // Write to file asynchronously to avoid blocking UI
-        writeLogToFileAsync(logEntry);
+        return logLabel;
     }
 
     public void clearLogs() {
@@ -923,9 +930,9 @@ public class LogManager extends BaseCirSimDelegate {
     }
 
     // NEW: Add log label to async UI update queue
-    private void queueUIUpdate(Label logLabel) {
+    private void queueUIUpdate(String logEntry) {
         synchronized (uiUpdateQueue) {
-            uiUpdateQueue.add(logLabel);
+            uiUpdateQueue.add(logEntry);
 
             // Force immediate update if queue is getting too large
             if (uiUpdateQueue.size() >= MAX_UI_QUEUE_SIZE) {
@@ -962,7 +969,7 @@ public class LogManager extends BaseCirSimDelegate {
             isUpdatingUI = true;
 
             // Create a copy of the queue for async processing
-            ArrayList<Label> labelsToAdd = new ArrayList<Label>(uiUpdateQueue);
+            ArrayList<String> labelsToAdd = new ArrayList<>(uiUpdateQueue);
             uiUpdateQueue.clear();
 
             // Add labels to UI in batches to prevent blocking
@@ -971,7 +978,7 @@ public class LogManager extends BaseCirSimDelegate {
     }
 
     // NEW: Add multiple labels to UI asynchronously
-    private void addLabelsToUIAsync(ArrayList<Label> labels) {
+    private void addLabelsToUIAsync(ArrayList<String> labels) {
         // Use a timer to spread UI updates across multiple event loop cycles
         final int batchSize = 10; // Process 10 labels at a time
         final int[] currentIndex = {0};
@@ -981,7 +988,7 @@ public class LogManager extends BaseCirSimDelegate {
 
             // Add batch of labels to UI
             for (int i = currentIndex[0]; i < endIndex; i++) {
-                Label logLabel = labels.get(i);
+                Label logLabel = createLogLabel(labels.get(i));
                 logEntriesPanel.add(logLabel);
             }
 
