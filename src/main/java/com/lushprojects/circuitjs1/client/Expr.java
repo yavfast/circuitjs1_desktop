@@ -3,9 +3,8 @@ package com.lushprojects.circuitjs1.client;
 import java.util.Vector;
 
 class ExprState {
-    //int n;
-    double values[];
-    double lastValues[];
+    double[] values;
+    double[] lastValues;
     double lastOutput;
     double t;
 
@@ -51,7 +50,7 @@ class Expr {
     double eval(ExprState es) {
         Expr left = null;
         Expr right = null;
-        if (children != null && children.size() > 0) {
+        if (children != null && !children.isEmpty()) {
             left = children.firstElement();
             if (children.size() == 2)
                 right = children.lastElement();
@@ -185,7 +184,7 @@ class Expr {
         return 0;
     }
 
-    double pwl(ExprState es, Vector<Expr> args) {
+    static double pwl(ExprState es, Vector<Expr> args) {
         double x = args.get(0).eval(es);
         double x0 = args.get(1).eval(es);
         double y0 = args.get(2).eval(es);
@@ -208,7 +207,7 @@ class Expr {
         return y1;
     }
 
-    double posmod(double x, double y) {
+    static double posmod(double x, double y) {
         x %= y;
         return (x >= 0) ? x : x + y;
     }

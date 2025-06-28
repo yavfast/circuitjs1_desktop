@@ -373,7 +373,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         // Add info about mouse mode in graphics
         if (cirSim.menuManager.mouseModeCheckItem.getState()) {
             if (cirSim.menuManager.printableCheckItem.getState()) g.setColor(Color.black);
-            g.drawString(Locale.LS("Mode: ") + cirSim.classToLabelMap.get(circuitEditor.mouseModeStr), 10, 29);
+            g.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor.mouseModeStr), 10, 29);
         }
 
         // This should always be the last

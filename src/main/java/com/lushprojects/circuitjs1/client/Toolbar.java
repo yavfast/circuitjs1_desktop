@@ -16,6 +16,8 @@ import java.util.HashMap;
 
 public class Toolbar extends HorizontalPanel {
 
+    private final CirSim cirSim;
+
     private Label modeLabel;
     private HashMap<String, Label> highlightableButtons = new HashMap<>();
     private Label activeButton;  // Currently active button
@@ -23,7 +25,8 @@ public class Toolbar extends HorizontalPanel {
 
     Label resistorButton;
 
-    public Toolbar() {
+    public Toolbar(CirSim cirSim) {
+        this.cirSim = cirSim;
         // Set the overall style of the toolbar
         Style style = getElement().getStyle();
         style.setPadding(2, Style.Unit.PX);
@@ -100,8 +103,7 @@ public class Toolbar extends HorizontalPanel {
     //public void setModeLabel(String text) { modeLabel.setText(Locale.LS("Mode: ") + text); }
 
     private Label createIconButton(String icon, String cls) {
-        CirSim sim = CirSim.theSim;
-        return createIconButton(icon, sim.getLabelTextForClass(cls), new MyCommand("main", cls));
+        return createIconButton(icon, cirSim.getLabelTextForClass(cls), new MyCommand("main", cls));
     }
 
     private Label createIconButton(String iconClass, String tooltip, MyCommand command) {

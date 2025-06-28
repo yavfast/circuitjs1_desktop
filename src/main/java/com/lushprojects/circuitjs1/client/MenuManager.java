@@ -11,6 +11,7 @@ import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.ui.PopupPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
+import java.util.HashMap;
 import java.util.Vector;
 
 public class MenuManager extends BaseCirSimDelegate {
@@ -85,6 +86,8 @@ public class MenuManager extends BaseCirSimDelegate {
     String[] shortcuts = new String[127];
 
     int menuPlot = -1;
+
+    final HashMap<String, String> classToLabelMap = new HashMap<>();
 
     protected MenuManager(CirSim cirSim) {
         super(cirSim);
@@ -509,10 +512,8 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     CheckboxMenuItem getClassCheckItem(String s, String t) {
-        cirSim.classToLabelMap.put(t, s);
+        classToLabelMap.put(t, s);
 
-        // try {
-        //   Class c = Class.forName(t);
         String shortcut = "";
         CircuitElm elm = null;
         try {
@@ -533,11 +534,7 @@ public class MenuManager extends BaseCirSimDelegate {
             }
             elm.delete();
         }
-//    	else
-//    		GWT.log("Coudn't create class: "+t);
-        //	} catch (Exception ee) {
-        //	    ee.printStackTrace();
-        //	}
+
         if (shortcut == "")
             mi = new CheckboxMenuItem(s);
         else

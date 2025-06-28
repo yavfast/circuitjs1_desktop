@@ -79,10 +79,9 @@ import java.util.HashMap;
 public class CirSim implements NativePreviewHandler {
 
     static int MENU_BAR_HEIGHT = 30;
-    static final int TOOLBAR_HEIGHT = 40;
+    static int TOOLBAR_HEIGHT = 40;
     static int VERTICAL_PANEL_WIDTH = 166; // default
-
-    static final int INFO_WIDTH = 160;
+    static int INFO_WIDTH = 160;
 
     final CircuitInfo circuitInfo = new CircuitInfo(this);
     final LogManager logManager = new LogManager(this);
@@ -99,17 +98,8 @@ public class CirSim implements NativePreviewHandler {
     final CircuitEditor circuitEditor = new CircuitEditor(this);
     final ActionManager actionManager = new ActionManager(this);
     final CircuitLoader circuitLoader = new CircuitLoader(this);
+    final LoadFile loadFileInput = new LoadFile(this);
 
-    Button resetButton;
-    Button runStopButton;
-
-    Label powerLabel;
-    Label titleLabel;
-    Scrollbar speedBar;
-    Scrollbar currentBar;
-    Scrollbar powerBar;
-
-    HashMap<String, String> classToLabelMap = new HashMap<>();
     Toolbar toolbar;
 
     DockLayoutPanel layoutPanel;
@@ -118,11 +108,18 @@ public class CirSim implements NativePreviewHandler {
     ScrollPanel slidersPanel;
     CellPanel buttonPanel;
 
-    LoadFile loadFileInput = new LoadFile(this);
-    Frame iFrame = null;
+    Button resetButton;
+    Button runStopButton;
+    Label powerLabel;
+    Label titleLabel;
+    Scrollbar speedBar;
+    Scrollbar currentBar;
+    Scrollbar powerBar;
 
-    static Button absResetBtn;
-    static Button absRunStopBtn;
+    Button absResetBtn;
+    Button absRunStopBtn;
+
+    Frame iFrame = null;
 
     @Deprecated
     static CirSim theSim;
@@ -393,7 +390,7 @@ public class CirSim implements NativePreviewHandler {
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckbox);
         DOM.appendChild(layoutPanel.getElement(), topPanelCheckboxLabel);
 
-        toolbar = new Toolbar();
+        toolbar = new Toolbar(this);
         toolbar.setEuroResistors(circuitInfo.euroSetting);
         if (!circuitInfo.hideMenu)
             layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
@@ -1147,7 +1144,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     String getLabelTextForClass(String cls) {
-        return classToLabelMap.get(cls);
+        return menuManager.classToLabelMap.get(cls);
     }
 
     void createNewLoadFile() {
@@ -1162,10 +1159,12 @@ public class CirSim implements NativePreviewHandler {
         if (circuitInfo.filePath != null)
             allowSave(true);
         changeWindowTitle(false);
-        LoadFile newlf = new LoadFile(this);
-        verticalPanel.insert(newlf, idx);
-        verticalPanel.remove(idx + 1);
-        loadFileInput = newlf;
+
+        // TODO:
+//        LoadFile newlf = new LoadFile(this);
+//        verticalPanel.insert(newlf, idx);
+//        verticalPanel.remove(idx + 1);
+//        loadFileInput = newlf;
     }
 
     void addWidgetToVerticalPanel(Widget w) {

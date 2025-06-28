@@ -62,7 +62,6 @@ public class LoadFile extends FileUpload implements ChangeHandler {
         doLoad();
     }
 
-
     public native String getPath()
 	/*-{
 		return $doc.getElementById("LoadFileElement").value;
@@ -73,28 +72,28 @@ public class LoadFile extends FileUpload implements ChangeHandler {
 		return $doc.getElementById("LoadFileElement").files[0].name;
 	 }-*/;
 
-    public final native void click()
+    public native void click()
 	/*-{
 		$doc.getElementById("LoadFileElement").click();
 	 }-*/;
 
-    static public final native void doLoad()
-		/*-{
-			var oFiles = $doc.getElementById("LoadFileElement").files,
-    		nFiles = oFiles.length;
-    		if (nFiles>=1) {
-    		    if (oFiles[0].size >= 128000)
-    		    	alert("File too large!");
-    		    else {
-        		var reader = new FileReader();
-    			reader.onload = function(e) {
-      				var text = reader.result;
-      				@com.lushprojects.circuitjs1.client.LoadFile::doLoadCallback(Ljava/lang/String;Ljava/lang/String;)(text, oFiles[0].name);
-        		};
+    static public native void doLoad()
+    /*-{
+        var oFiles = $doc.getElementById("LoadFileElement").files,
+        nFiles = oFiles.length;
+        if (nFiles>=1) {
+            if (oFiles[0].size >= 128000)
+                alert("File too large!");
+            else {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var text = reader.result;
+                @com.lushprojects.circuitjs1.client.LoadFile::doLoadCallback(Ljava/lang/String;Ljava/lang/String;)(text, oFiles[0].name);
+            };
 
-    			reader.readAsText(oFiles[0]);
-    		    }
-    		}
-		 }-*/;
+            reader.readAsText(oFiles[0]);
+            }
+        }
+     }-*/;
 
 }

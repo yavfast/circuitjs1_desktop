@@ -41,6 +41,7 @@ import com.google.gwt.user.client.ui.VerticalPanel;
 
 public class ModDialog extends DialogBox {
 
+    final CirSim cirSim;
     VerticalPanel vp;
     Storage lstor = Storage.getLocalStorageIfSupported();
 
@@ -106,9 +107,9 @@ public class ModDialog extends DialogBox {
 
     Button closeButton;
 
-    ModDialog() {
-
+    ModDialog(CirSim cirSim) {
         super();
+        this.cirSim = cirSim;
         vp = new VerticalPanel();
         setWidget(vp);
         setText("Modification Setup");
@@ -248,7 +249,7 @@ public class ModDialog extends DialogBox {
 
         vp3.add(hideSRBtns = new CheckBox("HIDE BUTTONS"));
 
-        if (CirSim.absResetBtn.getElement().hasClassName("modDefaultResetBtn"))
+        if (cirSim.absResetBtn.getElement().hasClassName("modDefaultResetBtn"))
             setDefaultSRBtns.setValue(true);
         else setClassicSRBtns.setValue(true);
 
@@ -272,12 +273,12 @@ public class ModDialog extends DialogBox {
                     resetPrevBtn.removeStyleName("gwt-Button");
                     resetPrevBtn.addStyleName("modDefaultResetBtn");
                     //Absolute buttons:
-                    CirSim.absRunStopBtn.removeStyleName("gwt-Button");
-                    CirSim.absRunStopBtn.removeStyleName("modClassicButton");
-                    CirSim.absRunStopBtn.addStyleName("modDefaultRunStopBtn");
-                    CirSim.absResetBtn.removeStyleName("gwt-Button");
-                    CirSim.absResetBtn.removeStyleName("modClassicButton");
-                    CirSim.absResetBtn.addStyleName("modDefaultResetBtn");
+                    cirSim.absRunStopBtn.removeStyleName("gwt-Button");
+                    cirSim.absRunStopBtn.removeStyleName("modClassicButton");
+                    cirSim.absRunStopBtn.addStyleName("modDefaultRunStopBtn");
+                    cirSim.absResetBtn.removeStyleName("gwt-Button");
+                    cirSim.absResetBtn.removeStyleName("modClassicButton");
+                    cirSim.absResetBtn.addStyleName("modDefaultResetBtn");
                     //save:
                     lstor.setItem("MOD_absBtnTheme", "default");
                 } else {
@@ -296,12 +297,12 @@ public class ModDialog extends DialogBox {
                     resetPrevBtn.removeStyleName("modDefaultResetBtn");
                     resetPrevBtn.addStyleName("gwt-Button");
                     //Absolute buttons:
-                    CirSim.absRunStopBtn.removeStyleName("modDefaultRunStopBtn");
-                    CirSim.absRunStopBtn.addStyleName("gwt-Button");
-                    CirSim.absRunStopBtn.addStyleName("modClassicButton");
-                    CirSim.absResetBtn.removeStyleName("modDefaultResetBtn");
-                    CirSim.absResetBtn.addStyleName("gwt-Button");
-                    CirSim.absResetBtn.addStyleName("modClassicButton");
+                    cirSim.absRunStopBtn.removeStyleName("modDefaultRunStopBtn");
+                    cirSim.absRunStopBtn.addStyleName("gwt-Button");
+                    cirSim.absRunStopBtn.addStyleName("modClassicButton");
+                    cirSim.absResetBtn.removeStyleName("modDefaultResetBtn");
+                    cirSim.absResetBtn.addStyleName("gwt-Button");
+                    cirSim.absResetBtn.addStyleName("modClassicButton");
                     //save:
                     lstor.setItem("MOD_absBtnTheme", "classic");
                 } else {
@@ -316,7 +317,7 @@ public class ModDialog extends DialogBox {
                     setStopIcon.setValue(true);
                     stopPrevBtn.getElement().setInnerHTML("&#xE800;");
                     if (CirSimIsRunning())
-                        CirSim.absRunStopBtn.getElement().setInnerHTML("&#xE800;");
+                        cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE800;");
                     //save:
                     lstor.setItem("MOD_absBtnIcon", "stop");
                 } else {
@@ -331,7 +332,7 @@ public class ModDialog extends DialogBox {
                     setPauseIcon.setValue(true);
                     stopPrevBtn.getElement().setInnerHTML("&#xE802;");
                     if (CirSimIsRunning())
-                        CirSim.absRunStopBtn.getElement().setInnerHTML("&#xE802;");
+                        cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE802;");
                     //save:
                     lstor.setItem("MOD_absBtnIcon", "pause");
                 } else {
@@ -342,13 +343,13 @@ public class ModDialog extends DialogBox {
         hideSRBtns.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 if (hideSRBtns.getValue()) {
-                    CirSim.absRunStopBtn.setVisible(false);
-                    CirSim.absResetBtn.setVisible(false);
+                    cirSim.absRunStopBtn.setVisible(false);
+                    cirSim.absResetBtn.setVisible(false);
                     //save:
                     lstor.setItem("MOD_hideAbsBtns", "true");
                 } else {
-                    CirSim.absRunStopBtn.setVisible(true);
-                    CirSim.absResetBtn.setVisible(true);
+                    cirSim.absRunStopBtn.setVisible(true);
+                    cirSim.absResetBtn.setVisible(true);
                     //save:
                     lstor.setItem("MOD_hideAbsBtns", "false");
                 }

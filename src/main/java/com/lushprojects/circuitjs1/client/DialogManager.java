@@ -49,7 +49,7 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     void showModDialog() {
-        activeDialog = new ModDialog();
+        activeDialog = new ModDialog(cirSim);
     }
 
     void showImportFromTextDialog() {
