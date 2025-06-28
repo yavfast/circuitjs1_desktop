@@ -569,7 +569,7 @@ public class LogManager extends BaseCirSimDelegate {
         if (logPanel == null) return;
         int headerHeight = getActualHeaderHeight();
         int controlPanelHeight = getActualControlPanelHeight();
-        int margins = 10;
+        int margins = 32;
         logPanelHeight = Math.max(MIN_LOG_PANEL_HEIGHT, availableHeight - margins);
         GWTUtils.setStyles(logPanel,
             "height", logPanelHeight + "px",
