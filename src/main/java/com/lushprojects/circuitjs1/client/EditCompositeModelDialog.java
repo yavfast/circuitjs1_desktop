@@ -53,6 +53,7 @@ import java.util.HashSet;
 
 public class EditCompositeModelDialog extends Dialog implements MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler {
 
+    final CirSim cirSim;
     VerticalPanel vp;
     boolean error;
     CustomCompositeChipElm chip;
@@ -108,12 +109,13 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
         model.sizeX = Math.max(minWidth, pinsNS + xOffsetLeft + xOffsetRight);
         model.sizeY = Math.max(minHeight, pinsWE);
 
-        model.modelCircuit = CirSim.theSim.dumpCircuit();
+        model.modelCircuit = cirSim.actionManager.dumpCircuit();
         return true;
     }
 
-    public EditCompositeModelDialog() {
+    public EditCompositeModelDialog(CirSim cirSim) {
         super();
+        this.cirSim = cirSim;
         closeOnEnter = true;
     }
 

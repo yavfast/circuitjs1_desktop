@@ -102,7 +102,7 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     void showEditCompositeModelDialog(CustomCompositeModel model) {
-        EditCompositeModelDialog dlg = new EditCompositeModelDialog();
+        EditCompositeModelDialog dlg = new EditCompositeModelDialog(cirSim);
         if (model != null) {
             dlg.setModel(model);
         } else if (!dlg.createModel()) {

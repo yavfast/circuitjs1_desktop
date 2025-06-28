@@ -24,23 +24,6 @@ package com.lushprojects.circuitjs1.client;
 // For information about the theory behind this, see Electronic Circuit & System Simulation Methods by Pillage
 // or https://github.com/sharpie7/circuitjs1/blob/master/INTERNALS.md
 
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_A;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_BACKSPACE;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_C;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_D;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_DELETE;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_ENTER;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_ESCAPE;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_N;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_O;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_P;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_S;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_SPACE;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_V;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_X;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_Y;
-import static com.google.gwt.event.dom.client.KeyCodes.KEY_Z;
-
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.Callback;
@@ -119,6 +102,7 @@ public class CirSim implements NativePreviewHandler {
     UndoManager undoManager = new UndoManager(this);
     AdjustableManager adjustableManager = new AdjustableManager(this);
     CircuitEditor circuitEditor = new CircuitEditor(this);
+    ActionManager actionManager = new ActionManager(this);
 
     Button resetButton;
     Button runStopButton;
@@ -132,8 +116,6 @@ public class CirSim implements NativePreviewHandler {
 
     Element sidePanelCheckboxLabel;
 
-
-    CircuitElm menuElm;
 
     boolean savedFlag;
     boolean dcAnalysisFlag;
@@ -676,7 +658,7 @@ public class CirSim implements NativePreviewHandler {
         }
 
         if (mouseModeReq != null)
-            menuPerformed("main", mouseModeReq);
+            actionManager.menuPerformed("main", mouseModeReq);
 
         enableUndoRedo();
         enablePaste();
@@ -1057,270 +1039,19 @@ public class CirSim implements NativePreviewHandler {
     	return $wnd.startCircuitText;
     }-*/;
 
+    // JSInterface
+    String dumpCircuit() {
+        return actionManager.dumpCircuit();
+    }
+
+    // JSInterface
+    public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
+        actionManager.importCircuitFromText(circuitText, subcircuitsOnly);
+    }
+
     void allowSave(boolean b) {
         if (menuManager.saveFileItem != null)
             menuManager.saveFileItem.setEnabled(b);
-    }
-
-    public void menuPerformed(String menu, String item) {
-        if ((menu == "edit" || menu == "main" || menu == "scopes") && menuManager.noEditCheckItem.getState()) {
-            Window.alert(Locale.LS("Editing disabled.  Re-enable from the Options menu."));
-            return;
-        }
-        if (item == "help")
-            dialogManager.showHelpDialog();
-        if (item == "license")
-            dialogManager.showLicenseDialog();
-        if (item == "about")
-            dialogManager.showAboutBox();
-        if (item == "modsetup")
-            dialogManager.showModDialog();
-        if (item == "importfromlocalfile") {
-            circuitEditor.pushUndo();
-            loadFileInput.click();
-        }
-        if (item == "newwindow") {
-            //Window.open(Document.get().getURL(), "_blank", "");
-            //Maybe this can help with lags:
-            executeJS("nw.Window.open('circuitjs.html', {new_instance: true, mixed_context: false});");
-        }
-        if (item == "save") {
-            if (filePath != null) nodeSave(filePath, dumpCircuit());
-            else nodeSaveAs(dumpCircuit(), getLastFileName());
-            setUnsavedChanges(false);
-        }
-
-        if (item == "saveas") {
-            nodeSaveAs(dumpCircuit(), getLastFileName());
-            setUnsavedChanges(false);
-        }
-
-        if (item == "importfromtext") {
-            dialogManager.showImportFromTextDialog();
-        }
-    	/*if (item=="importfromdropbox") {
-    		dialogShowing = new ImportFromDropboxDialog(this);
-    	}*/
-        if (item == "exportasurl") {
-            doExportAsUrl();
-            setUnsavedChanges(false);
-        }
-    	/*if (item=="exportaslocalfile") {
-    		doExportAsLocalFile();
-    		unsavedChanges = false;
-    	}*/
-        if (item == "exportastext") {
-            doExportAsText();
-            setUnsavedChanges(false);
-        }
-        if (item == "exportasimage")
-            doExportAsImage();
-        if (item == "copypng") {
-            doImageToClipboard();
-            if (menuManager.contextPanel != null)
-                menuManager.contextPanel.hide();
-        }
-        if (item == "exportassvg")
-            doExportAsSVG();
-        if (item == "createsubcircuit")
-            doCreateSubcircuit();
-        if (item == "dcanalysis")
-            doDCAnalysis();
-        if (item == "print")
-            doPrint();
-        if (item == "recover")
-            circuitEditor.doRecover();
-
-        if ((menu == "elm" || menu == "scopepop") && menuManager.contextPanel != null)
-            menuManager.contextPanel.hide();
-        if (menu == "options" && item == "shortcuts") {
-            dialogManager.showShortcutsDialog();
-        }
-        if (menu == "options" && item == "subcircuits") {
-            dialogManager.showSubcircuitDialog();
-        }
-        if (item == "search") {
-            dialogManager.showSearchDialog();
-        }
-        if (menu == "options" && item == "other")
-            circuitEditor.doEditOptions();
-        if (item == "devtools")
-            toggleDevTools();
-        if (item == "undo")
-            circuitEditor.doUndo();
-        if (item == "redo")
-            circuitEditor.doRedo();
-
-        // if the mouse is hovering over an element, and a shortcut key is pressed, operate on that element (treat it like a context menu item selection)
-        if (menu == "key" && circuitEditor.mouseElm != null) {
-            menuElm = circuitEditor.mouseElm;
-            menu = "elm";
-        }
-        if (menu != "elm")
-            menuElm = null;
-
-        if (item == "cut") {
-            circuitEditor.doCut();
-        }
-        if (item == "copy") {
-            circuitEditor.doCopy();
-        }
-        if (item == "paste")
-            circuitEditor.doPaste(null);
-        if (item == "duplicate") {
-            circuitEditor.doDuplicate();
-        }
-        if (item == "flip")
-            circuitEditor.doFlip();
-        if (item == "split")
-            circuitEditor.doSplit(menuElm);
-        if (item == "selectAll")
-            circuitEditor.doSelectAll();
-
-        if (item == "centrecircuit") {
-            circuitEditor.pushUndo();
-            renderer.centreCircuit();
-        }
-        if (item == "flipx") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipX();
-        }
-        if (item == "flipy") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipY();
-        }
-        if (item == "flipxy") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipXY();
-        }
-        if (item == "stackAll")
-            scopeManager.stackAll();
-        if (item == "unstackAll")
-            scopeManager.unstackAll();
-        if (item == "combineAll")
-            scopeManager.combineAll();
-        if (item == "separateAll")
-            scopeManager.separateAll();
-        if (item == "zoomin")
-            renderer.zoomCircuit(20, true);
-        if (item == "zoomout")
-            renderer.zoomCircuit(-20, true);
-        if (item == "zoom100")
-            renderer.setCircuitScale(1, true);
-        if (menu == "elm" && item == "edit")
-            circuitEditor.doEditElementOptions(menuElm);
-        if (item == "delete") {
-            if (menu != "elm")
-                menuElm = null;
-            circuitEditor.pushUndo();
-            circuitEditor.doDelete(true);
-        }
-        if (item == "sliders")
-            circuitEditor.doSliders(menuElm);
-
-        if (item == "viewInScope" && menuElm != null) {
-            scopeManager.addScope(menuElm);
-        }
-
-        if (item == "viewInFloatScope" && menuElm != null) {
-            ScopeElm newScope = new ScopeElm(circuitEditor.snapGrid(menuElm.x + 50), circuitEditor.snapGrid(menuElm.y + 50));
-            simulator.elmList.addElement(newScope);
-            newScope.setScopeElm(menuElm);
-
-            // need to rebuild scopeElmArr
-            needAnalyze();
-        }
-
-        if (item.startsWith("addToScope") && menuElm != null) {
-            int n = Integer.parseInt(item.substring(10));
-            scopeManager.addToScope(n, menuElm);
-            scopeManager.scopeMenuSelected = -1;
-        }
-
-        if (menu == "scopepop") {
-            circuitEditor.pushUndo();
-            Scope s;
-            if (scopeManager.menuScope != -1)
-                s = scopeManager.scopes[scopeManager.menuScope];
-            else
-                s = ((ScopeElm) circuitEditor.mouseElm).elmScope;
-
-            if (item == "dock") {
-                scopeManager.dockScope(circuitEditor.mouseElm);
-                circuitEditor.doDelete(false);
-            }
-            if (item == "undock") {
-                CircuitElm elm = s.getElm();
-                ScopeElm newScope = new ScopeElm(circuitEditor.snapGrid(elm.x + 50), circuitEditor.snapGrid(elm.y + 50));
-                scopeManager.undockScope(newScope);
-
-                needAnalyze();      // need to rebuild scopeElmArr
-            }
-            if (item == "remove")
-                s.setElm(null);  // setupScopes() will clean this up
-            if (item == "removeplot")
-                s.removePlot(menuPlot);
-            if (item == "speed2")
-                s.speedUp();
-            if (item == "speed1/2")
-                s.slowDown();
-//    		if (item=="scale")
-//    			scopes[menuScope].adjustScale(.5);
-            if (item == "maxscale")
-                s.maxScale();
-            if (item == "stack")
-                scopeManager.stackScope(scopeManager.menuScope);
-            if (item == "unstack")
-                scopeManager.unstackScope(scopeManager.menuScope);
-            if (item == "combine")
-                scopeManager.combineScope(scopeManager.menuScope);
-            if (item == "selecty")
-                s.selectY();
-            if (item == "reset")
-                s.resetGraph(true);
-            if (item == "properties")
-                s.properties();
-
-            simulator.deleteUnusedScopeElms();
-        }
-        if (menu == "circuits" && item.indexOf("setup ") == 0) {
-            circuitEditor.pushUndo();
-            int sp = item.indexOf(' ', 6);
-            readSetupFile(item.substring(6, sp), item.substring(sp + 1));
-        }
-        if (item == "newblankcircuit") {
-            circuitEditor.pushUndo();
-            readSetupFile("blank.txt", "Blank Circuit");
-        }
-
-        //	if (ac.indexOf("setup ") == 0) {
-        //	    pushUndo();
-        //	    readSetupFile(ac.substring(6),
-        //			  ((MenuItem) e.getSource()).getLabel());
-        //	}
-
-        // IES: Moved from itemStateChanged()
-        if (menu == "main") {
-            if (menuManager.contextPanel != null)
-                menuManager.contextPanel.hide();
-
-            circuitEditor.setMouseMode(item);
-
-            updateToolbar();
-
-        }
-        if (item == "fullscreen") {
-            if (!Graphics.isFullScreen) {
-                Graphics.viewFullScreen();
-                setSlidersPanelHeight();
-            } else {
-                Graphics.exitFullScreen();
-                renderer.centreCircuit();
-                setSlidersPanelHeight();
-            }
-        }
-
-        repaint();
     }
 
     void setUnsavedChanges(boolean hasChanges) {
@@ -1328,96 +1059,12 @@ public class CirSim implements NativePreviewHandler {
         changeWindowTitle(hasChanges);
     }
 
-    void doExportAsUrl() {
-        String dump = dumpCircuit();
-        dialogManager.showExportAsUrlDialog(dump);
-    }
-
-    void doExportAsText() {
-        String dump = dumpCircuit();
-        dialogManager.showExportAsTextDialog(dump);
-    }
-
-    void doExportAsImage() {
-        dialogManager.showExportAsImageDialog(CAC_IMAGE);
-    }
-
-    private static native void clipboardWriteImage(CanvasElement cv) /*-{
+    static native void clipboardWriteImage(CanvasElement cv) /*-{
 	cv.toBlob(function(blob) {
 	    var promise = parent.navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
 	    promise.then(function(x) { console.log(x); });
 	});
     }-*/;
-
-    void doImageToClipboard() {
-        Canvas cv = renderer.getCircuitAsCanvas(CAC_IMAGE);
-        clipboardWriteImage(cv.getCanvasElement());
-    }
-
-    void doCreateSubcircuit() {
-        dialogManager.showEditCompositeModelDialog(null);
-    }
-
-    /*
-    void doExportAsLocalFile() {
-    	String dump = dumpCircuit();
-    	dialogShowing = new ExportAsLocalFileDialog(dump);
-    	dialogShowing.show();
-    }
-*/
-    public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
-        int flags = subcircuitsOnly ? (CirSim.RC_SUBCIRCUITS | CirSim.RC_RETAIN) : 0;
-        if (circuitText != null) {
-            readCircuit(circuitText, flags);
-            allowSave(false);
-            filePath = null;
-            fileName = null;
-            changeWindowTitle(false);
-        }
-    }
-
-    String dumpOptions() {
-        int f = (menuManager.dotsCheckItem.getState()) ? 1 : 0;
-        f |= (menuManager.smallGridCheckItem.getState()) ? 2 : 0;
-        f |= (menuManager.voltsCheckItem.getState()) ? 0 : 4;
-        f |= (menuManager.powerCheckItem.getState()) ? 8 : 0;
-        f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
-        // 32 = linear scale in afilter
-        f |= simulator.adjustTimeStep ? 64 : 0;
-        String dump = "$ " + f + " " +
-                simulator.maxTimeStep + " " + getIterCount() + " " +
-                currentBar.getValue() + " " + CircuitElm.voltageRange + " " +
-                powerBar.getValue() + " " + simulator.minTimeStep + "\n";
-        return dump;
-    }
-
-    String dumpCircuit() {
-        int i;
-        CustomLogicModel.clearDumpedFlags();
-        CustomCompositeModel.clearDumpedFlags();
-        DiodeModel.clearDumpedFlags();
-        TransistorModel.clearDumpedFlags();
-
-        String dump = dumpOptions();
-
-        for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
-            String m = ce.dumpModel();
-            if (m != null && !m.isEmpty())
-                dump += m + "\n";
-            dump += ce.dump() + "\n";
-        }
-        for (i = 0; i != scopeManager.scopeCount; i++) {
-            String d = scopeManager.scopes[i].dump();
-            if (d != null)
-                dump += d + "\n";
-        }
-        dump += adjustableManager.dump();
-        if (hintType != -1)
-            dump += "h " + hintType + " " + hintItem1 + " " +
-                    hintItem2 + "\n";
-        return dump;
-    }
 
     void getSetupList(final boolean openDefault) {
 
@@ -1799,16 +1446,6 @@ public class CirSim implements NativePreviewHandler {
         menuManager.undoItem.setEnabled(undoManager.hasUndoStack());
     }
 
-    void setMenuSelection() {
-        if (menuElm != null) {
-            if (menuElm.selected)
-                return;
-            circuitEditor.clearSelection();
-            menuElm.setSelected(true);
-        }
-    }
-
-
     void enablePaste() {
         menuManager.pasteItem.setEnabled(clipboardManager.hasClipboardData());
     }
@@ -1830,136 +1467,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void onPreviewNativeEvent(NativePreviewEvent e) {
-        int cc = e.getNativeEvent().getCharCode();
-        int t = e.getTypeInt();
-        int code = e.getNativeEvent().getKeyCode();
-        if (dialogIsShowing()) {
-            ScrollValuePopup scrollValuePopup = circuitEditor.scrollValuePopup;
-            if (scrollValuePopup != null && scrollValuePopup.isShowing() &&
-                    (t & Event.ONKEYDOWN) != 0) {
-                if (code == KEY_ESCAPE || code == KEY_SPACE)
-                    scrollValuePopup.close(false);
-                if (code == KEY_ENTER)
-                    scrollValuePopup.close(true);
-            }
-
-            // process escape/enter for dialogs
-            // multiple edit dialogs could be displayed at once, pick the one in front
-            Dialog dlg = dialogManager.getShowingDialog();
-            if (dlg != null && dlg.isShowing() && (t & Event.ONKEYDOWN) != 0) {
-                if (code == KEY_ESCAPE)
-                    dlg.closeDialog();
-                if (code == KEY_ENTER)
-                    dlg.enterPressed();
-            }
-            return;
-        }
-
-        if ((t & Event.ONKEYPRESS) != 0) {
-            if (cc == '-') {
-                menuPerformed("key", "zoomout");
-                e.cancel();
-            }
-            if (cc == '+' || cc == '=') {
-                menuPerformed("key", "zoomin");
-                e.cancel();
-            }
-            if (cc == '0') {
-                menuPerformed("key", "zoom100");
-                e.cancel();
-            }
-            if (cc == '/' && menuManager.shortcuts['/'] == null) {
-                menuPerformed("key", "search");
-                e.cancel();
-            }
-        }
-
-        // all other shortcuts are ignored when editing disabled
-        if (menuManager.noEditCheckItem.getState())
-            return;
-
-        if ((t & Event.ONKEYDOWN) != 0) {
-            if (code == KEY_BACKSPACE || code == KEY_DELETE) {
-                if (scopeManager.scopeSelected != -1) {
-                    // Treat DELETE key with scope selected as "remove scope", not delete
-                    scopeManager.scopes[scopeManager.scopeSelected].setElm(null);
-                    scopeManager.scopeSelected = -1;
-                } else {
-                    menuElm = null;
-                    circuitEditor.pushUndo();
-                    circuitEditor.doDelete(true);
-                    e.cancel();
-                }
-            }
-            if (code == KEY_ESCAPE) {
-                circuitEditor.setMouseMode("Select");
-                updateToolbar();
-                e.cancel();
-            }
-
-            if (e.getNativeEvent().getCtrlKey() || e.getNativeEvent().getMetaKey()) {
-                if (code == KEY_C) {
-                    menuPerformed("key", "copy");
-                    e.cancel();
-                }
-                if (code == KEY_X) {
-                    menuPerformed("key", "cut");
-                    e.cancel();
-                }
-                if (code == KEY_V) {
-                    menuPerformed("key", "paste");
-                    e.cancel();
-                }
-                if (code == KEY_Z) {
-                    menuPerformed("key", "undo");
-                    e.cancel();
-                }
-                if (code == KEY_Y) {
-                    menuPerformed("key", "redo");
-                    e.cancel();
-                }
-                if (code == KEY_D) {
-                    menuPerformed("key", "duplicate");
-                    e.cancel();
-                }
-                if (code == KEY_A) {
-                    menuPerformed("key", "selectAll");
-                    e.cancel();
-                }
-                if (code == KEY_P) {
-                    menuPerformed("key", "print");
-                    e.cancel();
-                }
-                if (code == KEY_N) {
-                    menuPerformed("key", "newwindow");
-                    e.cancel();
-                }
-                if (code == KEY_S) {
-                    String cmd = (filePath != null) ? "save" : "saveas";
-                    menuPerformed("key", cmd);
-                    e.cancel();
-                }
-                if (code == KEY_O) {
-                    menuPerformed("key", "importfromlocalfile");
-                    e.cancel();
-                }
-            }
-        }
-        if ((t & Event.ONKEYPRESS) != 0) {
-            if (cc > 32 && cc < 127) {
-                String c = menuManager.shortcuts[cc];
-                e.cancel();
-                if (c == null)
-                    return;
-                circuitEditor.setMouseMode(c);
-                updateToolbar();
-            }
-            if (cc == 32) {
-                circuitEditor.setMouseMode("Select");
-                updateToolbar();
-                e.cancel();
-            }
-        }
+        actionManager.onPreviewNativeEvent(e);
     }
 
     void updateToolbar() {

@@ -718,7 +718,7 @@ public class MenuManager extends BaseCirSimDelegate {
         }
 
         CircuitElm mouseElm = circuitEditor().mouseElm;
-        cirSim.menuElm = mouseElm;
+        circuitEditor().menuElm = mouseElm;
 
         int menuClientX = circuitEditor().menuClientX;
         int menuClientY = circuitEditor().menuClientY;

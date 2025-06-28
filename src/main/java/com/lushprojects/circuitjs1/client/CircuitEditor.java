@@ -52,6 +52,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     CircuitElm dragElm;
 
     CircuitElm mouseElm = null;
+    CircuitElm menuElm;
 
     boolean didSwitch = false;
     int mousePost = -1;
@@ -71,7 +72,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     int menuY = 0;
     int menuClientX = 0;
     int menuClientY = 0;
-
 
     protected CircuitEditor(CirSim cirSim) {
         super(cirSim);
@@ -108,6 +108,15 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             setCursorStyle("cursorCross");
         } else {
             setCursorStyle("cursorPointer");
+        }
+    }
+
+    void setMenuSelection() {
+        if (menuElm != null) {
+            if (menuElm.selected)
+                return;
+            clearSelection();
+            menuElm.setSelected(true);
         }
     }
 
@@ -806,7 +815,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void doFlip() {
-        cirSim.menuElm.flipPosts();
+        circuitEditor().menuElm.flipPosts();
         cirSim.needAnalyze();
     }
 
@@ -837,7 +846,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     FlipInfo prepareFlip() {
         pushUndo();
-        cirSim.setMenuSelection();
+        circuitEditor().setMenuSelection();
         int minx = 30000, maxx = -30000;
         int miny = 30000, maxy = -30000;
         CircuitSimulator simulator = simulator();
@@ -923,7 +932,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     void doCut() {
         int i;
         pushUndo();
-        cirSim.setMenuSelection();
+        circuitEditor().setMenuSelection();
 
         cirSim.clipboardManager.doCut();
 
@@ -968,7 +977,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     String copyOfSelectedElms() {
-        String r = cirSim.dumpOptions();
+        String r = actionManager().dumpOptions();
         CustomLogicModel.clearDumpedFlags();
         CustomCompositeModel.clearDumpedFlags();
         DiodeModel.clearDumpedFlags();
@@ -981,9 +990,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void doCopy() {
         // clear selection when we're done if we're copying a single element using the context menu
-        boolean clearSel = (cirSim.menuElm != null && !cirSim.menuElm.selected);
+        boolean clearSel = (menuElm != null && !menuElm.selected);
 
-        cirSim.setMenuSelection();
+        setMenuSelection();
 
         cirSim.clipboardManager.doCopy();
 
@@ -995,7 +1004,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void doDuplicate() {
         String s;
-        cirSim.setMenuSelection();
+        setMenuSelection();
         s = copyOfSelectedElms();
         doPaste(s);
     }

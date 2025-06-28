@@ -32,4 +32,12 @@ public class BaseCirSimDelegate {
     ScopeManager scopeManager() {
         return cirSim.scopeManager;
     }
+
+    DialogManager dialogManager() {
+        return cirSim.dialogManager;
+    }
+
+    ActionManager actionManager() {
+        return cirSim.actionManager;
+    }
 }

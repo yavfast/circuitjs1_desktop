@@ -36,9 +36,9 @@ public class ImportFromTextDialog extends Dialog {
     // RichTextArea textBox;
     TextArea textArea;
 
-    public ImportFromTextDialog(CirSim asim) {
+    public ImportFromTextDialog(CirSim cirSim) {
         super();
-        sim = asim;
+        sim = cirSim;
         closeOnEnter = false;
         Button okButton, cancelButton;
         final Checkbox subCheck;
@@ -62,7 +62,7 @@ public class ImportFromTextDialog extends Dialog {
 //				s=textBox.getHTML();
 //				s=s.replace("<br>", "\r");
                 s = textArea.getText();
-                sim.importCircuitFromText(s, subCheck.getState());
+                sim.actionManager.importCircuitFromText(s, subCheck.getState());
             }
         });
         hp.add(cancelButton = new Button(Locale.LS("Cancel")));

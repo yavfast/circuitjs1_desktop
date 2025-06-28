@@ -43,7 +43,7 @@ public class UndoManager extends BaseCirSimDelegate {
 
     void pushUndo() {
         redoStack.removeAllElements();
-        String s = cirSim.dumpCircuit();
+        String s = actionManager().dumpCircuit();
         if (!undoStack.isEmpty() && s.compareTo(undoStack.lastElement().dump) == 0)
             return;
         undoStack.add(new UndoItem(s));
@@ -52,7 +52,7 @@ public class UndoManager extends BaseCirSimDelegate {
     void doUndo() {
         if (undoStack.isEmpty())
             return;
-        redoStack.add(new UndoItem(cirSim.dumpCircuit()));
+        redoStack.add(new UndoItem(actionManager().dumpCircuit()));
         UndoItem ui = undoStack.remove(undoStack.size() - 1);
         loadUndoItem(ui);
     }
@@ -60,7 +60,7 @@ public class UndoManager extends BaseCirSimDelegate {
     void doRedo() {
         if (redoStack.isEmpty())
             return;
-        undoStack.add(new UndoItem(cirSim.dumpCircuit()));
+        undoStack.add(new UndoItem(actionManager().dumpCircuit()));
         UndoItem ui = redoStack.remove(redoStack.size() - 1);
         loadUndoItem(ui);
     }
@@ -75,7 +75,7 @@ public class UndoManager extends BaseCirSimDelegate {
 
     void writeRecoveryToStorage() {
         CirSim.console("write recovery");
-        String s = cirSim.dumpCircuit();
+        String s = actionManager().dumpCircuit();
         OptionsManager.setOptionInStorage("circuitRecovery", s);
     }
 
