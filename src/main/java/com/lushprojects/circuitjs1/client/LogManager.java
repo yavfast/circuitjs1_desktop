@@ -389,20 +389,17 @@ public class LogManager extends BaseCirSimDelegate {
             "position", "relative",
             "display", "flex",
             "flexDirection", "column",
-            "boxSizing", "border-box"
-        );
-        // AI_THINK: Allow panel to fill available space dynamically
-        GWTUtils.setStyles(logPanel,
+            "boxSizing", "border-box",
             "height", "100%",
             "maxHeight", "100%"
         );
 
-        // AI_TODO: Fix header layout and width distribution
         headerLabel = new Label("Console Logs");
         headerLabel.getElement().addClassName("logHeader");
         headerLabel.setWidth("100%");
         GWTUtils.setStyles(headerLabel,
             "flexShrink", "0",
+            "flexGrow", "0",
             "padding", "8px",
             "borderBottom", "1px solid #ccc",
             "backgroundColor", "#f5f5f5",
@@ -411,19 +408,15 @@ public class LogManager extends BaseCirSimDelegate {
         );
         logPanel.add(headerLabel);
 
-        // AI_TODO: Fix control panel width distribution and layout
         controlPanel = new HorizontalPanel();
         controlPanel.setWidth("100%");
         GWTUtils.setStyles(controlPanel,
             "flexShrink", "0",
+            "flexGrow", "0",
             "padding", "8px",
             "borderBottom", "1px solid #ccc",
             "boxSizing", "border-box",
-            "backgroundColor", "#fafafa"
-        );
-
-        // AI_THINK: Improve button and label spacing
-        GWTUtils.setStyles(controlPanel,
+            "backgroundColor", "#fafafa",
             "display", "flex",
             "justifyContent", "space-between",
             "alignItems", "center"
@@ -449,7 +442,7 @@ public class LogManager extends BaseCirSimDelegate {
         logCountLabel.getElement().addClassName("logCount");
         GWTUtils.setStyles(logCountLabel,
             "fontSize", "12px",
-            "color", "#666",
+            "color", "666",
             "fontStyle", "italic"
         );
 
@@ -458,21 +451,22 @@ public class LogManager extends BaseCirSimDelegate {
         controlPanel.add(logCountLabel);
         logPanel.add(controlPanel);
 
-        // AI_TODO: Fix entries panel width and content layout
         logEntriesPanel = new VerticalPanel();
         logEntriesPanel.setWidth("100%");
         GWTUtils.setStyles(logEntriesPanel,
             "padding", "0",
             "boxSizing", "border-box"
         );
+        // Remove any fixed height from logEntriesPanel
+        GWTUtils.clearStyle(logEntriesPanel, "height");
+        GWTUtils.clearStyle(logEntriesPanel, "maxHeight");
+        GWTUtils.clearStyle(logEntriesPanel, "minHeight");
 
-        // AI_TODO: Configure scroll panel for full space utilization
         logScrollPanel = new ScrollPanel();
         logScrollPanel.setWidget(logEntriesPanel);
         logScrollPanel.setWidth("100%");
         logScrollPanel.getElement().addClassName("logScrollPanel");
-
-        // AI_THINK: Setup flex properties for dynamic height filling
+        // Ensure logScrollPanel fills all available space
         GWTUtils.setStyles(logScrollPanel,
             "flex", "1 1 auto",
             "overflowY", "auto",
@@ -482,9 +476,10 @@ public class LogManager extends BaseCirSimDelegate {
             "boxSizing", "border-box",
             "backgroundColor", "#ffffff"
         );
-
-        // AI_THINK: Remove conflicting height properties that prevent dynamic sizing
-        // Remove fixed height constraints - let flex handle it
+        // Remove any fixed height from logScrollPanel
+        GWTUtils.clearStyle(logScrollPanel, "height");
+        GWTUtils.clearStyle(logScrollPanel, "maxHeight");
+        GWTUtils.clearStyle(logScrollPanel, "minHeight");
         GWTUtils.setFlexItem(logScrollPanel, "1", "1", "0");
 
         logPanel.add(logScrollPanel);
@@ -572,17 +567,10 @@ public class LogManager extends BaseCirSimDelegate {
     // AI_THINK: Improved method to handle dynamic height calculation
     public void updatePanelHeight(int availableHeight) {
         if (logPanel == null) return;
-
-        // Calculate actual component heights dynamically
         int headerHeight = getActualHeaderHeight();
         int controlPanelHeight = getActualControlPanelHeight();
         int margins = 10;
-
-        // Use full available height with proper minimum constraints
         logPanelHeight = Math.max(MIN_LOG_PANEL_HEIGHT, availableHeight - margins);
-
-        // AI_THINK: Use flex layout properly instead of fixed heights
-        // Remove conflicting height properties that cause floating issues
         GWTUtils.setStyles(logPanel,
             "height", logPanelHeight + "px",
             "maxHeight", logPanelHeight + "px",
@@ -590,27 +578,23 @@ public class LogManager extends BaseCirSimDelegate {
             "display", "flex",
             "flexDirection", "column"
         );
-
-        // AI_TODO: Fix scroll panel to use flex-grow instead of calculated height
         if (logScrollPanel != null) {
-            // Remove explicit height calculations that conflict with flex layout
-            GWTUtils.clearStyle(logScrollPanel, "height");
-            GWTUtils.clearStyle(logScrollPanel, "maxHeight");
-            GWTUtils.clearStyle(logScrollPanel, "minHeight");
-
-            // Use flex properties for proper responsive behavior
+            // Calculate available height for logScrollPanel
+            int scrollPanelHeight = logPanelHeight - headerHeight - controlPanelHeight;
+            if (scrollPanelHeight < 50) scrollPanelHeight = 50; // Minimum height
+            // Set explicit height and remove flex styles
             GWTUtils.setStyles(logScrollPanel,
-                "flex", "1 1 auto",
+                "height", scrollPanelHeight + "px",
+                "maxHeight", scrollPanelHeight + "px",
+                "minHeight", scrollPanelHeight + "px",
                 "overflowY", "auto",
-                "overflowX", "hidden",
-                "minHeight", "100px"
+                "overflowX", "hidden"
             );
-
-            // AI_THINK: Ensure entries panel height adapts to content
+            GWTUtils.clearStyle(logScrollPanel, "flex");
             if (logEntriesPanel != null) {
                 GWTUtils.setStyles(logEntriesPanel,
                     "minHeight", "100%",
-                    "height", "auto"  // Let content determine height
+                    "height", "auto"
                 );
             }
         }
