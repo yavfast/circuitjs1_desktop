@@ -67,3 +67,5 @@ Temporary Items
 .vscode/settings.json
 .idea
 .libs
+debug.log
+

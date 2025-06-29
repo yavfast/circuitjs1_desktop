@@ -482,6 +482,21 @@ public class BaseCircuitElm {
     }
 
     /**
+     * Calculates the SI unit magnitude (power of 10) for a given value.
+     * Returns the nearest multiple of 3 that represents the appropriate SI prefix.
+     *
+     * @param v numeric value to analyze
+     * @return magnitude as power of 10 (multiple of 3)
+     */
+    private static int getMagnitude(double v) {
+        double va = Math.abs(v);
+
+        // Calculate the order of magnitude (power of 10)
+        double log10 = Math.log10(va);
+        return (int) Math.floor(log10 / 3) * 3; // Round down to nearest multiple of 3
+    }
+
+    /**
      * Internal method to format values with units and appropriate SI prefixes.
      * Automatically selects appropriate prefix (p, n, μ, m, k, M, G) based on magnitude.
      *
@@ -493,26 +508,50 @@ public class BaseCircuitElm {
     private static String getUnitText(double v, String u, boolean sf) {
         String sp = sf ? "" : " ";
         double va = Math.abs(v);
-        if (va < 1e-14)
-            // this used to return null, but then wires would display "null" with 0V
+
+        // Handle zero and very small values
+        if (va < 1e-14) {
             return "0" + sp + u;
-        if (va < 1e-9)
-            return format(v * 1e12, sf) + sp + "p" + u;
-        if (va < 1e-6)
-            return format(v * 1e9, sf) + sp + "n" + u;
-        if (va < 1e-3)
-            return format(v * 1e6, sf) + sp + Locale.muString + u;
-        if (va < 1)
-            return format(v * 1e3, sf) + sp + "m" + u;
-        if (va < 1e3)
-            return format(v, sf) + sp + u;
-        if (va < 1e6)
-            return format(v * 1e-3, sf) + sp + "k" + u;
-        if (va < 1e9)
-            return format(v * 1e-6, sf) + sp + "M" + u;
-        if (va < 1e12)
-            return format(v * 1e-9, sf) + sp + "G" + u;
-        return NumberFormat.getFormat("#.##E000").format(v) + sp + u;
+        }
+
+        // Handle very large values with scientific notation
+        if (va > 1e14) {
+            return NumberFormat.getFormat("#.##E000").format(v) + sp + u;
+        }
+
+        // Get magnitude using dedicated function
+        int magnitude = getMagnitude(v);
+
+        // Calculate multiplier: 10^(-magnitude)
+        double multiplier = Math.pow(10, -magnitude);
+
+        // Get prefix using mathematical calculation
+        String prefix = getSIPrefix(magnitude);
+
+        double scaledValue = v * multiplier;
+        return format(scaledValue, sf) + sp + prefix + u;
+    }
+
+    /**
+     * Returns SI prefix string based on power of 10 magnitude.
+     * Uses mathematical calculation instead of array lookup.
+     *
+     * @param magnitude power of 10 (must be multiple of 3 in range [-12, 9])
+     * @return SI prefix string
+     */
+    static String getSIPrefix(int magnitude) {
+        switch (magnitude) {
+            case -12: return "p";  // pico
+            case -9:  return "n";  // nano
+            case -6:  return Locale.muString; // micro
+            case -3:  return "m";  // milli
+            case 0:   return "";   // base unit
+            case 3:   return "k";  // kilo
+            case 6:   return "M";  // mega
+            case 9:   return "G";  // giga
+            case 12:  return "T";  // tera
+            default:  return "";   // fallback to base unit
+        }
     }
 
     /**
