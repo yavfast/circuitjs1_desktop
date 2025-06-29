@@ -15,7 +15,7 @@ public class CircuitMath {
     // Solves the set of n linear equations using a LU factorization
     // previously performed by lu_factor.  On input, b[0..n-1] is the right
     // hand side of the equations, and on output, contains the solution.
-    public static void lu_solve(double a[][], int n, int ipvt[], double b[]) {
+    public static void lu_solve(double[][] a, int n, int[] ipvt, double[] b) {
         if (n <= 0) return;
 
         int i, j;
@@ -51,7 +51,7 @@ public class CircuitMath {
     // gaussian elimination.  On entry, a[0..n-1][0..n-1] is the
     // matrix to be factored.  ipvt[] returns an integer vector of pivot
     // indices, used in the lu_solve() routine.
-    public static boolean lu_factor(double a[][], int n, int ipvt[]) {
+    public static boolean lu_factor(double[][] a, int n, int[] ipvt) {
         // Early exit for edge cases
         if (n <= 0) return false;
         if (n == 1) {
@@ -132,12 +132,12 @@ public class CircuitMath {
         return true;
     }
 
-    static void invertMatrix(double a[][], int n) {
-        int ipvt[] = new int[n];
+    static void invertMatrix(double[][] a, int n) {
+        int[] ipvt = new int[n];
         lu_factor(a, n, ipvt);
         int i, j;
-        double b[] = new double[n];
-        double inva[][] = new double[n][n];
+        double[] b = new double[n];
+        double[][] inva = new double[n][n];
 
         // solve for each column of identity matrix
         for (i = 0; i != n; i++) {
