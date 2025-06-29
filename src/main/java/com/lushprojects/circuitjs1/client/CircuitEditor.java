@@ -1010,9 +1010,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void doPaste(String dump) {
-        if (dump == null) {
+        if (dump == null || dump.isEmpty()) {
+            // Try to get from system clipboard first, then internal
             dump = cirSim.clipboardManager.getClipboard();
-            if (dump == null) {
+            if (dump == null || dump.isEmpty()) {
                 return;
             }
         }

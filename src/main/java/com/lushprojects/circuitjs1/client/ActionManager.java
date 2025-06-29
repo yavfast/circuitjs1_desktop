@@ -273,8 +273,10 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "copy") {
             circuitEditor.doCopy();
         }
-        if (item == "paste")
-            circuitEditor.doPaste(null);
+        if (item == "paste") {
+            // Try to paste from system clipboard first, then fallback to internal
+            circuitEditor.cirSim.clipboardManager.doPasteFromSystem();
+        }
         if (item == "duplicate") {
             circuitEditor.doDuplicate();
         }
