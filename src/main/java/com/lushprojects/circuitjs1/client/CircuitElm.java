@@ -133,8 +133,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             if (s2 != null)
                 shortDecimalDigits = Integer.parseInt(s2);
         }
-        setDecimalDigits(decimalDigits, false, false);
-        setDecimalDigits(shortDecimalDigits, true, false);
     }
 
     static void setColorScale() {

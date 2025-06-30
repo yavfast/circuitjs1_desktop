@@ -1,7 +1,6 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.i18n.client.NumberFormat;
-import com.google.gwt.storage.client.Storage;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class BaseCircuitElm {
@@ -15,8 +14,8 @@ public class BaseCircuitElm {
     static final int SCALE_M = 2;
     static final int SCALE_MU = 3;
 
-    static NumberFormat showFormat, shortFormat, fixedFormat;
-    static int decimalDigits, shortDecimalDigits;
+    static int decimalDigits;
+    static int shortDecimalDigits;
 
     /**
      * Default constructor for BaseCircuitElm.
@@ -27,51 +26,82 @@ public class BaseCircuitElm {
     }
 
     /**
-     * Sets the number of decimal digits for number formatting.
+     * Sets the number of decimal digits for standard formatting.
      *
-     * @param num the number of decimal digits to display
-     * @param sf true for short format, false for normal format
-     * @param save true to save the setting to local storage
+     * @param num number of decimal digits to use
+     * @param save whether to save this setting to storage
      */
-    static void setDecimalDigits(int num, boolean sf, boolean save) {
-        if (sf)
-            shortDecimalDigits = num;
-        else
-            decimalDigits = num;
-
-        String s = "####.";
-        int ct = num;
-        for (; ct > 0; ct--)
-            s += '#';
-        NumberFormat nf = NumberFormat.getFormat(s);
-        if (sf)
-            shortFormat = nf;
-        else
-            showFormat = nf;
-
+    public static void setDecimalDigits(int num, boolean save) {
+        decimalDigits = num;
         if (save) {
-            Storage stor = Storage.getLocalStorageIfSupported();
-            if (stor != null)
-                stor.setItem(sf ? "decimalDigitsShort" : "decimalDigits", Integer.toString(num));
-        }
-
-        if (!sf) {
-            s = "####.";
-            ct = num;
-            for (; ct > 0; ct--)
-                s += '0';
-            fixedFormat = NumberFormat.getFormat(s);
+            OptionsManager.setOptionInStorage("decimalDigits", Integer.toString(num));
         }
     }
 
     /**
-     * Formats a number with specified decimal places.
+     * Sets the number of decimal digits for short formatting.
+     *
+     * @param num number of decimal digits to use for short format
+     * @param save whether to save this setting to storage
+     */
+    public static void setDecimalDigitsShort(int num, boolean save) {
+        shortDecimalDigits = num;
+        if (save) {
+            OptionsManager.setOptionInStorage("decimalDigitsShort", Integer.toString(num));
+        }
+    }
+
+    /**
+     * Formats a number using short decimal digit settings without fixed decimal places.
      *
      * @param value the number to format
-     * @param decimalPlaces number of decimal places to show
-     * @return formatted number string with specified decimal places
+     * @return formatted number string using short format
      */
-    public static String formatNumber(double value, int decimalPlaces) {
+    public static String shortFormat(double value) {
+        return formatNumber(value, shortDecimalDigits, false);
+    }
+
+    /**
+     * Formats a number using standard decimal digit settings without fixed decimal places.
+     *
+     * @param value the number to format
+     * @return formatted number string using standard format
+     */
+    public static String showFormat(double value) {
+        return formatNumber(value, decimalDigits, false);
+    }
+
+    /**
+     * Formats a number using standard decimal digit settings with fixed decimal places.
+     *
+     * @param value the number to format
+     * @return formatted number string with fixed decimal places
+     */
+    public static String fixedFormat(double value) {
+        return formatNumber(value, decimalDigits, true);
+    }
+
+    /**
+     * Formats a number using either fixed or short format based on the parameter.
+     *
+     * @param value the number to format
+     * @param fixed true for fixed format, false for short format
+     * @return formatted number string
+     */
+    public static String numFormat(double value, boolean fixed) {
+        return fixed ? fixedFormat(value) : shortFormat(value);
+    }
+
+    /**
+     * Formats a number with specified decimal places and optional fixed decimal setting.
+     * This is the main formatting function that handles the actual number formatting logic.
+     *
+     * @param value the number to format
+     * @param decimalPlaces number of decimal places to show (minimum 0)
+     * @param fixedDecimal true to always show all decimal places, false to omit trailing zeros
+     * @return formatted number string
+     */
+    public static String formatNumber(double value, int decimalPlaces, boolean fixedDecimal) {
         if (decimalPlaces < 0) {
             decimalPlaces = 0;
         }
@@ -86,17 +116,30 @@ public class BaseCircuitElm {
         long integerPart = rounded / multiplier;
         long decimalPart = Math.abs(rounded % multiplier);
 
-        if (decimalPlaces == 0) {
+        if (decimalPlaces == 0 || (decimalPart == 0 && !fixedDecimal)) {
             return String.valueOf(integerPart);
         }
 
         // Format decimal part with leading zeros
         String decimalStr = String.valueOf(decimalPart);
-        while (decimalStr.length() < decimalPlaces) {
-            decimalStr = "0" + decimalStr;
+        if (fixedDecimal) {
+            while (decimalStr.length() < decimalPlaces) {
+                decimalStr += "0";
+            }
         }
 
         return integerPart + "." + decimalStr;
+    }
+
+    /**
+     * Formats a number with specified decimal places and optional fixed decimal setting.
+     *
+     * @param value the number to format
+     * @param decimalPlaces number of decimal places to show (minimum 0)
+     * @return formatted number string
+     */
+    public static String formatNumber(double value, int decimalPlaces) {
+        return formatNumber(value, decimalPlaces, true);
     }
 
     /**
@@ -487,8 +530,8 @@ public class BaseCircuitElm {
             double m = Math.floor(v / 60);
             v -= 60 * m;
             if (h == 0)
-                return m + ":" + ((v >= 10) ? "" : "0") + showFormat.format(v);
-            return h + ":" + ((m >= 10) ? "" : "0") + m + ":" + ((v >= 10) ? "" : "0") + showFormat.format(v);
+                return m + ":" + ((v >= 10) ? "" : "0") + showFormat(v);
+            return h + ":" + ((m >= 10) ? "" : "0") + m + ":" + ((v >= 10) ? "" : "0") + showFormat(v);
         }
         return getUnitText(v, "s");
     }
@@ -501,7 +544,7 @@ public class BaseCircuitElm {
      * @return formatted number string
      */
     static String format(double v, boolean sf) {
-        return (sf ? shortFormat : showFormat).format(v);
+        return sf ? shortFormat(v) : showFormat(v);
     }
 
     /**
@@ -643,13 +686,15 @@ public class BaseCircuitElm {
     static String getUnitTextWithScale(double val, String utext, int scale, boolean fixed) {
         if (Math.abs(val) > 1e12)
             return getUnitText(val, utext);
-        NumberFormat nf = fixed ? fixedFormat : showFormat;
-        if (scale == SCALE_1)
-            return nf.format(val) + " " + utext;
-        if (scale == SCALE_M)
-            return nf.format(1e3 * val) + " m" + utext;
-        if (scale == SCALE_MU)
-            return nf.format(1e6 * val) + " " + Locale.muString + utext;
+        if (scale == SCALE_1) {
+            return numFormat(val, fixed) + " " + utext;
+        }
+        if (scale == SCALE_M) {
+            return numFormat(1e3 * val, fixed) + " m" + utext;
+        }
+        if (scale == SCALE_MU) {
+            return numFormat(1e6 * val, fixed) + " " + Locale.muString + utext;
+        }
         return getUnitText(val, utext);
     }
 

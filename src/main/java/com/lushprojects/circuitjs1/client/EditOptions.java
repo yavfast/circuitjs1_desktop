@@ -198,9 +198,9 @@ class EditOptions implements Editable {
         if (n == 7)
             CircuitElm.currentColor = setColor("currentColor", ei, Color.yellow);
         if (n == 8)
-            CircuitElm.setDecimalDigits((int) ei.value, true, true);
+            CircuitElm.setDecimalDigitsShort((int) ei.value, true);
         if (n == 9)
-            CircuitElm.setDecimalDigits((int) ei.value, false, true);
+            CircuitElm.setDecimalDigits((int) ei.value, true);
         if (n == 10)
             sim.setDeveloperMode(ei.checkbox.getState());
         if (n == 11 && ei.value > 0)

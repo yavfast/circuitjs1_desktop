@@ -355,10 +355,10 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         if (cirSim.circuitInfo.developerMode) {
             int height = 45;
             int increment = 15;
-            g.drawString("Framerate: " + CircuitElm.showFormat.format(framerate), 10, height);
-            g.drawString("Steprate: " + CircuitElm.showFormat.format(steprate), 10, height += increment);
-            g.drawString("Steprate/iter: " + CircuitElm.showFormat.format(steprate / cirSim.getIterCount()), 10, height += increment);
-            g.drawString("iterc: " + CircuitElm.showFormat.format(cirSim.getIterCount()), 10, height += increment);
+            g.drawString("Framerate: " + CircuitElm.showFormat(framerate), 10, height);
+            g.drawString("Steprate: " + CircuitElm.showFormat(steprate), 10, height += increment);
+            g.drawString("Steprate/iter: " + CircuitElm.showFormat(steprate / cirSim.getIterCount()), 10, height += increment);
+            g.drawString("iterc: " + CircuitElm.showFormat(cirSim.getIterCount()), 10, height += increment);
             g.drawString("Frames: " + frames, 10, height += increment);
 
             height += (increment * 2);
@@ -443,7 +443,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 info[0] = "t = " + CircuitElm.getTimeText(simulator.t);
                 double timerate = 160 * cirSim.getIterCount() * simulator.timeStep;
                 if (timerate >= .1)
-                    info[0] += " (" + CircuitElm.showFormat.format(timerate) + "x)";
+                    info[0] += " (" + CircuitElm.showFormat(timerate) + "x)";
                 info[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator.timeStep);
             }
             if (hintType != -1) {

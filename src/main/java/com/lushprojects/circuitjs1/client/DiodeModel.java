@@ -325,9 +325,9 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
 
     void pickName() {
         if (breakdownVoltage > 0 && breakdownVoltage < 20)
-            name = "zener-" + CircuitElm.showFormat.format(breakdownVoltage);
+            name = "zener-" + CircuitElm.showFormat(breakdownVoltage);
         else if (isSimple())
-            name = "fwdrop=" + CircuitElm.showFormat.format(forwardVoltage);
+            name = "fwdrop=" + CircuitElm.showFormat(forwardVoltage);
         else
             name = "diodemodel";
         if (modelMap.get(name) != null) {

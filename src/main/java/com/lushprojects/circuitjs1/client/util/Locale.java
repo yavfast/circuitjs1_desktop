@@ -35,7 +35,7 @@ public class Locale {
         if (s == null)
             return null;
 
-        if (s.length() == 0) { // empty strings trip up the 'if (ix != s.length() - 1)' below
+        if (s.isEmpty()) { // empty strings trip up the 'if (ix != s.length() - 1)' below
             return s;
         }
 

@@ -79,7 +79,7 @@ class RailElm extends VoltageElm {
             double v = getVoltage();
             String s;
             if (Math.abs(v) < 1)
-                s = showFormat.format(v) + " V";
+                s = showFormat(v) + " V";
             else
                 s = getShortUnitText(v, "V");
             if (getVoltage() > 0)

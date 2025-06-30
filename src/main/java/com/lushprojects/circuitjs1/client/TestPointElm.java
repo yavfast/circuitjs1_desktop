@@ -185,7 +185,7 @@ class TestPointElm extends CircuitElm {
                 s = getUnitText(pulseWidth, "S");
                 break;
             case TP_DUT:
-                s = showFormat.format(dutyCycle);
+                s = showFormat(dutyCycle);
                 break;
         }
         drawText(g, label, s, point1, lead1);
@@ -353,7 +353,7 @@ class TestPointElm extends CircuitElm {
                 arr[1] = "Pulse width = " + getUnitText(pulseWidth * simulator.maxTimeStep * simUi.getIterCount(), "S");
                 break;
             case TP_DUT:
-                arr[1] = "Duty cycle = " + showFormat.format(dutyCycle);
+                arr[1] = "Duty cycle = " + showFormat(dutyCycle);
                 break;
         }
     }

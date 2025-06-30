@@ -175,7 +175,7 @@ class ProbeElm extends CircuitElm {
                     s = getUnitText(pulseWidth, "S");
                     break;
                 case TP_DUT:
-                    s = showFormat.format(dutyCycle);
+                    s = showFormat(dutyCycle);
                     break;
             }
             drawValues(g, s, drawAsCircle() ? circleSize + 3 : 4);
