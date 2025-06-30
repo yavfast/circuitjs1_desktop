@@ -9,7 +9,7 @@ public class CircuitInfo extends BaseCirSimDelegate {
     boolean unsavedChanges;
     boolean savedFlag;
     boolean dcAnalysisFlag;
-    boolean developerMode = true;
+    boolean developerMode = false;
     boolean showResistanceInVoltageSources;
     boolean hideInfoBox;
     boolean hideMenu = false;

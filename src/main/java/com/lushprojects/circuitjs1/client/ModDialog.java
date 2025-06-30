@@ -53,12 +53,70 @@ public class ModDialog extends DialogBox {
     HTML scaleScrollbarElm;
 
     native float getRealScale() /*-{
-		return $wnd.nw.Window.get().zoomLevel;
+		try {
+			// Method 1: Try to get zoom level using devicePixelRatio and screen measurements
+			var devicePixelRatio = $wnd.devicePixelRatio || 1.0;
+			var screenWidth = $wnd.screen.width;
+			var windowWidth = $wnd.outerWidth;
+
+			// Calculate zoom based on viewport vs screen ratio
+			var zoomFromViewport = devicePixelRatio;
+
+			// Method 2: Try to get zoom from CSS transform if available
+			var body = $doc.body;
+			if (body) {
+				var computedStyle = $wnd.getComputedStyle(body);
+				// Check for CSS zoom property (non-standard but supported in some browsers)
+				if (computedStyle.zoom && computedStyle.zoom !== 'normal') {
+					var cssZoom = parseFloat(computedStyle.zoom);
+					if (!isNaN(cssZoom) && cssZoom > 0) {
+						return cssZoom;
+					}
+				}
+
+				// Check for CSS transform scale
+				var transform = computedStyle.transform;
+				if (transform && transform !== 'none') {
+					var matrix = transform.match(/matrix\(([^)]+)\)/);
+					if (matrix) {
+						var values = matrix[1].split(',');
+						if (values.length >= 6) {
+							var scaleX = parseFloat(values[0]);
+							if (!isNaN(scaleX) && scaleX > 0) {
+								return scaleX;
+							}
+						}
+					}
+				}
+			}
+
+			// Method 3: Try to detect zoom using stored scale from localStorage
+			var storage = $wnd.localStorage;
+			if (storage) {
+				var storedScale = storage.getItem('MOD_UIScale');
+				if (storedScale && storedScale !== 'null') {
+					var scale = parseFloat(storedScale);
+					if (!isNaN(scale)) {
+						return scale;
+					}
+				}
+			}
+
+			// Method 4: Use devicePixelRatio as fallback
+			// Convert devicePixelRatio to our scale format
+			// devicePixelRatio 1.0 = 100% = scale 1.0
+			// devicePixelRatio 1.25 = 125% = scale 1.25
+			return Math.max(0.5, Math.min(3.0, devicePixelRatio));
+
+		} catch (e) {
+			console.warn('Failed to get zoom level:', e);
+			return 1.0; // Default scale (100%)
+		}
 	}-*/;
 
     String getScaleScrollbar(float value, int scale) {
         return "<input type=\"range\" id=\"scaleUI\" oninput=\"getScaleInfo()\"" +
-                "min=\"-0.5\" max=\"2\" step=\"0.1\" value=\"" + value + "\"" +
+                "min=\"0.5\" max=\"3\" step=\"0.1\" value=\"" + value + "\"" +
                 "style=\"width:355px\"><b><span class=\"scaleInfo\"" +
                 "style=\"vertical-align:super\">" + scale + "%</span></b>";
     }
@@ -116,7 +174,7 @@ public class ModDialog extends DialogBox {
         vp.setWidth("400px");
 
         vp.add(new HTML("<big><b>UI Scale:</b></big>"));
-        vp.add(scaleScrollbarElm = new HTML(getScaleScrollbar(getRealScale(), (int) (getRealScale() * 100 + 100))));
+        vp.add(scaleScrollbarElm = new HTML(getScaleScrollbar(getRealScale(), (int) (getRealScale() * 100))));
         vp.setCellHorizontalAlignment(scaleScrollbarElm, HasHorizontalAlignment.ALIGN_CENTER);
         vp.add(scaleButtons = new HorizontalPanel());
         scaleButtons.setWidth("100%");
@@ -124,10 +182,10 @@ public class ModDialog extends DialogBox {
                 new ClickHandler() {
                     public void onClick(ClickEvent event) {
                         vp.remove(scaleScrollbarElm);
-                        vp.insert(scaleScrollbarElm = new HTML(getScaleScrollbar(0, 100)), 1);
+                        vp.insert(scaleScrollbarElm = new HTML(getScaleScrollbar(1, 100)), 1);
                         vp.setCellHorizontalAlignment(scaleScrollbarElm, HasHorizontalAlignment.ALIGN_CENTER);
                         CirSim.executeJS("setScaleUI()");
-                        lstor.setItem("MOD_UIScale", "0");
+                        lstor.setItem("MOD_UIScale", "1");
                     }
                 }));
         scaleButtons.add(setDefaultScaleButton = new Button("Default scale<b>*</b>",
@@ -135,7 +193,7 @@ public class ModDialog extends DialogBox {
                     public void onClick(ClickEvent event) {
                         vp.remove(scaleScrollbarElm);
                         vp.insert(scaleScrollbarElm = new HTML(getScaleScrollbar(CirSim.getDefaultScale(),
-                                (int) (CirSim.getDefaultScale() * 100 + 100))), 1);
+                                (int) (CirSim.getDefaultScale() * 100))), 1);
                         vp.setCellHorizontalAlignment(scaleScrollbarElm, HasHorizontalAlignment.ALIGN_CENTER);
                         CirSim.executeJS("setScaleUI()");
                         lstor.setItem("MOD_UIScale", Float.toString(CirSim.getDefaultScale()));
@@ -149,7 +207,7 @@ public class ModDialog extends DialogBox {
                     }
                 }));
         vp.add(new HTML("<p>* - the default UI scale for your monitor is set to " +
-                (int) (CirSim.getDefaultScale() * 100 + 100) + "%</p>"));
+                (int) (CirSim.getDefaultScale() * 100) + "%</p>"));
         // Styling buttons:
         setScaleButton.addStyleName("modButtons"); //.setHeight("20px");
         setScaleButton.addStyleName("modSetButtons");

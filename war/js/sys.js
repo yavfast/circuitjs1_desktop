@@ -1,7 +1,10 @@
 //System commands for calling:
 
-document.title = nw.App.manifest.window.title;
-nw.Window.get().setMinimumSize(640, 480); // for new windows
+// Check if running in nw.js environment before accessing nw APIs
+if (typeof nw !== 'undefined' && nw.App && nw.App.manifest) {
+  document.title = nw.App.manifest.window.title;
+  nw.Window.get().setMinimumSize(640, 480); // for new windows
+}
 
 let losesFocusPause = false;
 
@@ -33,17 +36,21 @@ nw.Window.get().on('blur', function(){
 function onWinFocus(){
   let needPause = localStorage.getItem('MOD_setPauseWhenWinUnfocused');
   if (losesFocusPause && needPause=="true"){
-    CircuitJS1.setSimRunning(true);
-    losesFocusPause=false;
-    SetBtnsStyle();
+    if (typeof CircuitJS1 !== 'undefined' && CircuitJS1.setSimRunning) {
+      CircuitJS1.setSimRunning(true);
+      losesFocusPause=false;
+      SetBtnsStyle();
+    }
   }
 }
 function onWinBlur(){
   let needPause = localStorage.getItem('MOD_setPauseWhenWinUnfocused');
   if (needPause=="true"){
-    if (CircuitJS1.isRunning()) losesFocusPause=true;
+    if (typeof CircuitJS1 !== 'undefined' && CircuitJS1.isRunning && CircuitJS1.isRunning()) {
+      losesFocusPause=true;
       CircuitJS1.setSimRunning(false);
       SetBtnsStyle();
+    }
   }
 }
 window.addEventListener("focus", onWinFocus);
@@ -54,34 +61,49 @@ window.addEventListener("blur", onWinBlur);
 // For modDialog:
 
 function setScaleUI(){
-  let scale = document.getElementById("scaleUI").value;
-  nw.Window.get().zoomLevel = parseFloat(scale);
+  try {
+    let scale = document.getElementById("scaleUI").value;
+    let zoomValue = parseFloat(scale); // Convert to CSS zoom range
+    document.body.style.zoom = zoomValue;
+    console.log("UI zoom set to:", zoomValue);
+  } catch (e) {
+    console.warn('Failed to set UI zoom:', e);
+  }
 }
 
 function getScaleInfo(){
   let scaleString = document.querySelector('.scaleInfo');
-  let scale = document.getElementById("scaleUI").value;
-  scaleString.textContent = parseInt(scale*100+100)+"%";
+  let scale = document.getElementById("scaleUI");
+  if (scaleString && scale) {
+    scaleString.textContent = parseInt(scale.value*100)+"%";
+  }
 }
 
 function setAllAbsBtnsTopPos (top) {
   let triggerLabel = document.querySelector(".triggerLabel");
   //let absBtns = document.querySelectorAll(".btn-top-pos");
-  triggerLabel.style.top = top;
+  if (triggerLabel) {
+    triggerLabel.style.top = top;
+  }
 
   //absBtns[0].style.setProperty('top', top, 'important');
   //absBtns[1].style.setProperty('top', top, 'important');
   // it does not work at the first start
   // attempt 2:
 
-  const stylesheet = document.styleSheets[2];
-  let absBtns;
-  for(let i = 0; i < stylesheet.cssRules.length; i++) {
-    if(stylesheet.cssRules[i].selectorText === '.btn-top-pos') {
-      absBtns = stylesheet.cssRules[i];
+  if (document.styleSheets && document.styleSheets[2]) {
+    const stylesheet = document.styleSheets[2];
+    let absBtns;
+    for(let i = 0; i < stylesheet.cssRules.length; i++) {
+      if(stylesheet.cssRules[i].selectorText === '.btn-top-pos') {
+        absBtns = stylesheet.cssRules[i];
+        break;
+      }
+    }
+    if (absBtns) {
+      absBtns.style.setProperty('top', top, 'important');
     }
   }
-  absBtns.style.setProperty('top', top, 'important');
   // It worked!
 }
 
@@ -96,31 +118,32 @@ function SetBtnsStyle() {
   let RunStopBtn = document.getElementsByClassName("run-stop-btn")[0];
   let ResetBtn = document.getElementsByClassName("reset-btn")[0];
 
-  if (document.getElementById("trigger").checked == true){
-    RunStopBtn.style.display = "none";
-    ResetBtn.style.display = "none";
+  if (document.getElementById("trigger") && document.getElementById("trigger").checked == true){
+    if (RunStopBtn) RunStopBtn.style.display = "none";
+    if (ResetBtn) ResetBtn.style.display = "none";
   } else {
     if (hideAbsBtns=="false"){
       setTimeout(() => {
-        RunStopBtn.style.display = "block";
-        ResetBtn.style.display = "block";
+        if (RunStopBtn) RunStopBtn.style.display = "block";
+        if (ResetBtn) ResetBtn.style.display = "block";
       }, 1100);
     }
   }
 
-  if (CircuitJS1.isRunning() == false) {
-    RunStopBtn.innerHTML = '&#xE801;'; // \e801
-    if(RunStopBtn.classList.contains('modDefaultRunStopBtn')){
-      RunStopBtn.style.color = "green";
-      RunStopBtn.style.borderColor = "green";
-    }
-  } else {
-    if (absBtnIcon=="pause") RunStopBtn.innerHTML = '&#xE802;';
-    else RunStopBtn.innerHTML = '&#xE800;';
-    if(RunStopBtn.classList.contains('modDefaultRunStopBtn')){
-      RunStopBtn.style.color = "red";
-      RunStopBtn.style.borderColor = "red";
+  if (RunStopBtn && typeof CircuitJS1 !== 'undefined' && CircuitJS1.isRunning) {
+    if (CircuitJS1.isRunning() == false) {
+      RunStopBtn.innerHTML = '&#xE801;'; // \e801
+      if(RunStopBtn.classList.contains('modDefaultRunStopBtn')){
+        RunStopBtn.style.color = "green";
+        RunStopBtn.style.borderColor = "green";
+      }
+    } else {
+      if (absBtnIcon=="pause") RunStopBtn.innerHTML = '&#xE802;';
+      else RunStopBtn.innerHTML = '&#xE800;';
+      if(RunStopBtn.classList.contains('modDefaultRunStopBtn')){
+        RunStopBtn.style.color = "red";
+        RunStopBtn.style.borderColor = "red";
+      }
     }
   }
 }
-

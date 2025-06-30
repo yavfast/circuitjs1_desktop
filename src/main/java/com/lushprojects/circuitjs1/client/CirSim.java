@@ -121,7 +121,6 @@ public class CirSim implements NativePreviewHandler {
 
     Frame iFrame = null;
 
-    @Deprecated
     static CirSim theSim;
 
     static native float devicePixelRatio() /*-{
@@ -201,22 +200,15 @@ public class CirSim implements NativePreviewHandler {
     }
 
     static native float getDefaultScale() /*-{
-		$wnd.nw.Screen.Init();
-		var dwidth = $wnd.nw.Screen.screens[0].bounds.width;
-		var defaultScale;
-		if (dwidth >= 1960)
-			defaultScale = 1.6; // 2-0.4 and etc.
-		else if (dwidth >= 1752 && dwidth < 1960)
-			defaultScale = 1.1; // -0.4
-		else if (dwidth >= 1600 && dwidth < 1752)
-			defaultScale = 0.7; // -0.3
-		else if (dwidth >= 1460 && dwidth < 1600)
-			defaultScale = 0.3; // -0.2
-		else if (dwidth >= 1200 && dwidth < 1460)
-			defaultScale = -0.1; // -0.1
-		else if (dwidth < 1200)
-			defaultScale = -0.3;
-		return defaultScale;
+		try {
+			var scrWidth = $wnd.screen.width;
+			var defaultScale = 1.0;
+			// TODO:
+			return defaultScale;
+		} catch (e) {
+			console.warn('Failed to get screen info:', e);
+			return 1.0; // Fallback for any errors
+		}
 	}-*/;
 
     public static native void setSidebarAnimation(String duration, String speedcurve) /*-{
@@ -254,8 +246,8 @@ public class CirSim implements NativePreviewHandler {
 
         if (MOD_UIScale == null) {
             lstor.setItem("MOD_UIScale", Float.toString(getDefaultScale()));
-            executeJS("nw.Window.get().zoomLevel = " + getDefaultScale());
-        } else executeJS("nw.Window.get().zoomLevel = " + MOD_UIScale);
+            executeJS("document.body.style.zoom = " + getDefaultScale() + ";");
+        } else executeJS("document.body.style.zoom = " + Float.parseFloat(MOD_UIScale) + ";");
         if (MOD_TopMenuBar == null) lstor.setItem("MOD_TopMenuBar", "standart");
         else if (MOD_TopMenuBar == "small") {
             MENU_BAR_HEIGHT = 20;
@@ -802,44 +794,58 @@ public class CirSim implements NativePreviewHandler {
 		var newTitle = "CircuitJS1 Desktop Mod";
 		var filename = @com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName;
 		var changed = (isCircuitChanged) ? "*" : "";
-		if (filename!=null) $doc.title = changed+filename+" - "+newTitle;
-		else $doc.title = $wnd.nw.App.manifest.window.title;
+		if (filename!=null) {
+			$doc.title = changed+filename+" - "+newTitle;
+		} else {
+			$doc.title = newTitle;
+		}
 	}-*/;
 
     static native void nodeSave(String path, String dump) /*-{
-		var fs = $wnd.nw.require('fs');
-		fs.writeFile(path, dump, function(err) {
-			if(err) {
-						return console.log(err);
-					}
-			console.log("The file was saved!");
-			});
+		// Use standard download approach instead of nw.js file system
+		try {
+			var blob = new Blob([dump], {type: 'text/plain;charset=utf-8'});
+			var url = $wnd.URL.createObjectURL(blob);
+			var link = $doc.createElement('a');
+			link.href = url;
+			link.download = path.substring(path.lastIndexOf('/') + 1).substring(path.lastIndexOf('\\') + 1) || 'circuit.txt';
+			link.style.display = 'none';
+			$doc.body.appendChild(link);
+			link.click();
+			$doc.body.removeChild(link);
+			$wnd.URL.revokeObjectURL(url);
+			console.log("File download initiated!");
+		} catch (e) {
+			console.warn('Failed to download file:', e);
+		}
     }-*/;
 
     static native void nodeSaveAs(String dump, String fileName) /*-{
-		var saveasInput = $doc.createElement("input");
-		saveasInput.setAttribute('type', 'file');
-		saveasInput.setAttribute('nwsaveas', fileName);
-		saveasInput.style = "display:none";
-		$doc.body.appendChild(saveasInput);
-		saveasInput.click();
-		saveasInput.addEventListener('cancel', function(){
-		// oncancel don't work. The element will not be deleted but we can still work with this
-		// https://github.com/nwjs/nw.js/issues/7658
-			saveasInput.remove()
-		});
-		saveasInput.addEventListener('change', function(){
-			// AI_THINK: Fixed to access circuitInfo fields through theSim instance instead of non-existent static fields
-			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::filePath = saveasInput.value;
-			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName = saveasInput.files[0].name;
-			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::lastFileName = saveasInput.files[0].name;
-			@com.lushprojects.circuitjs1.client.CirSim::nodeSave(Ljava/lang/String;Ljava/lang/String;)(saveasInput.value, dump);
-			console.log(saveasInput.value);
-			console.log(saveasInput.files[0].name);
-			if (saveasInput.value!=null) $wnd.CircuitJS1.allowSave(true);
-			saveasInput.remove();
+		// Use standard download with file picker dialog fallback
+		try {
+			var blob = new Blob([dump], {type: 'text/plain;charset=utf-8'});
+			var url = $wnd.URL.createObjectURL(blob);
+			var link = $doc.createElement('a');
+			link.href = url;
+			link.download = fileName || 'circuit.txt';
+			link.style.display = 'none';
+			$doc.body.appendChild(link);
+			link.click();
+			$doc.body.removeChild(link);
+			$wnd.URL.revokeObjectURL(url);
+
+			// Update circuit info for browser environment
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName = fileName;
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::lastFileName = fileName;
+
+			if ($wnd.CircuitJS1 && $wnd.CircuitJS1.allowSave) {
+				$wnd.CircuitJS1.allowSave(true);
+			}
 			@com.lushprojects.circuitjs1.client.CirSim::changeWindowTitle(Z)(false);
-		});
+			console.log("File download completed: " + fileName);
+		} catch (e) {
+			console.warn('Failed to download file:', e);
+		}
     }-*/;
 
     // JSInterface
@@ -852,6 +858,7 @@ public class CirSim implements NativePreviewHandler {
         theSim.repaint();
     }
 
+    // JSInterface
     static void electronSaveCallback() {
         theSim.circuitInfo.savedFlag = true;
         theSim.repaint();
@@ -871,6 +878,7 @@ public class CirSim implements NativePreviewHandler {
         @com.lushprojects.circuitjs1.client.CirSim::electronSaveCallback()();
     }-*/;
 
+    // JSInterface
     static void electronOpenFileCallback(String text, String name) {
         theSim.loadFileInput.doLoadCallback(text, name);
         theSim.allowSave(true);
@@ -1033,7 +1041,6 @@ public class CirSim implements NativePreviewHandler {
         verticalPanel2.remove(w);
     }
 
-
     native boolean weAreInUS(boolean orCanada) /*-{
     try {
 	l = navigator.languages ? navigator.languages[0] : (navigator.language || navigator.userLanguage) ;
@@ -1058,21 +1065,12 @@ public class CirSim implements NativePreviewHandler {
 
     // For debugging
     void dumpNodelist() {
-
         CircuitNode nd;
         CircuitElm e;
         int i, j;
         String s;
         String cs;
-//
-//	for(i=0; i<nodeList.size(); i++) {
-//	    s="Node "+i;
-//	    nd=nodeList.get(i);
-//	    for(j=0; j<nd.links.size();j++) {
-//		s=s+" " + nd.links.get(j).num + " " +nd.links.get(j).elm.getDumpType();
-//	    }
-//	    console(s);
-//	}
+
         console("Elm list Dump");
         for (i = 0; i < simulator.elmList.size(); i++) {
             e = simulator.elmList.get(i);
@@ -1160,7 +1158,6 @@ public class CirSim implements NativePreviewHandler {
     static final int CAC_PRINT = 0;
     static final int CAC_IMAGE = 1;
     static final int CAC_SVG = 2;
-
 
     // create SVG context using canvas2svg
     native static Context2d createSVGContext(int w, int h) /*-{
@@ -1259,7 +1256,6 @@ public class CirSim implements NativePreviewHandler {
             hook($wnd.CircuitJS1);
     }-*/;
 
-
     native void callTimeStepHook() /*-{
 	    var hook = $wnd.CircuitJS1.ontimestep;
 	    if (hook)
@@ -1277,7 +1273,7 @@ public class CirSim implements NativePreviewHandler {
             return;
         }
 
-        // AI_THINK: Calculate available height for the log panel based on current layout
+        // Calculate available height for the log panel based on current layout
         int totalHeight = RootLayoutPanel.get().getOffsetHeight();
         int availableHeight = totalHeight - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
         if (menuManager.toolbarCheckItem.getState())
@@ -1290,4 +1286,3 @@ public class CirSim implements NativePreviewHandler {
         repaint();
     }
 }
-
