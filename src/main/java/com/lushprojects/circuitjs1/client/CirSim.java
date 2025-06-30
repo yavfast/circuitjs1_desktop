@@ -571,16 +571,15 @@ public class CirSim implements NativePreviewHandler {
 
         circuitInfo.developerMode = enabled;
 
-        // TODO: Fix developer mode switch
-//        boolean logPanelPresent = layoutPanel.getWidgetIndex(logManager.logPanel) != -1;
-//        if (enabled && !logPanelPresent) {
-//            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
-//        } else if (!enabled && logPanelPresent) {
-//            layoutPanel.remove(logManager.logPanel);
-//        }
-//
-//        setCanvasSize();
-//        repaint();
+        boolean logPanelPresent = layoutPanel.getWidgetIndex(logManager.logPanel) != -1;
+        if (enabled && !logPanelPresent) {
+            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
+        } else if (!enabled && logPanelPresent) {
+            layoutPanel.remove(logManager.logPanel);
+        }
+
+        setCanvasSize();
+        repaint();
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {

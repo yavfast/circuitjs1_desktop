@@ -154,7 +154,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         checkCanvasSize();
 
         CircuitSimulator simulator = simulator();
-// Analyze circuit
+        // Analyze circuit
         boolean didAnalyze = analyzeFlag;
         if (analyzeFlag || cirSim.circuitInfo.dcAnalysisFlag) {
             perfmon.startContext("analyzeCircuit()");
@@ -265,22 +265,22 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         CircuitEditor circuitEditor = circuitEditor();
         // Draw posts normally
-        if (circuitEditor.mouseMode != circuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != circuitEditor.MODE_DRAG_COLUMN) {
+        if (circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_COLUMN) {
             for (int i = 0; i != simulator.postDrawList.size(); i++)
                 CircuitElm.drawPost(g, simulator.postDrawList.get(i));
         }
 
         // for some mouse modes, what matters is not the posts but the endpoints (which
         // are only the same for 2-terminal elements). We draw those now if needed
-        if (circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_ROW ||
-                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_COLUMN ||
-                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_POST ||
-                circuitEditor.tempMouseMode == circuitEditor.MODE_DRAG_SELECTED) {
+        if (circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_ROW ||
+                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_COLUMN ||
+                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_POST ||
+                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_SELECTED) {
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm ce = simulator.elmList.get(i);
                 // ce.drawPost(g, ce.x , ce.y );
                 // ce.drawPost(g, ce.x2, ce.y2);
-                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != circuitEditor.MODE_DRAG_POST) {
+                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != CircuitEditor.MODE_DRAG_POST) {
                     g.setColor(Color.gray);
                     g.fillOval(ce.x - 3, ce.y - 3, 7, 7);
                     g.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
@@ -291,7 +291,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         // draw handles for elm we're creating
-        if (circuitEditor.tempMouseMode == circuitEditor.MODE_SELECT && circuitEditor.mouseElm != null) {
+        if (circuitEditor.tempMouseMode == CircuitEditor.MODE_SELECT && circuitEditor.mouseElm != null) {
             circuitEditor.mouseElm.drawHandles(g, CircuitElm.selectColor);
         }
 

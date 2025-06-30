@@ -11,7 +11,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 	<dependency>
 		<groupId>com.google.gwt</groupId>
 		<artifactId>gwt</artifactId>
-		<version>2.8.2</version>
+		<version>2.10.0</version>
 		<type>pom</type>
 		<scope>import</scope>
 	</dependency>
@@ -20,11 +20,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <properties>
 	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-	<!-- Setting maven.compiler.source to something different to 1.8
-		needs that you configure the sourceLevel in gwt-maven-plugin since
-		GWT compiler 2.8 requires 1.8 (see gwt-maven-plugin block below) -->
-	<maven.compiler.source>1.8</maven.compiler.source>
-	<maven.compiler.target>1.8</maven.compiler.target>
+	<!-- Updated to Java 11 for better compatibility -->
+	<maven.compiler.source>11</maven.compiler.source>
+	<maven.compiler.target>11</maven.compiler.target>
 
 	<!-- Don't let your Mac use a crazy non-standard encoding -->
 	<!-- generating dependency report is slow; disable it -->
@@ -53,17 +51,17 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <plugin>
 	<groupId>org.apache.maven.plugins</groupId>
 	<artifactId>maven-compiler-plugin</artifactId>
-	<version>3.7.0</version>
+	<version>3.11.0</version>
 	<configuration>
-		<source>1.8</source>
-		<target>1.8</target>
+		<source>11</source>
+		<target>11</target>
 	</configuration>
 </plugin>
 
 <plugin>
 	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-source-plugin</artifactId> <!-- artifact with sources is easier to handle during development -->
-	<version>3.0.1</version>
+	<artifactId>maven-source-plugin</artifactId>
+	<version>3.3.0</version>
 	<executions>
 		<execution>
 			<id>attach-sources</id>
@@ -78,7 +76,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <plugin>
 	<groupId>org.apache.maven.plugins</groupId>
 	<artifactId>maven-site-plugin</artifactId>
-	<version>3.7</version>
+	<version>3.12.1</version>
 	<executions>
 		<execution>
 			<id>deploy</id>
@@ -97,7 +95,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <plugin>
 	<groupId>org.apache.maven.plugins</groupId>
 	<artifactId>maven-project-info-reports-plugin</artifactId>
-	<version>2.9</version>
+	<version>3.4.5</version>
 	<configuration><!-- we don't need those reports; disabling speeds up build -->
 		<dependencyDetailsEnabled>false</dependencyDetailsEnabled>
 		<dependencyLocationsEnabled>false</dependencyLocationsEnabled>
@@ -108,7 +106,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <plugin>
 <groupId>net.ltgt.gwt.maven</groupId>
 <artifactId>gwt-maven-plugin</artifactId>
-<version>1.0-rc-9</version>
+<version>1.1.0</version>
 <executions>
 	<execution>
 	<goals>
@@ -123,9 +121,8 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 	<localWorkers>0.5C</localWorkers>
 	<warName>circuitjs</warName>
 	<failOnError>true</failOnError>
-	<!-- GWT compiler 2.8 requires 1.8, hence define sourceLevel here if you use
-		a different source language for java compilation -->
-	<sourceLevel>1.8</sourceLevel>
+	<!-- Updated to Java 11 for better compatibility -->
+	<sourceLevel>11</sourceLevel>
 	<!-- Compiler configuration -->
 	<compilerArgs>
 	<!-- Ask GWT to create the Story of Your Compile (SOYC) (gwt:compile) -->
@@ -148,7 +145,7 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 <!-- copy a few things around before packaging the website -->
 <plugin>
 <artifactId>maven-resources-plugin</artifactId>
-<version>3.0.2</version>
+<version>3.3.1</version>
 <executions>
 <execution>
 	<id>copy-resources</id>
@@ -195,18 +192,9 @@ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xs
 
 <plugin>
 	<artifactId>maven-war-plugin</artifactId>
-	<version>3.3.2</version> <!-- For jdk > 1.8 -->
+	<version>3.4.0</version>
 	<configuration>
 		<failOnMissingWebXml>false</failOnMissingWebXml>
-	</configuration>
-</plugin>
-
-<!-- Skip normal test execution, we use gwt:test instead -->
-<plugin>
-	<artifactId>maven-surefire-plugin</artifactId>
-	<version>2.18</version>
-	<configuration>
-	<skip>true</skip>
 	</configuration>
 </plugin>
 

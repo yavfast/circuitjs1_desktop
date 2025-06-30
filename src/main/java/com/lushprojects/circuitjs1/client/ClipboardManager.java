@@ -50,6 +50,7 @@ public class ClipboardManager {
         internalClipboard = data;
 
         // Try to write to system clipboard
+        CirSim.console("hasSystemClipboardSupport: " + hasSystemClipboardSupport);
         if (hasSystemClipboardSupport) {
             writeToSystemClipboard(data);
         } else {
@@ -83,6 +84,7 @@ public class ClipboardManager {
      * Enhanced paste method that tries system clipboard first
      */
     public void doPasteFromSystem() {
+        CirSim.console("hasSystemClipboardSupport: " + hasSystemClipboardSupport);
         if (hasSystemClipboardSupport) {
             readFromSystemClipboard(new ClipboardCallback() {
                 @Override

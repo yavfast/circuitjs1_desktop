@@ -65,6 +65,51 @@ public class BaseCircuitElm {
     }
 
     /**
+     * Formats a number with specified decimal places.
+     *
+     * @param value the number to format
+     * @param decimalPlaces number of decimal places to show
+     * @return formatted number string with specified decimal places
+     */
+    public static String formatNumber(double value, int decimalPlaces) {
+        if (decimalPlaces < 0) {
+            decimalPlaces = 0;
+        }
+
+        // Calculate multiplier for rounding (10^decimalPlaces)
+        long multiplier = 1;
+        for (int i = 0; i < decimalPlaces; i++) {
+            multiplier *= 10;
+        }
+
+        long rounded = Math.round(value * multiplier);
+        long integerPart = rounded / multiplier;
+        long decimalPart = Math.abs(rounded % multiplier);
+
+        if (decimalPlaces == 0) {
+            return String.valueOf(integerPart);
+        }
+
+        // Format decimal part with leading zeros
+        String decimalStr = String.valueOf(decimalPart);
+        while (decimalStr.length() < decimalPlaces) {
+            decimalStr = "0" + decimalStr;
+        }
+
+        return integerPart + "." + decimalStr;
+    }
+
+    /**
+     * Formats a number with 2 decimal places (backward compatibility).
+     *
+     * @param value the number to format
+     * @return formatted number string with 2 decimal places
+     */
+    static String formatNumber(double value) {
+        return formatNumber(value, 2);
+    }
+
+    /**
      * Compares two pairs of integers to see if they match in any order.
      *
      * @param x1 first element of first pair

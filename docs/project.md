@@ -29,7 +29,6 @@
 - `docs/` — Project documentation (this file, guides, etc.).
 - `scripts/` — Development and build scripts (Node.js, shell scripts).
 - `icons/` — Application icons for various platforms.
-- `Inno Setup/` — Scripts and resources for building Windows installers.
 - `templates/` — Localization templates for different languages.
 - `tests/` — Test circuit files for simulation validation.
 - `target/` — Maven build output (JAR, WAR, compiled classes).

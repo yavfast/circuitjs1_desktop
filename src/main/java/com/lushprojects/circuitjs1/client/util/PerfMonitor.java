@@ -1,5 +1,8 @@
 package com.lushprojects.circuitjs1.client.util;
 
+import com.lushprojects.circuitjs1.client.BaseCircuitElm;
+import com.lushprojects.circuitjs1.client.CircuitElm;
+
 import java.util.HashMap;
 import java.util.Set;
 
@@ -54,7 +57,7 @@ public class PerfMonitor {
         }
         sb.append(name);
         sb.append(": ");
-        sb.append(entry.length);
+        sb.append(BaseCircuitElm.formatNumber(entry.length, 2));
         sb.append("\n");
         Set<String> keys = entry.children.keySet();
         for (String key : keys) {
