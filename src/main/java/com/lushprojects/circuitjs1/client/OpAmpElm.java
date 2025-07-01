@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class OpAmpElm extends CircuitElm {
     int opsize, opheight, opwidth, opaddtext;
     double maxOut, minOut, gain, gbw;

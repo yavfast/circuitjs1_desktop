@@ -22,7 +22,7 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-class Checkbox extends CheckBox {
+public class Checkbox extends CheckBox {
     public Checkbox(String s) {
         super(Locale.LS(s));
     }

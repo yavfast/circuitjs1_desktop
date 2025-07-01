@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class DACElm extends ChipElm {
     public DACElm(int xx, int yy) {
         super(xx, yy);

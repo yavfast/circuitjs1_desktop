@@ -17,15 +17,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     double timeStep;
     // maximum timestep (== timeStep unless we reduce it because of trouble
     // converging)
-    double maxTimeStep;
-    double minTimeStep;
+    public double maxTimeStep;
+    public double minTimeStep;
     // accumulated time since we incremented timeStepCount
     double timeStepAccum;
     // incremented each time we advance t by maxTimeStep
     int timeStepCount;
 
-    double minFrameRate = 20;
-    boolean adjustTimeStep;
+    public double minFrameRate = 20;
+    public boolean adjustTimeStep;
     Vector<CircuitElm> elmList;
     CircuitElm[] elmArr;
     ScopeElm[] scopeElmArr;

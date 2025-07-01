@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class AnalogSwitchElm extends CircuitElm {
     final int FLAG_INVERT = 1;
     final int FLAG_PULLDOWN = 2;

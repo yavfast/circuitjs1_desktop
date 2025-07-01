@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class SevenSegElm extends ChipElm {
     // base segment count not including decimal point or colon
     int baseSegmentCount;
@@ -225,7 +227,7 @@ class SevenSegElm extends ChipElm {
         return diodeDirection != 0;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
         g.setColor(Color.red);
         int spx = cspc * 2;

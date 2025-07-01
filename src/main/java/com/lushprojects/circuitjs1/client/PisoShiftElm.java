@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class PisoShiftElm extends ChipElm {
     final int FLAG_NEW_BEHAVIOR = 2; //SER and no extra output register
 

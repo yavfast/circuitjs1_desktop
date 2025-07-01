@@ -20,6 +20,9 @@ import static com.google.gwt.event.dom.client.KeyCodes.KEY_Z;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.dialog.Dialog;
+import com.lushprojects.circuitjs1.client.dialog.ExportAsLocalFileDialog;
+import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ActionManager extends BaseCirSimDelegate {
@@ -490,7 +493,7 @@ public class ActionManager extends BaseCirSimDelegate {
         return dump;
     }
 
-    String dumpCircuit() {
+    public String dumpCircuit() {
         int i;
         CustomLogicModel.clearDumpedFlags();
         CustomCompositeModel.clearDumpedFlags();

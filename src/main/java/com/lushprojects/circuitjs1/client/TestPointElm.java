@@ -22,6 +22,8 @@ package com.lushprojects.circuitjs1.client;
     
 */
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TestPointElm extends CircuitElm {
     int meter;
     final int TP_VOL = 0;

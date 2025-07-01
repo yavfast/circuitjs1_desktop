@@ -19,8 +19,10 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 // SPST switch
-class SwitchElm extends CircuitElm {
+public class SwitchElm extends CircuitElm {
     boolean momentary;
     // position 0 == closed, position 1 == open
     int position, posCount;

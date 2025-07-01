@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class SweepElm extends CircuitElm {
     double maxV, maxF, minF, sweepTime, frequency;
     final int FLAG_LOG = 1;

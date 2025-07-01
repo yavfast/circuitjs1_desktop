@@ -55,11 +55,11 @@ public class Scrollbar extends Composite implements
         ClickHandler, MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler,
         MouseWheelHandler, TouchStartHandler, TouchCancelHandler, TouchEndHandler, TouchMoveHandler {
 
-    static int HORIZONTAL = 1;
-    static int HMARGIN = 2;
-    static int SCROLLHEIGHT = 14;
-    static int BARWIDTH = 3;
-    static int BARMARGIN = 3;
+    public static int HORIZONTAL = 1;
+    public static int HMARGIN = 2;
+    public static int SCROLLHEIGHT = 14;
+    public static int BARWIDTH = 3;
+    public static int BARMARGIN = 3;
 
     Canvas can;
     VerticalPanel pan;

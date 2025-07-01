@@ -22,6 +22,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TriStateElm extends CircuitElm {
     double resistance, r_on, r_off, r_off_ground, highVoltage;
 

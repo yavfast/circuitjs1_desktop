@@ -24,16 +24,16 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArrayString;
-import com.google.gwt.i18n.client.NumberFormat;
 import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Random;
-import com.lushprojects.circuitjs1.client.util.Locale;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.dialog.Editable;
 
 import java.util.Vector;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
-    static double voltageRange = 5;
+    public static double voltageRange = 5;
     static int colorScaleCount = 201; // odd so ground = gray 
     static Color[] colorScale;
     static double currentMult, powerMult;
@@ -55,7 +55,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     int x, y;
 
     // point to which user dragged out element.  For simple two-terminal elements, this is the second node/post
-    int x2, y2;
+    public int x2, y2;
 
     int flags;
     int[] nodes;
@@ -78,10 +78,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     Point lead1, lead2;
 
     // voltages at each node
-    double[] volts;
+    public double[] volts;
 
     double current, curcount;
-    Rectangle boundingBox;
+    public Rectangle boundingBox;
 
     // if subclasses set this to true, element will be horizontal or vertical only 
     boolean noDiagonal;
@@ -135,7 +135,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
     }
 
-    static void setColorScale() {
+    public static void setColorScale() {
         if (positiveColor == null)
             positiveColor = Color.green;
         if (negativeColor == null)

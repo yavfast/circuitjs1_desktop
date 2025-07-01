@@ -7,6 +7,7 @@ import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Date;
@@ -22,7 +23,7 @@ public class AudioOutputElm extends CircuitElm {
     double sampleStep;
     double dataStart;
     static int lastSamplingRate = 8000;
-    static boolean okToChangeTimeStep;
+    public static boolean okToChangeTimeStep;
 
     public AudioOutputElm(int xx, int yy) {
         super(xx, yy);

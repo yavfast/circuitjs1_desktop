@@ -3,17 +3,17 @@ package com.lushprojects.circuitjs1.client;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 // plot of single value on a scope
-class ScopePlot {
+public class ScopePlot {
     double[] minValues;
     double[] maxValues;
     int scopePointCount;
     int ptr; // ptr is pointer to the current sample
     int value; // Value - the property being shown - e.g. VAL_CURRENT
     // scopePlotSpeed is in sim timestep units per pixel
-    int scopePlotSpeed, units;
+    public int scopePlotSpeed, units;
     double lastUpdateTime;
     double lastValue;
-    String color;
+    public String color;
     CircuitElm elm;
     // Has a manual scale in "/div" format been put in by the user (as opposed to being
     // inferred from a "MaxValue" format or from an automatically calculated scale)?
@@ -21,8 +21,8 @@ class ScopePlot {
     // intention we should respect, or if we should try and populate reasonable values from
     // the data we have
     boolean manScaleSet = false;
-    double manScale = 1.0; // Units per division
-    int manVPosition = 0; // 0 is center of screen. +V_POSITION_STEPS/2 is top of screen
+    public double manScale = 1.0; // Units per division
+    public int manVPosition = 0; // 0 is center of screen. +V_POSITION_STEPS/2 is top of screen
     double gridMult;
     double plotOffset;
     boolean acCoupled = false;
@@ -138,18 +138,18 @@ class ScopePlot {
         }
     }
 
-    void setAcCoupled(boolean b) {
+    public void setAcCoupled(boolean b) {
         if (canAcCouple()) {
             acCoupled = b;
         } else
             acCoupled = false;
     }
 
-    boolean canAcCouple() {
+    public boolean canAcCouple() {
         return units == Scope.UNITS_V; // AC coupling is permitted if the plot is displaying volts
     }
 
-    boolean isAcCoupled() {
+    public boolean isAcCoupled() {
         return acCoupled;
     }
 

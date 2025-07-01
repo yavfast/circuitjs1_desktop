@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class GroundElm extends CircuitElm {
     static int lastSymbolType = 0;
     int symbolType;

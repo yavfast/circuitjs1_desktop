@@ -21,11 +21,12 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;
 
-class TransistorElm extends CircuitElm {
+public class TransistorElm extends CircuitElm {
     // node 0 = base
     // node 1 = collector
     // node 2 = emitter

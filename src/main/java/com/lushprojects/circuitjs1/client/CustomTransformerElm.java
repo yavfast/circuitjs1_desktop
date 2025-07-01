@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 class CustomTransformerElm extends CircuitElm {
     double coilCurrents[], coilInductances[], coilCurCounts[], coilCurSourceValues[], coilPolarities[];

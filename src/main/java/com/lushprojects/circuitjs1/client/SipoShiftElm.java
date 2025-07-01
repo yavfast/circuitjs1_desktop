@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class SipoShiftElm extends ChipElm {
     final int DATA_PIN_INDEX = 2; // the initial index of the register pins in the "pins" array
 

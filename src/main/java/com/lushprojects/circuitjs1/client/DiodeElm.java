@@ -21,11 +21,12 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;
 
-class DiodeElm extends CircuitElm {
+public class DiodeElm extends CircuitElm {
     Diode diode;
     static final int FLAG_FWDROP = 1;
     static final int FLAG_MODEL = 2;

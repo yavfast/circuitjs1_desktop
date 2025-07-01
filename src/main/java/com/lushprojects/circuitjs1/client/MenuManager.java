@@ -77,13 +77,13 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuBar circuitsMenuBar;
 
 
-    Vector<CheckboxMenuItem> mainMenuItems = new Vector<>();
-    Vector<String> mainMenuItemNames = new Vector<>();
+    public Vector<CheckboxMenuItem> mainMenuItems = new Vector<>();
+    public Vector<String> mainMenuItemNames = new Vector<>();
 
     boolean isMac;
     String ctrlMetaKey;
 
-    String[] shortcuts = new String[127];
+    public String[] shortcuts = new String[127];
 
     int menuPlot = -1;
 
@@ -864,7 +864,7 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     // save shortcuts to local storage
-    void saveShortcuts() {
+    public void saveShortcuts() {
         String str = "1";
         int i;
         // format: version;code1=ClassName;code2=ClassName;etc

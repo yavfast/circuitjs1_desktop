@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class InvertingSchmittElm extends CircuitElm {
     double slewRate; // V/ns
     double lowerTrigger;

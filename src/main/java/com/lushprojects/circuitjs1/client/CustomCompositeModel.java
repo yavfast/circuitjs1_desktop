@@ -9,42 +9,23 @@ import java.util.Map;
 import java.util.Vector;
 
 // model for subcircuits
-
-class ExtListEntry {
-    ExtListEntry(String s, int n) {
-        name = s;
-        node = n;
-        side = ChipElm.SIDE_W;
-    }
-
-    ExtListEntry(String s, int n, int p, int sd) {
-        name = s;
-        node = n;
-        pos = p;
-        side = sd;
-    }
-
-    String name;
-    int node, pos, side;
-};
-
 public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
 
     static HashMap<String, CustomCompositeModel> modelMap;
 
-    int flags, sizeX, sizeY;
-    String name;
+    public int flags, sizeX, sizeY;
+    public String name;
     String nodeList;
-    Vector<ExtListEntry> extList;
+    public Vector<ExtListEntry> extList;
     String elmDump;
-    String modelCircuit;
+    public String modelCircuit;
     boolean dumped;
     boolean internal; // don't show in list
     boolean builtin;  // included by default, don't allow deletion
     static int sequenceNumber;
     static final int FLAG_SHOW_LABEL = 1;
 
-    void setName(String n) {
+    public void setName(String n) {
         modelMap.remove(name);
         name = n;
         modelMap.put(name, this);
@@ -117,7 +98,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         }
     }
 
-    static Vector<CustomCompositeModel> getModelList() {
+    public static Vector<CustomCompositeModel> getModelList() {
         Vector<CustomCompositeModel> vector = new Vector<CustomCompositeModel>();
         Iterator it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
@@ -174,7 +155,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         elmDump = CustomLogicModel.unescape(st.nextToken());
     }
 
-    boolean isSaved() {
+    public boolean isSaved() {
         if (name == null)
             return false;
         Storage stor = Storage.getLocalStorageIfSupported();
@@ -183,7 +164,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return stor.getItem("subcircuit:" + name) != null;
     }
 
-    void setSaved(boolean sv) {
+    public void setSaved(boolean sv) {
         Storage stor = Storage.getLocalStorageIfSupported();
         if (stor == null)
             return;
@@ -206,15 +187,15 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return x;
     }
 
-    boolean showLabel() {
+    public boolean showLabel() {
         return (flags & FLAG_SHOW_LABEL) != 0;
     }
 
-    boolean isBuiltin() {
+    public boolean isBuiltin() {
         return builtin;
     }
 
-    void setShowLabel(boolean sl) {
+    public void setShowLabel(boolean sl) {
         flags = (sl) ? (flags | FLAG_SHOW_LABEL) : (flags & ~FLAG_SHOW_LABEL);
     }
 
@@ -242,7 +223,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return modelCircuit != null && modelCircuit.length() > 0;
     }
 
-    void remove() {
+    public void remove() {
         setSaved(false);
         modelMap.remove(name);
         sequenceNumber++;

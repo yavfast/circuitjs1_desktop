@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 abstract class GateElm extends CircuitElm {
     final int FLAG_SMALL = 1 << 0;
     final int FLAG_SCHMITT = 1 << 1;

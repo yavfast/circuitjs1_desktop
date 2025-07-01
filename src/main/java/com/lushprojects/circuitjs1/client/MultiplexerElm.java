@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class MultiplexerElm extends ChipElm {
     final int FLAG_INVERTED_OUTPUT = 1 << 1;
     final int FLAG_STROBE = 1 << 2;

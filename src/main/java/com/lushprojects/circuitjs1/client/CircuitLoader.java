@@ -212,7 +212,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         cirSim.setSlidersPanelHeight();
     }
 
-    void readCircuit(String text) {
+    public void readCircuit(String text) {
         readCircuit(text.getBytes(), 0);
         cirSim.titleLabel.setText(null);
         cirSim.setSlidersPanelHeight();

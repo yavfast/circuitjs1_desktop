@@ -4,7 +4,7 @@ import java.util.Vector;
 
 public class AdjustableManager extends BaseCirSimDelegate {
 
-    Vector<Adjustable> adjustables;
+    public Vector<Adjustable> adjustables;
 
     protected AdjustableManager(CirSim cirSim) {
         super(cirSim);
@@ -64,7 +64,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
     // reorder adjustables so that items with sliders come first in the list, followed by items that reference them.
     // this simplifies the UI code, and also makes it much easier to dump/undump the adjustables list, since we will
     // always be undumping the adjustables with sliders first, then the adjustables that reference them.
-    void reorderAdjustables() {
+    public void reorderAdjustables() {
         Vector<Adjustable> newList = new Vector<>();
         Vector<Adjustable> oldList = adjustables;
         int i;

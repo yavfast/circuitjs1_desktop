@@ -78,27 +78,27 @@ import java.util.HashMap;
 
 public class CirSim implements NativePreviewHandler {
 
-    static int MENU_BAR_HEIGHT = 30;
-    static int TOOLBAR_HEIGHT = 40;
-    static int VERTICAL_PANEL_WIDTH = 166; // default
-    static int INFO_WIDTH = 160;
+    public static int MENU_BAR_HEIGHT = 30;
+    public static int TOOLBAR_HEIGHT = 40;
+    public static int VERTICAL_PANEL_WIDTH = 166; // default
+    public static int INFO_WIDTH = 160;
 
-    final CircuitInfo circuitInfo = new CircuitInfo(this);
-    final LogManager logManager = new LogManager(this);
+    final public CircuitInfo circuitInfo = new CircuitInfo(this);
+    final public LogManager logManager = new LogManager(this);
 
-    final CircuitSimulator simulator = new CircuitSimulator(this);
-    final CircuitRenderer renderer = new CircuitRenderer(this);
+    final public CircuitSimulator simulator = new CircuitSimulator(this);
+    final public CircuitRenderer renderer = new CircuitRenderer(this);
 
-    final ScopeManager scopeManager = new ScopeManager(this);
-    final ClipboardManager clipboardManager = new ClipboardManager(this);
-    final DialogManager dialogManager = new DialogManager(this);
-    final MenuManager menuManager = new MenuManager(this);
-    final UndoManager undoManager = new UndoManager(this);
-    final AdjustableManager adjustableManager = new AdjustableManager(this);
-    final CircuitEditor circuitEditor = new CircuitEditor(this);
-    final ActionManager actionManager = new ActionManager(this);
-    final CircuitLoader circuitLoader = new CircuitLoader(this);
-    final LoadFile loadFileInput = new LoadFile(this);
+    final public ScopeManager scopeManager = new ScopeManager(this);
+    final public ClipboardManager clipboardManager = new ClipboardManager(this);
+    final public DialogManager dialogManager = new DialogManager(this);
+    final public MenuManager menuManager = new MenuManager(this);
+    final public UndoManager undoManager = new UndoManager(this);
+    final public AdjustableManager adjustableManager = new AdjustableManager(this);
+    final public CircuitEditor circuitEditor = new CircuitEditor(this);
+    final public ActionManager actionManager = new ActionManager(this);
+    final public CircuitLoader circuitLoader = new CircuitLoader(this);
+    final public LoadFile loadFileInput = new LoadFile(this);
 
     Toolbar toolbar;
 
@@ -116,12 +116,12 @@ public class CirSim implements NativePreviewHandler {
     Scrollbar currentBar;
     Scrollbar powerBar;
 
-    Button absResetBtn;
-    Button absRunStopBtn;
+    public Button absResetBtn;
+    public Button absRunStopBtn;
 
     Frame iFrame = null;
 
-    static CirSim theSim;
+    public static CirSim theSim;
 
     static native float devicePixelRatio() /*-{
         return window.devicePixelRatio;
@@ -199,7 +199,7 @@ public class CirSim implements NativePreviewHandler {
         return fname;
     }
 
-    static native float getDefaultScale() /*-{
+    public static native float getDefaultScale() /*-{
 		try {
 			var scrWidth = $wnd.screen.width;
 			var defaultScale = 1.0;
@@ -220,7 +220,7 @@ public class CirSim implements NativePreviewHandler {
 		sidebar.style.transition = (duration=="none") ? duration : "width"+split;
 	}-*/;
 
-    static int getAbsBtnsTopPos() {
+    public static int getAbsBtnsTopPos() {
         Storage lstor = Storage.getLocalStorageIfSupported();
         int top = 50;
         if (lstor.getItem("MOD_TopMenuBar") == "small") top -= 11;
@@ -616,7 +616,7 @@ public class CirSim implements NativePreviewHandler {
     // install touch handlers
     // don't feel like rewriting this in java.  Anyway, java doesn't let us create mouse
     // events and dispatch them.
-    native static void doTouchHandlers(CirSim sim, CanvasElement cv) /*-{
+    public native static void doTouchHandlers(CirSim sim, CanvasElement cv) /*-{
 	// Set up touch events for mobile, etc
 	var lastTap;
 	var tmout;
@@ -730,7 +730,7 @@ public class CirSim implements NativePreviewHandler {
         renderer.repaint();
     }
 
-    Color getBackgroundColor() {
+    public Color getBackgroundColor() {
         if (menuManager.printableCheckItem.getState())
             return Color.white;
         return Color.black;
@@ -740,7 +740,7 @@ public class CirSim implements NativePreviewHandler {
 		return $doc.getElementById("trigger").checked;
     }-*/;
 
-    void needAnalyze() {
+    public void needAnalyze() {
         renderer.analyzeFlag = true;
         repaint();
         enableDisableMenuItems();
@@ -912,12 +912,12 @@ public class CirSim implements NativePreviewHandler {
         actionManager.importCircuitFromText(circuitText, subcircuitsOnly);
     }
 
-    void allowSave(boolean b) {
+    public void allowSave(boolean b) {
         if (menuManager.saveFileItem != null)
             menuManager.saveFileItem.setEnabled(b);
     }
 
-    void setUnsavedChanges(boolean hasChanges) {
+    public void setUnsavedChanges(boolean hasChanges) {
         circuitInfo.unsavedChanges = hasChanges;
         changeWindowTitle(hasChanges);
     }
@@ -1155,9 +1155,9 @@ public class CirSim implements NativePreviewHandler {
         callSVGRenderedHook(svg);
     }
 
-    static final int CAC_PRINT = 0;
-    static final int CAC_IMAGE = 1;
-    static final int CAC_SVG = 2;
+    public static final int CAC_PRINT = 0;
+    public static final int CAC_IMAGE = 1;
+    public static final int CAC_SVG = 2;
 
     // create SVG context using canvas2svg
     native static Context2d createSVGContext(int w, int h) /*-{

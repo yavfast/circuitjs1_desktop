@@ -24,7 +24,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class Choice extends ListBox {
 
-    Choice() {
+    public Choice() {
         super();
     }
 

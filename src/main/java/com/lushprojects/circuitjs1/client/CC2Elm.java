@@ -82,7 +82,7 @@ class CC2Elm extends ChipElm {
         pins[2].current = pins[0].current * gain;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
     }
 

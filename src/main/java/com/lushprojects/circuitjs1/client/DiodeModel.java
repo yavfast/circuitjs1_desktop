@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.dialog.Editable;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Collections;
@@ -13,7 +15,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
     static HashMap<String, DiodeModel> modelMap;
 
     int flags;
-    String name, description;
+    public String name, description;
     double saturationCurrent, seriesResistance, emissionCoefficient, breakdownVoltage;
 
     // used for UI code, not guaranteed to be set
@@ -323,7 +325,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         flags = (s) ? FLAGS_SIMPLE : 0;
     }
 
-    void pickName() {
+    public void pickName() {
         if (breakdownVoltage > 0 && breakdownVoltage < 20)
             name = "zener-" + CircuitElm.showFormat(breakdownVoltage);
         else if (isSimple())

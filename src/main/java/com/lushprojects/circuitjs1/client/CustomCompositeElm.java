@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;
@@ -14,7 +15,7 @@ public class CustomCompositeElm extends CompositeElm {
     int postCount;
     int inputCount, outputCount;
     CustomCompositeModel model;
-    static String lastModelName = "default";
+    public static String lastModelName = "default";
     static final int FLAG_SMALL = 2;
 
     public CustomCompositeElm(int xx, int yy) {

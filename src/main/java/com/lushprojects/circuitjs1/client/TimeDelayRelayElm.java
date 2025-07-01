@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TimeDelayRelayElm extends ChipElm {
     double lastTransition;
     boolean poweredState;
@@ -93,7 +95,7 @@ class TimeDelayRelayElm extends ChipElm {
             onState = poweredState;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         pins[0].current = -(volts[0] - volts[1]) / vinResistance;
         pins[2].current = -(volts[2] - volts[3]) / resistance;
         pins[1].current = -pins[0].current;

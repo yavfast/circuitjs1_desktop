@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 class VCCSElm extends ChipElm {
@@ -171,7 +172,7 @@ class VCCSElm extends ChipElm {
         exprState.updateLastValues(pins[inputCount].current);
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
     }
 

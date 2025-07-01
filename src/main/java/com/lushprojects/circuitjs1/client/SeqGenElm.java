@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.ui.TextArea;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 import java.util.NoSuchElementException;
 

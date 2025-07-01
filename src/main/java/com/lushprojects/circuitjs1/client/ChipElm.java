@@ -19,7 +19,9 @@
 
 package com.lushprojects.circuitjs1.client;
 
-abstract class ChipElm extends CircuitElm {
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
+public abstract class ChipElm extends CircuitElm {
     int csize, cspc, cspc2;
     int bits;
     double highVoltage;
@@ -93,7 +95,7 @@ abstract class ChipElm extends CircuitElm {
 
     abstract void setupPins();
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
     }
 
@@ -171,8 +173,8 @@ abstract class ChipElm extends CircuitElm {
     }
 
     int rectPointsX[], rectPointsY[];
-    Pin pins[];
-    int sizeX, sizeY, flippedSizeX, flippedSizeY;
+    public Pin pins[];
+    public int sizeX, sizeY, flippedSizeX, flippedSizeY;
     boolean lastClock;
 
     void drag(int xx, int yy) {
@@ -192,7 +194,7 @@ abstract class ChipElm extends CircuitElm {
 
     int labelX, labelY;
 
-    void setPoints() {
+    public void setPoints() {
         if (x2 - x > sizeX * cspc2 && this == circuitEditor.dragElm)
             setSize(2);
         int x0 = x + cspc2;
@@ -236,7 +238,7 @@ abstract class ChipElm extends CircuitElm {
     }
 
     // see if we can move pin to position xp, yp, and return the new position
-    boolean getPinPos(int xp, int yp, int pin, int pos[]) {
+    public boolean getPinPos(int xp, int yp, int pin, int pos[]) {
         int x0 = x + cspc2;
         int y0 = y;
         int xr = x0 - cspc;
@@ -267,7 +269,7 @@ abstract class ChipElm extends CircuitElm {
         return true;
     }
 
-    int getOverlappingPin(int p1, int p2, int pin) {
+    public int getOverlappingPin(int p1, int p2, int pin) {
         for (int i = 0; i != getPostCount(); i++) {
             if (pin == i)
                 continue;
@@ -487,10 +489,10 @@ abstract class ChipElm extends CircuitElm {
         }
     }
 
-    static final int SIDE_N = 0;
-    static final int SIDE_S = 1;
-    static final int SIDE_W = 2;
-    static final int SIDE_E = 3;
+    public static final int SIDE_N = 0;
+    public static final int SIDE_S = 1;
+    public static final int SIDE_W = 2;
+    public static final int SIDE_E = 3;
 
     static final int sideFlipXY[] = {SIDE_W, SIDE_E, SIDE_N, SIDE_S};
 
@@ -539,18 +541,18 @@ abstract class ChipElm extends CircuitElm {
         setPoints();
     }
 
-    class Pin {
-        Pin(int p, int s, String t) {
+    public class Pin {
+        public Pin(int p, int s, String t) {
             pos = p;
             side0 = side = s;
             text = t;
         }
 
         Point post, stub;
-        Point textloc;
-        int pos, side, side0, voltSource, bubbleX, bubbleY;
+        public Point textloc;
+        public int pos, side, side0, voltSource, bubbleX, bubbleY;
         String text;
-        boolean lineOver, bubble, clock, output, value, state, selected;
+        public boolean lineOver, bubble, clock, output, value, state, selected;
         double curcount, current;
         int clockPointsX[], clockPointsY[];
 

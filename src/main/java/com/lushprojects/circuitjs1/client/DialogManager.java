@@ -1,6 +1,26 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.ui.DialogBox;
+import com.lushprojects.circuitjs1.client.dialog.AboutBox;
+import com.lushprojects.circuitjs1.client.dialog.Dialog;
+import com.lushprojects.circuitjs1.client.dialog.EditCompositeModelDialog;
+import com.lushprojects.circuitjs1.client.dialog.EditDialog;
+import com.lushprojects.circuitjs1.client.dialog.EditDiodeModelDialog;
+import com.lushprojects.circuitjs1.client.dialog.EditOptions;
+import com.lushprojects.circuitjs1.client.dialog.EditTransistorModelDialog;
+import com.lushprojects.circuitjs1.client.dialog.Editable;
+import com.lushprojects.circuitjs1.client.dialog.ExportAsImageDialog;
+import com.lushprojects.circuitjs1.client.dialog.ExportAsTextDialog;
+import com.lushprojects.circuitjs1.client.dialog.ExportAsUrlDialog;
+import com.lushprojects.circuitjs1.client.dialog.HelpDialog;
+import com.lushprojects.circuitjs1.client.dialog.ImportFromTextDialog;
+import com.lushprojects.circuitjs1.client.dialog.LicenseDialog;
+import com.lushprojects.circuitjs1.client.dialog.ModDialog;
+import com.lushprojects.circuitjs1.client.dialog.ScopePropertiesDialog;
+import com.lushprojects.circuitjs1.client.dialog.SearchDialog;
+import com.lushprojects.circuitjs1.client.dialog.ShortcutsDialog;
+import com.lushprojects.circuitjs1.client.dialog.SliderDialog;
+import com.lushprojects.circuitjs1.client.dialog.SubcircuitDialog;
 
 public class DialogManager extends BaseCirSimDelegate {
 

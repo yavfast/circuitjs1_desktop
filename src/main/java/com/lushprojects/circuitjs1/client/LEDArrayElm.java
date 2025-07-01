@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class LEDArrayElm extends ChipElm {
     public LEDArrayElm(int xx, int yy) {
         super(xx, yy);
@@ -96,7 +98,7 @@ class LEDArrayElm extends ChipElm {
         return false;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
         int ix, iy;
         for (ix = 0; ix != sizeX; ix++)

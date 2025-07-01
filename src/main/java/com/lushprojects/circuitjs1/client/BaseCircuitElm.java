@@ -14,8 +14,8 @@ public class BaseCircuitElm {
     static final int SCALE_M = 2;
     static final int SCALE_MU = 3;
 
-    static int decimalDigits;
-    static int shortDecimalDigits;
+    public static int decimalDigits;
+    public static int shortDecimalDigits;
 
     /**
      * Default constructor for BaseCircuitElm.
@@ -554,7 +554,7 @@ public class BaseCircuitElm {
      * @param u unit string
      * @return formatted string with appropriate unit prefix
      */
-    static String getUnitText(double v, String u) {
+    public static String getUnitText(double v, String u) {
         return getUnitText(v, u, false);
     }
 
@@ -565,7 +565,7 @@ public class BaseCircuitElm {
      * @param u unit string
      * @return formatted string with appropriate unit prefix (short format)
      */
-    static String getShortUnitText(double v, String u) {
+    public static String getShortUnitText(double v, String u) {
         return getUnitText(v, u, true);
     }
 

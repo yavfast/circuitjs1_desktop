@@ -5,6 +5,7 @@ import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Label;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 /*Bill Collis - June 2015 */

@@ -19,10 +19,10 @@ package com.lushprojects.circuitjs1.client;
 // Via http://grepcode.com/file_/repository.grepcode.com/java/root/jdk/openjdk/6-b14/java/awt/Rectangle.java/?v=source
 
 public class Rectangle {
-    int x;
-    int y;
-    int width;
-    int height;
+    public int x;
+    public int y;
+    public int width;
+    public int height;
 
     public Rectangle() {
         x = 0;

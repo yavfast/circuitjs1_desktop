@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TriodeElm extends CircuitElm {
     double mu, kg1;
     double curcountp, curcountc, curcountg, currentp, currentg, currentc;

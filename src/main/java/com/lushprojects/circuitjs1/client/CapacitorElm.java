@@ -19,9 +19,10 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-class CapacitorElm extends CircuitElm {
+public class CapacitorElm extends CircuitElm {
     double capacitance;
     double compResistance, voltdiff, seriesResistance;
     double initialVoltage;

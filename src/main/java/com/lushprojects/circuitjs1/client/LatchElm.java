@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class LatchElm extends ChipElm {
     final int FLAG_STATE = 2;
     final int FLAG_NO_EDGE = 4;

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class DecimalDisplayElm extends ChipElm {
     int bitCount;
 
@@ -43,7 +45,7 @@ class DecimalDisplayElm extends ChipElm {
         return "decimal display";
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         drawChip(g);
         int xl = x + cspc + flippedSizeX * cspc;
         int yl = y - cspc + flippedSizeY * cspc;

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 // much of this was adapted from Bill Collis's code in TestPointElm.java

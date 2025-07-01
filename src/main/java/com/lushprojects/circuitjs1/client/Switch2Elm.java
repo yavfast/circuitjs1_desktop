@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // SPDT switch
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class Switch2Elm extends SwitchElm {
     int link;
     int throwCount;

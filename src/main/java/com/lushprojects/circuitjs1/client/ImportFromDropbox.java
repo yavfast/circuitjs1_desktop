@@ -5,7 +5,7 @@ public class ImportFromDropbox {
 
     static CirSim sim;
 
-    ImportFromDropbox(CirSim asim) {
+    public ImportFromDropbox(CirSim asim) {
         sim = asim;
 //		CirSim.console("importing");
         doDropboxImport();

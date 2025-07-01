@@ -26,6 +26,8 @@ package com.lushprojects.circuitjs1.client;
 // 3, 1 = diode
 // 2, 1 = 50 ohm resistor
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class SCRElm extends CircuitElm {
     final int anode = 0;
     final int cnode = 1;

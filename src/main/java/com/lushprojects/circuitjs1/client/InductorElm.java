@@ -19,7 +19,9 @@
 
 package com.lushprojects.circuitjs1.client;
 
-class InductorElm extends CircuitElm {
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
+public class InductorElm extends CircuitElm {
     Inductor ind;
     double inductance;
     double initialCurrent;

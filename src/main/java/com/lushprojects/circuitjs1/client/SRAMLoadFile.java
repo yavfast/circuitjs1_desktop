@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditDialogLoadFile;
+
 public class SRAMLoadFile extends EditDialogLoadFile {
 
     public final native void handle()
@@ -27,7 +29,7 @@ public class SRAMLoadFile extends EditDialogLoadFile {
 		nFiles = oFiles.length;
 		if (nFiles>=1) {
 			if (oFiles[0].size >= 128000) {
-				@com.lushprojects.circuitjs1.client.EditDialogLoadFile::doErrorCallback(Ljava/lang/String;)("Cannot load: That file is too large!");
+				@com.lushprojects.circuitjs1.client.dialog.EditDialogLoadFile::doErrorCallback(Ljava/lang/String;)("Cannot load: That file is too large!");
 				return;
 			}
 			

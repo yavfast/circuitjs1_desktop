@@ -23,11 +23,12 @@ import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.storage.client.Storage;
+import com.lushprojects.circuitjs1.client.dialog.ScopePropertiesDialog;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;
 
-class Scope extends BaseCirSimDelegate {
+public class Scope extends BaseCirSimDelegate {
     final int FLAG_YELM = 32;
 
     // bunch of other flags go here, see getFlags()
@@ -39,42 +40,42 @@ class Scope extends BaseCirSimDelegate {
     final int FLAG_DIVISIONS = 1 << 21; // dump manDivisions
     // other flags go here too, see getFlags()
 
-    static final int VAL_POWER = 7;
-    static final int VAL_POWER_OLD = 1;
-    static final int VAL_VOLTAGE = 0;
-    static final int VAL_CURRENT = 3;
-    static final int VAL_IB = 1;
-    static final int VAL_IC = 2;
-    static final int VAL_IE = 3;
-    static final int VAL_VBE = 4;
-    static final int VAL_VBC = 5;
-    static final int VAL_VCE = 6;
-    static final int VAL_R = 2;
-    static final int UNITS_V = 0;
-    static final int UNITS_A = 1;
-    static final int UNITS_W = 2;
-    static final int UNITS_OHMS = 3;
-    static final int UNITS_COUNT = 4;
-    static final double multa[] = {2.0, 2.5, 2.0};
-    static final int V_POSITION_STEPS = 200;
-    static final double MIN_MAN_SCALE = 1e-9;
+    public static final int VAL_POWER = 7;
+    public static final int VAL_POWER_OLD = 1;
+    public static final int VAL_VOLTAGE = 0;
+    public static final int VAL_CURRENT = 3;
+    public static final int VAL_IB = 1;
+    public static final int VAL_IC = 2;
+    public static final int VAL_IE = 3;
+    public static final int VAL_VBE = 4;
+    public static final int VAL_VBC = 5;
+    public static final int VAL_VCE = 6;
+    public static final int VAL_R = 2;
+    public static final int UNITS_V = 0;
+    public static final int UNITS_A = 1;
+    public static final int UNITS_W = 2;
+    public static final int UNITS_OHMS = 3;
+    public static final int UNITS_COUNT = 4;
+    public static final double multa[] = {2.0, 2.5, 2.0};
+    public static final int V_POSITION_STEPS = 200;
+    public static final double MIN_MAN_SCALE = 1e-9;
     int scopePointCount = 128;
     FFT fft;
     int position;
     // speed is sim timestep units per pixel
-    int speed;
+    public int speed;
     int stackCount; // number of scopes in this column
     String text;
     Rectangle rect;
     private boolean manualScale;
-    boolean showI, showV, showScale, showMax, showMin, showFreq;
-    boolean plot2d;
-    boolean plotXY;
-    boolean maxScale;
+    public boolean showI, showV, showScale, showMax, showMin, showFreq;
+    public boolean plot2d;
+    public boolean plotXY;
+    public boolean maxScale;
 
-    boolean logSpectrum;
-    boolean showFFT, showNegative, showRMS, showAverage, showDutyCycle, showElmInfo;
-    Vector<ScopePlot> plots, visiblePlots;
+    public boolean logSpectrum;
+    public boolean showFFT, showNegative, showRMS, showAverage, showDutyCycle, showElmInfo;
+    public Vector<ScopePlot> plots, visiblePlots;
     int draw_ox, draw_oy;
     Canvas imageCanvas;
     Context2d imageContext;
@@ -90,7 +91,7 @@ class Scope extends BaseCirSimDelegate {
     String curColor, voltColor;
     double gridStepX, gridStepY;
     double maxValue, minValue;
-    int manDivisions; // Number of vertical divisions when in manual mode
+    public int manDivisions; // Number of vertical divisions when in manual mode
     static int lastManDivisions;
     boolean drawGridLines;
     boolean somethingSelected;
@@ -148,7 +149,7 @@ class Scope extends BaseCirSimDelegate {
             fft = null;
     }
 
-    void setManualScale(boolean value, boolean roundup) {
+    public void setManualScale(boolean value, boolean roundup) {
         if (value != manualScale)
             clear2dView();
         manualScale = value;
@@ -180,7 +181,7 @@ class Scope extends BaseCirSimDelegate {
         allocImage();
     }
 
-    void setManualScaleValue(int plotId, double d) {
+    public void setManualScaleValue(int plotId, double d) {
         if (plotId >= visiblePlots.size())
             return; // Shouldn't happen, but just in case...
         clear2dView();
@@ -188,21 +189,21 @@ class Scope extends BaseCirSimDelegate {
         visiblePlots.get(plotId).manScaleSet = true;
     }
 
-    double getScaleValue() {
+    public double getScaleValue() {
         if (visiblePlots.size() == 0)
             return 0;
         ScopePlot p = visiblePlots.get(0);
         return scale[p.units];
     }
 
-    String getScaleUnitsText() {
+    public String getScaleUnitsText() {
         if (visiblePlots.size() == 0)
             return "V";
         ScopePlot p = visiblePlots.get(0);
         return getScaleUnitsText(p.units);
     }
 
-    static String getScaleUnitsText(int units) {
+    public static String getScaleUnitsText(int units) {
         switch (units) {
             case UNITS_A:
                 return "A";
@@ -215,7 +216,7 @@ class Scope extends BaseCirSimDelegate {
         }
     }
 
-    void setManDivisions(int d) {
+    public void setManDivisions(int d) {
         manDivisions = lastManDivisions = d;
     }
 
@@ -364,15 +365,15 @@ class Scope extends BaseCirSimDelegate {
         setValue(val);
     }
 
-    void setText(String s) {
+    public void setText(String s) {
         text = s;
     }
 
-    String getText() {
+    public String getText() {
         return text;
     }
 
-    boolean showingValue(int v) {
+    public boolean showingValue(int v) {
         int i;
         for (i = 0; i != plots.size(); i++) {
             ScopePlot sp = plots.get(i);
@@ -529,7 +530,7 @@ class Scope extends BaseCirSimDelegate {
     }
     */
 
-    void setMaxScale(boolean s) {
+    public void setMaxScale(boolean s) {
         // This procedure is added to set maxscale to an explicit value instead of just having a toggle
         // We call the toggle procedure first because it has useful side-effects and then set the value explicitly.
         maxScale();
@@ -922,7 +923,7 @@ class Scope extends BaseCirSimDelegate {
         scale[plot.units] = gridMax;
     }
 
-    double calcGridStepX() {
+    public double calcGridStepX() {
         int multptr = 0;
         double gsx = 1e-15;
 
@@ -1222,7 +1223,7 @@ class Scope extends BaseCirSimDelegate {
 
     }
 
-    boolean canShowRMS() {
+    public boolean canShowRMS() {
         if (visiblePlots.size() == 0)
             return false;
         ScopePlot plot = visiblePlots.firstElement();
@@ -1607,7 +1608,7 @@ class Scope extends BaseCirSimDelegate {
             return t;
     }
 
-    void setSpeed(int sp) {
+    public void setSpeed(int sp) {
         if (sp < 1)
             sp = 1;
         if (sp > 1024)
@@ -1633,12 +1634,12 @@ class Scope extends BaseCirSimDelegate {
         resetGraph();
     }
 
-    void setPlotPosition(int plot, int v) {
+    public void setPlotPosition(int plot, int v) {
         visiblePlots.get(plot).manVPosition = v;
     }
 
     // get scope element, returning null if there's more than one
-    CircuitElm getSingleElm() {
+    public CircuitElm getSingleElm() {
         CircuitElm elm = plots.get(0).elm;
         int i;
         for (i = 1; i < plots.size(); i++) {
@@ -1652,12 +1653,12 @@ class Scope extends BaseCirSimDelegate {
         return (plots.get(0).elm != null);
     }
 
-    boolean canShowResistance() {
+    public boolean canShowResistance() {
         CircuitElm elm = getSingleElm();
         return elm != null && elm.canShowValueInScope(VAL_R);
     }
 
-    boolean isShowingVceAndIc() {
+    public boolean isShowingVceAndIc() {
         return plot2d && plots.size() == 2 && plots.get(0).value == VAL_VCE && plots.get(1).value == VAL_IC;
     }
 
@@ -1852,7 +1853,7 @@ class Scope extends BaseCirSimDelegate {
         showElmInfo = (flags & (1 << 20)) != 0;
     }
 
-    void saveAsDefault() {
+    public void saveAsDefault() {
         Storage stor = Storage.getLocalStorageIfSupported();
         if (stor == null)
             return;
@@ -1888,7 +1889,7 @@ class Scope extends BaseCirSimDelegate {
         }
     }
 
-    void handleMenu(String mi, boolean state) {
+    public void handleMenu(String mi, boolean state) {
         if (mi == "maxscale")
             maxScale();
         if (mi == "showvoltage")

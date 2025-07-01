@@ -20,9 +20,10 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-class VoltageElm extends CircuitElm {
+public class VoltageElm extends CircuitElm {
     static final int FLAG_COS = 2;
     static final int FLAG_PULSE_DUTY = 4;
     int waveform;

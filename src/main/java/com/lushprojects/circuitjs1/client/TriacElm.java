@@ -27,6 +27,8 @@ package com.lushprojects.circuitjs1.client;
 // 2,1 = resistor
 // MT1 and MT2 are nodes 1 and 0 (instead of 0 and 1) so that MT1 will be at the bottom when drawn bottom-to-top
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TriacElm extends CircuitElm {
     final int mt1node = 1;
     final int mt2node = 0;

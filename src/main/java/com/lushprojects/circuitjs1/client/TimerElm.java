@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class TimerElm extends ChipElm {
     final int FLAG_RESET = 2;
     final int FLAG_GROUND = 4;

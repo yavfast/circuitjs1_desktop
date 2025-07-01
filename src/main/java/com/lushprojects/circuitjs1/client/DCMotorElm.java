@@ -1,5 +1,6 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 // based on https://ctms.engin.umich.edu/CTMS/index.php?example=MotorPosition&section=SystemModeling

@@ -21,6 +21,8 @@ package com.lushprojects.circuitjs1.client;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+
 class AMElm extends CircuitElm {
     static final int FLAG_COS = 2;
     double carrierfreq, signalfreq, maxVoltage, freqTimeZero;

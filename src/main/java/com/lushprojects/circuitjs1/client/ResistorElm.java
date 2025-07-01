@@ -20,9 +20,10 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.canvas.dom.client.CanvasGradient;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-class ResistorElm extends CircuitElm {
+public class ResistorElm extends CircuitElm {
     double resistance;
 
     public ResistorElm(int xx, int yy) {

@@ -110,7 +110,7 @@ class VCOElm extends ChipElm {
         pins[0].current = -pins[4].current;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         computeCurrent();
         drawChip(g);
     }

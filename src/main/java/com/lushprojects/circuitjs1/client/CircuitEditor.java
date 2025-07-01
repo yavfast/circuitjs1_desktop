@@ -18,6 +18,7 @@ import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
+import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
 
 public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandler, MouseMoveHandler, MouseUpHandler,
         ClickHandler, DoubleClickHandler, ContextMenuHandler, MouseOutHandler, MouseWheelHandler {
@@ -59,7 +60,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     CircuitElm plotXElm, plotYElm;
     int draggingPost;
 
-    double wheelSensitivity = 1;
+    public double wheelSensitivity = 1;
 
     private boolean mouseDragging;
     String lastCursorStyle;
@@ -901,7 +902,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         cirSim.needAnalyze();
     }
 
-    void pushUndo() {
+    public void pushUndo() {
         undoManager().pushUndo();
         cirSim.enableUndoRedo();
         cirSim.circuitInfo.savedFlag = false;
