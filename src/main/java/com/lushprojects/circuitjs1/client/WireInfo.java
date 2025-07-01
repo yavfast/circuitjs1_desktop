@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+
 import java.util.Vector;
 
 class WireInfo {

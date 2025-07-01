@@ -9,6 +9,8 @@ import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.ui.PopupPanel;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.HashMap;
@@ -29,21 +31,22 @@ public class MenuManager extends BaseCirSimDelegate {
     //MenuItem importFromDropboxItem;
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem, modItem;
     MenuBar optionsMenuBar;
-    CheckboxMenuItem dotsCheckItem;
-    CheckboxMenuItem voltsCheckItem;
-    CheckboxMenuItem powerCheckItem;
-    CheckboxMenuItem smallGridCheckItem;
-    CheckboxMenuItem crossHairCheckItem;
-    CheckboxMenuItem showValuesCheckItem;
-    CheckboxMenuItem conductanceCheckItem;
-    CheckboxMenuItem euroResistorCheckItem;
-    CheckboxMenuItem euroGatesCheckItem;
-    CheckboxMenuItem printableCheckItem;
-    CheckboxMenuItem conventionCheckItem;
-    CheckboxMenuItem noEditCheckItem;
-    CheckboxMenuItem mouseWheelEditCheckItem;
-    CheckboxMenuItem toolbarCheckItem;
-    CheckboxMenuItem mouseModeCheckItem;
+
+    public CheckboxMenuItem dotsCheckItem;
+    public CheckboxMenuItem voltsCheckItem;
+    public CheckboxMenuItem powerCheckItem;
+    public CheckboxMenuItem smallGridCheckItem;
+    public CheckboxMenuItem crossHairCheckItem;
+    public CheckboxMenuItem showValuesCheckItem;
+    public CheckboxMenuItem conductanceCheckItem;
+    public CheckboxMenuItem euroResistorCheckItem;
+    public CheckboxMenuItem euroGatesCheckItem;
+    public CheckboxMenuItem printableCheckItem;
+    public CheckboxMenuItem conventionCheckItem;
+    public CheckboxMenuItem noEditCheckItem;
+    public CheckboxMenuItem mouseWheelEditCheckItem;
+    public CheckboxMenuItem toolbarCheckItem;
+    public CheckboxMenuItem mouseModeCheckItem;
 
     MenuBar elmMenuBar;
     MenuItem elmEditMenuItem;

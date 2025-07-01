@@ -19,24 +19,33 @@ import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
+import com.lushprojects.circuitjs1.client.element.CapacitorElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.GraphicElm;
+import com.lushprojects.circuitjs1.client.element.InductorElm;
+import com.lushprojects.circuitjs1.client.element.LogicInputElm;
+import com.lushprojects.circuitjs1.client.element.ResistorElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
+import com.lushprojects.circuitjs1.client.element.SwitchElm;
+import com.lushprojects.circuitjs1.client.element.WireElm;
 
 public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandler, MouseMoveHandler, MouseUpHandler,
         ClickHandler, DoubleClickHandler, ContextMenuHandler, MouseOutHandler, MouseWheelHandler {
 
-    static final int MODE_ADD_ELM = 0;
-    static final int MODE_DRAG_ALL = 1;
-    static final int MODE_DRAG_ROW = 2;
-    static final int MODE_DRAG_COLUMN = 3;
-    static final int MODE_DRAG_SELECTED = 4;
-    static final int MODE_DRAG_POST = 5;
-    static final int MODE_SELECT = 6;
-    static final int MODE_DRAG_SPLITTER = 7;
+    public static final int MODE_ADD_ELM = 0;
+    public static final int MODE_DRAG_ALL = 1;
+    public static final int MODE_DRAG_ROW = 2;
+    public static final int MODE_DRAG_COLUMN = 3;
+    public static final int MODE_DRAG_SELECTED = 4;
+    public static final int MODE_DRAG_POST = 5;
+    public static final int MODE_SELECT = 6;
+    public static final int MODE_DRAG_SPLITTER = 7;
 
     static final int POST_GRAB_SQ = 25;
     static final int MIN_POST_GRAB_SIZE = 256;
 
 
-    int mouseMode = MODE_SELECT;
+    public int mouseMode = MODE_SELECT;
     int tempMouseMode = MODE_SELECT;
 
     String mouseModeStr = "Select";
@@ -50,14 +59,14 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     int mouseCursorY = -1;
     Rectangle selectedArea;
 
-    CircuitElm dragElm;
+    public CircuitElm dragElm;
 
-    CircuitElm mouseElm = null;
-    CircuitElm menuElm;
+    public CircuitElm mouseElm = null;
+    public CircuitElm menuElm;
 
     boolean didSwitch = false;
     int mousePost = -1;
-    CircuitElm plotXElm, plotYElm;
+    public CircuitElm plotXElm, plotYElm;
     int draggingPost;
 
     public double wheelSensitivity = 1;
@@ -66,7 +75,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
 
-    int gridSize, gridMask, gridRound;
+    public int gridSize, gridMask, gridRound;
     SwitchElm heldSwitchElm;
 
     int menuX = 0;
@@ -778,7 +787,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             }
     }
 
-    int snapGrid(int x) {
+    public int snapGrid(int x) {
         return (x + gridRound) & gridMask;
     }
 

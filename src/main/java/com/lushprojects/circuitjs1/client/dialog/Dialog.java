@@ -17,22 +17,32 @@
     along with CircuitJS1.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package com.lushprojects.circuitjs1.client;
+package com.lushprojects.circuitjs1.client.dialog;
 
 
-public class Font {
-    public static final int BOLD = 1;
+import com.google.gwt.user.client.ui.DialogBox;
 
-    String fontname;
-    int size;
+public class Dialog extends DialogBox {
 
-    public Font(String name, int style, int size) {
-        String styleStr = "normal ";
-        if (name == "SansSerif")
-            name = "sans-serif";
-        if ((style & BOLD) != 0)
-            styleStr = "bold ";
-        fontname = styleStr + size + "px " + name;
-        this.size = size;
+    boolean closeOnEnter;
+
+    public Dialog() {
+        closeOnEnter = true;
+    }
+
+    public void closeDialog() {
+        hide();
+    }
+
+
+    public void enterPressed() {
+        if (closeOnEnter) {
+            apply();
+            closeDialog();
+        }
+    }
+
+    void apply() {
     }
 }
+

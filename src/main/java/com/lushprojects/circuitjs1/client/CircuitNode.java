@@ -21,11 +21,11 @@ package com.lushprojects.circuitjs1.client;
 
 import java.util.Vector;
 
-class CircuitNode {
-    Vector<CircuitNodeLink> links;
-    boolean internal;
+public class CircuitNode {
+    public Vector<CircuitNodeLink> links;
+    public boolean internal;
 
-    CircuitNode() {
+    public CircuitNode() {
         links = new Vector<CircuitNodeLink>();
     }
 }

@@ -49,6 +49,7 @@ import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.VerticalPanel;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 
 public class Scrollbar extends Composite implements
@@ -115,7 +116,7 @@ public class Scrollbar extends Composite implements
         this.command = cmd;
     }
 
-    void draw() {
+    public void draw() {
         if (enabled)
             g.setStrokeStyle("#000000");
         else
@@ -249,13 +250,13 @@ public class Scrollbar extends Composite implements
         if (dragging)
             return;
         if (enabled && attachedElm != null && attachedElm.isMouseElm())
-            CircuitElm.simUi.setMouseElm(null);
+            CirSim.theSim.setMouseElm(null);
     }
 
     public void onMouseOver(MouseOverEvent e) {
 
         if (enabled && attachedElm != null)
-            CircuitElm.simUi.setMouseElm(attachedElm);
+            CirSim.theSim.setMouseElm(attachedElm);
     }
 
     public void onMouseWheel(MouseWheelEvent e) {

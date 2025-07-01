@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.lushprojects.circuitjs1.client.dialog.EditDialogLoadFile;
+import com.lushprojects.circuitjs1.client.element.SRAMElm;
 
 public class SRAMLoadFile extends EditDialogLoadFile {
 

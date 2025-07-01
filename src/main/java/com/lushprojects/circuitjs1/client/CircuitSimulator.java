@@ -3,6 +3,20 @@ package com.lushprojects.circuitjs1.client;
 import static com.lushprojects.circuitjs1.client.CirSim.console;
 
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.element.CapacitorElm;
+import com.lushprojects.circuitjs1.client.element.ChipElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.CurrentElm;
+import com.lushprojects.circuitjs1.client.element.GraphicElm;
+import com.lushprojects.circuitjs1.client.element.GroundElm;
+import com.lushprojects.circuitjs1.client.element.InductorElm;
+import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
+import com.lushprojects.circuitjs1.client.element.LogicInputElm;
+import com.lushprojects.circuitjs1.client.element.RailElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
+import com.lushprojects.circuitjs1.client.element.VCCSElm;
+import com.lushprojects.circuitjs1.client.element.VoltageElm;
+import com.lushprojects.circuitjs1.client.element.WireElm;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,10 +25,10 @@ import java.util.Vector;
 
 public class CircuitSimulator extends BaseCirSimDelegate {
 
-    double t; // TODO: tick ???
+    public double t; // TODO: tick ???
 
     // current timestep (time between iterations)
-    double timeStep;
+    public double timeStep;
     // maximum timestep (== timeStep unless we reduce it because of trouble
     // converging)
     public double maxTimeStep;
@@ -22,11 +36,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // accumulated time since we incremented timeStepCount
     double timeStepAccum;
     // incremented each time we advance t by maxTimeStep
-    int timeStepCount;
+    public int timeStepCount;
 
     public double minFrameRate = 20;
     public boolean adjustTimeStep;
-    Vector<CircuitElm> elmList;
+    public Vector<CircuitElm> elmList;
     CircuitElm[] elmArr;
     ScopeElm[] scopeElmArr;
     double[][] circuitMatrix;
@@ -44,7 +58,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     int circuitMatrixFullSize;
     boolean circuitNeedsMap;
 
-    Vector<CircuitNode> nodeList;
+    public Vector<CircuitNode> nodeList;
 
     // map points to node numbers
     HashMap<Point, NodeMapEntry> nodeMap;
@@ -935,7 +949,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // stamp value x in row i, column j, meaning that a voltage change
     // of dv in node j will increase the current into node i by x dv.
     // (Unless i or j is a voltage source node.)
-    void stampMatrix(int i, int j, double x) {
+    public void stampMatrix(int i, int j, double x) {
         if (i > 0 && j > 0) {
             if (circuitNeedsMap) {
                 i = circuitRowInfo[i - 1].mapRow;
@@ -957,7 +971,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // stamp value x on the right side of row i, representing an
     // independent current source flowing into node i
-    void stampRightSide(int i, double x) {
+    public void stampRightSide(int i, double x) {
         if (i > 0) {
             if (circuitNeedsMap) {
                 i = circuitRowInfo[i - 1].mapRow;
@@ -969,28 +983,28 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     // indicate that the value on the right side of row i changes in doStep()
-    void stampRightSide(int i) {
+    public void stampRightSide(int i) {
         //System.out.println("rschanges true " + (i-1));
         if (i > 0)
             circuitRowInfo[i - 1].rsChanges = true;
     }
 
     // indicate that the values on the left side of row i change in doStep()
-    void stampNonLinear(int i) {
+    public void stampNonLinear(int i) {
         if (i > 0)
             circuitRowInfo[i - 1].lsChanges = true;
     }
 
     // control voltage source vs with voltage from n1 to n2 (must
     // also call stampVoltageSource())
-    void stampVCVS(int n1, int n2, double coef, int vs) {
+    public void stampVCVS(int n1, int n2, double coef, int vs) {
         int vn = nodeList.size() + vs;
         stampMatrix(vn, n1, coef);
         stampMatrix(vn, n2, -coef);
     }
 
     // stamp independent voltage source #vs, from n1 to n2, amount v
-    void stampVoltageSource(int n1, int n2, int vs, double v) {
+    public void stampVoltageSource(int n1, int n2, int vs, double v) {
         int vn = nodeList.size() + vs;
         stampMatrix(vn, n1, -1);
         stampMatrix(vn, n2, 1);
@@ -1000,7 +1014,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     // use this if the amount of voltage is going to be updated in doStep(), by updateVoltageSource()
-    void stampVoltageSource(int n1, int n2, int vs) {
+    public void stampVoltageSource(int n1, int n2, int vs) {
         int vn = nodeList.size() + vs;
         stampMatrix(vn, n1, -1);
         stampMatrix(vn, n2, 1);
@@ -1010,12 +1024,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     // update voltage source in doStep()
-    void updateVoltageSource(int n1, int n2, int vs, double v) {
+    public void updateVoltageSource(int n1, int n2, int vs, double v) {
         int vn = nodeList.size() + vs;
         stampRightSide(vn, v);
     }
 
-    void stampResistor(int n1, int n2, double r) {
+    public void stampResistor(int n1, int n2, double r) {
         double r0 = 1 / r;
         if (Double.isNaN(r0) || Double.isInfinite(r0)) {
             System.out.print("bad resistance " + r + " " + r0 + "\n");
@@ -1028,7 +1042,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         stampMatrix(n2, n1, -r0);
     }
 
-    void stampConductance(int n1, int n2, double r0) {
+    public void stampConductance(int n1, int n2, double r0) {
         stampMatrix(n1, n1, r0);
         stampMatrix(n2, n2, r0);
         stampMatrix(n1, n2, -r0);
@@ -1036,20 +1050,20 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     // specify that current from cn1 to cn2 is equal to voltage from vn1 to 2, divided by g
-    void stampVCCurrentSource(int cn1, int cn2, int vn1, int vn2, double g) {
+    public void stampVCCurrentSource(int cn1, int cn2, int vn1, int vn2, double g) {
         stampMatrix(cn1, vn1, g);
         stampMatrix(cn2, vn2, g);
         stampMatrix(cn1, vn2, -g);
         stampMatrix(cn2, vn1, -g);
     }
 
-    void stampCurrentSource(int n1, int n2, double i) {
+    public void stampCurrentSource(int n1, int n2, double i) {
         stampRightSide(n1, -i);
         stampRightSide(n2, i);
     }
 
     // stamp a current source from n1 to n2 depending on current through vs
-    void stampCCCS(int n1, int n2, int vs, double gain) {
+    public void stampCCCS(int n1, int n2, int vs, double gain) {
         int vn = nodeList.size() + vs;
         stampMatrix(n1, vn, gain);
         stampMatrix(n2, vn, -gain);
@@ -1291,8 +1305,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
 
-    boolean converged; // TODO: Add checkConverged()
-    int subIterations;
+    public boolean converged; // TODO: Add checkConverged()
+    public int subIterations;
 
     boolean dumpMatrix;
     long lastIterTime;

@@ -9,6 +9,9 @@ import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
+import com.lushprojects.circuitjs1.client.element.AudioInputElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.DataInputElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {

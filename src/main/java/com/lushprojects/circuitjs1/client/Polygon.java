@@ -18,7 +18,7 @@ package com.lushprojects.circuitjs1.client;
 
 // via http://grepcode.com/file/repository.grepcode.com/java/root/jdk/openjdk/6-b14/java/awt/Polygon.java
 
-class Polygon {
+public class Polygon {
 //	ArrayList<Point> poly;
 
     private static final int MIN_LENGTH = 4;

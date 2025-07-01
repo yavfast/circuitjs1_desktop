@@ -1,6 +1,8 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.storage.client.Storage;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
 
 public class ScopeManager extends BaseCirSimDelegate {
 

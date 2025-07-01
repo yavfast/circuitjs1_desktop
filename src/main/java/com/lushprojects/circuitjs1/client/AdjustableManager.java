@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+
 import java.util.Vector;
 
 public class AdjustableManager extends BaseCirSimDelegate {
@@ -43,7 +45,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     // delete sliders for an element
-    void deleteSliders(CircuitElm elm) {
+    public void deleteSliders(CircuitElm elm) {
         int i;
         if (adjustables == null)
             return;
@@ -56,7 +58,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
         }
     }
 
-    void setMouseElm(CircuitElm ce) {
+    public void setMouseElm(CircuitElm ce) {
         for (int i = 0; i < adjustables.size(); i++)
             adjustables.get(i).setMouseElm(ce);
     }

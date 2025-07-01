@@ -21,6 +21,9 @@ import com.lushprojects.circuitjs1.client.dialog.SearchDialog;
 import com.lushprojects.circuitjs1.client.dialog.ShortcutsDialog;
 import com.lushprojects.circuitjs1.client.dialog.SliderDialog;
 import com.lushprojects.circuitjs1.client.dialog.SubcircuitDialog;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.DiodeElm;
+import com.lushprojects.circuitjs1.client.element.TransistorElm;
 
 public class DialogManager extends BaseCirSimDelegate {
 
@@ -41,7 +44,7 @@ public class DialogManager extends BaseCirSimDelegate {
         return null;
     }
 
-    void closeDialog() {
+    public void closeDialog() {
         Dialog dialog = getShowingDialog();
         if (dialog != null && dialog.isShowing()) {
             dialog.closeDialog();
@@ -96,7 +99,7 @@ public class DialogManager extends BaseCirSimDelegate {
         activeDialog.show();
     }
 
-    void showEditElementDialog(Editable editable) {
+    public void showEditElementDialog(Editable editable) {
         activeDialog = new EditDialog(editable, cirSim);
         activeDialog.show();
     }
@@ -121,7 +124,7 @@ public class DialogManager extends BaseCirSimDelegate {
         activeDialog.show();
     }
 
-    void showEditCompositeModelDialog(CustomCompositeModel model) {
+    public void showEditCompositeModelDialog(CustomCompositeModel model) {
         EditCompositeModelDialog dlg = new EditCompositeModelDialog(cirSim);
         if (model != null) {
             dlg.setModel(model);
@@ -139,12 +142,12 @@ public class DialogManager extends BaseCirSimDelegate {
         return properties;
     }
 
-    void showEditDiodeModelDialog(DiodeModel dm, DiodeElm de) {
+    public void showEditDiodeModelDialog(DiodeModel dm, DiodeElm de) {
         EditDialog editDialog = new EditDiodeModelDialog(dm, cirSim, de);
         editDialog.show();
     }
 
-    void showEditTransistorModelDialog(TransistorModel dm, TransistorElm te) {
+    public void showEditTransistorModelDialog(TransistorModel dm, TransistorElm te) {
         EditDialog editDialog = new EditTransistorModelDialog(dm, cirSim, te);
         editDialog.show();
     }

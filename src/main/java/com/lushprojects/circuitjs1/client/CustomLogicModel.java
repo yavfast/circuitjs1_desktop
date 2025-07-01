@@ -17,15 +17,15 @@ public class CustomLogicModel implements Editable {
 
     int flags;
     String name;
-    String[] inputs;
-    String[] outputs;
-    String infoText;
+    public String[] inputs;
+    public String[] outputs;
+    public String infoText;
     String rules;
-    Vector<String> rulesLeft, rulesRight;
-    boolean dumped;
-    boolean triState;
+    public Vector<String> rulesLeft, rulesRight;
+    public boolean dumped;
+    public boolean triState;
 
-    static CustomLogicModel getModelWithName(String name) {
+    public static CustomLogicModel getModelWithName(String name) {
         if (modelMap == null)
             modelMap = new HashMap<String, CustomLogicModel>();
         CustomLogicModel lm = modelMap.get(name);
@@ -38,7 +38,7 @@ public class CustomLogicModel implements Editable {
         return lm;
     }
 
-    static CustomLogicModel getModelWithNameOrCopy(String name, CustomLogicModel oldmodel) {
+    public static CustomLogicModel getModelWithNameOrCopy(String name, CustomLogicModel oldmodel) {
         if (modelMap == null)
             modelMap = new HashMap<String, CustomLogicModel>();
         CustomLogicModel lm = modelMap.get(name);
@@ -221,7 +221,7 @@ public class CustomLogicModel implements Editable {
         }
     }
 
-    String dump() {
+    public String dump() {
         dumped = true;
         if (rules.length() > 0 && !rules.endsWith("\n"))
             rules += "\n";
@@ -229,14 +229,14 @@ public class CustomLogicModel implements Editable {
                 escape(arrayToList(outputs)) + " " + escape(infoText) + " " + escape(rules);
     }
 
-    static String escape(String s) {
+    public static String escape(String s) {
         if (s.length() == 0)
             return "\\0";
         return s.replace("\\", "\\\\").replace("\n", "\\n").replace(" ", "\\s").replace("+", "\\p").
                 replace("=", "\\q").replace("#", "\\h").replace("&", "\\a").replace("\r", "\\r");
     }
 
-    static String unescape(String s) {
+    public static String unescape(String s) {
         if (s.equals("\\0"))
             return "";
         int i;

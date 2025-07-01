@@ -24,6 +24,13 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.storage.client.Storage;
 import com.lushprojects.circuitjs1.client.dialog.ScopePropertiesDialog;
+import com.lushprojects.circuitjs1.client.element.AudioOutputElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.LogicOutputElm;
+import com.lushprojects.circuitjs1.client.element.OutputElm;
+import com.lushprojects.circuitjs1.client.element.ProbeElm;
+import com.lushprojects.circuitjs1.client.element.TransistorElm;
+import com.lushprojects.circuitjs1.client.element.WireElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;
@@ -61,12 +68,12 @@ public class Scope extends BaseCirSimDelegate {
     public static final double MIN_MAN_SCALE = 1e-9;
     int scopePointCount = 128;
     FFT fft;
-    int position;
+    public int position;
     // speed is sim timestep units per pixel
     public int speed;
     int stackCount; // number of scopes in this column
     String text;
-    Rectangle rect;
+    public Rectangle rect;
     private boolean manualScale;
     public boolean showI, showV, showScale, showMax, showMin, showFreq;
     public boolean plot2d;
@@ -162,11 +169,11 @@ public class Scope extends BaseCirSimDelegate {
         }
     }
 
-    void resetGraph() {
+    public void resetGraph() {
         resetGraph(false);
     }
 
-    void resetGraph(boolean full) {
+    public void resetGraph(boolean full) {
         scopePointCount = 1;
         while (scopePointCount <= rect.width)
             scopePointCount *= 2;
@@ -278,7 +285,7 @@ public class Scope extends BaseCirSimDelegate {
         }
     }
 
-    void setRect(Rectangle r) {
+    public void setRect(Rectangle r) {
         int w = this.rect.width;
         this.rect = r;
         if (this.rect.width != w)
@@ -293,7 +300,7 @@ public class Scope extends BaseCirSimDelegate {
         return rect.x + rect.width;
     }
 
-    void setElm(CircuitElm ce) {
+    public void setElm(CircuitElm ce) {
         plots = new Vector<ScopePlot>();
         if (ce instanceof TransistorElm)
             setValue(VAL_VCE, ce);
@@ -444,7 +451,7 @@ public class Scope extends BaseCirSimDelegate {
     }
 
     // called for each timestep
-    void timeStep() {
+    public void timeStep() {
         int i;
         for (i = 0; i != plots.size(); i++)
             plots.get(i).timeStep();
@@ -777,7 +784,7 @@ public class Scope extends BaseCirSimDelegate {
         selectedPlot = 0;
     }
 
-    void draw(Graphics g) {
+    public void draw(Graphics g) {
         if (plots.size() == 0)
             return;
 
@@ -1105,7 +1112,7 @@ public class Scope extends BaseCirSimDelegate {
         cursorTime = -1;
     }
 
-    void selectScope(int mouseX, int mouseY) {
+    public void selectScope(int mouseX, int mouseY) {
         if (!rect.contains(mouseX, mouseY))
             return;
         if (plot2d || visiblePlots.size() == 0)
@@ -1689,7 +1696,7 @@ public class Scope extends BaseCirSimDelegate {
     }
 
 
-    String dump() {
+    public String dump() {
         ScopePlot vPlot = plots.get(0);
 
         CircuitSimulator simulator = simulator();
@@ -1727,7 +1734,7 @@ public class Scope extends BaseCirSimDelegate {
         return x;
     }
 
-    void undump(StringTokenizer st) {
+    public void undump(StringTokenizer st) {
         initialize();
         int e = new Integer(st.nextToken()).intValue();
         if (e == -1)
@@ -2002,7 +2009,7 @@ public class Scope extends BaseCirSimDelegate {
         }
     }
 
-    CircuitElm getElm() {
+    public CircuitElm getElm() {
         if (selectedPlot >= 0 && visiblePlots.size() > selectedPlot)
             return visiblePlots.get(selectedPlot).elm;
         return visiblePlots.size() > 0 ? visiblePlots.get(0).elm : plots.get(0).elm;

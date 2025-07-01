@@ -23,8 +23,8 @@ import com.google.gwt.canvas.dom.client.Context2d;
 
 public class Graphics {
 
-    Context2d context;
-    int currentFontSize;
+    public Context2d context;
+    public int currentFontSize;
     int savedFontSize;
     static boolean isFullScreen = false;
 
@@ -159,13 +159,13 @@ public class Graphics {
         context.restore();
     }
 
-    static int distanceSq(int x1, int y1, int x2, int y2) {
+    public static int distanceSq(int x1, int y1, int x2, int y2) {
         x2 -= x1;
         y2 -= y1;
         return x2 * x2 + y2 * y2;
     }
 
-    void setLineDash(int a, int b) {
+    public void setLineDash(int a, int b) {
         setLineDash(context, a, b);
     }
 

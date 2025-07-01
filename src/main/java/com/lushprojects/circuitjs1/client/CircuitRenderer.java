@@ -5,6 +5,10 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.user.client.Timer;
+import com.lushprojects.circuitjs1.client.element.CapacitorElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.InductorElm;
+import com.lushprojects.circuitjs1.client.element.ResistorElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 import com.lushprojects.circuitjs1.client.util.PerfMonitor;
 
@@ -18,7 +22,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     // canvas width/height in px (before device pixel ratio scaling)
     int canvasWidth, canvasHeight;
 
-    boolean analyzeFlag;
+    public boolean analyzeFlag;
 
     long lastTime = 0;
     long lastFrameTime, secTime = 0;
@@ -27,7 +31,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     int hintType = -1, hintItem1, hintItem2;
 
-    double[] transform = new double[6];
+    public double[] transform = new double[6];
     Rectangle circuitArea;
 
     double scopeHeightFraction = 0.2;
@@ -110,11 +114,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     // convert grid coordinates to screen coordinates
-    int transformX(double x) {
+    public int transformX(double x) {
         return (int) ((x * transform[0]) + transform[4]);
     }
 
-    int transformY(double y) {
+    public int transformY(double y) {
         return (int) ((y * transform[3]) + transform[5]);
     }
 

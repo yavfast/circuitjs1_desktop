@@ -27,7 +27,6 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.Callback;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.ScriptInjector;
@@ -42,11 +41,6 @@ import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
 import com.google.gwt.event.logical.shared.ResizeEvent;
 import com.google.gwt.event.logical.shared.ResizeHandler;
-import com.google.gwt.http.client.Request;
-import com.google.gwt.http.client.RequestBuilder;
-import com.google.gwt.http.client.RequestCallback;
-import com.google.gwt.http.client.RequestException;
-import com.google.gwt.http.client.Response;
 import com.google.gwt.http.client.URL;
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.storage.client.Storage;
@@ -65,16 +59,18 @@ import com.google.gwt.user.client.ui.Frame;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
-import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
+import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
+import com.lushprojects.circuitjs1.client.element.TransistorElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Date;
-import java.util.HashMap;
 
 public class CirSim implements NativePreviewHandler {
 
@@ -758,7 +754,7 @@ public class CirSim implements NativePreviewHandler {
         CirSim.theSim.logManager.addLogEntry(text);
     }
 
-    void stop(String s, CircuitElm ce) {
+    public void stop(String s, CircuitElm ce) {
         simulator.stopMessage = Locale.LS(s);
         simulator.circuitMatrix = null;  // causes an exception
         simulator.stopElm = ce;
@@ -768,7 +764,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
 
-    double getIterCount() {
+    public double getIterCount() {
         // IES - remove interaction
         if (speedBar.getValue() == 0)
             return 0;
@@ -1029,7 +1025,7 @@ public class CirSim implements NativePreviewHandler {
 //        loadFileInput = newlf;
     }
 
-    void addWidgetToVerticalPanel(Widget w) {
+    public void addWidgetToVerticalPanel(Widget w) {
         if (iFrame != null) {
             int i = verticalPanel.getWidgetIndex(iFrame);
             verticalPanel.insert(w, i);
@@ -1037,7 +1033,7 @@ public class CirSim implements NativePreviewHandler {
             verticalPanel2.add(w);
     }
 
-    void removeWidgetFromVerticalPanel(Widget w) {
+    public void removeWidgetFromVerticalPanel(Widget w) {
         verticalPanel2.remove(w);
     }
 

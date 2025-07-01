@@ -15,15 +15,15 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
 
     public int flags, sizeX, sizeY;
     public String name;
-    String nodeList;
+    public String nodeList;
     public Vector<ExtListEntry> extList;
-    String elmDump;
+    public String elmDump;
     public String modelCircuit;
-    boolean dumped;
+    public boolean dumped;
     boolean internal; // don't show in list
-    boolean builtin;  // included by default, don't allow deletion
+    public boolean builtin;  // included by default, don't allow deletion
     static int sequenceNumber;
-    static final int FLAG_SHOW_LABEL = 1;
+    public static final int FLAG_SHOW_LABEL = 1;
 
     public void setName(String n) {
         modelMap.remove(name);
@@ -70,7 +70,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         loadInternalModels();
     }
 
-    static CustomCompositeModel getModelWithName(String name) {
+    public static CustomCompositeModel getModelWithName(String name) {
         if (modelMap == null)
             initModelMap();
         CustomCompositeModel lm = modelMap.get(name);
@@ -203,7 +203,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return arr.split(",");
     }
 
-    String dump() {
+    public String dump() {
         if (internal)
             return "";
         dumped = true;
@@ -219,7 +219,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return str;
     }
 
-    boolean canLoadModelCircuit() {
+    public boolean canLoadModelCircuit() {
         return modelCircuit != null && modelCircuit.length() > 0;
     }
 

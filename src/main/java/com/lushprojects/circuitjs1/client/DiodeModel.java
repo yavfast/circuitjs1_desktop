@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client;
 
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Collections;
@@ -16,15 +17,15 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
 
     int flags;
     public String name, description;
-    double saturationCurrent, seriesResistance, emissionCoefficient, breakdownVoltage;
+    public double saturationCurrent, seriesResistance, emissionCoefficient, breakdownVoltage;
 
     // used for UI code, not guaranteed to be set
     double forwardVoltage, forwardCurrent;
 
-    boolean dumped;
-    boolean readOnly;
-    boolean builtIn;
-    boolean oldStyle;
+    public boolean dumped;
+    public boolean readOnly;
+    public boolean builtIn;
+    public boolean oldStyle;
     boolean internal;
     static final int FLAGS_SIMPLE = 1;
 
@@ -35,7 +36,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
     // The multiplicative equivalent of dividing by vscale (for speed).
     double vdcoef;
     // voltage drop @ 1A
-    double fwdrop;
+    public double fwdrop;
 
     protected DiodeModel(double sc, double sr, double ec, double bv, String d) {
         saturationCurrent = sc;
@@ -48,7 +49,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         updateModel();
     }
 
-    static DiodeModel getModelWithName(String name) {
+    public static DiodeModel getModelWithName(String name) {
         createModelMap();
         DiodeModel lm = modelMap.get(name);
         if (lm != null)
@@ -59,7 +60,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         return lm;
     }
 
-    static DiodeModel getModelWithNameOrCopy(String name, DiodeModel oldmodel) {
+    public static DiodeModel getModelWithNameOrCopy(String name, DiodeModel oldmodel) {
         createModelMap();
         DiodeModel lm = modelMap.get(name);
         if (lm != null)
@@ -124,7 +125,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
     // create a new model using given parameters, keeping backward compatibility.  The method we use has problems, but we don't want to
     // change circuit behavior.  We don't do this anymore because we discovered that changing the leakage current to get a given fwdrop
     // does not work well; the leakage currents can be way too high or low.
-    static DiodeModel getModelWithParameters(double fwdrop, double zvoltage) {
+    public static DiodeModel getModelWithParameters(double fwdrop, double zvoltage) {
         createModelMap();
 
         final double emcoef = 2;
@@ -177,7 +178,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         }
     }
 
-    static Vector<DiodeModel> getModelList(boolean zener) {
+    public static Vector<DiodeModel> getModelList(boolean zener) {
         Vector<DiodeModel> vector = new Vector<DiodeModel>();
         Iterator it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
@@ -198,13 +199,13 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         return name.compareTo(dm.name);
     }
 
-    String getDescription() {
+    public String getDescription() {
         if (description == null)
             return name;
         return name + " (" + Locale.LS(description) + ")";
     }
 
-    DiodeModel() {
+    public DiodeModel() {
         saturationCurrent = 1e-14;
         seriesResistance = 0;
         emissionCoefficient = 1;
@@ -212,7 +213,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         updateModel();
     }
 
-    DiodeModel(DiodeModel copy) {
+    public DiodeModel(DiodeModel copy) {
         flags = copy.flags;
         saturationCurrent = copy.saturationCurrent;
         seriesResistance = copy.seriesResistance;
@@ -312,16 +313,16 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         fwdrop = Math.log(1 / saturationCurrent + 1) * emissionCoefficient * vt;
     }
 
-    String dump() {
+    public String dump() {
         dumped = true;
         return "34 " + CustomLogicModel.escape(name) + " " + flags + " " + saturationCurrent + " " + seriesResistance + " " + emissionCoefficient + " " + breakdownVoltage + " " + forwardCurrent;
     }
 
-    boolean isSimple() {
+    public boolean isSimple() {
         return (flags & FLAGS_SIMPLE) != 0;
     }
 
-    void setSimple(boolean s) {
+    public void setSimple(boolean s) {
         flags = (s) ? FLAGS_SIMPLE : 0;
     }
 

@@ -3,6 +3,7 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Vector;

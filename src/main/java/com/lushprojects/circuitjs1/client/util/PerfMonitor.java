@@ -1,7 +1,6 @@
 package com.lushprojects.circuitjs1.client.util;
 
-import com.lushprojects.circuitjs1.client.BaseCircuitElm;
-import com.lushprojects.circuitjs1.client.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.BaseCircuitElm;
 
 import java.util.HashMap;
 import java.util.Set;

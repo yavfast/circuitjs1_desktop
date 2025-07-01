@@ -20,16 +20,16 @@
 package com.lushprojects.circuitjs1.client;
 
 // diode that can be embedded in other elements.  series resistance is handled in DiodeElm, not here.
-class Diode {
+public class Diode {
     int nodes[];
     CirSim sim;
 
-    Diode(CirSim s) {
+    public Diode(CirSim s) {
         sim = s;
         nodes = new int[2];
     }
 
-    void setup(DiodeModel model) {
+    public void setup(DiodeModel model) {
         leakage = model.saturationCurrent;
         zvoltage = model.breakdownVoltage;
         vscale = model.vscale;
@@ -52,11 +52,11 @@ class Diode {
         }
     }
 
-    void setupForDefaultModel() {
+    public void setupForDefaultModel() {
         setup(DiodeModel.getDefaultModel());
     }
 
-    void reset() {
+    public void reset() {
         lastvoltdiff = 0;
     }
 
@@ -131,14 +131,14 @@ class Diode {
         return vnew;
     }
 
-    void stamp(int n0, int n1) {
+    public void stamp(int n0, int n1) {
         nodes[0] = n0;
         nodes[1] = n1;
         sim.simulator.stampNonLinear(nodes[0]);
         sim.simulator.stampNonLinear(nodes[1]);
     }
 
-    void doStep(double voltdiff) {
+    public void doStep(double voltdiff) {
         // used to have .1 here, but needed .01 for peak detector
         if (Math.abs(voltdiff - lastvoltdiff) > .01)
             sim.simulator.converged = false;
@@ -192,7 +192,7 @@ class Diode {
         }
     }
 
-    double calculateCurrent(double voltdiff) {
+    public double calculateCurrent(double voltdiff) {
         if (voltdiff >= 0 || zvoltage == 0)
             return leakage * (Math.exp(voltdiff * vdcoef) - 1);
         return leakage * (

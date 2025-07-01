@@ -132,7 +132,7 @@ public class CircuitMath {
         return true;
     }
 
-    static void invertMatrix(double[][] a, int n) {
+    public static void invertMatrix(double[][] a, int n) {
         int[] ipvt = new int[n];
         lu_factor(a, n, ipvt);
         int i, j;

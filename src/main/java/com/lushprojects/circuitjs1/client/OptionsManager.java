@@ -4,7 +4,7 @@ import com.google.gwt.storage.client.Storage;
 
 public class OptionsManager {
 
-    static String getOptionFromStorage(String key, String defVal) {
+    public static String getOptionFromStorage(String key, String defVal) {
         Storage stor = Storage.getLocalStorageIfSupported();
         if (stor == null)
             return defVal;
@@ -14,18 +14,18 @@ public class OptionsManager {
         return s;
     }
 
-    static void setOptionInStorage(String key, String val) {
+    public static void setOptionInStorage(String key, String val) {
         Storage stor = Storage.getLocalStorageIfSupported();
         if (stor == null)
             return;
         stor.setItem(key, val);
     }
 
-    static void setOptionInStorage(String key, boolean val) {
+    public static void setOptionInStorage(String key, boolean val) {
         setOptionInStorage(key, val ? "true" : "false");
     }
 
-    static boolean getBoolOptionFromStorage(String key, boolean defVal) {
+    public static boolean getBoolOptionFromStorage(String key, boolean defVal) {
         String res = getOptionFromStorage(key, null);
         if (res == null) {
             return defVal;
