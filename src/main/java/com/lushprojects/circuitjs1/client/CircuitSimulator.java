@@ -611,114 +611,123 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // simplify the matrix; this speeds things up quite a bit, especially for digital circuits.
     // or at least it did before we added wire removal
     boolean simplifyMatrix(int matrixSize) {
+        RowInfo[] circuitRowInfo = this.circuitRowInfo;
+        double[][] circuitMatrix = this.circuitMatrix;
+        double[] circuitRightSide = this.circuitRightSide;
+
         int i, j;
-        for (i = 0; i != matrixSize; i++) {
-            int qp = -1;
-            double qv = 0;
-            RowInfo re = circuitRowInfo[i];
-            if (re.lsChanges || re.dropRow || re.rsChanges) {
+        // Iterate through each row of the matrix to find opportunities for simplification.
+        for (i = 0; i < matrixSize; i++) {
+            int pivotColumnIndex = -1; // Index of the first non-zero, non-constant element in the row.
+            double pivotValue = 0; // Value of the first non-zero, non-constant element.
+            RowInfo rowInfo = circuitRowInfo[i];
+            // Skip rows that are already simplified, marked for dropping, or have changing right-hand sides.
+            if (rowInfo.lsChanges || rowInfo.dropRow || rowInfo.rsChanges) {
                 continue;
             }
-            double rsadd = 0;
+            double rightSideAdjustment = 0; // Accumulator for adjustments to the right-hand side of the equation.
 
-            // see if this row can be removed
-            for (j = 0; j != matrixSize; j++) {
-                double q = circuitMatrix[i][j];
+            // Scan the row to see if it can be simplified.
+            // A row can be simplified if it contains exactly one non-zero element corresponding to a non-constant variable.
+            for (j = 0; j < matrixSize; j++) {
+                double elementValue = circuitMatrix[i][j];
+                // If the element corresponds to a known constant, adjust the right-hand side.
                 if (circuitRowInfo[j].type == RowInfo.ROW_CONST) {
-                    // keep a running total of const values that have been
-                    // removed already
-                    rsadd -= circuitRowInfo[j].value * q;
+                    rightSideAdjustment -= circuitRowInfo[j].value * elementValue;
                     continue;
                 }
-                // ignore zeroes
-                if (q == 0) {
+                if (elementValue == 0) {
                     continue;
                 }
-                // keep track of first nonzero element that is not ROW_CONST
-                if (qp == -1) {
-                    qp = j;
-                    qv = q;
+                // If this is the first non-zero element found, record its position and value.
+                if (pivotColumnIndex == -1) {
+                    pivotColumnIndex = j;
+                    pivotValue = elementValue;
                     continue;
                 }
-                // more than one nonzero element?  give up
+                // If more than one non-zero element is found, this row cannot be simplified at this time.
                 break;
             }
+
+            // If the loop completed, it means we found a row that can be simplified (j == matrixSize).
             if (j == matrixSize) {
-                if (qp == -1) {
-                    // probably a singular matrix, try disabling matrix simplification above to check this
+                if (pivotColumnIndex == -1) {
+                    // This should not happen in a valid circuit. It might indicate a singular matrix.
                     stop("Matrix error", null);
                     return false;
                 }
-                RowInfo elt = circuitRowInfo[qp];
-                // we found a row with only one nonzero nonconst entry; that value
-                // is a constant
-                if (elt.type != RowInfo.ROW_NORMAL) {
-                    System.out.println("type already " + elt.type + " for " + qp + "!");
+                RowInfo pivotRowInfo = circuitRowInfo[pivotColumnIndex];
+                // We've found a row with a single unknown. We can solve for this unknown.
+                if (pivotRowInfo.type != RowInfo.ROW_NORMAL) {
+                    // This case should ideally not be reached if logic is correct.
+                    System.out.println("type already " + pivotRowInfo.type + " for " + pivotColumnIndex + "!");
                     continue;
                 }
-                elt.type = RowInfo.ROW_CONST;
-                elt.value = (circuitRightSide[i] + rsadd) / qv;
-                circuitRowInfo[i].dropRow = true;
-                // find first row that referenced the element we just deleted
+                // Mark the variable as a constant and calculate its value.
+                pivotRowInfo.type = RowInfo.ROW_CONST;
+                pivotRowInfo.value = (circuitRightSide[i] + rightSideAdjustment) / pivotValue;
+                circuitRowInfo[i].dropRow = true; // Mark the current row to be removed from the matrix.
+
+                // Now that we have a new constant, we need to re-check previous rows.
+                // Find the first row that referenced the element we just turned into a constant.
                 for (j = 0; j != i; j++) {
-                    if (circuitMatrix[j][qp] != 0) {
+                    if (circuitMatrix[j][pivotColumnIndex] != 0) {
                         break;
                     }
                 }
-                // start over just before that
+                // Restart the main loop from just before that row to apply the new simplification.
                 i = j - 1;
             }
         }
 
-        // find size of new matrix
-        int nn = 0;
-        for (i = 0; i != matrixSize; i++) {
-            RowInfo elt = circuitRowInfo[i];
-            if (elt.type == RowInfo.ROW_NORMAL) {
-                elt.mapCol = nn++;
-                //System.out.println("col " + i + " maps to " + elt.mapCol);
-                continue;
-            }
-            if (elt.type == RowInfo.ROW_CONST) {
-                elt.mapCol = -1;
+        // Create the new, smaller matrix by removing the simplified rows and columns.
+        int newSizeCounter = 0; // Counter for the size of the new matrix.
+        for (i = 0; i < matrixSize; i++) {
+            RowInfo rowInfo = circuitRowInfo[i];
+            if (rowInfo.type == RowInfo.ROW_NORMAL) {
+                rowInfo.mapCol = newSizeCounter++; // Map old column index to new column index.
+            } else {
+                rowInfo.mapCol = -1; // Mark constant columns.
             }
         }
 
-        // make the new, simplified matrix
-        int newsize = nn;
-        double[][] newmatx = new double[newsize][newsize];
-        double[] newrs = new double[newsize];
-        int ii = 0;
-        for (i = 0; i != matrixSize; i++) {
-            RowInfo rri = circuitRowInfo[i];
-            if (rri.dropRow) {
-                rri.mapRow = -1;
+        int newMatrixSize = newSizeCounter;
+        if (newMatrixSize == matrixSize) {
+            // No simplification was possible, no need to rebuild the matrix.
+            return true;
+        }
+
+        double[][] newCircuitMatrix = new double[newMatrixSize][newMatrixSize];
+        double[] newRightSide = new double[newMatrixSize];
+        int newRowIndex = 0; // Row index for the new matrix.
+        for (i = 0; i < matrixSize; i++) {
+            RowInfo currentRowInfo = circuitRowInfo[i];
+            if (currentRowInfo.dropRow) {
+                currentRowInfo.mapRow = -1;
                 continue;
             }
-            newrs[ii] = circuitRightSide[i];
-            rri.mapRow = ii;
-            //System.out.println("Row " + i + " maps to " + ii);
+            newRightSide[newRowIndex] = circuitRightSide[i];
+            currentRowInfo.mapRow = newRowIndex;
             for (j = 0; j != matrixSize; j++) {
-                RowInfo ri = circuitRowInfo[j];
-                if (ri.type == RowInfo.ROW_CONST) {
-                    newrs[ii] -= ri.value * circuitMatrix[i][j];
+                RowInfo columnRowInfo = circuitRowInfo[j];
+                if (columnRowInfo.type == RowInfo.ROW_CONST) {
+                    // Adjust the right-hand side with the value of the constant.
+                    newRightSide[newRowIndex] -= columnRowInfo.value * circuitMatrix[i][j];
                 } else {
-                    newmatx[ii][ri.mapCol] += circuitMatrix[i][j];
+                    // Copy the matrix element to its new position.
+                    newCircuitMatrix[newRowIndex][columnRowInfo.mapCol] += circuitMatrix[i][j];
                 }
             }
-            ii++;
+            newRowIndex++;
         }
 
-        circuitMatrix = newmatx;
-        circuitRightSide = newrs;
-        matrixSize = circuitMatrixSize = newsize;
-        for (i = 0; i != matrixSize; i++) {
-            origRightSide[i] = circuitRightSide[i];
-        }
-        for (i = 0; i != matrixSize; i++) {
-            for (j = 0; j != matrixSize; j++) {
-                origMatrix[i][j] = circuitMatrix[i][j];
-            }
+        // Replace the old matrix and right-side vector with the new simplified ones.
+        this.circuitMatrix = newCircuitMatrix;
+        this.circuitRightSide = newRightSide;
+        matrixSize = this.circuitMatrixSize = newMatrixSize;
+        System.arraycopy(this.circuitRightSide, 0, this.origRightSide, 0, matrixSize);
+        for (i = 0; i < matrixSize; i++) {
+            System.arraycopy(this.circuitMatrix[i], 0, this.origMatrix[i], 0, matrixSize);
         }
         circuitNeedsMap = true;
         return true;
