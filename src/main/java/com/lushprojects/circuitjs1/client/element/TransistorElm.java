@@ -145,7 +145,7 @@ public class TransistorElm extends CircuitElm {
         setVoltageColor(g, volts[2]);
         drawThickLine(g, emit[0], emit[1]);
         // draw arrow
-        g.setColor(lightGrayColor);
+        g.setColor(elementColor);
         g.fillPolygon(arrowPoly);
         // draw base
         setVoltageColor(g, volts[0]);
@@ -165,7 +165,7 @@ public class TransistorElm extends CircuitElm {
         g.fillPolygon(rectPoly);
 
         if ((needsHighlight() || circuitEditor.dragElm == this) && dy == 0) {
-            g.setColor(whiteColor);
+            g.setColor(backgroundColor);
 // IES
 //		g.setFont(unitsFont);
             int ds = sign(dx);

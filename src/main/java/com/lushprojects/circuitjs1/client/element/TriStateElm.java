@@ -108,7 +108,7 @@ public class TriStateElm extends CircuitElm {
 
         draw2Leads(g);
 
-        g.setColor(lightGrayColor);
+        g.setColor(elementColor);
         drawThickPolygon(g, gatePoly);
         setVoltageColor(g, volts[2]);
         drawThickLine(g, point3, lead3);

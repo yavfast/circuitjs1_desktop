@@ -187,7 +187,7 @@ public class ProbeElm extends CircuitElm {
             }
             drawValues(g, s, drawAsCircle() ? circleSize + 3 : 4);
         }
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         g.setFont(unitsFont);
         Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
         if (y2 > y)
@@ -197,7 +197,7 @@ public class ProbeElm extends CircuitElm {
         int w = (int) g.context.measureText("+").getWidth();
         g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
         if (drawAsCircle()) {
-            g.setColor(lightGrayColor);
+            g.setColor(elementColor);
             drawThickCircle(g, center.x, center.y, circleSize);
             drawCenteredText(g, "V", center.x, center.y, true);
         }

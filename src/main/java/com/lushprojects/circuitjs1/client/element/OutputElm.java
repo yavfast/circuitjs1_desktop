@@ -69,7 +69,7 @@ public class OutputElm extends CircuitElm {
         boolean selected = needsHighlight();
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
-        g.setColor(selected ? selectColor : whiteColor);
+        g.setColor(selected ? selectColor : backgroundColor);
         String s = showVoltage() ? getUnitTextWithScale(volts[0], "V", scale, isFixed()) : Locale.LS("out");
 //	    FontMetrics fm = g.getFontMetrics();
         if (this == simUi.circuitEditor.plotXElm)

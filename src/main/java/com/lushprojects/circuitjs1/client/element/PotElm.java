@@ -231,7 +231,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             String s1 = getShortUnitText(rev ? resistance2 : resistance1, "");
             String s2 = getShortUnitText(rev ? resistance1 : resistance2, "");
             g.setFont(unitsFont);
-            g.setColor(whiteColor);
+            g.setColor(backgroundColor);
             int ya = (int) g.currentFontSize / 2;
             int w;
             w = (int) g.context.measureText(s1).getWidth();
@@ -257,7 +257,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         g.setFont(unitsFont);
         //FontMetrics fm = g.getFontMetrics();
         int w = (int) g.context.measureText(s).getWidth();
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         int ya = (int) g.currentFontSize / 2;
         int xc = pt.x;
         int yc = pt.y;

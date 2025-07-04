@@ -167,7 +167,7 @@ public class AmmeterElm extends CircuitElm {
             drawThickLine(g, point1, point2);
             g.fillPolygon(arrowPoly);
         } else {
-            g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+            g.setColor(needsHighlight() ? selectColor : elementColor);
             drawThickCircle(g, center.x, center.y, circleSize);
             drawCenteredText(g, "A", center.x, center.y, true);
 
@@ -176,7 +176,7 @@ public class AmmeterElm extends CircuitElm {
             drawThickLine(g, point1, lead1);
             drawThickLine(g, lead2, point2);
 
-            g.setColor(whiteColor);
+            g.setColor(backgroundColor);
             g.setFont(unitsFont);
             double len = circleSize * 2;
             Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);

@@ -95,7 +95,7 @@ public class AMElm extends CircuitElm {
 
         Font f = new Font("SansSerif", 0, 12);
         g.setFont(f);
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         setPowerColor(g, false);
         double v = getVoltage();
         String s = "AM";

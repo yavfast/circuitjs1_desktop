@@ -187,7 +187,7 @@ public class OpAmpRealElm extends CompositeElm {
         drawThickLine(g, rail1p[0], rail1p[1]);
         setVoltageColor(g, volts[4]);
         drawThickLine(g, rail2p[0], rail2p[1]);
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         setPowerColor(g, true);
         drawThickPolygon(g, triangle);
         g.setFont(plusFont);

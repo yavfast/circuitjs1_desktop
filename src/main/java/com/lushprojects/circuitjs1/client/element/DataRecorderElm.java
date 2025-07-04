@@ -55,7 +55,7 @@ public class DataRecorderElm extends CircuitElm {
         boolean selected = (needsHighlight());
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
-        g.setColor(selected ? selectColor : whiteColor);
+        g.setColor(selected ? selectColor : backgroundColor);
         setBbox(point1, lead1, 0);
         String s = Locale.LS("export");
         drawLabeledNode(g, s, point1, lead1);

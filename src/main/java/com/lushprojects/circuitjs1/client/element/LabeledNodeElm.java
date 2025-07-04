@@ -139,7 +139,7 @@ public class LabeledNodeElm extends CircuitElm {
     public void draw(Graphics g) {
         setVoltageColor(g, volts[0]);
         drawThickLine(g, point1, lead1);
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         setPowerColor(g, false);
         interpPoint(point1, point2, ps2, 1 + 11. / dn);
         setBbox(point1, ps2, circleSize);

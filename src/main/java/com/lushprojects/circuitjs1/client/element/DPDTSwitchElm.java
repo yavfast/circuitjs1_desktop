@@ -123,7 +123,7 @@ public class DPDTSwitchElm extends SwitchElm {
 
             // draw switch
             if (!needsHighlight())
-                g.setColor(whiteColor);
+                g.setColor(backgroundColor);
             drawThickLine(g, poleLeads[i], throwLeads[i * 4 + 3 - position * 2]);
 
             // current

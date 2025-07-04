@@ -76,7 +76,7 @@ public class InvertingSchmittElm extends CircuitElm {
     public void draw(Graphics g) {
         drawPosts(g);
         draw2Leads(g);
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, gatePoly);
         g.setLineWidth(2);
         drawPolygon(g, symbolPoly);

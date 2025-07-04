@@ -77,7 +77,7 @@ public class RailElm extends VoltageElm {
         if (waveform == WF_SQUARE && (flags & FLAG_CLOCK) != 0)
             drawRailText(g, "CLK");
         else if (waveform == WF_DC || waveform == WF_VAR) {
-            g.setColor(needsHighlight() ? selectColor : whiteColor);
+            g.setColor(needsHighlight() ? selectColor : backgroundColor);
             setPowerColor(g, false);
             double v = getVoltage();
             String s;
@@ -94,7 +94,7 @@ public class RailElm extends VoltageElm {
     }
 
     void drawRailText(Graphics g, String s) {
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         setPowerColor(g, false);
         drawLabeledNode(g, s, point1, lead1);
     }

@@ -108,7 +108,7 @@ public class AudioOutputElm extends CircuitElm {
         g.setColor(Color.darkGray);
         int pct = (dataFull) ? textWidth : textWidth * dataPtr / dataCount;
         g.fillRect(x2 - textWidth / 2, y2 - 10, pct, 20);
-        g.setColor(selected ? selectColor : whiteColor);
+        g.setColor(selected ? selectColor : backgroundColor);
         interpPoint(point1, point2, lead1, 1 - (textWidth / 2. + 8) / dn);
         setBbox(point1, lead1, 0);
         drawCenteredText(g, s, x2, y2, true);

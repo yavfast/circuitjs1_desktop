@@ -156,7 +156,7 @@ public class TestPointElm extends CircuitElm {
         boolean selected = needsHighlight();
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
-        g.setColor(selected ? selectColor : whiteColor);
+        g.setColor(selected ? selectColor : backgroundColor);
         //depending upon flags show voltage or TP
 
         String s = label;

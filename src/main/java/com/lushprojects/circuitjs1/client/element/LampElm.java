@@ -124,7 +124,7 @@ public class LampElm extends CircuitElm {
         setPowerColor(g, true);
         g.setColor(getTempColor());
         g.fillOval(bulb.x - bulbR, bulb.y - bulbR, bulbR * 2, bulbR * 2);
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         drawThickCircle(g, bulb.x, bulb.y, bulbR);
         setVoltageColor(g, v1);
         drawThickLine(g, lead1, filament[0]);

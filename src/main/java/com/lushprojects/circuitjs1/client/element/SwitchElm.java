@@ -114,14 +114,14 @@ public class SwitchElm extends CircuitElm {
             doDots(g);
 
         if (!needsHighlight())
-            g.setColor(whiteColor);
+            g.setColor(backgroundColor);
         interpPoint(lead1, lead2, ps, 0, hs1);
         interpPoint(lead1, lead2, ps2, 1, hs2);
 
         drawThickLine(g, ps, ps2);
 
         if (label != null) {
-            g.setColor(needsHighlight() ? selectColor : whiteColor);
+            g.setColor(needsHighlight() ? selectColor : backgroundColor);
             if (Math.abs(dy) > Math.abs(dx))
                 g.drawString(label, x + 10, (y < y2 ? lead1 : lead2).y - 5);
             else {

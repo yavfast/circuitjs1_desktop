@@ -148,7 +148,7 @@ public class WattmeterElm extends CircuitElm {
             flip *= -1;
         }
 
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, rectPointsX, rectPointsY, 4);
 
         setBbox(posts[0].x, posts[0].y, posts[3].x, posts[3].y);
@@ -166,7 +166,7 @@ public class WattmeterElm extends CircuitElm {
                 break;
             fsize--;
         }
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         g.context.setTextBaseline("middle");
         g.drawString(str, center.x - w / 2, center.y);
         g.restore();

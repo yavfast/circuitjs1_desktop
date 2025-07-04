@@ -92,7 +92,7 @@ public class TappedTransformerElm extends CircuitElm {
             drawCoil(g, i > 1 ? -6 * flip : 6 * flip,
                     ptCoil[i], ptCoil[i + 1], volts[i], volts[i + 1]);
         }
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         for (i = 0; i != 4; i += 2) {
             drawThickLine(g, ptCore[i], ptCore[i + 1]);
         }

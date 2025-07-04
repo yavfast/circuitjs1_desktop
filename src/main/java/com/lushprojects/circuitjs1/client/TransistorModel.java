@@ -173,7 +173,7 @@ public class TransistorModel implements Editable, Comparable<TransistorModel> {
     }
 
     void undump(StringTokenizer st) {
-        flags = new Integer(st.nextToken()).intValue();
+        flags = Integer.parseInt(st.nextToken());
 
         satCur = Double.parseDouble(st.nextToken());
         invRollOffF = Double.parseDouble(st.nextToken());
@@ -221,7 +221,7 @@ public class TransistorModel implements Editable, Comparable<TransistorModel> {
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0) {
             name = ei.textf.getText();
-            if (name.length() > 0)
+            if (!name.isEmpty())
                 modelMap.put(name, this);
         }
         if (n == 1) satCur = ei.value;

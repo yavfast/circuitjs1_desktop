@@ -106,7 +106,7 @@ public class RelayContactElm extends CircuitElm {
         g.setColor(Color.lightGray);
         drawThickLine(g, swpoles[0], ptSwitch);
 
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         if (x == x2)
             g.drawString(label, x + 10, swpoles[y < y2 ? 0 : 1].y - 5);
         else {

@@ -164,7 +164,7 @@ public abstract class GateElm extends CircuitElm {
         }
         setVoltageColor(g, volts[inputCount]);
         drawThickLine(g, lead2, point2);
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         if (useEuroGates()) {
             drawThickPolygon(g, gatePoly);
             Point center = interpPoint(point1, point2, .5);

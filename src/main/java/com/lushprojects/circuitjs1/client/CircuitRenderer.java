@@ -187,13 +187,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         Graphics g = new Graphics(cvcontext);
 
         if (cirSim.menuManager.printableCheckItem.getState()) {
-            CircuitElm.whiteColor = Color.black;
-            CircuitElm.lightGrayColor = Color.black;
+            CircuitElm.backgroundColor = Color.black;
+            CircuitElm.elementColor = Color.black;
             g.setColor(Color.white);
             cv.getElement().getStyle().setBackgroundColor("#fff");
         } else {
-            CircuitElm.whiteColor = Color.white;
-            CircuitElm.lightGrayColor = Color.lightGray;
+            CircuitElm.backgroundColor = Color.white;
+            CircuitElm.elementColor = Color.lightGray;
             g.setColor(Color.black);
             cv.getElement().getStyle().setBackgroundColor("#000");
         }
@@ -420,7 +420,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             g.drawLine(0, circuitArea.height - 2, circuitArea.width, circuitArea.height - 2);
             g.setLineWidth(1.0);
         }
-        g.setColor(CircuitElm.whiteColor);
+        g.setColor(CircuitElm.backgroundColor);
 
         if (simulator.stopMessage != null) {
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
@@ -607,12 +607,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         if (print)
             cirSim.menuManager.printableCheckItem.setState(true);
         if (cirSim.menuManager.printableCheckItem.getState()) {
-            CircuitElm.whiteColor = Color.black;
-            CircuitElm.lightGrayColor = Color.black;
+            CircuitElm.backgroundColor = Color.black;
+            CircuitElm.elementColor = Color.black;
             g.setColor(Color.white);
         } else {
-            CircuitElm.whiteColor = Color.white;
-            CircuitElm.lightGrayColor = Color.lightGray;
+            CircuitElm.backgroundColor = Color.white;
+            CircuitElm.elementColor = Color.lightGray;
             g.setColor(Color.black);
         }
         g.fillRect(0, 0, w, h);

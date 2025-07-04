@@ -55,7 +55,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     protected static CircuitSimulator simulator;
     protected static CircuitEditor circuitEditor;
 
-    static public Color whiteColor, lightGrayColor, selectColor;
+    static public Color backgroundColor, elementColor, selectColor;
     static public Color positiveColor, negativeColor, neutralColor, currentColor;
     public static Font unitsFont;
 
@@ -575,7 +575,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public static void drawPost(Graphics g, Point pt) {
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         g.fillOval(pt.x - 3, pt.y - 3, 7, 7);
     }
 
@@ -656,7 +656,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         g.setFont(unitsFont);
         //FontMetrics fm = g.getFontMetrics();
         int w = (int) g.context.measureText(s).getWidth();
-        g.setColor(whiteColor);
+        g.setColor(backgroundColor);
         int ya = (int) g.currentFontSize / 2;
         int xc, yc;
         if (this instanceof RailElm || this instanceof SweepElm) {
@@ -806,7 +806,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             return (selectColor);
         }
         if (!simUi.menuManager.voltsCheckItem.getState()) {
-            return (whiteColor);
+            return (backgroundColor);
         }
         int c = (int) ((volts + voltageRange) * (colorScaleCount - 1) /
                 (voltageRange * 2));

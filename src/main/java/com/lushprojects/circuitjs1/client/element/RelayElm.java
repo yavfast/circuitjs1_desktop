@@ -153,7 +153,7 @@ public class RelayElm extends CircuitElm {
 
         // draw rectangle
         if ((flags & FLAG_SHOW_BOX) != 0) {
-            g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+            g.setColor(needsHighlight() ? selectColor : elementColor);
             drawThickLine(g, outline[0], outline[1]);
             drawThickLine(g, outline[1], outline[2]);
             drawThickLine(g, outline[2], outline[3]);

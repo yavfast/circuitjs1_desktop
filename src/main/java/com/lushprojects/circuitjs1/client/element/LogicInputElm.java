@@ -81,7 +81,7 @@ public class LogicInputElm extends SwitchElm {
         g.save();
         Font f = new Font("SansSerif", Font.BOLD, 20);
         g.setFont(f);
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         String s = position == 0 ? "L" : "H";
         if (isNumeric())
             s = "" + position;

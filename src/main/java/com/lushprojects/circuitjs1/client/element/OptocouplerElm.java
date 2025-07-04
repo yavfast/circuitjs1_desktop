@@ -59,7 +59,7 @@ public class OptocouplerElm extends CompositeElm {
     }
 
     public void draw(Graphics g) {
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, rectPointsX, rectPointsY, 4);
 
         // draw stubs
@@ -79,7 +79,7 @@ public class OptocouplerElm extends CompositeElm {
         drawPosts(g);
 
         // draw little arrows
-        g.setColor(lightGrayColor);
+        g.setColor(elementColor);
         int dx = isFlippedX() ? -1 : 1;
         int sx = stubs[0].x + 2 * dx;
         int sy = (stubs[0].y + stubs[1].y) / 2;

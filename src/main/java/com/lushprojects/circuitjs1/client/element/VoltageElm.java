@@ -191,7 +191,7 @@ public class VoltageElm extends CircuitElm {
                 inds = "+";
             else
                 inds = "*";
-            g.setColor(whiteColor);
+            g.setColor(backgroundColor);
             g.setFont(unitsFont);
             Point plusPoint = interpPoint(point1, point2, (dn / 2 + circleSize + 4) / dn, 10 * dsign);
             plusPoint.y += 4;
@@ -256,7 +256,7 @@ public class VoltageElm extends CircuitElm {
                 break;
             }
             case WF_NOISE: {
-                g.setColor(needsHighlight() ? selectColor : whiteColor);
+                g.setColor(needsHighlight() ? selectColor : backgroundColor);
                 setPowerColor(g, false);
                 drawLabeledNode(g, Locale.LS("Noise"), point1, lead1);
                 break;

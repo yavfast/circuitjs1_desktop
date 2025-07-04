@@ -114,7 +114,7 @@ public class TransformerElm extends CircuitElm {
                 csign *= -1;
             drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], volts[i], volts[i + 2]);
         }
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         for (i = 0; i != 2; i++) {
             drawThickLine(g, ptCore[i], ptCore[i + 2]);
             if (dots != null)

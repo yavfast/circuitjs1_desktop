@@ -322,7 +322,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         drawPosts(g);
 
-        g.setColor(needsHighlight() ? selectColor : whiteColor);
+        g.setColor(needsHighlight() ? selectColor : backgroundColor);
         g.save();
         if (Math.abs(dy) > Math.abs(dx)) {
             for (i = 0; i != 3; i++) {

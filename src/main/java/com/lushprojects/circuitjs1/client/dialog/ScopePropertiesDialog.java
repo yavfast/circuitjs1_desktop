@@ -183,7 +183,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
                 chanButtons.add(b);
                 chanButtons.get(i).addClickHandler(new ScopePropertiesDialog.PlotClickHandler(i));
                 b.addStyleName("chbut");
-                if (CircuitElm.whiteColor == Color.white)
+                if (CircuitElm.backgroundColor == Color.white)
                     b.addStyleName("chbut-black");
                 else
                     b.addStyleName("chbut-white");

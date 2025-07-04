@@ -118,7 +118,7 @@ public class AnalogSwitchElm extends CircuitElm {
 
         draw2Leads(g);
 
-        g.setColor(lightGrayColor);
+        g.setColor(elementColor);
         interpPoint(lead1, lead2, ps, 1, hs);
         drawThickLine(g, lead1, ps);
 

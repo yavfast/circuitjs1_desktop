@@ -128,14 +128,14 @@ public abstract class ChipElm extends CircuitElm {
             if (p.bubble) {
                 g.setColor(simUi.getBackgroundColor());
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 1);
-                g.setColor(lightGrayColor);
+                g.setColor(elementColor);
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 3);
             }
             if (p.clockPointsX != null) {
-                g.setColor(lightGrayColor);
+                g.setColor(elementColor);
                 g.drawPolyline(p.clockPointsX, p.clockPointsY, 3);
             }
-            g.setColor(p.selected ? selectColor : whiteColor);
+            g.setColor(p.selected ? selectColor : backgroundColor);
             int fsz = 10 * csize;
             double availSpace = cspc * 2 - 8;
             // allow a little more space if the chip is wide and there are no vertical pins
@@ -171,7 +171,7 @@ public abstract class ChipElm extends CircuitElm {
         }
 
         drawLabel(g, labelX, labelY);
-        g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, rectPointsX, rectPointsY, 4);
         drawPosts(g);
         g.restore();
