@@ -151,7 +151,7 @@ public class Switch2Elm extends SwitchElm {
         if (link != 0) {
             int i;
             for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.elementAt(i);
+                Object o = simulator.elmList.get(i);
                 if (o instanceof Switch2Elm) {
                     Switch2Elm s2 = (Switch2Elm) o;
                     if (s2.link == link && position < s2.posCount)

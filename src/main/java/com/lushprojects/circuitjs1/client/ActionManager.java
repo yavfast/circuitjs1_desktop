@@ -339,7 +339,7 @@ public class ActionManager extends BaseCirSimDelegate {
 
         if (item == "viewInFloatScope" && circuitEditor().menuElm != null) {
             ScopeElm newScope = new ScopeElm(circuitEditor.snapGrid(circuitEditor().menuElm.x + 50), circuitEditor.snapGrid(circuitEditor().menuElm.y + 50));
-            simulator().elmList.addElement(newScope);
+            simulator().elmList.add(newScope);
             newScope.setScopeElm(circuitEditor().menuElm);
 
             // need to rebuild scopeElmArr

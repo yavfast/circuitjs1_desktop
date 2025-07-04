@@ -385,7 +385,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = simulator.elmList.get(i);
             if (ce.x == ce.x2 && ce.y == ce.y2) {
-                simulator.elmList.removeElementAt(i);
+                simulator.elmList.remove(i);
                 ce.delete();
                 changed = true;
             }
@@ -699,7 +699,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 if (mouseMode == MODE_SELECT || mouseMode == MODE_DRAG_SELECTED)
                     clearSelection();
             } else {
-                simulator().elmList.addElement(dragElm);
+                simulator().elmList.add(dragElm);
                 dragElm.draggingDone();
                 circuitChanged = true;
                 undoManager().writeRecoveryToStorage();
@@ -846,7 +846,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         WireElm newWire = new WireElm(x, y);
         newWire.drag(ce.x2, ce.y2);
         ce.drag(x, y);
-        simulator().elmList.addElement(newWire);
+        simulator().elmList.add(newWire);
         cirSim.needAnalyze();
     }
 
@@ -963,7 +963,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 if (ce.isMouseElm())
                     setMouseElm(null);
                 ce.delete();
-                simulator.elmList.removeElementAt(i);
+                simulator.elmList.remove(i);
                 hasDeleted = true;
             }
         }

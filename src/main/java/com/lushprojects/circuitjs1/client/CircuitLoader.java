@@ -34,7 +34,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                 ce.delete();
             }
             simulator.t = simulator.timeStepAccum = 0;
-            simulator.elmList.removeAllElements();
+            simulator.elmList.clear();
             cirSim.renderer.hintType = -1;
             simulator.maxTimeStep = 5e-6;
             simulator.minTimeStep = 50e-12;
@@ -137,7 +137,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 			console("allocnodes not called! " + tint);
 		     */
                     newce.setPoints();
-                    simulator.elmList.addElement(newce);
+                    simulator.elmList.add(newce);
                 } catch (Exception ee) {
                     ee.printStackTrace();
                     CirSim.console("exception while undumping " + ee);

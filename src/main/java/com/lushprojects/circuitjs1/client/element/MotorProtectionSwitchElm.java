@@ -250,7 +250,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         int i;
         int switchPosition = (blown) ? 0 : 1;
         for (i = 0; i != simulator.elmList.size(); i++) {
-            Object o = simulator.elmList.elementAt(i);
+            Object o = simulator.elmList.get(i);
             if (o instanceof RelayContactElm) {
                 RelayContactElm s2 = (RelayContactElm) o;
                 if (s2.label.equals(label))

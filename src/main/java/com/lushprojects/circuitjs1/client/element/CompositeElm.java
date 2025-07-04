@@ -8,6 +8,7 @@ import com.lushprojects.circuitjs1.client.IntPair;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Vector;
@@ -38,15 +39,15 @@ public abstract class CompositeElm extends CircuitElm {
     final int FLAG_ESCAPE = 1;
 
     // list of elements contained in this subcircuit
-    Vector<CircuitElm> compElmList;
+    ArrayList<CircuitElm> compElmList;
 
     // list of nodes, mapping each one to a list of elements that reference that node
-    protected Vector<CircuitNode> compNodeList;
+    protected ArrayList<CircuitNode> compNodeList;
 
     protected int numPosts = 0;
     protected int numNodes = 0;
-    protected Point posts[];
-    protected Vector<VoltageSourceRecord> voltageSources;
+    protected Point[] posts;
+    protected ArrayList<VoltageSourceRecord> voltageSources;
 
     CompositeElm(int xx, int yy) {
         super(xx, yy);
@@ -79,9 +80,9 @@ public abstract class CompositeElm extends CircuitElm {
         CircuitNodeLink cnLink;
         VoltageSourceRecord vsRecord;
 
-        compElmList = new Vector<CircuitElm>();
-        compNodeList = new Vector<CircuitNode>();
-        voltageSources = new Vector<VoltageSourceRecord>();
+        compElmList = new ArrayList<>();
+        compNodeList = new ArrayList<>();
+        voltageSources = new ArrayList<>();
 
         // Build compElmList and compNodeHash from input string
 
@@ -224,7 +225,7 @@ public abstract class CompositeElm extends CircuitElm {
 
     // are n1 and n2 connected internally somehow?
     public boolean getConnectionSlow(int n1, int n2) {
-        Vector<Integer> connectedNodes = new Vector<Integer>();
+        ArrayList<Integer> connectedNodes = new ArrayList<>();
 
         // keep list of nodes connected to n1
         connectedNodes.add(n1);
@@ -236,7 +237,7 @@ public abstract class CompositeElm extends CircuitElm {
                 return true;
 
             // find all elements connected to n
-            Vector<CircuitNodeLink> cnLinks = compNodeList.get(n).links;
+            ArrayList<CircuitNodeLink> cnLinks = compNodeList.get(n).links;
             for (int j = 0; j < cnLinks.size(); j++) {
                 CircuitNodeLink link = cnLinks.get(j);
                 CircuitElm lelm = link.elm;
@@ -296,7 +297,7 @@ public abstract class CompositeElm extends CircuitElm {
             // next node in list
             int n = connectedNodes.get(i);
             // find all elements connected to n
-            Vector<CircuitNodeLink> cnLinks = compNodeList.get(n).links;
+            ArrayList<CircuitNodeLink> cnLinks = compNodeList.get(n).links;
             for (int j = 0; j < cnLinks.size(); j++) {
                 CircuitNodeLink link = cnLinks.get(j);
                 CircuitElm lelm = link.elm;
@@ -378,7 +379,7 @@ public abstract class CompositeElm extends CircuitElm {
     // called to set node p (local to this element) to equal n (global)
     public void setNode(int p, int n) {
         // nodes[p] = n
-        Vector<CircuitNodeLink> cnLinks;
+        ArrayList<CircuitNodeLink> cnLinks;
         super.setNode(p, n);
         cnLinks = compNodeList.get(p).links;
 
@@ -391,7 +392,7 @@ public abstract class CompositeElm extends CircuitElm {
 
     public void setNodeVoltage(int n, double c) {
         // volts[n] = c;
-        Vector<CircuitNodeLink> cnLinks;
+        ArrayList<CircuitNodeLink> cnLinks;
         super.setNodeVoltage(n, c);
         cnLinks = compNodeList.get(n).links;
         for (int i = 0; i < cnLinks.size(); i++) {
@@ -436,7 +437,7 @@ public abstract class CompositeElm extends CircuitElm {
 
     public double getCurrentIntoNode(int n) {
         double c = 0;
-        Vector<CircuitNodeLink> cnLinks;
+        ArrayList<CircuitNodeLink> cnLinks;
         cnLinks = compNodeList.get(n).links;
         for (int i = 0; i < cnLinks.size(); i++) {
             c += cnLinks.get(i).elm.getCurrentIntoNode(cnLinks.get(i).num);

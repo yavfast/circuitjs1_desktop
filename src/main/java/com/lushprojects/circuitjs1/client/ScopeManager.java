@@ -64,7 +64,7 @@ public class ScopeManager extends BaseCirSimDelegate {
     }
 
     void undockScope(ScopeElm newScope) {
-        simulator().elmList.addElement(newScope);
+        simulator().elmList.add(newScope);
         newScope.setElmScope(scopes[menuScope]);
 
         int i;

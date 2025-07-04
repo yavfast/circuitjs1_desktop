@@ -19,13 +19,14 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import java.util.ArrayList;
 import java.util.Vector;
 
 public class CircuitNode {
-    public Vector<CircuitNodeLink> links;
+    public ArrayList<CircuitNodeLink> links;
     public boolean internal;
 
     public CircuitNode() {
-        links = new Vector<CircuitNodeLink>();
+        links = new ArrayList<>();
     }
 }

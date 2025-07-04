@@ -170,7 +170,7 @@ public class MBBSwitchElm extends SwitchElm {
         if (link != 0) {
             int i;
             for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.elementAt(i);
+                Object o = simulator.elmList.get(i);
                 if (o instanceof MBBSwitchElm) {
                     MBBSwitchElm s2 = (MBBSwitchElm) o;
                     if (s2.link == link)

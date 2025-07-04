@@ -178,7 +178,7 @@ public class SwitchElm extends CircuitElm {
         if (label != null) {
             int i;
             for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.elementAt(i);
+                Object o = simulator.elmList.get(i);
                 if (o instanceof SwitchElm && o != this) {
                     SwitchElm s2 = (SwitchElm) o;
                     if (label.equals(s2.label))

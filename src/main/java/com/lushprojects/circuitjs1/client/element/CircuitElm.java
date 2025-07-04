@@ -39,6 +39,7 @@ import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
+import java.util.ArrayList;
 import java.util.Vector;
 
 // circuit element class
@@ -228,7 +229,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return current;
     }
 
-    public void setParentList(Vector<CircuitElm> elmList) {
+    public void setParentList(ArrayList<CircuitElm> elmList) {
     }
 
     // stamp matrix values for linear elements.
