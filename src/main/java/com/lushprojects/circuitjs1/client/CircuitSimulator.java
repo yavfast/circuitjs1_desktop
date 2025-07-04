@@ -40,7 +40,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public double minFrameRate = 20;
     public boolean adjustTimeStep;
-    public final ArrayList<CircuitElm> elmList;
+
+    public final ArrayList<CircuitElm> elmList = new ArrayList<>(256);
+
     CircuitElm[] elmArr;
     ScopeElm[] scopeElmArr;
     double[][] circuitMatrix;
@@ -58,22 +60,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     int circuitMatrixFullSize;
     boolean circuitNeedsMap;
 
-    public ArrayList<CircuitNode> nodeList;
+    public final ArrayList<CircuitNode> nodeList = new ArrayList<>(128);
 
     // map points to node numbers
-    HashMap<Point, NodeMapEntry> nodeMap;
+    private final HashMap<Point, NodeMapEntry> nodeMap = new HashMap<>(128);
 
     // info about each wire and its neighbors, used to calculate wire currents
-    ArrayList<WireInfo> wireInfoList;
+    private final ArrayList<WireInfo> wireInfoList = new ArrayList<>(256);
 
-    ArrayList<Point> postDrawList = new ArrayList<>(64);
-    ArrayList<Point> badConnectionList = new ArrayList<>(64);
+    final ArrayList<Point> postDrawList = new ArrayList<>(64);
+    final ArrayList<Point> badConnectionList = new ArrayList<>(64);
+
     CircuitElm[] voltageSources;
 
 
     public CircuitSimulator(CirSim cirSim) {
         super(cirSim);
-        elmList = new ArrayList<>(256);
     }
 
     int locateElm(CircuitElm elm) {
@@ -116,8 +118,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     void calculateWireClosure() {
         LabeledNodeElm.resetNodeList();
         GroundElm.resetNodeList();
-        nodeMap = new HashMap<>(elmList.size());
-        wireInfoList = new ArrayList<>(elmList.size());
+
+        nodeMap.clear();
+        wireInfoList.clear();
+
         for (int i = 0; i < elmList.size(); i++) {
             CircuitElm ce = elmList.get(i);
             if (!ce.isRemovableWire()) {
@@ -371,8 +375,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         voltageSources = new CircuitElm[vscount];
     }
 
-    Vector<Integer> unconnectedNodes;
-    Vector<CircuitElm> nodesWithGroundConnection;
+    final ArrayList<Integer> unconnectedNodes = new ArrayList<>();
+    final ArrayList<CircuitElm> nodesWithGroundConnection = new ArrayList<>();
     int nodesWithGroundConnectionCount;
 
     void findUnconnectedNodes() {
@@ -383,8 +387,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // will get a matrix error.
         boolean[] closure = new boolean[nodeList.size()];
         boolean changed = true;
-        unconnectedNodes = new Vector<>();
-        nodesWithGroundConnection = new Vector<>();
+        unconnectedNodes.clear();
+        nodesWithGroundConnection.clear();
         closure[0] = true;
         while (changed) {
             changed = false;
@@ -451,8 +455,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // do the rest of the pre-stamp circuit analysis
     boolean preStampCircuit(boolean subcircuit) {
-        int j;
-        nodeList = new ArrayList<>(128);
+        nodeList.clear();
 
         calculateWireClosure();
         setGroundNode(subcircuit);
@@ -463,7 +466,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (!calcWireInfo()) {
             return false;
         }
-        nodeMap = null; // done with this
+        nodeMap.clear(); // done with this
 
         int vscount = 0;
         circuitNonLinear = false;
@@ -474,7 +477,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 circuitNonLinear = true;
             }
             int ivs = ce.getVoltageSourceCount();
-            for (j = 0; j != ivs; j++) {
+            for (int j = 0; j != ivs; j++) {
                 voltageSources[vscount] = ce;
                 ce.setVoltageSource(j, vscount++);
             }
@@ -502,7 +505,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         nodesWithGroundConnectionCount = nodesWithGroundConnection.size();
         // only need this for validation
-        nodesWithGroundConnection = null;
+        nodesWithGroundConnection.clear();
 
         timeStep = maxTimeStep;
         needsStamp = true;
@@ -525,10 +528,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (stopMessage != null) {
             return;
         }
-        if (i == 10) {
-            cirSim.stop("failed to stamp circuit", null);
-            return;
-        }
+//        if (i == 10) {
+//            cirSim.stop("failed to stamp circuit", null);
+//            return;
+//        }
 
         stampCircuit();
     }
@@ -741,8 +744,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
 
-        postDrawList = new ArrayList<>();
-        badConnectionList = new ArrayList<>();
+        postDrawList.clear();
+        badConnectionList.clear();
         for (Map.Entry<Point, Integer> entry : postCountMap.entrySet()) {
             if (entry.getValue() != 2) {
                 postDrawList.add(entry.getKey());
@@ -983,8 +986,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         stopMessage = null;
         stopElm = null;
         if (elmList.isEmpty()) {
-            postDrawList = new ArrayList<>();
-            badConnectionList = new ArrayList<>();
+            postDrawList.clear();
+            badConnectionList.clear();
             return;
         }
         makePostDrawList();

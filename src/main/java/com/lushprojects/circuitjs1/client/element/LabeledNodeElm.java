@@ -64,7 +64,7 @@ public class LabeledNodeElm extends CircuitElm {
         int node;
     }
 
-    static HashMap<String, LabelEntry> labelList;
+    static final HashMap<String, LabelEntry> labelList = new HashMap<>(64);
 
     public boolean isInternal() {
         return (flags & FLAG_INTERNAL) != 0;
@@ -76,7 +76,7 @@ public class LabeledNodeElm extends CircuitElm {
 	}-*/;
 
     public static void resetNodeList() {
-        labelList = new HashMap<String, LabelEntry>();
+        labelList.clear();
     }
 
     final int circleSize = 17;
