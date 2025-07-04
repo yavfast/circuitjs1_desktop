@@ -59,45 +59,30 @@ public class CircuitMath {
             return a[0][0] != 0.0;
         }
 
-        // Check for singular matrix by scanning for all-zero rows
-        // Combined with finding the first pivot
-        for (int i = 0; i < n; i++) {
-            boolean rowAllZeros = true;
-            for (int j = 0; j < n; j++) {
-                if (a[i][j] != 0.0) {
-                    rowAllZeros = false;
-                    break;
-                }
-            }
-            if (rowAllZeros) {
-                return false;
-            }
-        }
-
         // Use Crout's method with partial pivoting
         for (int j = 0; j < n; j++) {
-
-            // Calculate upper triangular elements for this column
-            for (int i = 0; i < j; i++) {
+            // Calculate upper and lower triangular elements for this column
+            for (int i = 0; i < n; i++) {
                 double sum = a[i][j];
-                for (int k = 0; k < i; k++) {
-                    sum -= a[i][k] * a[k][j];
+                int k_max = (i < j) ? i : j;
+                if (k_max > 0) {
+                    double[] row_i = a[i];
+                    for (int k = 0; k < k_max; k++) {
+                        sum -= row_i[k] * a[k][j];
+                    }
+                    a[i][j] = sum;
                 }
-                a[i][j] = sum;
             }
 
-            // Calculate lower triangular elements and find pivot
+            // Find pivot for this column
             double largest = 0.0;
-            int largestRow = j; // Initialize to current row
+            int largestRow = j;
 
             for (int i = j; i < n; i++) {
-                double sum = a[i][j];
-                for (int k = 0; k < j; k++) {
-                    sum -= a[i][k] * a[k][j];
+                double abs = a[i][j];
+                if (abs < 0.0) {
+                    abs = -abs;
                 }
-                a[i][j] = sum;
-
-                double abs = Math.abs(sum);
                 if (abs > largest) {
                     largest = abs;
                     largestRow = i;
@@ -111,7 +96,6 @@ public class CircuitMath {
 
             // Perform row interchange if necessary
             if (largestRow != j) {
-                // Swap entire rows
                 double[] temp = a[j];
                 a[j] = a[largestRow];
                 a[largestRow] = temp;
@@ -120,9 +104,14 @@ public class CircuitMath {
             // Store pivot information
             ipvt[j] = largestRow;
 
-            // Scale the lower triangular elements
+            // Scale the lower triangular elements by the pivot
             if (j < n - 1) {
-                double pivotInv = 1.0 / a[j][j];
+                double pivot = a[j][j];
+                // Check for singularity again after pivot
+                if (Math.abs(pivot) < 1e-14) {
+                    return false;
+                }
+                double pivotInv = 1.0 / pivot;
                 for (int i = j + 1; i < n; i++) {
                     a[i][j] *= pivotInv;
                 }
@@ -141,18 +130,22 @@ public class CircuitMath {
 
         // solve for each column of identity matrix
         for (i = 0; i != n; i++) {
-            for (j = 0; j != n; j++)
+            for (j = 0; j != n; j++) {
                 b[j] = 0;
+            }
             b[i] = 1;
             lu_solve(a, n, ipvt, b);
-            for (j = 0; j != n; j++)
+            for (j = 0; j != n; j++) {
                 inva[j][i] = b[j];
+            }
         }
 
         // return in original matrix
-        for (i = 0; i != n; i++)
-            for (j = 0; j != n; j++)
+        for (i = 0; i != n; i++) {
+            for (j = 0; j != n; j++) {
                 a[i][j] = inva[i][j];
+            }
+        }
     }
 
 }
