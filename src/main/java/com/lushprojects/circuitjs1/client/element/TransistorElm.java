@@ -391,7 +391,7 @@ public class TransistorElm extends CircuitElm {
         double ceqbc = pnp * (-cc + vbe * (gm + go) - vbc * (gmu + go));
 
         if (Double.isInfinite(ib) || Double.isNaN(ic))
-            simUi.stop("infinite transistor current", this);
+            simulator.stop("infinite transistor current", this);
 
         // stamp matrix.
         // Node 0 is the base, node 1 the collector, node 2 the emitter.
@@ -591,7 +591,7 @@ public class TransistorElm extends CircuitElm {
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
         if (Math.abs(ic) > 1e12 || Math.abs(ib) > 1e12)
-            simUi.stop("max current exceeded", this);
+            simulator.stop("max current exceeded", this);
 
         // if we needed to add a conductance to all junctions, this was a bad iteration.
         // If we have 5 of those in a row, give up

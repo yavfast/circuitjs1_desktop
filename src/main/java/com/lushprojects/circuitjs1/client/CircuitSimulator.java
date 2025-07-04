@@ -3,20 +3,16 @@ package com.lushprojects.circuitjs1.client;
 import static com.lushprojects.circuitjs1.client.CirSim.console;
 
 import com.google.gwt.user.client.Window;
-import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
-import com.lushprojects.circuitjs1.client.element.CurrentElm;
 import com.lushprojects.circuitjs1.client.element.GraphicElm;
 import com.lushprojects.circuitjs1.client.element.GroundElm;
-import com.lushprojects.circuitjs1.client.element.InductorElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
-import com.lushprojects.circuitjs1.client.element.LogicInputElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
-import com.lushprojects.circuitjs1.client.element.VCCSElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
+import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,22 +39,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public final ArrayList<CircuitElm> elmList = new ArrayList<>(256);
 
-    CircuitElm[] elmArr;
+    private CircuitElm[] elmArr;
     ScopeElm[] scopeElmArr;
-    double[][] circuitMatrix;
-    double[][] origMatrix;
-    double[] circuitRightSide;
-    double[] lastNodeVoltages;
+    private double[][] circuitMatrix;
+    private double[][] origMatrix;
+    private double[] circuitRightSide;
+    private double[] lastNodeVoltages;
     double[] nodeVoltages;
-    double[] origRightSide;
-    RowInfo[] circuitRowInfo;
-    int[] circuitPermute;
+    private double[] origRightSide;
+    private RowInfo[] circuitRowInfo;
+    private int[] circuitPermute;
     boolean simRunning;
-    boolean circuitNonLinear;
-    int voltageSourceCount;
-    int circuitMatrixSize;
-    int circuitMatrixFullSize;
-    boolean circuitNeedsMap;
+    private boolean circuitNonLinear;
+    private int voltageSourceCount;
+    private int circuitMatrixSize;
+    private int circuitMatrixFullSize;
+    private boolean circuitNeedsMap;
 
     public final ArrayList<CircuitNode> nodeList = new ArrayList<>(128);
 
@@ -76,6 +72,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public CircuitSimulator(CirSim cirSim) {
         super(cirSim);
+    }
+
+    public void stop(String message, CircuitElm ce) {
+        stopMessage = Locale.LS(message);
+        stopElm = ce;
+
+        circuitMatrix = null;  // causes an exception
+
+        cirSim.stop();
     }
 
     int locateElm(CircuitElm elm) {
@@ -248,7 +253,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 wireInfoList.add(wireInfoList.remove(i--));
                 moved++;
                 if (moved > wireInfoList.size() * 2) {
-                    cirSim.stop("wire loop detected", wire);
+                    stop("wire loop detected", wire);
                     return false;
                 }
             }
@@ -538,7 +543,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // stamp the matrix, meaning populate the matrix as required to simulate the circuit (for all linear elements, at least).
     // this gets called after something changes in the circuit, and also when auto-adjusting timestep
     void stampCircuit() {
-        int i;
         int matrixSize = nodeList.size() - 1 + voltageSourceCount;
         circuitMatrix = new double[matrixSize][matrixSize];
         circuitRightSide = new double[matrixSize];
@@ -550,10 +554,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         origRightSide = new double[matrixSize];
         circuitMatrixSize = circuitMatrixFullSize = matrixSize;
         circuitRowInfo = new RowInfo[matrixSize];
-        circuitPermute = new int[matrixSize];
-        for (i = 0; i != matrixSize; i++) {
+        for (int i = 0; i < matrixSize; i++) {
             circuitRowInfo[i] = new RowInfo();
         }
+        circuitPermute = new int[matrixSize];
         circuitNeedsMap = false;
 
         connectUnconnectedNodes();
@@ -577,7 +581,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // needing to do it every frame
         if (!circuitNonLinear) {
             if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                cirSim.stop("Singular matrix!", null);
+                stop("Singular matrix!", null);
                 return;
             }
         }
@@ -585,7 +589,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // copy elmList to an array to avoid a bunch of calls to canCast() when doing simulation
         elmArr = new CircuitElm[elmList.size()];
         int scopeElmCount = 0;
-        for (i = 0; i != elmList.size(); i++) {
+        for (int i = 0; i < elmList.size(); i++) {
             elmArr[i] = elmList.get(i);
             if (elmArr[i] instanceof ScopeElm) {
                 scopeElmCount++;
@@ -595,7 +599,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // copy ScopeElms to an array to avoid a second pass over entire list of elms during simulation
         scopeElmArr = new ScopeElm[scopeElmCount];
         int j = 0;
-        for (i = 0; i != elmList.size(); i++) {
+        for (int i = 0; i != elmList.size(); i++) {
             if (elmArr[i] instanceof ScopeElm) {
                 scopeElmArr[j++] = (ScopeElm) elmArr[i];
             }
@@ -647,7 +651,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (j == matrixSize) {
                 if (qp == -1) {
                     // probably a singular matrix, try disabling matrix simplification above to check this
-                    cirSim.stop("Matrix error", null);
+                    stop("Matrix error", null);
                     return false;
                 }
                 RowInfo elt = circuitRowInfo[qp];
@@ -734,10 +738,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // have the same node number at both ends.
     void makePostDrawList() {
         HashMap<Point, Integer> postCountMap = new HashMap<>();
-        int j;
         for (CircuitElm ce : elmList) {
             int posts = ce.getPostCount();
-            for (j = 0; j != posts; j++) {
+            for (int j = 0; j < posts; j++) {
                 Point pt = ce.getPost(j);
                 postCountMap.compute(pt, (k, v) -> (v == null) ? 1 : v + 1);
             }
@@ -755,7 +758,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (entry.getValue() == 1) {
                 boolean bad = false;
                 Point cn = entry.getKey();
-                for (j = 0; j != elmList.size() && !bad; j++) {
+                for (int j = 0; j < elmList.size() && !bad; j++) {
                     CircuitElm ce = elmList.get(j);
                     if (ce instanceof GraphicElm) {
                         continue;
@@ -788,63 +791,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     boolean validateCircuit() {
         for (CircuitElm ce : elmList) {
-            // look for inductors with no current path
-            if (ce instanceof InductorElm) {
-                FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.INDUCT, ce, ce.getNode(1));
-                if (!fpi.findPath(ce.getNode(0))) {
-                    ce.reset();
-                }
-            }
-            // look for current sources with no current path
-            if (ce instanceof CurrentElm) {
-                CurrentElm cur = (CurrentElm) ce;
-                FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.INDUCT, ce, ce.getNode(1));
-                cur.setBroken(!fpi.findPath(ce.getNode(0)));
-            }
-
-            if (ce instanceof VCCSElm) {
-                VCCSElm cur = (VCCSElm) ce;
-                FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.INDUCT, ce, cur.getOutputNode(0));
-                cur.broken = cur.hasCurrentOutput() && !fpi.findPath(cur.getOutputNode(1));
-            }
-
-            // look for voltage source or wire loops.  we do this for voltage sources
-            if (ce.getPostCount() == 2) {
-                if (ce instanceof VoltageElm) {
-                    FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.VOLTAGE, ce, ce.getNode(1));
-                    if (fpi.findPath(ce.getNode(0))) {
-                        cirSim.stop("Voltage source/wire loop with no resistance!", ce);
-                        return false;
-                    }
-                }
-            }
-
-            // look for path from rail to ground
-            if (ce instanceof RailElm || ce instanceof LogicInputElm) {
-                FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.VOLTAGE, ce, ce.getNode(0));
-                if (fpi.findPath(0)) {
-                    cirSim.stop("Path to ground with no resistance!", ce);
-                    return false;
-                }
-            }
-
-            // look for shorted caps, or caps w/ voltage but no R
-            if (ce instanceof CapacitorElm) {
-                FindPathInfo fpi = new FindPathInfo(this, FindPathInfo.SHORT, ce, ce.getNode(1));
-                if (fpi.findPath(ce.getNode(0))) {
-                    console(ce + " shorted");
-                    ((CapacitorElm) ce).shorted();
-                } else {
-                    fpi = new FindPathInfo(this, FindPathInfo.CAP_V, ce, ce.getNode(1));
-                    if (fpi.findPath(ce.getNode(0))) {
-                        // loop of ideal capacitors; set a small series resistance to avoid
-                        // oscillation in case one of them has voltage on it
-                        ((CapacitorElm) ce).setSeriesResistance(.1);
-
-                        // return false to re-stamp the circuit
-                        return false;
-                    }
-                }
+            if (!FindPathInfo.validateElement(this, ce)) {
+                stopElm = ce;
+                return false;
             }
         }
         return true;
@@ -995,9 +944,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // set node voltages given right side found by solving matrix
     void applySolvedRightSide(double[] rs) {
-//	console("setvoltages " + rs);
-        int j;
-        for (j = 0; j != circuitMatrixFullSize; j++) {
+        for (int j = 0; j != circuitMatrixFullSize; j++) {
             RowInfo ri = circuitRowInfo[j];
             double res;
             if (ri.type == RowInfo.ROW_CONST) {
@@ -1035,10 +982,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // we removed wires from the matrix to speed things up.  in order to display wire currents,
     // we need to calculate them now.
     void calcWireCurrents() {
-        // for debugging
-        //for (i = 0; i != wireInfoList.size(); i++)
-        //   wireInfoList.get(i).wire.setCurrent(-1, 1.23);
-
         for (WireInfo wi : wireInfoList) {
             double cur = 0;
             Point p = wi.wire.getPost(wi.post);
@@ -1254,10 +1197,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             circuitMatrix = null;
             return;
         }
-        //int maxIter = getIterCount();
-        boolean debugprint = dumpMatrix;
+
+        boolean debugPrint = dumpMatrix;
         dumpMatrix = false;
-        long steprate = (long) (160 * cirSim.getIterCount());
+
+        long stepRate = (long) (160 * cirSim.getIterCount());
         long tm = System.currentTimeMillis();
         long lit = lastIterTime;
         if (lit == 0) {
@@ -1267,7 +1211,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         // Check if we don't need to run simulation (for very slow simulation speeds).
         // If the circuit changed, do at least one iteration to make sure everything is consistent.
-        if (1000 >= steprate * (tm - lastIterTime) && !didAnalyze) {
+        if (1000 >= stepRate * (tm - lastIterTime) && !didAnalyze) {
             return;
         }
 
@@ -1289,52 +1233,41 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 goodIterations = 0;
             }
 
-            int i, j, subiter;
-            for (i = 0; i != elmArr.length; i++) {
-                elmArr[i].startIteration();
+            for (CircuitElm circuitElm : elmArr) {
+                circuitElm.startIteration();
             }
             steps++;
+
             int subiterCount = (adjustTimeStep && timeStep / 2 > minTimeStep) ? 100 : 5000;
-            for (subiter = 0; subiter != subiterCount; subiter++) {
+            int subiter = 0;
+
+            for (subiter = 0; subiter < subiterCount; subiter++) {
                 converged = true;
                 subIterations = subiter;
-//		if (t % .030 < .002 && timeStep > 1e-6)  // force nonconvergence for debugging
-//		    converged = false;
-                for (i = 0; i != circuitMatrixSize; i++) {
-                    circuitRightSide[i] = origRightSide[i];
+
+                if (circuitMatrixSize >= 0) {
+                    System.arraycopy(origRightSide, 0, circuitRightSide, 0, circuitMatrixSize);
                 }
+
                 if (circuitNonLinear) {
-                    for (i = 0; i != circuitMatrixSize; i++) {
-                        for (j = 0; j != circuitMatrixSize; j++) {
-                            circuitMatrix[i][j] = origMatrix[i][j];
-                        }
+                    for (int i = 0; i < circuitMatrixSize; i++) {
+                        System.arraycopy(origMatrix[i], 0, circuitMatrix[i], 0, circuitMatrixSize);
                     }
                 }
-                for (i = 0; i != elmArr.length; i++) {
-                    elmArr[i].doStep();
+
+                for (CircuitElm circuitElm : elmArr) {
+                    circuitElm.doStep();
                 }
+
                 if (stopMessage != null) {
                     return;
                 }
-                boolean printit = debugprint;
-                debugprint = false;
-                if (circuitMatrixSize < 8) {
-                    // we only need this for debugging purposes, so skip it for large matrices
-                    for (j = 0; j != circuitMatrixSize; j++) {
-                        for (i = 0; i != circuitMatrixSize; i++) {
-                            double x = circuitMatrix[i][j];
-                            if (Double.isNaN(x) || Double.isInfinite(x)) {
-                                cirSim.stop("nan/infinite matrix!", null);
-                                console("circuitMatrix " + i + " " + j + " is " + x);
-                                return;
-                            }
-                        }
-                    }
-                }
-                if (printit) {
+
+                if (debugPrint) {
+                    debugPrint = false;
                     StringBuilder xBuilder = new StringBuilder();
-                    for (j = 0; j != circuitMatrixSize; j++) {
-                        for (i = 0; i != circuitMatrixSize; i++) {
+                    for (int j = 0; j < circuitMatrixSize; j++) {
+                        for (int i = 0; i < circuitMatrixSize; i++) {
                             xBuilder.append(circuitMatrix[j][i]).append(",");
                         }
                         xBuilder.append("\n");
@@ -1342,22 +1275,27 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     }
                     console("done");
                 }
+
                 if (circuitNonLinear) {
                     // stop if converged (elements check for convergence in doStep())
                     if (converged && subiter > 0) {
                         break;
                     }
                     if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                        cirSim.stop("Singular matrix!", null);
+                        stop("Singular matrix!", null);
                         return;
                     }
                 }
+
                 CircuitMath.lu_solve(circuitMatrix, circuitMatrixSize, circuitPermute, circuitRightSide);
+
                 applySolvedRightSide(circuitRightSide);
+
                 if (!circuitNonLinear) {
                     break;
                 }
             }
+
             if (subiter == subiterCount) {
                 // convergence failed
                 goodIterations = 0;
@@ -1367,7 +1305,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
                 if (timeStep < minTimeStep || !adjustTimeStep) {
                     console("convergence failed after " + subiter + " iterations");
-                    cirSim.stop("Convergence failed!", null);
+                    stop("Convergence failed!", null);
                     break;
                 }
                 // we reduced the timestep.  reset circuit state to the way it was at start of iteration
@@ -1375,30 +1313,33 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 stampCircuit();
                 continue;
             }
+
             if (subiter > 5 || timeStep < maxTimeStep) {
                 console("converged after " + subiter + " iterations, timeStep = " + timeStep);
             }
+
             if (subiter < 3) {
                 goodIterations++;
             } else {
                 goodIterations = 0;
             }
+
             this.t += timeStep;
             timeStepAccum += timeStep;
             if (timeStepAccum >= maxTimeStep) {
                 timeStepAccum -= maxTimeStep;
                 timeStepCount++;
             }
-            for (i = 0; i != elmArr.length; i++) {
+            for (int i = 0; i != elmArr.length; i++) {
                 elmArr[i].stepFinished();
             }
             if (!delayWireProcessing) {
                 calcWireCurrents();
             }
-            for (i = 0; i != cirSim.scopeManager.scopeCount; i++) {
+            for (int i = 0; i != cirSim.scopeManager.scopeCount; i++) {
                 cirSim.scopeManager.scopes[i].timeStep();
             }
-            for (i = 0; i != scopeElmArr.length; i++) {
+            for (int i = 0; i != scopeElmArr.length; i++) {
                 scopeElmArr[i].stepScope();
             }
             cirSim.callTimeStepHook();
@@ -1410,7 +1351,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             lit = tm;
             // Check whether enough time has elapsed to perform an *additional* iteration after
             // those we have already completed.  But limit total computation time to 50ms (20fps) by default
-            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= steprate * (tm - lastIterTime) || (tm - cirSim.renderer.lastFrameTime > frameTimeLimit)) {
+            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= stepRate * (tm - lastIterTime) || (tm - cirSim.renderer.lastFrameTime > frameTimeLimit)) {
                 break;
             }
             if (!simRunning) {

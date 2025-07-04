@@ -143,7 +143,7 @@ public class LEDArrayElm extends ChipElm {
         int i;
         for (i = 0; i != currents.length; i++)
             if (Math.abs(currents[i]) > 1e12)
-                simUi.stop("max current exceeded", this);
+                simulator.stop("max current exceeded", this);
     }
 
     void setColor(Graphics g, int p) {

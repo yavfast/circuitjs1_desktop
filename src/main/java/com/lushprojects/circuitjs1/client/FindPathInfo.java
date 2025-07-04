@@ -1,9 +1,15 @@
 package com.lushprojects.circuitjs1.client;
 
+import static com.lushprojects.circuitjs1.client.CirSim.console;
+
+import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.CurrentElm;
 import com.lushprojects.circuitjs1.client.element.GroundElm;
 import com.lushprojects.circuitjs1.client.element.InductorElm;
+import com.lushprojects.circuitjs1.client.element.LogicInputElm;
+import com.lushprojects.circuitjs1.client.element.RailElm;
+import com.lushprojects.circuitjs1.client.element.VCCSElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 
 public class FindPathInfo {
@@ -126,5 +132,69 @@ public class FindPathInfo {
             }
         }
         return false;
+    }
+
+    public static boolean validateElement(CircuitSimulator simulator, CircuitElm ce) {
+        // look for inductors with no current path
+        if (ce instanceof InductorElm) {
+            FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.INDUCT, ce, ce.getNode(1));
+            if (!fpi.findPath(ce.getNode(0))) {
+                ce.reset();
+            }
+        }
+
+        // look for current sources with no current path
+        if (ce instanceof CurrentElm) {
+            CurrentElm cur = (CurrentElm) ce;
+            FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.INDUCT, ce, ce.getNode(1));
+            cur.setBroken(!fpi.findPath(ce.getNode(0)));
+        }
+
+        if (ce instanceof VCCSElm) {
+            VCCSElm cur = (VCCSElm) ce;
+            FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.INDUCT, ce, cur.getOutputNode(0));
+            cur.broken = cur.hasCurrentOutput() && !fpi.findPath(cur.getOutputNode(1));
+        }
+
+        // look for voltage source or wire loops.  we do this for voltage sources
+        if (ce.getPostCount() == 2) {
+            if (ce instanceof VoltageElm) {
+                FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.VOLTAGE, ce, ce.getNode(1));
+                if (fpi.findPath(ce.getNode(0))) {
+                    simulator.stop("Voltage source/wire loop with no resistance!", ce);
+                    return false;
+                }
+            }
+        }
+
+        // look for path from rail to ground
+        if (ce instanceof RailElm || ce instanceof LogicInputElm) {
+            FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.VOLTAGE, ce, ce.getNode(0));
+            if (fpi.findPath(0)) {
+                simulator.stop("Path to ground with no resistance!", ce);
+                return false;
+            }
+        }
+
+        // look for shorted caps, or caps w/ voltage but no R
+        if (ce instanceof CapacitorElm) {
+            FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.SHORT, ce, ce.getNode(1));
+            if (fpi.findPath(ce.getNode(0))) {
+                console(ce + " shorted");
+                ((CapacitorElm) ce).shorted();
+            } else {
+                fpi = new FindPathInfo(simulator, FindPathInfo.CAP_V, ce, ce.getNode(1));
+                if (fpi.findPath(ce.getNode(0))) {
+                    // loop of ideal capacitors; set a small series resistance to avoid
+                    // oscillation in case one of them has voltage on it
+                    ((CapacitorElm) ce).setSeriesResistance(.1);
+
+                    // return false to re-stamp the circuit
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

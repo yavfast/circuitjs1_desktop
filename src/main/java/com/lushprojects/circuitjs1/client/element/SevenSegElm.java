@@ -299,7 +299,7 @@ public class SevenSegElm extends ChipElm {
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
         if (commonPin > 0 && Math.abs(pins[commonPin].current) > 1e12)
-            simUi.stop("max current exceeded", this);
+            simulator.stop("max current exceeded", this);
     }
 
     void setColor(Graphics g, int p) {

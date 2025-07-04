@@ -189,7 +189,7 @@ public class TransLineElm extends CircuitElm {
     public void startIteration() {
         // calculate voltages, currents sent over wire
         if (voltageL == null) {
-            simUi.stop("Transmission line delay too large!", this);
+            simulator.stop("Transmission line delay too large!", this);
             return;
         }
         voltageL[ptr] = volts[2] - volts[0] + volts[2] - volts[4];
@@ -202,14 +202,14 @@ public class TransLineElm extends CircuitElm {
 
     public void doStep() {
         if (voltageL == null) {
-            simUi.stop("Transmission line delay too large!", this);
+            simulator.stop("Transmission line delay too large!", this);
             return;
         }
         int nextPtr = (ptr + 1) % lenSteps;
 		simulator.updateVoltageSource(nodes[4], nodes[0], voltSource1, -voltageR[nextPtr]);
 		simulator.updateVoltageSource(nodes[5], nodes[1], voltSource2, -voltageL[nextPtr]);
         if (Math.abs(volts[0]) > 1e-5 || Math.abs(volts[1]) > 1e-5) {
-            simUi.stop("Need to ground transmission line!", this);
+            simulator.stop("Need to ground transmission line!", this);
             return;
         }
     }

@@ -173,7 +173,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             try {
                 simulator.preStampAndStampCircuit();
             } catch (Exception e) {
-                cirSim.stop("Exception in stampCircuit()", null);
+                simulator.stop("Exception in stampCircuit()", null);
                 GWT.log("Exception in stampCircuit", e);
             }
             perfmon.stopContext();

@@ -699,8 +699,8 @@ public class CirSim implements NativePreviewHandler {
         slidersPanel.setHeight(ih + "px");
     }
 
-    public void setSimRunning(boolean s) {
-        if (s) {
+    public void setSimRunning(boolean isRunning) {
+        if (isRunning) {
             if (simulator.stopMessage != null)
                 return;
             simulator.simRunning = true;
@@ -754,15 +754,14 @@ public class CirSim implements NativePreviewHandler {
         CirSim.theSim.logManager.addLogEntry(text);
     }
 
-    public void stop(String s, CircuitElm ce) {
-        simulator.stopMessage = Locale.LS(s);
-        simulator.circuitMatrix = null;  // causes an exception
-        simulator.stopElm = ce;
+    public void stop(String message, CircuitElm ce) {
+        simulator.stop(message, ce);
+    }
 
+    public void stop() {
         setSimRunning(false);
         renderer.analyzeFlag = false;
     }
-
 
     public double getIterCount() {
         // IES - remove interaction

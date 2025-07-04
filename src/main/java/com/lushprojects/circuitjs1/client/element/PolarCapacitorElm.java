@@ -75,7 +75,7 @@ public class PolarCapacitorElm extends CapacitorElm {
 
     public void stepFinished() {
         if (getVoltageDiff() < 0 && getVoltageDiff() < -maxNegativeVoltage)
-            simUi.stop("capacitor exceeded max reverse voltage", this);
+            simulator.stop("capacitor exceeded max reverse voltage", this);
         super.stepFinished();
     }
 
