@@ -39,22 +39,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public final ArrayList<CircuitElm> elmList = new ArrayList<>(256);
 
+    boolean simRunning;
     private CircuitElm[] elmArr;
     ScopeElm[] scopeElmArr;
-    private double[][] circuitMatrix;
-    private double[][] origMatrix;
-    private double[] circuitRightSide;
-    private double[] lastNodeVoltages;
-    double[] nodeVoltages;
-    private double[] origRightSide;
-    private RowInfo[] circuitRowInfo;
-    private int[] circuitPermute;
-    boolean simRunning;
-    private boolean circuitNonLinear;
-    private int voltageSourceCount;
-    private int circuitMatrixSize;
-    private int circuitMatrixFullSize;
-    private boolean circuitNeedsMap;
 
     public final ArrayList<CircuitNode> nodeList = new ArrayList<>(128);
 
@@ -69,6 +56,19 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     private CircuitElm[] voltageSources;
 
+    private double[][] circuitMatrix;
+    private double[][] origMatrix;
+    private double[] circuitRightSide;
+    private double[] lastNodeVoltages;
+    private double[] nodeVoltages;
+    private double[] origRightSide;
+    private RowInfo[] circuitRowInfo;
+    private int[] circuitPermute;
+    private boolean circuitNonLinear;
+    private int voltageSourceCount;
+    private int circuitMatrixSize;
+    private int circuitMatrixFullSize;
+    private boolean circuitNeedsMap;
 
     public CircuitSimulator(CirSim cirSim) {
         super(cirSim);
@@ -91,6 +91,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return elmList.get(n);
     }
 
+    public double getNodeVoltages(int node) {
+        return nodeVoltages[node];
+    }
 
     int countSelected() {
         int count = 0;

@@ -1170,11 +1170,11 @@ public class CirSim implements NativePreviewHandler {
 
     // JSInterface
     double getLabeledNodeVoltage(String name) {
-        Integer node = LabeledNodeElm.getByName(name);
-        if (node == null || node == 0)
+        int node = LabeledNodeElm.getByName(name);
+        if (node <= 0)
             return 0;
         // subtract one because ground is not included in nodeVoltages[]
-        return simulator.nodeVoltages[node.intValue() - 1];
+        return simulator.getNodeVoltages(node - 1);
     }
 
     // JSInterface

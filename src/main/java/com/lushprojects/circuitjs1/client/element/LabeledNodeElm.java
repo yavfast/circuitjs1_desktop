@@ -59,7 +59,7 @@ public class LabeledNodeElm extends CircuitElm {
 
     public String text;
 
-    class LabelEntry {
+    static class LabelEntry {
         Point point;
         int node;
     }
@@ -127,12 +127,10 @@ public class LabeledNodeElm extends CircuitElm {
         return true;
     }
 
-    public static Integer getByName(String n) {
-        if (labelList == null)
-            return null;
+    public static int getByName(String n) {
         LabelEntry le = labelList.get(n);
         if (le == null)
-            return null;
+            return -1;
         return le.node;
     }
 
