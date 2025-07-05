@@ -1,7 +1,5 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.storage.client.Storage;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,15 +43,14 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         sequenceNumber = 1;
 
         // get models from local storage
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor != null) {
-            int len = stor.getLength();
+        if (OptionsManager.hasLocalStorage()) {
+            int len = OptionsManager.getStorageLength();
             int i;
             for (i = 0; i != len; i++) {
-                String key = stor.key(i);
+                String key = OptionsManager.getStorageKey(i);
                 if (!key.startsWith("subcircuit:"))
                     continue;
-                String data = stor.getItem(key);
+                String data = OptionsManager.getOptionFromStorage(key, null);
                 String firstLine = data;
                 int lineLen = data.indexOf('\n');
                 if (lineLen != -1)
@@ -119,7 +116,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     CustomCompositeModel() {
     }
 
-    static CustomCompositeModel undumpModel(StringTokenizer st) {
+    public static CustomCompositeModel undumpModel(StringTokenizer st) {
         String name = CustomLogicModel.unescape(st.nextToken());
 //	CustomCompositeElm.lastModelName = name;
         CustomCompositeModel model = getModelWithName(name);
@@ -158,21 +155,15 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     public boolean isSaved() {
         if (name == null)
             return false;
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return false;
-        return stor.getItem("subcircuit:" + name) != null;
+        return OptionsManager.hasOption("subcircuit:" + name);
     }
 
     public void setSaved(boolean sv) {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
         if (sv) {
             String cir = (modelCircuit == null) ? "" : modelCircuit;
-            stor.setItem("subcircuit:" + name, dump() + "\n" + cir);
+            OptionsManager.setOptionInStorage("subcircuit:" + name, dump() + "\n" + cir);
         } else
-            stor.removeItem("subcircuit:" + name);
+            OptionsManager.removeOptionFromStorage("subcircuit:" + name);
     }
 
     String arrayToList(String arr[]) {
@@ -234,7 +225,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         String tl431 = ". ~TL431 0 1 3 3 A 2 0 1 C 1 0 0 ref 3 1 2 ResistorElm\\s3\\s18\\rCapacitorElm\\s18\\s4\\rCapacitorElm\\s18\\s1\\rTransistorElm\\s18\\s1\\s4\\s\\rResistorElm\\s4\\s5\\rResistorElm\\s5\\s6\\rResistorElm\\s5\\s7\\rResistorElm\\s6\\s19\\rCapacitorElm\\s19\\s2\\rCapacitorElm\\s19\\s6\\rTransistorElm\\s19\\s6\\s2\\s\\rResistorElm\\s6\\s20\\rCapacitorElm\\s20\\s8\\rCapacitorElm\\s20\\s7\\rTransistorElm\\s20\\s7\\s8\\s\\rResistorElm\\s8\\s2\\rResistorElm\\s4\\s21\\rCapacitorElm\\s21\\s10\\rCapacitorElm\\s21\\s9\\rTransistorElm\\s21\\s9\\s10\\s\\rResistorElm\\s10\\s11\\rResistorElm\\s7\\s22\\rCapacitorElm\\s22\\s2\\rCapacitorElm\\s22\\s11\\rTransistorElm\\s22\\s11\\s2\\s\\rResistorElm\\s13\\s23\\rCapacitorElm\\s23\\s2\\rCapacitorElm\\s23\\s12\\rTransistorElm\\s23\\s12\\s2\\s\\rResistorElm\\s9\\s24\\rCapacitorElm\\s24\\s14\\rCapacitorElm\\s24\\s9\\rTransistorElm\\s24\\s9\\s14\\s\\rResistorElm\\s9\\s25\\rCapacitorElm\\s25\\s15\\rCapacitorElm\\s25\\s12\\rTransistorElm\\s25\\s12\\s15\\s\\rResistorElm\\s1\\s14\\rResistorElm\\s1\\s15\\rResistorElm\\s12\\s26\\rCapacitorElm\\s26\\s16\\rCapacitorElm\\s26\\s1\\rTransistorElm\\s26\\s1\\s16\\s\\rResistorElm\\s17\\s16\\rResistorElm\\s17\\s27\\rCapacitorElm\\s27\\s2\\rCapacitorElm\\s27\\s1\\rTransistorElm\\s27\\s1\\s2\\s\\rResistorElm\\s17\\s2\\rResistorElm\\s12\\s28\\rCapacitorElm\\s28\\s3\\rCapacitorElm\\s28\\s12\\rTransistorElm\\s28\\s12\\s3\\s\\rDiodeElm\\s2\\s12\\rResistorElm\\s13\\s6\\rDiodeElm\\s2\\s1\\rCapacitorElm\\s1\\s12\\rCapacitorElm\\s7\\s11\\r 0\\\\s40\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s2e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed\\s0\\\\s3280\\s0\\\\s2400\\s0\\\\s7200\\s0\\\\s33.333333333333336\\s2\\\\s1.2e-12\\\\s0\\\\s0\\s2\\\\s2.4e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed-A1.2\\s0\\\\s18.18181818181818\\s2\\\\s2.2000000000000003e-12\\\\s0\\\\s0\\s2\\\\s4.400000000000001e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed-A2.2\\s0\\\\s800\\s0\\\\s40\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s2e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed\\s0\\\\s4000\\s0\\\\s40\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s2e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed\\s0\\\\s80\\s2\\\\s5e-13\\\\s0\\\\s0\\s2\\\\s1e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed-A0.5\\s0\\\\s80\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s3e-12\\\\s0\\\\s0\\s0\\\\s-1\\\\s0\\\\s0\\\\s60\\\\s~tl431ed-qp_ed\\s0\\\\s80\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s3e-12\\\\s0\\\\s0\\s0\\\\s-1\\\\s0\\\\s0\\\\s60\\\\s~tl431ed-qp_ed\\s0\\\\s800\\s0\\\\s800\\s0\\\\s40\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s2e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed\\s0\\\\s150\\s0\\\\s8\\s2\\\\s5e-12\\\\s0\\\\s0\\s2\\\\s1e-11\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed-A5\\s0\\\\s10000\\s0\\\\s40\\s2\\\\s1e-12\\\\s0\\\\s0\\s2\\\\s2e-12\\\\s0\\\\s0\\s0\\\\s1\\\\s0\\\\s0\\\\s140\\\\s~tl431ed-qn_ed\\s2\\\\s~tl431ed-d_ed\\s0\\\\s1000\\s2\\\\s~tl431ed-d_ed\\s2\\\\s1e-11\\\\s0\\\\s0\\s2\\\\s2e-11\\\\s0\\\\s0";
 
 
-        String models[] = {lm317, tl431};
+        String[] models = {lm317, tl431};
         int i;
         for (i = 0; i != models.length; i++) {
             StringTokenizer st = new StringTokenizer(models[i], " ");

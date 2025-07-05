@@ -25,7 +25,6 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.event.dom.client.KeyPressHandler;
-import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.DialogBox;
@@ -39,12 +38,12 @@ import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.ValueBoxBase.TextAlignment;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.OptionsManager;
 
 public class ModDialog extends DialogBox {
 
     final CirSim cirSim;
     VerticalPanel vp;
-    Storage lstor = Storage.getLocalStorageIfSupported();
 
     //for "UI scale:"
     HorizontalPanel scaleButtons;
@@ -186,7 +185,7 @@ public class ModDialog extends DialogBox {
                         vp.insert(scaleScrollbarElm = new HTML(getScaleScrollbar(1, 100)), 1);
                         vp.setCellHorizontalAlignment(scaleScrollbarElm, HasHorizontalAlignment.ALIGN_CENTER);
                         CirSim.executeJS("setScaleUI()");
-                        lstor.setItem("MOD_UIScale", "1");
+                        OptionsManager.setOptionInStorage("MOD_UIScale", "1");
                     }
                 }));
         scaleButtons.add(setDefaultScaleButton = new Button("Default scale<b>*</b>",
@@ -197,14 +196,14 @@ public class ModDialog extends DialogBox {
                                 (int) (CirSim.getDefaultScale() * 100))), 1);
                         vp.setCellHorizontalAlignment(scaleScrollbarElm, HasHorizontalAlignment.ALIGN_CENTER);
                         CirSim.executeJS("setScaleUI()");
-                        lstor.setItem("MOD_UIScale", Float.toString(CirSim.getDefaultScale()));
+                        OptionsManager.setOptionInStorage("MOD_UIScale", Float.toString(CirSim.getDefaultScale()));
                     }
                 }));
         scaleButtons.add(setScaleButton = new Button("Set",
                 new ClickHandler() {
                     public void onClick(ClickEvent event) {
                         CirSim.executeJS("setScaleUI()");
-                        lstor.setItem("MOD_UIScale", Float.toString(getRealScale()));
+                        OptionsManager.setOptionInStorage("MOD_UIScale", Float.toString(getRealScale()));
                     }
                 }));
         vp.add(new HTML("<p>* - the default UI scale for your monitor is set to " +
@@ -234,11 +233,10 @@ public class ModDialog extends DialogBox {
             public void onClick(ClickEvent event) {
                 if (setSmallTopMenu.getValue()) {
                     CirSim.MENU_BAR_HEIGHT = 30;
-                    //CirSim.layoutPanel.setWidgetSize(menuBar, 30);
                     setSmallTopMenu.setValue(false);
                     setStandartTopMenu.setValue(true);
                     CirSim.executeJS("CircuitJS1.redrawCanvasSize()");
-                    lstor.setItem("MOD_TopMenuBar", "standart");
+                    OptionsManager.setOptionInStorage("MOD_TopMenuBar", "standart");
                     CirSim.executeJS("setAllAbsBtnsTopPos(\"" + CirSim.getAbsBtnsTopPos() + "px\")");
                 } else {
                     setStandartTopMenu.setValue(true);
@@ -250,11 +248,10 @@ public class ModDialog extends DialogBox {
             public void onClick(ClickEvent event) {
                 if (setStandartTopMenu.getValue()) {
                     CirSim.MENU_BAR_HEIGHT = 20;
-                    //CirSim.layoutPanel.setWidgetSize(menuBar, 19);
                     setStandartTopMenu.setValue(false);
                     setSmallTopMenu.setValue(true);
                     CirSim.executeJS("CircuitJS1.redrawCanvasSize()");
-                    lstor.setItem("MOD_TopMenuBar", "small");
+                    OptionsManager.setOptionInStorage("MOD_TopMenuBar", "small");
                     CirSim.executeJS("setAllAbsBtnsTopPos(\"" + CirSim.getAbsBtnsTopPos() + "px\")");
                 } else {
                     setSmallTopMenu.setValue(true);
@@ -273,15 +270,20 @@ public class ModDialog extends DialogBox {
         btnsPreview.add(previewText = new HTML("<big>Preview:</big>"));
         btnsPreview.add(resetPrevBtn = new Button("&#8634;"));
         btnsPreview.add(stopPrevBtn = new Button("&#xE800;"));
-        if (lstor.getItem("MOD_absBtnIcon") == "pause")
+        // Replace preview button icon logic
+        String absBtnIcon = OptionsManager.getOptionFromStorage("MOD_absBtnIcon", null);
+        if ("pause".equals(absBtnIcon)) {
             stopPrevBtn.getElement().setInnerHTML("&#xE802;");
+        }
         btnsPreview.setCellHorizontalAlignment(previewText, HasHorizontalAlignment.ALIGN_RIGHT);
         btnsPreview.setCellHorizontalAlignment(resetPrevBtn, HasHorizontalAlignment.ALIGN_RIGHT);
         btnsPreview.setCellHorizontalAlignment(stopPrevBtn, HasHorizontalAlignment.ALIGN_LEFT);
 
         stopPrevBtn.setStyleName("run-stop-btn modPrevBtn");
         resetPrevBtn.setStyleName("reset-btn modPrevBtn");
-        if (lstor.getItem("MOD_absBtnTheme") == "default") {
+        // Replace theme logic
+        String absBtnTheme = OptionsManager.getOptionFromStorage("MOD_absBtnTheme", null);
+        if ("default".equals(absBtnTheme)) {
             stopPrevBtn.addStyleName("modDefaultRunStopBtn");
             resetPrevBtn.addStyleName("modDefaultResetBtn");
         } else {
@@ -316,10 +318,16 @@ public class ModDialog extends DialogBox {
 			setStopIcon.setValue(true);
 		else setPauseIcon.setValue(true);*/ //try to get info from localstorage
 
-        if (lstor.getItem("MOD_absBtnIcon") == "stop") setStopIcon.setValue(true);
-        else setPauseIcon.setValue(true);
+        // Replace all lstor.getItem/setItem usages with OptionsManager
+        if ("stop".equals(OptionsManager.getOptionFromStorage("MOD_absBtnIcon", null))) {
+            setStopIcon.setValue(true);
+        } else {
+            setPauseIcon.setValue(true);
+        }
 
-        if (lstor.getItem("MOD_hideAbsBtns") == "true") hideSRBtns.setValue(true);
+        if (OptionsManager.getBoolOptionFromStorage("MOD_hideAbsBtns", false)) {
+            hideSRBtns.setValue(true);
+        }
 
         setDefaultSRBtns.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
@@ -339,7 +347,7 @@ public class ModDialog extends DialogBox {
                     cirSim.absResetBtn.removeStyleName("modClassicButton");
                     cirSim.absResetBtn.addStyleName("modDefaultResetBtn");
                     //save:
-                    lstor.setItem("MOD_absBtnTheme", "default");
+                    OptionsManager.setOptionInStorage("MOD_absBtnTheme", "default");
                 } else {
                     setDefaultSRBtns.setValue(true);
                 }
@@ -363,7 +371,7 @@ public class ModDialog extends DialogBox {
                     cirSim.absResetBtn.addStyleName("gwt-Button");
                     cirSim.absResetBtn.addStyleName("modClassicButton");
                     //save:
-                    lstor.setItem("MOD_absBtnTheme", "classic");
+                    OptionsManager.setOptionInStorage("MOD_absBtnTheme", "classic");
                 } else {
                     setClassicSRBtns.setValue(true);
                 }
@@ -378,7 +386,7 @@ public class ModDialog extends DialogBox {
                     if (CirSimIsRunning())
                         cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE800;");
                     //save:
-                    lstor.setItem("MOD_absBtnIcon", "stop");
+                    OptionsManager.setOptionInStorage("MOD_absBtnIcon", "stop");
                 } else {
                     setStopIcon.setValue(true);
                 }
@@ -393,7 +401,7 @@ public class ModDialog extends DialogBox {
                     if (CirSimIsRunning())
                         cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE802;");
                     //save:
-                    lstor.setItem("MOD_absBtnIcon", "pause");
+                    OptionsManager.setOptionInStorage("MOD_absBtnIcon", "pause");
                 } else {
                     setPauseIcon.setValue(true);
                 }
@@ -405,12 +413,12 @@ public class ModDialog extends DialogBox {
                     cirSim.absRunStopBtn.setVisible(false);
                     cirSim.absResetBtn.setVisible(false);
                     //save:
-                    lstor.setItem("MOD_hideAbsBtns", "true");
+                    OptionsManager.setOptionInStorage("MOD_hideAbsBtns", "true");
                 } else {
                     cirSim.absRunStopBtn.setVisible(true);
                     cirSim.absResetBtn.setVisible(true);
                     //save:
-                    lstor.setItem("MOD_hideAbsBtns", "false");
+                    OptionsManager.setOptionInStorage("MOD_hideAbsBtns", "false");
                 }
             }
         });
@@ -445,16 +453,21 @@ public class ModDialog extends DialogBox {
         vp.add(setShowSidebaronStartup = new CheckBox("Show sidebar on startup"));
         //vp.setCellHorizontalAlignment(setShowSidebaronStartup, HasHorizontalAlignment.ALIGN_CENTER);
 
-        if (lstor.getItem("MOD_overlayingSidebar") == "true") setOverlayingSidebar.setValue(true);
-        else setAnimSidebar.setEnabled(false);
-        if (lstor.getItem("MOD_overlayingSBAnimation") == "true") setAnimSidebar.setValue(true);
+        if (OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", false)) {
+            setOverlayingSidebar.setValue(true);
+        } else {
+            setAnimSidebar.setEnabled(false);
+        }
+        if (OptionsManager.getBoolOptionFromStorage("MOD_overlayingSBAnimation", false)) {
+            setAnimSidebar.setValue(true);
+        }
 
-        DurationSB.setValue(lstor.getItem("MOD_SBAnim_duration"));
-        SpeedCurveSB.setItemSelected(getSpeedCurveSBIndex(lstor.getItem("MOD_SBAnim_SpeedCurve")), true);
+        DurationSB.setValue(OptionsManager.getOptionFromStorage("MOD_SBAnim_duration", null));
+        SpeedCurveSB.setItemSelected(getSpeedCurveSBIndex(OptionsManager.getOptionFromStorage("MOD_SBAnim_SpeedCurve", null)), true);
 
         DurationSB.addKeyPressHandler(new KeyPressHandler() {
             public void onKeyPress(KeyPressEvent event) {
-                if (!Character.isDigit(event.getCharCode()) || DurationSB.getValue() == "0") {
+                if (!Character.isDigit(event.getCharCode()) || "0".equals(DurationSB.getValue())) {
                     ((TextBox) event.getSource()).cancelKey();
                 }
             }
@@ -462,7 +475,7 @@ public class ModDialog extends DialogBox {
 
         DurationSB.addChangeHandler(new ChangeHandler() {
             public void onChange(ChangeEvent event) {
-                lstor.setItem("MOD_SBAnim_duration", DurationSB.getValue());
+                OptionsManager.setOptionInStorage("MOD_SBAnim_duration", DurationSB.getValue());
                 if (setOverlayingSidebar.getValue())
                     CirSim.setSidebarAnimation(DurationSB.getValue(), SpeedCurveSB.getSelectedItemText());
             }
@@ -470,7 +483,7 @@ public class ModDialog extends DialogBox {
 
         SpeedCurveSB.addChangeHandler(new ChangeHandler() {
             public void onChange(ChangeEvent event) {
-                lstor.setItem("MOD_SBAnim_SpeedCurve", SpeedCurveSB.getSelectedItemText());
+                OptionsManager.setOptionInStorage("MOD_SBAnim_SpeedCurve", SpeedCurveSB.getSelectedItemText());
                 if (setOverlayingSidebar.getValue())
                     CirSim.setSidebarAnimation(DurationSB.getValue(), SpeedCurveSB.getSelectedItemText());
             }
@@ -479,12 +492,12 @@ public class ModDialog extends DialogBox {
         setOverlayingSidebar.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 if (setOverlayingSidebar.getValue()) {
-                    lstor.setItem("MOD_overlayingSidebar", "true");
+                    OptionsManager.setOptionInStorage("MOD_overlayingSidebar", true);
                     setAnimSidebar.setEnabled(true);
                     if (setAnimSidebar.getValue())
                         CirSim.setSidebarAnimation(DurationSB.getValue(), SpeedCurveSB.getSelectedItemText());
                 } else {
-                    lstor.setItem("MOD_overlayingSidebar", "false");
+                    OptionsManager.setOptionInStorage("MOD_overlayingSidebar", false);
                     setAnimSidebar.setEnabled(false);
                     CirSim.setSidebarAnimation("none", "");
                 }
@@ -493,40 +506,34 @@ public class ModDialog extends DialogBox {
         setAnimSidebar.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 if (setAnimSidebar.getValue()) {
-                    lstor.setItem("MOD_overlayingSBAnimation", "true");
+                    OptionsManager.setOptionInStorage("MOD_overlayingSBAnimation", true);
                     if (setOverlayingSidebar.getValue())
                         CirSim.setSidebarAnimation(DurationSB.getValue(), SpeedCurveSB.getSelectedItemText());
                 } else {
-                    lstor.setItem("MOD_overlayingSBAnimation", "false");
+                    OptionsManager.setOptionInStorage("MOD_overlayingSBAnimation", false);
                     CirSim.setSidebarAnimation("none", "");
                 }
             }
         });
 
-        if (lstor.getItem("MOD_showSidebaronStartup") == "true")
+        if (OptionsManager.getBoolOptionFromStorage("MOD_showSidebaronStartup", false)) {
             setShowSidebaronStartup.setValue(true);
+        }
         setShowSidebaronStartup.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
-                if (setShowSidebaronStartup.getValue()) {
-                    lstor.setItem("MOD_showSidebaronStartup", "true");
-                } else {
-                    lstor.setItem("MOD_showSidebaronStartup", "false");
-                }
+                OptionsManager.setOptionInStorage("MOD_showSidebaronStartup", setShowSidebaronStartup.getValue());
             }
         });
 
         vp.add(new HTML("<hr><big><b>Other:</b></big>"));
         vp.add(setPauseWhenWinUnfocused = new CheckBox("Pause simulation when window loses focus<br>(recommended for optimal performance)", true));
         vp.setCellHorizontalAlignment(setPauseWhenWinUnfocused, HasHorizontalAlignment.ALIGN_CENTER);
-        if (lstor.getItem("MOD_setPauseWhenWinUnfocused") == "true")
+        if (OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused", false)) {
             setPauseWhenWinUnfocused.setValue(true);
+        }
         setPauseWhenWinUnfocused.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
-                if (setPauseWhenWinUnfocused.getValue()) {
-                    lstor.setItem("MOD_setPauseWhenWinUnfocused", "true");
-                } else {
-                    lstor.setItem("MOD_setPauseWhenWinUnfocused", "false");
-                }
+                OptionsManager.setOptionInStorage("MOD_setPauseWhenWinUnfocused", setPauseWhenWinUnfocused.getValue());
             }
         });
         vp.add(new HTML("<br>"));

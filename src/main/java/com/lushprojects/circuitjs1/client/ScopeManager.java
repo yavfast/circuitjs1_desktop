@@ -1,6 +1,5 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.storage.client.Storage;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
 
@@ -214,7 +213,6 @@ public class ScopeManager extends BaseCirSimDelegate {
 
     void setupScopes() {
         int i;
-        Storage lstor = Storage.getLocalStorageIfSupported();
         // check scopes to make sure the elements still exist, and remove
         // unused scopes/columns
         int pos = -1;
@@ -247,7 +245,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         if (colct <= 2)
             iw = iw * 3 / 2;
         int w = (renderer.canvasWidth - iw) / colct;
-        if (cirSim.isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "true")
+        if (cirSim.isSidePanelCheckboxChecked() && OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", false))
             w = (renderer.canvasWidth - iw - CirSim.VERTICAL_PANEL_WIDTH) / colct;
         int marg = 10;
         if (w < marg * 2)

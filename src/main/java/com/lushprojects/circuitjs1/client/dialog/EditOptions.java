@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.dialog;
 
 import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.element.AudioOutputElm;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
@@ -176,16 +177,13 @@ public class EditOptions implements Editable {
                     langString = "ja";
                     break;
             }
-            if (langString == null)
-                return;
-            Storage stor = Storage.getLocalStorageIfSupported();
-            if (stor == null) {
-                Window.alert(Locale.LS("Can't set language"));
+            if (langString == null) {
                 return;
             }
-            stor.setItem("language", langString);
-            if (Window.confirm(Locale.LS("Must restart to set language.  Restart now?")))
+            OptionsManager.setOptionInStorage("language", langString);
+            if (Window.confirm(Locale.LS("Must restart to set language. Restart now?"))) {
                 Window.Location.reload();
+            }
         }
         if (n == 3) {
             CircuitElm.positiveColor = setColor("positiveColor", ei, Color.green);
@@ -213,9 +211,7 @@ public class EditOptions implements Editable {
             sim.simulator.minFrameRate = ei.value;
         if (n == 12 && ei.value > 0) {
             sim.circuitEditor.wheelSensitivity = ei.value;
-            Storage stor = Storage.getLocalStorageIfSupported();
-            if (stor != null)
-                stor.setItem("wheelSensitivity", Double.toString(sim.circuitEditor.wheelSensitivity));
+            OptionsManager.setOptionInStorage("wheelSensitivity", Double.toString(sim.circuitEditor.wheelSensitivity));
         }
         if (n == 13) {
             sim.simulator.adjustTimeStep = ei.checkbox.getState();
@@ -227,11 +223,10 @@ public class EditOptions implements Editable {
 
     Color setColor(String name, EditInfo ei, Color def) {
         String val = ei.textf.getText();
-        if (val.isEmpty())
+        if (val.isEmpty()) {
             val = def.getHexValue();
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor != null)
-            stor.setItem(name, val);
+        }
+        OptionsManager.setOptionInStorage(name, val);
         return new Color(val);
     }
 };

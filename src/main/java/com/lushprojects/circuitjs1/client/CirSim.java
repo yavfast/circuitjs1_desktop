@@ -145,12 +145,11 @@ public class CirSim implements NativePreviewHandler {
     }-*/;
 
     public void setCanvasSize() {
-        Storage lstor = Storage.getLocalStorageIfSupported();
         int width = RootLayoutPanel.get().getOffsetWidth();
         int height = RootLayoutPanel.get().getOffsetHeight();
         height = height - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
 
-        if (isSidePanelCheckboxChecked() && lstor.getItem("MOD_overlayingSidebar") == "false")
+        if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
             width = width - VERTICAL_PANEL_WIDTH;
         if (menuManager.toolbarCheckItem.getState())
             height -= TOOLBAR_HEIGHT;
@@ -217,40 +216,37 @@ public class CirSim implements NativePreviewHandler {
 	}-*/;
 
     public static int getAbsBtnsTopPos() {
-        Storage lstor = Storage.getLocalStorageIfSupported();
         int top = 50;
-        if (lstor.getItem("MOD_TopMenuBar") == "small") top -= 11;
-        if (lstor.getItem("toolbar") != "false") top += TOOLBAR_HEIGHT;
+        if (OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "") == "small") {
+            top -= 11;
+        }
+        if (OptionsManager.getBoolOptionFromStorage("toolbar", true)) {
+            top += TOOLBAR_HEIGHT;
+        }
         return top;
     }
 
     void modSetDefault() {
+        double MOD_UIScale = OptionsManager.getDoubleOptionFromStorage("MOD_UIScale", getDefaultScale());
+        String MOD_TopMenuBar = OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "standart");
+        String MOD_absBtnTheme = OptionsManager.getOptionFromStorage("MOD_absBtnTheme", "default");
+        String MOD_absBtnIcon = OptionsManager.getOptionFromStorage("MOD_absBtnIcon", "stop");
+        boolean MOD_hideAbsBtns = OptionsManager.getBoolOptionFromStorage("MOD_hideAbsBtns", true);
+        boolean MOD_overlayingSidebar = OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", false);
+        boolean MOD_showSidebaronStartup = OptionsManager.getBoolOptionFromStorage("MOD_showSidebaronStartup", true);
+        boolean MOD_overlayingSBAnimation = OptionsManager.getBoolOptionFromStorage("MOD_overlayingSBAnimation", false);
+        String MOD_SBAnim_duration = OptionsManager.getOptionFromStorage("MOD_SBAnim_duration", "500");
+        String MOD_SBAnim_SpeedCurve = OptionsManager.getOptionFromStorage("MOD_SBAnim_SpeedCurve", "ease");
+        boolean MOD_setPauseWhenWinUnfocused = OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused", false);
 
-        Storage lstor = Storage.getLocalStorageIfSupported();
-        // KEYS:
-        String MOD_UIScale = lstor.getItem("MOD_UIScale");
-        String MOD_TopMenuBar = lstor.getItem("MOD_TopMenuBar");
-        String MOD_absBtnTheme = lstor.getItem("MOD_absBtnTheme");
-        String MOD_absBtnIcon = lstor.getItem("MOD_absBtnIcon");
-        String MOD_hideAbsBtns = lstor.getItem("MOD_hideAbsBtns");
-        String MOD_overlayingSidebar = lstor.getItem("MOD_overlayingSidebar");
-        String MOD_showSidebaronStartup = lstor.getItem("MOD_showSidebaronStartup");
-        String MOD_overlayingSBAnimation = lstor.getItem("MOD_overlayingSBAnimation");
-        String MOD_SBAnim_duration = lstor.getItem("MOD_SBAnim_duration");
-        String MOD_SBAnim_SpeedCurve = lstor.getItem("MOD_SBAnim_SpeedCurve");
-        String MOD_setPauseWhenWinUnfocused = lstor.getItem("MOD_setPauseWhenWinUnfocused");
+        executeJS("document.body.style.zoom = " + MOD_UIScale + ";");
 
-        if (MOD_UIScale == null) {
-            lstor.setItem("MOD_UIScale", Float.toString(getDefaultScale()));
-            executeJS("document.body.style.zoom = " + getDefaultScale() + ";");
-        } else executeJS("document.body.style.zoom = " + Float.parseFloat(MOD_UIScale) + ";");
-        if (MOD_TopMenuBar == null) lstor.setItem("MOD_TopMenuBar", "standart");
-        else if (MOD_TopMenuBar == "small") {
+        if (MOD_TopMenuBar == "small") {
             MENU_BAR_HEIGHT = 20;
             redrawCanvasSize();
         }
-        if (MOD_absBtnTheme == null) lstor.setItem("MOD_absBtnTheme", "default");
-        else if (MOD_absBtnTheme == "classic") {
+
+        if (MOD_absBtnTheme == "classic") {
             absRunStopBtn.removeStyleName("modDefaultRunStopBtn");
             absRunStopBtn.addStyleName("gwt-Button");
             absRunStopBtn.addStyleName("modClassicButton");
@@ -258,30 +254,25 @@ public class CirSim implements NativePreviewHandler {
             absResetBtn.addStyleName("gwt-Button");
             absResetBtn.addStyleName("modClassicButton");
         }
-        if (MOD_absBtnIcon == null) lstor.setItem("MOD_absBtnIcon", "stop");
-        else if (MOD_absBtnIcon == "pause") {
+
+        if (MOD_absBtnIcon == "pause") {
             absRunStopBtn.getElement().setInnerHTML("&#xE802;");
         }
-        if (MOD_hideAbsBtns == null) lstor.setItem("MOD_hideAbsBtns", "false");
-        else if (MOD_hideAbsBtns == "true") {
+
+        if (MOD_hideAbsBtns) {
             absRunStopBtn.setVisible(false);
             absResetBtn.setVisible(false);
         }
-        if (MOD_overlayingSidebar == null) lstor.setItem("MOD_overlayingSidebar", "false");
-        if (MOD_showSidebaronStartup == null) lstor.setItem("MOD_showSidebaronStartup", "false");
-        else if (MOD_showSidebaronStartup == "true")
+
+        if (MOD_showSidebaronStartup) {
             executeJS("document.getElementById(\"trigger\").checked = true");
-        if (MOD_SBAnim_duration == null || MOD_SBAnim_SpeedCurve == null) {
-            lstor.setItem("MOD_SBAnim_duration", "500");
-            lstor.setItem("MOD_SBAnim_SpeedCurve", "ease");
-            //if (lstor.getItem("MOD_overlayingSBAnimation")) setSidebarAnimation("500","ease");
         }
-        if (MOD_overlayingSBAnimation == null) lstor.setItem("MOD_overlayingSBAnimation", "false");
-        if (MOD_overlayingSidebar == "true" && MOD_overlayingSBAnimation == "true") {
-            setSidebarAnimation(lstor.getItem("MOD_SBAnim_duration"), lstor.getItem("MOD_SBAnim_SpeedCurve"));
-        } else setSidebarAnimation("none", "");
-        if (MOD_setPauseWhenWinUnfocused == null)
-            lstor.setItem("MOD_setPauseWhenWinUnfocused", "true");
+
+        if (MOD_overlayingSidebar && MOD_overlayingSBAnimation) {
+            setSidebarAnimation(MOD_SBAnim_duration, MOD_SBAnim_SpeedCurve);
+        } else {
+            setSidebarAnimation("none", "");
+        }
     }
 
     CirSim() {
@@ -301,9 +292,12 @@ public class CirSim implements NativePreviewHandler {
         node.getItem(0).appendChild(meta);
 
         CircuitElm.initClass(this);
-        undoManager.readRecovery();
 
         circuitInfo.loadQueryParameters();
+        undoManager.readRecovery();
+        if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
+            circuitInfo.startCircuitText = undoManager.recovery;
+        }
 
         RootLayoutPanel.get().add(absResetBtn = new Button("&#8634;",
                 new ClickHandler() {
@@ -345,11 +339,10 @@ public class CirSim implements NativePreviewHandler {
         Event.setEventListener(sidePanelCheckbox, new EventListener() {
             public void onBrowserEvent(Event event) {
                 if (Event.ONCLICK == event.getTypeInt()) {
-                    Storage lstor = Storage.getLocalStorageIfSupported();
                     scopeManager.setupScopes();
                     executeJS("SetBtnsStyle();");
                     setCanvasSize();
-                    if (lstor.getItem("MOD_overlayingSidebar") == "false") {
+                    if (!OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true)) {
                         if (isSidePanelCheckboxChecked())
                             renderer.transform[4] -= VERTICAL_PANEL_WIDTH / 2;
                         else
@@ -571,19 +564,16 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor != null) {
-            if (positiveColor == null)
-                positiveColor = stor.getItem("positiveColor");
-            if (negativeColor == null)
-                negativeColor = stor.getItem("negativeColor");
-            if (neutralColor == null)
-                neutralColor = stor.getItem("neutralColor");
-            if (selectColor == null)
-                selectColor = stor.getItem("selectColor");
-            if (currentColor == null)
-                currentColor = stor.getItem("currentColor");
-        }
+        if (positiveColor == null)
+            positiveColor = OptionsManager.getOptionFromStorage("positiveColor", null);
+        if (negativeColor == null)
+            negativeColor = OptionsManager.getOptionFromStorage("negativeColor", null);
+        if (neutralColor == null)
+            neutralColor = OptionsManager.getOptionFromStorage("neutralColor", null);
+        if (selectColor == null)
+            selectColor = OptionsManager.getOptionFromStorage("selectColor", null);
+        if (currentColor == null)
+            currentColor = OptionsManager.getOptionFromStorage("currentColor", null);
 
         if (positiveColor != null)
             CircuitElm.positiveColor = new Color(URL.decodeQueryString(positiveColor));

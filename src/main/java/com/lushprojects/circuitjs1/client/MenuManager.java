@@ -882,10 +882,7 @@ public class MenuManager extends BaseCirSimDelegate {
 
     // load shortcuts from local storage
     void loadShortcuts() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null)
-            return;
-        String str = stor.getItem("shortcuts");
+        String str = OptionsManager.getOptionFromStorage("shortcuts", null);
         if (str == null)
             return;
         String keys[] = str.split(";");

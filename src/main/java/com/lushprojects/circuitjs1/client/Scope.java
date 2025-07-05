@@ -1951,24 +1951,19 @@ public class Scope extends BaseCirSimDelegate {
     }
 
     public void saveAsDefault() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null) {
+        if (!OptionsManager.hasLocalStorage()) {
             return;
         }
         ScopePlot vPlot = plots.get(0);
         int flags = getFlags();
 
         // store current scope settings as default.  1 is a version code
-        stor.setItem("scopeDefaults", "1 " + flags + " " + vPlot.scopePlotSpeed);
+        OptionsManager.setOptionInStorage("scopeDefaults", "1 " + flags + " " + vPlot.scopePlotSpeed);
         CirSim.console("saved defaults " + flags);
     }
 
     boolean loadDefaults() {
-        Storage stor = Storage.getLocalStorageIfSupported();
-        if (stor == null) {
-            return false;
-        }
-        String str = stor.getItem("scopeDefaults");
+        String str = OptionsManager.getOptionFromStorage("scopeDefaults", null);
         if (str == null) {
             return false;
         }

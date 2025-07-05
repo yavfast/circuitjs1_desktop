@@ -24,7 +24,6 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArrayString;
-import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Random;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
@@ -32,6 +31,7 @@ import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
 import com.lushprojects.circuitjs1.client.Rectangle;
@@ -40,7 +40,6 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
@@ -133,17 +132,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         ps1 = new Point();
         ps2 = new Point();
 
-        Storage stor = Storage.getLocalStorageIfSupported();
-        decimalDigits = 3;
-        shortDecimalDigits = 1;
-        if (stor != null) {
-            String s1 = stor.getItem("decimalDigits");
-            String s2 = stor.getItem("decimalDigitsShort");
-            if (s1 != null)
-                decimalDigits = Integer.parseInt(s1);
-            if (s2 != null)
-                shortDecimalDigits = Integer.parseInt(s2);
-        }
+        decimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigits", 3);
+        shortDecimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigitsShort", 1);
     }
 
     public static void setColorScale() {
