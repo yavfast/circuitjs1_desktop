@@ -1,203 +1,206 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-<modelVersion>4.0.0</modelVersion>
-<groupId>com.lushprojects.circuitjs1</groupId>
-<artifactId>circuitjs1mod</artifactId>
-<version>1.3.2</version>
-<packaging>war</packaging>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="http://maven.apache.org/POM/4.0.0"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.lushprojects.circuitjs1</groupId>
+    <artifactId>circuitjs1mod</artifactId>
+    <version>1.3.2</version>
+    <packaging>war</packaging>
 
-<dependencyManagement>
-	<dependencies>
-	<dependency>
-		<groupId>org.gwtproject</groupId>
-		<artifactId>gwt</artifactId>
-		<version>2.12.2</version>
-		<type>pom</type>
-		<scope>import</scope>
-	</dependency>
-	</dependencies>
-</dependencyManagement>
-<properties>
-	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-	<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-	<!-- Updated to Java 11 for better compatibility -->
-	<maven.compiler.source>11</maven.compiler.source>
-	<maven.compiler.target>11</maven.compiler.target>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.gwtproject</groupId>
+                <artifactId>gwt</artifactId>
+                <version>2.12.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- Updated to Java 11 for better compatibility -->
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
 
-	<!-- Don't let your Mac use a crazy non-standard encoding -->
-	<!-- generating dependency report is slow; disable it -->
-	<dependency.locations.enabled>false</dependency.locations.enabled>
-</properties>
-<dependencies>
-	<dependency>
-		<groupId>org.gwtproject</groupId>
-		<artifactId>gwt-servlet</artifactId>
-		<scope>runtime</scope>
-	</dependency>
-	<dependency>
-		<groupId>org.gwtproject</groupId>
-		<artifactId>gwt-user</artifactId>
-		<scope>compile</scope>
-	</dependency>
-	<dependency>
-		<groupId>org.gwtproject</groupId>
-		<artifactId>gwt-dev</artifactId>
-		<scope>compile</scope>
-	</dependency>
-</dependencies>
+        <!-- Don't let your Mac use a crazy non-standard encoding -->
+        <!-- generating dependency report is slow; disable it -->
+        <dependency.locations.enabled>false</dependency.locations.enabled>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.gwtproject</groupId>
+            <artifactId>gwt-servlet</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.gwtproject</groupId>
+            <artifactId>gwt-user</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.gwtproject</groupId>
+            <artifactId>gwt-dev</artifactId>
+            <scope>compile</scope>
+        </dependency>
+    </dependencies>
 
-<build>
-<plugins>
-<plugin>
-	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-compiler-plugin</artifactId>
-	<version>3.11.0</version>
-	<configuration>
-		<source>11</source>
-		<target>11</target>
-	</configuration>
-</plugin>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
 
-<plugin>
-	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-source-plugin</artifactId>
-	<version>3.3.0</version>
-	<executions>
-		<execution>
-			<id>attach-sources</id>
-			<goals>
-				<goal>jar</goal>
-			</goals>
-		</execution>
-	</executions>
-</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
-<!-- declaring only in order to skip during site deployment -->
-<plugin>
-	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-site-plugin</artifactId>
-	<version>3.12.1</version>
-	<executions>
-		<execution>
-			<id>deploy</id>
-			<phase>deploy</phase>
-			<configuration>
-				<skip>true</skip>
-			</configuration>
-		</execution>
-	</executions>
-	<configuration>
-		<skip>true</skip>
-		<siteDirectory>site</siteDirectory>
-	</configuration>
-</plugin>
+            <!-- declaring only in order to skip during site deployment -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>3.12.1</version>
+                <executions>
+                    <execution>
+                        <id>deploy</id>
+                        <phase>deploy</phase>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skip>true</skip>
+                    <siteDirectory>site</siteDirectory>
+                </configuration>
+            </plugin>
 
-<plugin>
-	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-project-info-reports-plugin</artifactId>
-	<version>3.4.5</version>
-	<configuration><!-- we don't need those reports; disabling speeds up build -->
-		<dependencyDetailsEnabled>false</dependencyDetailsEnabled>
-		<dependencyLocationsEnabled>false</dependencyLocationsEnabled>
-	</configuration>
-</plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>3.4.5</version>
+                <configuration><!-- we don't need those reports; disabling speeds up build -->
+                    <dependencyDetailsEnabled>false</dependencyDetailsEnabled>
+                    <dependencyLocationsEnabled>false</dependencyLocationsEnabled>
+                </configuration>
+            </plugin>
 
-<!-- GWT Maven Plugin-->
-<plugin>
-<groupId>net.ltgt.gwt.maven</groupId>
-<artifactId>gwt-maven-plugin</artifactId>
-<version>1.1.0</version>
-<executions>
-	<execution>
-	<goals>
-		<goal>compile</goal>
-		<goal>test</goal>
-	</goals>
-	</execution>
-</executions>
-<configuration>
-	<moduleName>com.lushprojects.circuitjs1.circuitjs1</moduleName>
-	<moduleShortName>circuitjs1</moduleShortName>
-	<localWorkers>0.5C</localWorkers>
-	<warName>circuitjs</warName>
-	<failOnError>true</failOnError>
-	<!-- Updated to Java 11 for better compatibility -->
-	<sourceLevel>11</sourceLevel>
-	<!-- Compiler configuration -->
-	<compilerArgs>
-	<!-- Ask GWT to create the Story of Your Compile (SOYC) (gwt:compile) -->
-	<compilerArg>-style</compilerArg>
-	<compilerArg>OBFUSCATED</compilerArg>
-	<compilerArg>-setProperty</compilerArg>
-	<compilerArg>user.agent=safari</compilerArg>
-	</compilerArgs>
-	<!-- DevMode configuration -->
-	<warDir>war</warDir>
-	<classpathScope>compile+runtime</classpathScope>
-	<!-- URL(s) that should be opened by DevMode (gwt:devmode). -->
-	<startupUrls>
-	<startupUrl>circuitjs.html</startupUrl>
-	</startupUrls>
-	<codeServerPort>8888</codeServerPort>
-</configuration>
-</plugin>
+            <!-- GWT Maven Plugin-->
+            <plugin>
+                <groupId>net.ltgt.gwt.maven</groupId>
+                <artifactId>gwt-maven-plugin</artifactId>
+                <version>1.1.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <moduleName>com.lushprojects.circuitjs1.circuitjs1</moduleName>
+                    <moduleShortName>circuitjs1</moduleShortName>
+                    <localWorkers>1C</localWorkers>
+                    <warName>circuitjs</warName>
+                    <failOnError>true</failOnError>
+                    <!-- Updated to Java 11 for better compatibility -->
+                    <sourceLevel>11</sourceLevel>
+                    <!-- Compiler configuration -->
+                    <compilerArgs>
+                        <!-- Ask GWT to create the Story of Your Compile (SOYC) (gwt:compile) -->
+                        <compilerArg>-style</compilerArg>
+                        <compilerArg>OBFUSCATED</compilerArg>
+                        <!--<compilerArg>DETAILED</compilerArg>-->
+						<compilerArg>-draftCompile</compilerArg>
+                    </compilerArgs>
+                    <!-- DevMode configuration -->
+                    <warDir>war</warDir>
+                    <classpathScope>compile+runtime</classpathScope>
+                    <!-- URL(s) that should be opened by DevMode (gwt:devmode). -->
+                    <startupUrls>
+                        <startupUrl>circuitjs.html</startupUrl>
+                    </startupUrls>
+                    <codeServerPort>8888</codeServerPort>
+                </configuration>
+            </plugin>
 
-<!-- copy a few things around before packaging the website -->
-<plugin>
-<artifactId>maven-resources-plugin</artifactId>
-<version>3.3.1</version>
-<executions>
-<execution>
-	<id>copy-resources</id>
-	<phase>install</phase>
-	<goals>
-		<goal>copy-resources</goal>
-	</goals>
-	<configuration>
-	<outputDirectory>${project.build.directory}/site</outputDirectory>
-	<resources>
-	<resource>
-		<directory>war</directory>
-		<filtering>false</filtering>
-		<excludes>
-			<!-- Based: -->
-			<exclude>circuitjs1/</exclude>
-			<exclude>*.md</exclude>
-			<exclude>WEB-INF/</exclude>
-			<exclude>font/*.json</exclude>
-			<exclude>blink-test.html</exclude>
-			<exclude>jsinterface.html</exclude>
-			<!-- Unused fonts: -->
-			<exclude>font/*.eot</exclude>
-			<exclude>font/*.svg</exclude>
-			<exclude>font/*.ttf</exclude>
-			<exclude>font/*.woff</exclude>
-			<!-- Unused but for the future: -->
-			<exclude>avr8js/</exclude>
-			<exclude>help/DA.html</exclude>
-			<exclude>help/DE.html</exclude>
-			<exclude>help/PL.html</exclude>
-			<exclude>help/*.zip</exclude>
-		</excludes>
-	</resource>
-	<resource>
-		<directory>${project.build.directory}/${project.name}-${project.version}/circuitjs1</directory>
-		<targetPath>circuitjs1</targetPath>
-	</resource>
-	</resources>
-	</configuration>
-</execution>
-</executions>
-</plugin>
+            <!-- copy a few things around before packaging the website -->
+            <plugin>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <phase>install</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/site</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>war</directory>
+                                    <filtering>false</filtering>
+                                    <excludes>
+                                        <!-- Based: -->
+                                        <exclude>circuitjs1/</exclude>
+                                        <exclude>*.md</exclude>
+                                        <exclude>WEB-INF/</exclude>
+                                        <exclude>font/*.json</exclude>
+                                        <exclude>blink-test.html</exclude>
+                                        <exclude>jsinterface.html</exclude>
+                                        <!-- Unused fonts: -->
+                                        <exclude>font/*.eot</exclude>
+                                        <exclude>font/*.svg</exclude>
+                                        <exclude>font/*.ttf</exclude>
+                                        <exclude>font/*.woff</exclude>
+                                        <!-- Unused but for the future: -->
+                                        <exclude>avr8js/</exclude>
+                                        <exclude>help/DA.html</exclude>
+                                        <exclude>help/DE.html</exclude>
+                                        <exclude>help/PL.html</exclude>
+                                        <exclude>help/*.zip</exclude>
+                                    </excludes>
+                                </resource>
+                                <resource>
+                                    <directory>
+                                        ${project.build.directory}/${project.name}-${project.version}/circuitjs1
+                                    </directory>
+                                    <targetPath>circuitjs1</targetPath>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
 
-<plugin>
-	<artifactId>maven-war-plugin</artifactId>
-	<version>3.4.0</version>
-	<configuration>
-		<failOnMissingWebXml>false</failOnMissingWebXml>
-	</configuration>
-</plugin>
+            <plugin>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+                <configuration>
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
 
-</plugins>
-</build>
+        </plugins>
+    </build>
 </project>

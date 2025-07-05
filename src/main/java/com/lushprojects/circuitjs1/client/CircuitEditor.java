@@ -569,7 +569,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     public void onMouseDown(MouseDownEvent e) {
-//    public void mousePressed(MouseEvent e) {
         e.preventDefault();
 
         // make sure canvas has focus, not stop button or something else, so all shortcuts work
