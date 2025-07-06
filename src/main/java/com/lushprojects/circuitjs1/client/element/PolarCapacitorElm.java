@@ -24,7 +24,7 @@ public class PolarCapacitorElm extends CapacitorElm {
     }
 
     public String dump() {
-        return super.dump() + " " + maxNegativeVoltage;
+        return dumpValues(super.dump(), maxNegativeVoltage);
     }
 
     Point plusPoint;

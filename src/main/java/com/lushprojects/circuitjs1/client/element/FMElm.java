@@ -61,12 +61,8 @@ public class FMElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + carrierfreq + " " + signalfreq + " " + maxVoltage + " " + deviation;
+        return dumpValues(super.dump(), carrierfreq, signalfreq, maxVoltage, deviation);
     }
-    /*void setCurrent(double c) {
-      current = c;
-      System.out.print("v current set to " + c + "\n");
-      }*/
 
     public void reset() {
         freqTimeZero = 0;

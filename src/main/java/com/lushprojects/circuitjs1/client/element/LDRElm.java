@@ -66,7 +66,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     //data for file saving - make sure it matches order of items in file input constructor
     public String dump() {
-        return super.dump() + " " + position + " " + CustomLogicModel.escape(sliderText);
+        return dumpValues(super.dump(), position, CustomLogicModel.escape(sliderText));
     }
 
     void createSlider() {

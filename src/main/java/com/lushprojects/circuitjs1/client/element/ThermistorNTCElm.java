@@ -88,7 +88,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
 
     //data for file saving - make sure it matches order of items in file input constructor
     public String dump() {
-        return super.dump() + " " + r25 + " " + r50 + " " + minTempr + " " + maxTempr + " " + position + " " + CustomLogicModel.escape(sliderText);
+        return dumpValues(super.dump(), r25, r50, minTempr, maxTempr, position, CustomLogicModel.escape(sliderText));
     }
 
     void createSlider() {

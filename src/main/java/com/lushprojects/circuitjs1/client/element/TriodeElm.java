@@ -59,7 +59,7 @@ public class TriodeElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + mu + " " + kg1;
+        return dumpValues(super.dump(), mu, kg1);
     }
 
     int getDumpType() {
@@ -277,4 +277,3 @@ public class TriodeElm extends CircuitElm {
         return false;
     }
 }
-

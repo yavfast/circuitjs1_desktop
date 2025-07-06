@@ -70,8 +70,7 @@ public class DiacElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + onresistance + " " + offresistance + " "
-                + breakdown + " " + holdcurrent;
+        return dumpValues(super.dump(), onresistance, offresistance, breakdown, holdcurrent);
     }
 
     Polygon arrows[];

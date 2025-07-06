@@ -70,7 +70,7 @@ public class DecimalDisplayElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + bitCount;
+        return dumpValues(super.dump(), bitCount);
     }
 
     void setupPins() {
@@ -113,4 +113,3 @@ public class DecimalDisplayElm extends ChipElm {
     }
 
 }
-    

@@ -71,7 +71,7 @@ public class SevenSegElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + baseSegmentCount + " " + extraSegment + " " + diodeDirection;
+        return dumpValues(super.dump(), baseSegmentCount, extraSegment, diodeDirection);
     }
 
     String getChipName() {

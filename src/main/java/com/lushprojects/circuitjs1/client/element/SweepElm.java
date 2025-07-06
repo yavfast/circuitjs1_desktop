@@ -60,8 +60,7 @@ public class SweepElm extends CircuitElm {
     final int circleSize = 17;
 
     public String dump() {
-        return super.dump() + " " + minF + " " + maxF + " " + maxV + " " +
-                sweepTime;
+        return dumpValues(super.dump(), minF, maxF, maxV, sweepTime);
     }
 
     public void setPoints() {

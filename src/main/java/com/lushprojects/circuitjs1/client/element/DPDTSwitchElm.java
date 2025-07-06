@@ -56,7 +56,7 @@ public class DPDTSwitchElm extends SwitchElm {
     }
 
     public String dump() {
-        return super.dump() + " " + poleCount;
+        return dumpValues(super.dump(), poleCount);
     }
 
     final int openhs = 16;

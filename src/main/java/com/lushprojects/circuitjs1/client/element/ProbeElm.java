@@ -77,7 +77,7 @@ public class ProbeElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + meter + " " + scale + " " + resistance;
+        return dumpValues(super.dump(), meter, scale, resistance);
     }
 
     String getMeter() {
@@ -368,4 +368,3 @@ public class ProbeElm extends CircuitElm {
             resistance = ei.value;
     }
 }
-

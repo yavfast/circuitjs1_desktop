@@ -50,7 +50,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     }
 
     public String dump() {
-        return super.dump() + " " + sliderText.replaceAll("\\+", "%2B");
+        return dumpValues(super.dump(), sliderText.replaceAll("\\+", "%2B"));
     }
 
     int getDumpType() {

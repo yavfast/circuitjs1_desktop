@@ -66,7 +66,7 @@ public class InvertingSchmittElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + slewRate + " " + lowerTrigger + " " + upperTrigger + " " + logicOnLevel + " " + logicOffLevel;
+        return dumpValues(super.dump(), slewRate, lowerTrigger, upperTrigger, logicOnLevel, logicOffLevel);
     }
 
     int getDumpType() {

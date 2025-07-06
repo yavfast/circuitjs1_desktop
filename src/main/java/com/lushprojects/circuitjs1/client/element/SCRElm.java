@@ -94,9 +94,8 @@ public class SCRElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + (volts[anode] - volts[cnode]) + " " +
-                (volts[anode] - volts[gnode]) + " " + triggerI + " " + holdingI + " " +
-                gresistance;
+        return dumpValues(super.dump(), (volts[anode] - volts[cnode]),
+                (volts[anode] - volts[gnode]), triggerI, holdingI, gresistance);
     }
 
     double ia, ic, ig, curcount_a, curcount_c, curcount_g;

@@ -61,7 +61,7 @@ public class Switch2Elm extends SwitchElm {
     }
 
     public String dump() {
-        return super.dump() + " " + link + " " + throwCount;
+        return dumpValues(super.dump(), link, throwCount);
     }
 
     final int openhs = 16;

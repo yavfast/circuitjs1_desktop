@@ -85,7 +85,7 @@ public class DataInputElm extends RailElm {
             ent.data = data;
             dataFileMap.put(fileNum, ent);
         }
-        return super.dump() + " " + sampleLength + " " + scaleFactor + " " + fileNum;
+        return dumpValues(super.dump(), sampleLength, scaleFactor, fileNum);
     }
 
     public void reset() {

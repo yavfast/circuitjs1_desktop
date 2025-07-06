@@ -51,7 +51,7 @@ public class AudioOutputElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + duration + " " + samplingRate + " " + labelNum;
+        return dumpValues(super.dump(), duration, samplingRate, labelNum);
     }
 
     public void draggingDone() {

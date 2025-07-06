@@ -67,7 +67,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     public String dump() {
         // dump: inductance; resistance, K, Kb, J, b, gearRatio, tau
-        return super.dump() + " " + Rs + " " + Rr + " " + Ls + " " + Lr + " " + Lm + " " + b + " " + J;
+        return dumpValues(super.dump(), Rs, Rr, Ls, Lr, Lm, b, J);
     }
 
     public double getAngle() {

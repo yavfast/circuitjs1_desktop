@@ -63,7 +63,7 @@ public class AmmeterElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + meter + " " + scale;
+        return dumpValues(super.dump(), meter, scale);
     }
 
     public String getMeter() {
@@ -288,4 +288,3 @@ public class AmmeterElm extends CircuitElm {
     }
 
 }
-

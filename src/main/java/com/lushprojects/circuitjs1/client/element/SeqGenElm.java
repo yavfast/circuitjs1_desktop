@@ -159,15 +159,12 @@ public class SeqGenElm extends ChipElm {
     }
 
     public String dump() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(super.dump());
-        sb.append(' ');
-        sb.append(bitCount);
+        Object[] values = new Object[data.length+1];
+        values[0] = bitCount;
         for (int i = 0; i < data.length; i++) {
-            sb.append(' ');
-            sb.append(Integer.toString(data[i]));
+            values[i+1] = data[i];
         }
-        return sb.toString();
+        return dumpValues(super.dump(), values);
     }
 
     public EditInfo getChipEditInfo(int n) {

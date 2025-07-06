@@ -28,7 +28,7 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + dataCount;
+        return dumpValues(super.dump(), dataCount);
     }
 
     int getDumpType() {

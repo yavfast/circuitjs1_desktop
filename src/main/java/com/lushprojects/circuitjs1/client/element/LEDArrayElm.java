@@ -45,7 +45,7 @@ public class LEDArrayElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + sizeX + " " + sizeY;
+        return dumpValues(super.dump(), sizeX, sizeY);
     }
 
     String getChipName() {

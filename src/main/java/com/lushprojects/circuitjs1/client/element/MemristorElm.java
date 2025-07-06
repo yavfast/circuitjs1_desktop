@@ -59,8 +59,7 @@ public class MemristorElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + r_on + " " + r_off + " " + dopeWidth + " " +
-                totalWidth + " " + mobility + " " + current;
+        return dumpValues(super.dump(), r_on, r_off, dopeWidth, totalWidth, mobility, current);
     }
 
     Point ps3, ps4;
@@ -182,4 +181,3 @@ public class MemristorElm extends CircuitElm {
             mobility = ei.value * 1e-12;
     }
 }
-

@@ -47,7 +47,7 @@ public class CounterElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + invertreset + " " + modulus;
+        return dumpValues(super.dump(), invertreset, modulus);
     }
 
     boolean needsBits() {

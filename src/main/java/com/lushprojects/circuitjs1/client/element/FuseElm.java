@@ -50,7 +50,7 @@ public class FuseElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + resistance + " " + i2t + " " + heat + " " + blown;
+        return dumpValues(super.dump(), resistance, i2t, heat, blown);
     }
 
     int getDumpType() {

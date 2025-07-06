@@ -86,7 +86,7 @@ public class AudioInputElm extends RailElm {
             ent.data = data;
             audioFileMap.put(fileNum, ent);
         }
-        return super.dump() + " " + maxVoltage + " " + startPosition + " " + fileNum;
+        return dumpValues(super.dump(), maxVoltage, startPosition, fileNum);
     }
 
     public void reset() {

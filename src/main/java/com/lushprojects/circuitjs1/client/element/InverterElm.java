@@ -52,7 +52,7 @@ public class InverterElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + slewRate + " " + highVoltage;
+        return dumpValues(super.dump(), slewRate, highVoltage);
     }
 
     int getDumpType() {

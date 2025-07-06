@@ -351,17 +351,17 @@ public abstract class ChipElm extends CircuitElm {
         else
             flags |= FLAG_CUSTOM_VOLTAGE;
 
-        String s = super.dump();
+        Object[] values = new Object[getPostCount() + 2];
         if (needsBits())
-            s += " " + bits;
+            values[0] = bits;
         if (hasCustomVoltage())
-            s += " " + highVoltage;
+            values[1] = highVoltage;
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].state)
-                s += " " + volts[i];
+                values[i+2] = volts[i];
         }
-        return s;
+        return dumpValues(super.dump(), values);
     }
 
     void writeOutput(int n, boolean value) {

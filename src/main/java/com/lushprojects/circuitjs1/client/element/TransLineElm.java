@@ -65,7 +65,7 @@ public class TransLineElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + delay + " " + imped + " " + width + " " + 0.;
+        return dumpValues(super.dump(), delay, imped, width, 0.);
     }
 
     public void drag(int xx, int yy) {

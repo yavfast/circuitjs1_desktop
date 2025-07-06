@@ -56,8 +56,7 @@ public class LampElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + temp + " " + nom_pow + " " + nom_v +
-                " " + warmTime + " " + coolTime;
+        return dumpValues(super.dump(), temp, nom_pow, nom_v, warmTime, coolTime);
     }
 
     int getDumpType() {

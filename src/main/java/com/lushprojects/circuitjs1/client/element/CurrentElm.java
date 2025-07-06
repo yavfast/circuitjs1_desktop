@@ -45,7 +45,7 @@ public class CurrentElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + currentValue;
+        return dumpValues(super.dump(), currentValue);
     }
 
     int getDumpType() {

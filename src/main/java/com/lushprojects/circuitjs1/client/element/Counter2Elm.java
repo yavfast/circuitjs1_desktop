@@ -40,7 +40,7 @@ public class Counter2Elm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + modulus;
+        return dumpValues(super.dump(), modulus);
     }
 
     boolean needsBits() {

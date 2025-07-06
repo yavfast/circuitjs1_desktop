@@ -51,7 +51,7 @@ public class DelayBufferElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + delay + " " + threshold + " " + highVoltage;
+        return dumpValues(super.dump(), delay, threshold, highVoltage);
     }
 
     int getDumpType() {

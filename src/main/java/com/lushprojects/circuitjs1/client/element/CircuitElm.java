@@ -42,7 +42,9 @@ import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
@@ -202,23 +204,31 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public static String dumpValues(Object... values) {
+        return dumpArray(values);
+    }
+
+    public static String dumpArray(Object[] values) {
         if (values == null || values.length == 0) return "";
         StringBuilder sb = new StringBuilder(128);
         for (int i = 0; i < values.length; i++) {
-            Object v = values[i];
+            Object value = values[i];
+            if (value == null) {
+                continue;
+            }
+            Class<?> valueClass = value.getClass();
             String s;
-            if (v instanceof Integer) {
-                s = dumpValue((Integer) v);
-            } else if (v instanceof Double) {
-                s = dumpValue((Double) v);
-            } else if (v instanceof Boolean) {
-                s = dumpValue((Boolean) v);
-            } else if (v instanceof String) {
-                s = (String) v;
-            } else if (v == null) {
-                s = "";
+            if (valueClass == Integer.class) {
+                s = dumpValue((Integer) value);
+            } else if (valueClass == Double.class) {
+                s = dumpValue((Double) value);
+            } else if (valueClass == Boolean.class) {
+                s = dumpValue((Boolean) value);
+            } else if (valueClass == String.class) {
+                s = (String) value;
+            } else if (valueClass.isArray()) {
+                s = dumpArray((Object[]) value);
             } else {
-                s = v.toString();
+                s = value.toString();
             }
             if (i > 0) sb.append(' ');
             sb.append(s);
@@ -254,6 +264,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return CustomLogicModel.escape(str);
     }
 
+    public static String unescape(String str) {
+        return CustomLogicModel.unescape(str);
+    }
+
     public static double parseDouble(String token) {
         return parseDouble(token, 0.0);
     }
@@ -284,6 +298,30 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         } catch (Throwable e) {
             return defValue;
         }
+    }
+
+    public static boolean parseBool(String token) {
+        return parseBool(token, false);
+    }
+
+    public static boolean parseBool(String token, boolean defValue) {
+        if (token == null || token.isEmpty()) {
+            return defValue;
+        }
+        String t = token.trim().toLowerCase();
+        switch (t) {
+            case "1":
+            case "true":
+            case "yes":
+            case "on":
+                return true;
+            case "0":
+            case "false":
+            case "no":
+            case "off":
+                return false;
+        }
+        return defValue;
     }
 
     // handle reset button
@@ -476,7 +514,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         int i;
         for (i = 0; i != simUi.simulator.elmList.size(); i++) {
             CircuitElm ce = simUi.simulator.elmList.get(i);
-            if (ce.x == nx && ce.y == ny && ce.x2 == nx2 && ce.y2 == ny2)
+            if (ce.x == nx && ce.y == ny && ce.x2 == nx2 && ce.y2 == ny)
                 return false;
             if (ce.x == nx2 && ce.y == ny2 && ce.x2 == nx && ce.y2 == ny)
                 return false;

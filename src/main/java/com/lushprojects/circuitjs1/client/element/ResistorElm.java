@@ -45,7 +45,7 @@ public class ResistorElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + resistance;
+        return dumpValues(super.dump(), resistance);
     }
 
     Point ps3, ps4;

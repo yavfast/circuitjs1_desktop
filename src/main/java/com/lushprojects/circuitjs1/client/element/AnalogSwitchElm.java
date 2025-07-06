@@ -63,7 +63,7 @@ public class AnalogSwitchElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + r_on + " " + r_off + " " + threshold;
+        return dumpValues(super.dump(), r_on, r_off, threshold);
     }
 
     int getDumpType() {

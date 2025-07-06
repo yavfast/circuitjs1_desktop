@@ -66,7 +66,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + resistance + " " + i2t + " " + blown + " " + CustomLogicModel.escape(label);
+        return dumpValues(super.dump(), resistance, i2t, blown, CustomLogicModel.escape(label));
     }
 
     int getDumpType() {

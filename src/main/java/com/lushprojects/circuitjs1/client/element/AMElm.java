@@ -57,7 +57,7 @@ public class AMElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + carrierfreq + " " + signalfreq + " " + maxVoltage;
+        return dumpValues(super.dump(), carrierfreq, signalfreq, maxVoltage);
     }
     /*void setCurrent(double c) {
       current = c;

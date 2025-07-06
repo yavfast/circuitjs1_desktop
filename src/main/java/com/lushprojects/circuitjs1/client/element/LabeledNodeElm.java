@@ -48,13 +48,13 @@ public class LabeledNodeElm extends CircuitElm {
                 text += ' ' + st.nextToken();
         } else {
             // new-style dump
-            text = CustomLogicModel.unescape(text);
+            text = unescape(text);
         }
     }
 
     public String dump() {
         flags |= FLAG_ESCAPE;
-        return super.dump() + " " + CustomLogicModel.escape(text);
+        return dumpValues(super.dump(), escape(text));
     }
 
     public String text;

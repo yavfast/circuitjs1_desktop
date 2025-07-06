@@ -1779,13 +1779,13 @@ public class Scope extends BaseCirSimDelegate {
         if (eno < 0) {
             return null;
         }
-        String x = "o " + eno + " " +
-                vPlot.scopePlotSpeed + " " + vPlot.value + " "
-                + exportAsDecOrHex(flags, FLAG_PERPLOTFLAGS) + " " +
-                scale[UNITS_V] + " " + scale[UNITS_A] + " " + position + " " +
-                plots.size();
+        String x = CircuitElm.dumpValues("o", eno,
+                vPlot.scopePlotSpeed, vPlot.value,
+                exportAsDecOrHex(flags, FLAG_PERPLOTFLAGS),
+                scale[UNITS_V], scale[UNITS_A], position,
+                plots.size());
         if ((flags & FLAG_DIVISIONS) != 0) {
-            x += " " + manDivisions;
+            x += " " + CircuitElm.dumpValue(manDivisions);
         }
         for (int i = 0; i < plots.size(); i++) {
             ScopePlot p = plots.get(i);
@@ -1793,15 +1793,14 @@ public class Scope extends BaseCirSimDelegate {
                 x += " " + Integer.toHexString(p.getPlotFlags()); // NB always export in Hex (no prefix)
             }
             if (i > 0) {
-                x += " " + simulator.locateElm(p.elm) + " " + p.value;
+                x += " " + simulator.locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
             }
             // dump scale if units are not V or A
             if (p.units > UNITS_A) {
-                x += " " + scale[p.units];
+                x += " " + CircuitElm.dumpValue(scale[p.units]);
             }
             if (isManualScale()) {// In this version we always dump manual settings using the PERPLOT format
-                x += " " + p.manScale + " "
-                        + p.manVPosition;
+                x += " " + CircuitElm.dumpValue(p.manScale) + " " + CircuitElm.dumpValue(p.manVPosition);
             }
         }
         if (text != null) {
@@ -1812,14 +1811,14 @@ public class Scope extends BaseCirSimDelegate {
 
     public void undump(StringTokenizer st) {
         initialize();
-        int e = Integer.parseInt(st.nextToken());
+        int e = CircuitElm.parseInt(st.nextToken());
         if (e == -1) {
             return;
         }
         CircuitElm ce = simulator().getElm(e);
         setElm(ce);
-        speed = Integer.parseInt(st.nextToken());
-        int value = Integer.parseInt(st.nextToken());
+        speed = CircuitElm.parseInt(st.nextToken());
+        int value = CircuitElm.parseInt(st.nextToken());
 
         // fix old value for VAL_POWER which doesn't work for transistors (because it's the same as VAL_IB)
         if (!(ce instanceof TransistorElm) && value == VAL_POWER_OLD) {
@@ -1827,8 +1826,8 @@ public class Scope extends BaseCirSimDelegate {
         }
 
         int flags = importDecOrHex(st.nextToken());
-        scale[UNITS_V] = Double.parseDouble(st.nextToken());
-        scale[UNITS_A] = Double.parseDouble(st.nextToken());
+        scale[UNITS_V] = CircuitElm.parseDouble(st.nextToken());
+        scale[UNITS_A] = CircuitElm.parseDouble(st.nextToken());
         if (scale[UNITS_V] == 0) {
             scale[UNITS_V] = .5;
         }
@@ -1844,16 +1843,16 @@ public class Scope extends BaseCirSimDelegate {
         if ((flags & FLAG_PLOTS) != 0) {
             // new-style dump
             try {
-                position = Integer.parseInt(st.nextToken());
-                int sz = Integer.parseInt(st.nextToken());
+                position = CircuitElm.parseInt(st.nextToken());
+                int sz = CircuitElm.parseInt(st.nextToken());
                 manDivisions = 8;
                 if ((flags & FLAG_DIVISIONS) != 0) {
-                    manDivisions = lastManDivisions = Integer.parseInt(st.nextToken());
+                    manDivisions = lastManDivisions = CircuitElm.parseInt(st.nextToken());
                 }
                 int i;
                 int u = ce.getScopeUnits(value);
                 if (u > UNITS_A) {
-                    scale[u] = Double.parseDouble(st.nextToken());
+                    scale[u] = CircuitElm.parseDouble(st.nextToken());
                 }
                 setValue(value);
                 // setValue(0) creates an extra plot for current, so remove that
@@ -1864,15 +1863,15 @@ public class Scope extends BaseCirSimDelegate {
                 int plotFlags = 0;
                 for (i = 0; i != sz; i++) {
                     if (hasPlotFlags) {
-                        plotFlags = Integer.parseInt(st.nextToken(), 16); // Import in hex (no prefix)
+                        plotFlags = CircuitElm.parseInt(st.nextToken(), 16); // Import in hex (no prefix)
                     }
                     if (i != 0) {
-                        int ne = Integer.parseInt(st.nextToken());
-                        int val = Integer.parseInt(st.nextToken());
+                        int ne = CircuitElm.parseInt(st.nextToken());
+                        int val = CircuitElm.parseInt(st.nextToken());
                         CircuitElm elm = simulator().getElm(ne);
                         u = elm.getScopeUnits(val);
                         if (u > UNITS_A) {
-                            scale[u] = Double.parseDouble(st.nextToken());
+                            scale[u] = CircuitElm.parseDouble(st.nextToken());
                         }
                         plots.add(new ScopePlot(elm, u, val, getManScaleFromMaxScale(u, false)));
                     }
@@ -1880,8 +1879,8 @@ public class Scope extends BaseCirSimDelegate {
                     p.acCoupled = (plotFlags & ScopePlot.FLAG_AC) != 0;
                     if ((flags & FLAG_PERPLOT_MAN_SCALE) != 0) {
                         p.manScaleSet = true;
-                        p.manScale = Double.parseDouble(st.nextToken());
-                        p.manVPosition = Integer.parseInt(st.nextToken());
+                        p.manScale = CircuitElm.parseDouble(st.nextToken());
+                        p.manVPosition = CircuitElm.parseInt(st.nextToken());
                     }
                 }
                 while (st.hasMoreTokens()) {
@@ -1899,10 +1898,10 @@ public class Scope extends BaseCirSimDelegate {
             int ivalue = 0;
             manDivisions = 8;
             try {
-                position = Integer.parseInt(st.nextToken());
+                position = CircuitElm.parseInt(st.nextToken());
                 int ye = -1;
                 if ((flags & FLAG_YELM) != 0) {
-                    ye = Integer.parseInt(st.nextToken());
+                    ye = CircuitElm.parseInt(st.nextToken());
                     if (ye != -1) {
                         yElm = simulator().getElm(ye);
                     }
@@ -1912,7 +1911,7 @@ public class Scope extends BaseCirSimDelegate {
                     }
                 }
                 if ((flags & FLAG_IVALUE) != 0) {
-                    ivalue = Integer.parseInt(st.nextToken());
+                    ivalue = CircuitElm.parseInt(st.nextToken());
                 }
                 while (st.hasMoreTokens()) {
                     if (text == null) {

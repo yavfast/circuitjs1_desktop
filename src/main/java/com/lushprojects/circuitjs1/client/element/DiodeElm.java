@@ -106,7 +106,7 @@ public class DiodeElm extends CircuitElm {
 	    sim.console("model name is null??");
 	    modelName = "default";
 	}*/
-        return super.dump() + " " + CustomLogicModel.escape(modelName);
+        return dumpValues(super.dump(), CustomLogicModel.escape(modelName));
     }
 
     public String dumpModel() {

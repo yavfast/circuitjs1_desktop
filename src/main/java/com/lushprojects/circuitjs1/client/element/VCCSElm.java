@@ -55,7 +55,7 @@ public class VCCSElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + inputCount + " " + CustomLogicModel.escape(exprString);
+        return dumpValues(super.dump(), inputCount, CustomLogicModel.escape(exprString));
     }
 
     double lastVolts[];

@@ -42,7 +42,7 @@ public class ExtVoltageElm extends RailElm {
     double voltage;
 
     public String dump() {
-        return super.dump() + " " + CustomLogicModel.escape(name);
+        return dumpValues(super.dump(), CustomLogicModel.escape(name));
     }
 
     void drawRail(Graphics g) {

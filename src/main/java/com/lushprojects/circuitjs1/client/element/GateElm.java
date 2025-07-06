@@ -82,7 +82,7 @@ public abstract class GateElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + inputCount + " " + volts[inputCount] + " " + highVoltage;
+        return dumpValues(super.dump(), inputCount, volts[inputCount], highVoltage);
     }
 
     Point inPosts[], inGates[];
@@ -312,4 +312,3 @@ public abstract class GateElm extends CircuitElm {
         return 0;
     }
 }
-

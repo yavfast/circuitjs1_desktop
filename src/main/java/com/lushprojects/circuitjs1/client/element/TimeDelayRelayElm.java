@@ -55,7 +55,7 @@ public class TimeDelayRelayElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + onDelay + " " + offDelay + " " + onResistance + " " + offResistance;
+        return dumpValues(super.dump(), onDelay, offDelay, onResistance, offResistance);
     }
 
     String getChipName() {

@@ -53,7 +53,7 @@ public class DeMultiplexerElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + selectBitCount;
+        return dumpValues(super.dump(), selectBitCount);
     }
 
     void setupPins() {

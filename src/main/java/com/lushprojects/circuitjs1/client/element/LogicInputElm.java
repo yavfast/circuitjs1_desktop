@@ -65,7 +65,7 @@ public class LogicInputElm extends SwitchElm {
     }
 
     public String dump() {
-        return super.dump() + " " + hiV + " " + loV;
+        return dumpValues(super.dump(), hiV, loV);
     }
 
     public int getPostCount() {

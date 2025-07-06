@@ -84,7 +84,7 @@ public class TextElm extends GraphicElm {
 
     public String dump() {
         flags |= FLAG_ESCAPE;
-        return super.dump() + " " + size + " " + CustomLogicModel.escape(text);
+        return dumpValues(super.dump(), size, CustomLogicModel.escape(text));
         //return super.dump() + " " + size + " " + text;
     }
 

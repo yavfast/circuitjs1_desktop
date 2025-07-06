@@ -49,7 +49,7 @@ public class GroundElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + symbolType;
+        return dumpValues(super.dump(), symbolType);
     }
 
     int getDumpType() {

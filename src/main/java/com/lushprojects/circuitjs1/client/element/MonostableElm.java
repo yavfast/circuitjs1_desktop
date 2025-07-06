@@ -94,7 +94,7 @@ public class MonostableElm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + retriggerable + " " + delay;
+        return dumpValues(super.dump(), retriggerable, delay);
     }
 
     int getDumpType() {

@@ -68,8 +68,10 @@ public class SRAMElm extends ChipElm {
     }
 
     public String dump() {
-        String s = super.dump() + " " + addressBits + " " + dataBits;
-
+        Object[] values = new Object[3 + map.size()*2];
+        values[0] = addressBits;
+        values[1] = dataBits;
+        int j = 2;
         // dump contents
         int maxI = 1 << addressBits;
         int i;
@@ -77,17 +79,18 @@ public class SRAMElm extends ChipElm {
             Integer val = map.get(i);
             if (val == null)
                 continue;
-            s += " " + i + " " + val;
+            values[j++] = i;
+            values[j++] = val;
             while (true) {
                 val = map.get(++i);
                 if (val == null)
                     break;
-                s += " " + val;
+                values[j++] = val;
             }
-            s += " -1";
+            values[j++] = -1;
         }
-        s += " -2";
-        return s;
+        values[j] = -2;
+        return dumpValues(super.dump(), values);
     }
 
     public boolean nonLinear() {

@@ -56,7 +56,7 @@ public class MBBSwitchElm extends SwitchElm {
     }
 
     public String dump() {
-        return super.dump() + " " + link;
+        return dumpValues(super.dump(), link);
     }
 
     final int openhs = 16;

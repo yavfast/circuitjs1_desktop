@@ -48,7 +48,7 @@ public class LogicOutputElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + threshold;
+        return dumpValues(super.dump(), threshold);
     }
 
     int getDumpType() {

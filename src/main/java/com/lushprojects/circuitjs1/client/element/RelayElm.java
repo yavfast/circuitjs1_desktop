@@ -135,9 +135,9 @@ public class RelayElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + poleCount + " " +
-                inductance + " " + coilCurrent + " " +
-                r_on + " " + r_off + " " + onCurrent + " " + coilR + " " + offCurrent + " " + switchingTime + " " + i_position;
+        return dumpValues(super.dump(), poleCount,
+                inductance, coilCurrent,
+                r_on, r_off, onCurrent, coilR, offCurrent, switchingTime, i_position);
     }
 
     public void draw(Graphics g) {

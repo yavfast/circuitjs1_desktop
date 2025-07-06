@@ -49,7 +49,7 @@ public class DarlingtonElm extends CompositeElm {
     }
 
     public String dump() {
-        return super.dump() + " " + pnp;
+        return dumpValues(super.dump(), pnp);
     }
 
 

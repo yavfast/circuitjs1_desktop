@@ -133,7 +133,7 @@ public class MosfetElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + vt + " " + beta;
+        return dumpValues(super.dump(), vt, beta);
     }
 
     int getDumpType() {

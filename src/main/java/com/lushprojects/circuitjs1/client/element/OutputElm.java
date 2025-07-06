@@ -48,7 +48,7 @@ public class OutputElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + scale;
+        return dumpValues(super.dump(), scale);
     }
 
     int getDumpType() {

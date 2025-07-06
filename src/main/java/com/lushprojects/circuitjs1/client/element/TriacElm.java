@@ -89,7 +89,7 @@ public class TriacElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + triggerI + " " + holdingI + " " + cresistance + " " + state;
+        return dumpValues(super.dump(), triggerI, holdingI, cresistance, state);
     }
 
     double i1, i2, ig, curcount_1, curcount_2, curcount_g;

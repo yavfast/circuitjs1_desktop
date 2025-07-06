@@ -73,7 +73,7 @@ public class DCMotorElm extends CircuitElm {
 
     public String dump() {
         // dump: inductance; resistance, K, Kb, J, b, gearRatio, tau
-        return super.dump() + " " + inductance + " " + resistance + " " + K + " " + Kb + " " + J + " " + b + " " + gearRatio + " " + tau;
+        return dumpValues(super.dump(), inductance, resistance, K, Kb, J, b, gearRatio, tau);
     }
 
     public double getAngle() {

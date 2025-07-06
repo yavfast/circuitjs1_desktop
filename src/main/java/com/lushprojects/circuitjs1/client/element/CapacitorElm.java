@@ -78,7 +78,7 @@ public class CapacitorElm extends CircuitElm {
 
     public String dump() {
         flags |= FLAG_RESISTANCE;
-        return super.dump() + " " + dumpValue(capacitance) + " " + dumpValue(voltDiff) + " " + dumpValue(initialVoltage) + " " + dumpValue(seriesResistance);
+        return dumpValues(super.dump(), capacitance, voltDiff, initialVoltage, seriesResistance);
     }
 
     // used for PolarCapacitorElm

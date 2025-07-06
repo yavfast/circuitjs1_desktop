@@ -190,9 +190,7 @@ public abstract class CompositeElm extends CircuitElm {
     }
 
     public String dump() {
-        String dumpStr = super.dump();
-        dumpStr += dumpElements();
-        return dumpStr;
+        return super.dump() + dumpElements();
     }
 
     public String dumpElements() {

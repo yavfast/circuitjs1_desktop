@@ -67,7 +67,7 @@ public class TriStateElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + r_on + " " + r_off + " " + r_off_ground + " " + highVoltage;
+        return dumpValues(super.dump(), r_on, r_off, r_off_ground, highVoltage);
     }
 
     int getDumpType() {

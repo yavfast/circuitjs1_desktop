@@ -52,8 +52,7 @@ public class SwitchElm extends CircuitElm {
         label = null;
     }
 
-    public SwitchElm(int xa, int ya, int xb, int yb, int f,
-                     StringTokenizer st) {
+    public SwitchElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(xa, ya, xb, yb, f);
         String str = st.nextToken();
         if (str.compareTo("true") == 0)
@@ -61,12 +60,12 @@ public class SwitchElm extends CircuitElm {
         else if (str.compareTo("false") == 0)
             position = (this instanceof LogicInputElm) ? 1 : 0;
         else
-            position = new Integer(str).intValue();
-        momentary = new Boolean(st.nextToken()).booleanValue();
+            position = parseInt(str);
+        momentary = parseBool(st.nextToken());
         posCount = 2;
         label = null;
         if ((flags & FLAG_LABEL) != 0)
-            label = CustomLogicModel.unescape(st.nextToken());
+            label = unescape(st.nextToken());
     }
 
     int getDumpType() {
@@ -74,9 +73,10 @@ public class SwitchElm extends CircuitElm {
     }
 
     public String dump() {
-        String s = super.dump() + " " + position + " " + momentary;
-        if ((flags & FLAG_LABEL) != 0)
-            s += " " + CustomLogicModel.escape(label);
+        String s = dumpValues(super.dump(), position, momentary);
+        if ((flags & FLAG_LABEL) != 0) {
+            s += " " + escape(label);
+        }
         return s;
     }
 

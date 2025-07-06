@@ -90,7 +90,7 @@ public class RelayContactElm extends CircuitElm {
 
     public String dump() {
         // escape label
-        return super.dump() + " " + CustomLogicModel.escape(label) + " " + r_on + " " + r_off + " " + i_position;
+        return dumpValues(super.dump(), CustomLogicModel.escape(label), r_on, r_off, i_position);
     }
 
     public void draw(Graphics g) {

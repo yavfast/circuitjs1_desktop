@@ -37,8 +37,8 @@ public class CustomLogicElm extends ChipElm {
     }
 
     public String dump() {
-        String s = super.dump();
-        s += " " + CustomLogicModel.escape(modelName);
+        Object[] values = new Object[getPostCount() + 1];
+        values[0] = CustomLogicModel.escape(modelName);
 
         // the code to do this in ChipElm doesn't work here because we don't know
         // how many pins to read until we read the model name!  So we have to
@@ -46,9 +46,9 @@ public class CustomLogicElm extends ChipElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].output)
-                s += " " + volts[i];
+                values[i+1] = volts[i];
         }
-        return s;
+        return dumpValues(super.dump(), values);
     }
 
     public String dumpModel() {

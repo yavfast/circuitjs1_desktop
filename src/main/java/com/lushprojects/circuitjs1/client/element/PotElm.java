@@ -80,8 +80,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public String dump() {
-        return super.dump() + " " + maxResistance + " " +
-                position + " " + sliderText;
+        return dumpValues(super.dump(), maxResistance, position, sliderText);
     }
 
     void createSlider() {

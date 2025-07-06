@@ -49,7 +49,7 @@ public class WattmeterElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + width;
+        return dumpValues(super.dump(), width);
     }
 
     public int getVoltageSourceCount() {

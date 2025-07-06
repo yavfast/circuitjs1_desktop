@@ -42,7 +42,7 @@ public class CC2Elm extends ChipElm {
     }
 
     public String dump() {
-        return super.dump() + " " + gain;
+        return dumpValues(super.dump(), gain);
     }
 
     String getChipName() {
@@ -101,4 +101,3 @@ public class CC2Elm extends ChipElm {
         return 179;
     }
 }
-

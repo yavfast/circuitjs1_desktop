@@ -80,7 +80,7 @@ public class OpAmpElm extends CircuitElm {
 
     public String dump() {
         flags |= FLAG_GAIN;
-        return super.dump() + " " + maxOut + " " + minOut + " " + gbw + " " + volts[0] + " " + volts[1] + " " + gain;
+        return dumpValues(super.dump(), maxOut, minOut, gbw, volts[0], volts[1], gain);
     }
 
     public boolean nonLinear() {

@@ -92,10 +92,11 @@ public class TestPointElm extends CircuitElm {
     public String dump() {
         boolean writeLabel = (!label.equals("TP"));
         flags = (writeLabel) ? (flags | FLAG_LABEL) : (flags & ~FLAG_LABEL);
-        String str = super.dump() + " " + meter;
+        Object[] values = new Object[2];
+        values[0] = meter;
         if (writeLabel)
-            str += " " + CustomLogicModel.escape(label);
-        return str;
+            values[1] = CustomLogicModel.escape(label);
+        return dumpValues(super.dump(), values);
     }
 
     String getMeter() {

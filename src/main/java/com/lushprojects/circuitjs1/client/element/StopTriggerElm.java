@@ -46,7 +46,7 @@ public class StopTriggerElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + triggerVoltage + " " + type + " " + delay;
+        return dumpValues(super.dump(), triggerVoltage, type, delay);
     }
 
     public void reset() {

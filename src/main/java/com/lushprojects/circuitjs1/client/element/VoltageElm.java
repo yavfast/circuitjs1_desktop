@@ -95,9 +95,7 @@ public class VoltageElm extends CircuitElm {
         else
             flags &= ~FLAG_PULSE_DUTY;
 
-        return super.dump() + " " + waveform + " " + frequency + " " +
-                maxVoltage + " " + bias + " " + phaseShift + " " +
-                dutyCycle;
+        return dumpValues(getDumpType(), x, y, x2, y2, flags, waveform, frequency, maxVoltage, bias, phaseShift, dutyCycle);
         // VarRailElm adds text at the end
     }
 
