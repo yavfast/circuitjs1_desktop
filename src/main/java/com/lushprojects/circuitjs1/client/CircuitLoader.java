@@ -99,7 +99,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
                     // if first character is a digit then parse the type as a number
                     if (tint >= '0' && tint <= '9')
-                        tint = new Integer(type).intValue();
+                        tint = CircuitElm.parseInt(type);
 
                     if (tint == 34) {
                         DiodeModel.undumpModel(st);
@@ -128,14 +128,6 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                         System.out.println("unrecognized dump type: " + type);
                         break;
                     }
-		    /*
-		     * debug code to check if allocNodes() is called in constructor.  It gets called in
-		     * setPoints() but that doesn't get called for subcircuits.
-		    double vv[] = newce.volts;
-		    int vc = newce.getPostCount() + newce.getInternalNodeCount();
-		    if (vv.length != vc)
-			console("allocnodes not called! " + tint);
-		     */
                     newce.setPoints();
                     simulator.elmList.add(newce);
                 } catch (Exception ee) {
@@ -154,8 +146,6 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
             // create sliders as needed
             cirSim.adjustableManager.createSliders();
         }
-//	if (!retain)
-        //    handleResize(); // for scopes
         cirSim.needAnalyze();
         if ((flags & RC_NO_CENTER) == 0)
             renderer().centreCircuit();
