@@ -93,17 +93,17 @@ public class RelayElm extends CircuitElm {
     public RelayElm(int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        poleCount = new Integer(st.nextToken()).intValue();
-        inductance = new Double(st.nextToken()).doubleValue();
-        coilCurrent = new Double(st.nextToken()).doubleValue();
-        r_on = new Double(st.nextToken()).doubleValue();
-        r_off = new Double(st.nextToken()).doubleValue();
-        onCurrent = new Double(st.nextToken()).doubleValue();
-        coilR = new Double(st.nextToken()).doubleValue();
+        poleCount = parseInt(st.nextToken());
+        inductance = parseDouble(st.nextToken());
+        coilCurrent = parseDouble(st.nextToken());
+        r_on = parseDouble(st.nextToken());
+        r_off = parseDouble(st.nextToken());
+        onCurrent = parseDouble(st.nextToken());
+        coilR = parseDouble(st.nextToken());
         try {
             offCurrent = onCurrent;
             switchingTime = 0;
-            offCurrent = new Double(st.nextToken()).doubleValue();
+            offCurrent = parseDouble(st.nextToken());
             switchingTime = Double.parseDouble(st.nextToken());
             d_position = i_position = Integer.parseInt(st.nextToken());
         } catch (Exception e) {

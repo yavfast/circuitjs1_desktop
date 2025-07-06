@@ -488,24 +488,22 @@ public class ActionManager extends BaseCirSimDelegate {
         f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
         // 32 = linear scale in afilter
         f |= simulator.adjustTimeStep ? 64 : 0;
-        String dump = "$ " + f + " " +
-                simulator.maxTimeStep + " " + cirSim.getIterCount() + " " +
-                cirSim.currentBar.getValue() + " " + CircuitElm.voltageRange + " " +
-                cirSim.powerBar.getValue() + " " + simulator.minTimeStep + "\n";
-        return dump;
+        return CircuitElm.dumpValues(
+                "$", f, simulator.maxTimeStep, cirSim.getIterCount(),
+                cirSim.currentBar.getValue(), CircuitElm.voltageRange,
+                cirSim.powerBar.getValue(), simulator.minTimeStep);
     }
 
     public String dumpCircuit() {
-        int i;
         CustomLogicModel.clearDumpedFlags();
         CustomCompositeModel.clearDumpedFlags();
         DiodeModel.clearDumpedFlags();
         TransistorModel.clearDumpedFlags();
 
-        String dump = dumpOptions();
+        String dump = dumpOptions() + "\n";
 
         CircuitSimulator simulator = simulator();
-        for (i = 0; i != simulator.elmList.size(); i++) {
+        for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             String m = ce.dumpModel();
             if (m != null && !m.isEmpty())
@@ -513,7 +511,7 @@ public class ActionManager extends BaseCirSimDelegate {
             dump += ce.dump() + "\n";
         }
         ScopeManager scopeManager = scopeManager();
-        for (i = 0; i != scopeManager.scopeCount; i++) {
+        for (int i = 0; i != scopeManager.scopeCount; i++) {
             String d = scopeManager.scopes[i].dump();
             if (d != null)
                 dump += d + "\n";

@@ -63,12 +63,12 @@ public class VoltageElm extends CircuitElm {
         waveform = WF_DC;
         dutyCycle = .5;
         try {
-            waveform = new Integer(st.nextToken()).intValue();
-            frequency = new Double(st.nextToken()).doubleValue();
-            maxVoltage = new Double(st.nextToken()).doubleValue();
-            bias = new Double(st.nextToken()).doubleValue();
-            phaseShift = new Double(st.nextToken()).doubleValue();
-            dutyCycle = new Double(st.nextToken()).doubleValue();
+            waveform = parseInt(st.nextToken());
+            frequency = parseDouble(st.nextToken());
+            maxVoltage = parseDouble(st.nextToken());
+            bias = parseDouble(st.nextToken());
+            phaseShift = parseDouble(st.nextToken());
+            dutyCycle = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
         if ((flags & FLAG_COS) != 0) {

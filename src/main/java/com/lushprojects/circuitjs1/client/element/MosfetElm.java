@@ -70,8 +70,8 @@ public class MosfetElm extends CircuitElm {
         vt = getDefaultThreshold();
         beta = getBackwardCompatibilityBeta();
         try {
-            vt = new Double(st.nextToken()).doubleValue();
-            beta = new Double(st.nextToken()).doubleValue();
+            vt = parseDouble(st.nextToken());
+            beta = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
         globalFlags = flags & (FLAGS_GLOBAL);

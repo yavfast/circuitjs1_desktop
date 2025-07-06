@@ -41,7 +41,7 @@ public class ZenerElm extends DiodeElm {
                     StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         if ((f & FLAG_MODEL) == 0) {
-            double zvoltage = new Double(st.nextToken()).doubleValue();
+            double zvoltage = parseDouble(st.nextToken());
             model = DiodeModel.getModelWithParameters(model.fwdrop, zvoltage);
             modelName = model.name;
             CirSim.console("model name wparams = " + modelName);

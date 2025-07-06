@@ -52,12 +52,12 @@ public abstract class GateElm extends CircuitElm {
     public GateElm(int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        inputCount = new Integer(st.nextToken()).intValue();
-        double lastOutputVoltage = new Double(st.nextToken()).doubleValue();
+        inputCount = parseInt(st.nextToken());
+        double lastOutputVoltage = parseDouble(st.nextToken());
         noDiagonal = true;
         highVoltage = 5;
         try {
-            highVoltage = new Double(st.nextToken()).doubleValue();
+            highVoltage = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
         lastOutput = lastOutputVoltage > highVoltage * .5;

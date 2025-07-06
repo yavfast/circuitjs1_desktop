@@ -116,7 +116,7 @@ public class OpAmpRealElm extends CompositeElm {
 
         // adjust capacitor value to get desired slew rate
         getCapacitor().capacitance = 30e-12 / (slewRate / .6);
-        getCapacitor().voltdiff = capValue;
+        getCapacitor().voltDiff = capValue;
 
         // set resistor values
         int i;
@@ -138,7 +138,7 @@ public class OpAmpRealElm extends CompositeElm {
 
         // adjust capacitor value to get desired slew rate
         getCapacitor().capacitance = 10e-12 / (slewRate / .55);
-        getCapacitor().voltdiff = capValue;
+        getCapacitor().voltDiff = capValue;
 
         // adjust output stage resistor values and transistor betas to increase current if desired
         double currentMult = currentLimit / defaultCurrentLimit;
@@ -167,7 +167,7 @@ public class OpAmpRealElm extends CompositeElm {
 
     public String dump() {
         CapacitorElm elm = getCapacitor();
-        double voltdiff = (elm == null) ? 0 : elm.voltdiff;
+        double voltdiff = (elm == null) ? 0 : elm.voltDiff;
         return super.dumpWithMask(0) + " " + slewRate + " " + voltdiff + " " + currentLimit + " " + modelType;
     }
 

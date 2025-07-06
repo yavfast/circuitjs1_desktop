@@ -30,8 +30,11 @@ public class TappedTransformerElm extends CircuitElm {
     double inductance, ratio, couplingCoef;
     int flip;
     public static final int FLAG_FLIP = 1;
-    Point ptEnds[], ptCoil[], ptCore[];
-    double current[], curcount[];
+    Point[] ptEnds;
+    Point[] ptCoil;
+    Point[] ptCore;
+    double[] current;
+    double[] curcount;
 
     public TappedTransformerElm(int xx, int yy) {
         super(xx, yy);
@@ -49,21 +52,14 @@ public class TappedTransformerElm extends CircuitElm {
     public TappedTransformerElm(int xa, int ya, int xb, int yb, int f,
                                 StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        inductance = new Double(st.nextToken()).doubleValue();
-        ratio = new Double(st.nextToken()).doubleValue();
+        inductance = parseDouble(st.nextToken());
+        ratio = parseDouble(st.nextToken());
         current = new double[4];
         curcount = new double[4];
-        current[0] = new Double(st.nextToken()).doubleValue();
-        current[1] = new Double(st.nextToken()).doubleValue();
-        try {
-            current[2] = new Double(st.nextToken()).doubleValue();
-        } catch (Exception e) {
-        }
-        couplingCoef = .99;
-        try {
-            couplingCoef = new Double(st.nextToken()).doubleValue();
-        } catch (Exception e) {
-        }
+        current[0] = parseDouble(st.nextToken());
+        current[1] = parseDouble(st.nextToken());
+        current[2] = parseDouble(st.nextToken());
+        couplingCoef = parseDouble(st.nextToken(), .99);
         voltdiff = new double[3];
         curSourceValue = new double[3];
         noDiagonal = true;
@@ -75,8 +71,7 @@ public class TappedTransformerElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + inductance + " " + ratio + " " +
-                current[0] + " " + current[1] + " " + current[2] + " " + couplingCoef;
+        return dumpValues(super.dump(), inductance, ratio, current[0], current[1], current[2], couplingCoef);
     }
 
     public void draw(Graphics g) {

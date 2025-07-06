@@ -63,7 +63,7 @@ public class DiodeElm extends CircuitElm {
         } else {
             if ((f & FLAG_FWDROP) > 0) {
                 try {
-                    fwdrop = new Double(st.nextToken()).doubleValue();
+                    fwdrop = parseDouble(st.nextToken());
                 } catch (Exception e) {
                 }
             }

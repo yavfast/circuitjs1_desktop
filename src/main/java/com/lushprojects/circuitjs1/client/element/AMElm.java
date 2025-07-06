@@ -43,9 +43,9 @@ public class AMElm extends CircuitElm {
     public AMElm(int xa, int ya, int xb, int yb, int f,
                  StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        carrierfreq = new Double(st.nextToken()).doubleValue();
-        signalfreq = new Double(st.nextToken()).doubleValue();
-        maxVoltage = new Double(st.nextToken()).doubleValue();
+        carrierfreq = parseDouble(st.nextToken());
+        signalfreq = parseDouble(st.nextToken());
+        maxVoltage = parseDouble(st.nextToken());
         if ((flags & FLAG_COS) != 0) {
             flags &= ~FLAG_COS;
         }

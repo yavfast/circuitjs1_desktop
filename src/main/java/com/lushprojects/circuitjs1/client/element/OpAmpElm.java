@@ -56,12 +56,12 @@ public class OpAmpElm extends CircuitElm {
         // retain it to keep the file format the same
         gbw = 1e6;
         try {
-            maxOut = new Double(st.nextToken()).doubleValue();
-            minOut = new Double(st.nextToken()).doubleValue();
-            gbw = new Double(st.nextToken()).doubleValue();
-            volts[0] = new Double(st.nextToken()).doubleValue();
-            volts[1] = new Double(st.nextToken()).doubleValue();
-            gain = new Double(st.nextToken()).doubleValue();
+            maxOut = parseDouble(st.nextToken());
+            minOut = parseDouble(st.nextToken());
+            gbw = parseDouble(st.nextToken());
+            volts[0] = parseDouble(st.nextToken());
+            volts[1] = parseDouble(st.nextToken());
+            gain = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
         noDiagonal = true;

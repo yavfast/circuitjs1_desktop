@@ -56,11 +56,11 @@ public class InvertingSchmittElm extends CircuitElm {
         logicOnLevel = 5;
         logicOffLevel = 0;
         try {
-            slewRate = new Double(st.nextToken()).doubleValue();
-            lowerTrigger = new Double(st.nextToken()).doubleValue();
-            upperTrigger = new Double(st.nextToken()).doubleValue();
-            logicOnLevel = new Double(st.nextToken()).doubleValue();
-            logicOffLevel = new Double(st.nextToken()).doubleValue();
+            slewRate = parseDouble(st.nextToken());
+            lowerTrigger = parseDouble(st.nextToken());
+            upperTrigger = parseDouble(st.nextToken());
+            logicOnLevel = parseDouble(st.nextToken());
+            logicOffLevel = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
     }

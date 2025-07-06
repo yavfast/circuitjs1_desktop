@@ -4,6 +4,7 @@ import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.TextArea;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -86,7 +87,7 @@ public class CustomLogicModel implements Editable {
     }
 
     void undump(StringTokenizer st) {
-        flags = new Integer(st.nextToken()).intValue();
+        flags = CircuitElm.parseInt(st.nextToken());
         inputs = listToArray(unescape(st.nextToken()));
         outputs = listToArray(unescape(st.nextToken()));
         infoText = unescape(st.nextToken());
@@ -165,16 +166,16 @@ public class CustomLogicModel implements Editable {
     }
 
     void parseRules() {
-        String lines[] = rules.split("\n");
+        String[] lines = rules.split("\n");
         int i;
-        rulesLeft = new Vector<String>();
-        rulesRight = new Vector<String>();
+        rulesLeft = new Vector<>();
+        rulesRight = new Vector<>();
         triState = false;
         for (i = 0; i != lines.length; i++) {
             String s = lines[i].toLowerCase();
-            if (s.length() == 0 || s.startsWith("#"))
+            if (s.isEmpty() || s.startsWith("#"))
                 continue;
-            String s0[] = s.replaceAll(" ", "").split("=");
+            String[] s0 = s.replaceAll(" ", "").split("=");
             if (s0.length != 2) {
                 Window.alert("Error on line " + (i + 1) + " of model description");
                 return;
@@ -192,7 +193,7 @@ public class CustomLogicModel implements Editable {
                 return;
             }
             String rl = s0[0];
-            boolean used[] = new boolean[26];
+            boolean[] used = new boolean[26];
             int j;
             String newRl = "";
             for (j = 0; j != rl.length(); j++) {
@@ -214,8 +215,9 @@ public class CustomLogicModel implements Editable {
                 newRl += x;
             }
             String rr = s0[1];
-            if (rr.contains("_"))
+            if (rr.contains("_")) {
                 triState = true;
+            }
             rulesLeft.add(newRl);
             rulesRight.add(s0[1]);
         }
@@ -223,44 +225,57 @@ public class CustomLogicModel implements Editable {
 
     public String dump() {
         dumped = true;
-        if (rules.length() > 0 && !rules.endsWith("\n"))
+        if (!rules.isEmpty() && !rules.endsWith("\n")) {
             rules += "\n";
+        }
         return "! " + escape(name) + " " + flags + " " + escape(arrayToList(inputs)) + " " +
                 escape(arrayToList(outputs)) + " " + escape(infoText) + " " + escape(rules);
     }
 
     public static String escape(String s) {
-        if (s.length() == 0)
+        if (s == null || s.isEmpty()) {
             return "\\0";
-        return s.replace("\\", "\\\\").replace("\n", "\\n").replace(" ", "\\s").replace("+", "\\p").
-                replace("=", "\\q").replace("#", "\\h").replace("&", "\\a").replace("\r", "\\r");
+        }
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            switch (c) {
+                case '\\': sb.append("\\\\"); break;
+                case '\n': sb.append("\\n"); break;
+                case ' ': sb.append("\\s"); break;
+                case '+': sb.append("\\p"); break;
+                case '=': sb.append("\\q"); break;
+                case '#': sb.append("\\h"); break;
+                case '&': sb.append("\\a"); break;
+                case '\r': sb.append("\\r"); break;
+                default: sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     public static String unescape(String s) {
-        if (s.equals("\\0"))
-            return "";
-        int i;
-        for (i = 0; i < s.length(); i++) {
-            if (s.charAt(i) == '\\') {
-                char c = s.charAt(i + 1);
-                if (c == 'n')
-                    s = s.substring(0, i) + "\n" + s.substring(i + 2);
-                else if (c == 'r')
-                    s = s.substring(0, i) + "\r" + s.substring(i + 2);
-                else if (c == 's')
-                    s = s.substring(0, i) + " " + s.substring(i + 2);
-                else if (c == 'p')
-                    s = s.substring(0, i) + "+" + s.substring(i + 2);
-                else if (c == 'q')
-                    s = s.substring(0, i) + "=" + s.substring(i + 2);
-                else if (c == 'h')
-                    s = s.substring(0, i) + "#" + s.substring(i + 2);
-                else if (c == 'a')
-                    s = s.substring(0, i) + "&" + s.substring(i + 2);
-                else
-                    s = s.substring(0, i) + s.substring(i + 1);
+        if ("\\0".equals(s)) return "";
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\\' && i + 1 < s.length()) {
+                char next = s.charAt(++i);
+                switch (next) {
+                    case 'n': sb.append('\n'); break;
+                    case 'r': sb.append('\r'); break;
+                    case 's': sb.append(' '); break;
+                    case 'p': sb.append('+'); break;
+                    case 'q': sb.append('='); break;
+                    case 'h': sb.append('#'); break;
+                    case 'a': sb.append('&'); break;
+                    case '\\': sb.append('\\'); break;
+                    default: sb.append(next); break;
+                }
+            } else {
+                sb.append(c);
             }
         }
-        return s;
+        return sb.toString();
     }
 }

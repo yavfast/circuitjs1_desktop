@@ -37,7 +37,7 @@ public class ResistorElm extends CircuitElm {
     public ResistorElm(int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        resistance = new Double(st.nextToken()).doubleValue();
+        resistance = parseDouble(st.nextToken());
     }
 
     int getDumpType() {

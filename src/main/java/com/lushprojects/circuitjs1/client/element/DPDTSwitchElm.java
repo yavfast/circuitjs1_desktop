@@ -45,7 +45,7 @@ public class DPDTSwitchElm extends SwitchElm {
                          StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         try {
-            poleCount = new Integer(st.nextToken()).intValue();
+            poleCount = parseInt(st.nextToken());
         } catch (Exception e) {
         }
         noDiagonal = true;

@@ -65,15 +65,15 @@ public class CustomTransformerElm extends CircuitElm {
                                 StringTokenizer st) {
         super(xa, ya, xb, yb, f);
         width = 32; // max(32, abs(yb-ya));
-        inductance = new Double(st.nextToken()).doubleValue();
-        couplingCoef = new Double(st.nextToken()).doubleValue();
+        inductance = parseDouble(st.nextToken());
+        couplingCoef = parseDouble(st.nextToken());
         String str = st.nextToken();
         description = CustomLogicModel.unescape(str);
-        coilCount = new Integer(st.nextToken()).intValue();
+        coilCount = parseInt(st.nextToken());
         int i;
         coilCurrents = new double[coilCount];
         for (i = 0; i != coilCount; i++)
-            coilCurrents[i] = new Double(st.nextToken()).doubleValue();
+            coilCurrents[i] = parseDouble(st.nextToken());
         noDiagonal = true;
         parseDescription(description);
     }
@@ -94,10 +94,9 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     public String dump() {
-        String s = super.dump() + " " + inductance + " " + couplingCoef + " " + CustomLogicModel.escape(description) + " " + coilCount + " ";
-        int i;
-        for (i = 0; i != coilCount; i++) {
-            s += coilCurrents[i] + " ";
+        String s = dumpValues(super.dump(), inductance, couplingCoef, escape(description), coilCount) + " ";
+        for (int i = 0; i < coilCount; i++) {
+            s += dumpValue(coilCurrents[i]) + " "; // TODO:
         }
         return s;
     }

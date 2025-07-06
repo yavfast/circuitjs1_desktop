@@ -64,15 +64,15 @@ public class TransistorElm extends CircuitElm {
 
     public TransistorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        pnp = new Integer(st.nextToken()).intValue();
+        pnp = parseInt(st.nextToken());
         beta = 100;
         try {
-            lastvbe = new Double(st.nextToken()).doubleValue();
-            lastvbc = new Double(st.nextToken()).doubleValue();
+            lastvbe = parseDouble(st.nextToken());
+            lastvbc = parseDouble(st.nextToken());
             volts[0] = 0;
             volts[1] = -lastvbe;
             volts[2] = -lastvbc;
-            beta = new Double(st.nextToken()).doubleValue();
+            beta = parseDouble(st.nextToken());
             modelName = CustomLogicModel.unescape(st.nextToken());
         } catch (Exception e) {
             modelName = "default";
@@ -103,8 +103,7 @@ public class TransistorElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + pnp + " " + (volts[0] - volts[1]) + " " +
-                (volts[0] - volts[2]) + " " + beta + " " + CustomLogicModel.escape(modelName);
+        return dumpValues(super.dump(), pnp, (volts[0] - volts[1]), (volts[0] - volts[2]), beta, escape(modelName));
     }
 
     public void updateModels() {

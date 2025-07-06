@@ -41,7 +41,7 @@ public class MonostableElm extends ChipElm {
                          StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         retriggerable = new Boolean(st.nextToken()).booleanValue();
-        delay = new Double(st.nextToken()).doubleValue();
+        delay = parseDouble(st.nextToken());
         reset();
     }
 

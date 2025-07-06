@@ -38,7 +38,7 @@ public class CurrentElm extends CircuitElm {
                       StringTokenizer st) {
         super(xa, ya, xb, yb, f);
         try {
-            currentValue = new Double(st.nextToken()).doubleValue();
+            currentValue = parseDouble(st.nextToken());
         } catch (Exception e) {
             currentValue = .01;
         }

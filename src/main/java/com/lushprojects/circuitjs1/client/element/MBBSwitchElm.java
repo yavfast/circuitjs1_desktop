@@ -47,7 +47,7 @@ public class MBBSwitchElm extends SwitchElm {
     public MBBSwitchElm(int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
-        link = new Integer(st.nextToken()).intValue();
+        link = parseInt(st.nextToken());
         setup();
     }
 

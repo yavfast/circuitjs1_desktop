@@ -61,11 +61,11 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     public ThermistorNTCElm(int xa, int ya, int xb, int yb, int f,
                             StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        r25 = new Double(st.nextToken()).doubleValue();
-        r50 = new Double(st.nextToken()).doubleValue();
-        minTempr = new Double(st.nextToken()).doubleValue();
-        maxTempr = new Double(st.nextToken()).doubleValue();
-        position = new Double(st.nextToken()).doubleValue();
+        r25 = parseDouble(st.nextToken());
+        r50 = parseDouble(st.nextToken());
+        minTempr = parseDouble(st.nextToken());
+        maxTempr = parseDouble(st.nextToken());
+        position = parseDouble(st.nextToken());
         //thermistor calcs
         rneg40 = calcResistance(minTempr); //for 10k ntc about 400k
         b25100 = calcB25100(); //

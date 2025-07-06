@@ -45,8 +45,8 @@ public class InverterElm extends CircuitElm {
         slewRate = .5;
         highVoltage = 5;
         try {
-            slewRate = new Double(st.nextToken()).doubleValue();
-            highVoltage = new Double(st.nextToken()).doubleValue();
+            slewRate = parseDouble(st.nextToken());
+            highVoltage = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
     }

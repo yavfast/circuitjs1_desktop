@@ -42,10 +42,10 @@ public class SparkGapElm extends CircuitElm {
     public SparkGapElm(int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        onresistance = new Double(st.nextToken()).doubleValue();
-        offresistance = new Double(st.nextToken()).doubleValue();
-        breakdown = new Double(st.nextToken()).doubleValue();
-        holdcurrent = new Double(st.nextToken()).doubleValue();
+        onresistance = parseDouble(st.nextToken());
+        offresistance = parseDouble(st.nextToken());
+        breakdown = parseDouble(st.nextToken());
+        holdcurrent = parseDouble(st.nextToken());
     }
 
     public boolean nonLinear() {

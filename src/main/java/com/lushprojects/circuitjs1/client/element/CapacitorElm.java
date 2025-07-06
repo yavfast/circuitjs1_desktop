@@ -29,10 +29,13 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CapacitorElm extends CircuitElm {
     public double capacitance;
-    double compResistance, voltdiff, seriesResistance;
+    double compResistance;
+    double voltDiff;
+    double seriesResistance;
     double initialVoltage;
     int capNode2;
-    Point plate1[], plate2[];
+    Point[] plate1;
+    Point[] plate2;
     public static final int FLAG_BACK_EULER = 2;
     public static final int FLAG_RESISTANCE = 4;
 
@@ -45,16 +48,11 @@ public class CapacitorElm extends CircuitElm {
     public CapacitorElm(int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        capacitance = new Double(st.nextToken()).doubleValue();
-        voltdiff = new Double(st.nextToken()).doubleValue();
-        initialVoltage = 1e-3;
-        try {
-            initialVoltage = new Double(st.nextToken()).doubleValue();
-            if ((flags & FLAG_RESISTANCE) != 0)
-                seriesResistance = new Double(st.nextToken()).doubleValue();
-
-            // if you add more things here, check PolarCapacitorElm.  It loads more state after this
-        } catch (Exception e) {
+        capacitance = parseDouble(st.nextToken());
+        voltDiff = parseDouble(st.nextToken());
+        initialVoltage = parseDouble(st.nextToken(), 1e-3);
+        if ((flags & FLAG_RESISTANCE) != 0) {
+            seriesResistance = parseDouble(st.nextToken());
         }
     }
 
@@ -66,12 +64,12 @@ public class CapacitorElm extends CircuitElm {
         super.reset();
         current = curcount = curSourceValue = 0;
         // put small charge on caps when reset to start oscillators
-        voltdiff = initialVoltage;
+        voltDiff = initialVoltage;
     }
 
     public void shorted() {
         super.reset();
-        voltdiff = current = curcount = curSourceValue = 0;
+        voltDiff = current = curcount = curSourceValue = 0;
     }
 
     int getDumpType() {
@@ -80,11 +78,11 @@ public class CapacitorElm extends CircuitElm {
 
     public String dump() {
         flags |= FLAG_RESISTANCE;
-        return super.dump() + " " + capacitance + " " + voltdiff + " " + initialVoltage + " " + seriesResistance;
+        return super.dump() + " " + dumpValue(capacitance) + " " + dumpValue(voltDiff) + " " + dumpValue(initialVoltage) + " " + dumpValue(seriesResistance);
     }
 
     // used for PolarCapacitorElm
-    Point platePoints[];
+    Point[] platePoints;
 
     public void setPoints() {
         super.setPoints();
@@ -168,13 +166,13 @@ public class CapacitorElm extends CircuitElm {
 
     public void startIteration() {
         if (isTrapezoidal())
-            curSourceValue = -voltdiff / compResistance - current;
+            curSourceValue = -voltDiff / compResistance - current;
         else
-            curSourceValue = -voltdiff / compResistance;
+            curSourceValue = -voltDiff / compResistance;
     }
 
     public void stepFinished() {
-        voltdiff = volts[0] - volts[capNode2];
+        voltDiff = volts[0] - volts[capNode2];
         calculateCurrent();
     }
 
@@ -210,7 +208,7 @@ public class CapacitorElm extends CircuitElm {
         return (!simUi.circuitInfo.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
     }
 
-    public void getInfo(String arr[]) {
+    public void getInfo(String[] arr) {
         arr[0] = "capacitor";
         getBasicInfo(arr);
         arr[3] = "C = " + getUnitText(capacitance, "F");

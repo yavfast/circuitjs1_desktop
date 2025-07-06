@@ -55,9 +55,9 @@ public class AnalogSwitchElm extends CircuitElm {
         threshold = 2.5;
         noDiagonal = true;
         try {
-            r_on = new Double(st.nextToken()).doubleValue();
-            r_off = new Double(st.nextToken()).doubleValue();
-            threshold = new Double(st.nextToken()).doubleValue();
+            r_on = parseDouble(st.nextToken());
+            r_off = parseDouble(st.nextToken());
+            threshold = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
     }

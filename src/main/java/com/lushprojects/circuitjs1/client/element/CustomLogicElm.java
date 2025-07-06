@@ -30,7 +30,7 @@ public class CustomLogicElm extends ChipElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].output) {
-                volts[i] = new Double(st.nextToken()).doubleValue();
+                volts[i] = parseDouble(st.nextToken());
                 pins[i].value = volts[i] > getThreshold();
             }
         }

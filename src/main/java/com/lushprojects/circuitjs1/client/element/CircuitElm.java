@@ -29,6 +29,8 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
+import com.lushprojects.circuitjs1.client.CustomCompositeModel;
+import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.OptionsManager;
@@ -194,8 +196,91 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // dump component state for export/undo
     public String dump() {
         int t = getDumpType();
-        return (t < 127 ? ((char) t) + " " : t + " ") + x + " " + y + " " +
-                x2 + " " + y2 + " " + flags;
+        String type = (t < 127 ? String.valueOf((char) t) : String.valueOf(t));
+        return dumpValues(type, x, y, x2, y2, flags);
+    }
+
+    public static String dumpValues(Object... values) {
+        if (values == null || values.length == 0) return "";
+        StringBuilder sb = new StringBuilder(128);
+        for (int i = 0; i < values.length; i++) {
+            Object v = values[i];
+            String s;
+            if (v instanceof Integer) {
+                s = dumpValue((Integer) v);
+            } else if (v instanceof Double) {
+                s = dumpValue((Double) v);
+            } else if (v instanceof Boolean) {
+                s = dumpValue((Boolean) v);
+            } else if (v instanceof String) {
+                s = (String) v;
+            } else if (v == null) {
+                s = "";
+            } else {
+                s = v.toString();
+            }
+            if (i > 0) sb.append(' ');
+            sb.append(s);
+        }
+        return sb.toString();
+    }
+
+    public static String dumpValue(int v) {
+        return Integer.toString(v);
+    }
+
+    public static String dumpValue(double v) {
+        // Format with 4 decimal places, avoid scientific notation for typical values
+        if (Double.isNaN(v) || Double.isInfinite(v)) {
+            return Double.toString(v);
+        }
+        // Use plain format for values in a reasonable range, else fallback to scientific
+        double absV = Math.abs(v);
+        if ((absV >= 0.0001 && absV < 1e7) || absV == 0.0) {
+            return formatNumber(v, 4, false);
+        } else {
+            return Double.toString(v);
+        }
+    }
+
+    public static String dumpValue(boolean v) {
+        return v ? "1" : "0";
+    }
+
+    public static String escape(String str) {
+        return CustomLogicModel.escape(str);
+    }
+
+    public static double parseDouble(String token) {
+        return parseDouble(token, 0.0);
+    }
+
+    public static double parseDouble(String token, double defValue) {
+        if (token == null || token.isEmpty()) {
+            return defValue;
+        }
+
+        try {
+            return Double.parseDouble(token);
+        } catch (Throwable e) {
+            return defValue;
+        }
+    }
+
+    public static int parseInt(String token) {
+        return parseInt(token, 0);
+    }
+
+    public static int parseInt(String token, int defValue) {
+        if (token == null || token.isEmpty()) {
+            return defValue;
+        }
+
+        try {
+            return Integer.parseInt(token, 10);
+        } catch (Throwable e) {
+            return defValue;
+        }
     }
 
     // handle reset button
@@ -234,7 +319,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public void delete() {
         if (mouseElmRef == this)
             mouseElmRef = null;
-		simUi.adjustableManager.deleteSliders(this);
+        simUi.adjustableManager.deleteSliders(this);
     }
 
     public void startIteration() {

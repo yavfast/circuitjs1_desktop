@@ -52,14 +52,14 @@ public class DCMotorElm extends CircuitElm {
         speed = 0;
         //read:
         // inductance; resistance, K, Kb, J, b, gearRatio, tau
-        inductance = new Double(st.nextToken()).doubleValue();
-        resistance = new Double(st.nextToken()).doubleValue();
-        K = new Double(st.nextToken()).doubleValue();
-        Kb = new Double(st.nextToken()).doubleValue();
-        J = new Double(st.nextToken()).doubleValue();
-        b = new Double(st.nextToken()).doubleValue();
-        gearRatio = new Double(st.nextToken()).doubleValue();
-        tau = new Double(st.nextToken()).doubleValue();
+        inductance = parseDouble(st.nextToken());
+        resistance = parseDouble(st.nextToken());
+        K = parseDouble(st.nextToken());
+        Kb = parseDouble(st.nextToken());
+        J = parseDouble(st.nextToken());
+        b = parseDouble(st.nextToken());
+        gearRatio = parseDouble(st.nextToken());
+        tau = parseDouble(st.nextToken());
 
         ind = new Inductor(simUi);
         indInertia = new Inductor(simUi);

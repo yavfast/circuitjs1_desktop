@@ -47,10 +47,10 @@ public class Switch2Elm extends SwitchElm {
     public Switch2Elm(int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
-        link = new Integer(st.nextToken()).intValue();
+        link = parseInt(st.nextToken());
         throwCount = 2;
         try {
-            throwCount = new Integer(st.nextToken()).intValue();
+            throwCount = parseInt(st.nextToken());
         } catch (Exception e) {
         }
         noDiagonal = true;

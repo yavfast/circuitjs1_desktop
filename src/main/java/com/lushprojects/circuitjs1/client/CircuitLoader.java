@@ -117,11 +117,11 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                         CustomCompositeModel.undumpModel(st);
                         break;
                     }
-                    int x1 = new Integer(st.nextToken()).intValue();
-                    int y1 = new Integer(st.nextToken()).intValue();
-                    int x2 = new Integer(st.nextToken()).intValue();
-                    int y2 = new Integer(st.nextToken()).intValue();
-                    int f = new Integer(st.nextToken()).intValue();
+                    int x1 = CircuitElm.parseInt(st.nextToken());
+                    int y1 = CircuitElm.parseInt(st.nextToken());
+                    int x2 = CircuitElm.parseInt(st.nextToken());
+                    int y2 = CircuitElm.parseInt(st.nextToken());
+                    int f = CircuitElm.parseInt(st.nextToken());
 
                     CircuitElm newce = CircuitElmCreator.createCe(tint, x1, y1, x2, y2, f, st);
                     if (newce == null) {
@@ -167,9 +167,9 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
     }
 
     void readHint(StringTokenizer st) {
-        cirSim.renderer.hintType = new Integer(st.nextToken()).intValue();
-        cirSim.renderer.hintItem1 = new Integer(st.nextToken()).intValue();
-        cirSim.renderer.hintItem2 = new Integer(st.nextToken()).intValue();
+        cirSim.renderer.hintType = CircuitElm.parseInt(st.nextToken());
+        cirSim.renderer.hintItem1 = CircuitElm.parseInt(st.nextToken());
+        cirSim.renderer.hintItem2 = CircuitElm.parseInt(st.nextToken());
     }
 
     void readOptions(StringTokenizer st, int importFlags) {
@@ -177,7 +177,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         CircuitEditor circuitEditor = circuitEditor();
         MenuManager menuManager = menuManager();
 
-        int flags = new Integer(st.nextToken()).intValue();
+        int flags = CircuitElm.parseInt(st.nextToken());
 
         if ((importFlags & RC_RETAIN) != 0) {
             // need to set small grid if pasted circuit uses it
@@ -192,17 +192,17 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         menuManager.powerCheckItem.setState((flags & 8) == 8);
         menuManager.showValuesCheckItem.setState((flags & 16) == 0);
         simulator.adjustTimeStep = (flags & 64) != 0;
-        simulator.maxTimeStep = simulator.timeStep = new Double(st.nextToken()).doubleValue();
-        double sp = new Double(st.nextToken()).doubleValue();
+        simulator.maxTimeStep = simulator.timeStep = CircuitElm.parseDouble(st.nextToken());
+        double sp = CircuitElm.parseDouble(st.nextToken());
         int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
         //int sp2 = (int) (Math.log(sp)*24+1.5);
         cirSim.speedBar.setValue(sp2);
-        cirSim.currentBar.setValue(new Integer(st.nextToken()).intValue());
-        CircuitElm.voltageRange = new Double(st.nextToken()).doubleValue();
+        cirSim.currentBar.setValue(CircuitElm.parseInt(st.nextToken()));
+        CircuitElm.voltageRange = CircuitElm.parseDouble(st.nextToken());
 
         try {
-            cirSim.powerBar.setValue(new Integer(st.nextToken()).intValue());
-            simulator.minTimeStep = Double.parseDouble(st.nextToken());
+            cirSim.powerBar.setValue(CircuitElm.parseInt(st.nextToken()));
+            simulator.minTimeStep = CircuitElm.parseDouble(st.nextToken());
         } catch (Exception e) {
         }
         circuitEditor.setGrid();

@@ -55,17 +55,13 @@ public class TransformerElm extends CircuitElm {
         else
             width = max(32, abs(yb - ya));
 
-        inductance = new Double(st.nextToken()).doubleValue();
-        ratio = new Double(st.nextToken()).doubleValue();
+        inductance = parseDouble(st.nextToken());
+        ratio = parseDouble(st.nextToken());
         current = new double[2];
         curcount = new double[2];
-        current[0] = new Double(st.nextToken()).doubleValue();
-        current[1] = new Double(st.nextToken()).doubleValue();
-        couplingCoef = .999;
-        try {
-            couplingCoef = new Double(st.nextToken()).doubleValue();
-        } catch (Exception e) {
-        }
+        current[0] = parseDouble(st.nextToken());
+        current[1] = parseDouble(st.nextToken());
+        couplingCoef = parseDouble(st.nextToken(), .999);
         noDiagonal = true;
         polarity = (hasFlag(FLAG_REVERSE)) ? -1 : 1;
     }
@@ -93,8 +89,7 @@ public class TransformerElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + inductance + " " + ratio + " " +
-                current[0] + " " + current[1] + " " + couplingCoef;
+        return dumpValues(super.dump(), inductance, ratio, current[0], current[1], couplingCoef);
     }
 
     boolean isTrapezoidal() {
