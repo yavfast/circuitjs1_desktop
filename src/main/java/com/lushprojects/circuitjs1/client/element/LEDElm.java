@@ -19,7 +19,6 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
-import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.DiodeModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -48,17 +47,13 @@ public class LEDElm extends DiodeElm {
             final double fwdrop = 2.1024259;
             model = DiodeModel.getModelWithParameters(fwdrop, 0);
             modelName = model.name;
-            CirSim.console("model name wparams = " + modelName);
+            // CirSim.console("model name wparams = " + modelName);
             setup();
         }
         colorR = parseDouble(st.nextToken());
         colorG = parseDouble(st.nextToken());
         colorB = parseDouble(st.nextToken());
-        maxBrightnessCurrent = .01;
-        try {
-            maxBrightnessCurrent = parseDouble(st.nextToken());
-        } catch (Exception e) {
-        }
+        maxBrightnessCurrent = parseDouble(st.nextToken(), .01);
     }
 
     int getDumpType() {
@@ -66,8 +61,7 @@ public class LEDElm extends DiodeElm {
     }
 
     public String dump() {
-        return super.dump() + " " + colorR + " " + colorG + " " + colorB + " " +
-                maxBrightnessCurrent;
+        return dumpValues(super.dump(), colorR, colorG, colorB, maxBrightnessCurrent);
     }
 
     Point ledLead1, ledLead2, ledCenter;
@@ -101,8 +95,7 @@ public class LEDElm extends DiodeElm {
             w = 255;
         if (w < 0)
             w = 0;
-        Color cc = new Color((int) (colorR * w), (int) (colorG * w),
-                (int) (colorB * w));
+        Color cc = new Color((int) (colorR * w), (int) (colorG * w), (int) (colorB * w));
         g.setColor(cc);
         g.fillOval(ledCenter.x - cr, ledCenter.y - cr, cr * 2, cr * 2);
         setBbox(point1, point2, cr);
@@ -112,7 +105,7 @@ public class LEDElm extends DiodeElm {
         drawPosts(g);
     }
 
-    public void getInfo(String arr[]) {
+    public void getInfo(String[] arr) {
         super.getInfo(arr);
         if (model.oldStyle)
             arr[0] = "LED";

@@ -24,6 +24,7 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArrayString;
+import com.google.gwt.i18n.client.NumberFormat;
 import com.google.gwt.user.client.Random;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
@@ -229,6 +230,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return Integer.toString(v);
     }
 
+    private static final NumberFormat EXP_FORMAT = NumberFormat.getFormat("0.####E0");
+
     public static String dumpValue(double v) {
         // Format with 4 decimal places, avoid scientific notation for typical values
         if (Double.isNaN(v) || Double.isInfinite(v)) {
@@ -239,7 +242,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if ((absV >= 0.0001 && absV < 1e7) || absV == 0.0) {
             return formatNumber(v, 4, false);
         } else {
-            return Double.toString(v);
+            return EXP_FORMAT.format(v);
         }
     }
 

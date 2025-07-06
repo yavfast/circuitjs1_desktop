@@ -43,10 +43,7 @@ public class InductorElm extends CircuitElm {
         ind = new Inductor(simUi);
         inductance = parseDouble(st.nextToken());
         current = parseDouble(st.nextToken());
-        try {
-            initialCurrent = parseDouble(st.nextToken());
-        } catch (Exception e) {
-        }
+        initialCurrent = parseDouble(st.nextToken());
         ind.setup(inductance, current, flags);
     }
 
@@ -55,7 +52,7 @@ public class InductorElm extends CircuitElm {
     }
 
     public String dump() {
-        return super.dump() + " " + inductance + " " + current + " " + initialCurrent;
+        return dumpValues(super.dump(), inductance, current, initialCurrent);
     }
 
     public void setPoints() {
@@ -108,7 +105,7 @@ public class InductorElm extends CircuitElm {
         ind.doStep(voltdiff);
     }
 
-    public void getInfo(String arr[]) {
+    public void getInfo(String[] arr) {
         arr[0] = "inductor";
         getBasicInfo(arr);
         arr[3] = "L = " + getUnitText(inductance, "H");
