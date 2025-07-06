@@ -20,140 +20,242 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         super(cirSim);
     }
 
-    void readCircuit(byte[] b, int flags) {
+    public void readCircuit(String circuitData, int flags) {
+        if ((flags & RC_RETAIN) == 0) {
+            resetCircuitState();
+        }
+
+        boolean isSubcircuitMode = (flags & RC_SUBCIRCUITS) != 0;
+        parseCircuitLines(circuitData, isSubcircuitMode, flags);
+
+        finalizeCircuitLoading(flags);
+    }
+
+    /**
+     * Public convenience method that calls readCircuit with default flags
+     */
+    public void readCircuit(String text) {
+        readCircuit(text, 0);
+    }
+
+    /**
+     * Resets circuit state to default values when not retaining current state
+     */
+    private void resetCircuitState() {
         CircuitSimulator simulator = simulator();
         CircuitEditor circuitEditor = circuitEditor();
         MenuManager menuManager = menuManager();
         ScopeManager scopeManager = scopeManager();
 
-        int len = b.length;
-        if ((flags & RC_RETAIN) == 0) {
-            circuitEditor.clearMouseElm();
-            for (int i = 0; i != simulator.elmList.size(); i++) {
-                CircuitElm ce = simulator.elmList.get(i);
-                ce.delete();
-            }
-            simulator.t = simulator.timeStepAccum = 0;
-            simulator.elmList.clear();
-            cirSim.renderer.hintType = -1;
-            simulator.maxTimeStep = 5e-6;
-            simulator.minTimeStep = 50e-12;
-            menuManager.dotsCheckItem.setState(false);
-            menuManager.smallGridCheckItem.setState(false);
-            menuManager.powerCheckItem.setState(false);
-            menuManager.voltsCheckItem.setState(true);
-            menuManager.showValuesCheckItem.setState(true);
-            circuitEditor.setGrid();
-            cirSim.speedBar.setValue(117); // 57
-            cirSim.currentBar.setValue(50);
-            cirSim.powerBar.setValue(50);
-            CircuitElm.voltageRange = 5;
-            scopeManager.scopeCount = 0;
-            simulator.lastIterTime = 0;
+        // Clear existing elements
+        circuitEditor.clearMouseElm();
+        for (int elementIndex = 0; elementIndex != simulator.elmList.size(); elementIndex++) {
+            CircuitElm circuitElement = simulator.elmList.get(elementIndex);
+            circuitElement.delete();
         }
-        boolean subs = (flags & RC_SUBCIRCUITS) != 0;
-        //cv.repaint();
-        int p;
-        for (p = 0; p < len; ) {
-            int l;
-            int linelen = len - p; // IES - changed to allow the last line to not end with a delim.
-            for (l = 0; l != len - p; l++)
-                if (b[l + p] == '\n' || b[l + p] == '\r') {
-                    linelen = l++;
-                    if (l + p < b.length && b[l + p] == '\n')
-                        l++;
-                    break;
-                }
-            String line = new String(b, p, linelen);
-            StringTokenizer st = new StringTokenizer(line, " +\t\n\r\f");
-            while (st.hasMoreTokens()) {
-                String type = st.nextToken();
-                int tint = type.charAt(0);
-                try {
-                    if (subs && tint != '.')
-                        continue;
-                    if (tint == 'o') {
-                        Scope sc = new Scope(cirSim);
-                        sc.position = scopeManager.scopeCount;
-                        sc.undump(st);
-                        scopeManager.scopes[scopeManager.scopeCount++] = sc;
-                        break;
-                    }
-                    if (tint == 'h') {
-                        readHint(st);
-                        break;
-                    }
-                    if (tint == '$') {
-                        readOptions(st, flags);
-                        break;
-                    }
-                    if (tint == '!') {
-                        CustomLogicModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == '%' || tint == '?' || tint == 'B') {
-                        // ignore afilter-specific stuff
-                        break;
-                    }
-                    // do not add new symbols here without testing export as link
 
-                    // if first character is a digit then parse the type as a number
-                    if (tint >= '0' && tint <= '9')
-                        tint = CircuitElm.parseInt(type);
+        // Reset simulation parameters
+        simulator.t = simulator.timeStepAccum = 0;
+        simulator.elmList.clear();
+        cirSim.renderer.hintType = -1;
+        simulator.maxTimeStep = 5e-6;
+        simulator.minTimeStep = 50e-12;
+        simulator.lastIterTime = 0;
 
-                    if (tint == 34) {
-                        DiodeModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == 32) {
-                        TransistorModel.undumpModel(st);
-                        break;
-                    }
-                    if (tint == 38) {
-                        cirSim.adjustableManager.addAdjustable(st);
-                        break;
-                    }
-                    if (tint == '.') {
-                        CustomCompositeModel.undumpModel(st);
-                        break;
-                    }
-                    int x1 = CircuitElm.parseInt(st.nextToken());
-                    int y1 = CircuitElm.parseInt(st.nextToken());
-                    int x2 = CircuitElm.parseInt(st.nextToken());
-                    int y2 = CircuitElm.parseInt(st.nextToken());
-                    int f = CircuitElm.parseInt(st.nextToken());
+        // Reset menu states
+        menuManager.dotsCheckItem.setState(false);
+        menuManager.smallGridCheckItem.setState(false);
+        menuManager.powerCheckItem.setState(false);
+        menuManager.voltsCheckItem.setState(true);
+        menuManager.showValuesCheckItem.setState(true);
 
-                    CircuitElm newce = CircuitElmCreator.createCe(tint, x1, y1, x2, y2, f, st);
-                    if (newce == null) {
-                        System.out.println("unrecognized dump type: " + type);
-                        break;
-                    }
-                    newce.setPoints();
-                    simulator.elmList.add(newce);
-                } catch (Exception ee) {
-                    ee.printStackTrace();
-                    CirSim.console("exception while undumping " + ee);
-                    break;
-                }
-                break;
+        // Reset UI components
+        circuitEditor.setGrid();
+        cirSim.speedBar.setValue(117);
+        cirSim.currentBar.setValue(50);
+        cirSim.powerBar.setValue(50);
+        CircuitElm.voltageRange = 5;
+        scopeManager.scopeCount = 0;
+    }
+
+    /**
+     * Parses circuit data line by line and creates circuit elements
+     */
+    private void parseCircuitLines(String circuitData, boolean isSubcircuitMode, int flags) {
+        String[] lines = circuitData.split("[\r\n]+");
+
+        for (String line : lines) {
+            if (line.trim().isEmpty()) {
+                continue;
             }
-            p += l;
 
+            StringTokenizer stringTokenizer = new StringTokenizer(line, " +\t\n\r\f");
+            if (stringTokenizer.hasMoreTokens()) {
+                processCircuitLine(stringTokenizer, isSubcircuitMode, flags);
+            }
         }
+    }
+
+    /**
+     * Processes a single line of circuit data
+     */
+    private void processCircuitLine(StringTokenizer stringTokenizer, boolean isSubcircuitMode, int flags) {
+        String type = stringTokenizer.nextToken();
+        int typeIdentifier = type.charAt(0);
+
+        try {
+            if (isSubcircuitMode && typeIdentifier != '.') {
+                return;
+            }
+
+            // Handle special circuit elements
+            if (handleSpecialElements(stringTokenizer, typeIdentifier, flags)) {
+                return;
+            }
+
+            // Handle model definitions
+            if (handleModelDefinitions(stringTokenizer, typeIdentifier)) {
+                return;
+            }
+
+            // Create standard circuit element
+            createStandardCircuitElement(stringTokenizer, type, typeIdentifier);
+
+        } catch (Exception exception) {
+            CirSim.console("exception while undumping " + exception);
+        }
+    }
+
+    /**
+     * Handles special circuit elements (scopes, hints, options, etc.)
+     */
+    private boolean handleSpecialElements(StringTokenizer stringTokenizer, int typeIdentifier, int flags) {
+        ScopeManager scopeManager = scopeManager();
+
+        switch (typeIdentifier) {
+            case 'o': // Scope
+                Scope scope = new Scope(cirSim);
+                scope.position = scopeManager.scopeCount;
+                scope.undump(stringTokenizer);
+                scopeManager.scopes[scopeManager.scopeCount++] = scope;
+                return true;
+
+            case 'h': // Hint
+                readHint(stringTokenizer);
+                return true;
+
+            case '$': // Options
+                readOptions(stringTokenizer, flags);
+                return true;
+
+            case '!': // Custom logic model
+                CustomLogicModel.undumpModel(stringTokenizer);
+                return true;
+
+            case '%':
+            case '?':
+            case 'B':
+                // ignore afilter-specific stuff
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Handles model definitions (diode, transistor, adjustable, composite)
+     */
+    private boolean handleModelDefinitions(StringTokenizer stringTokenizer, int typeIdentifier) {
+        // Convert digit characters to numbers
+        if (typeIdentifier >= '0' && typeIdentifier <= '9') {
+            typeIdentifier = CircuitElm.parseInt(String.valueOf((char)typeIdentifier));
+        }
+
+        switch (typeIdentifier) {
+            case 34: // Diode model
+                DiodeModel.undumpModel(stringTokenizer);
+                return true;
+
+            case 32: // Transistor model
+                TransistorModel.undumpModel(stringTokenizer);
+                return true;
+
+            case 38: // Adjustable element
+                cirSim.adjustableManager.addAdjustable(stringTokenizer);
+                return true;
+
+            case '.': // Custom composite model
+                CustomCompositeModel.undumpModel(stringTokenizer);
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Creates a standard circuit element from parsed data
+     */
+    private void createStandardCircuitElement(StringTokenizer stringTokenizer, String type, int typeIdentifier) {
+        // Convert digit characters to numbers
+        if (typeIdentifier >= '0' && typeIdentifier <= '9') {
+            typeIdentifier = CircuitElm.parseInt(type);
+        }
+
+        // Parse element coordinates and flags
+        int startX = CircuitElm.parseInt(stringTokenizer.nextToken());
+        int startY = CircuitElm.parseInt(stringTokenizer.nextToken());
+        int endX = CircuitElm.parseInt(stringTokenizer.nextToken());
+        int endY = CircuitElm.parseInt(stringTokenizer.nextToken());
+        int elementFlags = CircuitElm.parseInt(stringTokenizer.nextToken());
+
+        // Create the circuit element
+        CircuitElm newCircuitElement = CircuitElmCreator.createCe(typeIdentifier, startX, startY, endX, endY, elementFlags, stringTokenizer);
+        if (newCircuitElement == null) {
+            CirSim.console("unrecognized dump type: " + type);
+            return;
+        }
+
+        // Parse description from remaining tokens
+        CircuitElmCreator.readDescription(newCircuitElement, stringTokenizer);
+
+        // Add element to simulation
+        newCircuitElement.setPoints();
+        simulator().elmList.add(newCircuitElement);
+    }
+
+    /**
+     * Finalizes circuit loading with post-processing steps
+     */
+    private void finalizeCircuitLoading(int flags) {
         cirSim.setPowerBarEnable();
         cirSim.enableItems();
+
         if ((flags & RC_RETAIN) == 0) {
             // create sliders as needed
             cirSim.adjustableManager.createSliders();
         }
-        cirSim.needAnalyze();
-        if ((flags & RC_NO_CENTER) == 0)
-            renderer().centreCircuit();
-        if ((flags & RC_SUBCIRCUITS) != 0)
-            simulator.updateModels();
 
-        AudioInputElm.clearCache();  // to save memory
-        DataInputElm.clearCache();  // to save memory
+        cirSim.needAnalyze();
+
+        if ((flags & RC_NO_CENTER) == 0) {
+            renderer().centreCircuit();
+        }
+
+        if ((flags & RC_SUBCIRCUITS) != 0) {
+            simulator().updateModels();
+        }
+
+        if ((flags & RC_KEEP_TITLE) == 0) {
+            cirSim.titleLabel.setText(null);
+        }
+
+        // Clear caches to save memory
+        AudioInputElm.clearCache();
+        DataInputElm.clearCache();
+
+        cirSim.setSlidersPanelHeight();
     }
 
     void readHint(StringTokenizer st) {
@@ -194,21 +296,9 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
             cirSim.powerBar.setValue(CircuitElm.parseInt(st.nextToken()));
             simulator.minTimeStep = CircuitElm.parseDouble(st.nextToken());
         } catch (Exception e) {
+            // Ignore missing optional parameters
         }
         circuitEditor.setGrid();
-    }
-
-    void readCircuit(String text, int flags) {
-        readCircuit(text.getBytes(), flags);
-        if ((flags & RC_KEEP_TITLE) == 0)
-            cirSim.titleLabel.setText(null);
-        cirSim.setSlidersPanelHeight();
-    }
-
-    public void readCircuit(String text) {
-        readCircuit(text.getBytes(), 0);
-        cirSim.titleLabel.setText(null);
-        cirSim.setSlidersPanelHeight();
     }
 
     void getSetupList(final boolean openDefault) {

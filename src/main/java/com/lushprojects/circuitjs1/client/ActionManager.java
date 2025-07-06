@@ -500,28 +500,33 @@ public class ActionManager extends BaseCirSimDelegate {
         DiodeModel.clearDumpedFlags();
         TransistorModel.clearDumpedFlags();
 
-        String dump = dumpOptions() + "\n";
+        StringBuilder dump = new StringBuilder(4096);
+        // Circuit header
+        dump.append(dumpOptions()).append("\n");
 
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
-            String m = ce.dumpModel();
-            if (m != null && !m.isEmpty())
-                dump += m + "\n";
-            dump += ce.dump() + "\n";
+            String modelDump = ce.dumpModel();
+            if (modelDump != null && !modelDump.isEmpty()) {
+                dump.append(modelDump).append("\n");
+            }
+            dump.append(CircuitElm.dumpElm(ce)).append("\n");
         }
         ScopeManager scopeManager = scopeManager();
         for (int i = 0; i != scopeManager.scopeCount; i++) {
             String d = scopeManager.scopes[i].dump();
-            if (d != null)
-                dump += d + "\n";
+            if (d != null) {
+                dump.append(d).append("\n");
+            }
         }
-        dump += cirSim.adjustableManager.dump();
+        dump.append(cirSim.adjustableManager.dump());
 
-        if (renderer().hintType != -1)
-            dump += "h " + renderer().hintType + " " + renderer().hintItem1 + " " +
-                    renderer().hintItem2 + "\n";
-        return dump;
+        CircuitRenderer renderer = renderer();
+        if (renderer.hintType != -1) {
+            dump.append(CircuitElm.dumpValues("h", renderer.hintType, renderer.hintItem1, renderer.hintItem2)).append("\n");
+        }
+        return dump.toString();
     }
 
 

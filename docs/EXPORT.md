@@ -21,7 +21,7 @@ $ <flags> <maxTimeStep> <iterCount> <currentBar> <voltageRange> <powerBar> <minT
 - **maxTimeStep**: Maximum time step for simulation
 - **iterCount**: Iteration count (speed setting)
 - **currentBar**: Current bar scale setting
-- **voltageRange**: Voltage range for display
+- **voltageRange**: Voltage range for display gradient on wires
 - **powerBar**: Power bar scale setting
 - **minTimeStep**: Minimum time step for simulation
 
@@ -31,13 +31,14 @@ Example: `$ 1 5.0E-6 15 50 5.0 26 5.0E-9`
 Each circuit element is represented as:
 
 ```
-<DumpType> <x> <y> <x2> <y2> <flags> [Additional Parameters]
+<DumpType> <x> <y> <x2> <y2> <flags> [Additional Parameters] [# Description]
 ```
 - **DumpType**: Unique identifier for the element type (character or integer).
 - **x, y**: Starting coordinates.
 - **x2, y2**: Ending coordinates.
 - **flags**: Bitmask for element-specific properties.
 - **Additional Parameters**: Element-specific data (see below).
+- **Description** (Optional): Description or label for the element.
 
 ---
 
@@ -641,7 +642,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - **ChipElm-based elements** (logic gates, flip-flops, counters, etc.) follow a common pattern: they may include a `bits` parameter if `needsBits()` returns true, followed by voltage values for each pin that has `state=true`.
 - **GateElm-based elements** (AND, OR, NOR, etc.) include `inputCount`, current `outputVoltage`, and `highVoltage` parameters.
 - All coordinates and values are in simulation units.
-- Model names and text strings are escaped using `CustomLogicModel.escape()`.
+- Model names and text strings are escaped using `CircuitElm.escape()`.
 - For exact implementation details, refer to the source code: each element class implements a `dump()` method and a `getDumpType()` method.
 
 ---
@@ -650,4 +651,4 @@ This manual has been verified against the actual source code implementation (as 
 
 ---
 
-For implementation details and the most current information, see the source files in `src/com/lushprojects/circuitjs1/client/`.
+For implementation details and the most current information, see the source files in `src/com/lushprojects/circuitjs1/client/element`.

@@ -1,5 +1,3 @@
-
-
 package com.lushprojects.circuitjs1.client;
 
 import java.util.Enumeration;
@@ -71,6 +69,9 @@ public class StringTokenizer implements Enumeration<Object> {
      * The position in the str, where we currently are.
      */
     private int pos;
+
+
+    private int start;
 
     /**
      * The string that should be split into tokens.
@@ -188,6 +189,18 @@ public class StringTokenizer implements Enumeration<Object> {
             return str.substring(start, pos);
         }
         throw new NoSuchElementException();
+    }
+
+    public int getEndTokenIdx() {
+        return pos;
+    }
+
+    public int getStartTokenIdx() {
+        return start;
+    }
+
+    public String getOriginalString() {
+        return str;
     }
 
     /**

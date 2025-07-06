@@ -30,7 +30,6 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
-import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -42,9 +41,7 @@ import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
@@ -75,6 +72,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     int flags;
     public int[] nodes;
     int voltSource;
+
+    private String description;
 
     // length along x and y axes, and sign of difference
     public int dx, dy, dsign;
@@ -194,6 +193,29 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             nodes = new int[n];
             volts = new double[n];
         }
+    }
+
+    public void setDescription(String description) {
+        if (description != null) {
+            description = description.trim();
+            if (description.isEmpty()) {
+                description = null;
+            }
+        }
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public static String dumpElm(CircuitElm elm) {
+        String dump = elm.dump();
+        String desc = elm.description;
+        if (desc != null && !desc.isEmpty()) {
+            dump += " # " + desc;
+        }
+        return dump;
     }
 
     // dump component state for export/undo

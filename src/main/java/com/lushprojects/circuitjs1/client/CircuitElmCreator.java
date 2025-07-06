@@ -252,284 +252,313 @@ public class CircuitElmCreator {
         return null;
     }
 
+    public static void readDescription(CircuitElm ce, StringTokenizer st) {
+        // After all element parameters are processed, check if there are remaining tokens
+        // that could contain a description starting with '#'
+
+        while (st.hasMoreTokens()) {
+            String token = st.nextToken();
+            // If we encounter a token starting with '#', treat it and everything after as description
+            if (token.startsWith("#")) {
+                // Use getStartTokenIdx to get position in original string
+                int hashIndex = st.getStartTokenIdx();
+
+                if (hashIndex != -1) {
+                    String originalStr = st.getOriginalString();
+                    // Extract description from '#' to end of string
+                    String description = originalStr.substring(hashIndex + 1).trim();
+                    ce.setDescription(description);
+                }
+                return;
+            }
+        }
+    }
+
     public static CircuitElm constructElement(String n, int x1, int y1) {
-        if (n == "GroundElm")
-            return (CircuitElm) new GroundElm(x1, y1);
-        if (n == "ResistorElm")
-            return (CircuitElm) new ResistorElm(x1, y1);
-        if (n == "RailElm")
-            return (CircuitElm) new RailElm(x1, y1);
-        if (n == "SwitchElm")
-            return (CircuitElm) new SwitchElm(x1, y1);
-        if (n == "Switch2Elm")
-            return (CircuitElm) new Switch2Elm(x1, y1);
-        if (n == "MBBSwitchElm")
-            return (CircuitElm) new MBBSwitchElm(x1, y1);
-        if (n == "NTransistorElm" || n == "TransistorElm")
-            return (CircuitElm) new NTransistorElm(x1, y1);
-        if (n == "PTransistorElm")
-            return (CircuitElm) new PTransistorElm(x1, y1);
-        if (n == "WireElm")
-            return (CircuitElm) new WireElm(x1, y1);
-        if (n == "CapacitorElm")
-            return (CircuitElm) new CapacitorElm(x1, y1);
-        if (n == "PolarCapacitorElm")
-            return (CircuitElm) new PolarCapacitorElm(x1, y1);
-        if (n == "InductorElm")
-            return (CircuitElm) new InductorElm(x1, y1);
-        if (n == "DCVoltageElm" || n == "VoltageElm")
-            return (CircuitElm) new DCVoltageElm(x1, y1);
-        if (n == "VarRailElm")
-            return (CircuitElm) new VarRailElm(x1, y1);
-        if (n == "PotElm")
-            return (CircuitElm) new PotElm(x1, y1);
-        if (n == "OutputElm")
-            return (CircuitElm) new OutputElm(x1, y1);
-        if (n == "CurrentElm")
-            return (CircuitElm) new CurrentElm(x1, y1);
-        if (n == "ProbeElm")
-            return (CircuitElm) new ProbeElm(x1, y1);
-        if (n == "DiodeElm")
-            return (CircuitElm) new DiodeElm(x1, y1);
-        if (n == "ZenerElm")
-            return (CircuitElm) new ZenerElm(x1, y1);
-        if (n == "ACVoltageElm")
-            return (CircuitElm) new ACVoltageElm(x1, y1);
-        if (n == "ACRailElm")
-            return (CircuitElm) new ACRailElm(x1, y1);
-        if (n == "SquareRailElm")
-            return (CircuitElm) new SquareRailElm(x1, y1);
-        if (n == "SweepElm")
-            return (CircuitElm) new SweepElm(x1, y1);
-        if (n == "LEDElm")
-            return (CircuitElm) new LEDElm(x1, y1);
-        if (n == "AntennaElm")
-            return (CircuitElm) new AntennaElm(x1, y1);
-        if (n == "LogicInputElm")
-            return (CircuitElm) new LogicInputElm(x1, y1);
-        if (n == "LogicOutputElm")
-            return (CircuitElm) new LogicOutputElm(x1, y1);
-        if (n == "TransformerElm")
-            return (CircuitElm) new TransformerElm(x1, y1);
-        if (n == "TappedTransformerElm")
-            return (CircuitElm) new TappedTransformerElm(x1, y1);
-        if (n == "TransLineElm")
-            return (CircuitElm) new TransLineElm(x1, y1);
-        if (n == "RelayElm")
-            return (CircuitElm) new RelayElm(x1, y1);
-        if (n == "RelayCoilElm")
-            return (CircuitElm) new RelayCoilElm(x1, y1);
-        if (n == "RelayContactElm")
-            return (CircuitElm) new RelayContactElm(x1, y1);
-        if (n == "ThreePhaseMotorElm")
-            return (CircuitElm) new ThreePhaseMotorElm(x1, y1);
-        if (n == "MemristorElm")
-            return (CircuitElm) new MemristorElm(x1, y1);
-        if (n == "SparkGapElm")
-            return (CircuitElm) new SparkGapElm(x1, y1);
-        if (n == "ClockElm")
-            return (CircuitElm) new ClockElm(x1, y1);
-        if (n == "AMElm")
-            return (CircuitElm) new AMElm(x1, y1);
-        if (n == "FMElm")
-            return (CircuitElm) new FMElm(x1, y1);
-        if (n == "LampElm")
-            return (CircuitElm) new LampElm(x1, y1);
-        if (n == "PushSwitchElm")
-            return (CircuitElm) new PushSwitchElm(x1, y1);
-        if (n == "OpAmpElm")
-            return (CircuitElm) new OpAmpElm(x1, y1);
-        if (n == "OpAmpSwapElm")
-            return (CircuitElm) new OpAmpSwapElm(x1, y1);
-        if (n == "NMosfetElm" || n == "MosfetElm")
-            return (CircuitElm) new NMosfetElm(x1, y1);
-        if (n == "PMosfetElm")
-            return (CircuitElm) new PMosfetElm(x1, y1);
-        if (n == "NJfetElm" || n == "JfetElm")
-            return (CircuitElm) new NJfetElm(x1, y1);
-        if (n == "PJfetElm")
-            return (CircuitElm) new PJfetElm(x1, y1);
-        if (n == "AnalogSwitchElm")
-            return (CircuitElm) new AnalogSwitchElm(x1, y1);
-        if (n == "AnalogSwitch2Elm")
-            return (CircuitElm) new AnalogSwitch2Elm(x1, y1);
-        if (n == "SchmittElm")
-            return (CircuitElm) new SchmittElm(x1, y1);
-        if (n == "InvertingSchmittElm")
-            return (CircuitElm) new InvertingSchmittElm(x1, y1);
-        if (n == "TriStateElm")
-            return (CircuitElm) new TriStateElm(x1, y1);
-        if (n == "SCRElm")
-            return (CircuitElm) new SCRElm(x1, y1);
-        if (n == "DiacElm")
-            return (CircuitElm) new DiacElm(x1, y1);
-        if (n == "TriacElm")
-            return (CircuitElm) new TriacElm(x1, y1);
-        if (n == "TriodeElm")
-            return (CircuitElm) new TriodeElm(x1, y1);
-        if (n == "VaractorElm")
-            return (CircuitElm) new VaractorElm(x1, y1);
-        if (n == "TunnelDiodeElm")
-            return (CircuitElm) new TunnelDiodeElm(x1, y1);
-        if (n == "CC2Elm")
-            return (CircuitElm) new CC2Elm(x1, y1);
-        if (n == "CC2NegElm")
-            return (CircuitElm) new CC2NegElm(x1, y1);
-        if (n == "InverterElm")
-            return (CircuitElm) new InverterElm(x1, y1);
-        if (n == "NandGateElm")
-            return (CircuitElm) new NandGateElm(x1, y1);
-        if (n == "NorGateElm")
-            return (CircuitElm) new NorGateElm(x1, y1);
-        if (n == "AndGateElm")
-            return (CircuitElm) new AndGateElm(x1, y1);
-        if (n == "OrGateElm")
-            return (CircuitElm) new OrGateElm(x1, y1);
-        if (n == "XorGateElm")
-            return (CircuitElm) new XorGateElm(x1, y1);
-        if (n == "DFlipFlopElm")
-            return (CircuitElm) new DFlipFlopElm(x1, y1);
-        if (n == "JKFlipFlopElm")
-            return (CircuitElm) new JKFlipFlopElm(x1, y1);
-        if (n == "SevenSegElm")
-            return (CircuitElm) new SevenSegElm(x1, y1);
-        if (n == "MultiplexerElm")
-            return (CircuitElm) new MultiplexerElm(x1, y1);
-        if (n == "DeMultiplexerElm")
-            return (CircuitElm) new DeMultiplexerElm(x1, y1);
-        if (n == "SipoShiftElm")
-            return (CircuitElm) new SipoShiftElm(x1, y1);
-        if (n == "PisoShiftElm")
-            return (CircuitElm) new PisoShiftElm(x1, y1);
-        if (n == "PhaseCompElm")
-            return (CircuitElm) new PhaseCompElm(x1, y1);
-        if (n == "CounterElm")
-            return (CircuitElm) new CounterElm(x1, y1);
+        switch (n) {
+            case "GroundElm":
+                return new GroundElm(x1, y1);
+            case "ResistorElm":
+                return new ResistorElm(x1, y1);
+            case "RailElm":
+                return new RailElm(x1, y1);
+            case "SwitchElm":
+                return new SwitchElm(x1, y1);
+            case "Switch2Elm":
+                return new Switch2Elm(x1, y1);
+            case "MBBSwitchElm":
+                return new MBBSwitchElm(x1, y1);
+            case "NTransistorElm":
+            case "TransistorElm":
+                return new NTransistorElm(x1, y1);
+            case "PTransistorElm":
+                return new PTransistorElm(x1, y1);
+            case "WireElm":
+                return new WireElm(x1, y1);
+            case "CapacitorElm":
+                return new CapacitorElm(x1, y1);
+            case "PolarCapacitorElm":
+                return new PolarCapacitorElm(x1, y1);
+            case "InductorElm":
+                return new InductorElm(x1, y1);
+            case "DCVoltageElm":
+            case "VoltageElm":
+                return new DCVoltageElm(x1, y1);
+            case "VarRailElm":
+                return new VarRailElm(x1, y1);
+            case "PotElm":
+                return new PotElm(x1, y1);
+            case "OutputElm":
+                return new OutputElm(x1, y1);
+            case "CurrentElm":
+                return new CurrentElm(x1, y1);
+            case "ProbeElm":
+                return new ProbeElm(x1, y1);
+            case "DiodeElm":
+                return new DiodeElm(x1, y1);
+            case "ZenerElm":
+                return new ZenerElm(x1, y1);
+            case "ACVoltageElm":
+                return new ACVoltageElm(x1, y1);
+            case "ACRailElm":
+                return new ACRailElm(x1, y1);
+            case "SquareRailElm":
+                return new SquareRailElm(x1, y1);
+            case "SweepElm":
+                return new SweepElm(x1, y1);
+            case "LEDElm":
+                return new LEDElm(x1, y1);
+            case "AntennaElm":
+                return new AntennaElm(x1, y1);
+            case "LogicInputElm":
+                return new LogicInputElm(x1, y1);
+            case "LogicOutputElm":
+                return new LogicOutputElm(x1, y1);
+            case "TransformerElm":
+                return new TransformerElm(x1, y1);
+            case "TappedTransformerElm":
+                return new TappedTransformerElm(x1, y1);
+            case "TransLineElm":
+                return new TransLineElm(x1, y1);
+            case "RelayElm":
+                return new RelayElm(x1, y1);
+            case "RelayCoilElm":
+                return new RelayCoilElm(x1, y1);
+            case "RelayContactElm":
+                return new RelayContactElm(x1, y1);
+            case "ThreePhaseMotorElm":
+                return new ThreePhaseMotorElm(x1, y1);
+            case "MemristorElm":
+                return new MemristorElm(x1, y1);
+            case "SparkGapElm":
+                return new SparkGapElm(x1, y1);
+            case "ClockElm":
+                return new ClockElm(x1, y1);
+            case "AMElm":
+                return new AMElm(x1, y1);
+            case "FMElm":
+                return new FMElm(x1, y1);
+            case "LampElm":
+                return new LampElm(x1, y1);
+            case "PushSwitchElm":
+                return new PushSwitchElm(x1, y1);
+            case "OpAmpElm":
+                return new OpAmpElm(x1, y1);
+            case "OpAmpSwapElm":
+                return new OpAmpSwapElm(x1, y1);
+            case "NMosfetElm":
+            case "MosfetElm":
+                return new NMosfetElm(x1, y1);
+            case "PMosfetElm":
+                return new PMosfetElm(x1, y1);
+            case "NJfetElm":
+            case "JfetElm":
+                return new NJfetElm(x1, y1);
+            case "PJfetElm":
+                return new PJfetElm(x1, y1);
+            case "AnalogSwitchElm":
+                return new AnalogSwitchElm(x1, y1);
+            case "AnalogSwitch2Elm":
+                return new AnalogSwitch2Elm(x1, y1);
+            case "SchmittElm":
+                return new SchmittElm(x1, y1);
+            case "InvertingSchmittElm":
+                return new InvertingSchmittElm(x1, y1);
+            case "TriStateElm":
+                return new TriStateElm(x1, y1);
+            case "SCRElm":
+                return new SCRElm(x1, y1);
+            case "DiacElm":
+                return new DiacElm(x1, y1);
+            case "TriacElm":
+                return new TriacElm(x1, y1);
+            case "TriodeElm":
+                return new TriodeElm(x1, y1);
+            case "VaractorElm":
+                return new VaractorElm(x1, y1);
+            case "TunnelDiodeElm":
+                return new TunnelDiodeElm(x1, y1);
+            case "CC2Elm":
+                return new CC2Elm(x1, y1);
+            case "CC2NegElm":
+                return new CC2NegElm(x1, y1);
+            case "InverterElm":
+                return new InverterElm(x1, y1);
+            case "NandGateElm":
+                return new NandGateElm(x1, y1);
+            case "NorGateElm":
+                return new NorGateElm(x1, y1);
+            case "AndGateElm":
+                return new AndGateElm(x1, y1);
+            case "OrGateElm":
+                return new OrGateElm(x1, y1);
+            case "XorGateElm":
+                return new XorGateElm(x1, y1);
+            case "DFlipFlopElm":
+                return new DFlipFlopElm(x1, y1);
+            case "JKFlipFlopElm":
+                return new JKFlipFlopElm(x1, y1);
+            case "SevenSegElm":
+                return new SevenSegElm(x1, y1);
+            case "MultiplexerElm":
+                return new MultiplexerElm(x1, y1);
+            case "DeMultiplexerElm":
+                return new DeMultiplexerElm(x1, y1);
+            case "SipoShiftElm":
+                return new SipoShiftElm(x1, y1);
+            case "PisoShiftElm":
+                return new PisoShiftElm(x1, y1);
+            case "PhaseCompElm":
+                return new PhaseCompElm(x1, y1);
+            case "CounterElm":
+                return new CounterElm(x1, y1);
 
-        // if you take out RingCounterElm, it will break subcircuits
-        // if you take out DecadeElm, it will break the menus and people's saved shortcuts
-        if (n == "DecadeElm" || n == "RingCounterElm")
-            return (CircuitElm) new RingCounterElm(x1, y1);
+            // if you take out RingCounterElm, it will break subcircuits
+            // if you take out DecadeElm, it will break the menus and people's saved shortcuts
+            case "DecadeElm":
+            case "RingCounterElm":
+                return new RingCounterElm(x1, y1);
+            case "TimerElm":
+                return new TimerElm(x1, y1);
+            case "DACElm":
+                return new DACElm(x1, y1);
+            case "ADCElm":
+                return new ADCElm(x1, y1);
+            case "LatchElm":
+                return new LatchElm(x1, y1);
+            case "SeqGenElm":
+                return new SeqGenElm(x1, y1);
+            case "VCOElm":
+                return new VCOElm(x1, y1);
+            case "BoxElm":
+                return new BoxElm(x1, y1);
+            case "LineElm":
+                return new LineElm(x1, y1);
+            case "TextElm":
+                return new TextElm(x1, y1);
+            case "TFlipFlopElm":
+                return new TFlipFlopElm(x1, y1);
+            case "SevenSegDecoderElm":
+                return new SevenSegDecoderElm(x1, y1);
+            case "FullAdderElm":
+                return new FullAdderElm(x1, y1);
+            case "HalfAdderElm":
+                return new HalfAdderElm(x1, y1);
+            case "MonostableElm":
+                return new MonostableElm(x1, y1);
+            case "LabeledNodeElm":
+                return new LabeledNodeElm(x1, y1);
 
-        if (n == "TimerElm")
-            return (CircuitElm) new TimerElm(x1, y1);
-        if (n == "DACElm")
-            return (CircuitElm) new DACElm(x1, y1);
-        if (n == "ADCElm")
-            return (CircuitElm) new ADCElm(x1, y1);
-        if (n == "LatchElm")
-            return (CircuitElm) new LatchElm(x1, y1);
-        if (n == "SeqGenElm")
-            return (CircuitElm) new SeqGenElm(x1, y1);
-        if (n == "VCOElm")
-            return (CircuitElm) new VCOElm(x1, y1);
-        if (n == "BoxElm")
-            return (CircuitElm) new BoxElm(x1, y1);
-        if (n == "LineElm")
-            return (CircuitElm) new LineElm(x1, y1);
-        if (n == "TextElm")
-            return (CircuitElm) new TextElm(x1, y1);
-        if (n == "TFlipFlopElm")
-            return (CircuitElm) new TFlipFlopElm(x1, y1);
-        if (n == "SevenSegDecoderElm")
-            return (CircuitElm) new SevenSegDecoderElm(x1, y1);
-        if (n == "FullAdderElm")
-            return (CircuitElm) new FullAdderElm(x1, y1);
-        if (n == "HalfAdderElm")
-            return (CircuitElm) new HalfAdderElm(x1, y1);
-        if (n == "MonostableElm")
-            return (CircuitElm) new MonostableElm(x1, y1);
-        if (n == "LabeledNodeElm")
-            return (CircuitElm) new LabeledNodeElm(x1, y1);
-
-        // if you take out UserDefinedLogicElm, it will break people's saved shortcuts
-        if (n == "UserDefinedLogicElm" || n == "CustomLogicElm")
-            return (CircuitElm) new CustomLogicElm(x1, y1);
-
-        if (n == "TestPointElm")
-            return new TestPointElm(x1, y1);
-        if (n == "AmmeterElm")
-            return new AmmeterElm(x1, y1);
-        if (n == "DataRecorderElm")
-            return (CircuitElm) new DataRecorderElm(x1, y1);
-        if (n == "AudioOutputElm")
-            return (CircuitElm) new AudioOutputElm(x1, y1);
-        if (n == "NDarlingtonElm" || n == "DarlingtonElm")
-            return (CircuitElm) new NDarlingtonElm(x1, y1);
-        if (n == "PDarlingtonElm")
-            return (CircuitElm) new PDarlingtonElm(x1, y1);
-        if (n == "ComparatorElm")
-            return (CircuitElm) new ComparatorElm(x1, y1);
-        if (n == "OTAElm")
-            return (CircuitElm) new OTAElm(x1, y1);
-        if (n == "NoiseElm")
-            return (CircuitElm) new NoiseElm(x1, y1);
-        if (n == "VCVSElm")
-            return (CircuitElm) new VCVSElm(x1, y1);
-        if (n == "VCCSElm")
-            return (CircuitElm) new VCCSElm(x1, y1);
-        if (n == "CCVSElm")
-            return (CircuitElm) new CCVSElm(x1, y1);
-        if (n == "CCCSElm")
-            return (CircuitElm) new CCCSElm(x1, y1);
-        if (n == "OhmMeterElm")
-            return (CircuitElm) new OhmMeterElm(x1, y1);
-        if (n == "ScopeElm")
-            return (CircuitElm) new ScopeElm(x1, y1);
-        if (n == "FuseElm")
-            return (CircuitElm) new FuseElm(x1, y1);
-        if (n == "LEDArrayElm")
-            return (CircuitElm) new LEDArrayElm(x1, y1);
-        if (n == "CustomTransformerElm")
-            return (CircuitElm) new CustomTransformerElm(x1, y1);
-        if (n == "OptocouplerElm")
-            return (CircuitElm) new OptocouplerElm(x1, y1);
-        if (n == "StopTriggerElm")
-            return (CircuitElm) new StopTriggerElm(x1, y1);
-        if (n == "OpAmpRealElm")
-            return (CircuitElm) new OpAmpRealElm(x1, y1);
-        if (n == "CustomCompositeElm")
-            return (CircuitElm) new CustomCompositeElm(x1, y1);
-        if (n == "AudioInputElm")
-            return (CircuitElm) new AudioInputElm(x1, y1);
-        if (n == "CrystalElm")
-            return (CircuitElm) new CrystalElm(x1, y1);
-        if (n == "SRAMElm")
-            return (CircuitElm) new SRAMElm(x1, y1);
-        if (n == "TimeDelayRelayElm")
-            return (CircuitElm) new TimeDelayRelayElm(x1, y1);
-        if (n == "DCMotorElm")
-            return (CircuitElm) new DCMotorElm(x1, y1);
-        if (n == "LDRElm")
-            return (CircuitElm) new LDRElm(x1, y1);
-        if (n == "ThermistorNTCElm")
-            return (CircuitElm) new ThermistorNTCElm(x1, y1);
-        if (n == "UnijunctionElm")
-            return (CircuitElm) new UnijunctionElm(x1, y1);
-        if (n == "ExtVoltageElm")
-            return (CircuitElm) new ExtVoltageElm(x1, y1);
-        if (n == "DecimalDisplayElm")
-            return (CircuitElm) new DecimalDisplayElm(x1, y1);
-        if (n == "WattmeterElm")
-            return (CircuitElm) new WattmeterElm(x1, y1);
-        if (n == "Counter2Elm")
-            return (CircuitElm) new Counter2Elm(x1, y1);
-        if (n == "DelayBufferElm")
-            return (CircuitElm) new DelayBufferElm(x1, y1);
-        if (n == "DataInputElm")
-            return (CircuitElm) new DataInputElm(x1, y1);
-        if (n == "MotorProtectionSwitchElm")
-            return (CircuitElm) new MotorProtectionSwitchElm(x1, y1);
-        if (n == "DPDTSwitchElm")
-            return (CircuitElm) new DPDTSwitchElm(x1, y1);
-        if (n == "CrossSwitchElm")
-            return (CircuitElm) new CrossSwitchElm(x1, y1);
+            // if you take out UserDefinedLogicElm, it will break people's saved shortcuts
+            case "UserDefinedLogicElm":
+            case "CustomLogicElm":
+                return new CustomLogicElm(x1, y1);
+            case "TestPointElm":
+                return new TestPointElm(x1, y1);
+            case "AmmeterElm":
+                return new AmmeterElm(x1, y1);
+            case "DataRecorderElm":
+                return new DataRecorderElm(x1, y1);
+            case "AudioOutputElm":
+                return new AudioOutputElm(x1, y1);
+            case "NDarlingtonElm":
+            case "DarlingtonElm":
+                return new NDarlingtonElm(x1, y1);
+            case "PDarlingtonElm":
+                return new PDarlingtonElm(x1, y1);
+            case "ComparatorElm":
+                return new ComparatorElm(x1, y1);
+            case "OTAElm":
+                return new OTAElm(x1, y1);
+            case "NoiseElm":
+                return new NoiseElm(x1, y1);
+            case "VCVSElm":
+                return new VCVSElm(x1, y1);
+            case "VCCSElm":
+                return new VCCSElm(x1, y1);
+            case "CCVSElm":
+                return new CCVSElm(x1, y1);
+            case "CCCSElm":
+                return new CCCSElm(x1, y1);
+            case "OhmMeterElm":
+                return new OhmMeterElm(x1, y1);
+            case "ScopeElm":
+                return new ScopeElm(x1, y1);
+            case "FuseElm":
+                return new FuseElm(x1, y1);
+            case "LEDArrayElm":
+                return new LEDArrayElm(x1, y1);
+            case "CustomTransformerElm":
+                return new CustomTransformerElm(x1, y1);
+            case "OptocouplerElm":
+                return new OptocouplerElm(x1, y1);
+            case "StopTriggerElm":
+                return new StopTriggerElm(x1, y1);
+            case "OpAmpRealElm":
+                return new OpAmpRealElm(x1, y1);
+            case "CustomCompositeElm":
+                return new CustomCompositeElm(x1, y1);
+            case "AudioInputElm":
+                return new AudioInputElm(x1, y1);
+            case "CrystalElm":
+                return new CrystalElm(x1, y1);
+            case "SRAMElm":
+                return new SRAMElm(x1, y1);
+            case "TimeDelayRelayElm":
+                return new TimeDelayRelayElm(x1, y1);
+            case "DCMotorElm":
+                return new DCMotorElm(x1, y1);
+            case "LDRElm":
+                return new LDRElm(x1, y1);
+            case "ThermistorNTCElm":
+                return new ThermistorNTCElm(x1, y1);
+            case "UnijunctionElm":
+                return new UnijunctionElm(x1, y1);
+            case "ExtVoltageElm":
+                return new ExtVoltageElm(x1, y1);
+            case "DecimalDisplayElm":
+                return new DecimalDisplayElm(x1, y1);
+            case "WattmeterElm":
+                return new WattmeterElm(x1, y1);
+            case "Counter2Elm":
+                return new Counter2Elm(x1, y1);
+            case "DelayBufferElm":
+                return new DelayBufferElm(x1, y1);
+            case "DataInputElm":
+                return new DataInputElm(x1, y1);
+            case "MotorProtectionSwitchElm":
+                return new MotorProtectionSwitchElm(x1, y1);
+            case "DPDTSwitchElm":
+                return new DPDTSwitchElm(x1, y1);
+            case "CrossSwitchElm":
+                return new CrossSwitchElm(x1, y1);
+        }
 
         // handle CustomCompositeElm:modelname
         if (n.startsWith("CustomCompositeElm:")) {
             int ix = n.indexOf(':') + 1;
             String name = n.substring(ix);
-            return (CircuitElm) new CustomCompositeElm(x1, y1, name);
+            return new CustomCompositeElm(x1, y1, name);
         }
         return null;
     }
