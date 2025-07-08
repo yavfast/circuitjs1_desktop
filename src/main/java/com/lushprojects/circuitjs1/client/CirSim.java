@@ -384,11 +384,6 @@ public class CirSim implements NativePreviewHandler {
             layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
         }
 
-        // Only add log panel if developerMode is enabled
-        if (circuitInfo.developerMode) {
-            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
-        }
-
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
 
@@ -550,16 +545,6 @@ public class CirSim implements NativePreviewHandler {
         }
 
         circuitInfo.developerMode = enabled;
-
-        boolean logPanelPresent = layoutPanel.getWidgetIndex(logManager.logPanel) != -1;
-        if (enabled && !logPanelPresent) {
-            layoutPanel.addWest(logManager.logPanel, logManager.logPanelWidth);
-        } else if (!enabled && logPanelPresent) {
-            layoutPanel.remove(logManager.logPanel);
-        }
-
-        setCanvasSize();
-        repaint();
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
@@ -1252,21 +1237,4 @@ public class CirSim implements NativePreviewHandler {
 			hook($wnd.CircuitJS1, svgData);
 	}-*/;
 
-    public void updateLogPanelWidth(int newWidth) {
-        if (!circuitInfo.developerMode) {
-            return;
-        }
-
-        // Calculate available height for the log panel based on current layout
-        int totalHeight = RootLayoutPanel.get().getOffsetHeight();
-        int availableHeight = totalHeight - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
-        if (menuManager.toolbarCheckItem.getState())
-            availableHeight -= TOOLBAR_HEIGHT;
-
-        layoutPanel.setWidgetSize(logManager.logPanel, newWidth);
-        logManager.updatePanelSize(newWidth, availableHeight);
-
-        setCanvasSize();
-        repaint();
-    }
 }
