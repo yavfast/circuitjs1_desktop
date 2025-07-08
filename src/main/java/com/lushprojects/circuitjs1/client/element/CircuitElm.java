@@ -262,7 +262,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return Integer.toString(v);
     }
 
-    private static final NumberFormat EXP_FORMAT = NumberFormat.getFormat("0.####E0");
+    private static final NumberFormat EXP_FORMAT = NumberFormat.getFormat("0.#####E0");
 
     public static String dumpValue(double v) {
         // Format with 4 decimal places, avoid scientific notation for typical values

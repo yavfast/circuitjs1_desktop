@@ -21,6 +21,7 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem aboutItem;
     MenuItem helpItem;
     MenuItem licenseItem;
+    MenuItem showLogsItem;
     // MenuItem testItem;
     MenuItem aboutCircuitsItem;
     MenuItem aboutCircuitsPLItem;
@@ -655,6 +656,10 @@ public class MenuManager extends BaseCirSimDelegate {
         aboutItem = iconMenuItem("info-circled", "About...", (Command) null);
         h.addItem(aboutItem);
         aboutItem.setScheduledCommand(new MyCommand("file", "about"));
+        h.addSeparator();
+        // Add Show Logs menu item
+        showLogsItem = iconMenuItem("doc-text", "Show Logs...", new MyCommand("file", "showlogs"));
+        h.addItem(showLogsItem);
         h.addSeparator();
         h.addItem(aboutCircuitsItem = iconMenuItem("link", "About Circuits",
                 new Command() {

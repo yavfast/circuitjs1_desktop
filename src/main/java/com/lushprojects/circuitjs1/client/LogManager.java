@@ -8,7 +8,7 @@ import java.util.ArrayList;
 
 public class LogManager extends BaseCirSimDelegate {
 
-    public ArrayList<String> logEntries;
+    public final ArrayList<String> logEntries;
 
     // File logging fields
     private String currentLogFileName;

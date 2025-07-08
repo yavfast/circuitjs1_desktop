@@ -50,6 +50,7 @@ public class OptionsManager {
         Storage storage = getLocalStorage();
         if (storage != null) {
             storage.setItem(key, val);
+            CirSim.console("Save option: " + key + " = " + val);
         }
     }
 
@@ -183,5 +184,12 @@ public class OptionsManager {
      */
     public static boolean hasOption(String key) {
         return getOptionFromStorage(key, null) != null;
+    }
+
+    public static String getPrefixedKey(String optionPrefix, String key) {
+        if (optionPrefix == null || optionPrefix.isEmpty()) {
+            return key;
+        }
+        return optionPrefix + '.' + key;
     }
 }

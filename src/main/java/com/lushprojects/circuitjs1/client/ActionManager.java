@@ -23,6 +23,7 @@ import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.dialog.Dialog;
 import com.lushprojects.circuitjs1.client.dialog.ExportAsLocalFileDialog;
 import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
+import com.lushprojects.circuitjs1.client.dialog.ShowLogDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -184,6 +185,9 @@ public class ActionManager extends BaseCirSimDelegate {
             dialogManager.showLicenseDialog();
         if (item == "about")
             dialogManager.showAboutBox();
+        if (item == "showlogs") {
+            new ShowLogDialog(cirSim).show();
+        }
         if (item == "modsetup")
             dialogManager.showModDialog();
         if (item == "importfromlocalfile") {
