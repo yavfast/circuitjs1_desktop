@@ -124,27 +124,26 @@ public class CircuitMath {
     public static void invertMatrix(double[][] a, int n) {
         int[] ipvt = new int[n];
         lu_factor(a, n, ipvt);
-        int i, j;
         double[] b = new double[n];
         double[][] inva = new double[n][n];
 
         // solve for each column of identity matrix
-        for (i = 0; i != n; i++) {
-            for (j = 0; j != n; j++) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
                 b[j] = 0;
             }
             b[i] = 1;
+
             lu_solve(a, n, ipvt, b);
-            for (j = 0; j != n; j++) {
+
+            for (int j = 0; j < n; j++) {
                 inva[j][i] = b[j];
             }
         }
 
         // return in original matrix
-        for (i = 0; i != n; i++) {
-            for (j = 0; j != n; j++) {
-                a[i][j] = inva[i][j];
-            }
+        for (int i = 0; i < n; i++) {
+            System.arraycopy(inva[i], 0, a[i], 0, n);
         }
     }
     
@@ -152,9 +151,10 @@ public class CircuitMath {
      * Calculates the average value of a signal from scope data.
      */
     public static double calculateAverage(int width, int ipa, int scopePointCount, double[] minV, double[] maxV) {
-        double avg = 0;
         if (width == 0) return 0;
-        for (int i = 0; i != width; i++) {
+
+        double avg = 0;
+        for (int i = 0; i < width; i++) {
             int ip = (i + ipa) & (scopePointCount - 1);
             avg += minV[ip] + maxV[ip];
         }
