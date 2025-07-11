@@ -50,9 +50,9 @@ public class CapacitorElm extends CircuitElm {
         super(xa, ya, xb, yb, f);
         capacitance = parseDouble(st.nextToken());
         voltDiff = parseDouble(st.nextToken());
-        initialVoltage = parseDouble(st.nextToken(), 1e-3);
+        initialVoltage = parseDouble(st.tryNextToken(), 1e-3);
         if ((flags & FLAG_RESISTANCE) != 0) {
-            seriesResistance = parseDouble(st.nextToken());
+            seriesResistance = parseDouble(st.tryNextToken());
         }
     }
 

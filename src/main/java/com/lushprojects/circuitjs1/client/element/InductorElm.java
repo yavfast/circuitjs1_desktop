@@ -43,7 +43,9 @@ public class InductorElm extends CircuitElm {
         ind = new Inductor(simUi);
         inductance = parseDouble(st.nextToken());
         current = parseDouble(st.nextToken());
-        initialCurrent = parseDouble(st.nextToken());
+        if (st.hasMoreTokens()) {
+            initialCurrent = parseDouble(st.nextToken());
+        }
         ind.setup(inductance, current, flags);
     }
 

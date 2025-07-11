@@ -101,7 +101,11 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
      */
     private void processCircuitLine(StringTokenizer stringTokenizer, boolean isSubcircuitMode, int flags) {
         String type = stringTokenizer.nextToken();
+        // Convert digit characters to numbers
         int typeIdentifier = type.charAt(0);
+        if (typeIdentifier >= '0' && typeIdentifier <= '9') {
+            typeIdentifier = CircuitElm.parseInt(type);
+        }
 
         try {
             if (isSubcircuitMode && typeIdentifier != '.') {
@@ -119,10 +123,10 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
             }
 
             // Create standard circuit element
-            createStandardCircuitElement(stringTokenizer, type, typeIdentifier);
+            createStandardCircuitElement(stringTokenizer, typeIdentifier);
 
         } catch (Exception exception) {
-            CirSim.console("exception while undumping " + exception);
+            CirSim.console("Exception while undumping: " + stringTokenizer.getOriginalString());
         }
     }
 
@@ -167,11 +171,6 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
      * Handles model definitions (diode, transistor, adjustable, composite)
      */
     private boolean handleModelDefinitions(StringTokenizer stringTokenizer, int typeIdentifier) {
-        // Convert digit characters to numbers
-        if (typeIdentifier >= '0' && typeIdentifier <= '9') {
-            typeIdentifier = CircuitElm.parseInt(String.valueOf((char)typeIdentifier));
-        }
-
         switch (typeIdentifier) {
             case 34: // Diode model
                 DiodeModel.undumpModel(stringTokenizer);
@@ -197,12 +196,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
     /**
      * Creates a standard circuit element from parsed data
      */
-    private void createStandardCircuitElement(StringTokenizer stringTokenizer, String type, int typeIdentifier) {
-        // Convert digit characters to numbers
-        if (typeIdentifier >= '0' && typeIdentifier <= '9') {
-            typeIdentifier = CircuitElm.parseInt(type);
-        }
-
+    private void createStandardCircuitElement(StringTokenizer stringTokenizer, int typeIdentifier) {
         // Parse element coordinates and flags
         int startX = CircuitElm.parseInt(stringTokenizer.nextToken());
         int startY = CircuitElm.parseInt(stringTokenizer.nextToken());
@@ -213,7 +207,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // Create the circuit element
         CircuitElm newCircuitElement = CircuitElmCreator.createCe(typeIdentifier, startX, startY, endX, endY, elementFlags, stringTokenizer);
         if (newCircuitElement == null) {
-            CirSim.console("unrecognized dump type: " + type);
+            CirSim.console("unrecognized dump type: " + stringTokenizer.getOriginalString());
             return;
         }
 

@@ -191,6 +191,13 @@ public class StringTokenizer implements Enumeration<Object> {
         throw new NoSuchElementException();
     }
 
+    public String tryNextToken() {
+        if (hasMoreTokens()) {
+            return nextToken();
+        }
+        return null;
+    }
+
     public int getEndTokenIdx() {
         return pos;
     }
