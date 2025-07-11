@@ -536,6 +536,7 @@ public class CirSim implements NativePreviewHandler {
         });
         setupJSInterface();
 
+        resetAction();
         setSimRunning(circuitInfo.running);
     }
 
@@ -748,8 +749,6 @@ public class CirSim implements NativePreviewHandler {
 
     public void resetAction() {
         renderer.analyzeFlag = true;
-        if (simulator.t == 0)
-            setSimRunning(true);
         simulator.t = simulator.timeStepAccum = 0;
         simulator.timeStepCount = 0;
         for (int i = 0; i != simulator.elmList.size(); i++)
