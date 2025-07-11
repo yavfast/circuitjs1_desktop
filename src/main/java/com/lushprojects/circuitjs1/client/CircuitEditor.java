@@ -208,7 +208,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             }
         }
         if (changed) {
-            undoManager().writeRecoveryToStorage();
             cirSim.setUnsavedChanges(true);
         }
 
@@ -701,7 +700,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 simulator().elmList.add(dragElm);
                 dragElm.draggingDone();
                 circuitChanged = true;
-                undoManager().writeRecoveryToStorage();
             }
             dragElm = null;
         }

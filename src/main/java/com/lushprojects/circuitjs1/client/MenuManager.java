@@ -164,6 +164,7 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(iconMenuItem("exit", "Exit",
                 new Command() {
                     public void execute() {
+                        undoManager().writeRecoveryToStorage();
                         CirSim.executeJS("nw.Window.get().close(true)");
                     }
                 }));

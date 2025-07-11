@@ -529,6 +529,7 @@ public class CirSim implements NativePreviewHandler {
 
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             public void onWindowClosing(ClosingEvent event) {
+                undoManager.writeRecoveryToStorage();
                 // there is a bug in electron that makes it impossible to close the app if this warning is given
                 if (circuitInfo.unsavedChanges && !isElectron())
                     event.setMessage(Locale.LS("Are you sure?  There are unsaved changes."));

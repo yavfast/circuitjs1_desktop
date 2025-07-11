@@ -120,15 +120,22 @@ public class BaseCircuitElm {
         long integerPart = rounded / multiplier;
         long decimalPart = Math.abs(rounded % multiplier);
 
-        if (decimalPlaces == 0 || (decimalPart == 0 && !fixedDecimal)) {
+        // Return only integer part if no decimal places are needed or if value is whole number (for non-fixed)
+        if (decimalPlaces == 0 || (!fixedDecimal && decimalPart == 0)) {
             return String.valueOf(integerPart);
         }
 
-        // Format decimal part with leading zeros
         String decimalStr = String.valueOf(decimalPart);
-        if (fixedDecimal) {
-            while (decimalStr.length() < decimalPlaces) {
-                decimalStr += "0";
+
+        // Pad with leading zeros to match decimal places (e.g., for 0.01)
+        while (decimalStr.length() < decimalPlaces) {
+            decimalStr = "0" + decimalStr;
+        }
+
+        // For non-fixed format, remove trailing zeros
+        if (!fixedDecimal) {
+            while (decimalStr.length() > 1 && decimalStr.endsWith("0")) {
+                decimalStr = decimalStr.substring(0, decimalStr.length() - 1);
             }
         }
 
