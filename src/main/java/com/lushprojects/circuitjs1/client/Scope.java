@@ -455,6 +455,18 @@ public class Scope extends BaseCirSimDelegate {
         }
     }
 
+    /**
+     * Calculates the grid size in pixels for 2D plots
+     * @param width width of the plot area
+     * @param height height of the plot area
+     * @param manDivisions number of manual divisions
+     * @return grid size in pixels
+     */
+    public static double calc2dGridPx(int width, int height, int manDivisions) {
+        int m = Math.min(width, height);
+        return ((double) (m) / 2) / ((double) (manDivisions) / 2 + 0.05);
+    }
+
     // called for each timestep
     public void timeStep() {
         for (ScopePlot plot : plots) {
@@ -484,18 +496,13 @@ public class Scope extends BaseCirSimDelegate {
                 x = (int) (rect.width * (1 + xa) * .499);
                 y = (int) (rect.height * (1 - ya) * .499);
             } else {
-                double gridPx = calc2dGridPx(rect.width, rect.height);
+                double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
                 x = (int) (rect.width * .499 + (v / plots.get(0).manScale) * gridPx + gridPx * manDivisions * (double) (plots.get(0).manVPosition) / (double) (V_POSITION_STEPS));
                 y = (int) (rect.height * .499 - (yval / plots.get(1).manScale) * gridPx - gridPx * manDivisions * (double) (plots.get(1).manVPosition) / (double) (V_POSITION_STEPS));
 
             }
             drawTo(x, y);
         }
-    }
-
-    double calc2dGridPx(int width, int height) {
-        int m = Math.min(width, height);
-        return ((double) (m) / 2) / ((double) (manDivisions) / 2 + 0.05);
     }
 
     void drawTo(int x2, int y2) {
@@ -699,7 +706,7 @@ public class Scope extends BaseCirSimDelegate {
         }
         g.drawLine(rect.width / 2, 0, rect.width / 2, rect.height - 1);
         if (isManualScale()) {
-            double gridPx = calc2dGridPx(rect.width, rect.height);
+            double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
             g.setColor("#404040");
             for (int i = -manDivisions; i <= manDivisions; i++) {
                 if (i != 0) {
@@ -724,7 +731,7 @@ public class Scope extends BaseCirSimDelegate {
         drawSettingsWheel(g);
         CircuitEditor circuitEditor = circuitEditor();
         if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY) && plots.size() >= 2) {
-            double gridPx = calc2dGridPx(rect.width, rect.height);
+            double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
             String[] info = new String[2];
             ScopePlot px = plots.get(0);
             ScopePlot py = plots.get(1);
@@ -944,6 +951,10 @@ public class Scope extends BaseCirSimDelegate {
         scale[plot.units] = gridMax;
     }
 
+    /**
+     * Calculates the time step for the scope grid X axis
+     * @return grid step in seconds
+     */
     public double calcGridStepX() {
         int multptr = 0;
         double gsx = 1e-15;
@@ -955,9 +966,14 @@ public class Scope extends BaseCirSimDelegate {
         return gsx;
     }
 
-
-    double getGridMaxFromManScale(ScopePlot plot) {
-        return ((double) (manDivisions) / 2 + 0.05) * plot.manScale;
+    /**
+     * Calculates the maximum value of the grid from the manual scale settings
+     * @param manDivisions number of manual divisions
+     * @param manScale manual scale value
+     * @return max value
+     */
+    public static double getGridMaxFromManScale(int manDivisions, double manScale) {
+        return ((double) (manDivisions) / 2 + 0.05) * manScale;
     }
 
     void drawPlot(Graphics g, ScopePlot plot, boolean allPlotsSameUnits, boolean selected, boolean allSelected) {
@@ -1005,7 +1021,7 @@ public class Scope extends BaseCirSimDelegate {
             }
         } else {
             gridMid = 0;
-            gridMax = getGridMaxFromManScale(plot);
+            gridMax = getGridMaxFromManScale(manDivisions, plot.manScale);
             positionOffset = gridMax * 2.0 * (double) (plot.manVPosition) / (double) (V_POSITION_STEPS);
         }
         plot.plotOffset = -gridMid + positionOffset;
@@ -1281,66 +1297,12 @@ public class Scope extends BaseCirSimDelegate {
             return;
         }
         ScopePlot plot = visiblePlots.firstElement();
-        int i;
-        double avg = 0;
         int ipa = plot.ptr + scopePointCount - rect.width;
-        double[] maxV = plot.maxValues;
-        double[] minV = plot.minValues;
         double mid = (maxValue + minValue) / 2;
-        int state = -1;
+        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
 
-        // skip zeroes
-        for (i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] != 0) {
-                if (maxV[ip] > mid) {
-                    state = 1;
-                }
-                break;
-            }
-        }
-        int firstState = -state;
-        int start = i;
-        int end = 0;
-        int waveCount = 0;
-        double endAvg = 0;
-        for (; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            boolean sw = false;
-
-            // switching polarity?
-            if (state == 1) {
-                if (maxV[ip] < mid) {
-                    sw = true;
-                }
-            } else if (minV[ip] > mid) {
-                sw = true;
-            }
-
-            if (sw) {
-                state = -state;
-
-                // completed a full cycle?
-                if (firstState == state) {
-                    if (waveCount == 0) {
-                        start = i;
-                        firstState = state;
-                        avg = 0;
-                    }
-                    waveCount++;
-                    end = i;
-                    endAvg = avg;
-                }
-            }
-            if (waveCount > 0) {
-                double m = (maxV[ip] + minV[ip]) * .5;
-                avg += m * m;
-            }
-        }
-        double rms;
-        if (waveCount > 1) {
-            rms = Math.sqrt(endAvg / (end - start));
-            drawInfoText(g, plot.getUnitText(rms) + "rms");
+        if (metrics.valid) {
+            drawInfoText(g, plot.getUnitText(metrics.rms) + "rms");
         }
     }
 
@@ -1388,187 +1350,38 @@ public class Scope extends BaseCirSimDelegate {
 
     void drawAverage(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int i;
-        double avg = 0;
         int ipa = plot.ptr + scopePointCount - rect.width;
-        double[] maxV = plot.maxValues;
-        double[] minV = plot.minValues;
         double mid = (maxValue + minValue) / 2;
-        int state = -1;
+        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
 
-        // skip zeroes
-        for (i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] != 0) {
-                if (maxV[ip] > mid) {
-                    state = 1;
-                }
-                break;
-            }
-        }
-        int firstState = -state;
-        int start = i;
-        int end = 0;
-        int waveCount = 0;
-        double endAvg = 0;
-        for (; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            boolean sw = false;
-
-            // switching polarity?
-            if (state == 1) {
-                if (maxV[ip] < mid) {
-                    sw = true;
-                }
-            } else if (minV[ip] > mid) {
-                sw = true;
-            }
-
-            if (sw) {
-                state = -state;
-
-                // completed a full cycle?
-                if (firstState == state) {
-                    if (waveCount == 0) {
-                        start = i;
-                        firstState = state;
-                        avg = 0;
-                    }
-                    waveCount++;
-                    end = i;
-                    endAvg = avg;
-                }
-            }
-            if (waveCount > 0) {
-                double m = (maxV[ip] + minV[ip]) * .5;
-                avg += m;
-            }
-        }
-        if (waveCount > 1) {
-            avg = (endAvg / (end - start));
-            drawInfoText(g, plot.getUnitText(avg) + Locale.LS(" average"));
+        if (metrics.valid) {
+            drawInfoText(g, plot.getUnitText(metrics.average) + Locale.LS(" average"));
         }
     }
 
     void drawDutyCycle(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int i;
         int ipa = plot.ptr + scopePointCount - rect.width;
-        double[] maxV = plot.maxValues;
-        double[] minV = plot.minValues;
         double mid = (maxValue + minValue) / 2;
-        int state = -1;
+        CircuitMath.DutyCycleInfo info = CircuitMath.calculateDutyCycle(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
 
-        // skip zeroes
-        for (i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] != 0) {
-                if (maxV[ip] > mid) {
-                    state = 1;
-                }
-                break;
-            }
-        }
-        int firstState = 1;
-        int start = i;
-        int end = 0;
-        int waveCount = 0;
-        int dutyLen = 0;
-        int middle = 0;
-        for (; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            boolean sw = false;
-
-            // switching polarity?
-            if (state == 1) {
-                if (maxV[ip] < mid) {
-                    sw = true;
-                }
-            } else if (minV[ip] > mid) {
-                sw = true;
-            }
-
-            if (sw) {
-                state = -state;
-
-                // completed a full cycle?
-                if (firstState == state) {
-                    if (waveCount == 0) {
-                        start = end = i;
-                    } else {
-                        end = start;
-                        start = i;
-                        dutyLen = end - middle;
-                    }
-                    waveCount++;
-                } else {
-                    middle = i;
-                }
-            }
-        }
-        if (waveCount > 1) {
-            int duty = 100 * dutyLen / (end - start);
-            drawInfoText(g, Locale.LS("Duty cycle ") + duty + "%");
+        if (info.valid) {
+            drawInfoText(g, Locale.LS("Duty cycle ") + info.dutyCycle + "%");
         }
     }
 
     // calc frequency if possible and display it
     void drawFrequency(Graphics g) {
-        // try to get frequency
-        // get average
-        double avg = 0;
-        int i;
         ScopePlot plot = visiblePlots.firstElement();
         int ipa = plot.ptr + scopePointCount - rect.width;
         double[] minV = plot.minValues;
         double[] maxV = plot.maxValues;
-        for (i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            avg += minV[ip] + maxV[ip];
-        }
-        avg /= i * 2;
-        int state = 0;
-        double thresh = avg * .05;
-        int oi = 0;
-        double avperiod = 0;
-        int periodct = -1;
-        double avperiod2 = 0;
-        // count period lengths
-        for (i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            double q = maxV[ip] - avg;
-            int os = state;
-            if (q < thresh) {
-                state = 1;
-            } else if (q > -thresh) {
-                state = 2;
-            }
-            if (state == 2 && os == 1) {
-                int pd = i - oi;
-                oi = i;
-                // short periods can't be counted properly
-                if (pd < 12) {
-                    continue;
-                }
-                // skip first period, it might be too short
-                if (periodct >= 0) {
-                    avperiod += pd;
-                    avperiod2 += pd * pd;
-                }
-                periodct++;
-            }
-        }
-        avperiod /= periodct;
-        avperiod2 /= periodct;
-        double periodstd = Math.sqrt(avperiod2 - avperiod * avperiod);
-        double freq = 1 / (avperiod * cirSim.simulator.maxTimeStep * speed);
-        // don't show freq if standard deviation is too great
-        if (periodct < 1 || periodstd > 2) {
-            freq = 0;
-        }
-        // System.out.println(freq + " " + periodstd + " " + periodct);
-        if (freq != 0) {
-            drawInfoText(g, CircuitElm.getUnitText(freq, "Hz"));
+
+        double avg = CircuitMath.calculateAverage(rect.width, ipa, scopePointCount, minV, maxV);
+        CircuitMath.FreqData freqData = CircuitMath.calculateFrequency(rect.width, ipa, scopePointCount, maxV, avg, cirSim.simulator.maxTimeStep, speed);
+
+        if (freqData.freq != 0) {
+            drawInfoText(g, CircuitElm.getUnitText(freqData.freq, "Hz"));
         }
     }
 
