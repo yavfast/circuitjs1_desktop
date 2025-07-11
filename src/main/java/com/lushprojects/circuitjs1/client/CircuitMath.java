@@ -245,76 +245,78 @@ public class CircuitMath {
     }
 
     /**
-     * Calculates RMS and average values of a signal over full cycles.
+     * Calculates RMS and average values of a signal over a series of full, stable cycles.
+     *
+     * @param viewWidth      The number of samples visible in the scope view.
+     * @param startIndex     The starting index in the ring buffer for the visible samples.
+     * @param ringBufferSize The total size of the scope's ring buffer.
+     * @param maxValues      The array of maximum voltage/current values from the scope plot.
+     * @param minValues      The array of minimum voltage/current values from the scope plot.
+     * @param midpoint       The vertical center of the waveform, used to detect zero crossings.
+     * @return A WaveformMetrics object containing the calculated RMS and average values, and a validity flag.
      */
-    public static WaveformMetrics calculateWaveformMetrics(int width, int ipa, int scopePointCount, double[] maxV, double[] minV, double mid) {
-        int i;
-        int state = -1;
+    public static WaveformMetrics calculateWaveformMetrics(int viewWidth, int startIndex, int ringBufferSize, double[] maxValues, double[] minValues, double midpoint) {
+        int crossingState = 0; // 1 for below midpoint, 2 for above
+        int previousState;
 
-        // skip zeroes
-        for (i = 0; i != width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] != 0) {
-                if (maxV[ip] > mid) {
-                    state = 1;
-                }
-                break;
-            }
-        }
-        int firstState = -state;
-        int start = i;
-        int end = 0;
-        int waveCount = 0;
-        double endRmsAvg = 0;
-        double endAvg = 0;
-        double rmsAvg = 0;
-        double avg = 0;
-        for (; i != width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            boolean sw = false;
+        int firstCycleStartIndex = -1;
+        int lastCycleEndIndex = -1;
+        int cyclesFound = 0;
 
-            // switching polarity?
-            if (state == 1) {
-                if (maxV[ip] < mid) {
-                    sw = true;
-                }
-            } else if (minV[ip] > mid) {
-                sw = true;
+        // Pass 1: Identify the boundaries of a block of full cycles.
+        for (int i = 0; i < viewWidth; i++) {
+            int bufferIndex = (i + startIndex) & (ringBufferSize - 1);
+            double value = (maxValues[bufferIndex] + minValues[bufferIndex]) * 0.5;
+            previousState = crossingState;
+
+            if (value < midpoint) {
+                crossingState = 1;
+            } else {
+                crossingState = 2;
             }
 
-            if (sw) {
-                state = -state;
-
-                // completed a full cycle?
-                if (firstState == state) {
-                    if (waveCount == 0) {
-                        start = i;
-                        firstState = state;
-                        rmsAvg = 0;
-                        avg = 0;
-                    }
-                    waveCount++;
-                    end = i;
-                    endRmsAvg = rmsAvg;
-                    endAvg = avg;
+            // Detect a rising edge, which marks a cycle boundary.
+            if (crossingState == 2 && previousState == 1) {
+                if (firstCycleStartIndex == -1) {
+                    // Found the start of the first potential cycle.
+                    firstCycleStartIndex = i;
+                } else {
+                    // Found the end of a cycle.
+                    lastCycleEndIndex = i;
+                    cyclesFound++;
                 }
-            }
-            if (waveCount > 0) {
-                double m = (maxV[ip] + minV[ip]) * .5;
-                rmsAvg += m * m;
-                avg += m;
             }
         }
 
-        WaveformMetrics res = new WaveformMetrics();
-        if (waveCount > 1 && end > start) {
-            res.rms = Math.sqrt(endRmsAvg / (end - start));
-            res.average = endAvg / (end - start);
-            res.valid = true;
-        } else {
-            res.valid = false;
+        WaveformMetrics result = new WaveformMetrics();
+        result.valid = false;
+
+        // We need at least one full, stable cycle to perform the calculation.
+        if (cyclesFound < 1) {
+            return result;
         }
-        return res;
+
+        double sumOfValues = 0;
+        double sumOfSquares = 0;
+        int samplesInCycles = lastCycleEndIndex - firstCycleStartIndex;
+
+        if (samplesInCycles <= 0) {
+            return result;
+        }
+
+        // Pass 2: Calculate metrics ONLY over the identified block of full cycles.
+        for (int i = firstCycleStartIndex; i < lastCycleEndIndex; i++) {
+            int bufferIndex = (i + startIndex) & (ringBufferSize - 1);
+            double value = (maxValues[bufferIndex] + minValues[bufferIndex]) * 0.5;
+            sumOfValues += value;
+            sumOfSquares += value * value;
+        }
+
+        result.average = sumOfValues / samplesInCycles;
+        result.rms = Math.sqrt(sumOfSquares / samplesInCycles);
+        result.valid = true;
+
+        return result;
     }
 
     public static class DutyCycleInfo {

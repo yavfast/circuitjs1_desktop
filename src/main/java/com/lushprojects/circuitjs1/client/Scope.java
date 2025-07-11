@@ -1297,9 +1297,9 @@ public class Scope extends BaseCirSimDelegate {
             return;
         }
         ScopePlot plot = visiblePlots.firstElement();
-        int ipa = plot.ptr + scopePointCount - rect.width;
-        double mid = (maxValue + minValue) / 2;
-        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
+        int startIndex = plot.ptr + scopePointCount - rect.width;
+        double midpoint = (maxValue + minValue) / 2;
+        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
         if (metrics.valid) {
             drawInfoText(g, plot.getUnitText(metrics.rms) + "rms");
@@ -1350,9 +1350,9 @@ public class Scope extends BaseCirSimDelegate {
 
     void drawAverage(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int ipa = plot.ptr + scopePointCount - rect.width;
-        double mid = (maxValue + minValue) / 2;
-        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
+        int startIndex = plot.ptr + scopePointCount - rect.width;
+        double midpoint = (maxValue + minValue) / 2;
+        CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
         if (metrics.valid) {
             drawInfoText(g, plot.getUnitText(metrics.average) + Locale.LS(" average"));
