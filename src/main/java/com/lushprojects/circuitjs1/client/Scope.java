@@ -1361,9 +1361,9 @@ public class Scope extends BaseCirSimDelegate {
 
     void drawDutyCycle(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int ipa = plot.ptr + scopePointCount - rect.width;
-        double mid = (maxValue + minValue) / 2;
-        CircuitMath.DutyCycleInfo info = CircuitMath.calculateDutyCycle(rect.width, ipa, scopePointCount, plot.maxValues, plot.minValues, mid);
+        int startIndex = plot.ptr + scopePointCount - rect.width;
+        double midpoint = (maxValue + minValue) / 2;
+        CircuitMath.DutyCycleInfo info = CircuitMath.calculateDutyCycle(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
         if (info.valid) {
             drawInfoText(g, Locale.LS("Duty cycle ") + info.dutyCycle + "%");

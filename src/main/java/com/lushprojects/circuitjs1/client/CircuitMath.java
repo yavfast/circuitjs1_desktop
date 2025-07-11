@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import java.util.ArrayList;
+
 public class CircuitMath {
 
     public static boolean isConverged(double v1, double v2) {
@@ -325,67 +327,89 @@ public class CircuitMath {
     }
 
     /**
-     * Calculates the duty cycle of a signal.
+     * Calculates the duty cycle of a signal by averaging over complete cycles.
+     *
+     * @param viewWidth      The number of samples visible in the scope view.
+     * @param startIndex     The starting index in the ring buffer for the visible samples.
+     * @param ringBufferSize The total size of the scope's ring buffer.
+     * @param maxValues      The array of maximum voltage/current values from the scope plot.
+     * @param minValues      The array of minimum voltage/current values from the scope plot.
+     * @param midpoint       The vertical center of the waveform, used to detect zero crossings.
+     * @return A DutyCycleInfo object containing the calculated duty cycle and a validity flag.
      */
-    public static DutyCycleInfo calculateDutyCycle(int width, int ipa, int scopePointCount, double[] maxV, double[] minV, double mid) {
-        int i;
-        int state = -1;
+    public static DutyCycleInfo calculateDutyCycle(int viewWidth, int startIndex, int ringBufferSize, double[] maxValues, double[] minValues, double midpoint) {
+        int crossingState = 0; // 1 for below midpoint, 2 for above
+        int previousState;
 
-        // skip zeroes
-        for (i = 0; i != width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] != 0) {
-                if (maxV[ip] > mid) {
-                    state = 1;
-                }
-                break;
-            }
-        }
-        int firstState = 1;
-        int start = i;
-        int end = 0;
-        int waveCount = 0;
-        int dutyLen = 0;
-        int middle = 0;
-        for (; i != width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            boolean sw = false;
+        int[] risingEdges = new int[viewWidth];
+        int[] fallingEdges = new int[viewWidth];
+        int risingEdgeCount = 0;
+        int fallingEdgeCount = 0;
 
-            // switching polarity?
-            if (state == 1) {
-                if (maxV[ip] < mid) {
-                    sw = true;
-                }
-            } else if (minV[ip] > mid) {
-                sw = true;
+        // Pass 1: Find all rising and falling edges.
+        for (int i = 0; i < viewWidth; i++) {
+            int bufferIndex = (i + startIndex) & (ringBufferSize - 1);
+            double value = (maxValues[bufferIndex] + minValues[bufferIndex]) * 0.5;
+            previousState = crossingState;
+
+            if (value < midpoint) {
+                crossingState = 1;
+            } else {
+                crossingState = 2;
             }
 
-            if (sw) {
-                state = -state;
-
-                // completed a full cycle?
-                if (firstState == state) {
-                    if (waveCount == 0) {
-                        start = end = i;
-                    } else {
-                        end = start;
-                        start = i;
-                        dutyLen = end - middle;
-                    }
-                    waveCount++;
-                } else {
-                    middle = i;
-                }
+            if (previousState == 1 && crossingState == 2) {
+                if (risingEdgeCount < viewWidth) risingEdges[risingEdgeCount++] = i;
+            } else if (previousState == 2 && crossingState == 1) {
+                if (fallingEdgeCount < viewWidth) fallingEdges[fallingEdgeCount++] = i;
             }
         }
-        DutyCycleInfo res = new DutyCycleInfo();
-        if (waveCount > 1 && end > start) {
-            res.dutyCycle = 100 * dutyLen / (end - start);
-            res.valid = true;
-        } else {
-            res.valid = false;
+
+        DutyCycleInfo result = new DutyCycleInfo();
+        result.valid = false;
+
+        if (risingEdgeCount == 0 || fallingEdgeCount == 0) {
+            return result;
         }
-        return res;
+
+        double totalPulseWidth = 0;
+        double totalPeriod = 0;
+        int completeCycles = 0;
+
+        // Pass 2: Calculate average pulse width and period.
+        // We iterate through rising edges to define the start of each period.
+        for (int i = 0; i < risingEdgeCount - 1; i++) {
+            int risingEdge1 = risingEdges[i];
+            int risingEdge2 = risingEdges[i + 1];
+
+            // Find the corresponding falling edge within this period.
+            Integer correspondingFallingEdge = null;
+            for (int j = 0; j < fallingEdgeCount; j++) {
+                int fallingEdge = fallingEdges[j];
+                if (fallingEdge > risingEdge1 && fallingEdge < risingEdge2) {
+                    correspondingFallingEdge = fallingEdge;
+                    break;
+                }
+            }
+
+            if (correspondingFallingEdge != null) {
+                totalPulseWidth += correspondingFallingEdge - risingEdge1;
+                totalPeriod += risingEdge2 - risingEdge1;
+                completeCycles++;
+            }
+        }
+
+        if (completeCycles > 0) {
+            double averagePulseWidth = totalPulseWidth / completeCycles;
+            double averagePeriod = totalPeriod / completeCycles;
+
+            if (averagePeriod > 0) {
+                result.dutyCycle = (int) (100 * averagePulseWidth / averagePeriod);
+                result.valid = true;
+            }
+        }
+
+        return result;
     }
 
 }
