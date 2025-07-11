@@ -162,66 +162,80 @@ public class CircuitMath {
     }
 
     public static class FreqData {
-        public double freq;
-        public double periodstd;
-        public int periodct;
+        public double frequency;
+        public double periodStandardDeviation;
+        public int periodCount;
     }
 
     /**
      * Calculates the frequency of a signal from scope data.
+     *
+     * @param viewWidth          The number of samples visible in the scope view.
+     * @param startIndex         The starting index in the ring buffer for the visible samples.
+     * @param ringBufferSize     The total size of the scope's ring buffer.
+     * @param maxValues          The array of maximum voltage/current values from the scope plot.
+     * @param averageValue       The average value of the signal, used for thresholding.
+     * @param simulationTimeStep The time step of the circuit simulation.
+     * @param scopeSpeed         The speed setting of the scope.
+     * @return A FreqData object containing the calculated frequency, standard deviation, and period count.
      */
-    public static FreqData calculateFrequency(int width, int ipa, int scopePointCount, double[] maxV, double avg, double timeStep, int speed) {
-        int state = 0;
-        double thresh = avg * .05;
-        int i;
-        int oi = 0;
-        double avperiod = 0;
-        int periodct = -1;
-        double avperiod2 = 0;
-        // count period lengths
-        for (i = 0; i != width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            double q = maxV[ip] - avg;
-            int os = state;
-            if (q < thresh) {
-                state = 1;
-            } else if (q > -thresh) {
-                state = 2;
+    public static FreqData calculateFrequency(int viewWidth, int startIndex, int ringBufferSize, double[] maxValues, double averageValue, double simulationTimeStep, int scopeSpeed) {
+        int crossingState = 0; // 1 for below threshold, 2 for above
+        double threshold = averageValue * 0.05;
+        int lastCrossingIndex = 0;
+        double totalPeriodInSamples = 0;
+        int periodCount = 0;
+        double totalPeriodInSamplesSquared = 0;
+        boolean isFirstEdgeFound = false;
+
+        // count period lengths by detecting rising edges
+        for (int sampleIndex = 0; sampleIndex != viewWidth; sampleIndex++) {
+            int ringBufferIndex = (sampleIndex + startIndex) & (ringBufferSize - 1);
+            double valueRelativeToAverage = maxValues[ringBufferIndex] - averageValue;
+            int previousState = crossingState;
+
+            if (valueRelativeToAverage < threshold) {
+                crossingState = 1;
+            } else if (valueRelativeToAverage > -threshold) {
+                crossingState = 2;
             }
-            if (state == 2 && os == 1) {
-                int pd = i - oi;
-                oi = i;
-                // short periods can't be counted properly
-                if (pd < 12) {
-                    continue;
+
+            // Check for a rising edge (transition from state 1 to 2)
+            if (crossingState == 2 && previousState == 1) {
+                if (isFirstEdgeFound) {
+                    int periodDurationInSamples = sampleIndex - lastCrossingIndex;
+
+                    // Short periods can't be counted properly, so filter them out.
+                    if (periodDurationInSamples >= 12) {
+                        totalPeriodInSamples += periodDurationInSamples;
+                        totalPeriodInSamplesSquared += periodDurationInSamples * periodDurationInSamples;
+                        periodCount++;
+                    }
+                } else {
+                    isFirstEdgeFound = true;
                 }
-                // skip first period, it might be too short
-                if (periodct >= 0) {
-                    avperiod += pd;
-                    avperiod2 += pd * pd;
-                }
-                periodct++;
+                lastCrossingIndex = sampleIndex;
             }
         }
 
-        FreqData res = new FreqData();
-        if (periodct > 0) {
-            avperiod /= periodct;
-            avperiod2 /= periodct;
-            res.periodstd = Math.sqrt(avperiod2 - avperiod * avperiod);
-            res.freq = 1 / (avperiod * timeStep * speed);
-            res.periodct = periodct;
+        FreqData result = new FreqData();
+        if (periodCount > 0) {
+            double averagePeriod = totalPeriodInSamples / periodCount;
+            double averagePeriodSquared = totalPeriodInSamplesSquared / periodCount;
+            result.periodStandardDeviation = Math.sqrt(averagePeriodSquared - averagePeriod * averagePeriod);
+            result.frequency = 1 / (averagePeriod * simulationTimeStep * scopeSpeed);
+            result.periodCount = periodCount;
         } else {
-            res.freq = 0;
-            res.periodstd = 0;
-            res.periodct = 0;
+            result.frequency = 0;
+            result.periodStandardDeviation = 0;
+            result.periodCount = 0;
         }
 
-        // don't show freq if standard deviation is too great
-        if (res.periodct < 1 || res.periodstd > 2) {
-            res.freq = 0;
+        // Don't show frequency if standard deviation is too great, as it indicates an unstable signal.
+        if (result.periodCount < 1 || result.periodStandardDeviation > 2) {
+            result.frequency = 0;
         }
-        return res;
+        return result;
     }
 
     public static class WaveformMetrics {

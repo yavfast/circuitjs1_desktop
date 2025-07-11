@@ -1380,8 +1380,8 @@ public class Scope extends BaseCirSimDelegate {
         double avg = CircuitMath.calculateAverage(rect.width, ipa, scopePointCount, minV, maxV);
         CircuitMath.FreqData freqData = CircuitMath.calculateFrequency(rect.width, ipa, scopePointCount, maxV, avg, cirSim.simulator.maxTimeStep, speed);
 
-        if (freqData.freq != 0) {
-            drawInfoText(g, CircuitElm.getUnitText(freqData.freq, "Hz"));
+        if (freqData.frequency != 0) {
+            drawInfoText(g, CircuitElm.getUnitText(freqData.frequency, "Hz"));
         }
     }
 
