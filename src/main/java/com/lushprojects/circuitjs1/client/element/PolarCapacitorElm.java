@@ -13,8 +13,7 @@ public class PolarCapacitorElm extends CapacitorElm {
         maxNegativeVoltage = 1;
     }
 
-    public PolarCapacitorElm(int xa, int ya, int xb, int yb, int f,
-                             StringTokenizer st) {
+    public PolarCapacitorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         maxNegativeVoltage = parseDouble(st.nextToken());
     }
@@ -52,30 +51,32 @@ public class PolarCapacitorElm extends CapacitorElm {
         g.setColor(backgroundColor);
         g.setFont(unitsFont);
         int w = (int) g.context.measureText("+").getWidth();
-        ;
         g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
     }
 
-    public void getInfo(String arr[]) {
+    public void getInfo(String[] arr) {
         super.getInfo(arr);
         arr[0] = "capacitor (polarized)";
     }
 
     public EditInfo getEditInfo(int n) {
-        if (n == 4)
+        if (n == 4) {
             return new EditInfo("Max Reverse Voltage", maxNegativeVoltage, 0, 0);
+        }
         return super.getEditInfo(n);
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        if (n == 4 && ei.value >= 0)
+        if (n == 4 && ei.value >= 0) {
             maxNegativeVoltage = ei.value;
+        }
         super.setEditValue(n, ei);
     }
 
     public void stepFinished() {
-        if (getVoltageDiff() < 0 && getVoltageDiff() < -maxNegativeVoltage)
+        if (getVoltageDiff() < 0 && getVoltageDiff() < -maxNegativeVoltage) {
             simulator.stop("capacitor exceeded max reverse voltage", this);
+        }
         super.stepFinished();
     }
 

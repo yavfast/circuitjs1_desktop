@@ -28,6 +28,10 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CapacitorElm extends CircuitElm {
+
+    public static final int FLAG_BACK_EULER = 2;
+    public static final int FLAG_RESISTANCE = 4;
+
     public double capacitance;
     double compResistance;
     double voltDiff;
@@ -36,8 +40,6 @@ public class CapacitorElm extends CircuitElm {
     int capNode2;
     Point[] plate1;
     Point[] plate2;
-    public static final int FLAG_BACK_EULER = 2;
-    public static final int FLAG_RESISTANCE = 4;
 
     public CapacitorElm(int xx, int yy) {
         super(xx, yy);
@@ -113,11 +115,10 @@ public class CapacitorElm extends CircuitElm {
         setVoltageColor(g, volts[1]);
         drawThickLine(g, point2, lead2);
         setPowerColor(g, false);
-        if (platePoints == null)
+        if (platePoints == null) {
             drawThickLine(g, plate2[0], plate2[1]);
-        else {
-            int i;
-            for (i = 0; i != platePoints.length - 1; i++)
+        } else {
+            for (int i = 0; i != platePoints.length - 1; i++)
                 drawThickLine(g, platePoints[i], platePoints[i + 1]);
         }
 
@@ -126,7 +127,9 @@ public class CapacitorElm extends CircuitElm {
             drawDots(g, point1, lead1, curcount);
             drawDots(g, point2, lead2, -curcount);
         }
+
         drawPosts(g);
+
         if (simUi.menuManager.showValuesCheckItem.getState()) {
             String s = getShortUnitText(capacitance, "F");
             drawValues(g, s, hs);
@@ -223,34 +226,41 @@ public class CapacitorElm extends CircuitElm {
     }
 
     public EditInfo getEditInfo(int n) {
-        if (n == 0)
-            return new EditInfo("Capacitance (F)", capacitance, 1e-6, 1e-3);
-        if (n == 1) {
-            EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.checkbox = new Checkbox("Trapezoidal Approximation", isTrapezoidal());
-            return ei;
+        switch (n) {
+            case 0:
+                return new EditInfo("Capacitance (F)", capacitance, 1e-6, 1e-3);
+            case 1:
+                EditInfo ei = new EditInfo("", 0, -1, -1);
+                ei.checkbox = new Checkbox("Trapezoidal Approximation", isTrapezoidal());
+                return ei;
+            case 2:
+                return new EditInfo("Initial Voltage (on Reset)", initialVoltage);
+            case 3:
+                return new EditInfo("Series Resistance (0 = infinite)", seriesResistance);
         }
-        if (n == 2)
-            return new EditInfo("Initial Voltage (on Reset)", initialVoltage);
-        if (n == 3)
-            return new EditInfo("Series Resistance (0 = infinite)", seriesResistance);
         // if you add more things here, check PolarCapacitorElm
         return null;
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        if (n == 0)
-            capacitance = (ei.value > 0) ? ei.value : 1e-12;
-        if (n == 1) {
-            if (ei.checkbox.getState())
-                flags &= ~FLAG_BACK_EULER;
-            else
-                flags |= FLAG_BACK_EULER;
+        switch (n) {
+            case 0:
+                capacitance = (ei.value > 0) ? ei.value : 1e-12;
+                break;
+            case 1:
+                if (ei.checkbox.getState()) {
+                    flags &= ~FLAG_BACK_EULER;
+                } else {
+                    flags |= FLAG_BACK_EULER;
+                }
+                break;
+            case 2:
+                initialVoltage = ei.value;
+                break;
+            case 3:
+                seriesResistance = ei.value;
+                break;
         }
-        if (n == 2)
-            initialVoltage = ei.value;
-        if (n == 3)
-            seriesResistance = ei.value;
     }
 
     public int getShortcut() {
