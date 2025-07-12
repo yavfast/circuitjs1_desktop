@@ -16,18 +16,20 @@ import java.util.Arrays;
 
 public class CircuitRenderer extends BaseCirSimDelegate {
 
-    Canvas cv;
-    Context2d cvcontext;
+    private Canvas canvas;
+    private Context2d canvasContext;
 
     // canvas width/height in px (before device pixel ratio scaling)
-    int canvasWidth, canvasHeight;
+    public int canvasWidth, canvasHeight;
 
-    public boolean analyzeFlag;
+    public boolean needsAnalysis;
 
-    long lastTime = 0;
-    long lastFrameTime, secTime = 0;
-    int frames = 0;
-    int framerate = 0, steprate = 0;
+    private long lastTimeMillis = 0;
+    private long lastFrameTimeMillis;
+    private long lastSecondTimeMillis = 0;
+    private int frameCount = 0;
+    private int framesPerSecond = 0;
+    private int stepsPerSecond = 0;
 
     int hintType = -1, hintItem1, hintItem2;
 
@@ -40,69 +42,84 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         super(cirSim);
     }
 
+    public void needsAnalysis() {
+        needsAnalysis = true;
+    }
+
+    public void reset() {
+        needsAnalysis = false;
+    }
+
+    public long getLastFrameTime() {
+        return lastFrameTimeMillis;
+    }
+
     public Canvas initCanvas() {
-        if (cv == null) {
-            cv = Canvas.createIfSupported();
-            if (cv != null) {
-                cvcontext = cv.getContext2d();
+        if (canvas == null) {
+            canvas = Canvas.createIfSupported();
+            if (canvas != null) {
+                canvasContext = canvas.getContext2d();
             }
         }
-        return cv;
+        return canvas;
     }
 
     void setCanvasSize(int width, int height) {
-        if (cv != null) {
-            cv.setWidth(width + "PX");
-            cv.setHeight(height + "PX");
+        if (canvas != null) {
+            canvas.setWidth(width + "px");
+            canvas.setHeight(height + "px");
             canvasWidth = width;
             canvasHeight = height;
             float scale = CirSim.devicePixelRatio();
-            cv.setCoordinateSpaceWidth((int) (width * scale));
-            cv.setCoordinateSpaceHeight((int) (height * scale));
+            canvas.setCoordinateSpaceWidth((int) (width * scale));
+            canvas.setCoordinateSpaceHeight((int) (height * scale));
         }
     }
 
+    public Canvas getCanvas() {
+        return canvas;
+    }
+
     void checkCanvasSize() {
-        if (cv.getCoordinateSpaceWidth() != (int) (canvasWidth * CirSim.devicePixelRatio()))
+        if (canvas.getCoordinateSpaceWidth() != (int) (canvasWidth * CirSim.devicePixelRatio())) {
             cirSim.setCanvasSize();
+        }
     }
 
     void setCircuitArea() {
         int height = canvasHeight;
         int width = canvasWidth;
-        int h = (int) ((double) height * scopeHeightFraction);
+        int scopesHeight = (int) ((double) height * scopeHeightFraction);
         if (cirSim.scopeManager.scopeCount == 0) {
-            h = 0;
+            scopesHeight = 0;
         }
-        circuitArea = new Rectangle(0, 0, width, height - h);
+        circuitArea = new Rectangle(0, 0, width, height - scopesHeight);
     }
 
-    void zoomCircuit(double dy) {
-        zoomCircuit(dy, false);
+    void zoomCircuit(double zoomIncrement) {
+        zoomCircuit(zoomIncrement, false);
     }
 
-    void zoomCircuit(double dy, boolean menu) {
-        double newScale;
+    void zoomCircuit(double zoomIncrement, boolean fromMenu) {
         double oldScale = transform[0];
-        double val = dy * .01;
-        newScale = Math.max(oldScale + val, .2);
+        double zoomFactor = zoomIncrement * 0.01;
+        double newScale = Math.max(oldScale + zoomFactor, 0.2);
         newScale = Math.min(newScale, 2.5);
-        setCircuitScale(newScale, menu);
+        setCircuitScale(newScale, fromMenu);
     }
 
-    void setCircuitScale(double newScale, boolean menu) {
-        int constX = !menu ? circuitEditor().mouseCursorX : circuitArea.width / 2;
-        int constY = !menu ? circuitEditor().mouseCursorY : circuitArea.height / 2;
-        int cx = inverseTransformX(constX);
-        int cy = inverseTransformY(constY);
+    void setCircuitScale(double newScale, boolean fromMenu) {
+        int zoomCenterX = !fromMenu ? circuitEditor().mouseCursorX : circuitArea.width / 2;
+        int zoomCenterY = !fromMenu ? circuitEditor().mouseCursorY : circuitArea.height / 2;
+        int gridX = inverseTransformX(zoomCenterX);
+        int gridY = inverseTransformY(zoomCenterY);
         transform[0] = transform[3] = newScale;
 
         // adjust translation to keep center of screen constant
-        // inverse transform = (x-t4)/t0
-        transform[4] = constX - cx * newScale;
-        transform[5] = constY - cy * newScale;
+        // inverse transform = (x - t4) / t0
+        transform[4] = zoomCenterX - gridX * newScale;
+        transform[5] = zoomCenterY - gridY * newScale;
     }
-
 
     // convert screen coordinates to grid coordinates by inverting circuit transform
     int inverseTransformX(double x) {
@@ -122,9 +139,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         return (int) ((y * transform[3]) + transform[5]);
     }
 
-
-    boolean needsRepaint;
-    final int FASTTIMER = 16;
+    private boolean needsRepaint = false;
+    final static int FAST_TIMER = 16;
 
     final Timer timer = new Timer() {
         public void run() {
@@ -133,7 +149,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     };
 
     void startTimer() {
-        timer.scheduleRepeating(FASTTIMER);
+        timer.scheduleRepeating(FAST_TIMER);
     }
 
     void stopTimer() {
@@ -147,27 +163,27 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 updateCircuit();
                 needsRepaint = false;
                 return false;
-            }, FASTTIMER);
+            }, FAST_TIMER);
         }
     }
 
+    private final PerfMonitor perfmon = new PerfMonitor();
+
     public void updateCircuit() {
-        PerfMonitor perfmon = new PerfMonitor();
+        perfmon.reset();
         perfmon.startContext("updateCircuit()");
 
         checkCanvasSize();
 
         CircuitSimulator simulator = simulator();
-        // Analyze circuit
-        boolean didAnalyze = analyzeFlag;
-        if (analyzeFlag || cirSim.circuitInfo.dcAnalysisFlag) {
+        boolean wasAnalyzed = needsAnalysis;
+        if (needsAnalysis || cirSim.circuitInfo.dcAnalysisFlag) {
             perfmon.startContext("analyzeCircuit()");
             simulator.analyzeCircuit();
-            analyzeFlag = false;
+            needsAnalysis = false;
             perfmon.stopContext();
         }
 
-        // Stamp circuit
         if (simulator.needsStamp && simulator.simRunning) {
             perfmon.startContext("stampCircuit()");
             try {
@@ -184,236 +200,245 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         cirSim.scopeManager.setupScopes();
 
-        Graphics g = new Graphics(cvcontext);
+        Graphics graphics = new Graphics(canvasContext);
+        setupFrame(graphics);
 
-        if (cirSim.menuManager.printableCheckItem.getState()) {
-            CircuitElm.backgroundColor = Color.black;
-            CircuitElm.elementColor = Color.black;
-            g.setColor(Color.white);
-            cv.getElement().getStyle().setBackgroundColor("#fff");
-        } else {
-            CircuitElm.backgroundColor = Color.white;
-            CircuitElm.elementColor = Color.lightGray;
-            g.setColor(Color.black);
-            cv.getElement().getStyle().setBackgroundColor("#000");
-        }
-
-        // Clear the frame
-        g.fillRect(0, 0, canvasWidth, canvasHeight);
-
-        // Run circuit
         if (simulator.simRunning) {
-            if (simulator.needsStamp)
+            if (simulator.needsStamp) {
                 CirSim.console("needsStamp while simRunning?");
+            }
 
             perfmon.startContext("runCircuit()");
             try {
-                simulator.runCircuit(didAnalyze);
+                simulator.runCircuit(wasAnalyzed);
             } catch (Exception e) {
-                CirSim.debugger();
                 CirSim.console("exception in runCircuit " + e);
-                e.printStackTrace();
             }
             perfmon.stopContext();
         }
 
+        updateSimulationTimers(simulator);
+
+        perfmon.startContext("graphics");
+        drawCircuit(graphics, simulator);
+        perfmon.stopContext(); // graphics
+
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm)
+            simulator.stopElm.setMouseElm(false);
+
+        frameCount++;
+
+        if (cirSim.circuitInfo.dcAnalysisFlag) {
+            cirSim.circuitInfo.dcAnalysisFlag = false;
+            needsAnalysis = true;
+        }
+
+        lastFrameTimeMillis = lastTimeMillis;
+        perfmon.stopContext(); // updateCircuit
+
+        if (cirSim.circuitInfo.developerMode) {
+            drawDeveloperInfo(graphics, perfmon);
+        }
+
+        if (cirSim.menuManager.mouseModeCheckItem.getState()) {
+            drawMouseMode(graphics);
+        }
+
+        cirSim.callUpdateHook();
+    }
+
+    private void setupFrame(Graphics graphics) {
+        if (cirSim.menuManager.printableCheckItem.getState()) {
+            CircuitElm.backgroundColor = Color.black;
+            CircuitElm.elementColor = Color.black;
+            graphics.setColor(Color.white);
+            canvas.getElement().getStyle().setBackgroundColor("#fff");
+        } else {
+            CircuitElm.backgroundColor = Color.white;
+            CircuitElm.elementColor = Color.lightGray;
+            graphics.setColor(Color.black);
+            canvas.getElement().getStyle().setBackgroundColor("#000");
+        }
+        graphics.fillRect(0, 0, canvasWidth, canvasHeight);
+    }
+
+    private void updateSimulationTimers(CircuitSimulator simulator) {
         long sysTime = System.currentTimeMillis();
         if (simulator.simRunning) {
-            if (lastTime != 0) {
-                int inc = (int) (sysTime - lastTime);
-                double c = cirSim.currentBar.getValue();
-                c = java.lang.Math.exp(c / 3.5 - 14.2);
-                CircuitElm.currentMult = 1.7 * inc * c;
+            if (lastTimeMillis != 0) {
+                int timeDelta = (int) (sysTime - lastTimeMillis);
+                double currentSpeed = cirSim.currentBar.getValue();
+                currentSpeed = java.lang.Math.exp(currentSpeed / 3.5 - 14.2);
+                CircuitElm.currentMult = 1.7 * timeDelta * currentSpeed;
                 if (!cirSim.menuManager.conventionCheckItem.getState())
                     CircuitElm.currentMult = -CircuitElm.currentMult;
             }
-            lastTime = sysTime;
+            lastTimeMillis = sysTime;
         } else {
-            lastTime = 0;
+            lastTimeMillis = 0;
         }
 
-        if (sysTime - secTime >= 1000) {
-            framerate = frames;
-            steprate = simulator.steps;
-            frames = 0;
+        if (sysTime - lastSecondTimeMillis >= 1000) {
+            framesPerSecond = frameCount;
+            stepsPerSecond = simulator.steps;
+            frameCount = 0;
             simulator.steps = 0;
-            secTime = sysTime;
+            lastSecondTimeMillis = sysTime;
         }
 
         CircuitElm.powerMult = Math.exp(cirSim.powerBar.getValue() / 4.762 - 7);
+    }
 
-        perfmon.startContext("graphics");
-
-        g.setFont(CircuitElm.unitsFont);
-
-        g.context.setLineCap(Context2d.LineCap.ROUND);
+    private void drawCircuit(Graphics graphics, CircuitSimulator simulator) {
+        graphics.setFont(CircuitElm.unitsFont);
+        graphics.setLineCap(Context2d.LineCap.ROUND);
 
         if (cirSim.menuManager.noEditCheckItem.getState())
-            g.drawLock(20, 30);
+            graphics.drawLock(20, 30);
 
-        g.setColor(Color.white);
+        graphics.setColor(Color.white);
 
-        // Set the graphics transform to deal with zoom and offset
         double scale = CirSim.devicePixelRatio();
-        cvcontext.setTransform(transform[0] * scale, 0, 0, transform[3] * scale, transform[4] * scale, transform[5] * scale);
+        canvasContext.setTransform(transform[0] * scale, 0, 0, transform[3] * scale, transform[4] * scale, transform[5] * scale);
 
-        // Draw each element
+        drawElements(graphics, simulator);
+        drawHandles(graphics);
+        drawBadConnections(graphics, simulator);
+        drawSelectionAndCursor(graphics);
+
+        canvasContext.setTransform(scale, 0, 0, scale, 0, 0);
+
+        drawBottomArea(graphics);
+    }
+
+    private void drawElements(Graphics graphics, CircuitSimulator simulator) {
         perfmon.startContext("elm.draw()");
         for (int i = 0; i != simulator.elmList.size(); i++) {
             if (cirSim.menuManager.powerCheckItem.getState())
-                g.setColor(Color.gray);
-
-            simulator.elmList.get(i).draw(g);
+                graphics.setColor(Color.gray);
+            simulator.elmList.get(i).draw(graphics);
         }
         perfmon.stopContext();
 
         CircuitEditor circuitEditor = circuitEditor();
-        // Draw posts normally
         if (circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_COLUMN) {
             for (int i = 0; i != simulator.postDrawList.size(); i++)
-                CircuitElm.drawPost(g, simulator.postDrawList.get(i));
+                CircuitElm.drawPost(graphics, simulator.postDrawList.get(i));
         }
 
-        // for some mouse modes, what matters is not the posts but the endpoints (which
-        // are only the same for 2-terminal elements). We draw those now if needed
         if (circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_ROW ||
                 circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_COLUMN ||
                 circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_POST ||
                 circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_SELECTED) {
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm ce = simulator.elmList.get(i);
-                // ce.drawPost(g, ce.x , ce.y );
-                // ce.drawPost(g, ce.x2, ce.y2);
                 if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != CircuitEditor.MODE_DRAG_POST) {
-                    g.setColor(Color.gray);
-                    g.fillOval(ce.x - 3, ce.y - 3, 7, 7);
-                    g.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
+                    graphics.setColor(Color.gray);
+                    graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
+                    graphics.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
                 } else {
-                    ce.drawHandles(g, CircuitElm.selectColor);
+                    ce.drawHandles(graphics, CircuitElm.selectColor);
                 }
             }
         }
+    }
 
-        // draw handles for elm we're creating
+    private void drawHandles(Graphics graphics) {
+        CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.tempMouseMode == CircuitEditor.MODE_SELECT && circuitEditor.mouseElm != null) {
-            circuitEditor.mouseElm.drawHandles(g, CircuitElm.selectColor);
+            circuitEditor.mouseElm.drawHandles(graphics, CircuitElm.selectColor);
         }
 
-        // draw handles for elm we're dragging
         if (circuitEditor.dragElm != null && (circuitEditor.dragElm.x != circuitEditor.dragElm.x2 || circuitEditor.dragElm.y != circuitEditor.dragElm.y2)) {
-            circuitEditor.dragElm.draw(g);
-            circuitEditor.dragElm.drawHandles(g, CircuitElm.selectColor);
+            circuitEditor.dragElm.draw(graphics);
+            circuitEditor.dragElm.drawHandles(graphics, CircuitElm.selectColor);
         }
+    }
 
-        // draw bad connections. do this last so they will not be overdrawn.
+    private void drawBadConnections(Graphics graphics, CircuitSimulator simulator) {
         for (int i = 0; i != simulator.badConnectionList.size(); i++) {
             Point cn = simulator.badConnectionList.get(i);
-            g.setColor(Color.red);
-            g.fillOval(cn.x - 3, cn.y - 3, 7, 7);
+            graphics.setColor(Color.red);
+            graphics.fillOval(cn.x - 3, cn.y - 3, 7, 7);
         }
+    }
 
-        // draw the selection rect
+    private void drawSelectionAndCursor(Graphics graphics) {
+        CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.selectedArea != null) {
-            g.setColor(CircuitElm.selectColor);
-            g.drawRect(circuitEditor.selectedArea.x, circuitEditor.selectedArea.y, circuitEditor.selectedArea.width, circuitEditor.selectedArea.height);
+            graphics.setColor(CircuitElm.selectColor);
+            graphics.drawRect(circuitEditor.selectedArea.x, circuitEditor.selectedArea.y, circuitEditor.selectedArea.width, circuitEditor.selectedArea.height);
         }
 
-        // draw the crosshair cursor
         if (cirSim.menuManager.crossHairCheckItem.getState() && circuitEditor.mouseCursorX >= 0
                 && circuitEditor.mouseCursorX <= circuitArea.width && circuitEditor.mouseCursorY <= circuitArea.height) {
-            g.setColor(Color.gray);
+            graphics.setColor(Color.gray);
             int x = circuitEditor.snapGrid(inverseTransformX(circuitEditor.mouseCursorX));
             int y = circuitEditor.snapGrid(inverseTransformY(circuitEditor.mouseCursorY));
-            g.drawLine(x, inverseTransformY(0), x, inverseTransformY(circuitArea.height));
-            g.drawLine(inverseTransformX(0), y, inverseTransformX(circuitArea.width), y);
+            graphics.drawLine(x, inverseTransformY(0), x, inverseTransformY(circuitArea.height));
+            graphics.drawLine(inverseTransformX(0), y, inverseTransformX(circuitArea.width), y);
         }
+    }
 
-        // reset the graphics scale and translation
-        cvcontext.setTransform(scale, 0, 0, scale, 0, 0);
+    private void drawDeveloperInfo(Graphics graphics, PerfMonitor perfmon) {
+        int height = 45;
+        int increment = 15;
+        graphics.setColor(Color.white);
+        graphics.drawString("Framerate: " + CircuitElm.showFormat(framesPerSecond), 10, height);
+        graphics.drawString("Steprate: " + CircuitElm.showFormat(stepsPerSecond), 10, height += increment);
+        graphics.drawString("Steprate/iter: " + CircuitElm.showFormat(stepsPerSecond / cirSim.getIterCount()), 10, height += increment);
+        graphics.drawString("iterc: " + CircuitElm.showFormat(cirSim.getIterCount()), 10, height += increment);
+        graphics.drawString("Frames: " + frameCount, 10, height += increment);
 
-        // draw the bottom area i.e. the scope and info section
-        perfmon.startContext("drawBottomArea()");
-        drawBottomArea(g);
-        perfmon.stopContext();
+        height += (increment * 2);
 
-        g.setColor(Color.white);
-
-        perfmon.stopContext(); // graphics
-
-        if (simulator.stopElm != null && simulator.stopElm != circuitEditor.mouseElm)
-            simulator.stopElm.setMouseElm(false);
-
-        frames++;
-
-        // if we did DC analysis, we need to re-analyze the circuit with that flag
-        // cleared.
-        if (cirSim.circuitInfo.dcAnalysisFlag) {
-            cirSim.circuitInfo.dcAnalysisFlag = false;
-            analyzeFlag = true;
+        String perfmonResult = PerfMonitor.buildString(perfmon).toString();
+        String[] splits = perfmonResult.split("\n");
+        for (int x = 0; x < splits.length; x++) {
+            graphics.drawString(splits[x], 10, height + (increment * x));
         }
+    }
 
-        lastFrameTime = lastTime;
-
-        perfmon.stopContext(); // updateCircuit
-
-        if (cirSim.circuitInfo.developerMode) {
-            int height = 45;
-            int increment = 15;
-            g.drawString("Framerate: " + CircuitElm.showFormat(framerate), 10, height);
-            g.drawString("Steprate: " + CircuitElm.showFormat(steprate), 10, height += increment);
-            g.drawString("Steprate/iter: " + CircuitElm.showFormat(steprate / cirSim.getIterCount()), 10, height += increment);
-            g.drawString("iterc: " + CircuitElm.showFormat(cirSim.getIterCount()), 10, height += increment);
-            g.drawString("Frames: " + frames, 10, height += increment);
-
-            height += (increment * 2);
-
-            String perfmonResult = PerfMonitor.buildString(perfmon).toString();
-            String[] splits = perfmonResult.split("\n");
-            for (int x = 0; x < splits.length; x++) {
-                g.drawString(splits[x], 10, height + (increment * x));
-            }
-        }
-
-        // Add info about mouse mode in graphics
-        if (cirSim.menuManager.mouseModeCheckItem.getState()) {
-            if (cirSim.menuManager.printableCheckItem.getState()) g.setColor(Color.black);
-            g.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor.mouseModeStr), 10, 29);
-        }
-
-        // This should always be the last
-        // thing called by updateCircuit();
-        cirSim.callUpdateHook();
+    private void drawMouseMode(Graphics graphics) {
+        if (cirSim.menuManager.printableCheckItem.getState())
+            graphics.setColor(Color.black);
+        else
+            graphics.setColor(Color.white);
+        graphics.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor().mouseModeStr), 10, 29);
     }
 
     void drawBottomArea(Graphics g) {
-        int leftX = 0;
-        int h = 0;
+        int infoBoxStartX = 0;
+        int infoBoxHeight = 0;
         CircuitSimulator simulator = simulator();
         CircuitEditor circuitEditor = circuitEditor();
+
         if (simulator.stopMessage == null && cirSim.scopeManager.scopeCount == 0) {
-            leftX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
+            infoBoxStartX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
-            h = (circuitEditor.mouseElm == null) ? 70 : h0;
+            infoBoxHeight = (circuitEditor.mouseElm == null) ? 70 : h0;
             if (cirSim.circuitInfo.hideInfoBox)
-                h = 0;
+                infoBoxHeight = 0;
         }
         if (simulator.stopMessage != null && circuitArea.height > canvasHeight - 30)
-            h = 30;
+            infoBoxHeight = 30;
+
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? "#eee" : "#111");
-        g.fillRect(leftX, circuitArea.height - h, circuitArea.width, canvasHeight - circuitArea.height + h);
+        g.fillRect(infoBoxStartX, circuitArea.height - infoBoxHeight, circuitArea.width, canvasHeight - circuitArea.height + infoBoxHeight);
         g.setFont(CircuitElm.unitsFont);
-        int ct = cirSim.scopeManager.scopeCount;
-        if (simulator.stopMessage != null)
-            ct = 0;
-        int i;
+
+        int currentScopeCount = (simulator.stopMessage != null) ? 0 : cirSim.scopeManager.scopeCount;
+
         Scope.clearCursorInfo();
-        for (i = 0; i != ct; i++)
+        for (int i = 0; i < currentScopeCount; i++)
             cirSim.scopeManager.scopes[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
         if (simulator.scopeElmArr != null)
-            for (i = 0; i != simulator.scopeElmArr.length; i++)
+            for (int i = 0; i < simulator.scopeElmArr.length; i++)
                 simulator.scopeElmArr[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
-        for (i = 0; i != ct; i++)
+
+        for (int i = 0; i < currentScopeCount; i++)
             cirSim.scopeManager.scopes[i].draw(g);
+
         if (circuitEditor.mouseWasOverSplitter) {
             g.setColor(CircuitElm.selectColor);
             g.setLineWidth(4.0);
@@ -425,118 +450,116 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         if (simulator.stopMessage != null) {
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
         } else if (!cirSim.circuitInfo.hideInfoBox) {
-            // in JS it doesn't matter how big this is, there's no out-of-bounds exception
-            String info[] = new String[10];
-            if (circuitEditor.mouseElm != null) {
-                if (circuitEditor.mousePost == -1) {
-                    circuitEditor.mouseElm.getInfo(info);
-                    info[0] = Locale.LS(info[0]);
-                    if (info[1] != null)
-                        info[1] = Locale.LS(info[1]);
-                } else
-                    info[0] = "V = " +
-                            CircuitElm.getUnitText(circuitEditor.mouseElm.getPostVoltage(circuitEditor.mousePost), "V");
-//		/* //shownodes
-//		for (i = 0; i != mouseElm.getPostCount(); i++)
-//		    info[0] += " " + mouseElm.nodes[i];
-//		if (mouseElm.getVoltageSourceCount() > 0)
-//		    info[0] += ";" + (mouseElm.getVoltageSource()+nodeList.size());
-//		*/
-
-            } else {
-                info[0] = "t = " + CircuitElm.getTimeText(simulator.t);
-                double timerate = 160 * cirSim.getIterCount() * simulator.timeStep;
-                if (timerate >= .1)
-                    info[0] += " (" + CircuitElm.showFormat(timerate) + "x)";
-                info[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator.timeStep);
-            }
-            if (hintType != -1) {
-                for (i = 0; info[i] != null; i++)
-                    ;
-                String s = getHint();
-                if (s == null)
-                    hintType = -1;
-                else
-                    info[i] = s;
-            }
-            int x = leftX + 5;
-            if (ct != 0)
-                x = cirSim.scopeManager.scopes[ct - 1].rightEdge() + 20;
-//	    x = max(x, canvasWidth*2/3);
-            //  x=cv.getCoordinateSpaceWidth()*2/3;
-
-            // count lines of data
-            for (i = 0; info[i] != null; i++)
-                ;
-            int badnodes = simulator.badConnectionList.size();
-            if (badnodes > 0)
-                info[i++] = badnodes + ((badnodes == 1) ?
-                        Locale.LS(" bad connection") : Locale.LS(" bad connections"));
-            if (cirSim.circuitInfo.savedFlag)
-                info[i++] = "(saved)";
-
-            int ybase = circuitArea.height - h;
-            for (i = 0; info[i] != null; i++)
-                g.drawString(info[i], x, ybase + 15 * (i + 1));
+            drawInfoBox(g, infoBoxStartX, currentScopeCount);
         }
     }
+
+    private void drawInfoBox(Graphics graphics, int leftX, int scopeCount) {
+        CircuitSimulator simulator = simulator();
+        CircuitEditor circuitEditor = circuitEditor();
+        String[] infoLines = new String[10];
+
+        CircuitElm mouseElm = circuitEditor.mouseElm;
+        if (mouseElm != null) {
+            int mousePost = circuitEditor.mousePost;
+            if (mousePost == -1) {
+                mouseElm.getInfo(infoLines);
+                infoLines[0] = Locale.LS(infoLines[0]);
+                if (infoLines[1] != null) {
+                    infoLines[1] = Locale.LS(infoLines[1]);
+                }
+            } else {
+                infoLines[0] = "V = " + CircuitElm.getUnitText(mouseElm.getPostVoltage(mousePost), "V");
+            }
+        } else {
+            infoLines[0] = "t = " + CircuitElm.getTimeText(simulator.t);
+            double timeRate = 160 * cirSim.getIterCount() * simulator.timeStep;
+            if (timeRate >= .1) {
+                infoLines[0] += " (" + CircuitElm.showFormat(timeRate) + "x)";
+            }
+            infoLines[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator.timeStep);
+        }
+
+        int lineIdx = 0;
+        while (infoLines[lineIdx] != null) {
+            lineIdx++;
+        }
+
+        if (hintType != -1) {
+            String hint = getHint();
+            if (hint == null) {
+                hintType = -1;
+            } else {
+                infoLines[lineIdx++] = hint;
+            }
+        }
+
+        int badNodes = simulator.badConnectionList.size();
+        if (badNodes > 0) {
+            infoLines[lineIdx++] = badNodes + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
+        }
+        if (cirSim.circuitInfo.savedFlag) {
+            infoLines[lineIdx++] = "(saved)";
+        }
+
+        int x = leftX + 5;
+        if (scopeCount != 0) {
+            x = cirSim.scopeManager.scopes[scopeCount - 1].rightEdge() + 20;
+        }
+
+        int yBase = circuitArea.height;
+        for (lineIdx = 0; infoLines[lineIdx] != null; lineIdx++) {
+            graphics.drawString(infoLines[lineIdx], x, yBase + 15 * (lineIdx + 1));
+        }
+    }
+
 
     String getHint() {
         CircuitElm c1 = simulator().getElm(hintItem1);
         CircuitElm c2 = simulator().getElm(hintItem2);
-        if (c1 == null || c2 == null)
+        if (c1 == null || c2 == null) {
             return null;
-        if (hintType == CircuitConst.HINT_LC) {
-            if (!(c1 instanceof InductorElm))
-                return null;
-            if (!(c2 instanceof CapacitorElm))
-                return null;
-            InductorElm ie = (InductorElm) c1;
-            CapacitorElm ce = (CapacitorElm) c2;
-            return Locale.LS("res.f = ") + CircuitElm.getUnitText(1 / (2 * Math.PI * Math.sqrt(ie.inductance *
-                    ce.capacitance)), "Hz");
         }
-        if (hintType == CircuitConst.HINT_RC) {
-            if (!(c1 instanceof ResistorElm))
+
+        switch (hintType) {
+            case CircuitConst.HINT_LC: {
+                if (!(c1 instanceof InductorElm) || !(c2 instanceof CapacitorElm)) return null;
+                InductorElm ie = (InductorElm) c1;
+                CapacitorElm ce = (CapacitorElm) c2;
+                return Locale.LS("res.f = ") + CircuitElm.getUnitText(1 / (2 * Math.PI * Math.sqrt(ie.inductance *
+                        ce.capacitance)), "Hz");
+            }
+            case CircuitConst.HINT_RC: {
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                ResistorElm re = (ResistorElm) c1;
+                CapacitorElm ce = (CapacitorElm) c2;
+                return "RC = " + CircuitElm.getUnitText(re.resistance * ce.capacitance,
+                        "s");
+            }
+            case CircuitConst.HINT_3DB_C: {
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                ResistorElm re = (ResistorElm) c1;
+                CapacitorElm ce = (CapacitorElm) c2;
+                return Locale.LS("f.3db = ") +
+                        CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
+            }
+            case CircuitConst.HINT_3DB_L: {
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof InductorElm)) return null;
+                ResistorElm re = (ResistorElm) c1;
+                InductorElm ie = (InductorElm) c2;
+                return Locale.LS("f.3db = ") +
+                        CircuitElm.getUnitText(re.resistance / (2 * Math.PI * ie.inductance), "Hz");
+            }
+            case CircuitConst.HINT_TWINT: {
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                ResistorElm re = (ResistorElm) c1;
+                CapacitorElm ce = (CapacitorElm) c2;
+                return Locale.LS("fc = ") +
+                        CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
+            }
+            default:
                 return null;
-            if (!(c2 instanceof CapacitorElm))
-                return null;
-            ResistorElm re = (ResistorElm) c1;
-            CapacitorElm ce = (CapacitorElm) c2;
-            return "RC = " + CircuitElm.getUnitText(re.resistance * ce.capacitance,
-                    "s");
         }
-        if (hintType == CircuitConst.HINT_3DB_C) {
-            if (!(c1 instanceof ResistorElm))
-                return null;
-            if (!(c2 instanceof CapacitorElm))
-                return null;
-            ResistorElm re = (ResistorElm) c1;
-            CapacitorElm ce = (CapacitorElm) c2;
-            return Locale.LS("f.3db = ") +
-                    CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
-        }
-        if (hintType == CircuitConst.HINT_3DB_L) {
-            if (!(c1 instanceof ResistorElm))
-                return null;
-            if (!(c2 instanceof InductorElm))
-                return null;
-            ResistorElm re = (ResistorElm) c1;
-            InductorElm ie = (InductorElm) c2;
-            return Locale.LS("f.3db = ") +
-                    CircuitElm.getUnitText(re.resistance / (2 * Math.PI * ie.inductance), "Hz");
-        }
-        if (hintType == CircuitConst.HINT_TWINT) {
-            if (!(c1 instanceof ResistorElm))
-                return null;
-            if (!(c2 instanceof CapacitorElm))
-                return null;
-            ResistorElm re = (ResistorElm) c1;
-            CapacitorElm ce = (CapacitorElm) c2;
-            return Locale.LS("fc = ") +
-                    CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
-        }
-        return null;
     }
 
     void centreCircuit() {
@@ -546,41 +569,41 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         Rectangle bounds = getCircuitBounds();
         setCircuitArea();
 
-        double scale = 1;
-        int cheight = circuitArea.height;
+        double scale = 1.0;
+        int effectiveCircuitHeight = circuitArea.height;
 
-        // if there's no scope, and the window isn't very wide, then don't use all of the circuit area when
-        // centering, because the info in the corner might not get in the way.  We still want circuitArea to be the full
-        // height though, to allow the user to put stuff there manually.
+        // If there's no scope and the window isn't very wide, don't use the full circuit area for centering.
         if (cirSim.scopeManager.scopeCount == 0 && circuitArea.width < 800) {
-            int h = (int) ((double) cheight * scopeHeightFraction);
-            cheight -= h;
+            effectiveCircuitHeight -= (int) ((double) effectiveCircuitHeight * scopeHeightFraction);
         }
 
-        if (bounds != null)
-            // add some space on edges because bounds calculation is not perfect
+        if (bounds != null) {
+            // Add some space on edges because bounds calculation is not perfect
             scale = Math.min(circuitArea.width / (double) (bounds.width + 140),
-                    cheight / (double) (bounds.height + 100));
-        scale = Math.min(scale, 1.5); // Limit scale so we don't create enormous circuits in big windows
+                    effectiveCircuitHeight / (double) (bounds.height + 100));
+        }
+        scale = Math.min(scale, 1.5); // Limit scale for large windows
 
-        // calculate transform so circuit fills most of screen
+        // Calculate transform to fill most of the screen
         transform[0] = transform[3] = scale;
-        transform[1] = transform[2] = transform[4] = transform[5] = 0;
+        transform[1] = transform[2] = 0;
         if (bounds != null) {
             transform[4] = (circuitArea.width - bounds.width * scale) / 2 - bounds.x * scale;
-            transform[5] = (cheight - bounds.height * scale) / 2 - bounds.y * scale;
+            transform[5] = (effectiveCircuitHeight - bounds.height * scale) / 2 - bounds.y * scale;
+        } else {
+            transform[4] = transform[5] = 0;
         }
     }
 
-    // get circuit bounds.  remember this doesn't use setBbox().  That is calculated when we draw
-    // the circuit, but this needs to be ready before we first draw it, so we use this crude method
     Rectangle getCircuitBounds() {
         int minx = 30000, maxx = -30000, miny = 30000, maxy = -30000;
         CircuitSimulator simulator = simulator();
-        for (int i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
-            // centered text causes problems when trying to center the circuit,
-            // so we special-case it here
+        if (simulator.elmList.isEmpty()) {
+            return null;
+        }
+
+        for (CircuitElm ce : simulator.elmList) {
+            // Centered text causes problems when trying to center the circuit, so we special-case it here
             if (!ce.isCenteredText()) {
                 minx = Math.min(ce.x, Math.min(ce.x2, minx));
                 maxx = Math.max(ce.x, Math.max(ce.x2, maxx));
@@ -588,95 +611,97 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             miny = Math.min(ce.y, Math.min(ce.y2, miny));
             maxy = Math.max(ce.y, Math.max(ce.y2, maxy));
         }
-        if (minx > maxx)
+
+        if (minx > maxx) // No elements found with bounds
             return null;
+
         return new Rectangle(minx, miny, maxx - minx, maxy - miny);
     }
 
     void drawCircuitInContext(Context2d context, int type, Rectangle bounds, int w, int h) {
-        Graphics g = new Graphics(context);
-        context.setTransform(1, 0, 0, 1, 0, 0);
-        double oldTransform[] = Arrays.copyOf(transform, 6);
+        Graphics graphics = new Graphics(context);
+        graphics.setTransform(1, 0, 0, 1, 0, 0);
+        double[] oldTransform = Arrays.copyOf(transform, 6);
 
-        double scale = 1;
+        // Save original settings
+        boolean originalPrintableState = cirSim.menuManager.printableCheckItem.getState();
+        boolean originalDotsState = cirSim.menuManager.dotsCheckItem.getState();
 
-        // turn on white background, turn off current display
-        boolean p = cirSim.menuManager.printableCheckItem.getState();
-        boolean c = cirSim.menuManager.dotsCheckItem.getState();
-        boolean print = (type == cirSim.CAC_PRINT);
-        if (print)
-            cirSim.menuManager.printableCheckItem.setState(true);
-        if (cirSim.menuManager.printableCheckItem.getState()) {
-            CircuitElm.backgroundColor = Color.black;
-            CircuitElm.elementColor = Color.black;
-            g.setColor(Color.white);
-        } else {
-            CircuitElm.backgroundColor = Color.white;
-            CircuitElm.elementColor = Color.lightGray;
-            g.setColor(Color.black);
+        try {
+            double scale = 1.0;
+            boolean isPrint = (type == CirSim.CAC_PRINT);
+            if (isPrint) {
+                cirSim.menuManager.printableCheckItem.setState(true);
+            }
+
+            if (cirSim.menuManager.printableCheckItem.getState()) {
+                CircuitElm.backgroundColor = Color.black;
+                CircuitElm.elementColor = Color.black;
+                graphics.setColor(Color.white);
+            } else {
+                CircuitElm.backgroundColor = Color.white;
+                CircuitElm.elementColor = Color.lightGray;
+                graphics.setColor(Color.black);
+            }
+            graphics.fillRect(0, 0, w, h);
+            cirSim.menuManager.dotsCheckItem.setState(false);
+
+            int widthMargin = 140;
+            int heightMargin = 100;
+            scale = Math.min(w / (double) (bounds.width + widthMargin), h / (double) (bounds.height + heightMargin));
+
+            // ScopeElms need the transform array to be updated
+            transform[0] = transform[3] = scale;
+            transform[4] = -(bounds.x - widthMargin / 2.0);
+            transform[5] = -(bounds.y - heightMargin / 2.0);
+
+            graphics.scale(scale, scale);
+            graphics.translate(transform[4], transform[5]);
+            graphics.setLineCap(Context2d.LineCap.ROUND);
+
+            CircuitSimulator simulator = simulator();
+            for (CircuitElm elm : simulator.elmList) {
+                elm.draw(graphics);
+            }
+            for (Point post : simulator.postDrawList) {
+                CircuitElm.drawPost(graphics, post);
+            }
+
+        } finally {
+            // Restore everything
+            cirSim.menuManager.printableCheckItem.setState(originalPrintableState);
+            cirSim.menuManager.dotsCheckItem.setState(originalDotsState);
+            transform = oldTransform;
         }
-        g.fillRect(0, 0, w, h);
-        cirSim.menuManager.dotsCheckItem.setState(false);
-
-        int wmargin = 140;
-        int hmargin = 100;
-        if (bounds != null)
-            scale = Math.min(w / (double) (bounds.width + wmargin),
-                    h / (double) (bounds.height + hmargin));
-
-        // ScopeElms need the transform array to be updated
-        transform[0] = transform[3] = scale;
-        transform[4] = -(bounds.x - wmargin / 2);
-        transform[5] = -(bounds.y - hmargin / 2);
-        context.scale(scale, scale);
-        context.translate(transform[4], transform[5]);
-        context.setLineCap(Context2d.LineCap.ROUND);
-
-        // draw elements
-        CircuitSimulator simulator = simulator();
-        for (int i = 0; i != simulator.elmList.size(); i++) {
-            simulator.elmList.get(i).draw(g);
-        }
-        for (int i = 0; i != simulator.postDrawList.size(); i++) {
-            CircuitElm.drawPost(g, simulator.postDrawList.get(i));
-        }
-
-        // restore everything
-        cirSim.menuManager.printableCheckItem.setState(p);
-        cirSim.menuManager.dotsCheckItem.setState(c);
-        transform = oldTransform;
     }
 
     public Canvas getCircuitAsCanvas(int type) {
-        // create canvas to draw circuit into
-        Canvas cv = Canvas.createIfSupported();
+        Canvas exportCanvas = Canvas.createIfSupported();
         Rectangle bounds = getCircuitBounds();
+        if (bounds == null) return exportCanvas; // Return empty canvas if no bounds
 
-        // add some space on edges because bounds calculation is not perfect
-        int wmargin = 140;
-        int hmargin = 100;
-        int w = (bounds.width * 2 + wmargin);
-        int h = (bounds.height * 2 + hmargin);
-        cv.setCoordinateSpaceWidth(w);
-        cv.setCoordinateSpaceHeight(h);
+        int widthMargin = 140;
+        int heightMargin = 100;
+        int w = (bounds.width * 2 + widthMargin);
+        int h = (bounds.height * 2 + heightMargin);
+        exportCanvas.setCoordinateSpaceWidth(w);
+        exportCanvas.setCoordinateSpaceHeight(h);
 
-        Context2d context = cv.getContext2d();
+        Context2d context = exportCanvas.getContext2d();
         drawCircuitInContext(context, type, bounds, w, h);
-        return cv;
+        return exportCanvas;
     }
 
     public String getCircuitAsSVG() {
         Rectangle bounds = getCircuitBounds();
+        if (bounds == null) return ""; // Return empty string if no bounds
 
-        // add some space on edges because bounds calculation is not perfect
-        int wmargin = 140;
-        int hmargin = 100;
-        int w = (bounds.width + wmargin);
-        int h = (bounds.height + hmargin);
+        int widthMargin = 140;
+        int heightMargin = 100;
+        int w = (bounds.width + widthMargin);
+        int h = (bounds.height + heightMargin);
         Context2d context = CirSim.createSVGContext(w, h);
         drawCircuitInContext(context, CirSim.CAC_SVG, bounds, w, h);
         return CirSim.getSerializedSVG(context);
     }
-
-
 }

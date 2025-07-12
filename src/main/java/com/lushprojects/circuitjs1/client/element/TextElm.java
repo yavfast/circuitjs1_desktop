@@ -112,7 +112,7 @@ public class TextElm extends GraphicElm {
         int maxw = -1;
         for (i = 0; i != lines.size(); i++) {
 //	    int w = fm.stringWidth((String) (lines.elementAt(i)));
-            int w = (int) g.context.measureText((String) (lines.elementAt(i))).getWidth();
+            int w = (int) g.measureWidth(lines.elementAt(i));
             if (w > maxw)
                 maxw = w;
         }
@@ -121,15 +121,15 @@ public class TextElm extends GraphicElm {
         for (i = 0; i != lines.size(); i++) {
             String s = (String) (lines.elementAt(i));
             s = Locale.LS(s);
-            int sw = (int) g.context.measureText(s).getWidth();
+            int sw = (int) g.measureWidth(s);
             g.drawString(s, x, cury);
             if ((flags & FLAG_BAR) != 0) {
-                int by = cury - g.currentFontSize;
+                int by = cury - g.getFontSize();
                 g.drawLine(x, by, x + sw - 1, by);
             }
-            adjustBbox(x, cury - g.currentFontSize,
+            adjustBbox(x, cury - g.getFontSize(),
                     x + sw, cury + 3);
-            cury += g.currentFontSize + 3;
+            cury += g.getFontSize() + 3;
         }
         x2 = boundingBox.x + boundingBox.width;
         y2 = boundingBox.y + boundingBox.height;

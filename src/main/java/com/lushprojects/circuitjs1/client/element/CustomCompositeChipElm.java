@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Graphics;
 
 // concrete subclass of ChipElm that can be used by other elements (like CustomCompositeElm) to draw chips.
@@ -63,8 +64,8 @@ public class CustomCompositeChipElm extends ChipElm {
         if (label == null)
             return;
         g.save();
-        g.context.setTextBaseline("middle");
-        g.context.setTextAlign("center");
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
+        g.setTextAlign(Context2d.TextAlign.CENTER);
         g.drawString(label, x, y);
         g.restore();
     }

@@ -107,28 +107,28 @@ public class FuseElm extends CircuitElm {
 
         //   double segf = 1./segments;
         double len = distance(lead1, lead2);
-        g.context.save();
-        g.context.setLineWidth(3.0);
-        g.context.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
-        g.context.setStrokeStyle(getTempColor(g).getHexValue());
+        g.save();
+        g.setLineWidth(3.0);
+        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.setStrokeStyle(getTempColor(g).getHexValue());
         if (!isIECSymbol()) {
             if (!blown) {
-                g.context.beginPath();
-                g.context.moveTo(0, 0);
+                g.beginPath();
+                g.moveTo(0, 0);
                 for (i = 0; i <= segments; i++)
-                    g.context.lineTo(i * len / segments, hs * Math.sin(i * Math.PI * 2 / segments));
-                g.context.stroke();
+                    g.lineTo(i * len / segments, hs * Math.sin(i * Math.PI * 2 / segments));
+                g.stroke();
             }
         } else {
             if (!blown) {
-                g.context.beginPath();
-                g.context.moveTo(0, 0);
-                g.context.lineTo(len, 0);
-                g.context.stroke();
-                g.context.strokeRect(0, -hs, len, 2.0 * hs);
+                g.beginPath();
+                g.moveTo(0, 0);
+                g.lineTo(len, 0);
+                g.stroke();
+                g.strokeRect(0, -hs, len, 2.0 * hs);
             }
         }
-        g.context.restore();
+        g.restore();
         doDots(g);
         drawPosts(g);
     }

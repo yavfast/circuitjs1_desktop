@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -131,8 +133,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         int i;
         int hs = 6;
         setBbox(posts[0], posts[5], hs);
-        g.context.save();
-        g.context.translate(x, y);
+        g.save();
+        g.translate(x, y);
         int spx = 48;
         g.setLineDash(4, 4);
         int squareX = -spx - 12;
@@ -154,13 +156,13 @@ public class MotorProtectionSwitchElm extends CircuitElm {
                 drawThickLine(g, i * spx - 4, 32, i * spx + 4, 32);
             int sw = blown ? 16 : 0;
             drawThickLine(g, i * spx - sw, 32, i * spx, 64);
-            g.context.setLineCap(LineCap.BUTT);
+            g.setLineCap(LineCap.BUTT);
             drawThickLine(g, i * spx, 64, i * spx, 80);
             g.drawLine(i * spx - 4, 16 - 4, i * spx + 4, 16 + 4);
             g.drawLine(i * spx + 4, 16 - 4, i * spx - 4, 16 + 4);
             setVoltageColor(g, volts[i * 2 + 1]);
             drawThickLine(g, i * spx, 176, i * spx, 192);
-            g.context.setLineCap(LineCap.ROUND);
+            g.setLineCap(LineCap.ROUND);
             g.setColor(getTempColor(g, i));
             g.drawLine(i * spx, 80, i * spx, 96);
             int q = 12;
@@ -169,9 +171,9 @@ public class MotorProtectionSwitchElm extends CircuitElm {
             g.drawLine(i * spx - q, 112, i * spx, 112);
             g.drawLine(i * spx, 112, i * spx, 128);
             g.setColor(Color.lightGray);
-            g.context.setFont("italic 30px serif");
-            g.context.setTextBaseline("middle");
-            g.context.setTextAlign("center");
+            g.setFont(new Font("serif", Font.ITALIC, 30));
+            g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
+            g.setTextAlign(Context2d.TextAlign.CENTER);
             g.drawString("I >", i * spx, 80 + 48 + 48 / 2);
         }
         g.setColor(Color.lightGray);
@@ -186,10 +188,10 @@ public class MotorProtectionSwitchElm extends CircuitElm {
             g.drawLine(squareX, squareY + 12 * i, squareX + 24, squareY + 12 * i);
         g.drawLine(squareX - spx / 2, squareY + 12, squareX, squareY + 12);
         g.drawLine(squareX - spx / 2, squareY, squareX - spx / 2, squareY + 24);
-        g.context.setFont("normal 12px sans-serif");
+        g.setFont(new Font("sans-serif", Font.NORMAL, 12));
         g.setColor(Color.white);
         g.drawString(label, 120, squareY + 12);
-        g.context.restore();
+        g.restore();
         if (!blown) {
             for (i = 0; i != 3; i++) {
                 curcounts[i] = updateDotCount(currents[i], curcounts[i]);

@@ -1,5 +1,6 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
@@ -123,18 +124,21 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void setMenuSelection() {
         if (menuElm != null) {
-            if (menuElm.selected)
-                return;
+            if (menuElm.selected) return;
             clearSelection();
             menuElm.setSelected(true);
         }
     }
 
     void setCursorStyle(String s) {
-        if (lastCursorStyle != null)
-            renderer().cv.removeStyleName(lastCursorStyle);
-        renderer().cv.addStyleName(s);
-        lastCursorStyle = s;
+        if (lastCursorStyle != s) {
+            Canvas canvas = renderer().getCanvas();
+            if (lastCursorStyle != null) {
+                canvas.removeStyleName(lastCursorStyle);
+            }
+            canvas.addStyleName(s);
+            lastCursorStyle = s;
+        }
     }
 
     public void mouseDragged(MouseMoveEvent e) {
@@ -571,7 +575,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         e.preventDefault();
 
         // make sure canvas has focus, not stop button or something else, so all shortcuts work
-        renderer().cv.setFocus(true);
+        renderer().getCanvas().setFocus(true);
 
         simulator().stopElm = null; // if stopped, allow user to select other elements to fix circuit
         menuX = menuClientX = e.getX();

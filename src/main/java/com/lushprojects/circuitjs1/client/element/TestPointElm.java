@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
     
 */
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
@@ -126,13 +127,13 @@ public class TestPointElm extends CircuitElm {
     }
 
     void drawText(Graphics g, String str, String str2, Point pt1, Point pt2) {
-        int w1 = (int) g.context.measureText(str).getWidth();
-        int w2 = (int) g.context.measureText(str2).getWidth();
+        int w1 = (int) g.measureWidth(str);
+        int w2 = (int) g.measureWidth(str2);
         final int spacing = 14;
         int wmax = max(w1, w2);
-        int h = (int) g.currentFontSize;
+        int h = g.getFontSize();
         g.save();
-        g.context.setTextBaseline("middle");
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         int x = pt2.x, y = pt2.y;
         if (pt1.y != pt2.y) {
             x -= wmax / 2;
@@ -161,7 +162,7 @@ public class TestPointElm extends CircuitElm {
         //depending upon flags show voltage or TP
 
         String s = label;
-        interpPoint(point1, point2, lead1, 1 - ((int) g.context.measureText("TP").getWidth() / 2 + 8) / dn);
+        interpPoint(point1, point2, lead1, 1 - ((int) g.measureWidth("TP") / 2.0 + 8) / dn);
         setBbox(point1, lead1, 0);
 
         //draw selected value

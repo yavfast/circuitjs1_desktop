@@ -194,7 +194,7 @@ public class ProbeElm extends CircuitElm {
             plusPoint.y += 4;
         if (y > y2)
             plusPoint.y += 3;
-        int w = (int) g.context.measureText("+").getWidth();
+        int w = (int) g.measureWidth("+");
         g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
         if (drawAsCircle()) {
             g.setColor(elementColor);

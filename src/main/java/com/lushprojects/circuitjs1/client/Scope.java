@@ -573,7 +573,7 @@ public class Scope extends BaseCirSimDelegate {
                 continue;
             }
             String s = ((int) Math.round(i * maxFrequency)) + "Hz";
-            int sWidth = (int) Math.ceil(g.context.measureText(s).getWidth());
+            int sWidth = (int) Math.ceil(g.measureWidth(s));
             prevEnd = x + sWidth + 4;
             if (i > 0) {
                 g.setColor("#880000");
@@ -646,39 +646,39 @@ public class Scope extends BaseCirSimDelegate {
         }
     }
 
-    void drawSettingsWheel(Graphics g) {
+    void drawSettingsWheel(Graphics graphics) {
         final int outR = 8;
         final int inR = 5;
         final int inR45 = 4;
         final int outR45 = 6;
         if (showSettingsWheel()) {
-            g.context.save();
+            graphics.save();
             if (cursorInSettingsWheel()) {
-                g.setColor(CircuitElm.selectColor);
+                graphics.setColor(CircuitElm.selectColor);
             } else {
-                g.setColor(Color.dark_gray);
+                graphics.setColor(Color.dark_gray);
             }
-            g.context.translate(rect.x + 18, rect.y + rect.height - 18);
-            CircuitElm.drawThickCircle(g, 0, 0, inR);
-            CircuitElm.drawThickLine(g, -outR, 0, -inR, 0);
-            CircuitElm.drawThickLine(g, outR, 0, inR, 0);
-            CircuitElm.drawThickLine(g, 0, -outR, 0, -inR);
-            CircuitElm.drawThickLine(g, 0, outR, 0, inR);
-            CircuitElm.drawThickLine(g, -outR45, -outR45, -inR45, -inR45);
-            CircuitElm.drawThickLine(g, outR45, -outR45, inR45, -inR45);
-            CircuitElm.drawThickLine(g, -outR45, outR45, -inR45, inR45);
-            CircuitElm.drawThickLine(g, outR45, outR45, inR45, inR45);
-            g.context.restore();
+            graphics.translate(rect.x + 18, rect.y + rect.height - 18);
+            CircuitElm.drawThickCircle(graphics, 0, 0, inR);
+            CircuitElm.drawThickLine(graphics, -outR, 0, -inR, 0);
+            CircuitElm.drawThickLine(graphics, outR, 0, inR, 0);
+            CircuitElm.drawThickLine(graphics, 0, -outR, 0, -inR);
+            CircuitElm.drawThickLine(graphics, 0, outR, 0, inR);
+            CircuitElm.drawThickLine(graphics, -outR45, -outR45, -inR45, -inR45);
+            CircuitElm.drawThickLine(graphics, outR45, -outR45, inR45, -inR45);
+            CircuitElm.drawThickLine(graphics, -outR45, outR45, -inR45, inR45);
+            CircuitElm.drawThickLine(graphics, outR45, outR45, inR45, inR45);
+            graphics.restore();
         }
     }
 
-    void draw2d(Graphics g) {
+    void draw2d(Graphics graphics) {
         if (imageContext == null) {
             return;
         }
-        g.context.save();
-        g.context.translate(rect.x, rect.y);
-        g.clipRect(0, 0, rect.width, rect.height);
+        graphics.save();
+        graphics.translate(rect.x, rect.y);
+        graphics.clipRect(0, 0, rect.width, rect.height);
 
         alphaCounter++;
 
@@ -695,40 +695,40 @@ public class Scope extends BaseCirSimDelegate {
             imageContext.setGlobalAlpha(1.0);
         }
 
-        g.context.drawImage(imageContext.getCanvas(), 0.0, 0.0);
-        g.setColor(CircuitElm.backgroundColor);
-        g.fillOval(draw_ox - 2, draw_oy - 2, 5, 5);
+        graphics.drawImage(imageContext.getCanvas(), 0.0, 0.0);
+        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.fillOval(draw_ox - 2, draw_oy - 2, 5, 5);
         // Axis
-        g.setColor(CircuitElm.positiveColor);
-        g.drawLine(0, rect.height / 2, rect.width - 1, rect.height / 2);
+        graphics.setColor(CircuitElm.positiveColor);
+        graphics.drawLine(0, rect.height / 2, rect.width - 1, rect.height / 2);
         if (!plotXY) {
-            g.setColor(Color.yellow);
+            graphics.setColor(Color.yellow);
         }
-        g.drawLine(rect.width / 2, 0, rect.width / 2, rect.height - 1);
+        graphics.drawLine(rect.width / 2, 0, rect.width / 2, rect.height - 1);
         if (isManualScale()) {
             double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
-            g.setColor("#404040");
+            graphics.setColor("#404040");
             for (int i = -manDivisions; i <= manDivisions; i++) {
                 if (i != 0) {
-                    g.drawLine((int) (gridPx * i) + rect.width / 2, 0, (int) (gridPx * i) + rect.width / 2, rect.height);
+                    graphics.drawLine((int) (gridPx * i) + rect.width / 2, 0, (int) (gridPx * i) + rect.width / 2, rect.height);
                 }
-                g.drawLine(0, (int) (gridPx * i) + rect.height / 2, rect.width, (int) (gridPx * i) + rect.height / 2);
+                graphics.drawLine(0, (int) (gridPx * i) + rect.height / 2, rect.width, (int) (gridPx * i) + rect.height / 2);
             }
         }
         textY = 10;
-        g.setColor(CircuitElm.backgroundColor);
+        graphics.setColor(CircuitElm.backgroundColor);
         if (text != null) {
-            drawInfoText(g, text);
+            drawInfoText(graphics, text);
         }
         if (showScale && plots.size() >= 2 && isManualScale()) {
             ScopePlot px = plots.get(0);
             String sx = px.getUnitText(px.manScale);
             ScopePlot py = plots.get(1);
             String sy = py.getUnitText(py.manScale);
-            drawInfoText(g, "X=" + sx + "/div, Y=" + sy + "/div");
+            drawInfoText(graphics, "X=" + sx + "/div, Y=" + sy + "/div");
         }
-        g.context.restore();
-        drawSettingsWheel(g);
+        graphics.restore();
+        drawSettingsWheel(graphics);
         CircuitEditor circuitEditor = circuitEditor();
         if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY) && plots.size() >= 2) {
             double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
@@ -747,7 +747,7 @@ public class Scope extends BaseCirSimDelegate {
             info[0] = px.getUnitText(xValue);
             info[1] = py.getUnitText(yValue);
 
-            drawCursorInfo(g, info, 2, circuitEditor.mouseCursorX, true);
+            drawCursorInfo(graphics, info, 2, circuitEditor.mouseCursorX, true);
 
         }
     }
@@ -791,7 +791,7 @@ public class Scope extends BaseCirSimDelegate {
         selectedPlot = 0;
     }
 
-    public void draw(Graphics g) {
+    public void draw(Graphics graphics) {
         if (plots.isEmpty()) {
             return;
         }
@@ -804,19 +804,19 @@ public class Scope extends BaseCirSimDelegate {
 
 
         if (plot2d) {
-            draw2d(g);
+            draw2d(graphics);
             return;
         }
 
-        drawSettingsWheel(g);
-        g.context.save();
-        g.setColor(Color.red);
-        g.context.translate(rect.x, rect.y);
-        g.clipRect(0, 0, rect.width, rect.height);
+        drawSettingsWheel(graphics);
+        graphics.save();
+        graphics.setColor(Color.red);
+        graphics.translate(rect.x, rect.y);
+        graphics.clipRect(0, 0, rect.width, rect.height);
 
         if (showFFT) {
-            drawFFTVerticalGridLines(g);
-            drawFFT(g);
+            drawFFTVerticalGridLines(graphics);
+            drawFFT(graphics);
         }
 
         for (int i = 0; i != UNITS_COUNT; i++) {
@@ -858,29 +858,29 @@ public class Scope extends BaseCirSimDelegate {
         // draw volt plots on top (last), then current plots underneath, then everything else
         for (int i = 0; i != visiblePlots.size(); i++) {
             if (visiblePlots.get(i).units > UNITS_A && i != selectedPlot) {
-                drawPlot(g, visiblePlots.get(i), allPlotsSameUnits, false, sel);
+                drawPlot(graphics, visiblePlots.get(i), allPlotsSameUnits, false, sel);
             }
         }
         for (int i = 0; i != visiblePlots.size(); i++) {
             if (visiblePlots.get(i).units == UNITS_A && i != selectedPlot) {
-                drawPlot(g, visiblePlots.get(i), allPlotsSameUnits, false, sel);
+                drawPlot(graphics, visiblePlots.get(i), allPlotsSameUnits, false, sel);
             }
         }
         for (int i = 0; i != visiblePlots.size(); i++) {
             if (visiblePlots.get(i).units == UNITS_V && i != selectedPlot) {
-                drawPlot(g, visiblePlots.get(i), allPlotsSameUnits, false, sel);
+                drawPlot(graphics, visiblePlots.get(i), allPlotsSameUnits, false, sel);
             }
         }
         // draw selection on top.  only works if selection chosen from scope
         if (selectedPlot >= 0 && selectedPlot < visiblePlots.size()) {
-            drawPlot(g, visiblePlots.get(selectedPlot), allPlotsSameUnits, true, sel);
+            drawPlot(graphics, visiblePlots.get(selectedPlot), allPlotsSameUnits, true, sel);
         }
 
-        drawInfoTexts(g);
+        drawInfoTexts(graphics);
 
-        g.restore();
+        graphics.restore();
 
-        drawCursor(g);
+        drawCursor(graphics);
 
         if (plots.get(0).ptr > 5 && !manualScale) {
             for (int i = 0; i != UNITS_COUNT; i++) {
@@ -1251,30 +1251,30 @@ public class Scope extends BaseCirSimDelegate {
         drawCursorInfo(g, info, ct, cursorX, false);
     }
 
-    void drawCursorInfo(Graphics g, String[] info, int ct, int x, Boolean drawY) {
+    void drawCursorInfo(Graphics graphics, String[] info, int ct, int x, Boolean drawY) {
         int szw = 0, szh = 15 * ct;
         for (int i = 0; i != ct; i++) {
-            int w = (int) g.context.measureText(info[i]).getWidth();
+            int w = (int) graphics.measureWidth(info[i]);
             if (w > szw) {
                 szw = w;
             }
         }
 
-        g.setColor(CircuitElm.backgroundColor);
-        g.drawLine(x, rect.y, x, rect.y + rect.height);
+        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY) {
-            g.drawLine(rect.x, circuitEditor().mouseCursorY, rect.x + rect.width, circuitEditor().mouseCursorY);
+            graphics.drawLine(rect.x, circuitEditor().mouseCursorY, rect.x + rect.width, circuitEditor().mouseCursorY);
         }
-        g.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
+        graphics.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
         int bx = x;
         if (bx < szw / 2) {
             bx = szw / 2;
         }
-        g.fillRect(bx - szw / 2, rect.y - szh, szw, szh);
-        g.setColor(CircuitElm.backgroundColor);
+        graphics.fillRect(bx - szw / 2, rect.y - szh, szw, szh);
+        graphics.setColor(CircuitElm.backgroundColor);
         for (int i = 0; i != ct; i++) {
-            int w = (int) g.context.measureText(info[i]).getWidth();
-            g.drawString(info[i], bx - w / 2, rect.y - 2 - (ct - 1 - i) * 15);
+            int w = (int) graphics.measureWidth(info[i]);
+            graphics.drawString(info[i], bx - w / 2, rect.y - 2 - (ct - 1 - i) * 15);
         }
 
     }

@@ -713,7 +713,7 @@ public class CirSim implements NativePreviewHandler {
     }-*/;
 
     public void needAnalyze() {
-        renderer.analyzeFlag = true;
+        renderer.needsAnalysis();
         repaint();
         enableDisableMenuItems();
     }
@@ -736,7 +736,7 @@ public class CirSim implements NativePreviewHandler {
 
     public void stop() {
         setSimRunning(false);
-        renderer.analyzeFlag = false;
+        renderer.reset();
     }
 
     public double getIterCount() {
@@ -749,7 +749,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void resetAction() {
-        renderer.analyzeFlag = true;
+        renderer.needsAnalysis();
         simulator.t = simulator.timeStepAccum = 0;
         simulator.timeStepCount = 0;
         for (int i = 0; i != simulator.elmList.size(); i++)

@@ -39,33 +39,33 @@ public class OrGateElm extends GateElm {
 
     void drawGatePolygon(Graphics g) {
         g.setLineWidth(3.0);
-        g.context.beginPath();
-        g.context.moveTo(gatePoly.xpoints[0], gatePoly.ypoints[0]);
-        g.context.lineTo(gatePoly.xpoints[1], gatePoly.ypoints[1]);
-        g.context.bezierCurveTo(
+        g.beginPath();
+        g.moveTo(gatePoly.xpoints[0], gatePoly.ypoints[0]);
+        g.lineTo(gatePoly.xpoints[1], gatePoly.ypoints[1]);
+        g.bezierCurveTo(
                 gatePoly.xpoints[2], gatePoly.ypoints[2],
                 gatePoly.xpoints[2], gatePoly.ypoints[2],
                 gatePoly.xpoints[3], gatePoly.ypoints[3]);
-        g.context.bezierCurveTo(
+        g.bezierCurveTo(
                 gatePoly.xpoints[4], gatePoly.ypoints[4],
                 gatePoly.xpoints[4], gatePoly.ypoints[4],
                 gatePoly.xpoints[5], gatePoly.ypoints[5]);
-        g.context.lineTo(gatePoly.xpoints[6], gatePoly.ypoints[6]);
-        g.context.bezierCurveTo(
+        g.lineTo(gatePoly.xpoints[6], gatePoly.ypoints[6]);
+        g.bezierCurveTo(
                 gatePoly.xpoints[7], gatePoly.ypoints[7],
                 gatePoly.xpoints[7], gatePoly.ypoints[7],
                 gatePoly.xpoints[0], gatePoly.ypoints[0]);
-        g.context.closePath();
+        g.closePath();
 
         if (this instanceof XorGateElm) {
-            g.context.moveTo(gatePoly.xpoints[8], gatePoly.ypoints[8]);
-            g.context.bezierCurveTo(
+            g.moveTo(gatePoly.xpoints[8], gatePoly.ypoints[8]);
+            g.bezierCurveTo(
                     gatePoly.xpoints[10], gatePoly.ypoints[10],
                     gatePoly.xpoints[10], gatePoly.ypoints[10],
                     gatePoly.xpoints[9], gatePoly.ypoints[9]);
         }
 
-        g.context.stroke();
+        g.stroke();
         g.setLineWidth(1.0);
     }
 

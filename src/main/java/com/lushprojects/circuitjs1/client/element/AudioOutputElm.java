@@ -96,28 +96,28 @@ public class AudioOutputElm extends CircuitElm {
         lead1 = new Point();
     }
 
-    public void draw(Graphics g) {
-        g.save();
+    public void draw(Graphics graphics) {
+        graphics.save();
         boolean selected = (needsHighlight());
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         String s = "Audio Out";
         if (labelNum > 1)
             s = "Audio " + labelNum;
-        g.setFont(f);
-        int textWidth = (int) g.context.measureText(s).getWidth();
-        g.setColor(Color.darkGray);
+        graphics.setFont(f);
+        int textWidth = (int) graphics.measureWidth(s);
+        graphics.setColor(Color.darkGray);
         int pct = (dataFull) ? textWidth : textWidth * dataPtr / dataCount;
-        g.fillRect(x2 - textWidth / 2, y2 - 10, pct, 20);
-        g.setColor(selected ? selectColor : backgroundColor);
+        graphics.fillRect(x2 - textWidth / 2, y2 - 10, pct, 20);
+        graphics.setColor(selected ? selectColor : backgroundColor);
         interpPoint(point1, point2, lead1, 1 - (textWidth / 2. + 8) / dn);
         setBbox(point1, lead1, 0);
-        drawCenteredText(g, s, x2, y2, true);
-        setVoltageColor(g, volts[0]);
+        drawCenteredText(graphics, s, x2, y2, true);
+        setVoltageColor(graphics, volts[0]);
         if (selected)
-            g.setColor(selectColor);
-        drawThickLine(g, point1, lead1);
-        drawPosts(g);
-        g.restore();
+            graphics.setColor(selectColor);
+        drawThickLine(graphics, point1, lead1);
+        drawPosts(graphics);
+        graphics.restore();
     }
 
     double getVoltageDiff() {

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -57,14 +58,16 @@ public class DecimalDisplayElm extends ChipElm {
         g.save();
         g.setFont(new Font("SansSerif", 0, 15 * csize));
         g.setColor(backgroundColor);
-        g.context.setTextBaseline("middle");
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         int i;
         int value = 0;
-        for (i = 0; i != bitCount; i++)
-            if (pins[i].value)
+        for (i = 0; i < bitCount; i++) {
+            if (pins[i].value) {
                 value |= 1 << i;
+            }
+        }
         String str = String.valueOf(value);
-        int w = (int) g.context.measureText(str).getWidth();
+        int w = (int) g.measureWidth(str);
         g.drawString(str, xl + 5 * csize - w / 2, yl);
         g.restore();
     }

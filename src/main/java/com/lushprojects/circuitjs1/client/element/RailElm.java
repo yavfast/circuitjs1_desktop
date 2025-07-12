@@ -59,7 +59,7 @@ public class RailElm extends VoltageElm {
 
     public void draw(Graphics g) {
         String rt = getRailText();
-        double w = rt == null ? circleSize : g.context.measureText(rt).getWidth() / 2;
+        double w = rt == null ? circleSize : g.measureWidth(rt) / 2;
         if (w > dn * .8)
             w = dn * .8;
         lead1 = interpPoint(point1, point2, 1 - w / dn);

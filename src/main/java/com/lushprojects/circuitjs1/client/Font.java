@@ -21,17 +21,25 @@ package com.lushprojects.circuitjs1.client;
 
 
 public class Font {
+    public static final int NORMAL = 0;
     public static final int BOLD = 1;
+    public static final int ITALIC = 2;
 
-    String fontname;
-    int size;
+    final String fontname;
+    final int size;
 
     public Font(String name, int style, int size) {
         String styleStr = "normal ";
-        if (name == "SansSerif")
+        if (name == "SansSerif") {
             name = "sans-serif";
-        if ((style & BOLD) != 0)
+        }
+        if ((style & BOLD) != 0 && (style & ITALIC) != 0)
+            styleStr = "bold italic ";
+        else if ((style & BOLD) != 0) {
             styleStr = "bold ";
+        } else if ((style & ITALIC) != 0) {
+            styleStr = "italic ";
+        }
         fontname = styleStr + size + "px " + name;
         this.size = size;
     }

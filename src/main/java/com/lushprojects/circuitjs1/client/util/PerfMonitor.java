@@ -15,6 +15,12 @@ public class PerfMonitor {
 
     }
 
+    public void reset() {
+        ctx = null;
+        rootCtx = null;
+        rootCtxName = null;
+    }
+
     public void startContext(String name) {
         PerfEntry newEntry = startNewEntry(ctx);
         if (ctx == null) {
@@ -24,7 +30,7 @@ public class PerfMonitor {
                 rootCtx = ctx;
             }
         } else {
-            if (ctx.AddChild(name, newEntry)) {
+            if (ctx.addChild(name, newEntry)) {
                 ctx = newEntry;
             }
         }
@@ -78,10 +84,10 @@ public class PerfMonitor {
         }
     }-*/;
 
-    class PerfEntry {
+    static class PerfEntry {
 
-        public PerfEntry parent;
-        public HashMap<String, PerfEntry> children;
+        public final PerfEntry parent;
+        public final HashMap<String, PerfEntry> children;
 
         public float startTime;
         public float endTime;
@@ -89,10 +95,10 @@ public class PerfMonitor {
 
         public PerfEntry(PerfEntry p) {
             parent = p;
-            children = new HashMap<String, PerfEntry>();
+            children = new HashMap<>();
         }
 
-        public boolean AddChild(String name, PerfEntry entry) {
+        public boolean addChild(String name, PerfEntry entry) {
             if (!children.containsKey(name)) {
                 children.put(name, entry);
                 return true;
@@ -100,7 +106,7 @@ public class PerfMonitor {
             return false;
         }
 
-        public PerfEntry GetChild(String name) {
+        public PerfEntry getChild(String name) {
             if (children.containsKey(name)) {
                 return children.get(name);
             }

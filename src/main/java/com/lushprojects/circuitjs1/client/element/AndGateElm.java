@@ -38,14 +38,11 @@ public class AndGateElm extends GateElm {
         return "&";
     }
 
-    public final native void ellipse(Context2d g, double x, double y, double rx, double ry, double ro, double sa, double ea, boolean ccw) /*-{
-	    if (rx >= 0 && ry >= 0) g.ellipse(x, y, rx, ry, ro, sa, ea, ccw);
-	}-*/;
-
     void drawGatePolygon(Graphics g) {
         g.setLineWidth(3.0);
-        g.context.beginPath();
-        g.context.moveTo(gatePoly.xpoints[0], gatePoly.ypoints[0]);
+        g.beginPath();
+        g.moveTo(gatePoly.xpoints[0], gatePoly.ypoints[0]);
+
         double ang1 = -Math.PI / 2 * sign(dx);
         double ang2 = Math.PI / 2 * sign(dx);
         boolean ccw = false;
@@ -57,10 +54,10 @@ public class AndGateElm extends GateElm {
             rx = hs2;
             ry = ww;
         }
-        ellipse(g.context, gatePoly.xpoints[2], gatePoly.ypoints[2], rx, ry, 0, ang1, ang2, ccw);
-        g.context.lineTo(gatePoly.xpoints[4], gatePoly.ypoints[4]);
-        g.context.closePath();
-        g.context.stroke();
+        g.ellipse(gatePoly.xpoints[2], gatePoly.ypoints[2], rx, ry, 0, ang1, ang2, ccw);
+        g.lineTo(gatePoly.xpoints[4], gatePoly.ypoints[4]);
+        g.closePath();
+        g.stroke();
         g.setLineWidth(1.0);
     }
 

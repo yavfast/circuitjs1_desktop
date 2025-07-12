@@ -1,5 +1,6 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.i18n.client.NumberFormat;
 import com.lushprojects.circuitjs1.client.CircuitMath;
 import com.lushprojects.circuitjs1.client.Color;
@@ -331,7 +332,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
                 g.drawString("UVW".substring(i, i + 1) + "2", posts[i * 2 + 1].x + d1, posts[i * 2 + 1].y - 2);
             }
         } else {
-            g.context.setTextAlign("center");
+            g.setTextAlign(Context2d.TextAlign.CENTER);
             for (i = 0; i != 3; i++) {
                 int d1 = 11;
                 int d2 = 7;

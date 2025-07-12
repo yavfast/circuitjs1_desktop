@@ -159,37 +159,37 @@ public class AmmeterElm extends CircuitElm {
 
     Polygon arrowPoly;
 
-    public void draw(Graphics g) {
-        super.draw(g);//BC required for highlighting
-        setVoltageColor(g, volts[0]);
+    public void draw(Graphics graphics) {
+        super.draw(graphics);//BC required for highlighting
+        setVoltageColor(graphics, volts[0]);
         double width = 4;
         if (!drawAsCircle()) {
-            drawThickLine(g, point1, point2);
-            g.fillPolygon(arrowPoly);
+            drawThickLine(graphics, point1, point2);
+            graphics.fillPolygon(arrowPoly);
         } else {
-            g.setColor(needsHighlight() ? selectColor : elementColor);
-            drawThickCircle(g, center.x, center.y, circleSize);
-            drawCenteredText(g, "A", center.x, center.y, true);
+            graphics.setColor(needsHighlight() ? selectColor : elementColor);
+            drawThickCircle(graphics, center.x, center.y, circleSize);
+            drawCenteredText(graphics, "A", center.x, center.y, true);
 
             calcLeads(circleSize * 2);
-            setVoltageColor(g, volts[0]);
-            drawThickLine(g, point1, lead1);
-            drawThickLine(g, lead2, point2);
+            setVoltageColor(graphics, volts[0]);
+            drawThickLine(graphics, point1, lead1);
+            drawThickLine(graphics, lead2, point2);
 
-            g.setColor(backgroundColor);
-            g.setFont(unitsFont);
+            graphics.setColor(backgroundColor);
+            graphics.setFont(unitsFont);
             double len = circleSize * 2;
             Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
             if (y2 > y)
                 plusPoint.y += 4;
             if (y > y2)
                 plusPoint.y += 3;
-            int w = (int) g.context.measureText("+").getWidth();
-            g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
+            int w = (int) graphics.measureWidth("+");
+            graphics.drawString("+", plusPoint.x - w / 2, plusPoint.y);
             width = circleSize;
         }
 
-        doDots(g);
+        doDots(graphics);
         setBbox(point1, point2, width);
         String s = "A";
         switch (meter) {
@@ -201,8 +201,8 @@ public class AmmeterElm extends CircuitElm {
                 break;
         }
 
-        drawValues(g, s, width);
-        drawPosts(g);
+        drawValues(graphics, s, width);
+        drawPosts(graphics);
     }
 
     final int circleSize = 12;

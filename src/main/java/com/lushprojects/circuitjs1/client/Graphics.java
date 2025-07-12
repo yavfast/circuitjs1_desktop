@@ -19,18 +19,26 @@
 
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.google.gwt.canvas.dom.client.Context2d;
+import com.google.gwt.canvas.dom.client.FillStrokeStyle;
+import com.google.gwt.dom.client.CanvasElement;
 
 public class Graphics {
 
-    public Context2d context;
-    public int currentFontSize;
-    int savedFontSize;
     static boolean isFullScreen = false;
+
+    private final Context2d context;
+    private int currentFontSize;
+    private int savedFontSize;
 
     public Graphics(Context2d context) {
         this.context = context;
         currentFontSize = 12;
+    }
+
+    public Context2d getContext() {
+        return context;
     }
 
     public void setColor(Color color) {
@@ -75,10 +83,31 @@ public class Graphics {
 
     public void fillOval(int x, int y, int width, int height) {
         context.beginPath();
-        context.arc(x + width / 2, y + width / 2, width / 2, 0, 2.0 * 3.14159);
+        context.arc(x + width / 2.0, y + height / 2.0, width / 2.0, 0, 2.0 * 3.14159); // TODO: radius?
         context.closePath();
         context.fill();
     }
+
+    public void drawCircle(int cx, int cy, double radius) {
+        context.beginPath();
+        context.arc(cx, cy, radius, 0, 2.0 * Math.PI);
+        context.stroke();
+    }
+
+    public void arc(double x, double y, double radius, double startAngle, double endAngle) {
+        context.arc(x, y, radius, startAngle, endAngle);
+    }
+
+    public void arc(double x, double y, double radius, double startAngle, double endAngle, boolean anticlockwise) {
+        context.arc(x, y, radius, startAngle, endAngle, anticlockwise);
+    }
+
+    public final native void ellipse(double x, double y, double rx, double ry, double ro, double sa, double ea, boolean ccw) /*-{
+	    if (rx >= 0 && ry >= 0) {
+	        context.ellipse(x, y, rx, ry, ro, sa, ea, ccw);
+	    }
+	}-*/;
+
 
     public void drawString(String s, int x, int y) {
         context.fillText(s, x, y);
@@ -90,6 +119,14 @@ public class Graphics {
 
     public void setLineWidth(double width) {
         context.setLineWidth(width);
+    }
+
+    public double getLineWidth() {
+        return context.getLineWidth();
+    }
+
+    public void setAlpha(double alpha) {
+        context.setGlobalAlpha(alpha);
     }
 
     public void drawLine(int x1, int y1, int x2, int y2) {
@@ -133,6 +170,10 @@ public class Graphics {
         context.fill();
     }
 
+    public void setLineCap(Context2d.LineCap lineCap) {
+        context.setLineCap(lineCap);
+    }
+
     public void setFont(Font f) {
         if (f != null) {
             context.setFont(f.fontname);
@@ -140,10 +181,17 @@ public class Graphics {
         }
     }
 
-//	  Font getFont(){
-//	          // this may return wrong font if g.save/restore() is used.  just use that instead
-//		  return currentFont;
-//	  }
+    public int getFontSize() {
+        return currentFontSize;
+    }
+
+    public void setTextBaseline(Context2d.TextBaseline baseline) {
+        context.setTextBaseline(baseline);
+    }
+
+    public void setTextAlign(Context2d.TextAlign align) {
+        context.setTextAlign(align);
+    }
 
     public void drawLock(int x, int y) {
         context.save();
@@ -170,11 +218,11 @@ public class Graphics {
     }
 
     native static void setLineDash(Context2d context, int a, int b) /*-{
-	       if (a == 0)
-	           context.setLineDash([]);
-	       else
-	       	   context.setLineDash([a, b]);
-	   }-*/;
+       if (a == 0)
+           context.setLineDash([]);
+       else
+           context.setLineDash([a, b]);
+   }-*/;
 
 
     public static void viewFullScreen() {
@@ -215,5 +263,68 @@ public class Graphics {
 	   }
 	 }-*/;
 
+    public void setTransform(double m11, double m12, double m21, double m22, double dx, double dy) {
+        context.setTransform(m11, m12, m21, m22, dx, dy);
+    }
+
+    public void transform(double m11, double m12, double m21, double m22, double dx, double dy) {
+        context.transform(m11, m12, m21, m22, dx, dy);
+    }
+
+    public void scale(double x, double y) {
+        context.scale(x, y);
+    }
+
+    public void translate(double x, double y) {
+        context.translate(x, y);
+    }
+
+    public void drawImage(CanvasElement image, double dx, double dy) {
+        context.drawImage(image, dx, dy);
+    }
+
+    public void beginPath() {
+        context.beginPath();
+    }
+
+    public void closePath() {
+        context.closePath();
+    }
+
+    public void stroke() {
+        context.stroke();
+    }
+
+    public void moveTo(double x, double y) {
+        context.moveTo(x, y);
+    }
+
+    public void lineTo(double x, double y) {
+        context.moveTo(x, y);
+    }
+
+    public void fill() {
+        context.fill();
+    }
+
+    public CanvasGradient createLinearGradient(double x0, double y0, double x1, double y1) {
+        return context.createLinearGradient(x0, y0, x1, y1);
+    }
+
+    public void setStrokeStyle(FillStrokeStyle strokeStyle) {
+        context.setStrokeStyle(strokeStyle);
+    }
+
+    public void setStrokeStyle(String strokeStyleColor) {
+        context.setStrokeStyle(strokeStyleColor);
+    }
+
+    public void strokeRect(double x, double y, double w, double h) {
+        context.strokeRect(x, y, w, h);
+    }
+
+    public void bezierCurveTo(double cp1x, double cp1y, double cp2x, double cp2y, double x, double y) {
+        context.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+    }
 
 }

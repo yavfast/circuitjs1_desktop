@@ -502,9 +502,7 @@ public class BaseCircuitElm {
      */
     public static void drawThickCircle(Graphics g, int cx, int cy, int ri) {
         g.setLineWidth(THICK_LINE_WIDTH);
-        g.context.beginPath();
-        g.context.arc(cx, cy, ri * .98, 0, 2 * Math.PI);
-        g.context.stroke();
+        g.drawCircle(cx, cy, ri * 0.98);
         g.setLineWidth(1.0);
     }
 

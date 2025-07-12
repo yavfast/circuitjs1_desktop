@@ -70,32 +70,32 @@ public class ResistorElm extends CircuitElm {
 
         //   double segf = 1./segments;
         double len = distance(lead1, lead2);
-        g.context.save();
-        g.context.setLineWidth(3.0);
-        g.context.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.save();
+        g.setLineWidth(3.0);
+        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
         if (simUi.menuManager.voltsCheckItem.getState()) {
-            CanvasGradient grad = g.context.createLinearGradient(0, 0, len, 0);
+            CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
             grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
-            g.context.setStrokeStyle(grad);
+            g.setStrokeStyle(grad);
         } else
             setPowerColor(g, true);
         if (dn < 30)
             hs = 2;
         if (!simUi.menuManager.euroResistorCheckItem.getState()) {
-            g.context.beginPath();
-            g.context.moveTo(0, 0);
+            g.beginPath();
+            g.moveTo(0, 0);
             for (i = 0; i < 4; i++) {
-                g.context.lineTo((1 + 4 * i) * len / 16, hs);
-                g.context.lineTo((3 + 4 * i) * len / 16, -hs);
+                g.lineTo((1 + 4 * i) * len / 16, hs);
+                g.lineTo((3 + 4 * i) * len / 16, -hs);
             }
-            g.context.lineTo(len, 0);
-            g.context.stroke();
+            g.lineTo(len, 0);
+            g.stroke();
 
         } else {
-            g.context.strokeRect(0, -hs, len, 2.0 * hs);
+            g.strokeRect(0, -hs, len, 2.0 * hs);
         }
-        g.context.restore();
+        g.restore();
         if (simUi.menuManager.showValuesCheckItem.getState()) {
             String s = getShortUnitText(resistance, "");
             drawValues(g, s, hs + 2);

@@ -91,17 +91,17 @@ public class SweepElm extends CircuitElm {
         if (simUi.simIsRunning())
             w = 1 + 2 * (frequency - minF) / (maxF - minF);
 
-        g.context.beginPath();
-        g.context.setLineWidth(3.0);
+        g.beginPath();
+        g.setLineWidth(3.0);
         for (i = -xl; i <= xl; i++) {
             int yy = yc + (int) (.95 * Math.sin(i * pi * w / xl) * wl);
             if (i == -xl)
-                g.context.moveTo(xc + i, yy);
+                g.moveTo(xc + i, yy);
             else
-                g.context.lineTo(xc + i, yy);
+                g.lineTo(xc + i, yy);
         }
-        g.context.stroke();
-        g.context.setLineWidth(1.0);
+        g.stroke();
+        g.setLineWidth(1.0);
 
         if (simUi.menuManager.showValuesCheckItem.getState()) {
             String s = getShortUnitText(frequency, "Hz");

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -111,7 +112,7 @@ public class RelayContactElm extends CircuitElm {
             g.drawString(label, x + 10, swpoles[y < y2 ? 0 : 1].y - 5);
         else {
             g.save();
-            g.context.setTextAlign("center");
+            g.setTextAlign(Context2d.TextAlign.CENTER);
             g.drawString(label, (x + x2) / 2, y + 15);
             g.restore();
         }
@@ -122,7 +123,7 @@ public class RelayContactElm extends CircuitElm {
             interpPoint(lead1, lead2, extraPoints[1], .5 + 2 / 32., i_position == 1 ? openhs / 2 : 0);
             g.drawLine(extraPoints[0], extraPoints[2]);
             g.drawLine(extraPoints[1], extraPoints[3]);
-            g.context.beginPath();
+            g.beginPath();
             double ang = -Math.atan2(-dy * dsign, dx * dsign);
             int ds = 22 * dsign;
             if (type == RelayCoilElm.TYPE_OFF_DELAY) {
@@ -131,8 +132,8 @@ public class RelayContactElm extends CircuitElm {
             } else {
                 interpPoint(lead1, lead2, extraPoints[4], .5, ds - 5 * dsign);
             }
-            g.context.arc(extraPoints[4].x, extraPoints[4].y, 6, -Math.PI / 8 + ang, Math.PI * 9 / 8 + ang, true);
-            g.context.stroke();
+            g.arc(extraPoints[4].x, extraPoints[4].y, 6, -Math.PI / 8 + ang, Math.PI * 9 / 8 + ang, true);
+            g.stroke();
         }
 
         switchCurCount = updateDotCount(switchCurrent, switchCurCount);

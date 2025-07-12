@@ -193,7 +193,7 @@ public class VoltageElm extends CircuitElm {
             g.setFont(unitsFont);
             Point plusPoint = interpPoint(point1, point2, (dn / 2 + circleSize + 4) / dn, 10 * dsign);
             plusPoint.y += 4;
-            int w = (int) g.context.measureText(inds).getWidth();
+            int w = (int) g.measureWidth(inds);
             ;
             g.drawString(inds, plusPoint.x - w / 2, plusPoint.y);
         }
@@ -262,18 +262,18 @@ public class VoltageElm extends CircuitElm {
             case WF_AC: {
                 int i;
                 int xl = 10;
-                g.context.beginPath();
-                g.context.setLineWidth(3.0);
+                g.beginPath();
+                g.setLineWidth(3.0);
 
                 for (i = -xl; i <= xl; i++) {
                     int yy = yc + (int) (.95 * Math.sin(i * pi / xl) * wl);
                     if (i == -xl)
-                        g.context.moveTo(xc + i, yy);
+                        g.moveTo(xc + i, yy);
                     else
-                        g.context.lineTo(xc + i, yy);
+                        g.lineTo(xc + i, yy);
                 }
-                g.context.stroke();
-                g.context.setLineWidth(1.0);
+                g.stroke();
+                g.setLineWidth(1.0);
                 break;
             }
         }

@@ -118,7 +118,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     void executeSlider() {
-        renderer().analyzeFlag = true;
+        renderer().needsAnalysis();
         EditInfo ei = elm.getEditInfo(editItem);
         ei.value = getSliderValue();
         elm.setEditValue(editItem, ei);

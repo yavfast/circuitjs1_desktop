@@ -125,7 +125,7 @@ public class SevenSegElm extends ChipElm {
     }
 
     void drawSegment(Graphics g, Point p1, Point p2, int thick) {
-        g.context.beginPath();
+        g.beginPath();
         Point p3 = new Point();
         Point p4 = new Point();
         Point p5 = new Point();
@@ -134,27 +134,27 @@ public class SevenSegElm extends ChipElm {
         // from p1 to p2, calculate points several pixels from each end, offset from center of line on both sides
         interpPoint2(p1, p2, p3, p4, thick / dn, thick);
         interpPoint2(p1, p2, p5, p6, 1 - thick / dn, thick);
-        g.context.moveTo(p1.x, p1.y);
-        g.context.lineTo(p3.x, p3.y);
-        g.context.lineTo(p5.x, p5.y);
-        g.context.lineTo(p2.x, p2.y);
-        g.context.lineTo(p6.x, p6.y);
-        g.context.lineTo(p4.x, p4.y);
-        g.context.lineTo(p1.x, p1.y);
-        g.context.fill();
+        g.moveTo(p1.x, p1.y);
+        g.lineTo(p3.x, p3.y);
+        g.lineTo(p5.x, p5.y);
+        g.lineTo(p2.x, p2.y);
+        g.lineTo(p6.x, p6.y);
+        g.lineTo(p4.x, p4.y);
+        g.lineTo(p1.x, p1.y);
+        g.fill();
     }
 
     void drawDecimal(Graphics g, int x, int y, int sp) {
-        g.context.beginPath();
-        g.context.moveTo(x, y - sp);
-        g.context.lineTo(x - sp, y);
-        g.context.lineTo(x, y + sp);
-        g.context.lineTo(x + sp, y);
-        g.context.lineTo(x, y - sp);
-        g.context.fill();
+        g.beginPath();
+        g.moveTo(x, y - sp);
+        g.lineTo(x - sp, y);
+        g.lineTo(x, y + sp);
+        g.lineTo(x + sp, y);
+        g.lineTo(x, y - sp);
+        g.fill();
     }
 
-    static int display7[] = {
+    static int[] display7 = {
             // x1, y1, x2, y2 for each segment
             0, 0, 2, 0,
             2, 0, 2, 1,
@@ -164,7 +164,7 @@ public class SevenSegElm extends ChipElm {
             0, 0, 0, 1,
             0, 1, 2, 1
     };
-    static int display16[] = {
+    static int[] display16 = {
             0, 0, 1, 0,
             1, 0, 2, 0,
             2, 0, 2, 1,

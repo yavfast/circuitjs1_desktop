@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -161,13 +162,13 @@ public class WattmeterElm extends CircuitElm {
         // adjust font size to fit
         while (true) {
             g.setFont(new Font("SansSerif", 0, fsize));
-            w = (int) g.context.measureText(str).getWidth();
+            w = (int) g.measureWidth(str);
             if (w < maxTextLen)
                 break;
             fsize--;
         }
         g.setColor(backgroundColor);
-        g.context.setTextBaseline("middle");
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         g.drawString(str, center.x - w / 2, center.y);
         g.restore();
     }

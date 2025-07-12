@@ -467,19 +467,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             // current is moving too fast, avoid aliasing by drawing dots at
             // random position with transparent yellow line underneath
             g.save();
-            Context2d ctx = g.context;
-            ctx.setLineWidth(4);
-            ctx.setGlobalAlpha(.5);
-            ctx.beginPath();
-            ctx.moveTo(pa.x, pa.y);
-            ctx.lineTo(pb.x, pb.y);
-            ctx.stroke();
+            g.setLineWidth(4);
+            g.setAlpha(.5);
+            g.drawLine(pa, pb);
             g.restore();
             pos = Random.nextDouble() * ds;
         }
         pos %= ds;
-        if (pos < 0)
-            pos += ds;
+        if (pos < 0) pos += ds;
         double di = 0;
         for (di = pos; di < dn; di += ds) {
             int x0 = (int) (pa.x + di * dx / dn);
@@ -770,19 +765,19 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     void drawCenteredText(Graphics g, String s, int x, int y, boolean cx) {
-        int w = (int) g.context.measureText(s).getWidth();
-        int h2 = (int) g.currentFontSize / 2;
-        g.save();
-        g.context.setTextBaseline("middle");
+        int w = (int) g.measureWidth(s);
+        int h2 = g.getFontSize() / 2;
         if (cx) {
-            g.context.setTextAlign("center");
             adjustBbox(x - w / 2, y - h2, x + w / 2, y + h2);
         } else {
             adjustBbox(x, y - h2, x + w, y + h2);
         }
 
-        if (cx)
-            g.context.setTextAlign("center");
+        g.save();
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
+        if (cx) {
+            g.setTextAlign(Context2d.TextAlign.CENTER);
+        }
         g.drawString(s, x, y);
         g.restore();
     }
@@ -794,9 +789,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
         g.setFont(unitsFont);
         //FontMetrics fm = g.getFontMetrics();
-        int w = (int) g.context.measureText(s).getWidth();
+        int w = (int) g.measureWidth(s);
         g.setColor(backgroundColor);
-        int ya = (int) g.currentFontSize / 2;
+        int ya = g.getFontSize() / 2;
         int xc, yc;
         if (this instanceof RailElm || this instanceof SweepElm) {
             xc = x2;
@@ -823,10 +818,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             lineOver = true;
             str = str.substring(1);
         }
-        int w = (int) g.context.measureText(str).getWidth();
-        int h = (int) g.currentFontSize;
+        int w = (int) g.measureWidth(str);
+        int h = (int) g.getFontSize();
         g.save();
-        g.context.setTextBaseline("middle");
+        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         int x = pt2.x, y = pt2.y;
         if (pt1.y != pt2.y) {
             x -= w / 2;
@@ -851,28 +846,28 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         double len = distance(p1, p2);
 
         g.save();
-        g.context.setLineWidth(THICK_LINE_WIDTH);
-        g.context.transform(((double) (p2.x - p1.x)) / len, ((double) (p2.y - p1.y)) / len,
+        g.setLineWidth(THICK_LINE_WIDTH);
+        g.transform(((double) (p2.x - p1.x)) / len, ((double) (p2.y - p1.y)) / len,
                 -((double) (p2.y - p1.y)) / len, ((double) (p2.x - p1.x)) / len, p1.x, p1.y);
         if (simUi.menuManager.voltsCheckItem.getState()) {
-            CanvasGradient grad = g.context.createLinearGradient(0, 0, len, 0);
+            CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
             grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
-            g.context.setStrokeStyle(grad);
+            g.setStrokeStyle(grad);
         }
-        g.context.setLineCap(LineCap.ROUND);
-        g.context.scale(1, hs > 0 ? 1 : -1);
+        g.setLineCap(LineCap.ROUND);
+        g.scale(1, hs > 0 ? 1 : -1);
 
         int loop;
         // draw more loops for a longer coil
         int loopCt = (int) Math.ceil(len / 11);
         for (loop = 0; loop != loopCt; loop++) {
-            g.context.beginPath();
             double start = len * loop / loopCt;
-            g.context.moveTo(start, 0);
-            g.context.arc(len * (loop + .5) / loopCt, 0, len / (2 * loopCt), Math.PI, Math.PI * 2);
-            g.context.lineTo(len * (loop + 1) / loopCt, 0);
-            g.context.stroke();
+            g.beginPath();
+            g.moveTo(start, 0);
+            g.arc(len * (loop + .5) / loopCt, 0, len / (2 * loopCt), Math.PI, Math.PI * 2);
+            g.lineTo(len * (loop + 1) / loopCt, 0);
+            g.stroke();
         }
 
         g.restore();

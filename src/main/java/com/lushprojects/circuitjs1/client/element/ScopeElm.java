@@ -107,16 +107,16 @@ public class ScopeElm extends CircuitElm {
 
     public void draw(Graphics g) {
         g.setColor(needsHighlight() ? selectColor : backgroundColor);
-        g.context.save();
+        g.save();
         // setTransform() doesn't work in version of canvas2svg we are using
-        g.context.scale(1 / simUi.renderer.transform[0], 1 / simUi.renderer.transform[3]);
-        g.context.translate(-simUi.renderer.transform[4], -simUi.renderer.transform[5]);
-        //g.context.scale(CirSim.devicePixelRatio(), CirSim.devicePixelRatio());
+        g.scale(1 / simUi.renderer.transform[0], 1 / simUi.renderer.transform[3]);
+        g.translate(-simUi.renderer.transform[4], -simUi.renderer.transform[5]);
+        //g.scale(CirSim.devicePixelRatio(), CirSim.devicePixelRatio());
 
         setScopeRect();
         elmScope.position = -1;
         elmScope.draw(g);
-        g.context.restore();
+        g.restore();
         setBbox(point1, point2, 0);
         drawPosts(g);
 

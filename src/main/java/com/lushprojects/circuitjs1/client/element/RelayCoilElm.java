@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -157,7 +158,7 @@ public class RelayCoilElm extends CircuitElm {
             g.drawString(label, outline[2].x + 10, (y + y2) / 2 + 4);
         else {
             g.save();
-            g.context.setTextAlign("center");
+            g.setTextAlign(Context2d.TextAlign.CENTER);
             g.drawString(label, (x + x2) / 2, outline[1].y + 15);
             g.restore();
         }

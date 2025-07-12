@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -126,7 +127,7 @@ public class SwitchElm extends CircuitElm {
                 g.drawString(label, x + 10, (y < y2 ? lead1 : lead2).y - 5);
             else {
                 g.save();
-                g.context.setTextAlign("center");
+                g.setTextAlign(Context2d.TextAlign.CENTER);
                 g.drawString(label, (x + x2) / 2, (x2 > x) ? y + 15 : y - 15);
                 g.restore();
             }

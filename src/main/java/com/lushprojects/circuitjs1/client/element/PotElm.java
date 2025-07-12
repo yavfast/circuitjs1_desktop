@@ -93,7 +93,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public void execute() {
-        simUi.renderer.analyzeFlag = true;
+        simUi.renderer.needsAnalysis();
         setPoints();
     }
 
@@ -231,9 +231,9 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             String s2 = getShortUnitText(rev ? resistance1 : resistance2, "");
             g.setFont(unitsFont);
             g.setColor(backgroundColor);
-            int ya = (int) g.currentFontSize / 2;
+            int ya = (int) g.getFontSize() / 2;
             int w;
-            w = (int) g.context.measureText(s1).getWidth();
+            w = (int) g.measureWidth(s1);
 
             // vertical?
             if (lead1.x == lead2.x)
@@ -241,7 +241,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             else
                 g.drawString(s1, Math.min(arrow1.x, arrow2.x) - 2 - w, !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
 
-            w = (int) g.context.measureText(s2).getWidth();
+            w = (int) g.measureWidth(s2);
             if (lead1.x == lead2.x)
                 g.drawString(s2, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w, Math.min(arrow1.y, arrow2.y) - 3);
             else
@@ -255,9 +255,9 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             return;
         g.setFont(unitsFont);
         //FontMetrics fm = g.getFontMetrics();
-        int w = (int) g.context.measureText(s).getWidth();
+        int w = (int) g.measureWidth(s);
         g.setColor(backgroundColor);
-        int ya = (int) g.currentFontSize / 2;
+        int ya = (int) g.getFontSize() / 2;
         int xc = pt.x;
         int yc = pt.y;
         int dpx = hs;

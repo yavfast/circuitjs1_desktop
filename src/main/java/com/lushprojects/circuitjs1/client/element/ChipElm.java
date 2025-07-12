@@ -144,7 +144,7 @@ public abstract class ChipElm extends CircuitElm {
             if (!hasVertical && sizeX > 2)
                 availSpace = cspc * 2.5 + cspc * (sizeX - 3);
             while (true) {
-                int sw = (int) g.context.measureText(p.text).getWidth();
+                int sw = (int) g.measureWidth(p.text);
                 // scale font down if it's too big
                 if (sw > availSpace) {
                     fsz -= 1;
@@ -152,7 +152,7 @@ public abstract class ChipElm extends CircuitElm {
                     g.setFont(f2);
                     continue;
                 }
-                int asc = (int) g.currentFontSize;
+                int asc = (int) g.getFontSize();
                 int tx;
                 // put text closer to edge if it's on left or right.
                 if (p.side == flippedXSide(SIDE_W))

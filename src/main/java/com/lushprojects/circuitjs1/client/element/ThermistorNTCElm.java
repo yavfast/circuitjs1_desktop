@@ -99,7 +99,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     }
 
     public void execute() {
-        simUi.renderer.analyzeFlag = true;
+        simUi.renderer.needsAnalysis();
         setPoints();
     }
 
@@ -132,35 +132,35 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         draw2Leads(g); //from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
         setPowerColor(g, true);
         double len = distance(lead1, lead2);
-        g.context.save();
-        g.context.setLineWidth(3.0);
-        g.context.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
-        CanvasGradient grad = g.context.createLinearGradient(0, 0, len, 0);
+        g.save();
+        g.setLineWidth(3.0);
+        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
         grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
         grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
-        g.context.setStrokeStyle(grad);
+        g.setStrokeStyle(grad);
         if (!simUi.menuManager.euroResistorCheckItem.getState()) {
-            g.context.beginPath();
-            g.context.moveTo(0, 0);
+            g.beginPath();
+            g.moveTo(0, 0);
             for (i = 0; i < 4; i++) {
-                g.context.lineTo((1 + 4 * i) * len / 16, hs);
-                g.context.lineTo((3 + 4 * i) * len / 16, -hs);
+                g.lineTo((1 + 4 * i) * len / 16, hs);
+                g.lineTo((3 + 4 * i) * len / 16, -hs);
             }
-            g.context.lineTo(len, 0);
-            g.context.stroke();
+            g.lineTo(len, 0);
+            g.stroke();
 
         } else {
-            g.context.strokeRect(0, -hs, len, 2.0 * hs); //draw the box for the euro resistor
+            g.strokeRect(0, -hs, len, 2.0 * hs); //draw the box for the euro resistor
         }
 
-        g.context.beginPath(); //thermistor symbol lines 0 is in the middle of the left handside of the resistor box
-        g.context.moveTo(0 - hs, hs * 2);
-        g.context.lineTo(hs, hs * 2);
-        g.context.lineTo(len, -hs * 2);
-        g.context.stroke();
+        g.beginPath(); //thermistor symbol lines 0 is in the middle of the left handside of the resistor box
+        g.moveTo(0 - hs, hs * 2);
+        g.lineTo(hs, hs * 2);
+        g.lineTo(len, -hs * 2);
+        g.stroke();
 
 
-        g.context.restore();
+        g.restore();
         if (simUi.menuManager.showValuesCheckItem.getState()) {
             temperature = temprFromSliderPos();
             resistance = calcResistance(temperature);
