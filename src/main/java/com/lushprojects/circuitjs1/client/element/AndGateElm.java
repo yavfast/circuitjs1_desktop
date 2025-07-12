@@ -19,7 +19,6 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
-import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;

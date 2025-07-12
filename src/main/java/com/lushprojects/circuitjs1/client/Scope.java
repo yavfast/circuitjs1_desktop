@@ -86,7 +86,7 @@ public class Scope extends BaseCirSimDelegate {
     public Vector<ScopePlot> plots, visiblePlots;
     private int draw_ox, draw_oy;
     private Canvas imageCanvas;
-    private Context2d imageContext;
+    private Graphics graphics;
     private int alphaCounter = 0;
     // scopeTimeStep to check if sim timestep has changed from previous value when redrawing
     private double scopeTimeStep;
@@ -116,7 +116,7 @@ public class Scope extends BaseCirSimDelegate {
 
         rect = new Rectangle(0, 0, 1, 1);
         imageCanvas = Canvas.createIfSupported();
-        imageContext = imageCanvas.getContext2d();
+        graphics = new Graphics(imageCanvas.getContext2d());
         allocImage();
         initialize();
     }
@@ -474,7 +474,7 @@ public class Scope extends BaseCirSimDelegate {
         }
 
         // For 2d plots we draw here rather than in the drawing routine
-        if (plot2d && imageContext != null && plots.size() >= 2) {
+        if (plot2d && graphics != null && plots.size() >= 2) {
             double v = plots.get(0).lastValue;
             double yval = plots.get(1).lastValue;
             int x, y;
@@ -511,26 +511,23 @@ public class Scope extends BaseCirSimDelegate {
             draw_oy = y2;
         }
         if (cirSim.menuManager.printableCheckItem.getState()) {
-            imageContext.setStrokeStyle("#000000");
+            graphics.setStrokeStyle("#000000");
         } else {
-            imageContext.setStrokeStyle("#ffffff");
+            graphics.setStrokeStyle("#ffffff");
         }
-        imageContext.beginPath();
-        imageContext.moveTo(draw_ox, draw_oy);
-        imageContext.lineTo(x2, y2);
-        imageContext.stroke();
+        graphics.drawLine(draw_ox, draw_oy, x2, y2);
         draw_ox = x2;
         draw_oy = y2;
     }
 
     void clear2dView() {
-        if (imageContext != null) {
+        if (graphics != null) {
             if (cirSim.menuManager.printableCheckItem.getState()) {
-                imageContext.setFillStyle("#eee");
+                graphics.setColor("#eee");
             } else {
-                imageContext.setFillStyle("#111");
+                graphics.setColor("#111");
             }
-            imageContext.fillRect(0, 0, rect.width - 1, rect.height - 1);
+            graphics.fillRect(0, 0, rect.width - 1, rect.height - 1);
         }
         draw_ox = draw_oy = -1;
     }
@@ -673,6 +670,7 @@ public class Scope extends BaseCirSimDelegate {
     }
 
     void draw2d(Graphics graphics) {
+        Context2d imageContext = this.graphics.getContext();
         if (imageContext == null) {
             return;
         }

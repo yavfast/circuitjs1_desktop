@@ -70,15 +70,11 @@ public class Graphics {
 
 
     public void fillRect(int x, int y, int width, int height) {
-        //  context.beginPath();
         context.fillRect(x, y, width, height);
-        //  context.closePath();
     }
 
     public void drawRect(int x, int y, int width, int height) {
-        //  context.beginPath();
         context.strokeRect(x, y, width, height);
-        //  context.closePath();
     }
 
     public void fillOval(int x, int y, int width, int height) {
@@ -143,14 +139,14 @@ public class Graphics {
         context.stroke();
     }
 
-    public void drawPolyline(int[] xpoints, int[] ypoints, int n) {
-        int i;
+    public void drawPolyline(int[] xPoints, int[] yPoints, int n) {
         context.beginPath();
-        for (i = 0; i < n; i++) {
-            if (i == 0)
-                context.moveTo(xpoints[i], ypoints[i]);
-            else
-                context.lineTo(xpoints[i], ypoints[i]);
+        for (int i = 0; i < n; i++) {
+            if (i == 0) {
+                context.moveTo(xPoints[i], yPoints[i]);
+            } else {
+                context.lineTo(xPoints[i], yPoints[i]);
+            }
         }
         context.closePath();
         context.stroke();
@@ -158,13 +154,13 @@ public class Graphics {
 
 
     public void fillPolygon(Polygon p) {
-        int i;
         context.beginPath();
-        for (i = 0; i < p.npoints; i++) {
-            if (i == 0)
+        for (int i = 0; i < p.npoints; i++) {
+            if (i == 0) {
                 context.moveTo(p.xpoints[i], p.ypoints[i]);
-            else
+            } else {
                 context.lineTo(p.xpoints[i], p.ypoints[i]);
+            }
         }
         context.closePath();
         context.fill();
