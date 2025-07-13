@@ -1,13 +1,12 @@
 package com.lushprojects.circuitjs1.client.dialog;
 
-import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Scrollbar;
 
-public class ControlsDialog extends DialogBox {
+public class ControlsDialog extends Dialog {
     final CirSim cirSim;
     public VerticalPanel panel;
 
@@ -37,5 +36,10 @@ public class ControlsDialog extends DialogBox {
                 panel.setCellHorizontalAlignment(panel.getWidget(i), HasHorizontalAlignment.ALIGN_CENTER);
             }
         }
+    }
+
+    @Override
+    protected String getOptionPrefix() {
+        return "ControlsDialog";
     }
 }

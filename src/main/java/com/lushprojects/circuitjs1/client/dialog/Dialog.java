@@ -1,18 +1,28 @@
 package com.lushprojects.circuitjs1.client.dialog;
 
+import com.google.gwt.event.dom.client.MouseUpEvent;
 import com.google.gwt.user.client.ui.DialogBox;
-import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.OptionsManager;
-import com.lushprojects.circuitjs1.client.util.Log;
 
 public class Dialog extends DialogBox {
 
     boolean closeOnEnter;
+    boolean positionRestored = false;
 
     public Dialog() {
-        super();
+        this(false, true);
+    }
+
+    public Dialog(boolean autoHide, boolean modal) {
+        super(autoHide, modal);
         closeOnEnter = true;
         loadPosition();
+    }
+
+    @Override
+    protected void endDragging(MouseUpEvent event) {
+        super.endDragging(event);
+        savePosition();
     }
 
     public void closeDialog() {
@@ -40,6 +50,10 @@ public class Dialog extends DialogBox {
         return null;
     }
 
+    public boolean isPositionRestored() {
+        return positionRestored;
+    }
+
     private void savePosition() {
         String optionPrefix = getOptionPrefix();
         if (optionPrefix != null) {
@@ -51,6 +65,7 @@ public class Dialog extends DialogBox {
     }
 
     private void loadPosition() {
+        positionRestored = false;
         String optionPrefix = getOptionPrefix();
         if (optionPrefix != null) {
             String posKey = OptionsManager.getPrefixedKey(optionPrefix, "pos");
@@ -62,7 +77,8 @@ public class Dialog extends DialogBox {
                         int left = Integer.parseInt(parts[0]);
                         int top = Integer.parseInt(parts[1]);
                         setPopupPosition(left, top);
-                        Log.log("Restore position: ", posStr);
+                        positionRestored = true;
+//                        Log.log("Restore position: ", posStr);
                     }
                 } catch (NumberFormatException e) {
                     // Ignore if the position is not in the correct format

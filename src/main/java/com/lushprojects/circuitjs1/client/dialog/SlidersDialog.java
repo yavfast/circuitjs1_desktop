@@ -1,8 +1,6 @@
 package com.lushprojects.circuitjs1.client.dialog;
 
-import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -10,18 +8,22 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.Scrollbar;
-import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
-public class SlidersDialog extends DialogBox {
-    private VerticalPanel panel;
+public class SlidersDialog extends Dialog {
+    private final VerticalPanel panel;
 
     public SlidersDialog() {
-        super(false, false); // autoHide, modal
+        super(false, false);
         setText("Adjustable Sliders");
         panel = new VerticalPanel();
         setWidget(panel);
         
         getElement().getStyle().setProperty("overflowY", "auto");
+    }
+
+    @Override
+    protected String getOptionPrefix() {
+        return "SlidersDialog";
     }
 
     public Widget addSlider(Label titleLabel, Label valueLabel, Scrollbar slider, Button editAdjustableButton, Button editElementButton) {

@@ -93,8 +93,8 @@ public class CirSim implements NativePreviewHandler {
 
     DockLayoutPanel layoutPanel;
 
-    public SlidersDialog slidersDialog;
     public ControlsDialog controlsDialog;
+    public SlidersDialog slidersDialog;
 
     public Label powerLabel;
     public Scrollbar speedBar;
@@ -294,8 +294,8 @@ public class CirSim implements NativePreviewHandler {
         Window.addResizeHandler(new ResizeHandler() {
             public void onResize(ResizeEvent event) {
                 repaint();
-                updateSlidersDialogPosition();
                 updateControlsDialogPosition();
+                updateSlidersDialogPosition();
                 setSlidersDialogHeight();
             }
         });
@@ -827,21 +827,26 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void updateSlidersDialogPosition() {
-        if (slidersDialog == null || !slidersDialog.isShowing())
+        if (slidersDialog == null || !slidersDialog.isShowing() || controlsDialog.isPositionRestored())
             return;
         int mainWidth = RootLayoutPanel.get().getOffsetWidth();
         int dialogWidth = slidersDialog.getOffsetWidth();
         int left = mainWidth - dialogWidth - 20;
-        slidersDialog.setPopupPosition(left, 50);
+        int top;
+        if (controlsDialog != null && controlsDialog.isShowing())
+            top = controlsDialog.getAbsoluteTop() + controlsDialog.getOffsetHeight();
+        else
+            top = 50;
+        slidersDialog.setPopupPosition(left, top);
     }
 
     void updateControlsDialogPosition() {
-        if (controlsDialog == null || !controlsDialog.isShowing())
+        if (controlsDialog == null || !controlsDialog.isShowing() || controlsDialog.isPositionRestored())
             return;
         int mainWidth = RootLayoutPanel.get().getOffsetWidth();
         int dialogWidth = controlsDialog.getOffsetWidth();
         int left = mainWidth - dialogWidth - 20;
-        controlsDialog.setPopupPosition(left, 50);
+        controlsDialog.setPopupPosition(left, 80);
     }
 
     public void addWidgetToVerticalPanel(Widget w) {
