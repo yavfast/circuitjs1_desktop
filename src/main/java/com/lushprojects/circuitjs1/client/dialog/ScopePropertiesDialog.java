@@ -362,7 +362,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         hScaleGrid = new Grid(2, 4);
         hScaleLabel = new ScopePropertiesDialog.expandingLabel(Locale.LS("Horizontal Scale"), displayScales);
         hScaleGrid.setWidget(0, 0, hScaleLabel.p);
-        speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 2, 1, 0, 11, new Command() {
+        speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 2, 1, 0, 10, new Command() {
             public void execute() {
                 scrollbarChanged();
             }

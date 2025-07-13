@@ -75,7 +75,7 @@ public class Scrollbar extends Composite implements
 
     public Scrollbar(int orientation, int value, int visible, int minimum, int maximum) {
         min = minimum;
-        max = maximum - 1;
+        max = maximum;
         val = value;
         pan = new VerticalPanel();
         can = Canvas.createIfSupported();
@@ -296,14 +296,16 @@ public class Scrollbar extends Composite implements
     }
 
     public void setValue(int i) {
-        if (i < min)
+        if (i < min) {
             i = min;
-        else if (i > max)
+        } else if (i > max) {
             i = max;
+        }
         val = i;
         draw();
-        if (command != null)
+        if (command != null) {
             command.execute();
+        }
     }
 
     public void enable() {

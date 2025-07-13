@@ -461,8 +461,7 @@ public class CirSim implements NativePreviewHandler {
         powerLabel.addStyleName("topSpace");
         powerLabel.addStyleName("sidePanelElm");
 
-        verticalPanel.add(powerBar = new Scrollbar(Scrollbar.HORIZONTAL,
-                50, 1, 1, 100));
+        verticalPanel.add(powerBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100));
         powerBar.addStyleName("sidePanelElm");
         setPowerBarEnable();
 

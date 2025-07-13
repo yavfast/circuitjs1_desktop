@@ -28,22 +28,27 @@ public class SlidersDialog extends DialogBox {
         VerticalPanel row = new VerticalPanel();
         row.setWidth("100%");
         
-        HorizontalPanel hpanel = new HorizontalPanel();
-        hpanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
-        hpanel.setSpacing(5);
-        hpanel.setWidth("100%");
+        HorizontalPanel titlePanel = new HorizontalPanel();
+        titlePanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
+        titlePanel.setWidth("100%");
+        titlePanel.add(titleLabel);
+        titlePanel.add(valueLabel);
+        titlePanel.setCellHorizontalAlignment(valueLabel, HasHorizontalAlignment.ALIGN_RIGHT);
+
+        HorizontalPanel controlPanel = new HorizontalPanel();
+        controlPanel.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
+        controlPanel.setSpacing(5);
+        controlPanel.setWidth("100%");
         
         slider.setWidth("100%");
         
-        hpanel.add(slider);
-        hpanel.add(editAdjustableButton);
-        hpanel.add(editElementButton);
-        hpanel.setCellWidth(slider, "100%");
+        controlPanel.add(slider);
+        controlPanel.add(editAdjustableButton);
+        controlPanel.add(editElementButton);
+        controlPanel.setCellWidth(slider, "100%");
 
-        row.add(titleLabel);
-        row.add(valueLabel);
-        row.add(hpanel);
-        row.setCellHorizontalAlignment(valueLabel, HasHorizontalAlignment.ALIGN_CENTER);
+        row.add(titlePanel);
+        row.add(controlPanel);
         
         panel.add(row);
         return row;

@@ -16,7 +16,8 @@ import java.util.Vector;
 // values with sliders
 public class Adjustable extends BaseCirSimDelegate implements Command {
     CircuitElm elm;
-    public double minValue, maxValue;
+    public double minValue;
+    public double maxValue;
     int flags;
     public String sliderText;
 
@@ -98,8 +99,9 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         label = new Label(Locale.LS(sliderText));
         label.addStyleName("topSpace");
         valueLabel = new Label();
+        valueLabel.addStyleName("topSpace");
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
-        slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm);
+        slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 100, this, elm);
 
         editAdjustableButton = new Button("\u2699"); // Gear icon
         editAdjustableButton.addClickHandler(new ClickHandler() {
@@ -156,13 +158,12 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     void updateValueLabel() {
         if (valueLabel == null) return;
         EditInfo ei = elm.getEditInfo(editItem);
-        double val = getSliderValue();
         String valueString;
         if (ei != null && ei.unit != null) {
-            valueString = CircuitElm.getUnitText(val, ei.unit);
+            valueString = CircuitElm.getUnitText(ei.value, ei.unit);
         } else {
             // format to 2 decimal places
-            valueString = String.valueOf(Math.round(val * 100) / 100.0);
+            valueString = String.valueOf(Math.round(getSliderValue() * 100) / 100.0);
         }
         valueLabel.setText(valueString);
     }

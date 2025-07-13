@@ -62,7 +62,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         simUi.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
         label.addStyleName("topSpace");
         int value = (int) ((frequency - bias) * 100 / (maxVoltage - bias));
-        simUi.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, value, 1, 0, 101,
+        simUi.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, value, 1, 0, 100,
                 null, this));
 //	    sim.verticalPanel.validate();
     }
