@@ -245,8 +245,6 @@ public class ScopeManager extends BaseCirSimDelegate {
         if (colct <= 2)
             iw = iw * 3 / 2;
         int w = (renderer.canvasWidth - iw) / colct;
-        if (cirSim.isSidePanelCheckboxChecked() && OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", false))
-            w = (renderer.canvasWidth - iw - CirSim.VERTICAL_PANEL_WIDTH) / colct;
         int marg = 10;
         if (w < marg * 2)
             w = marg * 2;

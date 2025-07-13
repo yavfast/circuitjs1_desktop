@@ -36,7 +36,6 @@ import com.google.gwt.dom.client.MetaElement;
 import com.google.gwt.dom.client.NodeList;
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
 import com.google.gwt.event.logical.shared.ResizeEvent;
 import com.google.gwt.event.logical.shared.ResizeHandler;
@@ -47,19 +46,15 @@ import com.google.gwt.user.client.Element;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Event.NativePreviewEvent;
 import com.google.gwt.user.client.Event.NativePreviewHandler;
-import com.google.gwt.user.client.EventListener;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.CellPanel;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
 import com.google.gwt.user.client.ui.Frame;
-import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
@@ -75,7 +70,6 @@ public class CirSim implements NativePreviewHandler {
 
     public static int MENU_BAR_HEIGHT = 30;
     public static int TOOLBAR_HEIGHT = 40;
-    public static int VERTICAL_PANEL_WIDTH = 166; // default
     public static int INFO_WIDTH = 160;
 
     final public CircuitInfo circuitInfo = new CircuitInfo(this);
@@ -98,14 +92,11 @@ public class CirSim implements NativePreviewHandler {
     Toolbar toolbar;
 
     DockLayoutPanel layoutPanel;
-    VerticalPanel verticalPanel;
-    CellPanel buttonPanel;
 
     public SlidersDialog slidersDialog;
     public ControlsDialog controlsDialog;
 
     public Label powerLabel;
-    public Label titleLabel;
     public Scrollbar speedBar;
     public Scrollbar currentBar;
     public Scrollbar powerBar;
@@ -144,18 +135,18 @@ public class CirSim implements NativePreviewHandler {
         int height = RootLayoutPanel.get().getOffsetHeight();
         height = height - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
 
-        if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
-            width = width - VERTICAL_PANEL_WIDTH;
-        if (menuManager.toolbarCheckItem.getState())
+        if (menuManager.toolbarCheckItem.getState()) {
             height -= TOOLBAR_HEIGHT;
+        }
 
         width = Math.max(width, 0);
         height = Math.max(height, 0);
         renderer.setCanvasSize(width, height);
         renderer.setCircuitArea();
         // recenter circuit in case canvas was hidden at startup
-        if (renderer.transform[0] == 0)
+        if (renderer.transform[0] == 0) {
             renderer.centreCircuit();
+        }
     }
 
     native String decompress(String dump) /*-{
@@ -213,14 +204,6 @@ public class CirSim implements NativePreviewHandler {
     void modSetDefault() {
         double MOD_UIScale = OptionsManager.getDoubleOptionFromStorage("MOD_UIScale", getDefaultScale());
         String MOD_TopMenuBar = OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "standart");
-        String MOD_absBtnTheme = OptionsManager.getOptionFromStorage("MOD_absBtnTheme", "default");
-        String MOD_absBtnIcon = OptionsManager.getOptionFromStorage("MOD_absBtnIcon", "stop");
-        boolean MOD_hideAbsBtns = OptionsManager.getBoolOptionFromStorage("MOD_hideAbsBtns", true);
-        boolean MOD_overlayingSidebar = OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", false);
-        boolean MOD_showSidebaronStartup = OptionsManager.getBoolOptionFromStorage("MOD_showSidebaronStartup", true);
-        boolean MOD_overlayingSBAnimation = OptionsManager.getBoolOptionFromStorage("MOD_overlayingSBAnimation", false);
-        String MOD_SBAnim_duration = OptionsManager.getOptionFromStorage("MOD_SBAnim_duration", "500");
-        String MOD_SBAnim_SpeedCurve = OptionsManager.getOptionFromStorage("MOD_SBAnim_SpeedCurve", "ease");
         boolean MOD_setPauseWhenWinUnfocused = OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused", false);
 
         executeJS("document.body.style.zoom = " + MOD_UIScale + ";");
@@ -228,16 +211,6 @@ public class CirSim implements NativePreviewHandler {
         if (MOD_TopMenuBar == "small") {
             MENU_BAR_HEIGHT = 20;
             redrawCanvasSize();
-        }
-
-        if (MOD_showSidebaronStartup) {
-            executeJS("document.getElementById(\"trigger\").checked = true");
-        }
-
-        if (MOD_overlayingSidebar && MOD_overlayingSBAnimation) {
-            setSidebarAnimation(MOD_SBAnim_duration, MOD_SBAnim_SpeedCurve);
-        } else {
-            setSidebarAnimation("none", "");
         }
     }
 
@@ -266,46 +239,17 @@ public class CirSim implements NativePreviewHandler {
         }
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
-        int width = (int) RootLayoutPanel.get().getOffsetWidth();
-        VERTICAL_PANEL_WIDTH = 166;
 
-        verticalPanel = new VerticalPanel();
         slidersDialog = new SlidersDialog();
         controlsDialog = new ControlsDialog(this);
         controlsDialog.show();
 
-        verticalPanel.getElement().addClassName("verticalPanel");
-        verticalPanel.getElement().setId("painel");
-        Element sidePanelCheckbox = DOM.createInputCheck();
-        Element sidePanelCheckboxLabel = DOM.createLabel();
-        sidePanelCheckboxLabel.addClassName("triggerLabel");
-        sidePanelCheckbox.setId("trigger");
-        sidePanelCheckboxLabel.setAttribute("for", "trigger");
-        sidePanelCheckbox.addClassName("trigger");
-        Event.sinkEvents(sidePanelCheckbox, Event.ONCLICK);
-        Event.setEventListener(sidePanelCheckbox, new EventListener() {
-            public void onBrowserEvent(Event event) {
-                if (Event.ONCLICK == event.getTypeInt()) {
-                    scopeManager.setupScopes();
-                    setCanvasSize();
-                    if (!OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true)) {
-                        if (isSidePanelCheckboxChecked())
-                            renderer.transform[4] -= VERTICAL_PANEL_WIDTH / 2;
-                        else
-                            renderer.transform[4] += VERTICAL_PANEL_WIDTH / 2;
-                    }
-                }
-            }
-        });
         Element topPanelCheckbox = DOM.createInputCheck();
         Element topPanelCheckboxLabel = DOM.createLabel();
         topPanelCheckbox.setId("toptrigger");
         topPanelCheckbox.addClassName("toptrigger");
         topPanelCheckboxLabel.addClassName("toptriggerlabel");
         topPanelCheckboxLabel.setAttribute("for", "toptrigger");
-
-        // make buttons side by side if there's room
-        buttonPanel = (VERTICAL_PANEL_WIDTH == 166) ? new HorizontalPanel() : new VerticalPanel();
 
         menuManager.initMainMenuBar();
         MenuBar menuBar = menuManager.menuBar;
@@ -322,14 +266,6 @@ public class CirSim implements NativePreviewHandler {
 
         // add toolbar immediately after menuBar
         layoutPanel.addNorth(toolbar, TOOLBAR_HEIGHT);
-
-        if (circuitInfo.hideSidebar)
-            VERTICAL_PANEL_WIDTH = 0;
-        else {
-            DOM.appendChild(layoutPanel.getElement(), sidePanelCheckbox);
-            DOM.appendChild(layoutPanel.getElement(), sidePanelCheckboxLabel);
-            layoutPanel.addEast(verticalPanel, VERTICAL_PANEL_WIDTH);
-        }
 
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
@@ -366,24 +302,11 @@ public class CirSim implements NativePreviewHandler {
 
         setToolbar(); // calls setCanvasSize()
         layoutPanel.add(cv);
-        verticalPanel.add(buttonPanel);
-        buttonPanel.addStyleName("sidePanelElm");
 
         if (LoadFile.isSupported()) {
-            verticalPanel.add(loadFileInput);
-            loadFileInput.addStyleName("sidePanelElm");
+            controlsDialog.panel.add(loadFileInput);
+            loadFileInput.setVisible(false);
         }
-
-        Label l;
-        l = new Label(Locale.LS("Current Circuit:"));
-        l.addStyleName("topSpace");
-        l.addStyleName("sidePanelElm");
-        titleLabel = new Label("Label");
-        titleLabel.addStyleName("sidePanelElm");
-        verticalPanel.add(l);
-        verticalPanel.add(titleLabel);
-
-        // Sliders are now in a separate dialog
 
         circuitEditor.setGrid();
 
@@ -593,10 +516,6 @@ public class CirSim implements NativePreviewHandler {
         return Color.black;
     }
 
-    native boolean isSidePanelCheckboxChecked() /*-{
-		return $doc.getElementById("trigger").checked;
-    }-*/;
-
     public void needAnalyze() {
         renderer.needsAnalysis();
         repaint();
@@ -784,8 +703,7 @@ public class CirSim implements NativePreviewHandler {
     }-*/;
 
     void setCircuitTitle(String s) {
-        if (s != null)
-            titleLabel.setText(s);
+        // TODO:
     }
 
     void enableDisableMenuItems() {
@@ -866,7 +784,7 @@ public class CirSim implements NativePreviewHandler {
         // This is a hack to fix what IMHO is a bug in the <INPUT FILE element
         // reloading the same file doesn't create a change event so importing the same file twice
         // doesn't work unless you destroy the original input element and replace it with a new one
-        int idx = verticalPanel.getWidgetIndex(loadFileInput);
+        int idx = controlsDialog.panel.getWidgetIndex(loadFileInput);
         circuitInfo.filePath = loadFileInput.getPath();
         console("filePath: " + circuitInfo.filePath);
         circuitInfo.fileName = loadFileInput.getFileName();
@@ -914,8 +832,6 @@ public class CirSim implements NativePreviewHandler {
         int mainWidth = RootLayoutPanel.get().getOffsetWidth();
         int dialogWidth = slidersDialog.getOffsetWidth();
         int left = mainWidth - dialogWidth - 20;
-        if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
-            left -= VERTICAL_PANEL_WIDTH;
         slidersDialog.setPopupPosition(left, 50);
     }
 
@@ -933,8 +849,8 @@ public class CirSim implements NativePreviewHandler {
         // Sliders should be added via addSliderToDialog.
         // For other widgets, it adds to the main vertical panel.
         if (iFrame != null) {
-            int i = verticalPanel.getWidgetIndex(iFrame);
-            verticalPanel.insert(w, i);
+            int i = controlsDialog.panel.getWidgetIndex(iFrame);
+            controlsDialog.panel.insert(w, i);
         } else {
             // Do nothing, as verticalPanel2 is removed.
         }
@@ -943,7 +859,7 @@ public class CirSim implements NativePreviewHandler {
     public void removeWidgetFromVerticalPanel(Widget w) {
         // This method is now deprecated for sliders.
         // Sliders should be removed via removeSliderFromDialog.
-        verticalPanel.remove(w);
+        controlsDialog.panel.remove(w);
     }
 
     native boolean weAreInUS(boolean orCanada) /*-{

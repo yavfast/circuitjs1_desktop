@@ -9,7 +9,7 @@ import com.lushprojects.circuitjs1.client.Scrollbar;
 
 public class ControlsDialog extends DialogBox {
     final CirSim cirSim;
-    VerticalPanel panel;
+    public VerticalPanel panel;
 
     public ControlsDialog(CirSim cs) {
         super(false, false); // autoHide, modal

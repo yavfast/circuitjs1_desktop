@@ -243,7 +243,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         }
 
         if ((flags & RC_KEEP_TITLE) == 0) {
-            cirSim.titleLabel.setText(null);
+            // TODO:
         }
 
         // Clear caches to save memory
@@ -365,7 +365,6 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                     CircuitInfo circuitInfo = circuitInfo();
                     if (file.equals(circuitInfo.startCircuit) && circuitInfo.startLabel == null) {
                         circuitInfo.startLabel = title;
-                        cirSim.titleLabel.setText(title);
                         cirSim.setSlidersDialogHeight();
                     }
                     if (first && circuitInfo.startCircuit == null) {
@@ -385,8 +384,6 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // don't avoid caching here, it's unnecessary and makes offline PWA's not work
         String url = GWT.getModuleBaseURL() + "circuits/" + str; // +"?v="+random.nextInt();
         loadFileFromURL(url);
-        if (title != null)
-            cirSim.titleLabel.setText(title);
         cirSim.setSlidersDialogHeight();
         circuitInfo().filePath = null;
         circuitInfo().fileName = null;

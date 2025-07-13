@@ -37,8 +37,6 @@ public class CircuitInfo extends BaseCirSimDelegate {
     public boolean usRes = false;
     /** Flag indicating if the simulation is running */
     public boolean running = false;
-    /** Flag to hide the sidebar */
-    public boolean hideSidebar = false;
     /** Flag to disable editing */
     public boolean noEditing = false;
     /** Flag to enable editing with the mouse wheel */
@@ -92,7 +90,6 @@ public class CircuitInfo extends BaseCirSimDelegate {
             euroGates = qp.getBooleanValue("IECGates", OptionsManager.getBoolOptionFromStorage("euroGates", cirSim.weAreInGermany()));
             usRes = qp.getBooleanValue("usResistors", false);
             running = qp.getBooleanValue("running", false);
-            hideSidebar = qp.getBooleanValue("hideSidebar", false);
             hideMenu = qp.getBooleanValue("hideMenu", false);
             printable = qp.getBooleanValue("whiteBackground", OptionsManager.getBoolOptionFromStorage("whiteBackground", false));
             convention = qp.getBooleanValue("conventionalCurrent",

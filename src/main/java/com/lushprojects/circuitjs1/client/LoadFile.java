@@ -29,10 +29,9 @@ public class LoadFile extends FileUpload implements ChangeHandler {
 
     static LoadFile sLoadFile;
 
-    static public native boolean isSupported()
-		/*-{
-			return !!($wnd.File && $wnd.FileReader);
-		 }-*/;
+    static public native boolean isSupported() /*-{
+        return !!($wnd.File && $wnd.FileReader);
+    }-*/;
 
     public static void doLoadCallback(String s, String t) {
         sLoadFile.doLoad(s, t);
@@ -62,23 +61,19 @@ public class LoadFile extends FileUpload implements ChangeHandler {
         doLoad();
     }
 
-    public native String getPath()
-	/*-{
+    public native String getPath() /*-{
 		return $doc.getElementById("LoadFileElement").value;
-	 }-*/;
+	}-*/;
 
-    public native String getFileName()
-	/*-{
+    public native String getFileName() /*-{
 		return $doc.getElementById("LoadFileElement").files[0].name;
-	 }-*/;
+	}-*/;
 
-    public native void click()
-	/*-{
+    public native void click()/*-{
 		$doc.getElementById("LoadFileElement").click();
-	 }-*/;
+	}-*/;
 
-    static public native void doLoad()
-    /*-{
+    static public native void doLoad() /*-{
         var oFiles = $doc.getElementById("LoadFileElement").files,
         nFiles = oFiles.length;
         if (nFiles>=1) {
@@ -94,6 +89,6 @@ public class LoadFile extends FileUpload implements ChangeHandler {
             reader.readAsText(oFiles[0]);
             }
         }
-     }-*/;
+    }-*/;
 
 }
