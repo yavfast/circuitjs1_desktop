@@ -108,9 +108,6 @@ public class CirSim implements NativePreviewHandler {
     Scrollbar currentBar;
     Scrollbar powerBar;
 
-    public Button absResetBtn;
-    public Button absRunStopBtn;
-
     Frame iFrame = null;
 
     public static CirSim theSim;
@@ -211,17 +208,6 @@ public class CirSim implements NativePreviewHandler {
 		sidebar.style.transition = (duration=="none") ? duration : "width"+split;
 	}-*/;
 
-    public static int getAbsBtnsTopPos() {
-        int top = 50;
-        if (OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "") == "small") {
-            top -= 11;
-        }
-        if (OptionsManager.getBoolOptionFromStorage("toolbar", true)) {
-            top += TOOLBAR_HEIGHT;
-        }
-        return top;
-    }
-
     void modSetDefault() {
         double MOD_UIScale = OptionsManager.getDoubleOptionFromStorage("MOD_UIScale", getDefaultScale());
         String MOD_TopMenuBar = OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "standart");
@@ -240,24 +226,6 @@ public class CirSim implements NativePreviewHandler {
         if (MOD_TopMenuBar == "small") {
             MENU_BAR_HEIGHT = 20;
             redrawCanvasSize();
-        }
-
-        if (MOD_absBtnTheme == "classic") {
-            absRunStopBtn.removeStyleName("modDefaultRunStopBtn");
-            absRunStopBtn.addStyleName("gwt-Button");
-            absRunStopBtn.addStyleName("modClassicButton");
-            absResetBtn.removeStyleName("modDefaultResetBtn");
-            absResetBtn.addStyleName("gwt-Button");
-            absResetBtn.addStyleName("modClassicButton");
-        }
-
-        if (MOD_absBtnIcon == "pause") {
-            absRunStopBtn.getElement().setInnerHTML("&#xE802;");
-        }
-
-        if (MOD_hideAbsBtns) {
-            absRunStopBtn.setVisible(false);
-            absResetBtn.setVisible(false);
         }
 
         if (MOD_showSidebaronStartup) {
@@ -295,26 +263,6 @@ public class CirSim implements NativePreviewHandler {
             circuitInfo.startCircuitText = undoManager.recovery;
         }
 
-        RootLayoutPanel.get().add(absResetBtn = new Button("&#8634;",
-                new ClickHandler() {
-                    public void onClick(ClickEvent event) {
-                        resetAction();
-                    }
-                }));
-
-        RootLayoutPanel.get().add(absRunStopBtn = new Button("&#xE800;",
-                new ClickHandler() {
-                    public void onClick(ClickEvent event) {
-                        setSimRunning(!simIsRunning());
-                        executeJS("SetBtnsStyle()");
-                    }
-                }));
-
-        absResetBtn.setStyleName("btn-top-pos reset-btn reset-btn-pos modDefaultResetBtn");
-        absRunStopBtn.setStyleName("btn-top-pos run-stop-btn run-stop-btn-pos modDefaultRunStopBtn");
-        absResetBtn.getElement().setTitle("Reset");
-        absRunStopBtn.getElement().setTitle("Run/Stop");
-
         layoutPanel = new DockLayoutPanel(Unit.PX);
         int width = (int) RootLayoutPanel.get().getOffsetWidth();
         VERTICAL_PANEL_WIDTH = 166;
@@ -335,7 +283,6 @@ public class CirSim implements NativePreviewHandler {
             public void onBrowserEvent(Event event) {
                 if (Event.ONCLICK == event.getTypeInt()) {
                     scopeManager.setupScopes();
-                    executeJS("SetBtnsStyle();");
                     setCanvasSize();
                     if (!OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true)) {
                         if (isSidePanelCheckboxChecked())
@@ -630,7 +577,7 @@ public class CirSim implements NativePreviewHandler {
 
     public void setSlidersDialogHeight() {
         if (slidersDialog == null) return;
-        int ih = RootLayoutPanel.get().getOffsetHeight() - (getAbsBtnsTopPos() + 80);
+        int ih = RootLayoutPanel.get().getOffsetHeight() - 80;
         if (ih < 100) ih = 100;
         slidersDialog.setMaxHeight(ih);
     }
@@ -896,7 +843,6 @@ public class CirSim implements NativePreviewHandler {
 
     void setToolbar() {
         layoutPanel.setWidgetHidden(toolbar, !menuManager.toolbarCheckItem.getState());
-        executeJS("setAllAbsBtnsTopPos(\"" + getAbsBtnsTopPos() + "px\")");
         setSlidersDialogHeight();
         setCanvasSize();
     }
@@ -988,7 +934,7 @@ public class CirSim implements NativePreviewHandler {
         int left = mainWidth - dialogWidth - 20;
         if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
             left -= VERTICAL_PANEL_WIDTH;
-        slidersDialog.setPopupPosition(left, getAbsBtnsTopPos() + 50);
+        slidersDialog.setPopupPosition(left, 50);
     }
 
     public void addWidgetToVerticalPanel(Widget w) {

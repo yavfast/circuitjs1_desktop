@@ -126,21 +126,6 @@ public class ModDialog extends DialogBox {
     CheckBox setStandartTopMenu;
     CheckBox setSmallTopMenu;
 
-    //for "Start/Stop and Reset buttons:"
-    HorizontalPanel btnsPreview;
-    HTML previewText;
-    Button resetPrevBtn;
-    Button stopPrevBtn;
-    HorizontalPanel SRCheckBoxes;
-    VerticalPanel vp1;
-    CheckBox setDefaultSRBtns;
-    CheckBox setClassicSRBtns;
-    VerticalPanel vp2;
-    CheckBox setStopIcon;
-    CheckBox setPauseIcon;
-    VerticalPanel vp3;
-    CheckBox hideSRBtns;
-
     native boolean CirSimIsRunning()/*-{
 		return $wnd.CircuitJS1.isRunning();
 	}-*/;
@@ -237,7 +222,6 @@ public class ModDialog extends DialogBox {
                     setStandartTopMenu.setValue(true);
                     CirSim.executeJS("CircuitJS1.redrawCanvasSize()");
                     OptionsManager.setOptionInStorage("MOD_TopMenuBar", "standart");
-                    CirSim.executeJS("setAllAbsBtnsTopPos(\"" + CirSim.getAbsBtnsTopPos() + "px\")");
                 } else {
                     setStandartTopMenu.setValue(true);
                 }
@@ -252,7 +236,6 @@ public class ModDialog extends DialogBox {
                     setSmallTopMenu.setValue(true);
                     CirSim.executeJS("CircuitJS1.redrawCanvasSize()");
                     OptionsManager.setOptionInStorage("MOD_TopMenuBar", "small");
-                    CirSim.executeJS("setAllAbsBtnsTopPos(\"" + CirSim.getAbsBtnsTopPos() + "px\")");
                 } else {
                     setSmallTopMenu.setValue(true);
                 }
@@ -262,166 +245,6 @@ public class ModDialog extends DialogBox {
         // Styling checkboxes:
         topMenuBarVars.setCellHorizontalAlignment(setStandartTopMenu, HasHorizontalAlignment.ALIGN_CENTER);
         topMenuBarVars.setCellHorizontalAlignment(setSmallTopMenu, HasHorizontalAlignment.ALIGN_CENTER);
-
-        vp.add(new HTML("<hr><big><b>Start/Stop and Reset Buttons:</b></big>"));
-        vp.add(btnsPreview = new HorizontalPanel());
-        btnsPreview.setWidth("100%");
-        btnsPreview.setVerticalAlignment(HasVerticalAlignment.ALIGN_MIDDLE);
-        btnsPreview.add(previewText = new HTML("<big>Preview:</big>"));
-        btnsPreview.add(resetPrevBtn = new Button("&#8634;"));
-        btnsPreview.add(stopPrevBtn = new Button("&#xE800;"));
-        // Replace preview button icon logic
-        String absBtnIcon = OptionsManager.getOptionFromStorage("MOD_absBtnIcon", null);
-        if ("pause".equals(absBtnIcon)) {
-            stopPrevBtn.getElement().setInnerHTML("&#xE802;");
-        }
-        btnsPreview.setCellHorizontalAlignment(previewText, HasHorizontalAlignment.ALIGN_RIGHT);
-        btnsPreview.setCellHorizontalAlignment(resetPrevBtn, HasHorizontalAlignment.ALIGN_RIGHT);
-        btnsPreview.setCellHorizontalAlignment(stopPrevBtn, HasHorizontalAlignment.ALIGN_LEFT);
-
-        stopPrevBtn.setStyleName("run-stop-btn modPrevBtn");
-        resetPrevBtn.setStyleName("reset-btn modPrevBtn");
-        // Replace theme logic
-        String absBtnTheme = OptionsManager.getOptionFromStorage("MOD_absBtnTheme", null);
-        if ("default".equals(absBtnTheme)) {
-            stopPrevBtn.addStyleName("modDefaultRunStopBtn");
-            resetPrevBtn.addStyleName("modDefaultResetBtn");
-        } else {
-            stopPrevBtn.addStyleName("gwt-Button");
-            resetPrevBtn.addStyleName("gwt-Button");
-        }
-
-        vp.add(SRCheckBoxes = new HorizontalPanel());
-        SRCheckBoxes.setWidth("100%");
-        SRCheckBoxes.add(vp1 = new VerticalPanel());
-        SRCheckBoxes.add(vp2 = new VerticalPanel());
-        SRCheckBoxes.add(vp3 = new VerticalPanel());
-        vp3.setHeight("100%");
-        SRCheckBoxes.setCellVerticalAlignment(vp3, HasVerticalAlignment.ALIGN_MIDDLE);
-        //SRCheckBoxes.setCellHorizontalAlignment(vp3, HasHorizontalAlignment.ALIGN_CENTER);
-
-        vp1.add(new HTML("<b>Theme:</b>"));
-        vp1.add(setDefaultSRBtns = new CheckBox("Default"));
-        vp1.add(setClassicSRBtns = new CheckBox("Classic"));
-
-        vp2.add(new HTML("<b>Icon:</b>"));
-        vp2.add(setStopIcon = new CheckBox("Stop"));
-        vp2.add(setPauseIcon = new CheckBox("Pause"));
-
-        vp3.add(hideSRBtns = new CheckBox("HIDE BUTTONS"));
-
-        if (cirSim.absResetBtn.getElement().hasClassName("modDefaultResetBtn"))
-            setDefaultSRBtns.setValue(true);
-        else setClassicSRBtns.setValue(true);
-
-		/*if (CirSim.absRunStopBtn.getElement().getInnerText() == "&#xE800;")
-			setStopIcon.setValue(true);
-		else setPauseIcon.setValue(true);*/ //try to get info from localstorage
-
-        // Replace all lstor.getItem/setItem usages with OptionsManager
-        if ("stop".equals(OptionsManager.getOptionFromStorage("MOD_absBtnIcon", null))) {
-            setStopIcon.setValue(true);
-        } else {
-            setPauseIcon.setValue(true);
-        }
-
-        if (OptionsManager.getBoolOptionFromStorage("MOD_hideAbsBtns", false)) {
-            hideSRBtns.setValue(true);
-        }
-
-        setDefaultSRBtns.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                if (setClassicSRBtns.getValue()) {
-                    setClassicSRBtns.setValue(false);
-                    setDefaultSRBtns.setValue(true);
-                    //Buttons for preview:
-                    stopPrevBtn.removeStyleName("gwt-Button");
-                    stopPrevBtn.addStyleName("modDefaultRunStopBtn");
-                    resetPrevBtn.removeStyleName("gwt-Button");
-                    resetPrevBtn.addStyleName("modDefaultResetBtn");
-                    //Absolute buttons:
-                    cirSim.absRunStopBtn.removeStyleName("gwt-Button");
-                    cirSim.absRunStopBtn.removeStyleName("modClassicButton");
-                    cirSim.absRunStopBtn.addStyleName("modDefaultRunStopBtn");
-                    cirSim.absResetBtn.removeStyleName("gwt-Button");
-                    cirSim.absResetBtn.removeStyleName("modClassicButton");
-                    cirSim.absResetBtn.addStyleName("modDefaultResetBtn");
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_absBtnTheme", "default");
-                } else {
-                    setDefaultSRBtns.setValue(true);
-                }
-            }
-        });
-        setClassicSRBtns.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                if (setDefaultSRBtns.getValue()) {
-                    setDefaultSRBtns.setValue(false);
-                    setClassicSRBtns.setValue(true);
-                    //Buttons for preview:
-                    stopPrevBtn.removeStyleName("modDefaultRunStopBtn");
-                    stopPrevBtn.addStyleName("gwt-Button");
-                    resetPrevBtn.removeStyleName("modDefaultResetBtn");
-                    resetPrevBtn.addStyleName("gwt-Button");
-                    //Absolute buttons:
-                    cirSim.absRunStopBtn.removeStyleName("modDefaultRunStopBtn");
-                    cirSim.absRunStopBtn.addStyleName("gwt-Button");
-                    cirSim.absRunStopBtn.addStyleName("modClassicButton");
-                    cirSim.absResetBtn.removeStyleName("modDefaultResetBtn");
-                    cirSim.absResetBtn.addStyleName("gwt-Button");
-                    cirSim.absResetBtn.addStyleName("modClassicButton");
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_absBtnTheme", "classic");
-                } else {
-                    setClassicSRBtns.setValue(true);
-                }
-            }
-        });
-        setStopIcon.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                if (setPauseIcon.getValue()) {
-                    setPauseIcon.setValue(false);
-                    setStopIcon.setValue(true);
-                    stopPrevBtn.getElement().setInnerHTML("&#xE800;");
-                    if (CirSimIsRunning())
-                        cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE800;");
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_absBtnIcon", "stop");
-                } else {
-                    setStopIcon.setValue(true);
-                }
-            }
-        });
-        setPauseIcon.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                if (setStopIcon.getValue()) {
-                    setStopIcon.setValue(false);
-                    setPauseIcon.setValue(true);
-                    stopPrevBtn.getElement().setInnerHTML("&#xE802;");
-                    if (CirSimIsRunning())
-                        cirSim.absRunStopBtn.getElement().setInnerHTML("&#xE802;");
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_absBtnIcon", "pause");
-                } else {
-                    setPauseIcon.setValue(true);
-                }
-            }
-        });
-        hideSRBtns.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                if (hideSRBtns.getValue()) {
-                    cirSim.absRunStopBtn.setVisible(false);
-                    cirSim.absResetBtn.setVisible(false);
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_hideAbsBtns", "true");
-                } else {
-                    cirSim.absRunStopBtn.setVisible(true);
-                    cirSim.absResetBtn.setVisible(true);
-                    //save:
-                    OptionsManager.setOptionInStorage("MOD_hideAbsBtns", "false");
-                }
-            }
-        });
 
         vp.add(new HTML("<hr><big><b>Sidebar:</b></big>"));
         vp.add(setOverlayingSidebar = new CheckBox("Sidebar is overlaying"));
