@@ -29,7 +29,7 @@ import java.util.Vector;
 
 public abstract class CompositeElm extends CircuitElm {
 
-    static class VoltageSourceRecord {
+    protected static class VoltageSourceRecord {
         int vsNumForElement;
         int vsNode;
         CircuitElm elm;
@@ -57,13 +57,13 @@ public abstract class CompositeElm extends CircuitElm {
         super(xa, ya, xb, yb, f);
     }
 
-    CompositeElm(int xx, int yy, String s, int externalNodes[]) {
+    CompositeElm(int xx, int yy, String s, int[] externalNodes) {
         super(xx, yy);
         loadComposite(null, s, externalNodes);
         allocNodes();
     }
 
-    public CompositeElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st, String s, int externalNodes[]) {
+    public CompositeElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st, String s, int[] externalNodes) {
         super(xa, ya, xb, yb, f);
         loadComposite(st, s, externalNodes);
         allocNodes();
@@ -73,8 +73,8 @@ public abstract class CompositeElm extends CircuitElm {
         return (flags & FLAG_ESCAPE) != 0;
     }
 
-    public void loadComposite(StringTokenizer stIn, String model, int externalNodes[]) {
-        HashMap<Integer, CircuitNode> compNodeHash = new HashMap<Integer, CircuitNode>();
+    public void loadComposite(StringTokenizer stIn, String model, int[] externalNodes) {
+        HashMap<Integer, CircuitNode> compNodeHash = new HashMap<>();
         StringTokenizer modelLinet = new StringTokenizer(model, "\r");
         CircuitNode cn;
         CircuitNodeLink cnLink;
@@ -97,7 +97,7 @@ public abstract class CompositeElm extends CircuitElm {
                 if (useEscape())
                     dumpedCe = CustomLogicModel.unescape(dumpedCe);
                 StringTokenizer stCe = new StringTokenizer(dumpedCe, useEscape() ? " " : "_");
-                int flags = new Integer(stCe.nextToken()).intValue();
+                int flags = parseInt(stCe.nextToken());
                 newce = CircuitElmCreator.createCe(tint, 0, 0, 0, 0, flags, stCe);
             }
             if (newce instanceof GroundElm)
@@ -106,7 +106,7 @@ public abstract class CompositeElm extends CircuitElm {
 
             int thisPost = 0;
             while (stModel.hasMoreTokens()) {
-                int nodeOfThisPost = new Integer(stModel.nextToken()).intValue();
+                int nodeOfThisPost = parseInt(stModel.nextToken());
 
                 // node = 0 means ground
                 if (nodeOfThisPost == 0) {

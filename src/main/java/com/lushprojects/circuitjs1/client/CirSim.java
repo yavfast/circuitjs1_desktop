@@ -34,9 +34,7 @@ import com.google.gwt.dom.client.CanvasElement;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.MetaElement;
 import com.google.gwt.dom.client.NodeList;
-import com.google.gwt.dom.client.Style.Overflow;
 import com.google.gwt.dom.client.Style.Unit;
-import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
@@ -61,7 +59,6 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
@@ -105,8 +102,6 @@ public class CirSim implements NativePreviewHandler {
 
     public SlidersDialog slidersDialog;
 
-    Button resetButton;
-    Button runStopButton;
     Label powerLabel;
     Label titleLabel;
     Scrollbar speedBar;
@@ -421,19 +416,6 @@ public class CirSim implements NativePreviewHandler {
         layoutPanel.add(cv);
         verticalPanel.add(buttonPanel);
         buttonPanel.addStyleName("sidePanelElm");
-        buttonPanel.add(resetButton = new Button(Locale.LS("Reset")));
-        resetButton.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                resetAction();
-            }
-        });
-        resetButton.setStylePrimaryName("topButton");
-        buttonPanel.add(runStopButton = new Button(Locale.LSHTML("<Strong>RUN</Strong>&nbsp;/&nbsp;Stop")));
-        runStopButton.addClickHandler(new ClickHandler() {
-            public void onClick(ClickEvent event) {
-                setSimRunning(!simIsRunning());
-            }
-        });
 
         if (LoadFile.isSupported()) {
             verticalPanel.add(loadFileInput);
@@ -527,6 +509,7 @@ public class CirSim implements NativePreviewHandler {
 
         resetAction();
         setSimRunning(circuitInfo.running);
+        toolbar.updateRunStopButton();
     }
 
     public void setDeveloperMode(boolean enabled) {
@@ -657,18 +640,15 @@ public class CirSim implements NativePreviewHandler {
             if (simulator.stopMessage != null)
                 return;
             simulator.simRunning = true;
-            runStopButton.setHTML(Locale.LSHTML("<strong>RUN</strong>&nbsp;/&nbsp;Stop"));
-            runStopButton.setStylePrimaryName("topButton");
             renderer.startTimer();
         } else {
             simulator.simRunning = false;
-            runStopButton.setHTML(Locale.LSHTML("Run&nbsp;/&nbsp;<strong>STOP</strong>"));
-            runStopButton.setStylePrimaryName("topButton-red");
             renderer.stopTimer();
             renderer.repaint();
             // Ensure selection functionality works even when simulation is stopped
             circuitEditor.setMouseMode("Select");
         }
+        toolbar.updateRunStopButton();
     }
 
     public boolean simIsRunning() {

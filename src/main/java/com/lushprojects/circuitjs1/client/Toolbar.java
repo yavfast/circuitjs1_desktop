@@ -24,6 +24,7 @@ public class Toolbar extends HorizontalPanel {
     private String SEPARATOR = "<div style=\"height:30px;width:0;border-left:2px solid grey;\"></div>";
 
     Label resistorButton;
+    private Label runStopButton;
 
     public Toolbar(CirSim cirSim) {
         this.cirSim = cirSim;
@@ -87,17 +88,63 @@ public class Toolbar extends HorizontalPanel {
         String gateInfo[] = {andIcon, "AndGateElm", nandIcon, "NandGateElm",
                 orIcon, "OrGateElm", norIcon, "NorGateElm", xorIcon, "XorGateElm"};
         add(createButtonSet(gateInfo));
-/*
-        // Spacer to push the mode label to the right
-        HorizontalPanel spacer = new HorizontalPanel();
-        //spacer.style.setFlexGrow(1); // Fill remaining space
-        add(spacer);
 
-        // Create and add the mode label on the right
-        modeLabel = new Label("");
-        styleModeLabel(modeLabel);
-        add(modeLabel);
-*/
+        add(new HTML(SEPARATOR));
+        add(createIconButton("back-in-time", "Reset", new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                cirSim.resetAction();
+            }
+        }));
+        runStopButton = createIconButton("icon-play", "Start", new ClickHandler() {
+            @Override
+            public void onClick(ClickEvent event) {
+                cirSim.setSimRunning(!cirSim.simIsRunning());
+            }
+        });
+        add(runStopButton);
+    }
+
+    public void updateRunStopButton() {
+        if (cirSim.simIsRunning()) {
+            runStopButton.getElement().removeClassName("icon-play");
+            runStopButton.getElement().addClassName("icon-stop");
+            runStopButton.setTitle(Locale.LS("Stop"));
+        } else {
+            runStopButton.getElement().removeClassName("icon-stop");
+            runStopButton.getElement().addClassName("icon-play");
+            runStopButton.setTitle(Locale.LS("Start"));
+        }
+    }
+    
+    private Label createIconButton(String iconClass, String tooltip, ClickHandler clickHandler) {
+        // Create a label to hold the icon
+        Label iconLabel = new Label();
+        iconLabel.setText(""); // No text, just an icon
+        if (iconClass.startsWith("<svg"))
+            iconLabel.getElement().setInnerHTML(makeSvg(iconClass, 24));
+        else
+            iconLabel.getElement().addClassName("cirjsicon-" + iconClass);
+        iconLabel.setTitle(Locale.LS(tooltip));
+
+        // Style the icon button
+        Style style = iconLabel.getElement().getStyle();
+        style.setFontSize(24, Style.Unit.PX);
+        style.setColor("#333");
+        style.setPadding(1, Style.Unit.PX);
+        style.setMarginRight(5, Style.Unit.PX);
+        style.setCursor(Style.Cursor.POINTER);
+        if (iconClass.startsWith("<svg"))
+            style.setPaddingTop(5, Style.Unit.PX);
+
+        // Add hover effect for the button
+        iconLabel.addMouseOverHandler(event -> iconLabel.getElement().getStyle().setColor("#007bff"));
+        iconLabel.addMouseOutHandler(event -> iconLabel.getElement().getStyle().setColor("#333"));
+
+        // Add a click handler to perform the action
+        iconLabel.addClickHandler(clickHandler);
+
+        return iconLabel;
     }
 
     //public void setModeLabel(String text) { modeLabel.setText(Locale.LS("Mode: ") + text); }

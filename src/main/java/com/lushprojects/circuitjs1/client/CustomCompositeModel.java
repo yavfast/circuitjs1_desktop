@@ -31,7 +31,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     }
 
     static void initModelMap() {
-        modelMap = new HashMap<String, CustomCompositeModel>();
+        modelMap = new HashMap<>();
 
         // create default stub model
         Vector<ExtListEntry> extList = new Vector<ExtListEntry>();
@@ -88,21 +88,18 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     static void clearDumpedFlags() {
         if (modelMap == null)
             return;
-        Iterator it = modelMap.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, CustomCompositeModel> pair = (Map.Entry) it.next();
-            pair.getValue().dumped = false;
+        for (Map.Entry<String, CustomCompositeModel> stringCustomCompositeModelEntry : modelMap.entrySet()) {
+            stringCustomCompositeModelEntry.getValue().dumped = false;
         }
     }
 
     public static Vector<CustomCompositeModel> getModelList() {
-        Vector<CustomCompositeModel> vector = new Vector<CustomCompositeModel>();
-        Iterator it = modelMap.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<String, CustomCompositeModel> pair = (Map.Entry) it.next();
-            CustomCompositeModel dm = pair.getValue();
-            if (dm.internal)
+        Vector<CustomCompositeModel> vector = new Vector<>();
+        for (Map.Entry<String, CustomCompositeModel> stringCustomCompositeModelEntry : modelMap.entrySet()) {
+            CustomCompositeModel dm = stringCustomCompositeModelEntry.getValue();
+            if (dm.internal) {
                 continue;
+            }
             vector.add(dm);
         }
         Collections.sort(vector);
@@ -140,7 +137,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         sizeY = Integer.parseInt(st.nextToken());
         int extCount = Integer.parseInt(st.nextToken());
         int i;
-        extList = new Vector<ExtListEntry>();
+        extList = new Vector<>();
         for (i = 0; i != extCount; i++) {
             String s = CustomLogicModel.unescape(st.nextToken());
             int n = Integer.parseInt(st.nextToken());
@@ -172,9 +169,9 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         if (arr.length == 0)
             return "";
         String x = arr[0];
-        int i;
-        for (i = 1; i < arr.length; i++)
+        for (int i = 1; i < arr.length; i++) {
             x += "," + arr[i];
+        }
         return x;
     }
 
@@ -211,7 +208,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     }
 
     public boolean canLoadModelCircuit() {
-        return modelCircuit != null && modelCircuit.length() > 0;
+        return modelCircuit != null && !modelCircuit.isEmpty();
     }
 
     public void remove() {
@@ -226,8 +223,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
 
 
         String[] models = {lm317, tl431};
-        int i;
-        for (i = 0; i != models.length; i++) {
+        for (int i = 0; i != models.length; i++) {
             StringTokenizer st = new StringTokenizer(models[i], " ");
             st.nextToken();
             CustomCompositeModel model = undumpModel(st);
