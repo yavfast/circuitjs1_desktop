@@ -99,7 +99,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         if (n == 2) {
             sliderText = ei.textf.getText();
             label.setText(Locale.LS(sliderText));
-            simUi.setSlidersPanelHeight();
+            simUi.setSlidersDialogHeight();
         }
     }
 

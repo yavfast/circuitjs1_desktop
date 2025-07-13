@@ -192,7 +192,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         if (n == 0) {
             sliderText = ei.textf.getText();
             label.setText(sliderText);
-            simUi.setSlidersPanelHeight();
+            simUi.setSlidersDialogHeight();
         }
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);

@@ -1,4 +1,4 @@
-/*    
+/*
     Copyright (C) Paul Falstad and Iain Sharp
     
     This file is part of CircuitJS1.
@@ -36,6 +36,7 @@ import com.google.gwt.dom.client.MetaElement;
 import com.google.gwt.dom.client.NodeList;
 import com.google.gwt.dom.client.Style.Overflow;
 import com.google.gwt.dom.client.Style.Unit;
+import com.google.gwt.dom.client.StyleInjector;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
@@ -63,6 +64,7 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
+import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
@@ -99,9 +101,9 @@ public class CirSim implements NativePreviewHandler {
 
     DockLayoutPanel layoutPanel;
     VerticalPanel verticalPanel;
-    VerticalPanel verticalPanel2;
-    ScrollPanel slidersPanel;
     CellPanel buttonPanel;
+
+    public SlidersDialog slidersDialog;
 
     Button resetButton;
     Button runStopButton;
@@ -283,6 +285,13 @@ public class CirSim implements NativePreviewHandler {
     public void init() {
         console("Start");
 
+        // Inject CSS for the sliders dialog
+        StyleInjector.inject(
+            ".sliders-dialog .gwt-DialogBox .Caption { background: #444; color: #fff; padding: 8px; } " +
+            ".sliders-dialog { border: 1px solid #555; background-color: #2d2d2d; color: #fff; padding: 5px; }" +
+            ".sliders-dialog .gwt-Label { margin-top: 10px; }"
+        );
+
         //sets the meta tag to allow the css media queries to work
         MetaElement meta = Document.get().createMetaElement();
         meta.setName("viewport");
@@ -323,8 +332,7 @@ public class CirSim implements NativePreviewHandler {
         VERTICAL_PANEL_WIDTH = 166;
 
         verticalPanel = new VerticalPanel();
-        slidersPanel = new ScrollPanel();
-        verticalPanel2 = new VerticalPanel();
+        slidersDialog = new SlidersDialog();
 
         verticalPanel.getElement().addClassName("verticalPanel");
         verticalPanel.getElement().setId("painel");
@@ -411,7 +419,8 @@ public class CirSim implements NativePreviewHandler {
         Window.addResizeHandler(new ResizeHandler() {
             public void onResize(ResizeEvent event) {
                 repaint();
-                setSlidersPanelHeight();
+                updateSlidersDialogPosition();
+                setSlidersDialogHeight();
             }
         });
 
@@ -436,7 +445,6 @@ public class CirSim implements NativePreviewHandler {
         if (LoadFile.isSupported()) {
             verticalPanel.add(loadFileInput);
             loadFileInput.addStyleName("sidePanelElm");
-            setSlidersPanelHeight();
         }
 
         Label l;
@@ -473,18 +481,7 @@ public class CirSim implements NativePreviewHandler {
         verticalPanel.add(l);
         verticalPanel.add(titleLabel);
 
-        Label sab;
-        sab = new Label(Locale.LS("Sliders and buttons") + ":");
-        sab.addStyleName("sabLabel");
-        verticalPanel.add(sab);
-
-        verticalPanel.add(slidersPanel);
-        slidersPanel.add(verticalPanel2);
-        verticalPanel2.addStyleName("sidePanelvp2");
-        verticalPanel2.setWidth("150px");
-
-        slidersPanel.getElement().getStyle().setOverflowX(Overflow.HIDDEN);
-        slidersPanel.getElement().getStyle().setOverflowY(Overflow.SCROLL);
+        // Sliders are now in a separate dialog
 
         circuitEditor.setGrid();
 
@@ -519,7 +516,6 @@ public class CirSim implements NativePreviewHandler {
         enableUndoRedo();
         enablePaste();
         enableDisableMenuItems();
-        setSlidersPanelHeight();
 
         menuBar.addDomHandler(event -> {
             menuManager.doMainMenuChecks();
@@ -657,22 +653,11 @@ public class CirSim implements NativePreviewHandler {
 
     }-*/;
 
-    public void setSlidersPanelHeight() {
-        int i;
-        int cumheight = 0;
-        for (i = 0; i < verticalPanel.getWidgetIndex(slidersPanel); i++) {
-            if (verticalPanel.getWidget(i) != loadFileInput) {
-                cumheight = cumheight + verticalPanel.getWidget(i).getOffsetHeight();
-                if (verticalPanel.getWidget(i).getStyleName().contains("topSpace"))
-                    cumheight += 12;
-            }
-        }
-        int ih = RootLayoutPanel.get().getOffsetHeight() - MENU_BAR_HEIGHT - cumheight;
-        if (menuManager.toolbarCheckItem.getState())
-            ih -= TOOLBAR_HEIGHT;
-        if (ih < 0)
-            ih = 0;
-        slidersPanel.setHeight(ih + "px");
+    public void setSlidersDialogHeight() {
+        if (slidersDialog == null) return;
+        int ih = RootLayoutPanel.get().getOffsetHeight() - (getAbsBtnsTopPos() + 80);
+        if (ih < 100) ih = 100;
+        slidersDialog.setMaxHeight(ih);
     }
 
     public void setSimRunning(boolean isRunning) {
@@ -901,7 +886,6 @@ public class CirSim implements NativePreviewHandler {
     void setCircuitTitle(String s) {
         if (s != null)
             titleLabel.setText(s);
-        setSlidersPanelHeight();
     }
 
     void enableDisableMenuItems() {
@@ -941,7 +925,7 @@ public class CirSim implements NativePreviewHandler {
     void setToolbar() {
         layoutPanel.setWidgetHidden(toolbar, !menuManager.toolbarCheckItem.getState());
         executeJS("setAllAbsBtnsTopPos(\"" + getAbsBtnsTopPos() + "px\")");
-        setSlidersPanelHeight();
+        setSlidersDialogHeight();
         setCanvasSize();
     }
 
@@ -998,16 +982,58 @@ public class CirSim implements NativePreviewHandler {
 //        loadFileInput = newlf;
     }
 
+    public void addSliderToDialog(Label label, Scrollbar slider) {
+        if (slidersDialog == null) return;
+        slidersDialog.addSlider(label, slider);
+        if (!slidersDialog.isShowing()) {
+            slidersDialog.show();
+            updateSlidersDialogPosition();
+            setSlidersDialogHeight();
+        }
+    }
+
+    public void removeSliderFromDialog(Label label, Scrollbar slider) {
+        if (slidersDialog == null) return;
+        slidersDialog.removeSlider(label, slider);
+        if (slidersDialog.isEmpty()) {
+            slidersDialog.hide();
+        }
+    }
+
+    public void clearSlidersDialog() {
+        if (slidersDialog != null) {
+            slidersDialog.clear();
+            slidersDialog.hide();
+        }
+    }
+
+    void updateSlidersDialogPosition() {
+        if (slidersDialog == null || !slidersDialog.isShowing())
+            return;
+        int mainWidth = RootLayoutPanel.get().getOffsetWidth();
+        int dialogWidth = slidersDialog.getOffsetWidth();
+        int left = mainWidth - dialogWidth - 20;
+        if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
+            left -= VERTICAL_PANEL_WIDTH;
+        slidersDialog.setPopupPosition(left, getAbsBtnsTopPos() + 50);
+    }
+
     public void addWidgetToVerticalPanel(Widget w) {
+        // This method is now deprecated for sliders.
+        // Sliders should be added via addSliderToDialog.
+        // For other widgets, it adds to the main vertical panel.
         if (iFrame != null) {
             int i = verticalPanel.getWidgetIndex(iFrame);
             verticalPanel.insert(w, i);
-        } else
-            verticalPanel2.add(w);
+        } else {
+            // Do nothing, as verticalPanel2 is removed.
+        }
     }
 
     public void removeWidgetFromVerticalPanel(Widget w) {
-        verticalPanel2.remove(w);
+        // This method is now deprecated for sliders.
+        // Sliders should be removed via removeSliderFromDialog.
+        verticalPanel.remove(w);
     }
 
     native boolean weAreInUS(boolean orCanada) /*-{

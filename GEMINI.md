@@ -1,3 +1,9 @@
+# Core Directives: Top Priority
+
+**This is the primary set of instructions. Every task must strictly adhere to the rules outlined in this document. These directives have the highest priority and must be followed at all times.**
+
+---
+
 # Clarity and brevity
 - Provide answers that are direct, clear, and concise. Avoid unnecessary words or complex sentences.
 

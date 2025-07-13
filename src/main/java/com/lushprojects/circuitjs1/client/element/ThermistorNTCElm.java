@@ -223,7 +223,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         if (n == 4) {
             sliderText = ei.textf.getText();
             label.setText(sliderText);
-            simUi.setSlidersPanelHeight();
+            simUi.setSlidersDialogHeight();
         }
         rneg40 = calcResistance(minTempr);
         b25100 = calcB25100(); //

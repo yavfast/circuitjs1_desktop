@@ -6,6 +6,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
+import java.util.ArrayList;
 import java.util.Vector;
 
 // values with sliders
@@ -80,7 +81,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             return false;
         if (sharedSlider != null)
             return true;
-        if (sliderText.length() == 0)
+        if (sliderText.isEmpty())
             return false;
         double value = ei.value;
         createSlider(value);
@@ -88,10 +89,11 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public void createSlider(double value) {
-        cirSim.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
+        label = new Label(Locale.LS(sliderText));
         label.addStyleName("topSpace");
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
-        cirSim.addWidgetToVerticalPanel(slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm));
+        slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm);
+        cirSim.addSliderToDialog(label, slider);
     }
 
     public void setSliderValue(double value) {
@@ -106,14 +108,15 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public void execute() {
-        if (settingValue)
+        if (settingValue) {
             return;
-        int i;
-        Vector<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
-        for (i = 0; i != adjustables.size(); i++) {
+        }
+        ArrayList<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        for (int i = 0; i != adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);
-            if (adj == this || adj.sharedSlider == this)
+            if (adj == this || adj.sharedSlider == this) {
                 adj.executeSlider();
+            }
         }
     }
 
@@ -131,9 +134,10 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public void deleteSlider(CirSim sim) {
+        if (label == null || slider == null)
+            return;
         try {
-            sim.removeWidgetFromVerticalPanel(label);
-            sim.removeWidgetFromVerticalPanel(slider);
+            sim.removeSliderFromDialog(label, slider);
         } catch (Exception e) {
         }
     }
@@ -144,7 +148,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public boolean sliderBeingShared() {
-        Vector<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        ArrayList<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
         for (int i = 0; i != adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);
             if (adj.sharedSlider == this)
@@ -155,8 +159,9 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
 
     String dump() {
         int ano = -1;
-        if (sharedSlider != null)
+        if (sharedSlider != null) {
             ano = cirSim.adjustableManager.adjustables.indexOf(sharedSlider);
+        }
 
         return simulator().locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
                 CustomLogicModel.escape(sliderText);

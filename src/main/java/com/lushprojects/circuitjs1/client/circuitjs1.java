@@ -182,7 +182,7 @@ public class circuitjs1 implements EntryPoint {
         Window.addResizeHandler(new ResizeHandler() {
             public void onResize(ResizeEvent event) {
                 mysim.setCanvasSize();
-                mysim.setSlidersPanelHeight();
+                mysim.setSlidersDialogHeight();
             }
         });
 

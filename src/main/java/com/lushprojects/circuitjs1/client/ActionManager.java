@@ -431,11 +431,11 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "fullscreen") {
             if (!Graphics.isFullScreen) {
                 Graphics.viewFullScreen();
-                cirSim.setSlidersPanelHeight();
+                cirSim.setSlidersDialogHeight();
             } else {
                 Graphics.exitFullScreen();
                 renderer().centreCircuit();
-                cirSim.setSlidersPanelHeight();
+                cirSim.setSlidersDialogHeight();
             }
         }
 

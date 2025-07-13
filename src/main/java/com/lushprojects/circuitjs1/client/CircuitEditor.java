@@ -813,8 +813,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
     }
 
-    public int snapGrid(int x) {
-        return (x + gridRound) & gridMask;
+    public int snapGrid(int value) {
+        return (value + gridRound) & gridMask;
     }
 
     void setGrid() {

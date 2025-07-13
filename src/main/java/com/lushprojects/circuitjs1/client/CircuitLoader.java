@@ -57,6 +57,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // Reset simulation parameters
         simulator.t = simulator.timeStepAccum = 0;
         simulator.elmList.clear();
+        cirSim.adjustableManager.reset();
         cirSim.renderer.hintType = -1;
         simulator.maxTimeStep = 5e-6;
         simulator.minTimeStep = 50e-12;
@@ -249,7 +250,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         AudioInputElm.clearCache();
         DataInputElm.clearCache();
 
-        cirSim.setSlidersPanelHeight();
+        cirSim.setSlidersDialogHeight();
     }
 
     void readHint(StringTokenizer st) {
@@ -365,7 +366,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                     if (file.equals(circuitInfo.startCircuit) && circuitInfo.startLabel == null) {
                         circuitInfo.startLabel = title;
                         cirSim.titleLabel.setText(title);
-                        cirSim.setSlidersPanelHeight();
+                        cirSim.setSlidersDialogHeight();
                     }
                     if (first && circuitInfo.startCircuit == null) {
                         circuitInfo.startCircuit = file;
@@ -386,7 +387,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         loadFileFromURL(url);
         if (title != null)
             cirSim.titleLabel.setText(title);
-        cirSim.setSlidersPanelHeight();
+        cirSim.setSlidersDialogHeight();
         circuitInfo().filePath = null;
         circuitInfo().fileName = null;
         cirSim.setUnsavedChanges(false);
