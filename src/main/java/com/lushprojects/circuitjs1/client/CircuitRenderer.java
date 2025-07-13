@@ -321,18 +321,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         perfmon.stopContext();
 
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_ROW && circuitEditor.mouseMode != CircuitEditor.MODE_DRAG_COLUMN) {
+        if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN) {
             for (int i = 0; i != simulator.postDrawList.size(); i++)
                 CircuitElm.drawPost(graphics, simulator.postDrawList.get(i));
         }
 
-        if (circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_ROW ||
-                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_COLUMN ||
-                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_POST ||
-                circuitEditor.tempMouseMode == CircuitEditor.MODE_DRAG_SELECTED) {
+        if (circuitEditor.tempMouseMode == MouseMode.DRAG_ROW ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_COLUMN ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_POST ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_SELECTED) {
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm ce = simulator.elmList.get(i);
-                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != CircuitEditor.MODE_DRAG_POST) {
+                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != MouseMode.DRAG_POST) {
                     graphics.setColor(Color.gray);
                     graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
                     graphics.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
@@ -345,7 +345,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     private void drawHandles(Graphics graphics) {
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor.tempMouseMode == CircuitEditor.MODE_SELECT && circuitEditor.mouseElm != null) {
+        if (circuitEditor.tempMouseMode == MouseMode.SELECT && circuitEditor.mouseElm != null) {
             circuitEditor.mouseElm.drawHandles(graphics, CircuitElm.selectColor);
         }
 

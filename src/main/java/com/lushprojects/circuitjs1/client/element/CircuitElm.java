@@ -33,6 +33,7 @@ import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.MouseMode;
 import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -611,7 +612,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         // this element is selected or is being created
         if (simUi.circuitEditor.dragElm == null && !needsHighlight())
             return;
-        if (simUi.circuitEditor.mouseMode == CircuitEditor.MODE_DRAG_ROW || simUi.circuitEditor.mouseMode == CircuitEditor.MODE_DRAG_COLUMN)
+        if (simUi.circuitEditor.mouseMode == MouseMode.DRAG_ROW || simUi.circuitEditor.mouseMode == MouseMode.DRAG_COLUMN)
             return;
         for (int i = 0; i != getPostCount(); i++) {
             Point p = getPost(i);
