@@ -116,7 +116,7 @@ public class InductorElm extends CircuitElm {
 
     public EditInfo getEditInfo(int n) {
         if (n == 0)
-            return new EditInfo("Inductance (H)", inductance, 1e-2, 10);
+            return new EditInfo("Inductance (H)", inductance, 1e-2, 10, "H");
         if (n == 1) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Trapezoidal Approximation",
@@ -124,7 +124,7 @@ public class InductorElm extends CircuitElm {
             return ei;
         }
         if (n == 2)
-            return new EditInfo("Initial Current (on Reset) (A)", initialCurrent);
+            return new EditInfo("Initial Current (on Reset) (A)", initialCurrent, -1, -1, "A");
         return null;
     }
 

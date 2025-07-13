@@ -79,13 +79,11 @@ public class Scrollbar extends Composite implements
         val = value;
         pan = new VerticalPanel();
         can = Canvas.createIfSupported();
-        can.setWidth("150 px");
         can.setHeight("40 px");
         can.setCoordinateSpaceWidth(150);
         can.setCoordinateSpaceHeight(SCROLLHEIGHT);
         pan.add(can);
         g = can.getContext2d();
-        g.setFillStyle("#ffffff");
         can.addClickHandler(this);
         can.addMouseDownHandler(this);
         can.addMouseUpHandler(this);
@@ -117,20 +115,29 @@ public class Scrollbar extends Composite implements
     }
 
     public void draw() {
+        g.clearRect(0, 0, 150, SCROLLHEIGHT); // Clear background for transparency
+
         if (enabled)
             g.setStrokeStyle("#000000");
         else
             g.setStrokeStyle("lightgrey");
         g.setLineWidth(1.0);
-        g.fillRect(0, 0, 150, SCROLLHEIGHT);
+
+        // Draw triangles for arrows
         g.beginPath();
-        g.moveTo(HMARGIN + SCROLLHEIGHT - 3, 0);
-        g.lineTo(HMARGIN, SCROLLHEIGHT / 2);
-        g.lineTo(HMARGIN + SCROLLHEIGHT - 3, SCROLLHEIGHT);
-        g.moveTo(150 - HMARGIN - SCROLLHEIGHT + 3, 0);
-        g.lineTo(150 - HMARGIN, SCROLLHEIGHT / 2);
-        g.lineTo(150 - HMARGIN - SCROLLHEIGHT + 3, SCROLLHEIGHT);
-        g.stroke();
+        g.moveTo(HMARGIN, SCROLLHEIGHT / 2);
+        g.lineTo(HMARGIN + 8, 2);
+        g.lineTo(HMARGIN + 8, SCROLLHEIGHT - 2);
+        g.closePath();
+        g.fill();
+
+        g.beginPath();
+        g.moveTo(150 - HMARGIN, SCROLLHEIGHT / 2);
+        g.lineTo(150 - HMARGIN - 8, 2);
+        g.lineTo(150 - HMARGIN - 8, SCROLLHEIGHT - 2);
+        g.closePath();
+        g.fill();
+
         if (enabled)
             g.setStrokeStyle("grey");
         g.beginPath();

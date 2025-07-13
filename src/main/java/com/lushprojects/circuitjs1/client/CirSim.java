@@ -285,13 +285,6 @@ public class CirSim implements NativePreviewHandler {
     public void init() {
         console("Start");
 
-        // Inject CSS for the sliders dialog
-        StyleInjector.inject(
-            ".sliders-dialog .gwt-DialogBox .Caption { background: #444; color: #fff; padding: 8px; } " +
-            ".sliders-dialog { border: 1px solid #555; background-color: #2d2d2d; color: #fff; padding: 5px; }" +
-            ".sliders-dialog .gwt-Label { margin-top: 10px; }"
-        );
-
         //sets the meta tag to allow the css media queries to work
         MetaElement meta = Document.get().createMetaElement();
         meta.setName("viewport");
@@ -982,19 +975,20 @@ public class CirSim implements NativePreviewHandler {
 //        loadFileInput = newlf;
     }
 
-    public void addSliderToDialog(Label label, Scrollbar slider) {
-        if (slidersDialog == null) return;
-        slidersDialog.addSlider(label, slider);
+    public Widget addSliderToDialog(Label titleLabel, Label valueLabel, Scrollbar slider, Button btn1, Button btn2) {
+        if (slidersDialog == null) return null;
+        Widget row = slidersDialog.addSlider(titleLabel, valueLabel, slider, btn1, btn2);
         if (!slidersDialog.isShowing()) {
             slidersDialog.show();
             updateSlidersDialogPosition();
             setSlidersDialogHeight();
         }
+        return row;
     }
 
-    public void removeSliderFromDialog(Label label, Scrollbar slider) {
+    public void removeSliderFromDialog(Widget row) {
         if (slidersDialog == null) return;
-        slidersDialog.removeSlider(label, slider);
+        slidersDialog.removeSlider(row);
         if (slidersDialog.isEmpty()) {
             slidersDialog.hide();
         }

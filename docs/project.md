@@ -24,7 +24,6 @@
 ## Project Structure
 
 - `src/main/java/` — Java source code for the simulation engine and desktop application.
-- `site/` — Web assets (HTML, JS, CSS) for the frontend and documentation.
 - `war/` — Web application resources for deployment.
 - `docs/` — Project documentation (this file, guides, etc.).
 - `scripts/` — Development and build scripts (Node.js, shell scripts).

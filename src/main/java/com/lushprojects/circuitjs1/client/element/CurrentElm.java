@@ -105,7 +105,7 @@ public class CurrentElm extends CircuitElm {
 
     public EditInfo getEditInfo(int n) {
         if (n == 0)
-            return new EditInfo("Current (A)", currentValue, 0, .1);
+            return new EditInfo("Current (A)", currentValue, 0, .1, "A");
         return null;
     }
 

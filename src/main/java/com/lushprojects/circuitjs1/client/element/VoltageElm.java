@@ -344,7 +344,7 @@ public class VoltageElm extends CircuitElm {
     public EditInfo getEditInfo(int n) {
         if (n == 0)
             return new EditInfo(waveform == WF_DC ? "Voltage" :
-                    "Max Voltage", maxVoltage, -20, 20);
+                    "Max Voltage", maxVoltage, -20, 20, "V");
         if (n == 1) {
             EditInfo ei = new EditInfo("Waveform", waveform, -1, -1);
             ei.choice = new Choice();
@@ -359,11 +359,11 @@ public class VoltageElm extends CircuitElm {
             return ei;
         }
         if (n == 2)
-            return new EditInfo("DC Offset (V)", bias, -20, 20);
+            return new EditInfo("DC Offset (V)", bias, -20, 20, "V");
         if (waveform == WF_DC || waveform == WF_NOISE)
             return null;
         if (n == 3)
-            return new EditInfo("Frequency (Hz)", frequency, 4, 500);
+            return new EditInfo("Frequency (Hz)", frequency, 4, 500, "Hz");
         if (n == 4)
             return new EditInfo("Phase Offset (degrees)", phaseShift * 180 / pi,
                     -180, 180).setDimensionless();

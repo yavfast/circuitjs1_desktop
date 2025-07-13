@@ -1,7 +1,11 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.event.dom.client.ClickEvent;
+import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.Command;
+import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -24,8 +28,10 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     // index of value in getEditInfo() list that this slider controls
     int editItem;
 
-    public Label label;
+    public Label label, valueLabel;
     Scrollbar slider;
+    Button editAdjustableButton, editElementButton;
+    Widget row;
     boolean settingValue;
 
     public Adjustable(CirSim cirSim, CircuitElm ce, int item) {
@@ -91,9 +97,26 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     public void createSlider(double value) {
         label = new Label(Locale.LS(sliderText));
         label.addStyleName("topSpace");
+        valueLabel = new Label();
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
         slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 101, this, elm);
-        cirSim.addSliderToDialog(label, slider);
+
+        editAdjustableButton = new Button("\u2699"); // Gear icon
+        editAdjustableButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                cirSim.circuitEditor.doSliders(elm);
+            }
+        });
+
+        editElementButton = new Button("\u270E"); // Pencil icon
+        editElementButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                cirSim.circuitEditor.doEditElementOptions(elm);
+            }
+        });
+        
+        updateValueLabel();
+        row = cirSim.addSliderToDialog(label, valueLabel, slider, editAdjustableButton, editElementButton);
     }
 
     public void setSliderValue(double value) {
@@ -104,6 +127,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
         settingValue = true; // don't recursively set value again in execute()
         slider.setValue(intValue);
+        updateValueLabel();
         settingValue = false;
     }
 
@@ -125,7 +149,22 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         EditInfo ei = elm.getEditInfo(editItem);
         ei.value = getSliderValue();
         elm.setEditValue(editItem, ei);
+        updateValueLabel();
         cirSim.repaint();
+    }
+
+    void updateValueLabel() {
+        if (valueLabel == null) return;
+        EditInfo ei = elm.getEditInfo(editItem);
+        double val = getSliderValue();
+        String valueString;
+        if (ei != null && ei.unit != null) {
+            valueString = CircuitElm.getUnitText(val, ei.unit);
+        } else {
+            // format to 2 decimal places
+            valueString = String.valueOf(Math.round(val * 100) / 100.0);
+        }
+        valueLabel.setText(valueString);
     }
 
     double getSliderValue() {
@@ -134,10 +173,10 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public void deleteSlider(CirSim sim) {
-        if (label == null || slider == null)
+        if (row == null)
             return;
         try {
-            sim.removeSliderFromDialog(label, slider);
+            sim.removeSliderFromDialog(row);
         } catch (Exception e) {
         }
     }

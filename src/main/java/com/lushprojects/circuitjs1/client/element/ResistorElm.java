@@ -128,7 +128,7 @@ public class ResistorElm extends CircuitElm {
     public EditInfo getEditInfo(int n) {
         // ohmString doesn't work here on linux
         if (n == 0)
-            return new EditInfo("Resistance (ohms)", resistance, 0, 0);
+            return new EditInfo("Resistance (ohms)", resistance, 0, 0, Locale.ohmString);
         return null;
     }
 

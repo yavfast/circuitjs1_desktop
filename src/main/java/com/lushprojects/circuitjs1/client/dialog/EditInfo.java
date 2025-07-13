@@ -43,16 +43,22 @@ public class EditInfo {
     public boolean noSliders;
     public double minVal, maxVal;
     public boolean isColor = false;
+    public String unit;
 
     // for slider dialog
     public TextBox minBox, maxBox, labelBox;
 
     public EditInfo(String n, double val, double mn, double mx) {
+        this(n, val, mn, mx, null);
+    }
+    
+    public EditInfo(String n, double val, double mn, double mx, String u) {
         name = n;
         value = val;
         dimensionless = false;
         minVal = mn;
         maxVal = mx;
+        unit = u;
     }
 
     public EditInfo(String n, double val) {

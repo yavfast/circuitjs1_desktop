@@ -228,15 +228,15 @@ public class CapacitorElm extends CircuitElm {
     public EditInfo getEditInfo(int n) {
         switch (n) {
             case 0:
-                return new EditInfo("Capacitance (F)", capacitance, 1e-6, 1e-3);
+                return new EditInfo("Capacitance (F)", capacitance, 1e-6, 1e-3, "F");
             case 1:
                 EditInfo ei = new EditInfo("", 0, -1, -1);
                 ei.checkbox = new Checkbox("Trapezoidal Approximation", isTrapezoidal());
                 return ei;
             case 2:
-                return new EditInfo("Initial Voltage (on Reset)", initialVoltage);
+                return new EditInfo("Initial Voltage (on Reset)", initialVoltage, -1, -1, "V");
             case 3:
-                return new EditInfo("Series Resistance (0 = infinite)", seriesResistance);
+                return new EditInfo("Series Resistance (0 = infinite)", seriesResistance, 0, 0, "Ω");
         }
         // if you add more things here, check PolarCapacitorElm
         return null;
