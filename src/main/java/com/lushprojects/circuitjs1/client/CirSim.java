@@ -62,6 +62,7 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
+import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
@@ -101,12 +102,13 @@ public class CirSim implements NativePreviewHandler {
     CellPanel buttonPanel;
 
     public SlidersDialog slidersDialog;
+    public ControlsDialog controlsDialog;
 
-    Label powerLabel;
-    Label titleLabel;
-    Scrollbar speedBar;
-    Scrollbar currentBar;
-    Scrollbar powerBar;
+    public Label powerLabel;
+    public Label titleLabel;
+    public Scrollbar speedBar;
+    public Scrollbar currentBar;
+    public Scrollbar powerBar;
 
     Frame iFrame = null;
 
@@ -269,6 +271,8 @@ public class CirSim implements NativePreviewHandler {
 
         verticalPanel = new VerticalPanel();
         slidersDialog = new SlidersDialog();
+        controlsDialog = new ControlsDialog(this);
+        controlsDialog.show();
 
         verticalPanel.getElement().addClassName("verticalPanel");
         verticalPanel.getElement().setId("painel");
@@ -355,6 +359,7 @@ public class CirSim implements NativePreviewHandler {
             public void onResize(ResizeEvent event) {
                 repaint();
                 updateSlidersDialogPosition();
+                updateControlsDialogPosition();
                 setSlidersDialogHeight();
             }
         });
@@ -370,30 +375,6 @@ public class CirSim implements NativePreviewHandler {
         }
 
         Label l;
-        verticalPanel.add(l = new Label(Locale.LS("Simulation Speed")));
-        l.addStyleName("topSpace");
-        l.addStyleName("sidePanelElm");
-
-        // was max of 140
-        verticalPanel.add(speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 3, 1, 0, 260));
-        speedBar.addStyleName("sidePanelElm");
-
-        verticalPanel.add(l = new Label(Locale.LS("Current Speed")));
-        l.addStyleName("topSpace");
-        l.addStyleName("sidePanelElm");
-
-        currentBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100);
-        verticalPanel.add(currentBar);
-        currentBar.addStyleName("sidePanelElm");
-
-        verticalPanel.add(powerLabel = new Label(Locale.LS("Power Brightness")));
-        powerLabel.addStyleName("topSpace");
-        powerLabel.addStyleName("sidePanelElm");
-
-        verticalPanel.add(powerBar = new Scrollbar(Scrollbar.HORIZONTAL, 50, 1, 1, 100));
-        powerBar.addStyleName("sidePanelElm");
-        setPowerBarEnable();
-
         l = new Label(Locale.LS("Current Circuit:"));
         l.addStyleName("topSpace");
         l.addStyleName("sidePanelElm");
@@ -844,6 +825,7 @@ public class CirSim implements NativePreviewHandler {
     void setToolbar() {
         layoutPanel.setWidgetHidden(toolbar, !menuManager.toolbarCheckItem.getState());
         setSlidersDialogHeight();
+        updateControlsDialogPosition();
         setCanvasSize();
     }
 
@@ -935,6 +917,15 @@ public class CirSim implements NativePreviewHandler {
         if (isSidePanelCheckboxChecked() && !OptionsManager.getBoolOptionFromStorage("MOD_overlayingSidebar", true))
             left -= VERTICAL_PANEL_WIDTH;
         slidersDialog.setPopupPosition(left, 50);
+    }
+
+    void updateControlsDialogPosition() {
+        if (controlsDialog == null || !controlsDialog.isShowing())
+            return;
+        int mainWidth = RootLayoutPanel.get().getOffsetWidth();
+        int dialogWidth = controlsDialog.getOffsetWidth();
+        int left = mainWidth - dialogWidth - 20;
+        controlsDialog.setPopupPosition(left, 50);
     }
 
     public void addWidgetToVerticalPanel(Widget w) {
