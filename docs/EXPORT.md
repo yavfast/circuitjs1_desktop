@@ -637,6 +637,70 @@ O <x> <y> <x2> <y2> <flags> <scale>
 
 ---
 
+## Configuration and Model Definitions
+
+Besides circuit elements, the export format includes lines for defining models, setting up scopes, and other configurations. These lines do not represent a visual component on the schematic but provide data for the simulation.
+
+### Scope Settings
+```
+o [parameters...]
+```
+- `o`: Defines settings for a scope plot. The position of the scope is determined by its order in the file.
+- `parameters...`: Parameters defining the scope's state and appearance, parsed by the `Scope.undump()` method.
+
+### Hint
+```
+h <type> <item1> <item2>
+```
+- `h`: Provides a hint to the UI, for example to highlight certain elements.
+- `type`: The type of hint.
+- `item1`, `item2`: Element identifiers for the hint.
+
+### Custom Logic Model
+```
+! [model data...]
+```
+- `!`: Defines a custom logic model using `CustomLogicModel.undumpModel()`.
+- `model data...`: The definition of the model.
+
+### Diode Model
+```
+34 [model data...]
+```
+- `34`: Defines a model for a diode using `DiodeModel.undumpModel()`.
+- `model data...`: The parameters for the diode model (e.g., from a SPICE .model line).
+
+### Transistor Model
+```
+32 [model data...]
+```
+- `32`: Defines a model for a transistor using `TransistorModel.undumpModel()`.
+- `model data...`: The parameters for the transistor model.
+
+### Adjustable Element
+```
+38 [parameters...]
+```
+- `38`: Defines an adjustable value (slider) using `adjustableManager.addAdjustable()`.
+- `parameters...`: Parameters for the adjustable element, such as its name, value, and linkage to a circuit element.
+
+### Custom Composite Model
+```
+. [model data...]
+```
+- `.`: Defines a custom composite model (subcircuit) using `CustomCompositeModel.undumpModel()`.
+- `model data...`: The definition of the composite model.
+
+### AFilter-Specific Data
+```
+% [data...]
+? [data...]
+B [data...]
+```
+- These prefixes are used for data specific to the `afilter` application and are ignored by the standard circuit simulator.
+
+---
+
 ## Notes
 
 - **ChipElm-based elements** (logic gates, flip-flops, counters, etc.) follow a common pattern: they may include a `bits` parameter if `needsBits()` returns true, followed by voltage values for each pin that has `state=true`.
