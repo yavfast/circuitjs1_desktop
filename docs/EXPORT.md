@@ -882,6 +882,115 @@ O <x> <y> <x2> <y2> <flags> <scale>
 ```
 - `position`: Switch position
 
+### Unijunction Transistor (UnijunctionElm)
+```
+417 <x> <y> <x2> <y2> <flags> <resistance> <ratio> <current> <gateVoltage>
+```
+- `resistance`: Interbase resistance (Rbb).
+- `ratio`: Intrinsic standoff ratio (η).
+- `current`: Emitter current.
+- `gateVoltage`: Voltage at the gate.
+
+### External Voltage Source (ExtVoltageElm)
+```
+418 <x> <y> <x2> <y2> <flags> <name>
+```
+- `name`: Name of the external voltage source.
+
+### Decimal Display (DecimalDisplayElm)
+```
+419 <x> <y> <x2> <y2> <flags> [pin voltages...]
+```
+- `pin voltages...`: Voltage for each pin.
+
+### Wattmeter (WattmeterElm)
+```
+420 <x> <y> <x2> <y2> <flags> <resistance> <loadCurrent> <loadVoltage>
+```
+- `resistance`: Internal resistance.
+- `loadCurrent`: Current through the load.
+- `loadVoltage`: Voltage across the load.
+
+### Counter (Alternate) (Counter2Elm)
+```
+421 <x> <y> <x2> <y2> <flags> <max_state>
+```
+- `max_state`: Maximum state of the counter.
+
+### Delay Buffer (DelayBufferElm)
+```
+422 <x> <y> <x2> <y2> <flags> <delay>
+```
+- `delay`: Propagation delay.
+
+### Line (Graphical) (LineElm)
+```
+423 <x> <y> <x2> <y2> <flags>
+```
+- A graphical line for annotation. No electrical properties.
+
+### Data Input (DataInputElm)
+```
+424 <x> <y> <x2> <y2> <flags> <sequence>
+```
+- `sequence`: A string of '0's and '1's representing the data sequence.
+
+### Relay Coil (RelayCoilElm)
+```
+425 <x> <y> <x2> <y2> <flags> <inductance> <on_current> <off_current> <id>
+```
+- `inductance`: Coil inductance.
+- `on_current`: Current required to activate the relay.
+- `off_current`: Current at which the relay deactivates.
+- `id`: Unique identifier for the coil.
+
+### Relay Contact (RelayContactElm)
+```
+426 <x> <y> <x2> <y2> <flags> <coil_id> <is_normally_open>
+```
+- `coil_id`: ID of the corresponding relay coil.
+- `is_normally_open`: 1 if normally open, 0 if normally closed.
+
+### Three-Phase Motor (ThreePhaseMotorElm)
+```
+427 <x> <y> <x2> <y2> <flags> <inductance> <resistance> <torque_constant> <back_emf_constant>
+```
+- `inductance`: Motor inductance.
+- `resistance`: Motor resistance.
+- `torque_constant`: Torque constant.
+- `back_emf_constant`: Back EMF constant.
+
+### Motor Protection Switch (MotorProtectionSwitchElm)
+```
+428 <x> <y> <x2> <y2> <flags> <setting>
+```
+- `setting`: Current setting for thermal protection.
+
+### DPDT Switch (DPDTSwitchElm)
+```
+429 <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position.
+
+### Cross Switch (CrossSwitchElm)
+```
+430 <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position (0 for straight, 1 for crossed).
+
+### Polarized Capacitor (PolarCapacitorElm)
+```
+209 <x> <y> <x2> <y2> <flags> <capacitance> <voltageDiff>
+```
+- `capacitance`: Capacitance in Farads.
+- `voltageDiff`: The present voltage difference across the capacitor.
+
+### Labeled Node (LabeledNodeElm)
+```
+207 <x> <y> <x2> <y2> <flags> <name>
+```
+- `name`: The label or name for the node.
+
 ---
 
 ## Configuration and Model Definitions
