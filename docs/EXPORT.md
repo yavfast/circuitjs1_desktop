@@ -46,11 +46,11 @@ Each circuit element is represented as:
 
 ### Capacitor
 ```
-c <x> <y> <x2> <y2> <flags> <capacitance> <voltageDiff> <initialVoltage>
+c <x> <y> <x2> <y2> <flags> <capacitance> <voltageDiff> [initialVoltage]
 ```
 - `capacitance`: Capacitance in Farads
-- `voltageDiff`: Voltage difference across the capacitor
-- `initialVoltage`: Initial voltage
+- `voltageDiff`: The present voltage difference across the capacitor.
+- `initialVoltage`: Initial voltage to be set on simulation reset (optional).
 
 ### Transistor
 ```
@@ -81,11 +81,18 @@ w <x> <y> <x2> <y2> <flags>
 - No additional parameters
 - `flags` may indicate display of current/voltage
 
+### Zener Diode
+```
+z <x> <y> <x2> <y2> <flags> <breakdown> [modelName]
+```
+- `breakdown`: Breakdown voltage (numeric).
+- `modelName`: An optional model name can be provided as a string.
+
 ### LED
 ```
-162 <x> <y> <x2> <y2> <flags> <colorR> <colorG> <colorB> <maxBrightnessCurrent>
+162 <x> <y> <x2> <y2> <flags> <colorR|modelName> <colorG> <colorB> <maxBrightnessCurrent>
 ```
-- `colorR`, `colorG`, `colorB`: Color components (0-1)
+- `colorR`, `colorG`, `colorB`: Color components (0-1). Alternatively, a model name can be provided in place of the color components.
 - `maxBrightnessCurrent`: Maximum brightness current
 
 ### Diode
@@ -296,10 +303,11 @@ v <x> <y> <x2> <y2> <flags> <waveform> <frequency> <maxVoltage> <bias> <phaseShi
 
 ### Inductor
 ```
-l <x> <y> <x2> <y2> <flags> <inductance> <current>
+l <x> <y> <x2> <y2> <flags> <inductance> <current> [initialCurrent]
 ```
 - `inductance`: Inductance value in Henries
-- `current`: Initial current
+- `current`: The present current value through the inductor.
+- `initialCurrent`: Initial current to be set on simulation reset (optional).
 
 ### Transformer
 ```
