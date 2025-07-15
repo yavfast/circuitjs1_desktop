@@ -33,7 +33,7 @@ Each circuit element is represented as:
 ```
 <DumpType> <x> <y> <x2> <y2> <flags> [Additional Parameters] [# Description]
 ```
-- **DumpType**: Unique identifier for the element type (character or integer).
+- **DumpType**: Unique identifier for the element type (character or integer). If the type identifier is a numeric value less than 127, it is equivalent to its corresponding ASCII character. For example, a Resistor can be represented by `r` or its ASCII value `114`.
 - **x, y**: Starting coordinates.
 - **x2, y2**: Ending coordinates.
 - **flags**: Bitmask for element-specific properties.
@@ -44,7 +44,19 @@ Each circuit element is represented as:
 
 ## Element Formats
 
-### Capacitor
+### Antenna (AntennaElm)
+```
+A <x> <y> <x2> <y2> <flags>
+```
+- A simple antenna element.
+
+### Box (Graphical) (BoxElm)
+```
+b <x> <y> <x2> <y2> <flags>
+```
+- A graphical box for annotation. No electrical properties.
+
+### Capacitor (CapacitorElm)
 ```
 c <x> <y> <x2> <y2> <flags> <capacitance> <voltageDiff> [initialVoltage]
 ```
@@ -52,7 +64,7 @@ c <x> <y> <x2> <y2> <flags> <capacitance> <voltageDiff> [initialVoltage]
 - `voltageDiff`: The present voltage difference across the capacitor.
 - `initialVoltage`: Initial voltage to be set on simulation reset (optional).
 
-### Transistor
+### Transistor (TransistorElm)
 ```
 t <x> <y> <x2> <y2> <flags> <pnp> <Vbe> <Vbc> <beta> <modelName>
 ```
@@ -62,60 +74,148 @@ t <x> <y> <x2> <y2> <flags> <pnp> <Vbe> <Vbc> <beta> <modelName>
 - `beta`: Current gain
 - `modelName`: Model name (escaped)
 
-### Current Source
+### Current Source (CurrentElm)
 ```
 i <x> <y> <x2> <y2> <flags> <currentValue>
 ```
 - `currentValue`: Current in Amperes
 
-### Ground
+### Ground (GroundElm)
 ```
 g <x> <y> <x2> <y2> <flags> <symbolType>
 ```
 - `symbolType`: Integer representing the ground symbol style
 
-### Wire
+### Wire (WireElm)
 ```
 w <x> <y> <x2> <y2> <flags>
 ```
 - No additional parameters
 - `flags` may indicate display of current/voltage
 
-### Zener Diode
+### Text Label (TextElm)
+```
+x <x> <y> <x2> <y2> <flags> <size> <text>
+```
+- `size`: Font size.
+- `text`: The text to display (escaped).
+
+### Zener Diode (ZenerElm)
 ```
 z <x> <y> <x2> <y2> <flags> <breakdown> [modelName]
 ```
 - `breakdown`: Breakdown voltage (numeric).
 - `modelName`: An optional model name can be provided as a string.
 
-### LED
+### Operational Amplifier (Op-Amp) (OpAmpElm)
 ```
-162 <x> <y> <x2> <y2> <flags> <colorR|modelName> <colorG> <colorB> <maxBrightnessCurrent>
+a <x> <y> <x2> <y2> <flags> <maxout> <minout> <gbw>
 ```
-- `colorR`, `colorG`, `colorB`: Color components (0-1). Alternatively, a model name can be provided in place of the color components.
-- `maxBrightnessCurrent`: Maximum brightness current
+- `maxout`: Maximum output voltage.
+- `minout`: Minimum output voltage.
+- `gbw`: Gain-bandwidth product.
 
-### Diode
+### LED (LEDElm)
+```
+162 <x> <y> <x2> <y2> <flags> (<colorR> <colorG> <colorB> | <modelName>) <maxBrightnessCurrent> [forwardVoltage]
+```
+- This element can be defined in two ways:
+  - By color components: `colorR`, `colorG`, `colorB` (numeric values from 0-1).
+  - By model name: `modelName` (string).
+- `maxBrightnessCurrent`: Maximum brightness current.
+- `forwardVoltage`: Optional forward voltage drop.
+
+### Diode (DiodeElm)
 ```
 d <x> <y> <x2> <y2> <flags> <modelName>
 ```
 - `modelName`: Diode model name (escaped)
 
-### Probe
+### JFET Transistor (JfetElm)
+```
+j <x> <y> <x2> <y2> <flags> <pnp>
+```
+- `pnp`: 1 for P-channel, -1 for N-channel.
+
+### Inductor (InductorElm)
+```
+l <x> <y> <x2> <y2> <flags> <inductance> <current> [initialCurrent]
+```
+- `inductance`: Inductance value in Henries
+- `current`: The present current value through the inductor.
+- `initialCurrent`: Initial current to be set on simulation reset (optional).
+
+### Noise Source (NoiseElm)
+```
+n <x> <y> <x2> <y2> <flags> <maxVoltage>
+```
+- `maxVoltage`: Maximum voltage level.
+
+### Resistor (ResistorElm)
+```
+r <x> <y> <x2> <y2> <flags> <resistance>
+```
+- `resistance`: Resistance value in Ohms
+
+### Voltage Rail (RailElm)
+```
+R <x> <y> <x2> <y2> <flags> <waveform> <frequency> <maxVoltage> <bias> <phaseShift> <dutyCycle>
+```
+- This is a single-terminal voltage source. Parameters are identical to the standard Voltage Source (`v`).
+
+### 2-Position Switch (SPDT) (Switch2Elm)
+```
+S <x> <y> <x2> <y2> <flags> <position>
+```
+- `position`: Switch position (0 or 1).
+
+### Transistor (TransistorElm)
+```
+t <x> <y> <x2> <y2> <flags> <pnp> <Vbe> <Vbc> <beta> <modelName>
+```
+- `pnp`: 0 for NPN, 1 for PNP
+- `Vbe`: Base-Emitter voltage
+- `Vbc`: Base-Collector voltage
+- `beta`: Current gain
+- `modelName`: Model name (escaped)
+
+### Probe (ProbeElm)
 ```
 p <x> <y> <x2> <y2> <flags> <meter> <scale>
 ```
 - `meter`: Meter type (0=V, 1=RMS, 2=Max, 3=Min, 4=Peak-to-peak, 5=Binary, 6=Frequency, 7=Period, 8=Pulse width, 9=Duty cycle)
 - `scale`: Display scale
 
-### Switch
+### Switch (SwitchElm)
 ```
 s <x> <y> <x2> <y2> <flags> <position> <momentary>
 ```
 - `position`: 0=closed, 1=open (or 2 for multi-position)
 - `momentary`: true/false
 
-### Transmission Line
+### Voltage-Controlled Oscillator (VCO) (VCOElm)
+```
+158 <x> <y> <x2> <y2> <flags> <min_freq> <max_freq> <waveshape>
+```
+- `min_freq`: Minimum frequency.
+- `max_freq`: Maximum frequency.
+- `waveshape`: Output waveform type.
+
+### Analog Switch (SPDT) (AnalogSwitch2Elm)
+```
+160 <x> <y> <x2> <y2> <flags> <r_on> <r_off>
+```
+- `r_on`: On resistance.
+- `r_off`: Off resistance.
+
+### Ring Counter (RingCounterElm)
+```
+163 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Transmission Line (TransLineElm)
 ```
 171 <x> <y> <x2> <y2> <flags> <delay> <impedance> <width> 0
 ```
@@ -124,7 +224,7 @@ s <x> <y> <x2> <y2> <flags> <position> <momentary>
 - `width`: Line width
 - `0`: Reserved (not used)
 
-### Triac
+### Triac (TriacElm)
 ```
 206 <x> <y> <x2> <y2> <flags> <triggerCurrent> <holdingCurrent> <cresistance> <state>
 ```
@@ -133,7 +233,7 @@ s <x> <y> <x2> <y2> <flags> <position> <momentary>
 - `cresistance`: Resistance
 - `state`: true/false
 
-### SCR (Silicon Controlled Rectifier)
+### SCR (Silicon Controlled Rectifier) (SCRElm)
 ```
 177 <x> <y> <x2> <y2> <flags> <V_ac> <V_ag> <triggerCurrent> <holdingCurrent> <gateResistance>
 ```
@@ -143,39 +243,55 @@ s <x> <y> <x2> <y2> <flags> <position> <momentary>
 - `holdingCurrent`: Holding current
 - `gateResistance`: Gate resistance
 
-### Logic Input
+### Relay (RelayElm)
+```
+178 <x> <y> <x2> <y2> <flags> <inductance> <onCurrent> <coilCurrent> <poleCount> <contactResistance>
+```
+- `inductance`: Coil inductance.
+- `onCurrent`: Current required to activate the relay.
+- `coilCurrent`: Current through the coil.
+- `poleCount`: Number of poles.
+- `contactResistance`: Resistance of the contacts when closed.
+
+### Current Conveyor (CCII+) (CC2Elm)
+```
+179 <x> <y> <x2> <y2> <flags> <current>
+```
+- `current`: Current value.
+
+### Logic Input (LogicInputElm)
 ```
 L <x> <y> <x2> <y2> <flags> <hiV> <loV>
 ```
 - `hiV`: High voltage level
 - `loV`: Low voltage level
 
-### Logic Output
+### Logic Output (LogicOutputElm)
 ```
 M <x> <y> <x2> <y2> <flags> <threshold>
 ```
 - `threshold`: Threshold voltage
 
-### Variable Rail
+### Variable Rail (VarRailElm)
 ```
 172 <x> <y> <x2> <y2> <flags> <sliderText>
 ```
 - `sliderText`: Label for the variable rail (may be URL-encoded)
 
-### LDR (Light Dependent Resistor)
+### LDR (Light Dependent Resistor) (LDRElm)
 ```
 374 <x> <y> <x2> <y2> <flags> <position> <sliderText>
 ```
 - `position`: Slider position (0.005 to 0.995)
 - `sliderText`: Label for the slider (escaped)
 
-### Test Point
+### Test Point (TestPointElm)
 ```
 368 <x> <y> <x2> <y2> <flags> <meter>
 ```
 - `meter`: Meter type (see Probe)
 
-### Fuse
+### Fuse (FuseElm)
 ```
 404 <x> <y> <x2> <y2> <flags> <resistance> <i2t> <heat> <blown>
 ```
@@ -184,7 +300,14 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `heat`: Current heat value
 - `blown`: true/false
 
-### Seven Segment Display
+### PISO Shift Register (PisoShiftElm)
+```
+186 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Seven Segment Display (SevenSegElm)
 ```
 157 <x> <y> <x2> <y2> <flags> <baseSegmentCount> <extraSegment> <diodeDirection>
 ```
@@ -192,21 +315,28 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `extraSegment`: 0=None, 1=Decimal point, 2=Colon
 - `diodeDirection`: 1=common cathode, -1=common anode, 0=none
 
-### Seven Segment Decoder
+### Seven Segment Decoder (SevenSegDecoderElm)
 ```
 197 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Full Adder
+### Half Adder (HalfAdderElm)
+```
+195 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits.
+- `pin voltages...`: Voltage for each pin that has state=true.
+
+### Full Adder (FullAdderElm)
 ```
 196 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Counter
+### Counter (CounterElm)
 ```
 164 <x> <y> <x2> <y2> <flags> <invertreset> <modulus> [bits] [pin voltages...]
 ```
@@ -215,7 +345,7 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Monostable Multivibrator
+### Monostable Multivibrator (MonostableElm)
 ```
 194 <x> <y> <x2> <y2> <flags> <retriggerable> <delay> [bits] [pin voltages...]
 ```
@@ -224,7 +354,7 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### AND Gate
+### AND Gate (AndGateElm)
 ```
 150 <x> <y> <x2> <y2> <flags> <inputCount> <outputVoltage> <highVoltage>
 ```
@@ -232,7 +362,19 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `outputVoltage`: Current output voltage
 - `highVoltage`: High voltage level
 
-### NOR Gate
+### NAND Gate (NandGateElm)
+```
+151 <x> <y> <x2> <y2> <flags> <inputCount> <outputVoltage> <highVoltage>
+```
+- See AND Gate for parameter descriptions.
+
+### OR Gate (OrGateElm)
+```
+152 <x> <y> <x2> <y2> <flags> <inputCount> <outputVoltage> <highVoltage>
+```
+- See AND Gate for parameter descriptions.
+
+### NOR Gate (NorGateElm)
 ```
 153 <x> <y> <x2> <y2> <flags> <inputCount> <outputVoltage> <highVoltage>
 ```
@@ -240,42 +382,80 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `outputVoltage`: Current output voltage
 - `highVoltage`: High voltage level
 
-### Ring Counter
+### XOR Gate (XorGateElm)
 ```
-163 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+154 <x> <y> <x2> <y2> <flags> <inputCount> <outputVoltage> <highVoltage>
+```
+- See AND Gate for parameter descriptions.
+
+### D Flip-Flop (DFlipFlopElm)
+```
+155 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### CCCS (Current-Controlled Current Source)
+### JK Flip-Flop (JKFlipFlopElm)
 ```
-215 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
-```
-- `bits`: Number of bits (if needsBits() returns true)
-- `pin voltages...`: Voltage for each pin that has state=true
-
-### Varactor Diode
-```
-176 <x> <y> <x2> <y2> <flags> <capvoltdiff> <baseCapacitance>
-```
-- `capvoltdiff`: Voltage difference for capacitance
-- `baseCapacitance`: Base capacitance value
-
-### ADC (Analog-to-Digital Converter)
-```
-167 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+156 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Timer (555)
+### AM Source (AMElm)
 ```
-165 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+200 <x> <y> <x2> <y2> <flags> <carrierfreq> <signalfreq> <maxVoltage>
+```
+- `carrierfreq`: Carrier frequency
+- `signalfreq`: Signal frequency
+- `maxVoltage`: Maximum voltage
+
+### FM Source (FMElm)
+```
+201 <x> <y> <x2> <y2> <flags> <carrierfreq> <signalfreq> <maxVoltage> <deviation>
+```
+- `carrierfreq`: Carrier frequency
+- `signalfreq`: Signal frequency
+- `maxVoltage`: Maximum voltage
+- `deviation`: Frequency deviation
+
+### DIAC (DiacElm)
+```
+203 <x> <y> <x2> <y2> <flags> <onresistance> <offresistance> <breakdown> <holdcurrent>
+```
+- `onresistance`: On resistance
+- `offresistance`: Off resistance
+- `breakdown`: Breakdown voltage
+- `holdcurrent`: Holding current
+
+### Data Recorder (DataRecorderElm)
+```
+210 <x> <y> <x2> <y2> <flags> <dataCount>
+```
+- `dataCount`: Number of data points to record
+
+### DAC (Digital-to-Analog Converter) (DACElm)
+```
+166 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Tapped Transformer
+### Phase Comparator (PhaseCompElm)
+```
+161 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Latch (LatchElm)
+```
+168 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits.
+- `pin voltages...`: Voltage for each pin that has state=true.
+
+### Tapped Transformer (TappedTransformerElm)
 ```
 169 <x> <y> <x2> <y2> <flags> <inductance> <ratio> <current0> <current1> <current2> <couplingCoef>
 ```
@@ -284,13 +464,51 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 - `current0`, `current1`, `current2`: Initial currents
 - `couplingCoef`: Coupling coefficient
 
-### Resistor
+### Potentiometer (PotElm)
+```
+174 <x> <y> <x2> <y2> <flags> <maxResistance> <position> <resistance>
+```
+- `maxResistance`: Maximum resistance.
+- `position`: Wiper position (0 to 1).
+- `resistance`: Current resistance of the wiper.
+
+### Tunnel Diode (TunnelDiodeElm)
+```
+175 <x> <y> <x2> <y2> <flags> <peakCurrent> <valleyCurrent> <peakVoltage> <valleyVoltage>
+```
+- `peakCurrent`: Peak current (Ip).
+- `valleyCurrent`: Valley current (Iv).
+- `peakVoltage`: Peak voltage (Vp).
+- `valleyVoltage`: Valley voltage (Vv).
+
+### Varactor Diode (VaractorElm)
+```
+176 <x> <y> <x2> <y2> <flags> <capvoltdiff> <baseCapacitance>
+```
+- `capvoltdiff`: Voltage difference for capacitance
+- `baseCapacitance`: Base capacitance value
+
+### ADC (Analog-to-Digital Converter) (ADCElm)
+```
+167 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Timer (555) (TimerElm)
+```
+165 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits (if needsBits() returns true)
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Resistor (ResistorElm)
 ```
 r <x> <y> <x2> <y2> <flags> <resistance>
 ```
 - `resistance`: Resistance value in Ohms
 
-### Voltage Source
+### Voltage Source (VoltageElm)
 ```
 v <x> <y> <x2> <y2> <flags> <waveform> <frequency> <maxVoltage> <bias> <phaseShift> <dutyCycle>
 ```
@@ -301,7 +519,7 @@ v <x> <y> <x2> <y2> <flags> <waveform> <frequency> <maxVoltage> <bias> <phaseShi
 - `phaseShift`: Phase shift in degrees
 - `dutyCycle`: Duty cycle for pulse waves (0-1)
 
-### Inductor
+### Inductor (InductorElm)
 ```
 l <x> <y> <x2> <y2> <flags> <inductance> <current> [initialCurrent]
 ```
@@ -309,7 +527,7 @@ l <x> <y> <x2> <y2> <flags> <inductance> <current> [initialCurrent]
 - `current`: The present current value through the inductor.
 - `initialCurrent`: Initial current to be set on simulation reset (optional).
 
-### Transformer
+### Transformer (TransformerElm)
 ```
 T <x> <y> <x2> <y2> <flags> <inductance> <ratio> <current0> <current1> <couplingCoef>
 ```
@@ -318,14 +536,14 @@ T <x> <y> <x2> <y2> <flags> <inductance> <ratio> <current0> <current1> <coupling
 - `current0`, `current1`: Initial currents
 - `couplingCoef`: Coupling coefficient
 
-### MOSFET
+### MOSFET (MosfetElm)
 ```
 f <x> <y> <x2> <y2> <flags> <vt> <beta>
 ```
 - `vt`: Threshold voltage
 - `beta`: Transconductance parameter
 
-### Memristor
+### Memristor (MemristorElm)
 ```
 m <x> <y> <x2> <y2> <flags> <r_on> <r_off> <dopeWidth> <totalWidth> <mobility> <current>
 ```
@@ -336,40 +554,40 @@ m <x> <y> <x2> <y2> <flags> <r_on> <r_off> <dopeWidth> <totalWidth> <mobility> <
 - `mobility`: Ion mobility
 - `current`: Current state
 
-### Inverter (Logic)
+### Inverter (Logic) (InverterElm)
 ```
 I <x> <y> <x2> <y2> <flags> <slewRate> <highVoltage>
 ```
 - `slewRate`: Slew rate in V/ns
 - `highVoltage`: High voltage level
 
-### Output (Scope)
+### Output (Scope) (OutputElm)
 ```
 O <x> <y> <x2> <y2> <flags> <scale>
 ```
 - `scale`: Display scale setting
 
-### Ammeter
+### Ammeter (AmmeterElm)
 ```
 370 <x> <y> <x2> <y2> <flags>
 ```
 - No additional parameters (acts as current meter)
 
-### Analog Switch
+### Analog Switch (AnalogSwitchElm)
 ```
 159 <x> <y> <x2> <y2> <flags> <r_on> <r_off>
 ```
 - `r_on`: On resistance
 - `r_off`: Off resistance
 
-### Triode
+### Triode (TriodeElm)
 ```
 173 <x> <y> <x2> <y2> <flags> <mu> <kg1>
 ```
 - `mu`: Amplification factor
 - `kg1`: Grid-cathode constant
 
-### Sweep Generator
+### Sweep Generator (SweepElm)
 ```
 170 <x> <y> <x2> <y2> <flags> <minF> <maxF> <maxV> <sweepTime>
 ```
@@ -378,14 +596,14 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `maxV`: Maximum voltage
 - `sweepTime`: Sweep time duration
 
-### TriState Buffer
+### TriState Buffer (TriStateElm)
 ```
 180 <x> <y> <x2> <y2> <flags> <r_on> <r_off>
 ```
 - `r_on`: On resistance
 - `r_off`: Off resistance
 
-### Lamp
+### Lamp (LampElm)
 ```
 181 <x> <y> <x2> <y2> <flags> <temp> <nom_pow> <nom_v> <warmTime> <coolTime>
 ```
@@ -395,7 +613,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `warmTime`: Warm-up time constant
 - `coolTime`: Cool-down time constant
 
-### Schmitt Trigger
+### Schmitt Trigger (SchmittElm)
 ```
 182 <x> <y> <x2> <y2> <flags> <slewRate> <lowerTrigger> <upperTrigger> <logicOnLevel> <logicOffLevel>
 ```
@@ -405,7 +623,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `logicOnLevel`: Logic high voltage
 - `logicOffLevel`: Logic low voltage
 
-### Inverting Schmitt Trigger
+### Inverting Schmitt Trigger (InvertingSchmittElm)
 ```
 183 <x> <y> <x2> <y2> <flags> <slewRate> <lowerTrigger> <upperTrigger> <logicOnLevel> <logicOffLevel>
 ```
@@ -415,49 +633,63 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `logicOnLevel`: Logic high voltage
 - `logicOffLevel`: Logic low voltage
 
-### Demultiplexer
+### Multiplexer (MultiplexerElm)
+```
+184 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits.
+- `pin voltages...`: Voltage for each pin that has state=true
+
+### Demultiplexer (DeMultiplexerElm)
 ```
 185 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### PISO Shift Register
+### Spark Gap (SparkGapElm)
 ```
-186 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+187 <x> <y> <x2> <y2> <flags> <breakdown> <resistance>
 ```
-- `bits`: Number of bits (if needsBits() returns true)
+- `breakdown`: Breakdown voltage.
+- `resistance`: On-state resistance.
+
+### Sequence Generator (SeqGenElm)
+```
+188 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+```
+- `bits`: Number of bits.
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### SIPO Shift Register
+### SIPO Shift Register (SipoShiftElm)
 ```
 189 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### T Flip-Flop
+### T Flip-Flop (TFlipFlopElm)
 ```
 193 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### D Flip-Flop
+### D Flip-Flop (DFlipFlopElm)
 ```
 155 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### JK Flip-Flop
+### JK Flip-Flop (JKFlipFlopElm)
 ```
 156 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### AM Source
+### AM Source (AMElm)
 ```
 200 <x> <y> <x2> <y2> <flags> <carrierfreq> <signalfreq> <maxVoltage>
 ```
@@ -465,7 +697,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `signalfreq`: Signal frequency
 - `maxVoltage`: Maximum voltage
 
-### FM Source
+### FM Source (FMElm)
 ```
 201 <x> <y> <x2> <y2> <flags> <carrierfreq> <signalfreq> <maxVoltage> <deviation>
 ```
@@ -474,7 +706,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `maxVoltage`: Maximum voltage
 - `deviation`: Frequency deviation
 
-### DIAC
+### DIAC (DiacElm)
 ```
 203 <x> <y> <x2> <y2> <flags> <onresistance> <offresistance> <breakdown> <holdcurrent>
 ```
@@ -483,27 +715,97 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `breakdown`: Breakdown voltage
 - `holdcurrent`: Holding current
 
-### Data Recorder
+### Data Recorder (DataRecorderElm)
 ```
 210 <x> <y> <x2> <y2> <flags> <dataCount>
 ```
 - `dataCount`: Number of data points to record
 
-### DAC (Digital-to-Analog Converter)
+### Audio Output (AudioOutputElm)
 ```
-166 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+211 <x> <y> <x2> <y2> <flags>
 ```
-- `bits`: Number of bits (if needsBits() returns true)
-- `pin voltages...`: Voltage for each pin that has state=true
+- Plays audio based on the input voltage. No parameters.
 
-### Phase Comparator
+### VCVS (Voltage-Controlled Voltage Source) (VCVSElm)
 ```
-161 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
+212 <x> <y> <x2> <y2> <flags> <gain>
 ```
-- `bits`: Number of bits (if needsBits() returns true)
-- `pin voltages...`: Voltage for each pin that has state=true
+- `gain`: Voltage gain.
 
-### Custom Transformer
+### VCCS (Voltage-Controlled Current Source) (VCCSElm)
+```
+213 <x> <y> <x2> <y2> <flags> <gain>
+```
+- `gain`: Transconductance (A/V).
+
+### CCVS (Current-Controlled Voltage Source) (CCVSElm)
+```
+214 <x> <y> <x2> <y2> <flags> <gain>
+```
+- `gain`: Transresistance (V/A).
+
+### CCCS (Current-Controlled Current Source) (CCCSElm)
+```
+215 <x> <y> <x2> <y2> <flags> <gain>
+```
+- `gain`: Current gain.
+
+### Ohmmeter (OhmMeterElm)
+```
+216 <x> <y> <x2> <y2> <flags>
+```
+- Measures resistance. No parameters.
+
+### Thermistor (NTC) (ThermistorNTCElm)
+```
+350 <x> <y> <x2> <y2> <flags> <r_nom> <t_nom> <beta>
+```
+- `r_nom`: Nominal resistance.
+- `t_nom`: Nominal temperature.
+- `beta`: Beta coefficient.
+
+### Test Point (TestPointElm)
+```
+368 <x> <y> <x2> <y2> <flags> <meter>
+```
+- `meter`: Meter type (see Probe)
+
+### Darlington Pair (DarlingtonElm)
+```
+400 <x> <y> <x2> <y2> <flags> <pnp> <beta>
+```
+- `pnp`: 1 for PNP, -1 for NPN.
+- `beta`: Combined current gain.
+
+### Comparator (ComparatorElm)
+```
+401 <x> <y> <x2> <y2> <flags> <slewRate> <hysteresis>
+```
+- `slewRate`: Slew rate.
+- `hysteresis`: Hysteresis voltage.
+
+### OTA (Operational Transconductance Amplifier) (OTAElm)
+```
+402 <x> <y> <x2> <y2> <flags> <gain>
+```
+- `gain`: Transconductance gain.
+
+### Scope (In-Circuit) (ScopeElm)
+```
+403 <x> <y> <x2> <y2> <flags> <scope_data>
+```
+- This element embeds a scope directly into the circuit canvas.
+- `scope_data`: A string representing the state of the embedded scope. It is a serialization of the scope's parameters, with spaces replaced by underscores. For example, it includes information about the trigger, time scale, and displayed waveforms.
+
+### LED Array (LEDArrayElm)
+```
+405 <x> <y> <x2> <y2> <flags> <count> <led_data>
+```
+- `count`: Number of LEDs in the array.
+- `led_data`: Data for each LED.
+
+### Custom Transformer (CustomTransformerElm)
 ```
 406 <x> <y> <x2> <y2> <flags> <inductance> <couplingCoef> <description> <coilCount> [coilCurrents...]
 ```
@@ -513,27 +815,51 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `coilCount`: Number of coils
 - `coilCurrents...`: Initial current for each coil
 
-### Scope (In-Circuit)
+### Optocoupler (OptocouplerElm)
 ```
-403 <x> <y> <x2> <y2> <flags> <scope_data>
+407 <x> <y> <x2> <y2> <flags> <ctr>
 ```
-- This element embeds a scope directly into the circuit canvas.
-- `scope_data`: A string representing the state of the embedded scope. It is a serialization of the scope's parameters, with spaces replaced by underscores. For example, it includes information about the trigger, time scale, and displayed waveforms.
+- `ctr`: Current Transfer Ratio.
 
-### Crystal Oscillator
+### Stop Trigger (StopTriggerElm)
+```
+408 <x> <y> <x2> <y2> <flags> <mode> <level>
+```
+- `mode`: Trigger mode.
+- `level`: Trigger voltage level.
+
+### Ideal Op-Amp (OpAmpRealElm)
+```
+409 <x> <y> <x2> <y2> <flags>
+```
+- An ideal op-amp with infinite gain. No parameters.
+
+### Custom Composite Element (CustomCompositeElm)
+```
+410 <x> <y> <x2> <y2> <flags> <model_name>
+```
+- `model_name`: The name of the custom composite model to use.
+
+### Audio Input (AudioInputElm)
+```
+411 <x> <y> <x2> <y2> <flags>
+```
+- Provides an audio signal from a file or microphone. No parameters.
+
+### Crystal Oscillator (CrystalElm)
 ```
 412 <x> <y> <x2> <y2> <flags> [CompositeElm parameters]
 ```
 - Parameters depend on CompositeElm base class
 
-### SRAM
+### SRAM (SRAMElm)
 ```
 413 <x> <y> <x2> <y2> <flags> [bits] [pin voltages...]
 ```
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
-### Time Delay Relay
+### Time Delay Relay (TimeDelayRelayElm)
 ```
 414 <x> <y> <x2> <y2> <flags> <delay> <onCurrent> <offCurrent>
 ```
@@ -541,7 +867,7 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `onCurrent`: Turn-on current
 - `offCurrent`: Turn-off current
 
-### DC Motor
+### DC Motor (DCMotorElm)
 ```
 415 <x> <y> <x2> <y2> <flags> <inductance> <resistance> <torqueConstant> <backEmfConstant>
 ```
@@ -550,103 +876,9 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `torqueConstant`: Torque constant
 - `backEmfConstant`: Back EMF constant
 
-### Make-Before-Break Switch
+### Make-Before-Break Switch (MBBSwitchElm)
 ```
 416 <x> <y> <x2> <y2> <flags> <position>
-```
-- `position`: Switch position
-
-### Unijunction Transistor
-```
-417 <x> <y> <x2> <y2> <flags> <eta> <interbaseResistance>
-```
-- `eta`: Intrinsic standoff ratio
-- `interbaseResistance`: Interbase resistance
-
-### External Voltage
-```
-418 <x> <y> <x2> <y2> <flags>
-```
-- No additional parameters (controlled externally)
-
-### Decimal Display
-```
-419 <x> <y> <x2> <y2> <flags> [data...]
-```
-- `data...`: Display-specific data
-
-### Wattmeter
-```
-420 <x> <y> <x2> <y2> <flags>
-```
-- No additional parameters
-
-### Counter (Up/Down)
-```
-421 <x> <y> <x2> <y2> <flags> <maxCount> <countUp> [bits] [pin voltages...]
-```
-- `maxCount`: Maximum count value
-- `countUp`: Count direction (true=up, false=down)
-- `bits`: Number of bits (if needsBits() returns true)
-- `pin voltages...`: Voltage for each pin that has state=true
-
-### Delay Buffer
-```
-422 <x> <y> <x2> <y2> <flags> <delay>
-```
-- `delay`: Propagation delay
-
-### Line (Graphical)
-```
-423 <x> <y> <x2> <y2> <flags>
-```
-- No additional parameters (drawing element)
-
-### Data Input
-```
-424 <x> <y> <x2> <y2> <flags> <data>
-```
-- `data`: Input data pattern
-
-### Relay Coil
-```
-425 <x> <y> <x2> <y2> <flags> <inductance> <resistance> <onCurrent>
-```
-- `inductance`: Coil inductance
-- `resistance`: Coil resistance
-- `onCurrent`: Activation current
-
-### Relay Contact
-```
-426 <x> <y> <x2> <y2> <flags> <contactType> <relayNumber>
-```
-- `contactType`: Contact type (NO/NC)
-- `relayNumber`: Associated relay number
-
-### Three Phase Motor
-```
-427 <x> <y> <x2> <y2> <flags> <power> <slip> <poles>
-```
-- `power`: Motor power rating
-- `slip`: Motor slip
-- `poles`: Number of poles
-
-### Motor Protection Switch
-```
-428 <x> <y> <x2> <y2> <flags> <tripCurrent> <resetType>
-```
-- `tripCurrent`: Trip current level
-- `resetType`: Reset mechanism type
-
-### DPDT Switch
-```
-429 <x> <y> <x2> <y2> <flags> <position>
-```
-- `position`: Switch position
-
-### Cross Switch (4-way)
-```
-430 <x> <y> <x2> <y2> <flags> <position>
 ```
 - `position`: Switch position
 
