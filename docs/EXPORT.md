@@ -505,6 +505,13 @@ O <x> <y> <x2> <y2> <flags> <scale>
 - `coilCount`: Number of coils
 - `coilCurrents...`: Initial current for each coil
 
+### Scope (In-Circuit)
+```
+403 <x> <y> <x2> <y2> <flags> <scope_data>
+```
+- This element embeds a scope directly into the circuit canvas.
+- `scope_data`: A string representing the state of the embedded scope. It is a serialization of the scope's parameters, with spaces replaced by underscores. For example, it includes information about the trigger, time scale, and displayed waveforms.
+
 ### Crystal Oscillator
 ```
 412 <x> <y> <x2> <y2> <flags> [CompositeElm parameters]
