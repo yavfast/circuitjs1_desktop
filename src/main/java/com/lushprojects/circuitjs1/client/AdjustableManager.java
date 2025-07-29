@@ -53,8 +53,9 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     public void reset() {
-        if (cirSim.slidersDialog != null)
+        if (cirSim.slidersDialog != null) {
             cirSim.clearSlidersDialog();
+        }
         adjustables.clear();
     }
 
@@ -74,8 +75,8 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     public void setMouseElm(CircuitElm ce) {
-        for (int i = 0; i < adjustables.size(); i++) {
-            adjustables.get(i).setMouseElm(ce);
+        for (Adjustable item: adjustables) {
+            item.setMouseElm(ce);
         }
     }
 

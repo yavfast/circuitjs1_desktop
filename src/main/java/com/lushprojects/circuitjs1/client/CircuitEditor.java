@@ -72,7 +72,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     String lastCursorStyle;
     boolean mouseWasOverSplitter = false;
 
-    public int gridSize, gridMask, gridRound;
+    public int gridSize;
+    public int gridMask;
+    public int gridRound;
+
     SwitchElm heldSwitchElm;
 
     int menuX = 0;
@@ -331,8 +334,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
 
         if (allowed) {
-            for (int i = 0; i != simulator.elmList.size(); i++) {
-                CircuitElm element = simulator.elmList.get(i);
+            for (CircuitElm element: simulator.elmList) {
                 if (element.isSelected()) {
                     element.move(deltaX, deltaY);
                 }
@@ -384,9 +386,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int y1 = Math.min(y, initDragGridY);
         int y2 = Math.max(y, initDragGridY);
         selectedArea = new Rectangle(x1, y1, x2 - x1, y2 - y1);
-        CircuitSimulator simulator = simulator();
-        for (int i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm element = simulator.elmList.get(i);
+        for (CircuitElm element: simulator().elmList) {
             element.selectRect(selectedArea, add);
         }
         cirSim.enableDisableMenuItems();
@@ -402,20 +402,26 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             }
             mouseElm = element;
             cirSim.adjustableManager.setMouseElm(element);
+
+            renderer().repaint();
         }
-        renderer().repaint();
     }
 
     void removeZeroLengthElements() {
+        boolean needAnalyze = false;
         CircuitSimulator simulator = simulator();
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm element = simulator.elmList.get(i);
             if (element.x == element.x2 && element.y == element.y2) {
                 simulator.elmList.remove(i);
                 element.delete();
+                needAnalyze = true;
             }
         }
-        cirSim.needAnalyze();
+
+        if (needAnalyze) {
+            cirSim.needAnalyze();
+        }
     }
 
     boolean mouseIsOverSplitter(int x, int y) {

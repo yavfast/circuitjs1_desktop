@@ -293,8 +293,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         graphics.setFont(CircuitElm.unitsFont);
         graphics.setLineCap(Context2d.LineCap.ROUND);
 
-        if (cirSim.menuManager.noEditCheckItem.getState())
+        if (cirSim.menuManager.noEditCheckItem.getState()) {
             graphics.drawLock(20, 30);
+        }
 
         graphics.setColor(Color.white);
 
@@ -313,25 +314,26 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     private void drawElements(Graphics graphics, CircuitSimulator simulator) {
         perfmon.startContext("elm.draw()");
-        for (int i = 0; i != simulator.elmList.size(); i++) {
-            if (cirSim.menuManager.powerCheckItem.getState())
+        for (CircuitElm ce: simulator.elmList) {
+            if (cirSim.menuManager.powerCheckItem.getState()) {
                 graphics.setColor(Color.gray);
-            simulator.elmList.get(i).draw(graphics);
+            }
+            ce.draw(graphics);
         }
         perfmon.stopContext();
 
         CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN) {
-            for (int i = 0; i != simulator.postDrawList.size(); i++)
-                CircuitElm.drawPost(graphics, simulator.postDrawList.get(i));
+            for (Point item: simulator.postDrawList) {
+                CircuitElm.drawPost(graphics, item);
+            }
         }
 
         if (circuitEditor.tempMouseMode == MouseMode.DRAG_ROW ||
                 circuitEditor.tempMouseMode == MouseMode.DRAG_COLUMN ||
                 circuitEditor.tempMouseMode == MouseMode.DRAG_POST ||
                 circuitEditor.tempMouseMode == MouseMode.DRAG_SELECTED) {
-            for (int i = 0; i != simulator.elmList.size(); i++) {
-                CircuitElm ce = simulator.elmList.get(i);
+            for (CircuitElm ce: simulator.elmList) {
                 if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != MouseMode.DRAG_POST) {
                     graphics.setColor(Color.gray);
                     graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
