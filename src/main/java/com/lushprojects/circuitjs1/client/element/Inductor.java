@@ -17,11 +17,13 @@
     along with CircuitJS1.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package com.lushprojects.circuitjs1.client;
+package com.lushprojects.circuitjs1.client.element;
+
+import com.lushprojects.circuitjs1.client.CirSim;
 
 public class Inductor {
     public static final int FLAG_BACK_EULER = 2;
-    int nodes[];
+    int[] nodes;
     int flags;
     CirSim sim;
 

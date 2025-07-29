@@ -24,7 +24,6 @@ import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitMath;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
-import com.lushprojects.circuitjs1.client.Inductor;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;

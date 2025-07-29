@@ -23,7 +23,6 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
-import com.lushprojects.circuitjs1.client.Inductor;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;

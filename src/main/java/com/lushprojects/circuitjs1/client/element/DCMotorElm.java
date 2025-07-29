@@ -2,7 +2,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
-import com.lushprojects.circuitjs1.client.Inductor;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;

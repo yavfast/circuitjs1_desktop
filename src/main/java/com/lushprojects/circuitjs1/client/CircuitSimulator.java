@@ -828,12 +828,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 i = circuitRowInfo[i - 1].mapRow;
                 RowInfo ri = circuitRowInfo[j - 1];
                 if (ri.type == RowInfo.ROW_CONST) {
-                    //System.out.println("Stamping constant " + i + " " + j + " " + x);
                     circuitRightSide[i] -= x * ri.value;
                     return;
                 }
                 j = ri.mapCol;
-                //System.out.println("stamping " + i + " " + j + " " + x);
             } else {
                 i--;
                 j--;
@@ -848,7 +846,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (i > 0) {
             if (circuitNeedsMap) {
                 i = circuitRowInfo[i - 1].mapRow;
-                //System.out.println("stamping " + i + " " + x);
             } else {
                 i--;
             }
@@ -858,7 +855,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // indicate that the value on the right side of row i changes in doStep()
     public void stampRightSide(int i) {
-        //System.out.println("rschanges true " + (i-1));
         if (i > 0) {
             circuitRowInfo[i - 1].rsChanges = true;
         }
@@ -909,8 +905,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         double r0 = 1 / r;
         if (Double.isNaN(r0) || Double.isInfinite(r0)) {
             System.out.print("bad resistance " + r + " " + r0 + "\n");
-            int a = 0;
-            a /= a;
         }
         stampMatrix(n1, n1, r0);
         stampMatrix(n2, n2, r0);
