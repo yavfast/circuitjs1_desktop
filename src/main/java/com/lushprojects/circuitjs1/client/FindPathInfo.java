@@ -51,16 +51,15 @@ public class FindPathInfo {
         if (cn == null) {
             return false;
         }
-        for (int i = 0; i != cn.links.size(); i++) {
-            CircuitNodeLink cnl = cn.links.get(i);
+        for (CircuitNodeLink cnl: cn.links) {
             CircuitElm ce = cnl.elm;
             if (checkElm(n1, ce)) {
                 return true;
             }
         }
         if (n1 == 0) {
-            for (int i = 0; i < simulator.nodesWithGroundConnection.size(); i++) {
-                if (checkElm(0, simulator.nodesWithGroundConnection.get(i))) {
+            for (CircuitElm elm: simulator.nodesWithGroundConnection) {
+                if (checkElm(0, elm)) {
                     return true;
                 }
             }

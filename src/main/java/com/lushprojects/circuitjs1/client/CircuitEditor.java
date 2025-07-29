@@ -540,7 +540,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm element = simulator.elmList.get(i);
             if (mouseMode == MouseMode.DRAG_POST) {
-                if (element.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, 0) > 0) {
+                if (element.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, 0) >= 0) {
                     return element;
                 }
             }
@@ -783,6 +783,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     public void onMouseOut(MouseOutEvent event) {
         mouseCursorX = -1;
+        clearMouseElm();
     }
 
     public void onClick(ClickEvent event) {

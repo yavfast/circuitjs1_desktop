@@ -195,8 +195,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             perfmon.stopContext();
         }
 
-        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm)
-            simulator.stopElm.setMouseElm(true);
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
+//            simulator.stopElm.setMouseElm(true);
+        }
 
         cirSim.scopeManager.setupScopes();
 
@@ -223,8 +224,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         drawCircuit(graphics, simulator);
         perfmon.stopContext(); // graphics
 
-        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm)
-            simulator.stopElm.setMouseElm(false);
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
+//            simulator.stopElm.setMouseElm(false);
+        }
 
         frameCount++;
 
