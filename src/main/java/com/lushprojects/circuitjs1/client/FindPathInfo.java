@@ -96,8 +96,7 @@ public class FindPathInfo {
         if (n1 == 0) {
             // look for posts which have a ground connection;
             // our path can go through ground
-            int j;
-            for (j = 0; j != ce.getConnectionNodeCount(); j++) {
+            for (int j = 0; j != ce.getConnectionNodeCount(); j++) {
                 if (ce.hasGroundConnection(j) && findPath(ce.getConnectionNode(j))) {
                     return true;
                 }

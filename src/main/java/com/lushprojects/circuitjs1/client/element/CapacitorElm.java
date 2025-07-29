@@ -45,16 +45,16 @@ public class CapacitorElm extends CircuitElm {
         super(xx, yy);
         capacitance = 1e-5;
         initialVoltage = 1e-3;
+        seriesResistance = 1e-3;
     }
 
-    public CapacitorElm(int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+    public CapacitorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(xa, ya, xb, yb, f);
         capacitance = parseDouble(st.nextToken());
         voltDiff = parseDouble(st.nextToken());
         initialVoltage = parseDouble(st.tryNextToken(), 1e-3);
         if ((flags & FLAG_RESISTANCE) != 0) {
-            seriesResistance = parseDouble(st.tryNextToken());
+            seriesResistance = parseDouble(st.tryNextToken(), 1e-3);
         }
     }
 
@@ -156,22 +156,25 @@ public class CapacitorElm extends CircuitElm {
         // parallel with a resistor.  Trapezoidal is more accurate
         // than backward euler but can cause oscillatory behavior
         // if RC is small relative to the timestep.
-        if (isTrapezoidal())
+        if (isTrapezoidal()) {
             compResistance = simulator.timeStep / (2 * capacitance);
-        else
+        } else {
             compResistance = simulator.timeStep / capacitance;
+        }
         simulator.stampResistor(nodes[0], nodes[capNode2], compResistance);
         simulator.stampRightSide(nodes[0]);
         simulator.stampRightSide(nodes[capNode2]);
-        if (seriesResistance > 0)
+        if (seriesResistance > 0) {
             simulator.stampResistor(nodes[1], nodes[2], seriesResistance);
+        }
     }
 
     public void startIteration() {
-        if (isTrapezoidal())
+        if (isTrapezoidal()) {
             curSourceValue = -voltDiff / compResistance - current;
-        else
+        } else {
             curSourceValue = -voltDiff / compResistance;
+        }
     }
 
     public void stepFinished() {
@@ -202,8 +205,9 @@ public class CapacitorElm extends CircuitElm {
     double curSourceValue;
 
     public void doStep() {
-        if (simUi.circuitInfo.dcAnalysisFlag)
+        if (simUi.circuitInfo.dcAnalysisFlag) {
             return;
+        }
         simulator.stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
     }
 
