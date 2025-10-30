@@ -84,30 +84,27 @@ public class ClipboardManager {
      * Enhanced paste method that tries system clipboard first
      */
     public void doPasteFromSystem() {
+        if (!internalClipboard.isEmpty()) {
+            cirSim.circuitEditor.doPaste(internalClipboard);
+            return;
+        }
+
         CirSim.console("hasSystemClipboardSupport: " + hasSystemClipboardSupport);
         if (hasSystemClipboardSupport) {
             readFromSystemClipboard(new ClipboardCallback() {
                 @Override
                 public void onSuccess(String data) {
                     if (data != null && !data.isEmpty() && isCircuitData(data)) {
-                        // Update internal clipboard with system data
                         internalClipboard = data;
                         cirSim.circuitEditor.doPaste(data);
-                    } else {
-                        // Fallback to internal clipboard
-                        cirSim.circuitEditor.doPaste(internalClipboard);
                     }
                 }
 
                 @Override
                 public void onError(String error) {
-                    // Fallback to internal clipboard
-                    cirSim.circuitEditor.doPaste(internalClipboard);
+                    CirSim.console("System clipboard read failed: " + error);
                 }
             });
-        } else {
-            // Use internal clipboard directly
-            cirSim.circuitEditor.doPaste(internalClipboard);
         }
     }
 
