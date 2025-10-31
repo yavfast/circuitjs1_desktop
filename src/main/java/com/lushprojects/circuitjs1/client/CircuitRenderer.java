@@ -90,7 +90,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         int height = canvasHeight;
         int width = canvasWidth;
         int scopesHeight = (int) ((double) height * scopeHeightFraction);
-        if (cirSim.scopeManager.scopeCount == 0) {
+        if (scopeManager().scopeCount == 0) {
             scopesHeight = 0;
         }
         circuitArea = new Rectangle(0, 0, width, height - scopesHeight);
@@ -199,7 +199,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 //            simulator().stopElm.setMouseElm(true);
         }
 
-        cirSim.scopeManager.setupScopes();
+        scopeManager().setupScopes();
 
         Graphics graphics = new Graphics(canvasContext);
         setupFrame(graphics);
@@ -414,36 +414,38 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     void drawBottomArea(Graphics g) {
         int infoBoxStartX = 0;
         int infoBoxHeight = 0;
+
         CircuitSimulator simulator = simulator();
         CircuitEditor circuitEditor = circuitEditor();
+        ScopeManager scopeManager = scopeManager();
 
-        if (simulator().stopMessage == null && cirSim.scopeManager.scopeCount == 0) {
+        if (simulator.stopMessage == null && scopeManager.scopeCount == 0) {
             infoBoxStartX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
-            infoBoxHeight = (circuitEditor().mouseElm == null) ? 70 : h0;
+            infoBoxHeight = (circuitEditor.mouseElm == null) ? 70 : h0;
             if (cirSim.circuitInfo.hideInfoBox)
                 infoBoxHeight = 0;
         }
-        if (simulator().stopMessage != null && circuitArea.height > canvasHeight - 30)
+        if (simulator.stopMessage != null && circuitArea.height > canvasHeight - 30)
             infoBoxHeight = 30;
 
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? "#eee" : "#111");
         g.fillRect(infoBoxStartX, circuitArea.height - infoBoxHeight, circuitArea.width, canvasHeight - circuitArea.height + infoBoxHeight);
         g.setFont(CircuitElm.unitsFont);
 
-        int currentScopeCount = (simulator().stopMessage != null) ? 0 : cirSim.scopeManager.scopeCount;
+        int currentScopeCount = (simulator.stopMessage != null) ? 0 : scopeManager.scopeCount;
 
         Scope.clearCursorInfo();
         for (int i = 0; i < currentScopeCount; i++)
-            cirSim.scopeManager.scopes[i].selectScope(circuitEditor().mouseCursorX, circuitEditor().mouseCursorY);
-        if (simulator().scopeElmArr != null)
-            for (int i = 0; i < simulator().scopeElmArr.length; i++)
-                simulator().scopeElmArr[i].selectScope(circuitEditor().mouseCursorX, circuitEditor().mouseCursorY);
+            scopeManager.scopes[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
+        if (simulator.scopeElmArr != null)
+            for (int i = 0; i < simulator.scopeElmArr.length; i++)
+                simulator.scopeElmArr[i].selectScope(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY);
 
         for (int i = 0; i < currentScopeCount; i++)
-            cirSim.scopeManager.scopes[i].draw(g);
+            scopeManager.scopes[i].draw(g);
 
-        if (circuitEditor().mouseWasOverSplitter) {
+        if (circuitEditor.mouseWasOverSplitter) {
             g.setColor(CircuitElm.selectColor);
             g.setLineWidth(4.0);
             g.drawLine(0, circuitArea.height - 2, circuitArea.width, circuitArea.height - 2);
@@ -451,8 +453,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
         g.setColor(CircuitElm.backgroundColor);
 
-        if (simulator().stopMessage != null) {
-            g.drawString(simulator().stopMessage, 10, canvasHeight - 10);
+        if (simulator.stopMessage != null) {
+            g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
         } else if (!cirSim.circuitInfo.hideInfoBox) {
             drawInfoBox(g, infoBoxStartX, currentScopeCount);
         }
@@ -463,9 +465,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         CircuitEditor circuitEditor = circuitEditor();
         String[] infoLines = new String[10];
 
-        CircuitElm mouseElm = circuitEditor().mouseElm;
+        CircuitElm mouseElm = circuitEditor.mouseElm;
         if (mouseElm != null) {
-            int mousePost = circuitEditor().mousePost;
+            int mousePost = circuitEditor.mousePost;
             if (mousePost == -1) {
                 mouseElm.getInfo(infoLines);
                 infoLines[0] = Locale.LS(infoLines[0]);
@@ -477,11 +479,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             }
         } else {
             infoLines[0] = "t = " + CircuitElm.getTimeText(simulator().t);
-            double timeRate = 160 * cirSim.getIterCount() * simulator().timeStep;
+            double timeRate = 160 * cirSim.getIterCount() * simulator.timeStep;
             if (timeRate >= .1) {
                 infoLines[0] += " (" + CircuitElm.showFormat(timeRate) + "x)";
             }
-            infoLines[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator().timeStep);
+            infoLines[1] = Locale.LS("time step = ") + CircuitElm.getTimeText(simulator.timeStep);
         }
 
         int lineIdx = 0;
@@ -498,7 +500,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             }
         }
 
-        int badNodes = simulator().badConnectionList.size();
+        int badNodes = simulator.badConnectionList.size();
         if (badNodes > 0) {
             infoLines[lineIdx++] = badNodes + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
         }
@@ -508,7 +510,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         int x = leftX + 5;
         if (scopeCount != 0) {
-            x = cirSim.scopeManager.scopes[scopeCount - 1].rightEdge() + 20;
+            x = scopeManager().scopes[scopeCount - 1].rightEdge() + 20;
         }
 
         int yBase = circuitArea.height;
@@ -577,7 +579,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         int effectiveCircuitHeight = circuitArea.height;
 
         // If there's no scope and the window isn't very wide, don't use the full circuit area for centering.
-        if (cirSim.scopeManager.scopeCount == 0 && circuitArea.width < 800) {
+        if (scopeManager().scopeCount == 0 && circuitArea.width < 800) {
             effectiveCircuitHeight -= (int) ((double) effectiveCircuitHeight * scopeHeightFraction);
         }
 

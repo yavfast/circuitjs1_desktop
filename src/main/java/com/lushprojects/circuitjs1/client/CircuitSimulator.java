@@ -1224,7 +1224,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             return;
         }
 
-        boolean delayWireProcessing = cirSim.scopeManager.canDelayWireProcessing();
+        boolean delayWireProcessing = scopeManager().canDelayWireProcessing();
 
         int timeStepCountAtFrameStart = timeStepCount;
 
@@ -1346,8 +1346,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (!delayWireProcessing) {
                 calcWireCurrents();
             }
-            for (int i = 0; i < cirSim.scopeManager.scopeCount; i++) {
-                cirSim.scopeManager.scopes[i].timeStep();
+            ScopeManager scopeManager = scopeManager();
+            for (int i = 0; i < scopeManager.scopeCount; i++) {
+                scopeManager.scopes[i].timeStep();
             }
             for (ScopeElm scopeElm : scopeElmArr) {
                 scopeElm.stepScope();

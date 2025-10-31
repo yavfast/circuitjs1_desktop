@@ -294,7 +294,7 @@ public class MenuManager extends BaseCirSimDelegate {
         m.addItem(printableCheckItem = new CheckboxMenuItem(Locale.LS("White Background"),
                 new Command() {
                     public void execute() {
-                        cirSim.scopeManager.updateScopes();
+                        scopeManager().updateScopes();
                         OptionsManager.setOptionInStorage("whiteBackground", printableCheckItem.getState());
                     }
                 }));
@@ -570,11 +570,12 @@ public class MenuManager extends BaseCirSimDelegate {
 
     public void composeSelectScopeMenu(MenuBar sb) {
         sb.clearItems();
-        selectScopeMenuItems = new Vector<MenuItem>();
-        for (int i = 0; i < cirSim.scopeManager.scopeCount; i++) {
+        selectScopeMenuItems = new Vector<>();
+        ScopeManager scopeManager = scopeManager();
+        for (int i = 0; i < scopeManager.scopeCount; i++) {
             String s, l;
             s = Locale.LS("Scope") + " " + Integer.toString(i + 1);
-            l = cirSim.scopeManager.scopes[i].getScopeLabelOrText();
+            l = scopeManager.scopes[i].getScopeLabelOrText();
             if (l != "")
                 s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
             selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(i))));
@@ -587,7 +588,7 @@ public class MenuManager extends BaseCirSimDelegate {
             l = simulator.getNthScopeElm(j).elmScope.getScopeLabelOrText();
             if (l != "")
                 s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
-            selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(cirSim.scopeManager.scopeCount + j))));
+            selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(scopeManager.scopeCount + j))));
         }
         for (MenuItem mi : selectScopeMenuItems)
             sb.addItem(mi);
@@ -612,10 +613,10 @@ public class MenuManager extends BaseCirSimDelegate {
                 }
                 switch (DOM.eventGetType(event)) {
                     case Event.ONMOUSEOVER:
-                        cirSim.scopeManager.scopeMenuSelected = currentItem;
+                        scopeManager().scopeMenuSelected = currentItem;
                         break;
                     case Event.ONMOUSEOUT:
-                        cirSim.scopeManager.scopeMenuSelected = -1;
+                        scopeManager().scopeMenuSelected = -1;
                         break;
                 }
                 super.onBrowserEvent(event);
@@ -732,7 +733,7 @@ public class MenuManager extends BaseCirSimDelegate {
         CirSim.console("Menu position: " + menuClientX + ", " + menuClientY);
         CirSim.console("mouseElm: " + (mouseElm != null ? mouseElm.getClass().getSimpleName() : "null"));
 
-        ScopeManager scopeManager = cirSim.scopeManager;
+        ScopeManager scopeManager = scopeManager();
         scopeManager.menuScope = -1;
         menuPlot = -1;
         int x, y;
@@ -859,7 +860,7 @@ public class MenuManager extends BaseCirSimDelegate {
             //mainMenuItems.get(i).setEnabled(!noEditCheckItem.getState());
         }
 
-        ScopeManager scopeManager = cirSim.scopeManager;
+        ScopeManager scopeManager = scopeManager();
 
         stackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position > 0);
         unstackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position != scopeManager.scopeCount - 1);

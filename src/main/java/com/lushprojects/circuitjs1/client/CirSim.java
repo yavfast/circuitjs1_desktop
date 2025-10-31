@@ -83,7 +83,6 @@ public class CirSim implements NativePreviewHandler {
 
     public CircuitDocument activeDocument;
     public CircuitInfo circuitInfo;
-    public ScopeManager scopeManager;
 
     Toolbar toolbar;
 
@@ -224,7 +223,6 @@ public class CirSim implements NativePreviewHandler {
 
         activeDocument = document;
         circuitInfo = document.getCircuitInfo();
-        scopeManager = document.getScopeManager();
     }
 
     public CircuitEditor circuitEditor() {
@@ -579,12 +577,18 @@ public class CirSim implements NativePreviewHandler {
 
     public void resetAction() {
         renderer.needsAnalysis();
-        simulator().t = simulator().timeStepAccum = 0;
-        simulator().timeStepCount = 0;
-        for (int i = 0; i != simulator().elmList.size(); i++)
-            simulator().elmList.get(i).reset();
+
+        CircuitSimulator simulator = simulator();
+        simulator.t = simulator.timeStepAccum = 0;
+        simulator.timeStepCount = 0;
+        for (int i = 0; i != simulator.elmList.size(); i++)
+            simulator.elmList.get(i).reset();
+
+
+        ScopeManager scopeManager = getActiveDocument().scopeManager;
         for (int i = 0; i != scopeManager.scopeCount; i++)
             scopeManager.scopes[i].resetGraph(true);
+
         repaint();
     }
 

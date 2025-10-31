@@ -825,15 +825,17 @@ public class Scope extends BaseCirSimDelegate {
 
         somethingSelected = false;  // is one of our plots selected?
 
+        ScopeManager scopeManager = scopeManager();
+
         for (ScopePlot plot : visiblePlots) {
             calcPlotScale(plot);
-            if (cirSim.scopeManager.scopeSelected == -1 && plot.elm != null && plot.elm.isMouseElm()) {
+            if (scopeManager.scopeSelected == -1 && plot.elm != null && plot.elm.isMouseElm()) {
                 somethingSelected = true;
             }
             reduceRange[plot.units] = true;
         }
 
-        boolean sel = cirSim.scopeManager.scopeMenuIsSelected(this);
+        boolean sel = scopeManager.scopeMenuIsSelected(this);
 
         checkForSelectionElsewhere();
         if (selectedPlot >= 0) {
@@ -982,7 +984,7 @@ public class Scope extends BaseCirSimDelegate {
         final int maxy = (rect.height - 1) / 2;
 
         String color = (somethingSelected) ? "#A0A0A0" : plot.color;
-        if (allSelected || (cirSim.scopeManager.scopeSelected == -1 && plot.elm.isMouseElm())) {
+        if (allSelected || (scopeManager().scopeSelected == -1 && plot.elm.isMouseElm())) {
             color = CircuitElm.selectColor.getHexValue();
         } else if (selected) {
             color = plot.color;
