@@ -167,7 +167,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
     public void stamp() {
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
-        simulator.stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void getInfo(String arr[]) {

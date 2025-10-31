@@ -146,30 +146,30 @@ public class TriStateElm extends CircuitElm {
     // there is a voltage source connected to node 3, and a resistor (r_off or r_on) from node 3 to 1.
     // then there is a pulldown resistor from node 1 to ground.
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[3], voltSource);
-        simulator.stampNonLinear(nodes[3]);
-        simulator.stampNonLinear(nodes[1]);
+        simulator().stampVoltageSource(0, nodes[3], voltSource);
+        simulator().stampNonLinear(nodes[3]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     public void doStep() {
         open = (volts[2] < highVoltage * .5);
         resistance = (open) ? r_off : r_on;
-        simulator.stampResistor(nodes[3], nodes[1], resistance);
+        simulator().stampResistor(nodes[3], nodes[1], resistance);
 
         // Add pulldown resistor for output, so that disabled tristate has output near ground if nothing
         // else is driving the output.  Otherwise people get confused.
         if (r_off_ground > 0)
-            simulator.stampResistor(nodes[1], 0, r_off_ground);
+            simulator().stampResistor(nodes[1], 0, r_off_ground);
 
-        simulator.updateVoltageSource(0, nodes[3], voltSource, volts[0] > highVoltage * .5 ? highVoltage : 0);
+        simulator().updateVoltageSource(0, nodes[3], voltSource, volts[0] > highVoltage * .5 ? highVoltage : 0);
     }
 
     public void drag(int xx, int yy) {
         // use mouse to select which side the buffer enable should be on
         boolean flip = (xx < x) == (yy < y);
 
-        xx = circuitEditor.snapGrid(xx);
-        yy = circuitEditor.snapGrid(yy);
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
         if (abs(x - xx) < abs(y - yy))
             xx = x;
         else {

@@ -121,7 +121,7 @@ public class AudioInputElm extends RailElm {
     }
 
     public void stepFinished() {
-        timeOffset += simulator.timeStep;
+        timeOffset += simulator().timeStep;
     }
 
     int getDumpType() {

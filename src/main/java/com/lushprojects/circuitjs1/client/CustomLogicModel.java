@@ -162,7 +162,7 @@ public class CustomLogicModel implements Editable {
             else
                 flags &= ~FLAG_SCHMITT;
         }
-        CirSim.theSim.simulator.updateModels();
+        CirSim.theSim.simulator().updateModels();
     }
 
     void parseRules() {

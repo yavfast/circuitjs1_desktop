@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -92,7 +93,7 @@ public abstract class GateElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         inputStates = new boolean[inputCount];
-        if (dn > 150 && this == circuitEditor.dragElm)
+        if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
         int hs = gheight;
         int i;
@@ -214,7 +215,7 @@ public abstract class GateElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[inputCount], voltSource);
+        simulator().stampVoltageSource(0, nodes[inputCount], voltSource);
     }
 
     boolean hasSchmittInputs() {
@@ -240,7 +241,8 @@ public abstract class GateElm extends CircuitElm {
         if (isInverting())
             f = !f;
 
-        if (lastTime != simulator.t) {
+        CircuitSimulator simulator = simulator();
+        if (lastTime != simulator().t) {
             // detect oscillation (using same strategy as Atanua)
             if (lastOutput == !f) {
                 if (oscillationCount++ > 50) {
@@ -253,11 +255,11 @@ public abstract class GateElm extends CircuitElm {
                 oscillationCount = 0;
 
             lastOutput = f;
-            lastTime = simulator.t;
+            lastTime = simulator().t;
         }
 
         double res = f ? highVoltage : 0;
-        simulator.updateVoltageSource(0, nodes[inputCount], voltSource, res);
+        simulator().updateVoltageSource(0, nodes[inputCount], voltSource, res);
     }
 
     public EditInfo getEditInfo(int n) {

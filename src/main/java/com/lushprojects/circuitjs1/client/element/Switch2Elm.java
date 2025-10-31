@@ -139,7 +139,7 @@ public class Switch2Elm extends SwitchElm {
     public void stamp() {
         if (position == 2 && hasCenterOff()) // in center?
             return;
-        simulator.stampVoltageSource(nodes[0], nodes[position + 1], voltSource, 0);
+        simulator().stampVoltageSource(nodes[0], nodes[position + 1], voltSource, 0);
     }
 
     public int getVoltageSourceCount() {
@@ -150,8 +150,8 @@ public class Switch2Elm extends SwitchElm {
         super.toggle();
         if (link != 0) {
             int i;
-            for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.get(i);
+            for (i = 0; i != simulator().elmList.size(); i++) {
+                Object o = simulator().elmList.get(i);
                 if (o instanceof Switch2Elm) {
                     Switch2Elm s2 = (Switch2Elm) o;
                     if (s2.link == link && position < s2.posCount)

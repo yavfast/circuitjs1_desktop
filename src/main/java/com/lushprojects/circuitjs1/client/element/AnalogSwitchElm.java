@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -147,12 +148,13 @@ public class AnalogSwitchElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
         if (needsPulldown()) {
             // pulldown resistor on each side
-            simulator.stampResistor(nodes[0], 0, r_off);
-            simulator.stampResistor(nodes[1], 0, r_off);
+            simulator().stampResistor(nodes[0], 0, r_off);
+            simulator().stampResistor(nodes[1], 0, r_off);
         }
     }
 
@@ -165,7 +167,7 @@ public class AnalogSwitchElm extends CircuitElm {
         // if pulldown flag is unset, resistance is r_on for on, r_off for off.
         if (!(needsPulldown() && open)) {
             resistance = (open) ? r_off : r_on;
-            simulator.stampResistor(nodes[0], nodes[1], resistance);
+            simulator().stampResistor(nodes[0], nodes[1], resistance);
         }
     }
 

@@ -110,12 +110,12 @@ public class SparkGapElm extends CircuitElm {
 
     public void doStep() {
         resistance = (state) ? onresistance : offresistance;
-        simulator.stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     public void getInfo(String arr[]) {

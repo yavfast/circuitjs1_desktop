@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Choice;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -257,7 +258,7 @@ public class RelayCoilElm extends CircuitElm {
         // inductor from coil post 1 to internal node
         ind.stamp(nodes[nCoil1], nodes[nCoil3]);
         // resistor from internal node to coil post 2
-        simulator.stampResistor(nodes[nCoil3], nodes[nCoil2], coilR);
+        simulator().stampResistor(nodes[nCoil3], nodes[nCoil2], coilR);
 
         if (type == TYPE_ON_DELAY) {
             switchingTimeOn = switchingTime;
@@ -272,6 +273,7 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     public void startIteration() {
+        CircuitSimulator simulator = simulator();
         ind.startIteration(volts[nCoil1] - volts[nCoil3]);
         double absCurrent = Math.abs(coilCurrent);
         double a = Math.exp(-simulator.timeStep * 1e3);
@@ -280,13 +282,13 @@ public class RelayCoilElm extends CircuitElm {
 
         if (state == 0) {
             if (avgCurrent > onCurrent) {
-                lastTransition = simulator.t;
+                lastTransition = simulator().t;
                 state = 1;
             }
         } else if (state == 1) {
             if (avgCurrent < offCurrent)
                 state = 0;
-            else if (simulator.t - lastTransition > switchingTimeOn) {
+            else if (simulator().t - lastTransition > switchingTimeOn) {
                 state = 2;
                 if (type == TYPE_LATCHING)
                     switchPosition = 1 - switchPosition;
@@ -295,13 +297,13 @@ public class RelayCoilElm extends CircuitElm {
             }
         } else if (state == 2) {
             if (avgCurrent < offCurrent) {
-                lastTransition = simulator.t;
+                lastTransition = simulator().t;
                 state = 3;
             }
         } else if (state == 3) {
             if (avgCurrent > onCurrent)
                 state = 2;
-            else if (simulator.t - lastTransition > switchingTimeOff) {
+            else if (simulator().t - lastTransition > switchingTimeOff) {
                 state = 0;
                 if (type != TYPE_LATCHING)
                     switchPosition = 0;

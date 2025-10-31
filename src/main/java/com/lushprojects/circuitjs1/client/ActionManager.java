@@ -191,7 +191,7 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "modsetup")
             dialogManager.showModDialog();
         if (item == "importfromlocalfile") {
-            circuitEditor.pushUndo();
+            circuitEditor().pushUndo();
             cirSim.loadFileInput.click();
         }
         if (item == "newwindow") {
@@ -246,7 +246,7 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "print")
             cirSim.doPrint();
         if (item == "recover")
-            circuitEditor.doRecover();
+            circuitEditor().doRecover();
 
         if ((menu == "elm" || menu == "scopepop") && menuManager.contextPanel != null)
             menuManager.contextPanel.hide();
@@ -260,57 +260,57 @@ public class ActionManager extends BaseCirSimDelegate {
             dialogManager.showSearchDialog();
         }
         if (menu == "options" && item == "other")
-            circuitEditor.doEditOptions();
+            circuitEditor().doEditOptions();
         if (item == "devtools")
             CirSim.toggleDevTools();
         if (item == "undo")
-            circuitEditor.doUndo();
+            circuitEditor().doUndo();
         if (item == "redo")
-            circuitEditor.doRedo();
+            circuitEditor().doRedo();
 
         // if the mouse is hovering over an element, and a shortcut key is pressed, operate on that element (treat it like a context menu item selection)
-        if (menu == "key" && circuitEditor.mouseElm != null) {
-            circuitEditor.menuElm = circuitEditor.mouseElm;
+        if (menu == "key" && circuitEditor().mouseElm != null) {
+            circuitEditor().menuElm = circuitEditor().mouseElm;
             menu = "elm";
         }
         if (menu != "elm")
-            circuitEditor.menuElm = null;
+            circuitEditor().menuElm = null;
 
         if (item == "cut") {
-            circuitEditor.doCut();
+            circuitEditor().doCut();
         }
         if (item == "copy") {
-            circuitEditor.doCopy();
+            circuitEditor().doCopy();
         }
         if (item == "paste") {
             // Try to paste from system clipboard first, then fallback to internal
-            circuitEditor.cirSim.clipboardManager.doPasteFromSystem();
+            circuitEditor().cirSim.clipboardManager.doPasteFromSystem();
         }
         if (item == "duplicate") {
-            circuitEditor.doDuplicate();
+            circuitEditor().doDuplicate();
         }
         if (item == "flip")
-            circuitEditor.doFlip();
+            circuitEditor().doFlip();
         if (item == "split")
-            circuitEditor.doSplit(circuitEditor.menuElm);
+            circuitEditor().doSplit(circuitEditor().menuElm);
         if (item == "selectAll")
-            circuitEditor.doSelectAll();
+            circuitEditor().doSelectAll();
 
         if (item == "centrecircuit") {
-            circuitEditor.pushUndo();
+            circuitEditor().pushUndo();
             renderer().centreCircuit();
         }
         if (item == "flipx") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipX();
+            circuitEditor().pushUndo();
+            circuitEditor().flipX();
         }
         if (item == "flipy") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipY();
+            circuitEditor().pushUndo();
+            circuitEditor().flipY();
         }
         if (item == "flipxy") {
-            circuitEditor.pushUndo();
-            circuitEditor.flipXY();
+            circuitEditor().pushUndo();
+            circuitEditor().flipXY();
         }
         if (item == "stackAll")
             scopeManager().stackAll();
@@ -327,22 +327,22 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "zoom100")
             renderer().setCircuitScale(1, true);
         if (menu == "elm" && item == "edit")
-            circuitEditor.doEditElementOptions(circuitEditor().menuElm);
+            circuitEditor().doEditElementOptions(circuitEditor().menuElm);
         if (item == "delete") {
             if (menu != "elm")
                 circuitEditor().menuElm = null;
-            circuitEditor.pushUndo();
-            circuitEditor.doDelete(true);
+            circuitEditor().pushUndo();
+            circuitEditor().doDelete(true);
         }
         if (item == "sliders")
-            circuitEditor.doSliders(circuitEditor().menuElm);
+            circuitEditor().doSliders(circuitEditor().menuElm);
 
         if (item == "viewInScope" && circuitEditor().menuElm != null) {
             scopeManager().addScope(circuitEditor().menuElm);
         }
 
         if (item == "viewInFloatScope" && circuitEditor().menuElm != null) {
-            ScopeElm newScope = new ScopeElm(circuitEditor.snapGrid(circuitEditor().menuElm.x + 50), circuitEditor.snapGrid(circuitEditor().menuElm.y + 50));
+            ScopeElm newScope = new ScopeElm(circuitEditor().snapGrid(circuitEditor().menuElm.x + 50), circuitEditor().snapGrid(circuitEditor().menuElm.y + 50));
             simulator().elmList.add(newScope);
             newScope.setScopeElm(circuitEditor().menuElm);
 
@@ -357,20 +357,20 @@ public class ActionManager extends BaseCirSimDelegate {
         }
 
         if (menu == "scopepop") {
-            circuitEditor.pushUndo();
+            circuitEditor().pushUndo();
             Scope s;
             if (scopeManager().menuScope != -1)
                 s = scopeManager().scopes[scopeManager().menuScope];
             else
-                s = ((ScopeElm) circuitEditor.mouseElm).elmScope;
+                s = ((ScopeElm) circuitEditor().mouseElm).elmScope;
 
             if (item == "dock") {
-                scopeManager().dockScope(circuitEditor.mouseElm);
-                circuitEditor.doDelete(false);
+                scopeManager().dockScope(circuitEditor().mouseElm);
+                circuitEditor().doDelete(false);
             }
             if (item == "undock") {
                 CircuitElm elm = s.getElm();
-                ScopeElm newScope = new ScopeElm(circuitEditor.snapGrid(elm.x + 50), circuitEditor.snapGrid(elm.y + 50));
+                ScopeElm newScope = new ScopeElm(circuitEditor().snapGrid(elm.x + 50), circuitEditor().snapGrid(elm.y + 50));
                 scopeManager().undockScope(newScope);
 
                 cirSim.needAnalyze();      // need to rebuild scopeElmArr
@@ -403,13 +403,13 @@ public class ActionManager extends BaseCirSimDelegate {
             simulator().deleteUnusedScopeElms();
         }
         if (menu == "circuits" && item.indexOf("setup ") == 0) {
-            circuitEditor.pushUndo();
+            circuitEditor().pushUndo();
             int sp = item.indexOf(' ', 6);
-            cirSim.circuitLoader.readSetupFile(item.substring(6, sp), item.substring(sp + 1));
+            getActiveDocument().circuitLoader.readSetupFile(item.substring(6, sp), item.substring(sp + 1));
         }
         if (item == "newblankcircuit") {
-            circuitEditor.pushUndo();
-            cirSim.circuitLoader.readSetupFile("blank.txt", "Blank Circuit");
+            circuitEditor().pushUndo();
+            getActiveDocument().circuitLoader.readSetupFile("blank.txt", "Blank Circuit");
         }
 
         //	if (ac.indexOf("setup ") == 0) {
@@ -423,7 +423,7 @@ public class ActionManager extends BaseCirSimDelegate {
             if (menuManager.contextPanel != null)
                 menuManager.contextPanel.hide();
 
-            circuitEditor.setMouseMode(item);
+            circuitEditor().setMouseMode(item);
 
             cirSim.updateToolbar();
 
@@ -474,7 +474,7 @@ public class ActionManager extends BaseCirSimDelegate {
     public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
         int flags = subcircuitsOnly ? (CircuitConst.RC_SUBCIRCUITS | CircuitConst.RC_RETAIN) : 0;
         if (circuitText != null) {
-            cirSim.circuitLoader.readCircuit(circuitText, flags);
+            getActiveDocument().circuitLoader.readCircuit(circuitText, flags);
             cirSim.allowSave(false);
             cirSim.circuitInfo.filePath = null;
             cirSim.circuitInfo.fileName = null;
@@ -491,11 +491,11 @@ public class ActionManager extends BaseCirSimDelegate {
         f |= (menuManager.powerCheckItem.getState()) ? 8 : 0;
         f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
         // 32 = linear scale in afilter
-        f |= simulator.adjustTimeStep ? 64 : 0;
+        f |= simulator().adjustTimeStep ? 64 : 0;
         return CircuitElm.dumpValues(
-                "$", f, simulator.maxTimeStep, cirSim.getIterCount(),
+                "$", f, simulator().maxTimeStep, cirSim.getIterCount(),
                 cirSim.currentBar.getValue(), CircuitElm.voltageRange,
-                cirSim.powerBar.getValue(), simulator.minTimeStep);
+                cirSim.powerBar.getValue(), simulator().minTimeStep);
     }
 
     public String dumpCircuit() {
@@ -509,8 +509,8 @@ public class ActionManager extends BaseCirSimDelegate {
         dump.append(dumpOptions()).append("\n");
 
         CircuitSimulator simulator = simulator();
-        for (int i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
+        for (int i = 0; i != simulator().elmList.size(); i++) {
+            CircuitElm ce = simulator().elmList.get(i);
             String modelDump = ce.dumpModel();
             if (modelDump != null && !modelDump.isEmpty()) {
                 dump.append(modelDump).append("\n");

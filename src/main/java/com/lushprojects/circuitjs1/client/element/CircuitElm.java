@@ -27,6 +27,7 @@ import com.google.gwt.core.client.JsArrayString;
 import com.google.gwt.i18n.client.NumberFormat;
 import com.google.gwt.user.client.Random;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
@@ -55,14 +56,21 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     static Point ps1, ps2;
 
     protected static CirSim simUi;
-    protected static CircuitSimulator simulator;
-    protected static CircuitEditor circuitEditor;
 
     static public Color backgroundColor, elementColor, selectColor;
     static public Color positiveColor, negativeColor, neutralColor, currentColor;
     public static Font unitsFont;
 
     static CircuitElm mouseElmRef = null;
+
+    protected final CircuitDocument circuitDocument;
+
+    protected CircuitSimulator simulator() {
+        return circuitDocument.simulator;
+    }
+    protected CircuitEditor circuitEditor() {
+        return circuitDocument.circuitEditor;
+    }
 
     // initial point where user created element.  For simple two-terminal elements, this is the first node/post.
     public int x, y;
@@ -129,8 +137,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public static void initClass(CirSim s) {
         unitsFont = new Font("SansSerif", 0, 12);
         simUi = s;
-        simulator = s.simulator;
-        circuitEditor = s.circuitEditor;
 
         colorScale = new Color[colorScaleCount];
 
@@ -162,6 +168,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // create new element with one post at xx,yy, to be dragged out by user
     public CircuitElm(int xx, int yy) {
+        circuitDocument = simUi.activeDocument;
         x = x2 = xx;
         y = y2 = yy;
         flags = getDefaultFlags();
@@ -171,6 +178,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // create element between xa,ya and xb,yb from undump
     public CircuitElm(int xa, int ya, int xb, int yb, int f) {
+        circuitDocument = simUi.activeDocument;
         x = xa;
         y = ya;
         x2 = xb;
@@ -438,8 +446,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         int roundx = (flipX) ? 1 : -1;
         int roundy = (flipY) ? 1 : -1;
 
-        int adjx = simUi.circuitEditor.snapGrid(cx + roundx) - cx;
-        int adjy = simUi.circuitEditor.snapGrid(cy + roundy) - cy;
+        int adjx = circuitEditor().snapGrid(cx + roundx) - cx;
+        int adjy = circuitEditor().snapGrid(cy + roundy) - cy;
         lead1.move(adjx, adjy);
         lead2.move(adjx, adjy);
     }
@@ -487,8 +495,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // draw second point to xx, yy
     public void drag(int xx, int yy) {
-        xx = simUi.circuitEditor.snapGrid(xx);
-        yy = simUi.circuitEditor.snapGrid(yy);
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
         if (noDiagonal) {
             if (Math.abs(x - xx) < Math.abs(y - yy)) {
                 xx = x;
@@ -530,7 +538,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         int ny = y + dy;
         int nx2 = x2 + dx;
         int ny2 = y2 + dy;
-        for (CircuitElm ce: simUi.simulator.elmList) {
+        for (CircuitElm ce: simulator().elmList) {
             if (ce.x == nx && ce.y == ny && ce.x2 == nx2 && ce.y2 == ny) {
                 return false;
             }
@@ -612,10 +620,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         // we normally do this in updateCircuit() now because the logic is more complicated.
         // we only handle the case where we have to draw all the posts.  That happens when
         // this element is selected or is being created
-        if (simUi.circuitEditor.dragElm == null && !needsHighlight()) {
+        if (circuitEditor().dragElm == null && !needsHighlight()) {
             return;
         }
-        if (simUi.circuitEditor.mouseMode == MouseMode.DRAG_ROW || simUi.circuitEditor.mouseMode == MouseMode.DRAG_COLUMN) {
+        if (circuitEditor().mouseMode == MouseMode.DRAG_ROW || circuitEditor().mouseMode == MouseMode.DRAG_COLUMN) {
             return;
         }
         for (int i = 0; i != getPostCount(); i++) {
@@ -922,7 +930,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // update and draw current for simple two-terminal element
     void doDots(Graphics g) {
         updateDotCount();
-        if (simUi.circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, point2, curcount);
         }
     }
@@ -1083,7 +1091,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public boolean needsHighlight() {
-        return mouseElmRef == this || selected || simUi.circuitEditor.plotYElm == this ||
+        return mouseElmRef == this || selected || circuitEditor().plotYElm == this ||
                 // Test if the current mouseElm is a ScopeElm and, if so, does it belong to this elm
                 (mouseElmRef instanceof ScopeElm && ((ScopeElm) mouseElmRef).elmScope.getElm() == this);
     }

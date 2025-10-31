@@ -103,14 +103,14 @@ public class TimerElm extends ChipElm {
     public void stamp() {
         ground = hasGroundPin() ? nodes[N_GND] : 0;
         // stamp voltage divider to put ctl pin at 2/3 V
-        simulator.stampResistor(nodes[N_VCC], nodes[N_CTL], 5000);
-        simulator.stampResistor(nodes[N_CTL], ground, 10000);
+        simulator().stampResistor(nodes[N_VCC], nodes[N_CTL], 5000);
+        simulator().stampResistor(nodes[N_CTL], ground, 10000);
         // discharge, output, and Vcc pins change in doStep()
-        simulator.stampNonLinear(nodes[N_DIS]);
-        simulator.stampNonLinear(nodes[N_OUT]);
-        simulator.stampNonLinear(nodes[N_VCC]);
+        simulator().stampNonLinear(nodes[N_DIS]);
+        simulator().stampNonLinear(nodes[N_OUT]);
+        simulator().stampNonLinear(nodes[N_VCC]);
         if (hasGroundPin())
-            simulator.stampNonLinear(nodes[N_GND]);
+            simulator().stampNonLinear(nodes[N_GND]);
     }
 
     void calculateCurrent() {
@@ -160,10 +160,10 @@ public class TimerElm extends ChipElm {
         // resistor because it's easier, and sometimes people tie
         // the discharge pin to the trigger and threshold pins.
         if (!out)
-            simulator.stampResistor(nodes[N_DIS], ground, 10);
+            simulator().stampResistor(nodes[N_DIS], ground, 10);
 
         // if output is high, connect Vcc to output with a small resistor.  Otherwise connect output to ground.
-        simulator.stampResistor(out ? nodes[N_VCC] : ground, nodes[N_OUT], 1);
+        simulator().stampResistor(out ? nodes[N_VCC] : ground, nodes[N_OUT], 1);
     }
 
     public int getPostCount() {

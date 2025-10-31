@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.ExprState;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -72,6 +73,7 @@ public class CCVSElm extends VCCSElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         int i;
         if (isSpiceStyle()) {
             for (i = 0; i != inputCount; i += 2)
@@ -87,7 +89,7 @@ public class CCVSElm extends VCCSElm {
         // voltage source for outputs
         int vn2 = pins[inputCount].voltSource;
         outputVS = vn2;
-		simulator.stampNonLinear(vn2 + simulator.nodeList.size());
+		simulator.stampNonLinear(vn2 + simulator().nodeList.size());
 		simulator.stampVoltageSource(nodes[inputCount + 1], nodes[inputCount], vn2);
     }
 
@@ -103,25 +105,26 @@ public class CCVSElm extends VCCSElm {
                 pins[i * 2 + 1].current = voltageSources[i].getCurrent();
         }
 
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != inputPairCount; i++) {
             double cur = pins[i * 2 + 1].current;
             if (Math.abs(cur - lastCurrents[i]) > convergeLimit)
 				simulator.converged = false;
         }
 
-        int vno = outputVS + simulator.nodeList.size();
+        int vno = outputVS + simulator().nodeList.size();
         if (expr != null) {
             // calculate output
             for (i = 0; i != inputPairCount; i++)
                 setCurrentExprValue(i, pins[i * 2 + 1].current);
-            exprState.t = simulator.t;
+            exprState.t = simulator().t;
             double v0 = expr.eval(exprState);
             double rs = v0;
 
             for (i = 0; i != inputPairCount; i++) {
                 double cur = pins[i * 2 + 1].current;
                 double dv = cur - lastCurrents[i];
-                int vni = pins[i * 2 + 1].voltSource + simulator.nodeList.size();
+                int vni = pins[i * 2 + 1].voltSource + simulator().nodeList.size();
                 if (Math.abs(dv) < 1e-6)
                     dv = 1e-6;
                 setCurrentExprValue(i, cur);

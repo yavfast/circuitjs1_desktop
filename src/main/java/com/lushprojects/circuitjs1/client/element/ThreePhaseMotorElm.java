@@ -141,11 +141,11 @@ public class ThreePhaseMotorElm extends CircuitElm {
         int n006 = nodes[n006_ind];
         int n007 = nodes[n007_ind];
 
-        simulator.stampResistor(nodes[0], n001, Rs);
-        simulator.stampResistor(nodes[2], n003, Rs);
-        simulator.stampResistor(nodes[4], n005, Rs);
-        simulator.stampResistor(n004, 0, 1.5 * Rr);
-        simulator.stampResistor(n007, 0, 1.5 * Rr);
+        simulator().stampResistor(nodes[0], n001, Rs);
+        simulator().stampResistor(nodes[2], n003, Rs);
+        simulator().stampResistor(nodes[4], n005, Rs);
+        simulator().stampResistor(n004, 0, 1.5 * Rr);
+        simulator().stampResistor(n007, 0, 1.5 * Rr);
 
         double Lr2 = Lr * 1.5;
         double coilInductances[] = {Ls, Ls, Ls, Lr2, Lr2};
@@ -173,7 +173,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         CircuitMath.invertMatrix(xformMatrix, coilCount);
 
-        double ts = simulator.timeStep;
+        double ts = simulator().timeStep;
         for (i = 0; i != coilCount; i++)
             for (j = 0; j != coilCount; j++) {
                 // multiply in dt/2 (or dt for backward euler)
@@ -183,15 +183,15 @@ public class ThreePhaseMotorElm extends CircuitElm {
                 int ni2 = coilNodes[i * 2 + 1];
                 int nj2 = coilNodes[j * 2 + 1];
                 if (i == j)
-                    simulator.stampConductance(nodes[ni1], nodes[ni2], xformMatrix[i][i]);
+                    simulator().stampConductance(nodes[ni1], nodes[ni2], xformMatrix[i][i]);
                 else
-                    simulator.stampVCCurrentSource(nodes[ni1], nodes[ni2], nodes[nj1], nodes[nj2], xformMatrix[i][j]);
+                    simulator().stampVCCurrentSource(nodes[ni1], nodes[ni2], nodes[nj1], nodes[nj2], xformMatrix[i][j]);
             }
         for (i = 0; i != 10; i++)
-            simulator.stampRightSide(nodes[coilNodes[i]]);
+            simulator().stampRightSide(nodes[coilNodes[i]]);
 
-        simulator.stampVoltageSource(n002, 0, voltSources[0]);
-        simulator.stampVoltageSource(n006, 0, voltSources[1]);
+        simulator().stampVoltageSource(n002, 0, voltSources[0]);
+        simulator().stampVoltageSource(n006, 0, voltSources[1]);
 
         coilCurSourceValues = new double[coilCount];
         coilCurrents = new double[coilCount];
@@ -221,8 +221,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
         }
 
         double torque = Zp * Math.sqrt(3) / 2 * Lm * ((coilCurrents[1] - coilCurrents[2]) * coilCurrents[3] - Math.sqrt(3) * coilCurrents[0] * coilCurrents[4]);
-        speed += simulator.timeStep * (torque - b * speed) / J;
-        angle = angle + speed * simulator.timeStep;
+        speed += simulator().timeStep * (torque - b * speed) / J;
+        angle = angle + speed * simulator().timeStep;
 
         vs1value = -Zp * speed * (Lm * Math.sqrt(3) / 2 * (coilCurrents[1] - coilCurrents[2]) + 1.5 * Lr * coilCurrents[4]);
         vs2value = Zp * speed * (3 / 2. * Lm * coilCurrents[0] + 1.5 * Lr * coilCurrents[3]);
@@ -233,12 +233,12 @@ public class ThreePhaseMotorElm extends CircuitElm {
         for (i = 0; i != coilCount; i++) {
             int n1 = coilNodes[i * 2];
             int n2 = coilNodes[i * 2 + 1];
-            simulator.stampCurrentSource(nodes[n1], nodes[n2], coilCurSourceValues[i]);
+            simulator().stampCurrentSource(nodes[n1], nodes[n2], coilCurSourceValues[i]);
         }
         int n002 = nodes[n002_ind];
         int n006 = nodes[n006_ind];
-        simulator.updateVoltageSource(n002, 0, voltSources[0], -vs1value);
-        simulator.updateVoltageSource(n006, 0, voltSources[1], -vs2value);
+        simulator().updateVoltageSource(n002, 0, voltSources[0], -vs1value);
+        simulator().updateVoltageSource(n006, 0, voltSources[1], -vs2value);
     }
 
     void calculateCurrent() {

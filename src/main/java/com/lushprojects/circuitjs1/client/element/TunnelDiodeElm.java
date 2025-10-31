@@ -102,8 +102,8 @@ public class TunnelDiodeElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     static final double pvp = .1;
@@ -116,7 +116,7 @@ public class TunnelDiodeElm extends CircuitElm {
     public void doStep() {
         double voltdiff = volts[0] - volts[1];
         if (Math.abs(voltdiff - lastvoltdiff) > .01)
-            simulator.converged = false;
+            simulator().converged = false;
         //System.out.println(voltdiff + " " + lastvoltdiff + " " + Math.abs(voltdiff-lastvoltdiff));
         voltdiff = limitStep(voltdiff, lastvoltdiff);
         lastvoltdiff = voltdiff;
@@ -132,8 +132,8 @@ public class TunnelDiodeElm extends CircuitElm {
                 - Math.exp(1 - voltdiff / pvp) * pip * voltdiff / (pvp * pvp) +
                 Math.exp(voltdiff - pvv) * piv;
         double nc = i - geq * voltdiff;
-        simulator.stampConductance(nodes[0], nodes[1], geq);
-        simulator.stampCurrentSource(nodes[0], nodes[1], nc);
+        simulator().stampConductance(nodes[0], nodes[1], geq);
+        simulator().stampCurrentSource(nodes[0], nodes[1], nc);
     }
 
     void calculateCurrent() {

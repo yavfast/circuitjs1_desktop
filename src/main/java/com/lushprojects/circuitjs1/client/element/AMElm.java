@@ -74,15 +74,15 @@ public class AMElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, nodes[0], voltSource);
     }
 
     public void doStep() {
-        simulator.updateVoltageSource(0, nodes[0], voltSource, getVoltage());
+        simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
     }
 
     double getVoltage() {
-        double w = 2 * pi * (simulator.t - freqTimeZero);
+        double w = 2 * pi * (simulator().t - freqTimeZero);
         return ((Math.sin(w * signalfreq) + 1) / 2) * Math.sin(w * carrierfreq) * maxVoltage;
     }
 
@@ -103,7 +103,7 @@ public class AMElm extends CircuitElm {
         drawWaveform(g, point2);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
-        if (circuitEditor.dragElm != this)
+        if (circuitEditor().dragElm != this)
             drawDots(g, point1, lead1, curcount);
     }
 

@@ -136,16 +136,16 @@ public class TriacElm extends CircuitElm {
             arrows[i] = createPolygon(p1, p2, p3);
         }
 
-        int gatelen = simUi.circuitEditor.gridSize;
+        int gatelen = circuitEditor().gridSize;
         double leadlen = (dn - 16) / 2;
-        gatelen += leadlen % simUi.circuitEditor.gridSize;
+        gatelen += leadlen % circuitEditor().gridSize;
         if (leadlen < gatelen) {
             x2 = x;
             y2 = y;
             return;
         }
         interpPoint(lead2, point2, gate[0], gatelen / leadlen, gatelen * dir);
-        interpPoint(lead2, point2, gate[1], gatelen / leadlen, simUi.circuitEditor.gridSize * 2 * dir);
+        interpPoint(lead2, point2, gate[1], gatelen / leadlen, circuitEditor().gridSize * 2 * dir);
 
     }
 
@@ -174,14 +174,14 @@ public class TriacElm extends CircuitElm {
         curcount_1 = updateDotCount(i1, curcount_1);
         curcount_2 = updateDotCount(i2, curcount_2);
         curcount_g = updateDotCount(ig, curcount_g);
-        if (simUi.circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, lead2, curcount_2);
             drawDots(g, point2, lead2, curcount_1);
             drawDots(g, gate[1], gate[0], curcount_g);
             drawDots(g, gate[0], lead2, curcount_g + distance(gate[1], gate[0]));
         }
 
-        if ((needsHighlight() || simUi.circuitEditor.dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
+        if ((needsHighlight() || circuitEditor().dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
             g.setColor(backgroundColor);
             int ds = sign(dx);
             g.drawString("MT1", lead2.x + ((ds < 0) ? 5 : -30), lead2.y + 12);
@@ -216,11 +216,11 @@ public class TriacElm extends CircuitElm {
     double aresistance;
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[mt1node]);
-        simulator.stampNonLinear(nodes[mt2node]);
-        simulator.stampNonLinear(nodes[gnode]);
-        simulator.stampNonLinear(nodes[mtinode]);
-        simulator.stampResistor(nodes[gnode], nodes[mt1node], cresistance);
+        simulator().stampNonLinear(nodes[mt1node]);
+        simulator().stampNonLinear(nodes[mt2node]);
+        simulator().stampNonLinear(nodes[gnode]);
+        simulator().stampNonLinear(nodes[mtinode]);
+        simulator().stampResistor(nodes[gnode], nodes[mt1node], cresistance);
         diode03.stamp(nodes[mt2node], nodes[mtinode]);
         diode30.stamp(nodes[mtinode], nodes[mt2node]);
     }
@@ -236,7 +236,7 @@ public class TriacElm extends CircuitElm {
     public void doStep() {
         diode03.doStep(volts[mt2node] - volts[mtinode]);
         diode30.doStep(volts[mtinode] - volts[mt2node]);
-        simulator.stampResistor(nodes[mtinode], nodes[mt1node], aresistance);
+        simulator().stampResistor(nodes[mtinode], nodes[mt1node], aresistance);
     }
 
     public void getInfo(String arr[]) {

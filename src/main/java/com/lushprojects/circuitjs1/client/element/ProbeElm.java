@@ -133,7 +133,7 @@ public class ProbeElm extends CircuitElm {
         int hs = (drawAsCircle()) ? circleSize : 8;
         setBbox(point1, point2, hs);
         boolean selected = needsHighlight();
-        double len = (selected || simUi.circuitEditor.dragElm == this || mustShowVoltage()) ? 16 : dn - 32;
+        double len = (selected || circuitEditor().dragElm == this || mustShowVoltage()) ? 16 : dn - 32;
         if (drawAsCircle())
             len = circleSize * 2;
         calcLeads((int) len);
@@ -147,9 +147,9 @@ public class ProbeElm extends CircuitElm {
         drawThickLine(g, lead2, point2);
         Font f = new Font("SansSerif", Font.BOLD, 14);
         g.setFont(f);
-        if (this == simUi.circuitEditor.plotXElm)
+        if (this == circuitEditor().plotXElm)
             drawCenteredText(g, "X", center.x, center.y, true);
-        if (this == simUi.circuitEditor.plotYElm)
+        if (this == circuitEditor().plotYElm)
             drawCenteredText(g, "Y", center.x, center.y, true);
         if (mustShowVoltage()) {
             String s = "";
@@ -296,7 +296,7 @@ public class ProbeElm extends CircuitElm {
 
     public void stamp() {
         if (resistance != 0)
-            simulator.stampResistor(nodes[0], nodes[1], resistance);
+            simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void getInfo(String arr[]) {

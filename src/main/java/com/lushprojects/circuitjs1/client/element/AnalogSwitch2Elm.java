@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -92,27 +93,29 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
-        simulator.stampNonLinear(nodes[2]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(nodes[2]);
         if (needsPulldown()) {
-            simulator.stampResistor(nodes[1], 0, r_off);
-            simulator.stampResistor(nodes[2], 0, r_off);
+            simulator().stampResistor(nodes[1], 0, r_off);
+            simulator().stampResistor(nodes[2], 0, r_off);
         }
     }
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         open = (volts[3] < threshold);
         if (hasFlag(FLAG_INVERT))
             open = !open;
         if (open) {
-            simulator.stampResistor(nodes[0], nodes[2], r_on);
+            simulator().stampResistor(nodes[0], nodes[2], r_on);
             if (!needsPulldown())
-                simulator.stampResistor(nodes[0], nodes[1], r_off);
+                simulator().stampResistor(nodes[0], nodes[1], r_off);
         } else {
-            simulator.stampResistor(nodes[0], nodes[1], r_on);
+            simulator().stampResistor(nodes[0], nodes[1], r_on);
             if (!needsPulldown())
-                simulator.stampResistor(nodes[0], nodes[2], r_off);
+                simulator().stampResistor(nodes[0], nodes[2], r_off);
         }
     }
 

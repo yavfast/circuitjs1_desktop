@@ -28,8 +28,8 @@ public class ImportFromDropbox {
  	}-*/;
 
     static public void doLoadCallback(String s) {
-        sim.circuitEditor.pushUndo();
-        sim.circuitLoader.readCircuit(s);
+        sim.activeDocument.circuitEditor.pushUndo();
+        sim.activeDocument.circuitLoader.readCircuit(s);
     }
 
 

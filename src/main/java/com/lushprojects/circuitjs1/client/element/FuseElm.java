@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -138,8 +139,9 @@ public class FuseElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     public boolean nonLinear() {
@@ -147,13 +149,14 @@ public class FuseElm extends CircuitElm {
     }
 
     public void startIteration() {
+        CircuitSimulator simulator = simulator();
         double i = getCurrent();
 
         // accumulate heat
-        heat += i * i * simulator.timeStep;
+        heat += i * i * simulator().timeStep;
 
         // dissipate heat.  we assume the fuse can dissipate its entire i2t in 3 seconds
-        heat -= simulator.timeStep * i2t / 3;
+        heat -= simulator().timeStep * i2t / 3;
 
         if (heat < 0)
             heat = 0;
@@ -162,7 +165,7 @@ public class FuseElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator.stampResistor(nodes[0], nodes[1], blown ? blownResistance : resistance);
+        simulator().stampResistor(nodes[0], nodes[1], blown ? blownResistance : resistance);
     }
 
     public void getInfo(String arr[]) {

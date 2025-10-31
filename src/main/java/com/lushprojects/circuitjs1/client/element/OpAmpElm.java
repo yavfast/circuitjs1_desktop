@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -123,7 +124,7 @@ public class OpAmpElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        if (dn > 150 && this == circuitEditor.dragElm)
+        if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
         int ww = opwidth;
         if (ww > dn / 2)
@@ -172,20 +173,22 @@ public class OpAmpElm extends CircuitElm {
     double lastvd;
 
     public void stamp() {
-        int vn = simulator.nodeList.size() + voltSource;
-        simulator.stampNonLinear(vn);
-        simulator.stampMatrix(nodes[2], vn, 1);
+        CircuitSimulator simulator = simulator();
+        int vn = simulator().nodeList.size() + voltSource;
+        simulator().stampNonLinear(vn);
+        simulator().stampMatrix(nodes[2], vn, 1);
     }
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         double vd = volts[1] - volts[0];
         double midpoint = (maxOut + minOut) * .5;
         if (Math.abs(lastvd - vd) > .1)
-            simulator.converged = false;
+            simulator().converged = false;
         else if (volts[2] > maxOut + .1 || volts[2] < minOut - .1)
-            simulator.converged = false;
+            simulator().converged = false;
         double x = 0;
-        int vn = simulator.nodeList.size() + voltSource;
+        int vn = simulator().nodeList.size() + voltSource;
         double dx = 0;
         double maxAdj = maxOut - midpoint;
         double minAdj = minOut - midpoint;
@@ -202,10 +205,10 @@ public class OpAmpElm extends CircuitElm {
         //System.out.println("opamp " + vd + " " + volts[2] + " " + dx + " "  + x + " " + lastvd + " " + sim.converged);
 
         // newton-raphson
-        simulator.stampMatrix(vn, nodes[0], dx);
-        simulator.stampMatrix(vn, nodes[1], -dx);
-        simulator.stampMatrix(vn, nodes[2], 1);
-        simulator.stampRightSide(vn, x);
+        simulator().stampMatrix(vn, nodes[0], dx);
+        simulator().stampMatrix(vn, nodes[1], -dx);
+        simulator().stampMatrix(vn, nodes[2], 1);
+        simulator().stampRightSide(vn, x);
 
         lastvd = vd;
 	    /*if (sim.converged)

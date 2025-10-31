@@ -50,7 +50,7 @@ public class UnijunctionElm extends CompositeElm {
         flags |= FLAG_ESCAPE;
         StringTokenizer st = new StringTokenizer(ujtModelDump, "/");
         loadComposite(st, ujtModelString, ujtExternalNodes);
-        simulator.adjustTimeStep = true; // model doesn't work without time step auto-adjust
+        simulator().adjustTimeStep = true; // model doesn't work without time step auto-adjust
     }
 
     public String dump() {

@@ -59,7 +59,7 @@ public class ImportFromTextDialog extends Dialog {
         okButton.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 String s;
-                sim.circuitEditor.pushUndo();
+                sim.activeDocument.circuitEditor.pushUndo();
                 closeDialog();
 //				s=textBox.getHTML();
 //				s=s.replace("<br>", "\r");

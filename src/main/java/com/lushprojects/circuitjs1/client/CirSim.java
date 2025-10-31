@@ -56,8 +56,8 @@ import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
+import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
@@ -72,23 +72,20 @@ public class CirSim implements NativePreviewHandler {
     public static int TOOLBAR_HEIGHT = 40;
     public static int INFO_WIDTH = 160;
 
-    public CircuitInfo circuitInfo;
     public final LogManager logManager = new LogManager(this);
-
-    public CircuitSimulator simulator;
     public final CircuitRenderer renderer = new CircuitRenderer(this);
-
-    public ScopeManager scopeManager;
     public final ClipboardManager clipboardManager = new ClipboardManager(this);
     public final DialogManager dialogManager = new DialogManager(this);
-    public MenuManager menuManager;
+    public final MenuManager menuManager = new MenuManager(this);
+    public final DocumentManager documentManager = new DocumentManager(this);
+    public final LoadFile loadFileInput = new LoadFile(this);
+    public final ActionManager actionManager = new ActionManager(this);
+
+    public CircuitDocument activeDocument;
+    public CircuitInfo circuitInfo;
+    public ScopeManager scopeManager;
     public UndoManager undoManager;
     public AdjustableManager adjustableManager;
-    public CircuitEditor circuitEditor;
-    public ActionManager actionManager;
-    public CircuitLoader circuitLoader;
-    public LoadFile loadFileInput;
-    public final DocumentManager documentManager;
 
     Toolbar toolbar;
 
@@ -121,7 +118,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void setMouseElm(CircuitElm ce) {
-        circuitEditor.setMouseElm(ce);
+        activeDocument.circuitEditor.setMouseElm(ce);
     }
 
     native boolean isMobile(Element element) /*-{
@@ -218,13 +215,8 @@ public class CirSim implements NativePreviewHandler {
     CirSim() {
         theSim = this;
 
-        documentManager = new DocumentManager(this);
         CircuitDocument initialDocument = documentManager.createDocument();
         documentManager.setActiveDocument(initialDocument);
-
-        menuManager = new MenuManager(this);
-        actionManager = new ActionManager(this);
-        loadFileInput = new LoadFile(this);
     }
 
     void bindDocument(CircuitDocument document) {
@@ -232,13 +224,19 @@ public class CirSim implements NativePreviewHandler {
             throw new IllegalArgumentException("document must not be null");
         }
 
+        activeDocument = document;
         circuitInfo = document.getCircuitInfo();
-        simulator = document.getSimulator();
         scopeManager = document.getScopeManager();
         undoManager = document.getUndoManager();
         adjustableManager = document.getAdjustableManager();
-        circuitEditor = document.getCircuitEditor();
-        circuitLoader = document.getCircuitLoader();
+    }
+
+    CircuitEditor circuitEditor() {
+        return activeDocument.circuitEditor;
+    }
+
+    public CircuitSimulator simulator() {
+        return activeDocument.simulator;
     }
 
 //    String baseURL = "http://www.falstad.com/circuit/";
@@ -301,6 +299,7 @@ public class CirSim implements NativePreviewHandler {
             return;
         }
 
+        CircuitEditor circuitEditor = activeDocument.circuitEditor;
         cv.addMouseDownHandler(circuitEditor);
         cv.addMouseMoveHandler(circuitEditor);
         cv.addMouseOutHandler(circuitEditor);
@@ -331,26 +330,27 @@ public class CirSim implements NativePreviewHandler {
             loadFileInput.setVisible(false);
         }
 
-        circuitEditor.setGrid();
+        circuitEditor().setGrid();
 
         menuManager.initElmMenuBar();
 
         setColors(circuitInfo.positiveColor, circuitInfo.negativeColor, circuitInfo.neutralColor,
                 circuitInfo.selectColor, circuitInfo.currentColor);
 
+        CircuitLoader circuitLoader = activeDocument.circuitLoader;
         if (circuitInfo.startCircuitText != null) {
             circuitLoader.getSetupList(false);
             circuitLoader.readCircuit(circuitInfo.startCircuitText);
             setUnsavedChanges(false);
         } else {
-            if (simulator.stopMessage == null && circuitInfo.startCircuitLink != null) {
+            if (simulator().stopMessage == null && circuitInfo.startCircuitLink != null) {
                 circuitLoader.readCircuit("");
                 circuitLoader.getSetupList(false);
                 //ImportFromDropboxDialog.setSim(this);
                 //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
             } else {
                 circuitLoader.readCircuit("");
-                if (simulator.stopMessage == null && circuitInfo.startCircuit != null) {
+                if (simulator().stopMessage == null && circuitInfo.startCircuit != null) {
                     circuitLoader.getSetupList(false);
                     circuitLoader.readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
                 } else
@@ -511,22 +511,22 @@ public class CirSim implements NativePreviewHandler {
 
     public void setSimRunning(boolean isRunning) {
         if (isRunning) {
-            if (simulator.stopMessage != null)
+            if (simulator().stopMessage != null)
                 return;
-            simulator.simRunning = true;
+            simulator().simRunning = true;
             renderer.startTimer();
         } else {
-            simulator.simRunning = false;
+            simulator().simRunning = false;
             renderer.stopTimer();
             renderer.repaint();
             // Ensure selection functionality works even when simulation is stopped
-            circuitEditor.setMouseMode("Select");
+            activeDocument.circuitEditor.setMouseMode("Select");
         }
         toolbar.updateRunStopButton();
     }
 
     public boolean simIsRunning() {
-        return simulator.simRunning;
+        return simulator().simRunning;
     }
 
     void repaint() {
@@ -558,7 +558,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void stop(String message, CircuitElm ce) {
-        simulator.stop(message, ce);
+        simulator().stop(message, ce);
     }
 
     public void stop() {
@@ -577,10 +577,10 @@ public class CirSim implements NativePreviewHandler {
 
     public void resetAction() {
         renderer.needsAnalysis();
-        simulator.t = simulator.timeStepAccum = 0;
-        simulator.timeStepCount = 0;
-        for (int i = 0; i != simulator.elmList.size(); i++)
-            simulator.elmList.get(i).reset();
+        simulator().t = simulator().timeStepAccum = 0;
+        simulator().timeStepCount = 0;
+        for (int i = 0; i != simulator().elmList.size(); i++)
+            simulator().elmList.get(i).reset();
         for (int i = 0; i != scopeManager.scopeCount; i++)
             scopeManager.scopes[i].resetGraph(true);
         repaint();
@@ -733,8 +733,8 @@ public class CirSim implements NativePreviewHandler {
         boolean canFlipX = true;
         boolean canFlipY = true;
         boolean canFlipXY = true;
-        int selCount = simulator.countSelected();
-        for (CircuitElm elm : simulator.elmList)
+        int selCount = simulator().countSelected();
+        for (CircuitElm elm : simulator().elmList)
             if (elm.isSelected() || selCount == 0) {
                 if (!elm.canFlipX())
                     canFlipX = false;
@@ -782,7 +782,7 @@ public class CirSim implements NativePreviewHandler {
     boolean dialogIsShowing() {
         if (menuManager.contextPanel != null && menuManager.contextPanel.isShowing())
             return true;
-        if (circuitEditor.scrollValuePopup != null && circuitEditor.scrollValuePopup.isShowing())
+        if (activeDocument.circuitEditor.scrollValuePopup != null && activeDocument.circuitEditor.scrollValuePopup.isShowing())
             return true;
         if (dialogManager.dialogIsShowing()) {
             return true;
@@ -796,7 +796,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void updateToolbar() {
-        toolbar.highlightButton(circuitEditor.mouseModeStr);
+        toolbar.highlightButton(activeDocument.circuitEditor.mouseModeStr);
     }
 
     String getLabelTextForClass(String cls) {
@@ -921,8 +921,8 @@ public class CirSim implements NativePreviewHandler {
         String cs;
 
         console("Elm list Dump");
-        for (i = 0; i < simulator.elmList.size(); i++) {
-            e = simulator.elmList.get(i);
+        for (i = 0; i < simulator().elmList.size(); i++) {
+            e = simulator().elmList.get(i);
             cs = e.getDumpClass().toString();
             int p = cs.lastIndexOf('.');
             cs = cs.substring(p + 1);
@@ -1028,14 +1028,14 @@ public class CirSim implements NativePreviewHandler {
         if (node <= 0)
             return 0;
         // subtract one because ground is not included in nodeVoltages[]
-        return simulator.getNodeVoltages(node - 1);
+        return simulator().getNodeVoltages(node - 1);
     }
 
     // JSInterface
     void setExtVoltage(String name, double v) {
         int i;
-        for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
+        for (i = 0; i != simulator().elmList.size(); i++) {
+            CircuitElm ce = simulator().elmList.get(i);
             if (ce instanceof ExtVoltageElm) {
                 ExtVoltageElm eve = (ExtVoltageElm) ce;
                 if (eve.getName().equals(name))
@@ -1050,8 +1050,8 @@ public class CirSim implements NativePreviewHandler {
     JsArray<JavaScriptObject> getJSElements() {
         int i;
         JsArray<JavaScriptObject> arr = getJSArray();
-        for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
+        for (i = 0; i != simulator().elmList.size(); i++) {
+            CircuitElm ce = simulator().elmList.get(i);
             ce.addJSMethods();
             arr.push(ce.getJavaScriptObject());
         }
@@ -1060,7 +1060,7 @@ public class CirSim implements NativePreviewHandler {
 
     // JSInterface
     void twoFingerTouch(int x, int y) {
-        circuitEditor.twoFingerTouch(x, y);
+        activeDocument.circuitEditor.twoFingerTouch(x, y);
     }
 
     // JSInterface
@@ -1068,16 +1068,41 @@ public class CirSim implements NativePreviewHandler {
         renderer.zoomCircuit(dy);
     }
 
+    // JSInterface
+    double getTime() {
+        return simulator().t;
+    }
+
+    // JSInterface
+    double getTimeStep() {
+        return simulator().timeStep;
+    }
+
+    // JSInterface
+    void setTimeStep(double ts) {
+        simulator().timeStep = ts;
+    }
+
+    // JSInterface
+    double getMaxTimeStep() {
+        return simulator().maxTimeStep;
+    }
+
+    // JSInterface
+    void setMaxTimeStep(double ts) {
+        simulator().maxTimeStep = ts;
+        simulator().timeStep = ts;
+    }
+
     native void setupJSInterface() /*-{
 	    var that = this;
 	    $wnd.CircuitJS1 = {
 	        setSimRunning: $entry(function(run) { that.@com.lushprojects.circuitjs1.client.CirSim::setSimRunning(Z)(run); } ),
-	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::t; } ),
-	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep; } ),
-	        setTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ), // don't use this, see #843
-	        getMaxTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep; } ),
-	        setMaxTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::maxTimeStep =
-                                                      that.@com.lushprojects.circuitjs1.client.CirSim::simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::timeStep = ts; } ),
+	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTime()(); } ),
+	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTimeStep()(); } ),
+	        setTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::setTimeStep(D)(ts); } ),
+	        getMaxTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getMaxTimeStep()(); } ),
+	        setMaxTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::setMaxTimeStep(D)(ts); } ),
 	        isRunning: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simIsRunning()(); } ),
 	        getNodeVoltage: $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CirSim::getLabeledNodeVoltage(Ljava/lang/String;)(n); } ),
 	        setExtVoltage: $entry(function(n, v) { that.@com.lushprojects.circuitjs1.client.CirSim::setExtVoltage(Ljava/lang/String;D)(n, v); } ),

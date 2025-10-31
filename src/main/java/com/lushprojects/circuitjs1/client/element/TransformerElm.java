@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -66,8 +67,8 @@ public class TransformerElm extends CircuitElm {
     }
 
     public void drag(int xx, int yy) {
-        xx = circuitEditor.snapGrid(xx);
-        yy = circuitEditor.snapGrid(yy);
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
         if (abs(xx - x) > abs(yy - y)) {
             flags &= ~FLAG_VERTICAL;
         } else
@@ -215,12 +216,14 @@ public class TransformerElm extends CircuitElm {
         double m = couplingCoef * Math.sqrt(l1 * l2);
         // build inverted matrix
         double deti = 1 / (l1 * l2 - m * m);
-        double ts = isTrapezoidal() ? simulator.timeStep / 2 : simulator.timeStep;
+        double ts = isTrapezoidal() ? simulator().timeStep / 2 : simulator().timeStep;
         a1 = l2 * deti * ts; // we multiply dt/2 into a1..a4 here
         a2 = -m * deti * ts;
         a3 = -m * deti * ts;
         a4 = l1 * deti * ts;
-		simulator.stampConductance(nodes[0], nodes[2], a1);
+
+        CircuitSimulator simulator = simulator();
+        simulator.stampConductance(nodes[0], nodes[2], a1);
 		simulator.stampVCCurrentSource(nodes[0], nodes[2], nodes[1], nodes[3], a2);
 		simulator.stampVCCurrentSource(nodes[1], nodes[3], nodes[0], nodes[2], a3);
 		simulator.stampConductance(nodes[1], nodes[3], a4);
@@ -245,7 +248,8 @@ public class TransformerElm extends CircuitElm {
     double curSourceValue1, curSourceValue2;
 
     public void doStep() {
-		simulator.stampCurrentSource(nodes[0], nodes[2], curSourceValue1);
+        CircuitSimulator simulator = simulator();
+        simulator.stampCurrentSource(nodes[0], nodes[2], curSourceValue1);
 		simulator.stampCurrentSource(nodes[1], nodes[3], curSourceValue2);
     }
 

@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -183,13 +184,13 @@ public abstract class ChipElm extends CircuitElm {
     boolean lastClock;
 
     public void drag(int xx, int yy) {
-        yy = circuitEditor.snapGrid(yy);
+        yy = circuitEditor().snapGrid(yy);
         if (xx < x) {
             xx = x;
             yy = y;
         } else {
             y = y2 = yy;
-            x2 = circuitEditor.snapGrid(xx);
+            x2 = circuitEditor().snapGrid(xx);
         }
         setPoints();
     }
@@ -200,7 +201,7 @@ public abstract class ChipElm extends CircuitElm {
     int labelX, labelY;
 
     public void setPoints() {
-        if (x2 - x > sizeX * cspc2 && this == circuitEditor.dragElm)
+        if (x2 - x > sizeX * cspc2 && this == circuitEditor().dragElm)
             setSize(2);
         int x0 = x + cspc2;
         int y0 = y;
@@ -303,12 +304,12 @@ public abstract class ChipElm extends CircuitElm {
     }
 
     public void stamp() {
-        int i;
         int vsc = 0;
-        for (i = 0; i != getPostCount(); i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator.stampVoltageSource(0, nodes[i], p.voltSource);
+                simulator().stampVoltageSource(0, nodes[i], p.voltSource);
                 vsc++;
             }
         }
@@ -327,10 +328,11 @@ public abstract class ChipElm extends CircuitElm {
                 p.value = volts[i] > getThreshold();
         }
         execute();
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output)
-                simulator.updateVoltageSource(0, nodes[i], p.voltSource,
+                simulator().updateVoltageSource(0, nodes[i], p.voltSource,
                         p.value ? highVoltage : 0);
         }
     }

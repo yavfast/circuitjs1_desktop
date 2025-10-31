@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -176,9 +177,9 @@ public class DPDTSwitchElm extends SwitchElm {
     }
 
     public void stamp() {
-        int i;
-        for (i = 0; i != poleCount; i++)
-            simulator.stampVoltageSource(nodes[i * 3], nodes[position + 1 + i * 3], voltageSources[i], 0);
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != poleCount; i++)
+            simulator().stampVoltageSource(nodes[i * 3], nodes[position + 1 + i * 3], voltageSources[i], 0);
     }
 
     public int getVoltageSourceCount() {

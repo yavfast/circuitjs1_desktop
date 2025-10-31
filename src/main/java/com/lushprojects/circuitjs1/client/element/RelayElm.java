@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -316,14 +317,15 @@ public class RelayElm extends CircuitElm {
     double a1, a2, a3, a4;
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         // inductor from coil post 1 to internal node
         ind.stamp(nodes[nCoil1], nodes[nCoil3]);
         // resistor from internal node to coil post 2
-        simulator.stampResistor(nodes[nCoil3], nodes[nCoil2], coilR);
+        simulator().stampResistor(nodes[nCoil3], nodes[nCoil2], coilR);
 
         int i;
         for (i = 0; i != poleCount * 3; i++)
-            simulator.stampNonLinear(nodes[nSwitch0 + i]);
+            simulator().stampNonLinear(nodes[nSwitch0 + i]);
     }
 
     public void startIteration() {
@@ -342,7 +344,7 @@ public class RelayElm extends CircuitElm {
                 onState = false;
                 i_position = 2;
             } else {
-                d_position += simulator.timeStep / switchingTime;
+                d_position += simulator().timeStep / switchingTime;
                 if (d_position >= 1)
                     d_position = i_position = 1;
             }
@@ -353,7 +355,7 @@ public class RelayElm extends CircuitElm {
                 onState = true;
                 i_position = 2;
             } else {
-                d_position -= simulator.timeStep / switchingTime;
+                d_position -= simulator().timeStep / switchingTime;
                 if (d_position <= 0)
                     d_position = i_position = 0;
             }
@@ -391,11 +393,11 @@ public class RelayElm extends CircuitElm {
     public void doStep() {
         double voltdiff = volts[nCoil1] - volts[nCoil3];
         ind.doStep(voltdiff);
-        int p;
-        for (p = 0; p != poleCount * 3; p += 3) {
-            simulator.stampResistor(nodes[nSwitch0 + p], nodes[nSwitch1 + p],
+        CircuitSimulator simulator = simulator();
+        for (int p = 0; p != poleCount * 3; p += 3) {
+            simulator().stampResistor(nodes[nSwitch0 + p], nodes[nSwitch1 + p],
                     i_position == 0 ? r_on : r_off);
-            simulator.stampResistor(nodes[nSwitch0 + p], nodes[nSwitch2 + p],
+            simulator().stampResistor(nodes[nSwitch0 + p], nodes[nSwitch2 + p],
                     i_position == 1 ? r_on : r_off);
         }
     }

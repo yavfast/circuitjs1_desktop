@@ -21,11 +21,12 @@ package com.lushprojects.circuitjs1.client;
 
 // diode that can be embedded in other elements.  series resistance is handled in DiodeElm, not here.
 public class Diode {
-    int nodes[];
-    CirSim sim;
+    CircuitSimulator simulator;
+
+    int[] nodes;
 
     public Diode(CirSim s) {
-        sim = s;
+        simulator = s.simulator();
         nodes = new int[2];
     }
 
@@ -103,7 +104,7 @@ public class Diode {
                 // (1/vscale = slope of load line)
                 vnew = vscale * Math.log(vnew / vscale);
             }
-            sim.simulator.converged = false;
+            simulator.converged = false;
             //System.out.println(vnew + " " + oo + " " + vold);
         } else if (vnew < 0 && zoffset != 0) {
             // for Zener breakdown, use the same logic but translate the values,
@@ -124,7 +125,7 @@ public class Diode {
                 } else {
                     vnew = vt * Math.log(vnew / vt);
                 }
-                sim.simulator.converged = false;
+                simulator.converged = false;
             }
             vnew = -(vnew + zoffset);
         }
@@ -134,24 +135,24 @@ public class Diode {
     public void stamp(int n0, int n1) {
         nodes[0] = n0;
         nodes[1] = n1;
-        sim.simulator.stampNonLinear(nodes[0]);
-        sim.simulator.stampNonLinear(nodes[1]);
+        simulator.stampNonLinear(nodes[0]);
+        simulator.stampNonLinear(nodes[1]);
     }
 
     public void doStep(double voltdiff) {
         // used to have .1 here, but needed .01 for peak detector
         if (Math.abs(voltdiff - lastvoltdiff) > .01)
-            sim.simulator.converged = false;
+            simulator.converged = false;
         voltdiff = limitStep(voltdiff, lastvoltdiff);
         lastvoltdiff = voltdiff;
 
         // To prevent a possible singular matrix or other numeric issues, put a tiny conductance
         // in parallel with each P-N junction.
         double gmin = leakage * 0.01;
-        if (sim.simulator.subIterations > 100) {
+        if (simulator.subIterations > 100) {
             // if we have trouble converging, put a conductance in parallel with the diode.
             // Gradually increase the conductance value for each iteration.
-            gmin = Math.exp(-9 * Math.log(10) * (1 - sim.simulator.subIterations / 3000.));
+            gmin = Math.exp(-9 * Math.log(10) * (1 - simulator.subIterations / 3000.));
             if (gmin > .1)
                 gmin = .1;
         }
@@ -161,8 +162,8 @@ public class Diode {
             double eval = Math.exp(voltdiff * vdcoef);
             double geq = vdcoef * leakage * eval + gmin;
             double nc = (eval - 1) * leakage - geq * voltdiff;
-            sim.simulator.stampConductance(nodes[0], nodes[1], geq);
-            sim.simulator.stampCurrentSource(nodes[0], nodes[1], nc);
+            simulator.stampConductance(nodes[0], nodes[1], geq);
+            simulator.stampCurrentSource(nodes[0], nodes[1], nc);
         } else {
             // Zener diode
 
@@ -187,8 +188,8 @@ public class Diode {
                             - 1
             ) + geq * (-voltdiff);
 
-            sim.simulator.stampConductance(nodes[0], nodes[1], geq);
-            sim.simulator.stampCurrentSource(nodes[0], nodes[1], nc);
+            simulator.stampConductance(nodes[0], nodes[1], geq);
+            simulator.stampCurrentSource(nodes[0], nodes[1], nc);
         }
     }
 

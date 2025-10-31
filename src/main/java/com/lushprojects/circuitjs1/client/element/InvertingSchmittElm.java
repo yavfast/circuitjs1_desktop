@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -114,7 +115,7 @@ public class InvertingSchmittElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, nodes[1], voltSource);
     }
 
     public void doStep() {
@@ -138,9 +139,10 @@ public class InvertingSchmittElm extends CircuitElm {
             }
         }
 
-        double maxStep = slewRate * simulator.timeStep * 1e9;
+        CircuitSimulator simulator = simulator();
+        double maxStep = slewRate * simulator().timeStep * 1e9;
         out = Math.max(Math.min(v0 + maxStep, out), v0 - maxStep);
-        simulator.updateVoltageSource(0, nodes[1], voltSource, out);
+        simulator().updateVoltageSource(0, nodes[1], voltSource, out);
     }
 
     double getVoltageDiff() {

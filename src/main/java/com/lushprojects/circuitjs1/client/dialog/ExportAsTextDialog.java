@@ -26,6 +26,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ExportAsTextDialog extends Dialog {
@@ -66,12 +67,13 @@ public class ExportAsTextDialog extends Dialog {
 
         importButton.addClickHandler(event -> {
             String s1;
-            sim.circuitEditor.pushUndo();
+            CircuitDocument circuitDocument = sim.activeDocument;
+            circuitDocument.circuitEditor.pushUndo();
             closeDialog();
 
             s1 = textArea.getText();
             if (s1 != null) {
-                sim.circuitLoader.readCircuit(s1);
+                circuitDocument.circuitLoader.readCircuit(s1);
                 sim.allowSave(false);
             }
         });

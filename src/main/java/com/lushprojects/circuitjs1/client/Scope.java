@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
-import com.google.gwt.storage.client.Storage;
 import com.lushprojects.circuitjs1.client.dialog.ScopePropertiesDialog;
 import com.lushprojects.circuitjs1.client.element.AudioOutputElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -191,7 +190,7 @@ public class Scope extends BaseCirSimDelegate {
             plot.reset(scopePointCount, speed, full);
         }
         calcVisiblePlots();
-        scopeTimeStep = cirSim.simulator.maxTimeStep;
+        scopeTimeStep = simulator().maxTimeStep;
         allocImage();
     }
 
@@ -563,7 +562,7 @@ public class Scope extends BaseCirSimDelegate {
         // Draw x-grid lines and label the frequencies in the FFT that they point to.
         int prevEnd = 0;
         int divs = 20;
-        double maxFrequency = 1 / (cirSim.simulator.maxTimeStep * speed * divs * 2);
+        double maxFrequency = 1 / (simulator().maxTimeStep * speed * divs * 2);
         for (int i = 0; i < divs; i++) {
             int x = rect.width * i / divs;
             if (x < prevEnd) {
@@ -728,7 +727,7 @@ public class Scope extends BaseCirSimDelegate {
         graphics.restore();
         drawSettingsWheel(graphics);
         CircuitEditor circuitEditor = circuitEditor();
-        if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor.mouseCursorX, circuitEditor.mouseCursorY) && plots.size() >= 2) {
+        if (!cirSim.dialogIsShowing() && rect.contains(circuitEditor().mouseCursorX, circuitEditor().mouseCursorY) && plots.size() >= 2) {
             double gridPx = calc2dGridPx(rect.width, rect.height, manDivisions);
             String[] info = new String[2];
             ScopePlot px = plots.get(0);
@@ -736,16 +735,16 @@ public class Scope extends BaseCirSimDelegate {
             double xValue;
             double yValue;
             if (isManualScale()) {
-                xValue = px.manScale * ((double) (circuitEditor.mouseCursorX - rect.x - rect.width / 2) / gridPx - manDivisions * px.manVPosition / (double) (V_POSITION_STEPS));
+                xValue = px.manScale * ((double) (circuitEditor().mouseCursorX - rect.x - rect.width / 2) / gridPx - manDivisions * px.manVPosition / (double) (V_POSITION_STEPS));
                 yValue = py.manScale * ((double) (-circuitEditor.mouseCursorY + rect.y + rect.height / 2) / gridPx - manDivisions * py.manVPosition / (double) (V_POSITION_STEPS));
             } else {
-                xValue = ((double) (circuitEditor.mouseCursorX - rect.x) / (0.499 * (double) (rect.width)) - 1.0) * scaleX;
-                yValue = -((double) (circuitEditor.mouseCursorY - rect.y) / (0.499 * (double) (rect.height)) - 1.0) * scaleY;
+                xValue = ((double) (circuitEditor().mouseCursorX - rect.x) / (0.499 * (double) (rect.width)) - 1.0) * scaleX;
+                yValue = -((double) (circuitEditor().mouseCursorY - rect.y) / (0.499 * (double) (rect.height)) - 1.0) * scaleY;
             }
             info[0] = px.getUnitText(xValue);
             info[1] = py.getUnitText(yValue);
 
-            drawCursorInfo(graphics, info, 2, circuitEditor.mouseCursorX, true);
+            drawCursorInfo(graphics, info, 2, circuitEditor().mouseCursorX, true);
 
         }
     }
@@ -795,8 +794,8 @@ public class Scope extends BaseCirSimDelegate {
         }
 
         // reset if timestep changed
-        if (scopeTimeStep != cirSim.simulator.maxTimeStep) {
-            scopeTimeStep = cirSim.simulator.maxTimeStep;
+        if (scopeTimeStep != simulator().maxTimeStep) {
+            scopeTimeStep = simulator().maxTimeStep;
             resetGraph();
         }
 
@@ -957,7 +956,7 @@ public class Scope extends BaseCirSimDelegate {
         int multptr = 0;
         double gsx = 1e-15;
 
-        double ts = cirSim.simulator.maxTimeStep * speed;
+        double ts = simulator().maxTimeStep * speed;
         while (gsx < ts * 20) {
             gsx *= multa[(multptr++) % 3];
         }
@@ -1050,7 +1049,7 @@ public class Scope extends BaseCirSimDelegate {
         }
 
         // Vertical (T) gridlines
-        double ts = cirSim.simulator.maxTimeStep * speed;
+        double ts = simulator().maxTimeStep * speed;
         gridStepX = calcGridStepX();
 
         boolean highlightCenter = !isManualScale();
@@ -1074,8 +1073,8 @@ public class Scope extends BaseCirSimDelegate {
             }
 
             // vertical gridlines
-            double tstart = cirSim.simulator.t - cirSim.simulator.maxTimeStep * speed * rect.width;
-            double tx = cirSim.simulator.t - (cirSim.simulator.t % gridStepX);
+            double tstart = simulator().t - simulator().maxTimeStep * speed * rect.width;
+            double tx = simulator().t - (simulator().t % gridStepX);
 
             for (int ll = 0; ; ll++) {
                 double tl = tx - gridStepX * ll;
@@ -1156,7 +1155,7 @@ public class Scope extends BaseCirSimDelegate {
         if (plot2d || visiblePlots.isEmpty()) {
             cursorTime = -1;
         } else {
-            cursorTime = cirSim.simulator.t - cirSim.simulator.maxTimeStep * speed * (rect.x + rect.width - mouseX);
+            cursorTime = simulator().t - simulator().maxTimeStep * speed * (rect.x + rect.width - mouseX);
         }
         checkForSelection(mouseX, mouseY);
         cursorScope = this;
@@ -1207,7 +1206,7 @@ public class Scope extends BaseCirSimDelegate {
         int cursorX = -1;
         int ct = 0;
         if (cursorTime >= 0) {
-            cursorX = -(int) ((cirSim.simulator.t - cursorTime) / (cirSim.simulator.maxTimeStep * speed) - rect.x - rect.width);
+            cursorX = -(int) ((simulator().t - cursorTime) / (simulator().maxTimeStep * speed) - rect.x - rect.width);
             if (cursorX >= rect.x) {
                 int ipa = plots.get(0).startIndex(rect.width);
                 int ip = (cursorX - rect.x + ipa) & (scopePointCount - 1);
@@ -1225,7 +1224,7 @@ public class Scope extends BaseCirSimDelegate {
 
         // show FFT even if there's no plots (in which case cursorTime/cursorX will be invalid)
         if (showFFT && cursorScope == this) {
-            double maxFrequency = 1 / (cirSim.simulator.maxTimeStep * speed * 2);
+            double maxFrequency = 1 / (simulator().maxTimeStep * speed * 2);
             if (cursorX < 0) {
                 cursorX = circuitEditor().mouseCursorX;
             }
@@ -1376,7 +1375,7 @@ public class Scope extends BaseCirSimDelegate {
         double[] maxV = plot.maxValues;
 
         double avg = CircuitMath.calculateAverage(rect.width, ipa, scopePointCount, minV, maxV);
-        CircuitMath.FreqData freqData = CircuitMath.calculateFrequency(rect.width, ipa, scopePointCount, maxV, avg, cirSim.simulator.maxTimeStep, speed);
+        CircuitMath.FreqData freqData = CircuitMath.calculateFrequency(rect.width, ipa, scopePointCount, maxV, avg, simulator().maxTimeStep, speed);
 
         if (freqData.frequency != 0) {
             drawInfoText(g, CircuitElm.getUnitText(freqData.frequency, "Hz"));
@@ -1586,7 +1585,7 @@ public class Scope extends BaseCirSimDelegate {
             return null;
         }
         int flags = getFlags();
-        int eno = simulator.locateElm(elm);
+        int eno = simulator().locateElm(elm);
         if (eno < 0) {
             return null;
         }
@@ -1604,7 +1603,7 @@ public class Scope extends BaseCirSimDelegate {
                 x += " " + Integer.toHexString(p.getPlotFlags()); // NB always export in Hex (no prefix)
             }
             if (i > 0) {
-                x += " " + simulator.locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
+                x += " " + simulator().locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
             }
             // dump scale if units are not V or A
             if (p.units > UNITS_A) {
@@ -1898,8 +1897,8 @@ public class Scope extends BaseCirSimDelegate {
         int e = (yElm == null) ? -1 : simulator().locateElm(yElm);
         int firstE = e;
         while (true) {
-            for (e++; e < cirSim.simulator.elmList.size(); e++) {
-                CircuitElm ce = cirSim.simulator.elmList.get(e);
+            for (e++; e < simulator().elmList.size(); e++) {
+                CircuitElm ce = simulator().elmList.get(e);
                 if ((ce instanceof OutputElm || ce instanceof ProbeElm) &&
                         ce != plots.get(0).elm) {
                     yElm = ce;
@@ -1965,7 +1964,7 @@ public class Scope extends BaseCirSimDelegate {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != plots.size(); i++) {
             ScopePlot plot = plots.get(i);
-            if (simulator.locateElm(plot.elm) < 0) {
+            if (simulator().locateElm(plot.elm) < 0) {
                 plots.remove(i--);
                 removed = true;
             } else {

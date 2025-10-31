@@ -94,8 +94,8 @@ public class VaractorElm extends DiodeElm {
 
     public void stamp() {
         super.stamp();
-        simulator.stampVoltageSource(nodes[0], nodes[2], voltSource);
-        simulator.stampNonLinear(nodes[2]);
+        simulator().stampVoltageSource(nodes[0], nodes[2], voltSource);
+        simulator().stampNonLinear(nodes[2]);
     }
 
     public void startIteration() {
@@ -108,14 +108,14 @@ public class VaractorElm extends DiodeElm {
             capacitance = c0;
         else
             capacitance = c0 / Math.pow(1 - capvoltdiff / model.fwdrop, .5);
-        compResistance = simulator.timeStep / (2 * capacitance);
+        compResistance = simulator().timeStep / (2 * capacitance);
         voltSourceValue = -capvoltdiff - capCurrent * compResistance;
     }
 
     public void doStep() {
         super.doStep();
-        simulator.stampResistor(nodes[2], nodes[1], compResistance);
-        simulator.updateVoltageSource(nodes[0], nodes[2], voltSource,
+        simulator().stampResistor(nodes[2], nodes[1], compResistance);
+        simulator().updateVoltageSource(nodes[0], nodes[2], voltSource,
                 voltSourceValue);
     }
 

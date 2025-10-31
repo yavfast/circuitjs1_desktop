@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.ExprState;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -71,6 +72,7 @@ public class CCCSElm extends VCCSElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         int i;
         if (isSpiceStyle()) {
             for (i = 0; i != inputCount; i += 2)
@@ -79,23 +81,24 @@ public class CCCSElm extends VCCSElm {
             // voltage sources (0V) between C+ and C- so we can measure current
             for (i = 0; i != inputCount; i += 2) {
                 int vn1 = pins[i + 1].voltSource;
-                simulator.stampVoltageSource(nodes[i], nodes[i + 1], vn1, 0);
+                simulator().stampVoltageSource(nodes[i], nodes[i + 1], vn1, 0);
             }
         }
 
-        simulator.stampNonLinear(nodes[inputCount]);
-        simulator.stampNonLinear(nodes[inputCount + 1]);
+        simulator().stampNonLinear(nodes[inputCount]);
+        simulator().stampNonLinear(nodes[inputCount + 1]);
     }
 
     double lastCurrents[];
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         // no current path?  give up
         if (broken) {
             pins[inputCount].current = 0;
             pins[inputCount + 1].current = 0;
             // avoid singular matrix errors
-            simulator.stampResistor(nodes[inputCount], nodes[inputCount + 1], 1e8);
+            simulator().stampResistor(nodes[inputCount], nodes[inputCount + 1], 1e8);
             return;
         }
 
@@ -112,14 +115,14 @@ public class CCCSElm extends VCCSElm {
         for (i = 0; i != inputPairCount; i++) {
             double cur = pins[i * 2 + 1].current;
             if (Math.abs(cur - lastCurrents[i]) > convergeLimit)
-                simulator.converged = false;
+                simulator().converged = false;
         }
 
         if (expr != null) {
             // calculate output
             for (i = 0; i != inputPairCount; i++)
                 setCurrentExprValue(i, pins[i * 2 + 1].current);
-            exprState.t = simulator.t;
+            exprState.t = simulator().t;
             double v0 = expr.eval(exprState);
             double rs = v0;
 
@@ -138,7 +141,7 @@ public class CCCSElm extends VCCSElm {
                 double dx = (v - v2) / dv;
                 if (Math.abs(dx) < 1e-6)
                     dx = sign(dx, 1e-6);
-                simulator.stampCCCS(nodes[inputCount + 1], nodes[inputCount], pins[i * 2 + 1].voltSource, dx);
+                simulator().stampCCCS(nodes[inputCount + 1], nodes[inputCount], pins[i * 2 + 1].voltSource, dx);
 
                 // adjust right side
                 rs -= dx * cur;
@@ -147,7 +150,7 @@ public class CCCSElm extends VCCSElm {
                 setCurrentExprValue(i, cur);
             }
 
-            simulator.stampCurrentSource(nodes[inputCount + 1], nodes[inputCount], rs);
+            simulator().stampCurrentSource(nodes[inputCount + 1], nodes[inputCount], rs);
         }
 
         for (i = 0; i != inputPairCount; i++)

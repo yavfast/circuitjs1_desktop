@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
@@ -211,9 +212,9 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public void stamp() {
-        int i;
-        for (i = 0; i != 6; i++)
-            simulator.stampNonLinear(nodes[i]);
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != 6; i++)
+            simulator().stampNonLinear(nodes[i]);
     }
 
     public boolean nonLinear() {
@@ -225,17 +226,17 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public void startIteration() {
-        int j;
+        CircuitSimulator simulator = simulator();
         boolean wasBlown = blown;
-        for (j = 0; j != 3; j++) {
+        for (int j = 0; j != 3; j++) {
             double i = currents[j];
 
             // accumulate heat
             double heat = heats[j];
-            heat += i * i * simulator.timeStep;
+            heat += i * i * simulator().timeStep;
 
             // dissipate heat.  we assume the fuse can dissipate its entire i2t in 3 seconds
-            heat -= simulator.timeStep * i2t / 3;
+            heat -= simulator().timeStep * i2t / 3;
 
             if (heat < 0)
                 heat = 0;
@@ -249,10 +250,10 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     void setSwitchPositions() {
-        int i;
+        CircuitSimulator simulator = simulator();
         int switchPosition = (blown) ? 0 : 1;
-        for (i = 0; i != simulator.elmList.size(); i++) {
-            Object o = simulator.elmList.get(i);
+        for (int i = 0; i != simulator().elmList.size(); i++) {
+            Object o = simulator().elmList.get(i);
             if (o instanceof RelayContactElm) {
                 RelayContactElm s2 = (RelayContactElm) o;
                 if (s2.label.equals(label))
@@ -262,9 +263,9 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public void doStep() {
-        int i;
-        for (i = 0; i != 3; i++)
-            simulator.stampResistor(nodes[i * 2], nodes[i * 2 + 1], blown ? blownResistance : resistance);
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != 3; i++)
+            simulator().stampResistor(nodes[i * 2], nodes[i * 2 + 1], blown ? blownResistance : resistance);
     }
 
     public void getInfo(String arr[]) {

@@ -44,14 +44,14 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.Checkbox;
-import com.lushprojects.circuitjs1.client.element.ChipElm;
-import com.lushprojects.circuitjs1.client.element.ChipElm.Pin;
 import com.lushprojects.circuitjs1.client.CirSim;
-import com.lushprojects.circuitjs1.client.element.CustomCompositeChipElm;
-import com.lushprojects.circuitjs1.client.element.CustomCompositeElm;
 import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.ExtListEntry;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.element.ChipElm;
+import com.lushprojects.circuitjs1.client.element.ChipElm.Pin;
+import com.lushprojects.circuitjs1.client.element.CustomCompositeChipElm;
+import com.lushprojects.circuitjs1.client.element.CustomCompositeElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Collections;
@@ -75,7 +75,7 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
 
     public boolean createModel() {
         HashSet<Integer> nodeSet = new HashSet<Integer>();
-        model = CirSim.theSim.simulator.getCircuitAsComposite();
+        model = CirSim.theSim.simulator().getCircuitAsComposite();
         if (model == null)
             return false;
         if (model.extList.size() == 0) {
@@ -264,7 +264,7 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
             model.setName(CustomCompositeElm.lastModelName = name);
         }
         model.setSaved(saveCheck.getState());
-        CirSim.theSim.simulator.updateModels();
+        CirSim.theSim.simulator().updateModels();
         CirSim.theSim.needAnalyze(); // will get singular matrix if we don't do this
         closeDialog();
     }

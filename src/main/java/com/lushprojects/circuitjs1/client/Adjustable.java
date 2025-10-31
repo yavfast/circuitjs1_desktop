@@ -11,7 +11,6 @@ import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 // values with sliders
 public class Adjustable extends BaseCirSimDelegate implements Command {
@@ -106,14 +105,14 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         editAdjustableButton = new Button("\u2699"); // Gear icon
         editAdjustableButton.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
-                cirSim.circuitEditor.doSliders(elm);
+                circuitEditor().doSliders(elm);
             }
         });
 
         editElementButton = new Button("\u270E"); // Pencil icon
         editElementButton.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
-                cirSim.circuitEditor.doEditElementOptions(elm);
+                circuitEditor().doEditElementOptions(elm);
             }
         });
         

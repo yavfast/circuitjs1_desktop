@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Rectangle;
@@ -151,11 +152,12 @@ public class MBBSwitchElm extends SwitchElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         int vs = 0;
         if (both || position == 0)
-            simulator.stampVoltageSource(nodes[0], nodes[1], voltSources[vs++], 0);
+            simulator().stampVoltageSource(nodes[0], nodes[1], voltSources[vs++], 0);
         if (both || position == 2)
-            simulator.stampVoltageSource(nodes[0], nodes[2], voltSources[vs++], 0);
+            simulator().stampVoltageSource(nodes[0], nodes[2], voltSources[vs++], 0);
     }
 
     // connection is implemented by voltage source with voltage = 0.
@@ -168,9 +170,9 @@ public class MBBSwitchElm extends SwitchElm {
     public void toggle() {
         super.toggle();
         if (link != 0) {
-            int i;
-            for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.get(i);
+            CircuitSimulator simulator = simulator();
+            for (int i = 0; i != simulator().elmList.size(); i++) {
+                Object o = simulator().elmList.get(i);
                 if (o instanceof MBBSwitchElm) {
                     MBBSwitchElm s2 = (MBBSwitchElm) o;
                     if (s2.link == link)

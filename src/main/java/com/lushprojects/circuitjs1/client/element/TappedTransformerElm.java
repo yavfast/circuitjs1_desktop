@@ -194,21 +194,21 @@ public class TappedTransformerElm extends CircuitElm {
         int i;
         double det = l1 * (l2 + m2) - 2 * m1 * m1;
         for (i = 0; i != 9; i++)
-            a[i] *= (isTrapezoidal() ? simulator.timeStep / 2 : simulator.timeStep) / det;
-        simulator.stampConductance(nodes[0], nodes[1], a[0]);
-        simulator.stampVCCurrentSource(nodes[0], nodes[1], nodes[2], nodes[3], a[1]);
-        simulator.stampVCCurrentSource(nodes[0], nodes[1], nodes[3], nodes[4], a[2]);
+            a[i] *= (isTrapezoidal() ? simulator().timeStep / 2 : simulator().timeStep) / det;
+        simulator().stampConductance(nodes[0], nodes[1], a[0]);
+        simulator().stampVCCurrentSource(nodes[0], nodes[1], nodes[2], nodes[3], a[1]);
+        simulator().stampVCCurrentSource(nodes[0], nodes[1], nodes[3], nodes[4], a[2]);
 
-        simulator.stampVCCurrentSource(nodes[2], nodes[3], nodes[0], nodes[1], a[3]);
-        simulator.stampConductance(nodes[2], nodes[3], a[4]);
-        simulator.stampVCCurrentSource(nodes[2], nodes[3], nodes[3], nodes[4], a[5]);
+        simulator().stampVCCurrentSource(nodes[2], nodes[3], nodes[0], nodes[1], a[3]);
+        simulator().stampConductance(nodes[2], nodes[3], a[4]);
+        simulator().stampVCCurrentSource(nodes[2], nodes[3], nodes[3], nodes[4], a[5]);
 
-        simulator.stampVCCurrentSource(nodes[3], nodes[4], nodes[0], nodes[1], a[6]);
-        simulator.stampVCCurrentSource(nodes[3], nodes[4], nodes[2], nodes[3], a[7]);
-        simulator.stampConductance(nodes[3], nodes[4], a[8]);
+        simulator().stampVCCurrentSource(nodes[3], nodes[4], nodes[0], nodes[1], a[6]);
+        simulator().stampVCCurrentSource(nodes[3], nodes[4], nodes[2], nodes[3], a[7]);
+        simulator().stampConductance(nodes[3], nodes[4], a[8]);
 
         for (i = 0; i != 5; i++)
-            simulator.stampRightSide(nodes[i]);
+            simulator().stampRightSide(nodes[i]);
     }
 
     boolean isTrapezoidal() {
@@ -231,9 +231,9 @@ public class TappedTransformerElm extends CircuitElm {
     double curSourceValue[], voltdiff[];
 
     public void doStep() {
-        simulator.stampCurrentSource(nodes[0], nodes[1], curSourceValue[0]);
-        simulator.stampCurrentSource(nodes[2], nodes[3], curSourceValue[1]);
-        simulator.stampCurrentSource(nodes[3], nodes[4], curSourceValue[2]);
+        simulator().stampCurrentSource(nodes[0], nodes[1], curSourceValue[0]);
+        simulator().stampCurrentSource(nodes[2], nodes[3], curSourceValue[1]);
+        simulator().stampCurrentSource(nodes[3], nodes[4], curSourceValue[2]);
     }
 
     void calculateCurrent() {

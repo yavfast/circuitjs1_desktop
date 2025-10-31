@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.ui.Anchor;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -78,10 +79,11 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     public void stepFinished() {
-        if (lastTimeStepCount == simulator.timeStepCount)
+        CircuitSimulator simulator = simulator();
+        if (lastTimeStepCount == simulator().timeStepCount)
             return;
         data[dataPtr++] = volts[0];
-        lastTimeStepCount = simulator.timeStepCount;
+        lastTimeStepCount = simulator().timeStepCount;
         if (dataPtr >= dataCount) {
             dataPtr = 0;
             dataFull = true;
@@ -116,7 +118,7 @@ public class DataRecorderElm extends CircuitElm {
         }
         if (n == 1) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            String dataStr = "# time step = " + simulator.timeStep + " sec\n";
+            String dataStr = "# time step = " + simulator().timeStep + " sec\n";
             int i;
             if (dataFull) {
                 for (i = 0; i != dataCount; i++)

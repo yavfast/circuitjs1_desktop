@@ -48,20 +48,20 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         ScopeManager scopeManager = scopeManager();
 
         // Clear existing elements
-        circuitEditor.clearMouseElm();
-        for (int elementIndex = 0; elementIndex != simulator.elmList.size(); elementIndex++) {
-            CircuitElm circuitElement = simulator.elmList.get(elementIndex);
+        circuitEditor().clearMouseElm();
+        for (int elementIndex = 0; elementIndex != simulator().elmList.size(); elementIndex++) {
+            CircuitElm circuitElement = simulator().elmList.get(elementIndex);
             circuitElement.delete();
         }
 
         // Reset simulation parameters
-        simulator.t = simulator.timeStepAccum = 0;
-        simulator.elmList.clear();
+        simulator().t = simulator().timeStepAccum = 0;
+        simulator().elmList.clear();
         cirSim.adjustableManager.reset();
         cirSim.renderer.hintType = -1;
-        simulator.maxTimeStep = 5e-6;
-        simulator.minTimeStep = 50e-12;
-        simulator.lastIterTime = 0;
+        simulator().maxTimeStep = 5e-6;
+        simulator().minTimeStep = 50e-12;
+        simulator().lastIterTime = 0;
 
         // Reset menu states
         menuManager.dotsCheckItem.setState(false);
@@ -71,7 +71,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         menuManager.showValuesCheckItem.setState(true);
 
         // Reset UI components
-        circuitEditor.setGrid();
+        circuitEditor().setGrid();
         cirSim.speedBar.setValue(117);
         cirSim.currentBar.setValue(50);
         cirSim.powerBar.setValue(50);
@@ -278,8 +278,8 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         menuManager.voltsCheckItem.setState((flags & 4) == 0);
         menuManager.powerCheckItem.setState((flags & 8) == 8);
         menuManager.showValuesCheckItem.setState((flags & 16) == 0);
-        simulator.adjustTimeStep = (flags & 64) != 0;
-        simulator.maxTimeStep = simulator.timeStep = CircuitElm.parseDouble(st.nextToken());
+        simulator().adjustTimeStep = (flags & 64) != 0;
+        simulator().maxTimeStep = simulator().timeStep = CircuitElm.parseDouble(st.nextToken());
         double sp = CircuitElm.parseDouble(st.nextToken());
         int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
         //int sp2 = (int) (Math.log(sp)*24+1.5);
@@ -289,11 +289,11 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
         try {
             cirSim.powerBar.setValue(CircuitElm.parseInt(st.nextToken()));
-            simulator.minTimeStep = CircuitElm.parseDouble(st.nextToken());
+            simulator().minTimeStep = CircuitElm.parseDouble(st.nextToken());
         } catch (Exception e) {
             // Ignore missing optional parameters
         }
-        circuitEditor.setGrid();
+        circuitEditor().setGrid();
     }
 
     void getSetupList(final boolean openDefault) {

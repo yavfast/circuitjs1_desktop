@@ -111,12 +111,12 @@ public class SweepElm extends CircuitElm {
 
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
-        if (circuitEditor.dragElm != this)
+        if (circuitEditor().dragElm != this)
             drawDots(g, point1, lead1, curcount);
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, nodes[0], voltSource);
     }
 
     double fadd, fmul, freqTime, savedTimeStep;
@@ -129,13 +129,13 @@ public class SweepElm extends CircuitElm {
             dir = 1;
         }
         if ((flags & FLAG_LOG) == 0) {
-            fadd = dir * simulator.timeStep * (maxF - minF) / sweepTime;
+            fadd = dir * simulator().timeStep * (maxF - minF) / sweepTime;
             fmul = 1;
         } else {
             fadd = 0;
-            fmul = Math.pow(maxF / minF, dir * simulator.timeStep / sweepTime);
+            fmul = Math.pow(maxF / minF, dir * simulator().timeStep / sweepTime);
         }
-        savedTimeStep = simulator.timeStep;
+        savedTimeStep = simulator().timeStep;
     }
 
     public void reset() {
@@ -149,10 +149,10 @@ public class SweepElm extends CircuitElm {
 
     public void startIteration() {
         // has timestep been changed?
-        if (simulator.timeStep != savedTimeStep)
+        if (simulator().timeStep != savedTimeStep)
             setParams();
         v = Math.sin(freqTime) * maxV;
-        freqTime += frequency * 2 * pi * simulator.timeStep;
+        freqTime += frequency * 2 * pi * simulator().timeStep;
         frequency = frequency * fmul + fadd;
         if (frequency >= maxF && dir == 1) {
             if ((flags & FLAG_BIDIR) != 0) {
@@ -170,7 +170,7 @@ public class SweepElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator.updateVoltageSource(0, nodes[0], voltSource, v);
+        simulator().updateVoltageSource(0, nodes[0], voltSource, v);
     }
 
     double getVoltageDiff() {
@@ -218,7 +218,7 @@ public class SweepElm extends CircuitElm {
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        double maxfreq = 1 / (8 * simulator.timeStep);
+        double maxfreq = 1 / (8 * simulator().timeStep);
         if (n == 0) {
             minF = ei.value;
             if (minF > maxfreq)

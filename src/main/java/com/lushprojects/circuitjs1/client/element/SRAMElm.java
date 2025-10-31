@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.TextArea;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.SRAMLoadFile;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -228,12 +229,12 @@ public class SRAMElm extends ChipElm {
     int address;
 
     public void stamp() {
-        int i;
-        for (i = 0; i != dataBits; i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator.stampVoltageSource(0, nodes[internalNodes + i], p.voltSource);
-            simulator.stampNonLinear(nodes[internalNodes + i]);
-            simulator.stampNonLinear(nodes[dataNodes + i]);
+            simulator().stampVoltageSource(0, nodes[internalNodes + i], p.voltSource);
+            simulator().stampNonLinear(nodes[internalNodes + i]);
+            simulator().stampNonLinear(nodes[dataNodes + i]);
         }
     }
 
@@ -250,13 +251,14 @@ public class SRAMElm extends ChipElm {
 
         Integer dataObj = map.get(address);
         int data = (dataObj == null) ? 0 : dataObj;
+        CircuitSimulator simulator = simulator();
         for (i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator.updateVoltageSource(0, nodes[internalNodes + i], p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
+            simulator().updateVoltageSource(0, nodes[internalNodes + i], p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
 
             // stamp resistor from internal voltage source to data pin.
             // if output enabled, make it a small resistor.  otherwise large.
-            simulator.stampResistor(nodes[internalNodes + i], nodes[dataNodes + i], outputEnabled ? 1 : 1e8);
+            simulator().stampResistor(nodes[internalNodes + i], nodes[dataNodes + i], outputEnabled ? 1 : 1e8);
         }
     }
 

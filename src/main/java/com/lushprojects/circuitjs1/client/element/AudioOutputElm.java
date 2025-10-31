@@ -8,6 +8,7 @@ import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Choice;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -62,10 +63,11 @@ public class AudioOutputElm extends CircuitElm {
     int getNextLabelNum() {
         int i;
         int num = 1;
-        if (simulator.elmList == null)
+        CircuitSimulator simulator = simulator();
+        if (simulator().elmList == null)
             return 0;
-        for (i = 0; i != simulator.elmList.size(); i++) {
-            CircuitElm ce = simulator.elmList.get(i);
+        for (i = 0; i != simulator().elmList.size(); i++) {
+            CircuitElm ce = simulator().elmList.get(i);
             if (!(ce instanceof AudioOutputElm))
                 continue;
             int ln = ((AudioOutputElm) ce).labelNum;
@@ -129,7 +131,7 @@ public class AudioOutputElm extends CircuitElm {
         arr[1] = "V = " + getVoltageText(volts[0]);
         int ct = (dataFull ? dataCount : dataPtr);
         double dur = sampleStep * ct;
-        arr[2] = "start = " + getUnitText(dataFull ? simulator.t - duration : dataStart, "s");
+        arr[2] = "start = " + getUnitText(dataFull ? simulator().t - duration : dataStart, "s");
         arr[3] = "dur = " + getUnitText(dur, "s");
         arr[4] = "samples = " + ct + (dataFull ? "" : "/" + dataCount);
     }
@@ -141,7 +143,7 @@ public class AudioOutputElm extends CircuitElm {
     public void stepFinished() {
         dataSample += volts[0];
         dataSampleCount++;
-        if (simulator.t >= nextDataSample) {
+        if (simulator().t >= nextDataSample) {
             nextDataSample += sampleStep;
             data[dataPtr++] = dataSample / dataSampleCount;
             dataSampleCount = 0;
@@ -154,13 +156,14 @@ public class AudioOutputElm extends CircuitElm {
     }
 
     void setDataCount() {
+        CircuitSimulator simulator = simulator();
         dataCount = (int) (samplingRate * duration);
         data = new double[dataCount];
-        dataStart = simulator.t;
+        dataStart = simulator().t;
         dataPtr = 0;
         dataFull = false;
         sampleStep = 1. / samplingRate;
-        nextDataSample = simulator.t + sampleStep;
+        nextDataSample = simulator().t + sampleStep;
     }
 
     int samplingRateChoices[] = {8000, 11025, 16000, 22050, 44100, 48000};
@@ -231,9 +234,10 @@ public class AudioOutputElm extends CircuitElm {
 
 //	    int frac = (int)Math.round(Math.max(sampleStep*33000, 1));
         double target = sampleStep / 8;
-        if (simulator.maxTimeStep != target) {
+        CircuitSimulator simulator = simulator();
+        if (simulator().maxTimeStep != target) {
             if (okToChangeTimeStep || Window.confirm(Locale.LS("Adjust timestep for best audio quality and performance?"))) {
-                simulator.maxTimeStep = target;
+                simulator().maxTimeStep = target;
                 okToChangeTimeStep = true;
             }
         }

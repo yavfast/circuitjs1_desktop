@@ -78,22 +78,22 @@ public class TimeDelayRelayElm extends ChipElm {
 
     public void stamp() {
         resistance = (onState) ? onResistance : offResistance;
-        simulator.stampResistor(nodes[0], nodes[1], vinResistance);
-        simulator.stampNonLinear(nodes[2]);
-        simulator.stampNonLinear(nodes[3]);
+        simulator().stampResistor(nodes[0], nodes[1], vinResistance);
+        simulator().stampNonLinear(nodes[2]);
+        simulator().stampNonLinear(nodes[3]);
     }
 
     public void doStep() {
         resistance = (onState) ? onResistance : offResistance;
-        simulator.stampResistor(nodes[2], nodes[3], resistance);
+        simulator().stampResistor(nodes[2], nodes[3], resistance);
     }
 
     public void stepFinished() {
         boolean oldState = poweredState;
         poweredState = (volts[0] - volts[1] > 2.5);
         if (oldState != poweredState)
-            lastTransition = simulator.t;
-        if (simulator.t > lastTransition + (poweredState ? onDelay : offDelay))
+            lastTransition = simulator().t;
+        if (simulator().t > lastTransition + (poweredState ? onDelay : offDelay))
             onState = poweredState;
     }
 

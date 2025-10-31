@@ -166,7 +166,7 @@ public class DiodeElm extends CircuitElm {
             // create diode from node 0 to internal node
             diode.stamp(nodes[0], nodes[2]);
             // create resistor from internal node to node 1
-            simulator.stampResistor(nodes[1], nodes[2], model.seriesResistance);
+            simulator().stampResistor(nodes[1], nodes[2], model.seriesResistance);
         } else
             // don't need any internal nodes if no series resistance
             diode.stamp(nodes[0], nodes[1]);
@@ -274,7 +274,7 @@ public class DiodeElm extends CircuitElm {
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
         if (Math.abs(current) > 1e12)
-            simulator.stop("max current exceeded", this);
+            simulator().stop("max current exceeded", this);
     }
 
 

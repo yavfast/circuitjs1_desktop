@@ -975,12 +975,14 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void doRecover() {
         pushUndo();
-        cirSim.circuitLoader.readCircuit(undoManager().recovery);
+        getActiveDocument().circuitLoader.readCircuit(undoManager().recovery);
         cirSim.allowSave(false);
         menuManager().recoverItem.setEnabled(false);
-        cirSim.circuitInfo.filePath = null;
-        cirSim.circuitInfo.fileName = null;
-        CirSim.changeWindowTitle(cirSim.circuitInfo.unsavedChanges);
+
+        CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
+        circuitInfo.filePath = null;
+        circuitInfo.fileName = null;
+        CirSim.changeWindowTitle(circuitInfo.unsavedChanges);
     }
 
     void doCut() {
@@ -1062,7 +1064,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (oldSize > 0) {
             flags |= CircuitConst.RC_NO_CENTER;
         }
-        cirSim.circuitLoader.readCircuit(dump, flags);
+        getActiveDocument().circuitLoader.readCircuit(dump, flags);
 
         Rectangle newBoundingBox = selectNewItems(oldSize);
 

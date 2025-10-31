@@ -30,8 +30,8 @@ import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.PopupPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
-import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.InductorElm;
 import com.lushprojects.circuitjs1.client.element.ResistorElm;
@@ -61,7 +61,7 @@ public class ScrollValuePopup extends PopupPanel implements MouseOutHandler, Mou
         myElm = e;
         deltaY = 0;
         sim = s;
-        sim.circuitEditor.pushUndo();
+        sim.activeDocument.circuitEditor.pushUndo();
         vp = new VerticalPanel();
         setWidget(vp);
         setupValues();
@@ -216,7 +216,7 @@ public class ScrollValuePopup extends PopupPanel implements MouseOutHandler, Mou
 
     public int getSelIdx() {
         int r;
-        r = currentidx + (int) Math.round(sim.circuitEditor.wheelSensitivity * deltaY / scale);
+        r = currentidx + (int) Math.round(sim.activeDocument.circuitEditor.wheelSensitivity * deltaY / scale);
         if (r < 0)
             r = 0;
         if (r >= nvalues)

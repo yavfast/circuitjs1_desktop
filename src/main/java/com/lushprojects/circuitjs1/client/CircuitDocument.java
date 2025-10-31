@@ -1,14 +1,14 @@
 package com.lushprojects.circuitjs1.client;
 
-final class CircuitDocument {
+public class CircuitDocument {
 
-    private final CircuitInfo circuitInfo;
-    private final CircuitSimulator simulator;
-    private final ScopeManager scopeManager;
-    private final UndoManager undoManager;
-    private final AdjustableManager adjustableManager;
-    private final CircuitEditor circuitEditor;
-    private final CircuitLoader circuitLoader;
+    public final CircuitInfo circuitInfo;
+    public final CircuitSimulator simulator;
+    public final ScopeManager scopeManager;
+    public final UndoManager undoManager;
+    public final AdjustableManager adjustableManager;
+    public final CircuitEditor circuitEditor;
+    public final CircuitLoader circuitLoader;
 
     CircuitDocument(CirSim cirSim) {
         circuitInfo = new CircuitInfo(cirSim);

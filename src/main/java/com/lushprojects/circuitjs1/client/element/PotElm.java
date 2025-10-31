@@ -24,6 +24,7 @@ import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Scrollbar;
@@ -111,7 +112,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         super.setPoints();
         int offset = 0;
         int myLen = 0;
-        int gridSize = simUi.circuitEditor.gridSize;
+        int gridSize = circuitEditor().gridSize;
         if (abs(dx) > abs(dy) != hasFlag(FLAG_FLIP)) {
             myLen = 2 * gridSize * Integer.signum(dx) * ((((int) Math.abs(dx)) + 2 * gridSize - 1) / (2 * gridSize));
             point2.x = point1.x + myLen;
@@ -210,7 +211,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         curcount1 = updateDotCount(current1, curcount1);
         curcount2 = updateDotCount(current2, curcount2);
         curcount3 = updateDotCount(current3, curcount3);
-        if (simUi.circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, midpoint, curcount1);
             drawDots(g, point2, midpoint, curcount2);
             drawDots(g, post3, corner2, curcount3);
@@ -299,8 +300,9 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     public void stamp() {
         resistance1 = maxResistance * position;
         resistance2 = maxResistance * (1 - position);
-        simulator.stampResistor(nodes[0], nodes[2], resistance1);
-        simulator.stampResistor(nodes[2], nodes[1], resistance2);
+        CircuitSimulator simulator = simulator();
+        simulator().stampResistor(nodes[0], nodes[2], resistance1);
+        simulator().stampResistor(nodes[2], nodes[1], resistance2);
     }
 
     public void getInfo(String arr[]) {

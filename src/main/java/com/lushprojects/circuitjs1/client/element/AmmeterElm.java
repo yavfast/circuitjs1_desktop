@@ -212,7 +212,7 @@ public class AmmeterElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(nodes[0], nodes[1], voltSource, 0);
+        simulator().stampVoltageSource(nodes[0], nodes[1], voltSource, 0);
     }
 
     boolean mustShowCurrent() {

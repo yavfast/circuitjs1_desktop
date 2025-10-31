@@ -9,8 +9,12 @@ public class BaseCirSimDelegate {
 
     }
 
+    public CircuitDocument getActiveDocument() {
+        return cirSim.activeDocument;
+    }
+
     CircuitSimulator simulator() {
-        return cirSim.simulator;
+        return getActiveDocument().simulator;
     }
 
     CircuitRenderer renderer() {
@@ -18,7 +22,7 @@ public class BaseCirSimDelegate {
     }
 
     CircuitEditor circuitEditor() {
-        return cirSim.circuitEditor;
+        return getActiveDocument().circuitEditor;
     }
 
     MenuManager menuManager() {
@@ -26,11 +30,11 @@ public class BaseCirSimDelegate {
     }
 
     UndoManager undoManager() {
-        return cirSim.undoManager;
+        return getActiveDocument().undoManager;
     }
 
     ScopeManager scopeManager() {
-        return cirSim.scopeManager;
+        return getActiveDocument().scopeManager;
     }
 
     DialogManager dialogManager() {
@@ -42,6 +46,6 @@ public class BaseCirSimDelegate {
     }
 
     CircuitInfo circuitInfo() {
-        return cirSim.circuitInfo;
+        return getActiveDocument().circuitInfo;
     }
 }

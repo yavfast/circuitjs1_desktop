@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitMath;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -78,8 +79,8 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     public void drag(int xx, int yy) {
-        xx = circuitEditor.snapGrid(xx);
-        yy = circuitEditor.snapGrid(yy);
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
 //	    width = max(32, abs(yy-y));
         if (xx == x)
             yy = y;
@@ -346,7 +347,8 @@ public class CustomTransformerElm extends CircuitElm {
 
         CircuitMath.invertMatrix(xformMatrix, coilCount);
 
-        double ts = isTrapezoidal() ? simulator.timeStep / 2 : simulator.timeStep;
+        CircuitSimulator simulator = simulator();
+        double ts = isTrapezoidal() ? simulator().timeStep / 2 : simulator().timeStep;
         for (i = 0; i != coilCount; i++)
             for (j = 0; j != coilCount; j++) {
                 // multiply in dt/2 (or dt for backward euler)
@@ -354,12 +356,12 @@ public class CustomTransformerElm extends CircuitElm {
                 int ni = coilNodes[i];
                 int nj = coilNodes[j];
                 if (i == j)
-                    simulator.stampConductance(nodes[ni], nodes[ni + 1], xformMatrix[i][i]);
+                    simulator().stampConductance(nodes[ni], nodes[ni + 1], xformMatrix[i][i]);
                 else
-                    simulator.stampVCCurrentSource(nodes[ni], nodes[ni + 1], nodes[nj], nodes[nj + 1], xformMatrix[i][j]);
+                    simulator().stampVCCurrentSource(nodes[ni], nodes[ni + 1], nodes[nj], nodes[nj + 1], xformMatrix[i][j]);
             }
         for (i = 0; i != nodeCount; i++)
-            simulator.stampRightSide(nodes[i]);
+            simulator().stampRightSide(nodes[i]);
     }
 
     public void startIteration() {
@@ -379,10 +381,10 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     public void doStep() {
-        int i;
-        for (i = 0; i != coilCount; i++) {
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != coilCount; i++) {
             int n = coilNodes[i];
-            simulator.stampCurrentSource(nodes[n], nodes[n + 1], coilCurSourceValues[i]);
+            simulator().stampCurrentSource(nodes[n], nodes[n + 1], coilCurSourceValues[i]);
         }
     }
 

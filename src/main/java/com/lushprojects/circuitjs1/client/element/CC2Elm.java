@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
@@ -74,7 +75,8 @@ public class CC2Elm extends ChipElm {
 
     public void stamp() {
         // X voltage = Y voltage
-		simulator.stampVoltageSource(0, nodes[0], pins[0].voltSource);
+        CircuitSimulator simulator = simulator();
+        simulator().stampVoltageSource(0, nodes[0], pins[0].voltSource);
 		simulator.stampVCVS(0, nodes[1], 1, pins[0].voltSource);
         // Z current = gain * X current
 		simulator.stampCCCS(0, nodes[2], pins[0].voltSource, gain);

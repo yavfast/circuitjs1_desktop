@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -34,7 +35,7 @@ public class TransLineElm extends CircuitElm {
 
     public TransLineElm(int xx, int yy) {
         super(xx, yy);
-        delay = 1000 * simulator.maxTimeStep;
+        delay = 1000 * simulator().maxTimeStep;
         imped = 75;
         noDiagonal = true;
         reset();
@@ -69,10 +70,10 @@ public class TransLineElm extends CircuitElm {
     }
 
     public void drag(int xx, int yy) {
-        xx = simUi.circuitEditor.snapGrid(xx);
-        yy = simUi.circuitEditor.snapGrid(yy);
-        int w1 = max(simUi.circuitEditor.gridSize, abs(yy - y));
-        int w2 = max(simUi.circuitEditor.gridSize, abs(xx - x));
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
+        int w1 = max(circuitEditor().gridSize, abs(yy - y));
+        int w2 = max(circuitEditor().gridSize, abs(xx - x));
         if (w1 > w2) {
             xx = x;
             width = w2;
@@ -88,9 +89,9 @@ public class TransLineElm extends CircuitElm {
     Point posts[], inner[];
 
     public void reset() {
-        if (simulator.maxTimeStep == 0)
+        if (simulator().maxTimeStep == 0)
             return;
-        lenSteps = (int) (delay / simulator.maxTimeStep);
+        lenSteps = (int) (delay / simulator().maxTimeStep);
         System.out.println(lenSteps + " steps");
         if (lenSteps > 100000)
             voltageL = voltageR = null;
@@ -108,7 +109,7 @@ public class TransLineElm extends CircuitElm {
         int ds = (dy == 0) ? sign(dx) : -sign(dy);
         Point p3 = interpPoint(point1, point2, 0, -width * ds);
         Point p4 = interpPoint(point1, point2, 1, -width * ds);
-        int sep = simUi.circuitEditor.gridSize / 2;
+        int sep = circuitEditor().gridSize / 2;
         Point p5 = interpPoint(point1, point2, 0, -(width / 2 - sep) * ds);
         Point p6 = interpPoint(point1, point2, 1, -(width / 2 - sep) * ds);
         Point p7 = interpPoint(point1, point2, 0, -(width / 2 + sep) * ds);
@@ -154,7 +155,7 @@ public class TransLineElm extends CircuitElm {
 
         curCount1 = updateDotCount(-current1, curCount1);
         curCount2 = updateDotCount(current2, curCount2);
-        if (simUi.circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, posts[0], inner[0], curCount1);
             drawDots(g, posts[2], inner[2], -curCount1);
             drawDots(g, posts[1], inner[1], -curCount2);
@@ -180,6 +181,7 @@ public class TransLineElm extends CircuitElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
 		simulator.stampVoltageSource(nodes[4], nodes[0], voltSource1);
 		simulator.stampVoltageSource(nodes[5], nodes[1], voltSource2);
 		simulator.stampResistor(nodes[2], nodes[4], imped);
@@ -189,7 +191,7 @@ public class TransLineElm extends CircuitElm {
     public void startIteration() {
         // calculate voltages, currents sent over wire
         if (voltageL == null) {
-            simulator.stop("Transmission line delay too large!", this);
+            simulator().stop("Transmission line delay too large!", this);
             return;
         }
         voltageL[ptr] = volts[2] - volts[0] + volts[2] - volts[4];
@@ -202,22 +204,23 @@ public class TransLineElm extends CircuitElm {
 
     public void doStep() {
         if (voltageL == null) {
-            simulator.stop("Transmission line delay too large!", this);
+            simulator().stop("Transmission line delay too large!", this);
             return;
         }
         int nextPtr = (ptr + 1) % lenSteps;
-		simulator.updateVoltageSource(nodes[4], nodes[0], voltSource1, -voltageR[nextPtr]);
+        CircuitSimulator simulator = simulator();
+        simulator.updateVoltageSource(nodes[4], nodes[0], voltSource1, -voltageR[nextPtr]);
 		simulator.updateVoltageSource(nodes[5], nodes[1], voltSource2, -voltageL[nextPtr]);
         if (Math.abs(volts[0]) > 1e-5 || Math.abs(volts[1]) > 1e-5) {
-            simulator.stop("Need to ground transmission line!", this);
+            simulator().stop("Need to ground transmission line!", this);
             return;
         }
     }
 
     public void stepFinished() {
-        if (simulator.timeStepCount == lastStepCount)
+        if (simulator().timeStepCount == lastStepCount)
             return;
-        lastStepCount = simulator.timeStepCount;
+        lastStepCount = simulator().timeStepCount;
         ptr = (ptr + 1) % lenSteps;
     }
 

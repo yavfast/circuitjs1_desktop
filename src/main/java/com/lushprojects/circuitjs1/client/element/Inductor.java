@@ -20,19 +20,20 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 
 public class Inductor {
     public static final int FLAG_BACK_EULER = 2;
     int[] nodes;
     int flags;
-    CirSim sim;
+    CircuitSimulator simulator;
 
     double inductance;
     double compResistance, current;
     double curSourceValue;
 
     public Inductor(CirSim s) {
-        sim = s;
+        simulator = s.simulator();
         nodes = new int[2];
     }
 
@@ -66,12 +67,12 @@ public class Inductor {
         nodes[0] = n0;
         nodes[1] = n1;
         if (isTrapezoidal())
-            compResistance = 2 * inductance / sim.simulator.timeStep;
+            compResistance = 2 * inductance / simulator.timeStep;
         else // backward euler
-            compResistance = inductance / sim.simulator.timeStep;
-        sim.simulator.stampResistor(nodes[0], nodes[1], compResistance);
-        sim.simulator.stampRightSide(nodes[0]);
-        sim.simulator.stampRightSide(nodes[1]);
+            compResistance = inductance / simulator.timeStep;
+        simulator.stampResistor(nodes[0], nodes[1], compResistance);
+        simulator.stampRightSide(nodes[0]);
+        simulator.stampRightSide(nodes[1]);
     }
 
     public boolean nonLinear() {
@@ -95,6 +96,6 @@ public class Inductor {
     }
 
     public void doStep(double voltdiff) {
-        sim.simulator.stampCurrentSource(nodes[0], nodes[1], curSourceValue);
+        simulator.stampCurrentSource(nodes[0], nodes[1], curSourceValue);
     }
 }

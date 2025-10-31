@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -132,7 +133,7 @@ public class LampElm extends CircuitElm {
         setVoltageColor(g, (v1 + v2) * .5);
         drawThickLine(g, filament[0], filament[1]);
         updateDotCount();
-        if (circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, lead1, curcount);
             double cc = addCurCount(curcount, (dn - 16) / 2);
             drawDots(g, lead1, filament[0], cc);
@@ -154,8 +155,9 @@ public class LampElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     public boolean nonLinear() {
@@ -174,14 +176,15 @@ public class LampElm extends CircuitElm {
         double capw = cap * warmTime / .4;
         double capc = cap * coolTime / .4;
         //System.out.println(nom_r + " " + (resistance/nom_r));
-        temp += getPower() * simulator.timeStep / capw;
+        CircuitSimulator simulator = simulator();
+        temp += getPower() * simulator().timeStep / capw;
         double cr = 2600 / nom_pow;
-        temp -= simulator.timeStep * (temp - roomTemp) / (capc * cr);
+        temp -= simulator().timeStep * (temp - roomTemp) / (capc * cr);
 //	    sim.console("lampsi " + temp + " " + capc + " " + nom_pow);
     }
 
     public void doStep() {
-        simulator.stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void getInfo(String arr[]) {

@@ -1,7 +1,5 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.storage.client.Storage;
-
 import java.util.Vector;
 
 public class UndoManager extends BaseCirSimDelegate {
@@ -66,7 +64,7 @@ public class UndoManager extends BaseCirSimDelegate {
     }
 
     void loadUndoItem(UndoItem ui) {
-        cirSim.circuitLoader.readCircuit(ui.dump, CircuitConst.RC_NO_CENTER);
+        getActiveDocument().circuitLoader.readCircuit(ui.dump, CircuitConst.RC_NO_CENTER);
         CircuitRenderer renderer = renderer();
         renderer.transform[0] = renderer.transform[3] = ui.scale;
         renderer.transform[4] = ui.transform4;

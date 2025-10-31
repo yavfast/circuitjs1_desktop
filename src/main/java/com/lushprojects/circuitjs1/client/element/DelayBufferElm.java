@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -103,20 +104,21 @@ public class DelayBufferElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, nodes[1], voltSource);
     }
 
     double delayEndTime;
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         boolean inState = volts[0] > threshold;
         boolean outState = volts[1] > threshold;
         if (inState != outState) {
-            if (simulator.t >= delayEndTime)
+            if (simulator().t >= delayEndTime)
                 outState = inState;
         } else
-            delayEndTime = simulator.t + delay;
-        simulator.updateVoltageSource(0, nodes[1], voltSource, outState ? highVoltage : 0);
+            delayEndTime = simulator().t + delay;
+        simulator().updateVoltageSource(0, nodes[1], voltSource, outState ? highVoltage : 0);
     }
 
     double getVoltageDiff() {

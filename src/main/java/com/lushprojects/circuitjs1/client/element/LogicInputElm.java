@@ -107,7 +107,7 @@ public class LogicInputElm extends SwitchElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, nodes[0], voltSource);
     }
 
     public boolean isWireEquivalent() {
@@ -122,7 +122,7 @@ public class LogicInputElm extends SwitchElm {
         double v = (position == 0) ? loV : hiV;
         if (isTernary())
             v = loV + position * (hiV - loV) * .5;
-        simulator.updateVoltageSource(0, nodes[0], voltSource, v);
+        simulator().updateVoltageSource(0, nodes[0], voltSource, v);
     }
 
     public int getVoltageSourceCount() {

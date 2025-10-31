@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -123,7 +124,7 @@ public class TriodeElm extends CircuitElm {
         curcountp = updateDotCount(currentp, curcountp);
         curcountc = updateDotCount(currentc, curcountc);
         curcountg = updateDotCount(currentg, curcountg);
-        if (circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, plate[0], midgrid, curcountp);
             drawDots(g, midgrid, midcath, curcountc);
             drawDots(g, midcath, cath[1], addCurCount(curcountc, 8));
@@ -178,6 +179,7 @@ public class TriodeElm extends CircuitElm {
             vs[2] = lastv2 - .5;
         double vgk = vs[gridN] - vs[cathN];
         double vpk = vs[plateN] - vs[cathN];
+        CircuitSimulator simulator = simulator();
         if (Math.abs(lastv0 - vs[0]) > .01 ||
                 Math.abs(lastv1 - vs[1]) > .01 ||
                 Math.abs(lastv2 - vs[2]) > .01)
@@ -224,7 +226,8 @@ public class TriodeElm extends CircuitElm {
     }
 
     public void stamp() {
-		simulator.stampNonLinear(nodes[0]);
+        CircuitSimulator simulator = simulator();
+        simulator.stampNonLinear(nodes[0]);
 		simulator.stampNonLinear(nodes[1]);
 		simulator.stampNonLinear(nodes[2]);
     }

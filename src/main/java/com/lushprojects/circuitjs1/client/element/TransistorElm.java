@@ -163,7 +163,7 @@ public class TransistorElm extends CircuitElm {
         setPowerColor(g, true);
         g.fillPolygon(rectPoly);
 
-        if ((needsHighlight() || circuitEditor.dragElm == this) && dy == 0) {
+        if ((needsHighlight() || circuitEditor().dragElm == this) && dy == 0) {
             g.setColor(backgroundColor);
 // IES
 //		g.setFont(unitsFont);
@@ -247,16 +247,16 @@ public class TransistorElm extends CircuitElm {
             } else {
                 vnew = vt * Math.log(vnew / vt);
             }
-            simulator.converged = false;
+            simulator().converged = false;
             //System.out.println(vnew + " " + oo + " " + vold);
         }
         return (vnew);
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
-        simulator.stampNonLinear(nodes[2]);
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(nodes[2]);
     }
 
     public void doStep() {
@@ -264,7 +264,7 @@ public class TransistorElm extends CircuitElm {
         double vbe = pnp * (volts[0] - volts[2]); // typically positive
         if (!CircuitMath.isConverged(vbc, lastvbc) || !CircuitMath.isConverged(vbe, lastvbe)) {
             System.out.println("Convergence failed: vbc=" + vbc + ", lastvbc=" + lastvbc + ", vbe=" + vbe + ", lastvbe=" + lastvbe);
-            simulator.converged = false;
+            simulator().converged = false;
         }
 
         // To prevent a possible singular matrix, put a tiny conductance in parallel
@@ -272,10 +272,10 @@ public class TransistorElm extends CircuitElm {
 //	    gmin = leakage * 0.01;
         gmin = 1e-12;
 
-        if (simulator.subIterations > 100 && badIters < 5) {
+        if (simulator().subIterations > 100 && badIters < 5) {
             // if we have trouble converging, put a conductance in parallel with all P-N junctions.
             // Gradually increase the conductance value for each iteration.
-            gmin = Math.exp(-9 * Math.log(10) * (1 - simulator.subIterations / 300.));
+            gmin = Math.exp(-9 * Math.log(10) * (1 - simulator().subIterations / 300.));
             if (gmin > .1)
                 gmin = .1;
         }
@@ -390,26 +390,26 @@ public class TransistorElm extends CircuitElm {
         double ceqbc = pnp * (-cc + vbe * (gm + go) - vbc * (gmu + go));
 
         if (Double.isInfinite(ib) || Double.isNaN(ic))
-            simulator.stop("infinite transistor current", this);
+            simulator().stop("infinite transistor current", this);
 
         // stamp matrix.
         // Node 0 is the base, node 1 the collector, node 2 the emitter.
-        simulator.stampMatrix(nodes[1], nodes[1], gmu + go);
-        simulator.stampMatrix(nodes[1], nodes[0], -gmu + gm);
-        simulator.stampMatrix(nodes[1], nodes[2], -gm - go);
-        simulator.stampMatrix(nodes[0], nodes[0], gpi + gmu);
-        simulator.stampMatrix(nodes[0], nodes[2], -gpi);
-        simulator.stampMatrix(nodes[0], nodes[1], -gmu);
-        simulator.stampMatrix(nodes[2], nodes[0], -gpi - gm);
-        simulator.stampMatrix(nodes[2], nodes[1], -go);
-        simulator.stampMatrix(nodes[2], nodes[2], gpi + gm + go);
+        simulator().stampMatrix(nodes[1], nodes[1], gmu + go);
+        simulator().stampMatrix(nodes[1], nodes[0], -gmu + gm);
+        simulator().stampMatrix(nodes[1], nodes[2], -gm - go);
+        simulator().stampMatrix(nodes[0], nodes[0], gpi + gmu);
+        simulator().stampMatrix(nodes[0], nodes[2], -gpi);
+        simulator().stampMatrix(nodes[0], nodes[1], -gmu);
+        simulator().stampMatrix(nodes[2], nodes[0], -gpi - gm);
+        simulator().stampMatrix(nodes[2], nodes[1], -go);
+        simulator().stampMatrix(nodes[2], nodes[2], gpi + gm + go);
 
         /*
          *  load current excitation vector (right side)
          */
-        simulator.stampRightSide(nodes[0], -ceqbe - ceqbc);
-        simulator.stampRightSide(nodes[1], ceqbc);
-        simulator.stampRightSide(nodes[2], ceqbe);
+        simulator().stampRightSide(nodes[0], -ceqbe - ceqbc);
+        simulator().stampRightSide(nodes[1], ceqbc);
+        simulator().stampRightSide(nodes[2], ceqbe);
 
     }
 
@@ -590,11 +590,11 @@ public class TransistorElm extends CircuitElm {
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
         if (Math.abs(ic) > 1e12 || Math.abs(ib) > 1e12)
-            simulator.stop("max current exceeded", this);
+            simulator().stop("max current exceeded", this);
 
         // if we needed to add a conductance to all junctions, this was a bad iteration.
         // If we have 5 of those in a row, give up
-        if (simulator.subIterations > 100)
+        if (simulator().subIterations > 100)
             badIters++;
         else
             badIters = 0;

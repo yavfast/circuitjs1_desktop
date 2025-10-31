@@ -66,10 +66,10 @@ public class WattmeterElm extends CircuitElm {
     }
 
     public void drag(int xx, int yy) {
-        xx = simUi.circuitEditor.snapGrid(xx);
-        yy = simUi.circuitEditor.snapGrid(yy);
-        int w1 = max(simUi.circuitEditor.gridSize, abs(yy - y));
-        int w2 = max(simUi.circuitEditor.gridSize, abs(xx - x));
+        xx = circuitEditor().snapGrid(xx);
+        yy = circuitEditor().snapGrid(yy);
+        int w1 = max(circuitEditor().gridSize, abs(yy - y));
+        int w2 = max(circuitEditor().gridSize, abs(xx - x));
         if (w1 > w2) {
             xx = x;
             width = w2;
@@ -95,7 +95,7 @@ public class WattmeterElm extends CircuitElm {
         Point p4 = interpPoint(point1, point2, 1, -width * ds);
 
         // get stubs
-        int sep = simUi.circuitEditor.gridSize;
+        int sep = circuitEditor().gridSize;
         Point p5 = interpPoint(point1, point2, sep / dn);
         Point p6 = interpPoint(point1, point2, 1 - sep / dn);
         Point p7 = interpPoint(p3, p4, sep / dn);
@@ -129,8 +129,8 @@ public class WattmeterElm extends CircuitElm {
 
     public void stamp() {
         // zero-valued voltage sources from 0 to 1 and 2 to 3, so we can measure current
-        simulator.stampVoltageSource(nodes[0], nodes[1], voltSources[0], 0);
-        simulator.stampVoltageSource(nodes[2], nodes[3], voltSources[1], 0);
+        simulator().stampVoltageSource(nodes[0], nodes[1], voltSources[0], 0);
+        simulator().stampVoltageSource(nodes[2], nodes[3], voltSources[1], 0);
     }
 
     public void setVoltageSource(int j, int vs) {

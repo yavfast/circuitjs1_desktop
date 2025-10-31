@@ -38,8 +38,8 @@ public class LoadFile extends FileUpload implements ChangeHandler {
     }
 
     public void doLoad(String s, String t) {
-        sim.circuitEditor.pushUndo();
-        sim.circuitLoader.readCircuit(s);
+        sim.activeDocument.circuitEditor.pushUndo();
+        sim.activeDocument.circuitLoader.readCircuit(s);
         sim.createNewLoadFile();
         sim.setCircuitTitle(t);
         sim.setLastFileName(t);

@@ -1,5 +1,6 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -120,19 +121,20 @@ public class DCMotorElm extends CircuitElm {
         //Electrical part:
         // inductor from motor nodes[0] to internal nodes[2]
         ind.stamp(nodes[0], nodes[2]);
+        CircuitSimulator simulator = simulator();
         // resistor from internal nodes[2] to internal nodes[3] // motor post 2
-        simulator.stampResistor(nodes[2], nodes[3], resistance);
+        simulator().stampResistor(nodes[2], nodes[3], resistance);
         // Back emf voltage source from internal nodes[3] to external nodes [1]
-        simulator.stampVoltageSource(nodes[3], nodes[1], voltSources[0]); //
+        simulator().stampVoltageSource(nodes[3], nodes[1], voltSources[0]); //
 
         //Mechanical part:
         // inertia inductor from internal nodes[4] to internal nodes[5]
         indInertia.stamp(nodes[4], nodes[5]);
         // resistor from  internal nodes[5] to  ground
-        simulator.stampResistor(nodes[5], 0, b);
+        simulator().stampResistor(nodes[5], 0, b);
         // Voltage Source from  internal nodes[4] to ground
         //System.out.println("doing stamp voltage");
-        simulator.stampVoltageSource(nodes[4], 0, voltSources[1]);
+        simulator().stampVoltageSource(nodes[4], 0, voltSources[1]);
         //System.out.println("doing stamp voltage "+voltSource);
     }
 
@@ -140,7 +142,7 @@ public class DCMotorElm extends CircuitElm {
         ind.startIteration(volts[0] - volts[2]);
         indInertia.startIteration(volts[4] - volts[5]);
         // update angle:
-        angle = angle + speed * simulator.timeStep;
+        angle = angle + speed * simulator().timeStep;
     }
 
     /*  boolean hasGroundConnection(int n1) {
@@ -156,9 +158,10 @@ public class DCMotorElm extends CircuitElm {
      */
 
     public void doStep() {
-        simulator.updateVoltageSource(nodes[4], 0, voltSources[1],
+        CircuitSimulator simulator = simulator();
+        simulator().updateVoltageSource(nodes[4], 0, voltSources[1],
                 coilCurrent * K);
-        simulator.updateVoltageSource(nodes[3], nodes[1], voltSources[0],
+        simulator().updateVoltageSource(nodes[3], nodes[1], voltSources[0],
                 inertiaCurrent * Kb);
         ind.doStep(volts[0] - volts[2]);
         indInertia.doStep(volts[4] - volts[5]);

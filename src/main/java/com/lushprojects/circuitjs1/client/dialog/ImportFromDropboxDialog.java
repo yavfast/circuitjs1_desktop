@@ -10,7 +10,6 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
-import com.lushprojects.circuitjs1.client.dialog.Dialog;
 import com.lushprojects.circuitjs1.client.ImportFromDropbox;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -33,8 +32,8 @@ public class ImportFromDropboxDialog extends Dialog {
     }
 
     static public void doLoadCallback(String s) {
-        sim.circuitEditor.pushUndo();
-        sim.circuitLoader.readCircuit(s);
+        sim.activeDocument.circuitEditor.pushUndo();
+        sim.activeDocument.circuitLoader.readCircuit(s);
         sim.allowSave(false);
     }
 

@@ -75,7 +75,7 @@ public class ScopePlot {
                 maxValues[i1] = oldMax[i2];
             }
         } else
-            lastUpdateTime = CirSim.theSim.simulator.t;
+            lastUpdateTime = CirSim.theSim.simulator().t;
         ptr = 0;
     }
 
@@ -95,10 +95,10 @@ public class ScopePlot {
             minValues[ptr] = v;
         if (v > maxValues[ptr])
             maxValues[ptr] = v;
-        if (CirSim.theSim.simulator.t - lastUpdateTime >= CirSim.theSim.simulator.maxTimeStep * scopePlotSpeed) {
+        if (CirSim.theSim.simulator().t - lastUpdateTime >= CirSim.theSim.simulator().maxTimeStep * scopePlotSpeed) {
             ptr = (ptr + 1) & (scopePointCount - 1);
             minValues[ptr] = maxValues[ptr] = v;
-            lastUpdateTime += CirSim.theSim.simulator.maxTimeStep * scopePlotSpeed;
+            lastUpdateTime += CirSim.theSim.simulator().maxTimeStep * scopePlotSpeed;
         }
     }
 

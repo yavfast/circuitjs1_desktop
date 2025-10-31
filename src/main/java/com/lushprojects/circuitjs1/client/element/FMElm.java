@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 // contributed by Edward Calver
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -74,17 +75,18 @@ public class FMElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, nodes[0], voltSource);
     }
 
     public void doStep() {
-        simulator.updateVoltageSource(0, nodes[0], voltSource, getVoltage());
+        simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
     }
 
     double getVoltage() {
-        double deltaT = simulator.t - lasttime;
-        lasttime = simulator.t;
-        double signalamplitude = Math.sin((2 * pi * (simulator.t - freqTimeZero)) * signalfreq);
+        CircuitSimulator simulator = simulator();
+        double deltaT = simulator().t - lasttime;
+        lasttime = simulator().t;
+        double signalamplitude = Math.sin((2 * pi * (simulator().t - freqTimeZero)) * signalfreq);
         funcx += deltaT * (carrierfreq + (signalamplitude * deviation));
         double w = 2 * pi * funcx;
         return Math.sin(w) * maxVoltage;
@@ -107,7 +109,7 @@ public class FMElm extends CircuitElm {
         drawWaveform(g, point2);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
-        if (circuitEditor.dragElm != this)
+        if (circuitEditor().dragElm != this)
             drawDots(g, point1, lead1, curcount);
     }
 

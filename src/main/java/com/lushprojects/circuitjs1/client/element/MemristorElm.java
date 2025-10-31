@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Scope;
@@ -118,7 +119,7 @@ public class MemristorElm extends CircuitElm {
 
     public void startIteration() {
         double wd = dopeWidth / totalWidth;
-        dopeWidth += simulator.timeStep * mobility * r_on * current / totalWidth;
+        dopeWidth += simulator().timeStep * mobility * r_on * current / totalWidth;
         if (dopeWidth < 0)
             dopeWidth = 0;
         if (dopeWidth > totalWidth)
@@ -127,12 +128,13 @@ public class MemristorElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
     }
 
     public void doStep() {
-        simulator.stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void getInfo(String arr[]) {

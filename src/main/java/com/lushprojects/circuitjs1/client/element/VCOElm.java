@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
@@ -56,6 +57,7 @@ public class VCOElm extends ChipElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         // output pin
 		simulator.stampVoltageSource(0, nodes[1], pins[1].voltSource);
         // attach Vi to R1 pin so its current is proportional to Vi
@@ -87,13 +89,14 @@ public class VCOElm extends ChipElm {
             dir = 1;
         }
 
+        CircuitSimulator simulator = simulator();
         // generate output voltage
 		simulator.updateVoltageSource(0, nodes[1], pins[1].voltSource, vo);
         // now we set the current through the cap to be equal to the
         // current through R1 and R2, so we can measure the voltage
         // across the cap
-        int cur1 = simulator.nodeList.size() + pins[4].voltSource;
-        int cur2 = simulator.nodeList.size() + pins[5].voltSource;
+        int cur1 = simulator().nodeList.size() + pins[4].voltSource;
+        int cur2 = simulator().nodeList.size() + pins[5].voltSource;
 		simulator.stampMatrix(nodes[2], cur1, dir);
 		simulator.stampMatrix(nodes[2], cur2, dir);
 		simulator.stampMatrix(nodes[3], cur1, -dir);

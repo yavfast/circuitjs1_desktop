@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.DiodeModel;
@@ -140,10 +141,10 @@ public class LEDArrayElm extends ChipElm {
 
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
-        int i;
-        for (i = 0; i != currents.length; i++)
+        CircuitSimulator simulator = simulator();
+        for (int i = 0; i != currents.length; i++)
             if (Math.abs(currents[i]) > 1e12)
-                simulator.stop("max current exceeded", this);
+                simulator().stop("max current exceeded", this);
     }
 
     void setColor(Graphics g, int p) {

@@ -110,7 +110,7 @@ public class GroundElm extends CircuitElm {
 
     public void stamp() {
         if (isOldStyle())
-            simulator.stampVoltageSource(0, nodes[0], voltSource, 0);
+            simulator().stampVoltageSource(0, nodes[0], voltSource, 0);
     }
 
     public void setCurrent(int x, double c) {

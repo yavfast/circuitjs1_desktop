@@ -104,7 +104,7 @@ public class LogicOutputElm extends CircuitElm {
 
     public void stamp() {
         if (needsPullDown())
-            simulator.stampResistor(nodes[0], 0, 1e6);
+            simulator().stampResistor(nodes[0], 0, 1e6);
     }
 
     double getVoltageDiff() {

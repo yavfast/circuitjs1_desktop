@@ -180,7 +180,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     public void stamp() {
         temperature = temprFromSliderPos(); //e.g. 190 - 40 for range -40 to +150
         resistance = calcResistance(temperature);
-        simulator.stampResistor(nodes[0], nodes[1], resistance); //show temperature as well??
+        simulator().stampResistor(nodes[0], nodes[1], resistance); //show temperature as well??
     }
 
     public void getInfo(String arr[]) {

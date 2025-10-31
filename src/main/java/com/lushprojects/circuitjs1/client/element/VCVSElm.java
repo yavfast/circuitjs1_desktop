@@ -52,9 +52,9 @@ public class VCVSElm extends VCCSElm {
     }
 
     public void stamp() {
-        int vn = pins[inputCount].voltSource + simUi.simulator.nodeList.size();
-        simUi.simulator.stampNonLinear(vn);
-        simUi.simulator.stampVoltageSource(nodes[inputCount + 1], nodes[inputCount], pins[inputCount].voltSource);
+        int vn = pins[inputCount].voltSource + simulator().nodeList.size();
+        simulator().stampNonLinear(vn);
+        simulator().stampVoltageSource(nodes[inputCount + 1], nodes[inputCount], pins[inputCount].voltSource);
     }
 
     public void doStep() {
@@ -63,19 +63,19 @@ public class VCVSElm extends VCCSElm {
         double convergeLimit = getConvergeLimit();
         for (i = 0; i != inputCount; i++) {
             if (Math.abs(volts[i] - lastVolts[i]) > convergeLimit)
-                simUi.simulator.converged = false;
+                simulator().converged = false;
 //        	if (Double.isNaN(volts[i]))
 //        	    volts[i] = 0;
         }
-        int vn = pins[inputCount].voltSource + simUi.simulator.nodeList.size();
+        int vn = pins[inputCount].voltSource + simulator().nodeList.size();
         if (expr != null) {
             // calculate output
             for (i = 0; i != inputCount; i++)
                 exprState.values[i] = volts[i];
-            exprState.t = simulator.t;
+            exprState.t = simulator().t;
             double v0 = expr.eval(exprState);
-            if (Math.abs(volts[inputCount] - volts[inputCount + 1] - v0) > Math.abs(v0) * .01 && simUi.simulator.subIterations < 100)
-                simUi.simulator.converged = false;
+            if (Math.abs(volts[inputCount] - volts[inputCount + 1] - v0) > Math.abs(v0) * .01 && simulator().subIterations < 100)
+                simulator().converged = false;
             double rs = v0;
 
             // calculate and stamp output derivatives
@@ -92,12 +92,12 @@ public class VCVSElm extends VCCSElm {
                     dx = sign(dx, 1e-6);
 //        	    if (sim.subIterations > 1)
 //        		sim.console("ccedx " + i + " " + dx + " v " + v + " v2 " + v2 + " dv " + dv + " lv " + lastVolts[i] + " " + volts[i] + " " + sim.subIterations + " " + sim.t);
-                simUi.simulator.stampMatrix(vn, nodes[i], -dx);
+                simulator().stampMatrix(vn, nodes[i], -dx);
                 // adjust right side
                 rs -= dx * volts[i];
                 exprState.values[i] = volts[i];
             }
-            simUi.simulator.stampRightSide(vn, rs);
+            simulator().stampRightSide(vn, rs);
         }
 
         for (i = 0; i != inputCount; i++)

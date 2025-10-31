@@ -87,9 +87,9 @@ public class StopTriggerElm extends CircuitElm {
         stopped = false;
         if (!triggered && ((type == 0 && volts[0] >= triggerVoltage) || (type == 1 && volts[0] <= triggerVoltage))) {
             triggered = true;
-            triggerTime = simulator.t;
+            triggerTime = simulator().t;
         }
-        if (triggered && simulator.t >= triggerTime + delay) {
+        if (triggered && simulator().t >= triggerTime + delay) {
             triggered = false;
             stopped = true;
             simUi.setSimRunning(false);
@@ -104,7 +104,7 @@ public class StopTriggerElm extends CircuitElm {
         arr[0] = "stop trigger";
         arr[1] = "V = " + getVoltageText(volts[0]);
         arr[2] = "Vtrigger = " + getVoltageText(triggerVoltage);
-        arr[3] = (triggered) ? ("stopping in " + getUnitText(triggerTime + delay - simulator.t, "s")) : (stopped) ? "stopped" : "waiting";
+        arr[3] = (triggered) ? ("stopping in " + getUnitText(triggerTime + delay - simulator().t, "s")) : (stopped) ? "stopped" : "waiting";
     }
 
     public EditInfo getEditInfo(int n) {

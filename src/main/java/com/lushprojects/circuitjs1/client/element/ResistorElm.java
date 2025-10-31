@@ -110,7 +110,7 @@ public class ResistorElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(nodes[0], nodes[1], resistance);
     }
 
     public void getInfo(String arr[]) {

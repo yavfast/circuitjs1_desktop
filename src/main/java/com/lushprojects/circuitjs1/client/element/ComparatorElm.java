@@ -68,7 +68,7 @@ public class ComparatorElm extends CompositeElm {
 
     public void setPoints() {
         super.setPoints();
-        if (dn > 150 && this == circuitEditor.dragElm)
+        if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
         int ww = opwidth;
         if (ww > dn / 2)

@@ -26,7 +26,7 @@ public class ClipboardManager {
      * Copy selected elements to clipboard
      */
     public void doCopy() {
-        String circuitData = cirSim.circuitEditor.copyOfSelectedElms();
+        String circuitData = cirSim.activeDocument.circuitEditor.copyOfSelectedElms();
         setClipboard(circuitData);
     }
 
@@ -34,7 +34,7 @@ public class ClipboardManager {
      * Cut selected elements to clipboard
      */
     public void doCut() {
-        String circuitData = cirSim.circuitEditor.copyOfSelectedElms();
+        String circuitData = cirSim.activeDocument.circuitEditor.copyOfSelectedElms();
         setClipboard(circuitData);
     }
 
@@ -85,7 +85,7 @@ public class ClipboardManager {
      */
     public void doPasteFromSystem() {
         if (!internalClipboard.isEmpty()) {
-            cirSim.circuitEditor.doPaste(internalClipboard);
+            cirSim.activeDocument.circuitEditor.doPaste(internalClipboard);
             return;
         }
 
@@ -96,7 +96,7 @@ public class ClipboardManager {
                 public void onSuccess(String data) {
                     if (data != null && !data.isEmpty() && isCircuitData(data)) {
                         internalClipboard = data;
-                        cirSim.circuitEditor.doPaste(data);
+                        cirSim.activeDocument.circuitEditor.doPaste(data);
                     }
                 }
 

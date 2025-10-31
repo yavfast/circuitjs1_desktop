@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
@@ -77,15 +78,15 @@ public class MonostableElm extends ChipElm {
     }
 
     void execute() {
-
+        CircuitSimulator simulator = simulator();
         if (pins[0].value && prevInputValue != pins[0].value && (retriggerable || !triggered)) {
-            lastRisingEdge = simulator.t;
+            lastRisingEdge = simulator().t;
             pins[1].value = true;
             pins[2].value = false;
             triggered = true;
         }
 
-        if (triggered && simulator.t > lastRisingEdge + delay) {
+        if (triggered && simulator().t > lastRisingEdge + delay) {
             pins[1].value = false;
             pins[2].value = true;
             triggered = false;

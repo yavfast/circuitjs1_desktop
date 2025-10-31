@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -129,16 +130,18 @@ public class DiacElm extends CircuitElm {
     }
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         double r = (state) ? onresistance : offresistance;
-        simulator.stampResistor(nodes[0], nodes[2], r);
-        simulator.stampResistor(nodes[0], nodes[3], r);
+        simulator().stampResistor(nodes[0], nodes[2], r);
+        simulator().stampResistor(nodes[0], nodes[3], r);
         diode1.doStep(volts[2] - volts[1]);
         diode2.doStep(volts[1] - volts[3]);
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[0]);
+        simulator().stampNonLinear(nodes[1]);
         diode1.stamp(nodes[2], nodes[1]);
         diode2.stamp(nodes[1], nodes[3]);
     }

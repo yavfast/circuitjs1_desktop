@@ -94,11 +94,11 @@ public class CurrentElm extends CircuitElm {
     public void stamp() {
         if (broken) {
             // no current path; stamping a current source would cause a matrix error.
-            simulator.stampResistor(nodes[0], nodes[1], 1e8);
+            simulator().stampResistor(nodes[0], nodes[1], 1e8);
             current = 0;
         } else {
             // ok to stamp a current source
-            simulator.stampCurrentSource(nodes[0], nodes[1], currentValue);
+            simulator().stampCurrentSource(nodes[0], nodes[1], currentValue);
             current = currentValue;
         }
     }

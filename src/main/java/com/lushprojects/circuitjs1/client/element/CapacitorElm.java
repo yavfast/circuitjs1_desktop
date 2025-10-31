@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -123,7 +124,7 @@ public class CapacitorElm extends CircuitElm {
         }
 
         updateDotCount();
-        if (circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, lead1, curcount);
             drawDots(g, point2, lead2, -curcount);
         }
@@ -137,9 +138,10 @@ public class CapacitorElm extends CircuitElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         if (simUi.circuitInfo.dcAnalysisFlag) {
             // when finding DC operating point, replace cap with a 100M resistor
-            simulator.stampResistor(nodes[0], nodes[1], 1e8);
+            simulator().stampResistor(nodes[0], nodes[1], 1e8);
             curSourceValue = 0;
             capNode2 = 1;
             return;
@@ -157,15 +159,15 @@ public class CapacitorElm extends CircuitElm {
         // than backward euler but can cause oscillatory behavior
         // if RC is small relative to the timestep.
         if (isTrapezoidal()) {
-            compResistance = simulator.timeStep / (2 * capacitance);
+            compResistance = simulator().timeStep / (2 * capacitance);
         } else {
-            compResistance = simulator.timeStep / capacitance;
+            compResistance = simulator().timeStep / capacitance;
         }
-        simulator.stampResistor(nodes[0], nodes[capNode2], compResistance);
-        simulator.stampRightSide(nodes[0]);
-        simulator.stampRightSide(nodes[capNode2]);
+        simulator().stampResistor(nodes[0], nodes[capNode2], compResistance);
+        simulator().stampRightSide(nodes[0]);
+        simulator().stampRightSide(nodes[capNode2]);
         if (seriesResistance > 0) {
-            simulator.stampResistor(nodes[1], nodes[2], seriesResistance);
+            simulator().stampResistor(nodes[1], nodes[2], seriesResistance);
         }
     }
 
@@ -208,7 +210,7 @@ public class CapacitorElm extends CircuitElm {
         if (simUi.circuitInfo.dcAnalysisFlag) {
             return;
         }
-        simulator.stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
+        simulator().stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
     }
 
     public int getInternalNodeCount() {

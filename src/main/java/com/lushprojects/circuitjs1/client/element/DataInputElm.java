@@ -119,7 +119,7 @@ public class DataInputElm extends RailElm {
     }
 
     public void stepFinished() {
-        timeOffset += simulator.timeStep;
+        timeOffset += simulator().timeStep;
     }
 
     int getDumpType() {

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
@@ -69,7 +70,7 @@ public class RailElm extends VoltageElm {
         drawRail(g);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
-        if (circuitEditor.dragElm != this)
+        if (circuitEditor().dragElm != this)
             drawDots(g, point1, lead1, curcount);
     }
 
@@ -104,15 +105,16 @@ public class RailElm extends VoltageElm {
     }
 
     public void stamp() {
+        CircuitSimulator simulator = simulator();
         if (waveform == WF_DC)
-            simulator.stampVoltageSource(0, nodes[0], voltSource, getVoltage());
+            simulator().stampVoltageSource(0, nodes[0], voltSource, getVoltage());
         else
-            simulator.stampVoltageSource(0, nodes[0], voltSource);
+            simulator().stampVoltageSource(0, nodes[0], voltSource);
     }
 
     public void doStep() {
         if (waveform != WF_DC)
-            simulator.updateVoltageSource(0, nodes[0], voltSource, getVoltage());
+            simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
     }
 
     public boolean hasGroundConnection(int n1) {

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -200,12 +201,13 @@ public class CrossSwitchElm extends SwitchElm {
 
     public void stamp() {
         int i;
+        CircuitSimulator simulator = simulator();
         if (position == 0) {
             for (i = 0; i != poleCount; i++)
-                simulator.stampVoltageSource(nodes[i * 2], nodes[i * 2 + 1], voltageSources[i], 0);
+                simulator().stampVoltageSource(nodes[i * 2], nodes[i * 2 + 1], voltageSources[i], 0);
         } else {
             for (i = 0; i != poleCount; i++)
-                simulator.stampVoltageSource(nodes[i * 2], nodes[3 - i * 2], voltageSources[i], 0);
+                simulator().stampVoltageSource(nodes[i * 2], nodes[3 - i * 2], voltageSources[i], 0);
         }
     }
 

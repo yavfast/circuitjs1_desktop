@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.canvas.dom.client.Context2d;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -211,8 +212,9 @@ public class RelayContactElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[nSwitch0]);
-        simulator.stampNonLinear(nodes[nSwitch1]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[nSwitch0]);
+        simulator().stampNonLinear(nodes[nSwitch1]);
     }
 
     // we need this to be able to change the matrix for each step
@@ -221,7 +223,7 @@ public class RelayContactElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator.stampResistor(nodes[nSwitch0], nodes[nSwitch1], i_position == 0 ? r_on : r_off);
+        simulator().stampResistor(nodes[nSwitch0], nodes[nSwitch1], i_position == 0 ? r_on : r_off);
     }
 
     void calculateCurrent() {

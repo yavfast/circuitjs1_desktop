@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Checkbox;
-import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Rectangle;
@@ -178,8 +177,8 @@ public class SwitchElm extends CircuitElm {
         simpleToggle();
         if (label != null) {
             int i;
-            for (i = 0; i != simulator.elmList.size(); i++) {
-                Object o = simulator.elmList.get(i);
+            for (i = 0; i != simulator().elmList.size(); i++) {
+                Object o = simulator().elmList.get(i);
                 if (o instanceof SwitchElm && o != this) {
                     SwitchElm s2 = (SwitchElm) o;
                     if (label.equals(s2.label))

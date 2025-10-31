@@ -116,15 +116,15 @@ public class VoltageElm extends CircuitElm {
 
     public void stamp() {
         if (waveform == WF_DC)
-            simulator.stampVoltageSource(nodes[0], nodes[1], voltSource,
+            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource,
                     getVoltage());
         else
-            simulator.stampVoltageSource(nodes[0], nodes[1], voltSource);
+            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource);
     }
 
     public void doStep() {
         if (waveform != WF_DC)
-            simulator.updateVoltageSource(nodes[0], nodes[1], voltSource,
+            simulator().updateVoltageSource(nodes[0], nodes[1], voltSource,
                     getVoltage());
     }
 
@@ -137,7 +137,7 @@ public class VoltageElm extends CircuitElm {
         if (waveform != WF_DC && simUi.circuitInfo.dcAnalysisFlag)
             return bias;
 
-        double w = 2 * pi * (simulator.t - freqTimeZero) * frequency + phaseShift;
+        double w = 2 * pi * (simulator().t - freqTimeZero) * frequency + phaseShift;
         switch (waveform) {
             case WF_DC:
                 return maxVoltage + bias;
@@ -198,7 +198,7 @@ public class VoltageElm extends CircuitElm {
             g.drawString(inds, plusPoint.x - w / 2, plusPoint.y);
         }
         updateDotCount();
-        if (circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             if (waveform == WF_DC)
                 drawDots(g, point1, point2, curcount);
             else {
@@ -383,15 +383,15 @@ public class VoltageElm extends CircuitElm {
             // even though the frequency has changed.
             double oldfreq = frequency;
             frequency = ei.value;
-            double maxfreq = 1 / (8 * simulator.maxTimeStep);
+            double maxfreq = 1 / (8 * simulator().maxTimeStep);
             if (frequency > maxfreq) {
                 if (Window.confirm(Locale.LS("Adjust timestep to allow for higher frequencies?")))
-                    simulator.maxTimeStep = 1 / (32 * frequency);
+                    simulator().maxTimeStep = 1 / (32 * frequency);
                 else
                     frequency = maxfreq;
             }
             double adj = frequency - oldfreq;
-            freqTimeZero = (frequency == 0) ? 0 : simulator.t - oldfreq * (simulator.t - freqTimeZero) / frequency;
+            freqTimeZero = (frequency == 0) ? 0 : simulator().t - oldfreq * (simulator().t - freqTimeZero) / frequency;
         }
         if (n == 1) {
             int ow = waveform;

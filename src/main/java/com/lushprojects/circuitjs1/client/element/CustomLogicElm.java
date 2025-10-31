@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.user.client.ui.Button;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -121,21 +122,22 @@ public class CustomLogicElm extends ChipElm {
     }
 
     public void stamp() {
-        int i;
+        CircuitSimulator simulator = simulator();
         int add = (hasTriState()) ? outputCount : 0;
-        for (i = 0; i != getPostCount(); i++) {
+        for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator.stampVoltageSource(0, nodes[i + add], p.voltSource);
+                simulator().stampVoltageSource(0, nodes[i + add], p.voltSource);
                 if (hasTriState()) {
-                    simulator.stampNonLinear(nodes[i + add]);
-                    simulator.stampNonLinear(nodes[i]);
+                    simulator().stampNonLinear(nodes[i + add]);
+                    simulator().stampNonLinear(nodes[i]);
                 }
             }
         }
     }
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         int i;
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
@@ -148,11 +150,11 @@ public class CustomLogicElm extends ChipElm {
             Pin p = pins[i];
             if (p.output) {
                 // connect output voltage source (to internal node if tri-state, otherwise connect directly to output)
-                simulator.updateVoltageSource(0, nodes[i + add], p.voltSource, p.value ? highVoltage : 0);
+                simulator().updateVoltageSource(0, nodes[i + add], p.voltSource, p.value ? highVoltage : 0);
 
                 // add resistor for tri-state if necessary
                 if (hasTriState())
-                    simulator.stampResistor(nodes[i + add], nodes[i], highImpedance[i] ? 1e8 : 1e-3);
+                    simulator().stampResistor(nodes[i + add], nodes[i], highImpedance[i] ? 1e8 : 1e-3);
             }
         }
     }

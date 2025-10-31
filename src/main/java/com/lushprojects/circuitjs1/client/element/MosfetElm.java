@@ -20,6 +20,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -222,7 +223,7 @@ public class MosfetElm extends CircuitElm {
         }
 
         // label pins when highlighted
-        if (needsHighlight() || circuitEditor.dragElm == this) {
+        if (needsHighlight() || circuitEditor().dragElm == this) {
             g.setColor(backgroundColor);
             g.setFont(unitsFont);
 
@@ -323,8 +324,9 @@ public class MosfetElm extends CircuitElm {
     double gm = 0;
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[1]);
-        simulator.stampNonLinear(nodes[2]);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(nodes[2]);
 
         if (hasBodyTerminal())
             bodyTerminal = 3;
@@ -355,10 +357,10 @@ public class MosfetElm extends CircuitElm {
         if (diff < .01)
             return false;
         // larger differences are fine if value is large
-        if (simUi.simulator.subIterations > 10 && diff < Math.abs(now) * .001)
+        if (simulator().subIterations > 10 && diff < Math.abs(now) * .001)
             return false;
         // if we're having trouble converging, get more lenient
-        if (simUi.simulator.subIterations > 100 && diff < .01 + (simUi.simulator.subIterations - 100) * .0001)
+        if (simulator().subIterations > 100 && diff < .01 + (simulator().subIterations - 100) * .0001)
             return false;
         return true;
     }
@@ -413,7 +415,7 @@ public class MosfetElm extends CircuitElm {
         double vgs = vs[gate] - vs[source];
         double vds = vs[drain] - vs[source];
         if (!finished && (nonConvergence(lastv1, vs[1]) || nonConvergence(lastv2, vs[2]) || nonConvergence(lastv0, vs[0])))
-            simulator.converged = false;
+            simulator().converged = false;
         lastv0 = vs[0];
         lastv1 = vs[1];
         lastv2 = vs[2];
@@ -464,16 +466,17 @@ public class MosfetElm extends CircuitElm {
             return;
 
         double rs = -pnp * ids0 + Gds * realvds + gm * realvgs;
-        simulator.stampMatrix(nodes[drain], nodes[drain], Gds);
-        simulator.stampMatrix(nodes[drain], nodes[source], -Gds - gm);
-        simulator.stampMatrix(nodes[drain], nodes[gate], gm);
+        CircuitSimulator simulator = simulator();
+        simulator().stampMatrix(nodes[drain], nodes[drain], Gds);
+        simulator().stampMatrix(nodes[drain], nodes[source], -Gds - gm);
+        simulator().stampMatrix(nodes[drain], nodes[gate], gm);
 
-        simulator.stampMatrix(nodes[source], nodes[drain], -Gds);
-        simulator.stampMatrix(nodes[source], nodes[source], Gds + gm);
-        simulator.stampMatrix(nodes[source], nodes[gate], -gm);
+        simulator().stampMatrix(nodes[source], nodes[drain], -Gds);
+        simulator().stampMatrix(nodes[source], nodes[source], Gds + gm);
+        simulator().stampMatrix(nodes[source], nodes[gate], -gm);
 
-        simulator.stampRightSide(nodes[drain], rs);
-        simulator.stampRightSide(nodes[source], -rs);
+        simulator().stampRightSide(nodes[drain], rs);
+        simulator().stampRightSide(nodes[source], -rs);
     }
 
     void getFetInfo(String arr[], String n) {

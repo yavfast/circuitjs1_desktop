@@ -26,6 +26,7 @@ package com.lushprojects.circuitjs1.client.element;
 // 3, 1 = diode
 // 2, 1 = 50 ohm resistor
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -138,17 +139,17 @@ public class SCRElm extends CircuitElm {
 
         gate = newPointArray(2);
         double leadlen = (dn - 16) / 2;
-        int gatelen = simUi.circuitEditor.gridSize;
-        gatelen += leadlen % simUi.circuitEditor.gridSize;
+        int gatelen = circuitEditor().gridSize;
+        gatelen += leadlen % circuitEditor().gridSize;
         if (leadlen < gatelen) {
             x2 = x;
             y2 = y;
             return;
         }
         interpPoint(lead2, point2, gate[0], gatelen / leadlen, gatelen * dir);
-        interpPoint(lead2, point2, gate[1], gatelen / leadlen, simUi.circuitEditor.gridSize * 2 * dir);
-        gate[1].x = simUi.circuitEditor.snapGrid(gate[1].x);
-        gate[1].y = simUi.circuitEditor.snapGrid(gate[1].y);
+        interpPoint(lead2, point2, gate[1], gatelen / leadlen, circuitEditor().gridSize * 2 * dir);
+        gate[1].x = circuitEditor().snapGrid(gate[1].x);
+        gate[1].y = circuitEditor().snapGrid(gate[1].y);
     }
 
     public void draw(Graphics g) {
@@ -177,14 +178,14 @@ public class SCRElm extends CircuitElm {
         curcount_a = updateDotCount(ia, curcount_a);
         curcount_c = updateDotCount(ic, curcount_c);
         curcount_g = updateDotCount(ig, curcount_g);
-        if (simUi.circuitEditor.dragElm != this) {
+        if (circuitEditor().dragElm != this) {
             drawDots(g, point1, lead2, curcount_a);
             drawDots(g, point2, lead2, curcount_c);
             drawDots(g, gate[1], gate[0], curcount_g);
             drawDots(g, gate[0], lead2, curcount_g + distance(gate[1], gate[0]));
         }
 
-        if ((needsHighlight() || simUi.circuitEditor.dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
+        if ((needsHighlight() || circuitEditor().dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
             g.setColor(backgroundColor);
             int ds = sign(dx);
             g.drawString("C", lead2.x + ((ds < 0) ? 5 : -15), lead2.y + 12);
@@ -223,11 +224,12 @@ public class SCRElm extends CircuitElm {
     double aresistance;
 
     public void stamp() {
-        simulator.stampNonLinear(nodes[anode]);
-        simulator.stampNonLinear(nodes[cnode]);
-        simulator.stampNonLinear(nodes[gnode]);
-        simulator.stampNonLinear(nodes[inode]);
-        simulator.stampResistor(nodes[gnode], nodes[cnode], gresistance);
+        CircuitSimulator simulator = simulator();
+        simulator().stampNonLinear(nodes[anode]);
+        simulator().stampNonLinear(nodes[cnode]);
+        simulator().stampNonLinear(nodes[gnode]);
+        simulator().stampNonLinear(nodes[inode]);
+        simulator().stampResistor(nodes[gnode], nodes[cnode], gresistance);
         diode.stamp(nodes[inode], nodes[cnode]);
     }
 
@@ -236,7 +238,7 @@ public class SCRElm extends CircuitElm {
         double vag = volts[anode] - volts[gnode]; // typically positive
         if (Math.abs(vac - lastvac) > .01 ||
                 Math.abs(vag - lastvag) > .01)
-            simulator.converged = false;
+            simulator().converged = false;
         lastvac = vac;
         lastvag = vag;
         diode.doStep(volts[inode] - volts[cnode]);
@@ -245,7 +247,7 @@ public class SCRElm extends CircuitElm {
         //System.out.println(icmult + " " + iamult);
         aresistance = (-icmult * ic + ia * iamult > 1) ? .0105 : 10e5;
         //System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " + ia + " " + aresistance + " " + volts[inode] + " " + volts[gnode] + " " + volts[anode]);
-        simulator.stampResistor(nodes[anode], nodes[inode], aresistance);
+        simulator().stampResistor(nodes[anode], nodes[inode], aresistance);
     }
 
     public void getInfo(String arr[]) {
@@ -290,7 +292,7 @@ public class SCRElm extends CircuitElm {
     // is pointed and flip won't work.  fix this
     void fixEnds() {
         Point pt = new Point();
-        interpPoint(point1, point2, pt, 1, simUi.circuitEditor.gridSize * dir);
+        interpPoint(point1, point2, pt, 1, circuitEditor().gridSize * dir);
         x2 = pt.x;
         y2 = pt.y;
     }

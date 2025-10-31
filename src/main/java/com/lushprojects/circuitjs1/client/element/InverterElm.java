@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -107,7 +108,7 @@ public class InverterElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator.stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, nodes[1], voltSource);
     }
 
     double lastOutputVoltage;
@@ -117,10 +118,11 @@ public class InverterElm extends CircuitElm {
     }
 
     public void doStep() {
+        CircuitSimulator simulator = simulator();
         double out = volts[0] > highVoltage * .5 ? 0 : highVoltage;
-        double maxStep = slewRate * simulator.timeStep * 1e9;
+        double maxStep = slewRate * simulator().timeStep * 1e9;
         out = Math.max(Math.min(lastOutputVoltage + maxStep, out), lastOutputVoltage - maxStep);
-        simulator.updateVoltageSource(0, nodes[1], voltSource, out);
+        simulator().updateVoltageSource(0, nodes[1], voltSource, out);
     }
 
     double getVoltageDiff() {

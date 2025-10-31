@@ -101,7 +101,7 @@ public class CustomCompositeElm extends CompositeElm {
         chip.x2 = x2;
         chip.y2 = y2;
         chip.flags = (flags & (ChipElm.FLAG_FLIP_X | ChipElm.FLAG_FLIP_Y | ChipElm.FLAG_FLIP_XY));
-        if (x2 - x > model.sizeX * 16 && this == circuitEditor.dragElm)
+        if (x2 - x > model.sizeX * 16 && this == circuitEditor().dragElm)
             flags &= ~FLAG_SMALL;
         chip.setSize((flags & FLAG_SMALL) != 0 ? 1 : 2);
         chip.setLabel((model.flags & CustomCompositeModel.FLAG_SHOW_LABEL) != 0 ? model.name : null);
@@ -239,7 +239,7 @@ public class CustomCompositeElm extends CompositeElm {
             return;
         }
         if (n == 2) {
-            simUi.circuitLoader.readCircuit(model.modelCircuit);
+            simUi.activeDocument.circuitLoader.readCircuit(model.modelCircuit);
             simUi.dialogManager.closeDialog();
         }
     }
