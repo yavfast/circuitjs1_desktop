@@ -85,7 +85,6 @@ public class CirSim implements NativePreviewHandler {
     public CircuitInfo circuitInfo;
     public ScopeManager scopeManager;
     public UndoManager undoManager;
-    public AdjustableManager adjustableManager;
 
     Toolbar toolbar;
 
@@ -228,10 +227,9 @@ public class CirSim implements NativePreviewHandler {
         circuitInfo = document.getCircuitInfo();
         scopeManager = document.getScopeManager();
         undoManager = document.getUndoManager();
-        adjustableManager = document.getAdjustableManager();
     }
 
-    CircuitEditor circuitEditor() {
+    public CircuitEditor circuitEditor() {
         return activeDocument.circuitEditor;
     }
 
@@ -239,7 +237,11 @@ public class CirSim implements NativePreviewHandler {
         return activeDocument.simulator;
     }
 
-//    String baseURL = "http://www.falstad.com/circuit/";
+    public CircuitDocument getActiveDocument() {
+        return activeDocument;
+    }
+
+    //    String baseURL = "http://www.falstad.com/circuit/";
 
     public void init() {
         console("Start");

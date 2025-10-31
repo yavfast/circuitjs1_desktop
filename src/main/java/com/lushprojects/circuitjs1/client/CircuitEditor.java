@@ -401,7 +401,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 element.setMouseElm(true);
             }
             mouseElm = element;
-            cirSim.adjustableManager.setMouseElm(element);
+            getActiveDocument().adjustableManager.setMouseElm(element);
 
             renderer().repaint();
         }

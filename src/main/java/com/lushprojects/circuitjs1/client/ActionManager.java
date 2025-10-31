@@ -524,7 +524,7 @@ public class ActionManager extends BaseCirSimDelegate {
                 dump.append(d).append("\n");
             }
         }
-        dump.append(cirSim.adjustableManager.dump());
+        dump.append(getActiveDocument().adjustableManager.dump());
 
         CircuitRenderer renderer = renderer();
         if (renderer.hintType != -1) {

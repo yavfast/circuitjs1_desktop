@@ -35,6 +35,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.Adjustable;
+import com.lushprojects.circuitjs1.client.AdjustableManager;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CirSim;
@@ -125,9 +126,9 @@ public class SliderDialog extends Dialog {
                         }
                     });
                     ch.add("New Slider");
-                    int j;
-                    for (j = 0; j != sim.adjustableManager.adjustables.size(); j++) {
-                        Adjustable adji = sim.adjustableManager.adjustables.get(j);
+                    AdjustableManager adjustableManager = elm.getCircuitDocument().adjustableManager;
+                    for (int j = 0; j != adjustableManager.adjustables.size(); j++) {
+                        Adjustable adji = adjustableManager.adjustables.get(j);
                         // don't share with an object sharing with someone else
                         if (adji.sharedSlider != null)
                             break;
@@ -162,7 +163,8 @@ public class SliderDialog extends Dialog {
     }
 
     Adjustable findAdjustable(int item) {
-        return sim.adjustableManager.findAdjustable(elm, item);
+        AdjustableManager adjustableManager = elm.getCircuitDocument().adjustableManager;
+        return adjustableManager.findAdjustable(elm, item);
     }
 
     void apply() {
@@ -194,6 +196,7 @@ public class SliderDialog extends Dialog {
         Object src = e.getSource();
         int i;
         boolean changed = false;
+        AdjustableManager adjustableManager = elm.getCircuitDocument().adjustableManager;
         for (i = 0; i != einfocount; i++) {
             EditInfo ei = einfos[i];
             if (ei.checkbox == src) {
@@ -202,11 +205,11 @@ public class SliderDialog extends Dialog {
                     Adjustable adj = new Adjustable(sim, elm, i);
                     adj.sliderText = ei.name.replaceAll(" \\(.*\\)$", "");
                     adj.createSlider(ei.value);
-                    sim.adjustableManager.adjustables.add(adj);
+                    adjustableManager.adjustables.add(adj);
                 } else {
                     Adjustable adj = findAdjustable(i);
                     adj.deleteSlider(sim);
-                    sim.adjustableManager.adjustables.remove(adj);
+                    adjustableManager.adjustables.remove(adj);
                 }
                 changed = true;
             }
@@ -222,8 +225,8 @@ public class SliderDialog extends Dialog {
                 } else {
                     int j;
                     int ct = 0;
-                    for (j = 0; j != sim.adjustableManager.adjustables.size(); j++) {
-                        Adjustable adji = sim.adjustableManager.adjustables.get(j);
+                    for (j = 0; j != adjustableManager.adjustables.size(); j++) {
+                        Adjustable adji = adjustableManager.adjustables.get(j);
                         if (adji.sharedSlider != null)
                             break;
                         if (adji == adj)
@@ -238,7 +241,7 @@ public class SliderDialog extends Dialog {
             }
         }
         if (changed) {
-            sim.adjustableManager.reorderAdjustables();
+            adjustableManager.reorderAdjustables();
             clearDialog();
             buildDialog();
         }

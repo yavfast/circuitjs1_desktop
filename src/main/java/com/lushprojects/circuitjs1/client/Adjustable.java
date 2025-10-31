@@ -68,7 +68,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             maxValue = Double.parseDouble(st.nextToken());
             if ((flags & FLAG_SHARED) != 0) {
                 int ano = Integer.parseInt(st.nextToken());
-                sharedSlider = ano == -1 ? null : sim.adjustableManager.adjustables.get(ano);
+                sharedSlider = ano == -1 ? null : getActiveDocument().adjustableManager.adjustables.get(ano);
             }
             sliderText = CustomLogicModel.unescape(st.nextToken());
         } catch (Exception ex) {
@@ -136,7 +136,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         if (settingValue) {
             return;
         }
-        ArrayList<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        ArrayList<Adjustable> adjustables = getActiveDocument().adjustableManager.adjustables;
         for (int i = 0; i != adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);
             if (adj == this || adj.sharedSlider == this) {
@@ -187,7 +187,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public boolean sliderBeingShared() {
-        ArrayList<Adjustable> adjustables = cirSim.adjustableManager.adjustables;
+        ArrayList<Adjustable> adjustables = getActiveDocument().adjustableManager.adjustables;
         for (int i = 0; i != adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);
             if (adj.sharedSlider == this)
@@ -199,7 +199,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     String dump() {
         int ano = -1;
         if (sharedSlider != null) {
-            ano = cirSim.adjustableManager.adjustables.indexOf(sharedSlider);
+            ano = getActiveDocument().adjustableManager.adjustables.indexOf(sharedSlider);
         }
 
         return simulator().locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +

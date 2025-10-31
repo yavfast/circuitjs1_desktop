@@ -72,6 +72,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return circuitDocument.circuitEditor;
     }
 
+    public CircuitDocument getCircuitDocument() {
+        return circuitDocument;
+    }
+
     // initial point where user created element.  For simple two-terminal elements, this is the first node/post.
     public int x, y;
 
@@ -392,7 +396,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (mouseElmRef == this) {
             mouseElmRef = null;
         }
-        simUi.adjustableManager.deleteSliders(this);
+        getCircuitDocument().adjustableManager.deleteSliders(this);
     }
 
     public void startIteration() {

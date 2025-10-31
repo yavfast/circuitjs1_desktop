@@ -57,7 +57,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // Reset simulation parameters
         simulator().t = simulator().timeStepAccum = 0;
         simulator().elmList.clear();
-        cirSim.adjustableManager.reset();
+        getActiveDocument().adjustableManager.reset();
         cirSim.renderer.hintType = -1;
         simulator().maxTimeStep = 5e-6;
         simulator().minTimeStep = 50e-12;
@@ -182,7 +182,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                 return true;
 
             case 38: // Adjustable element
-                cirSim.adjustableManager.addAdjustable(stringTokenizer);
+                getActiveDocument().adjustableManager.addAdjustable(stringTokenizer);
                 return true;
 
             case '.': // Custom composite model
@@ -229,7 +229,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
         if ((flags & RC_RETAIN) == 0) {
             // create sliders as needed
-            cirSim.adjustableManager.createSliders();
+            getActiveDocument().adjustableManager.createSliders();
         }
 
         cirSim.needAnalyze();
