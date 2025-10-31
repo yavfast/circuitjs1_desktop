@@ -99,7 +99,7 @@ public class EditOptions implements Editable {
             return new EditInfo("# of Decimal Digits (long format)", CircuitElm.decimalDigits);
         if (n == 10) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.checkbox = new Checkbox("Developer Mode", sim.circuitInfo.developerMode);
+            ei.checkbox = new Checkbox("Developer Mode", sim.circuitInfo().developerMode);
             return ei;
         }
         if (n == 11)

@@ -139,9 +139,9 @@ public class CapacitorElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        if (simUi.circuitInfo.dcAnalysisFlag) {
+        if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             // when finding DC operating point, replace cap with a 100M resistor
-            simulator().stampResistor(nodes[0], nodes[1], 1e8);
+            simulator.stampResistor(nodes[0], nodes[1], 1e8);
             curSourceValue = 0;
             capNode2 = 1;
             return;
@@ -159,15 +159,15 @@ public class CapacitorElm extends CircuitElm {
         // than backward euler but can cause oscillatory behavior
         // if RC is small relative to the timestep.
         if (isTrapezoidal()) {
-            compResistance = simulator().timeStep / (2 * capacitance);
+            compResistance = simulator.timeStep / (2 * capacitance);
         } else {
-            compResistance = simulator().timeStep / capacitance;
+            compResistance = simulator.timeStep / capacitance;
         }
-        simulator().stampResistor(nodes[0], nodes[capNode2], compResistance);
-        simulator().stampRightSide(nodes[0]);
-        simulator().stampRightSide(nodes[capNode2]);
+        simulator.stampResistor(nodes[0], nodes[capNode2], compResistance);
+        simulator.stampRightSide(nodes[0]);
+        simulator.stampRightSide(nodes[capNode2]);
         if (seriesResistance > 0) {
-            simulator().stampResistor(nodes[1], nodes[2], seriesResistance);
+            simulator.stampResistor(nodes[1], nodes[2], seriesResistance);
         }
     }
 
@@ -193,7 +193,7 @@ public class CapacitorElm extends CircuitElm {
 
     void calculateCurrent() {
         double voltdiff = volts[0] - volts[capNode2];
-        if (simUi.circuitInfo.dcAnalysisFlag) {
+        if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             current = voltdiff / 1e8;
             return;
         }
@@ -207,14 +207,14 @@ public class CapacitorElm extends CircuitElm {
     double curSourceValue;
 
     public void doStep() {
-        if (simUi.circuitInfo.dcAnalysisFlag) {
+        if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             return;
         }
         simulator().stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
     }
 
     public int getInternalNodeCount() {
-        return (!simUi.circuitInfo.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
+        return (!circuitDocument.circuitInfo.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
     }
 
     public void getInfo(String[] arr) {

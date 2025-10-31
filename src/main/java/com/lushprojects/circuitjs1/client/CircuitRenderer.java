@@ -177,25 +177,25 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         CircuitSimulator simulator = simulator();
         boolean wasAnalyzed = needsAnalysis;
-        if (needsAnalysis || cirSim.circuitInfo.dcAnalysisFlag) {
+        if (needsAnalysis || circuitInfo().dcAnalysisFlag) {
             perfmon.startContext("analyzeCircuit()");
-            simulator().analyzeCircuit();
+            simulator.analyzeCircuit();
             needsAnalysis = false;
             perfmon.stopContext();
         }
 
-        if (simulator().needsStamp && simulator().simRunning) {
+        if (simulator.needsStamp && simulator.simRunning) {
             perfmon.startContext("stampCircuit()");
             try {
-                simulator().preStampAndStampCircuit();
+                simulator.preStampAndStampCircuit();
             } catch (Exception e) {
-                simulator().stop("Exception in stampCircuit()", null);
+                simulator.stop("Exception in stampCircuit()", null);
                 GWT.log("Exception in stampCircuit", e);
             }
             perfmon.stopContext();
         }
 
-        if (simulator().stopElm != null && simulator().stopElm != circuitEditor().mouseElm) {
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
 //            simulator().stopElm.setMouseElm(true);
         }
 
@@ -204,14 +204,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         Graphics graphics = new Graphics(canvasContext);
         setupFrame(graphics);
 
-        if (simulator().simRunning) {
-            if (simulator().needsStamp) {
+        if (simulator.simRunning) {
+            if (simulator.needsStamp) {
                 CirSim.console("needsStamp while simRunning?");
             }
 
             perfmon.startContext("runCircuit()");
             try {
-                simulator().runCircuit(wasAnalyzed);
+                simulator.runCircuit(wasAnalyzed);
             } catch (Exception e) {
                 CirSim.console("exception in runCircuit " + e);
             }
@@ -224,21 +224,21 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         drawCircuit(graphics, simulator);
         perfmon.stopContext(); // graphics
 
-        if (simulator().stopElm != null && simulator().stopElm != circuitEditor().mouseElm) {
-//            simulator().stopElm.setMouseElm(false);
+        if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
+//            simulator.stopElm.setMouseElm(false);
         }
 
         frameCount++;
 
-        if (cirSim.circuitInfo.dcAnalysisFlag) {
-            cirSim.circuitInfo.dcAnalysisFlag = false;
+        if (circuitInfo().dcAnalysisFlag) {
+            circuitInfo().dcAnalysisFlag = false;
             needsAnalysis = true;
         }
 
         lastFrameTimeMillis = lastTimeMillis;
         perfmon.stopContext(); // updateCircuit
 
-        if (cirSim.circuitInfo.developerMode) {
+        if (circuitInfo().developerMode) {
             drawDeveloperInfo(graphics, perfmon);
         }
 
@@ -423,7 +423,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             infoBoxStartX = Math.max(canvasWidth - CirSim.INFO_WIDTH, 0);
             int h0 = (int) (canvasHeight * scopeHeightFraction);
             infoBoxHeight = (circuitEditor.mouseElm == null) ? 70 : h0;
-            if (cirSim.circuitInfo.hideInfoBox)
+            if (circuitInfo().hideInfoBox)
                 infoBoxHeight = 0;
         }
         if (simulator.stopMessage != null && circuitArea.height > canvasHeight - 30)
@@ -455,7 +455,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         if (simulator.stopMessage != null) {
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
-        } else if (!cirSim.circuitInfo.hideInfoBox) {
+        } else if (!circuitInfo().hideInfoBox) {
             drawInfoBox(g, infoBoxStartX, currentScopeCount);
         }
     }
@@ -504,7 +504,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         if (badNodes > 0) {
             infoLines[lineIdx++] = badNodes + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
         }
-        if (cirSim.circuitInfo.savedFlag) {
+        if (circuitInfo().savedFlag) {
             infoLines[lineIdx++] = "(saved)";
         }
 

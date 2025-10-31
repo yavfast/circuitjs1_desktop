@@ -134,7 +134,7 @@ public class VoltageElm extends CircuitElm {
     }
 
     double getVoltage() {
-        if (waveform != WF_DC && simUi.circuitInfo.dcAnalysisFlag)
+        if (waveform != WF_DC && circuitDocument.circuitInfo.dcAnalysisFlag)
             return bias;
 
         double w = 2 * pi * (simulator().t - freqTimeZero) * frequency + phaseShift;
@@ -336,7 +336,7 @@ public class VoltageElm extends CircuitElm {
                 arr[i++] = "wavelength = " +
                         getUnitText(2.9979e8 / frequency, "m");
         }
-        if (waveform == WF_DC && current != 0 && simUi.circuitInfo.showResistanceInVoltageSources)
+        if (waveform == WF_DC && current != 0 && circuitDocument.circuitInfo.showResistanceInVoltageSources)
             arr[i++] = "(R = " + getUnitText(maxVoltage / current, Locale.ohmString) + ")";
         arr[i++] = "P = " + getUnitText(getPower(), "W");
     }

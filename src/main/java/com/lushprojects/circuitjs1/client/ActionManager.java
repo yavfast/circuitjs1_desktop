@@ -142,7 +142,7 @@ public class ActionManager extends BaseCirSimDelegate {
                     e.cancel();
                 }
                 if (code == KEY_S) {
-                    String cmd = (cirSim.circuitInfo.filePath != null) ? "save" : "saveas";
+                    String cmd = (circuitInfo().filePath != null) ? "save" : "saveas";
                     menuPerformed("key", cmd);
                     e.cancel();
                 }
@@ -200,8 +200,8 @@ public class ActionManager extends BaseCirSimDelegate {
             CirSim.executeJS("nw.Window.open('circuitjs.html', {new_instance: true, mixed_context: false});");
         }
         if (item == "save") {
-            if (cirSim.circuitInfo.filePath != null)
-                CirSim.nodeSave(cirSim.circuitInfo.filePath, dumpCircuit());
+            if (circuitInfo().filePath != null)
+                CirSim.nodeSave(circuitInfo().filePath, dumpCircuit());
             else
                 CirSim.nodeSaveAs(dumpCircuit(), cirSim.getLastFileName());
             cirSim.setUnsavedChanges(false);
@@ -476,8 +476,8 @@ public class ActionManager extends BaseCirSimDelegate {
         if (circuitText != null) {
             getActiveDocument().circuitLoader.readCircuit(circuitText, flags);
             cirSim.allowSave(false);
-            cirSim.circuitInfo.filePath = null;
-            cirSim.circuitInfo.fileName = null;
+            circuitInfo().filePath = null;
+            circuitInfo().fileName = null;
             CirSim.changeWindowTitle(false);
         }
     }

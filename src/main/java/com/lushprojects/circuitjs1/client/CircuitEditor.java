@@ -958,7 +958,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     public void pushUndo() {
         undoManager().pushUndo();
         cirSim.enableUndoRedo();
-        cirSim.circuitInfo.savedFlag = false;
+        circuitInfo().savedFlag = false;
     }
 
     void doUndo() {

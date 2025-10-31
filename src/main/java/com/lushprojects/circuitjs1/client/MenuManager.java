@@ -280,7 +280,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         cirSim.toolbar.setEuroResistors(euroResistorCheckItem.getState());
                     }
                 }));
-        euroResistorCheckItem.setState(cirSim.circuitInfo.euroSetting);
+        euroResistorCheckItem.setState(circuitInfo().euroSetting);
         m.addItem(euroGatesCheckItem = new CheckboxMenuItem(Locale.LS("IEC Gates"),
                 new Command() {
                     public void execute() {
@@ -290,7 +290,7 @@ public class MenuManager extends BaseCirSimDelegate {
                             simulator.elmList.get(i).setPoints();
                     }
                 }));
-        euroGatesCheckItem.setState(cirSim.circuitInfo.euroGates);
+        euroGatesCheckItem.setState(circuitInfo().euroGates);
         m.addItem(printableCheckItem = new CheckboxMenuItem(Locale.LS("White Background"),
                 new Command() {
                     public void execute() {
@@ -298,7 +298,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         OptionsManager.setOptionInStorage("whiteBackground", printableCheckItem.getState());
                     }
                 }));
-        printableCheckItem.setState(cirSim.circuitInfo.printable);
+        printableCheckItem.setState(circuitInfo().printable);
 
         m.addItem(conventionCheckItem = new CheckboxMenuItem(Locale.LS("Conventional Current Motion"),
                 new Command() {
@@ -310,9 +310,9 @@ public class MenuManager extends BaseCirSimDelegate {
                             CircuitElm.currentColor = conventionCheckItem.getState() ? Color.yellow : Color.cyan;
                     }
                 }));
-        conventionCheckItem.setState(cirSim.circuitInfo.convention);
+        conventionCheckItem.setState(circuitInfo().convention);
         m.addItem(noEditCheckItem = new CheckboxMenuItem(Locale.LS("Disable Editing")));
-        noEditCheckItem.setState(cirSim.circuitInfo.noEditing);
+        noEditCheckItem.setState(circuitInfo().noEditing);
 
         m.addItem(mouseWheelEditCheckItem = new CheckboxMenuItem(Locale.LS("Edit Values With Mouse Wheel"),
                 new Command() {
@@ -320,7 +320,7 @@ public class MenuManager extends BaseCirSimDelegate {
                         OptionsManager.setOptionInStorage("mouseWheelEdit", mouseWheelEditCheckItem.getState());
                     }
                 }));
-        mouseWheelEditCheckItem.setState(cirSim.circuitInfo.mouseWheelEdit);
+        mouseWheelEditCheckItem.setState(circuitInfo().mouseWheelEdit);
 
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Shortcuts..."), new MyCommand("options", "shortcuts")));
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Subcircuits..."), new MyCommand("options", "subcircuits")));

@@ -82,7 +82,6 @@ public class CirSim implements NativePreviewHandler {
     public final ActionManager actionManager = new ActionManager(this);
 
     public CircuitDocument activeDocument;
-    public CircuitInfo circuitInfo;
 
     Toolbar toolbar;
 
@@ -128,7 +127,7 @@ public class CirSim implements NativePreviewHandler {
     public void setCanvasSize() {
         int width = RootLayoutPanel.get().getOffsetWidth();
         int height = RootLayoutPanel.get().getOffsetHeight();
-        height = height - (circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
+        height = height - (circuitInfo().hideMenu ? 0 : MENU_BAR_HEIGHT);
 
         if (menuManager.toolbarCheckItem.getState()) {
             height -= TOOLBAR_HEIGHT;
@@ -158,16 +157,16 @@ public class CirSim implements NativePreviewHandler {
         // remember filename for use when saving a new file.
         // if s is null or automatically generated then just clear out old filename.
         if (s == null || s.startsWith("circuitjs-"))
-            circuitInfo.lastFileName = null;
+            circuitInfo().lastFileName = null;
         else
-            circuitInfo.lastFileName = s;
+            circuitInfo().lastFileName = s;
     }
 
     public String getLastFileName() {
         Date date = new Date();
         String fname;
-        if (circuitInfo.lastFileName != null)
-            fname = circuitInfo.lastFileName;
+        if (circuitInfo().lastFileName != null)
+            fname = circuitInfo().lastFileName;
         else {
             DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmmss");
             fname = "circuitjs-" + dtf.format(date) + ".txt";
@@ -222,7 +221,6 @@ public class CirSim implements NativePreviewHandler {
         }
 
         activeDocument = document;
-        circuitInfo = document.getCircuitInfo();
     }
 
     public CircuitEditor circuitEditor() {
@@ -235,6 +233,10 @@ public class CirSim implements NativePreviewHandler {
 
     public CircuitDocument getActiveDocument() {
         return activeDocument;
+    }
+
+    public CircuitInfo circuitInfo() {
+        return activeDocument.circuitInfo;
     }
 
     //    String baseURL = "http://www.falstad.com/circuit/";
@@ -251,6 +253,7 @@ public class CirSim implements NativePreviewHandler {
 
         CircuitElm.initClass(this);
 
+        CircuitInfo circuitInfo = circuitInfo();
         circuitInfo.loadQueryParameters();
 
         UndoManager undoManager = getActiveDocument().undoManager;
@@ -387,11 +390,11 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void setDeveloperMode(boolean enabled) {
-        if (circuitInfo.developerMode == enabled) {
+        if (circuitInfo().developerMode == enabled) {
             return;
         }
 
-        circuitInfo.developerMode = enabled;
+        circuitInfo().developerMode = enabled;
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
@@ -594,7 +597,7 @@ public class CirSim implements NativePreviewHandler {
 
     static native void changeWindowTitle(boolean isCircuitChanged)/*-{
 		var newTitle = "CircuitJS1 Desktop Mod";
-		var filename = @com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName;
+		var filename = @com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::getCircuitInfoFileName()();
 		var changed = (isCircuitChanged) ? "*" : "";
 		if (filename!=null) {
 			$doc.title = changed+filename+" - "+newTitle;
@@ -637,8 +640,8 @@ public class CirSim implements NativePreviewHandler {
 			$wnd.URL.revokeObjectURL(url);
 
 			// Update circuit info for browser environment
-			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::fileName = fileName;
-			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::circuitInfo.@com.lushprojects.circuitjs1.client.CircuitInfo::lastFileName = fileName;
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::setCircuitInfoFileName(Ljava/lang/String;)(fileName);
+			@com.lushprojects.circuitjs1.client.CirSim::theSim.@com.lushprojects.circuitjs1.client.CirSim::setCircuitInfoLastFileName(Ljava/lang/String;)(fileName);
 
 			if ($wnd.CircuitJS1 && $wnd.CircuitJS1.allowSave) {
 				$wnd.CircuitJS1.allowSave(true);
@@ -656,13 +659,13 @@ public class CirSim implements NativePreviewHandler {
         s = s.substring(s.lastIndexOf('\\') + 1);
         theSim.setCircuitTitle(s);
         theSim.allowSave(true);
-        theSim.circuitInfo.savedFlag = true;
+        theSim.circuitInfo().savedFlag = true;
         theSim.repaint();
     }
 
     // JSInterface
     static void electronSaveCallback() {
-        theSim.circuitInfo.savedFlag = true;
+        theSim.circuitInfo().savedFlag = true;
         theSim.repaint();
     }
 
@@ -720,7 +723,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     public void setUnsavedChanges(boolean hasChanges) {
-        circuitInfo.unsavedChanges = hasChanges;
+        circuitInfo().unsavedChanges = hasChanges;
         changeWindowTitle(hasChanges);
     }
 
@@ -815,6 +818,8 @@ public class CirSim implements NativePreviewHandler {
         // reloading the same file doesn't create a change event so importing the same file twice
         // doesn't work unless you destroy the original input element and replace it with a new one
         int idx = controlsDialog.panel.getWidgetIndex(loadFileInput);
+
+        CircuitInfo circuitInfo = circuitInfo();
         circuitInfo.filePath = loadFileInput.getPath();
         console("filePath: " + circuitInfo.filePath);
         circuitInfo.fileName = loadFileInput.getFileName();
@@ -963,7 +968,7 @@ public class CirSim implements NativePreviewHandler {
 	}-*/;
 
     void doDCAnalysis() {
-        circuitInfo.dcAnalysisFlag = true;
+        circuitInfo().dcAnalysisFlag = true;
         resetAction();
     }
 
@@ -1099,6 +1104,21 @@ public class CirSim implements NativePreviewHandler {
     void setMaxTimeStep(double ts) {
         simulator().maxTimeStep = ts;
         simulator().timeStep = ts;
+    }
+
+    // JSInterface
+    String getCircuitInfoFileName() {
+        return circuitInfo().fileName;
+    }
+
+    // JSInterface
+    void setCircuitInfoFileName(String fileName) {
+        circuitInfo().fileName = fileName;
+    }
+
+    // JSInterface
+    void setCircuitInfoLastFileName(String fileName) {
+        circuitInfo().lastFileName = fileName;
     }
 
     native void setupJSInterface() /*-{
