@@ -72,22 +72,23 @@ public class CirSim implements NativePreviewHandler {
     public static int TOOLBAR_HEIGHT = 40;
     public static int INFO_WIDTH = 160;
 
-    final public CircuitInfo circuitInfo = new CircuitInfo(this);
-    final public LogManager logManager = new LogManager(this);
+    public CircuitInfo circuitInfo;
+    public final LogManager logManager = new LogManager(this);
 
-    final public CircuitSimulator simulator = new CircuitSimulator(this);
-    final public CircuitRenderer renderer = new CircuitRenderer(this);
+    public CircuitSimulator simulator;
+    public final CircuitRenderer renderer = new CircuitRenderer(this);
 
-    final public ScopeManager scopeManager = new ScopeManager(this);
-    final public ClipboardManager clipboardManager = new ClipboardManager(this);
-    final public DialogManager dialogManager = new DialogManager(this);
-    final public MenuManager menuManager = new MenuManager(this);
-    final public UndoManager undoManager = new UndoManager(this);
-    final public AdjustableManager adjustableManager = new AdjustableManager(this);
-    final public CircuitEditor circuitEditor = new CircuitEditor(this);
-    final public ActionManager actionManager = new ActionManager(this);
-    final public CircuitLoader circuitLoader = new CircuitLoader(this);
-    final public LoadFile loadFileInput = new LoadFile(this);
+    public ScopeManager scopeManager;
+    public final ClipboardManager clipboardManager = new ClipboardManager(this);
+    public final DialogManager dialogManager = new DialogManager(this);
+    public MenuManager menuManager;
+    public UndoManager undoManager;
+    public AdjustableManager adjustableManager;
+    public CircuitEditor circuitEditor;
+    public ActionManager actionManager;
+    public CircuitLoader circuitLoader;
+    public LoadFile loadFileInput;
+    public final DocumentManager documentManager;
 
     Toolbar toolbar;
 
@@ -216,6 +217,28 @@ public class CirSim implements NativePreviewHandler {
 
     CirSim() {
         theSim = this;
+
+        documentManager = new DocumentManager(this);
+        CircuitDocument initialDocument = documentManager.createDocument();
+        documentManager.setActiveDocument(initialDocument);
+
+        menuManager = new MenuManager(this);
+        actionManager = new ActionManager(this);
+        loadFileInput = new LoadFile(this);
+    }
+
+    void bindDocument(CircuitDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("document must not be null");
+        }
+
+        circuitInfo = document.getCircuitInfo();
+        simulator = document.getSimulator();
+        scopeManager = document.getScopeManager();
+        undoManager = document.getUndoManager();
+        adjustableManager = document.getAdjustableManager();
+        circuitEditor = document.getCircuitEditor();
+        circuitLoader = document.getCircuitLoader();
     }
 
 //    String baseURL = "http://www.falstad.com/circuit/";
