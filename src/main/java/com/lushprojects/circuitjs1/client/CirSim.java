@@ -84,7 +84,6 @@ public class CirSim implements NativePreviewHandler {
     public CircuitDocument activeDocument;
     public CircuitInfo circuitInfo;
     public ScopeManager scopeManager;
-    public UndoManager undoManager;
 
     Toolbar toolbar;
 
@@ -226,7 +225,6 @@ public class CirSim implements NativePreviewHandler {
         activeDocument = document;
         circuitInfo = document.getCircuitInfo();
         scopeManager = document.getScopeManager();
-        undoManager = document.getUndoManager();
     }
 
     public CircuitEditor circuitEditor() {
@@ -256,6 +254,8 @@ public class CirSim implements NativePreviewHandler {
         CircuitElm.initClass(this);
 
         circuitInfo.loadQueryParameters();
+
+        UndoManager undoManager = getActiveDocument().undoManager;
         undoManager.readRecovery();
         if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
             circuitInfo.startCircuitText = undoManager.recovery;
@@ -773,6 +773,7 @@ public class CirSim implements NativePreviewHandler {
     }
 
     void enableUndoRedo() {
+        UndoManager undoManager = getActiveDocument().undoManager;
         menuManager.redoItem.setEnabled(undoManager.hasRedoStack());
         menuManager.undoItem.setEnabled(undoManager.hasUndoStack());
     }

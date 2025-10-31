@@ -1,7 +1,6 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.safehtml.shared.SafeHtmlUtils;
-import com.google.gwt.storage.client.Storage;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.DOM;
 import com.google.gwt.user.client.Event;
@@ -154,7 +153,7 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(iconMenuItem("microchip", "Create Subcircuit...", new MyCommand("file", "createsubcircuit")));
         fileMenuBar.addItem(iconMenuItem("magic", "Find DC Operating Point", new MyCommand("file", "dcanalysis")));
         recoverItem = iconMenuItem("back-in-time", "Recover Auto-Save", new MyCommand("file", "recover"));
-        recoverItem.setEnabled(cirSim.undoManager.recovery != null);
+        recoverItem.setEnabled(getActiveDocument().undoManager.recovery != null);
         fileMenuBar.addItem(recoverItem);
         printItem = menuItemWithShortcut("print", "Print...", Locale.LS(ctrlMetaKey + "P"), new MyCommand("file", "print"));
         fileMenuBar.addItem(printItem);
