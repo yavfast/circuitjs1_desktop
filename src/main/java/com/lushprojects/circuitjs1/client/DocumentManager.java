@@ -6,11 +6,11 @@ import java.util.List;
 
 public class DocumentManager {
 
-    private final CirSim cirSim;
+    private final BaseCirSim cirSim;
     private final List<CircuitDocument> documents = new ArrayList<>();
     private CircuitDocument activeDocument;
 
-    DocumentManager(CirSim cirSim) {
+    DocumentManager(BaseCirSim cirSim) {
         this.cirSim = cirSim;
     }
 

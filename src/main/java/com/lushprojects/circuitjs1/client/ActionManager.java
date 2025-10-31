@@ -30,7 +30,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ActionManager extends BaseCirSimDelegate {
 
-    protected ActionManager(CirSim cirSim) {
+    protected ActionManager(BaseCirSim cirSim) {
         super(cirSim);
     }
 
@@ -38,6 +38,8 @@ public class ActionManager extends BaseCirSimDelegate {
         int cc = e.getNativeEvent().getCharCode();
         int t = e.getTypeInt();
         int code = e.getNativeEvent().getKeyCode();
+
+        CirSim cirSim = (CirSim) this.cirSim;
 
         if (cirSim.dialogIsShowing()) {
             ScrollValuePopup scrollValuePopup = circuitEditor().scrollValuePopup;
@@ -174,6 +176,7 @@ public class ActionManager extends BaseCirSimDelegate {
         DialogManager dialogManager = dialogManager();
         CircuitEditor circuitEditor = circuitEditor();
         ScopeManager scopeManager = scopeManager();
+        CirSim cirSim = (CirSim) this.cirSim;
 
         if ((menu == "edit" || menu == "main" || menu == "scopes") && menuManager.noEditCheckItem.getState()) {
             Window.alert(Locale.LS("Editing disabled.  Re-enable from the Options menu."));
@@ -475,6 +478,7 @@ public class ActionManager extends BaseCirSimDelegate {
         int flags = subcircuitsOnly ? (CircuitConst.RC_SUBCIRCUITS | CircuitConst.RC_RETAIN) : 0;
         if (circuitText != null) {
             getActiveDocument().circuitLoader.readCircuit(circuitText, flags);
+            CirSim cirSim = (CirSim) this.cirSim;
             cirSim.allowSave(false);
             circuitInfo().filePath = null;
             circuitInfo().fileName = null;
@@ -492,6 +496,7 @@ public class ActionManager extends BaseCirSimDelegate {
         f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
         // 32 = linear scale in afilter
         f |= simulator().adjustTimeStep ? 64 : 0;
+        CirSim cirSim = (CirSim) this.cirSim;
         return CircuitElm.dumpValues(
                 "$", f, simulator().maxTimeStep, cirSim.getIterCount(),
                 cirSim.currentBar.getValue(), CircuitElm.voltageRange,

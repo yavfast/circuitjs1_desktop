@@ -25,7 +25,7 @@ public class UndoManager extends BaseCirSimDelegate {
     String recovery;
 
 
-    protected UndoManager(CirSim cirSim) {
+    protected UndoManager(BaseCirSim cirSim) {
         super(cirSim);
         undoStack = new Vector<>();
         redoStack = new Vector<>();

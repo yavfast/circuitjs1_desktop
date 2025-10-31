@@ -29,7 +29,7 @@ public class DialogManager extends BaseCirSimDelegate {
 
     DialogBox activeDialog;
 
-    protected DialogManager(CirSim cirSim) {
+    protected DialogManager(BaseCirSim cirSim) {
         super(cirSim);
     }
 
@@ -72,39 +72,47 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     void showModDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new ModDialog(cirSim);
     }
 
     void showImportFromTextDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new ImportFromTextDialog(cirSim);
     }
 
     void showShortcutsDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new ShortcutsDialog(cirSim);
         activeDialog.show();
     }
 
     void showSubcircuitDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new SubcircuitDialog(cirSim);
         activeDialog.show();
     }
 
     void showSearchDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new SearchDialog(cirSim);
         activeDialog.show();
     }
 
     void showEditOptionsDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new EditDialog(new EditOptions(cirSim), cirSim);
         activeDialog.show();
     }
 
     public void showEditElementDialog(Editable editable) {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new EditDialog(editable, cirSim);
         activeDialog.show();
     }
 
     void showSliderDialog(CircuitElm ce) {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new SliderDialog(ce, cirSim);
         activeDialog.show();
     }
@@ -115,6 +123,7 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     void showExportAsTextDialog(String dump) {
+        CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new ExportAsTextDialog(cirSim, dump);
         activeDialog.show();
     }
@@ -125,6 +134,7 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     public void showEditCompositeModelDialog(CustomCompositeModel model) {
+        CirSim cirSim = (CirSim) this.cirSim;
         EditCompositeModelDialog dlg = new EditCompositeModelDialog(cirSim);
         if (model != null) {
             dlg.setModel(model);
@@ -137,17 +147,20 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     ScopePropertiesDialog showScopePropertiesDialog(Scope scope) {
+        CirSim cirSim = (CirSim) this.cirSim;
         ScopePropertiesDialog properties = new ScopePropertiesDialog(cirSim, scope);
         activeDialog = properties;
         return properties;
     }
 
     public void showEditDiodeModelDialog(DiodeModel dm, DiodeElm de) {
+        CirSim cirSim = (CirSim) this.cirSim;
         EditDialog editDialog = new EditDiodeModelDialog(dm, cirSim, de);
         editDialog.show();
     }
 
     public void showEditTransistorModelDialog(TransistorModel dm, TransistorElm te) {
+        CirSim cirSim = (CirSim) this.cirSim;
         EditDialog editDialog = new EditTransistorModelDialog(dm, cirSim, te);
         editDialog.show();
     }

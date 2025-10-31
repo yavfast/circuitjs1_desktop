@@ -1,10 +1,10 @@
 package com.lushprojects.circuitjs1.client;
 
-import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.i18n.client.DateTimeFormat;
 
-import java.util.Date;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class LogManager extends BaseCirSimDelegate {
 
@@ -28,7 +28,7 @@ public class LogManager extends BaseCirSimDelegate {
     // AI_THINK: Track scheduled commands to allow cancellation
     private boolean logWriteScheduled = false;
 
-    protected LogManager(CirSim cirSim) {
+    protected LogManager(BaseCirSim cirSim) {
         super(cirSim);
         logEntries = new ArrayList<>();
         initializeFileLogging();

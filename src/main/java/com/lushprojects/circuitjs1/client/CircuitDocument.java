@@ -10,7 +10,7 @@ public class CircuitDocument {
     public final CircuitEditor circuitEditor;
     public final CircuitLoader circuitLoader;
 
-    CircuitDocument(CirSim cirSim) {
+    CircuitDocument(BaseCirSim cirSim) {
         circuitInfo = new CircuitInfo(cirSim);
         simulator = new CircuitSimulator(cirSim);
         scopeManager = new ScopeManager(cirSim);

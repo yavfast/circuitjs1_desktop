@@ -30,7 +30,6 @@ import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.util.Locale;
-import com.lushprojects.circuitjs1.client.OptionsManager;
 
 import java.util.HashMap;
 
@@ -181,7 +180,7 @@ public class circuitjs1 implements EntryPoint {
 
         Window.addResizeHandler(new ResizeHandler() {
             public void onResize(ResizeEvent event) {
-                mysim.setCanvasSize();
+                mysim.setCanvasSize(0, 0);
                 mysim.setSlidersDialogHeight();
             }
         });

@@ -6,11 +6,11 @@ package com.lushprojects.circuitjs1.client;
  */
 public class ClipboardManager {
 
-    private final CirSim cirSim;
+    private final BaseCirSim cirSim;
     private String internalClipboard = "";
     private boolean hasSystemClipboardSupport = false;
 
-    public ClipboardManager(CirSim cirSim) {
+    public ClipboardManager(BaseCirSim cirSim) {
         this.cirSim = cirSim;
         this.hasSystemClipboardSupport = checkClipboardSupport();
     }

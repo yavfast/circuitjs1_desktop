@@ -25,7 +25,7 @@ import com.google.gwt.user.client.ui.FileUpload;
 
 public class LoadFile extends FileUpload implements ChangeHandler {
 
-    final CirSim sim;
+    final BaseCirSim sim;
 
     static LoadFile sLoadFile;
 
@@ -46,7 +46,7 @@ public class LoadFile extends FileUpload implements ChangeHandler {
         sim.setUnsavedChanges(false);
     }
 
-    LoadFile(CirSim s) {
+    LoadFile(BaseCirSim s) {
         super();
         sim = s;
         this.setName("Import");

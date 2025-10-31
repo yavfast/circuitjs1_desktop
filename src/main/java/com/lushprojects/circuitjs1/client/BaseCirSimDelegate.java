@@ -2,9 +2,9 @@ package com.lushprojects.circuitjs1.client;
 
 public class BaseCirSimDelegate {
 
-    final CirSim cirSim;
+    final BaseCirSim cirSim;
 
-    protected BaseCirSimDelegate(CirSim cirSim) {
+    protected BaseCirSimDelegate(BaseCirSim cirSim) {
         this.cirSim = cirSim;
 
     }

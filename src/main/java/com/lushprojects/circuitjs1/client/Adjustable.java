@@ -7,6 +7,7 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -117,7 +118,31 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         });
         
         updateValueLabel();
-        row = cirSim.addSliderToDialog(label, valueLabel, slider, editAdjustableButton, editElementButton);
+
+        row = addSliderToDialog(label, valueLabel, slider, editAdjustableButton, editElementButton);
+    }
+
+    public Widget addSliderToDialog(Label titleLabel, Label valueLabel, Scrollbar slider, Button btn1, Button btn2) {
+        CirSim cirSim = (CirSim) this.cirSim;
+        SlidersDialog slidersDialog = cirSim.slidersDialog;
+        if (slidersDialog == null) return null;
+        Widget row = slidersDialog.addSlider(titleLabel, valueLabel, slider, btn1, btn2);
+        if (!slidersDialog.isShowing()) {
+            slidersDialog.show();
+            cirSim.updateSlidersDialogPosition();
+            cirSim.setSlidersDialogHeight();
+        }
+        return row;
+    }
+
+    public void removeSliderFromDialog(Widget row) {
+        CirSim cirSim = (CirSim) this.cirSim;
+        SlidersDialog slidersDialog = cirSim.slidersDialog;
+        if (slidersDialog == null) return;
+        slidersDialog.removeSlider(row);
+        if (slidersDialog.isEmpty()) {
+            slidersDialog.hide();
+        }
     }
 
     public void setSliderValue(double value) {
@@ -172,13 +197,11 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         return minValue + (maxValue - minValue) * val / 100;
     }
 
-    public void deleteSlider(CirSim sim) {
-        if (row == null)
+    public void deleteSlider() {
+        if (row == null) {
             return;
-        try {
-            sim.removeSliderFromDialog(row);
-        } catch (Exception e) {
         }
+        removeSliderFromDialog(row);
     }
 
     void setMouseElm(CircuitElm e) {

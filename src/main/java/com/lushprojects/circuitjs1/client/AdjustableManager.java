@@ -1,15 +1,15 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 public class AdjustableManager extends BaseCirSimDelegate {
 
     public final ArrayList<Adjustable> adjustables;
 
-    protected AdjustableManager(CirSim cirSim) {
+    protected AdjustableManager(BaseCirSim cirSim) {
         super(cirSim);
         adjustables = new ArrayList<>();
     }
@@ -19,6 +19,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     void addAdjustable(StringTokenizer st) {
+        CirSim cirSim = (CirSim) this.cirSim;
         Adjustable adj = new Adjustable(st, cirSim);
         if (adj.elm != null) {
             adjustables.add(adj);
@@ -53,10 +54,17 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     public void reset() {
-        if (cirSim.slidersDialog != null) {
-            cirSim.clearSlidersDialog();
-        }
         adjustables.clear();
+        clearSlidersDialog();
+    }
+
+    public void clearSlidersDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
+        SlidersDialog slidersDialog = cirSim.slidersDialog;
+        if (slidersDialog != null) {
+            slidersDialog.clear();
+            slidersDialog.hide();
+        }
     }
 
     // delete sliders for an element
@@ -68,7 +76,8 @@ public class AdjustableManager extends BaseCirSimDelegate {
         for (i = adjustables.size() - 1; i >= 0; i--) {
             Adjustable adj = adjustables.get(i);
             if (adj.elm == elm) {
-                adj.deleteSlider(cirSim);
+                CirSim cirSim = (CirSim) this.cirSim;
+                adj.deleteSlider();
                 adjustables.remove(i);
             }
         }

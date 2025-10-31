@@ -38,7 +38,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     double scopeHeightFraction = 0.2;
 
-    public CircuitRenderer(CirSim cirSim) {
+    public CircuitRenderer(BaseCirSim cirSim) {
         super(cirSim);
     }
 
@@ -82,7 +82,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     void checkCanvasSize() {
         if (canvas.getCoordinateSpaceWidth() != (int) (canvasWidth * CirSim.devicePixelRatio())) {
-            cirSim.setCanvasSize();
+            cirSim.setCanvasSize(0, 0);
         }
     }
 
@@ -246,6 +246,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             drawMouseMode(graphics);
         }
 
+        CirSim cirSim = (CirSim) this.cirSim;
         cirSim.callUpdateHook();
     }
 
@@ -265,8 +266,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     private void updateSimulationTimers(CircuitSimulator simulator) {
+        CirSim cirSim = (CirSim) this.cirSim;
         long sysTime = System.currentTimeMillis();
-        if (simulator().simRunning) {
+        if (simulator.simRunning) {
             if (lastTimeMillis != 0) {
                 int timeDelta = (int) (sysTime - lastTimeMillis);
                 double currentSpeed = cirSim.currentBar.getValue();
@@ -282,9 +284,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         if (sysTime - lastSecondTimeMillis >= 1000) {
             framesPerSecond = frameCount;
-            stepsPerSecond = simulator().steps;
+            stepsPerSecond = simulator.steps;
             frameCount = 0;
-            simulator().steps = 0;
+            simulator.steps = 0;
             lastSecondTimeMillis = sysTime;
         }
 

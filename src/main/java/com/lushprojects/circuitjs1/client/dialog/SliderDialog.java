@@ -208,7 +208,7 @@ public class SliderDialog extends Dialog {
                     adjustableManager.adjustables.add(adj);
                 } else {
                     Adjustable adj = findAdjustable(i);
-                    adj.deleteSlider(sim);
+                    adj.deleteSlider();
                     adjustableManager.adjustables.remove(adj);
                 }
                 changed = true;
@@ -233,7 +233,7 @@ public class SliderDialog extends Dialog {
                             continue;
                         if (++ct == ei.choice.getSelectedIndex()) {
                             adj.sharedSlider = adji;
-                            adj.deleteSlider(sim);
+                            adj.deleteSlider();
                         }
                     }
                 }

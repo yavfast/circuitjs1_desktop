@@ -83,7 +83,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     int menuClientX = 0;
     int menuClientY = 0;
 
-    protected CircuitEditor(CirSim cirSim) {
+    protected CircuitEditor(BaseCirSim cirSim) {
         super(cirSim);
         setWheelSensitivity();
     }
@@ -814,6 +814,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     void scrollValues(int x, int y, int deltay) {
         if (mouseElm != null && !cirSim.dialogIsShowing() && scopeManager().scopeSelected == -1) {
             if (mouseElm instanceof ResistorElm || mouseElm instanceof CapacitorElm || mouseElm instanceof InductorElm) {
+                CirSim cirSim = (CirSim) this.cirSim;
                 scrollValuePopup = new ScrollValuePopup(x, y, deltay, mouseElm, cirSim);
                 cirSim.setUnsavedChanges(true);
             }

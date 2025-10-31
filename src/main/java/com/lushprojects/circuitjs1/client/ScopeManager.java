@@ -14,7 +14,7 @@ public class ScopeManager extends BaseCirSimDelegate {
     int menuScope = -1;
 
 
-    public ScopeManager(CirSim cirSim) {
+    public ScopeManager(BaseCirSim cirSim) {
         super(cirSim);
 
         scopes = new Scope[20];

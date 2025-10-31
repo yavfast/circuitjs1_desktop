@@ -107,7 +107,7 @@ public class Scope extends BaseCirSimDelegate {
     private static int cursorUnits;
     private static Scope cursorScope;
 
-    public Scope(CirSim s) {
+    public Scope(BaseCirSim s) {
         super(s);
         scale = new double[UNITS_COUNT];
         reduceRange = new boolean[UNITS_COUNT];

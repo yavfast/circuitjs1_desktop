@@ -16,7 +16,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
-    protected CircuitLoader(CirSim cirSim) {
+    protected CircuitLoader(BaseCirSim cirSim) {
         super(cirSim);
     }
 
@@ -72,6 +72,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
         // Reset UI components
         circuitEditor().setGrid();
+        CirSim cirSim = (CirSim) this.cirSim;
         cirSim.speedBar.setValue(117);
         cirSim.currentBar.setValue(50);
         cirSim.powerBar.setValue(50);
@@ -224,6 +225,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
      * Finalizes circuit loading with post-processing steps
      */
     private void finalizeCircuitLoading(int flags) {
+        CirSim cirSim = (CirSim) this.cirSim;
         cirSim.setPowerBarEnable();
         cirSim.enableItems();
 
@@ -263,6 +265,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         CircuitSimulator simulator = simulator();
         CircuitEditor circuitEditor = circuitEditor();
         MenuManager menuManager = menuManager();
+        CirSim cirSim = (CirSim) this.cirSim;
 
         int flags = CircuitElm.parseInt(st.nextToken());
 
@@ -365,6 +368,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                     CircuitInfo circuitInfo = circuitInfo();
                     if (file.equals(circuitInfo.startCircuit) && circuitInfo.startLabel == null) {
                         circuitInfo.startLabel = title;
+                        CirSim cirSim = (CirSim) this.cirSim;
                         cirSim.setSlidersDialogHeight();
                     }
                     if (first && circuitInfo.startCircuit == null) {
@@ -384,6 +388,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // don't avoid caching here, it's unnecessary and makes offline PWA's not work
         String url = GWT.getModuleBaseURL() + "circuits/" + str; // +"?v="+random.nextInt();
         loadFileFromURL(url);
+        CirSim cirSim = (CirSim) this.cirSim;
         cirSim.setSlidersDialogHeight();
         circuitInfo().filePath = null;
         circuitInfo().fileName = null;
@@ -404,6 +409,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                     if (response.getStatusCode() == Response.SC_OK) {
                         String text = response.getText();
                         readCircuit(text, CircuitConst.RC_KEEP_TITLE);
+                        CirSim cirSim = (CirSim) CircuitLoader.this.cirSim;
                         cirSim.allowSave(false);
                         circuitInfo().filePath = null;
                         circuitInfo().fileName = null;

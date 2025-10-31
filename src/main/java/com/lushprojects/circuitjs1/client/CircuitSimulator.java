@@ -70,7 +70,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     private int circuitMatrixFullSize;
     private boolean circuitNeedsMap;
 
-    public CircuitSimulator(CirSim cirSim) {
+    public CircuitSimulator(BaseCirSim cirSim) {
         super(cirSim);
     }
 
@@ -517,6 +517,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         timeStep = maxTimeStep;
         needsStamp = true;
 
+        CirSim cirSim = (CirSim) this.cirSim;
         cirSim.callAnalyzeHook();
         return true;
     }
@@ -1353,6 +1354,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             for (ScopeElm scopeElm : scopeElmArr) {
                 scopeElm.stepScope();
             }
+            CirSim cirSim = (CirSim) this.cirSim;
             cirSim.callTimeStepHook();
 
             // save last node voltages so we can restart the next iteration if necessary

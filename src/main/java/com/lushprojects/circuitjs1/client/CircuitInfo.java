@@ -64,14 +64,15 @@ public class CircuitInfo extends BaseCirSimDelegate {
     /** Requested mouse mode */
     String mouseModeReq = null;
 
-    protected CircuitInfo(CirSim cirSim) {
+    protected CircuitInfo(BaseCirSim cirSim) {
         super(cirSim);
     }
 
     void loadQueryParameters() {
         QueryParameters qp = new QueryParameters();
-
         try {
+            CirSim cirSim = (CirSim) this.cirSim;
+
             String cct = qp.getValue("cct");
             if (cct != null) {
                 startCircuitText = cct.replace("%24", "$");

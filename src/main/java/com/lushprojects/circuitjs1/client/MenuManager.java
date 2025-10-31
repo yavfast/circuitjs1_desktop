@@ -92,7 +92,7 @@ public class MenuManager extends BaseCirSimDelegate {
 
     final HashMap<String, String> classToLabelMap = new HashMap<>();
 
-    protected MenuManager(CirSim cirSim) {
+    protected MenuManager(BaseCirSim cirSim) {
         super(cirSim);
 
         mainMenuBar = new MenuBar(true);
@@ -220,6 +220,7 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     void initOptionsMenuBar() {
+        CirSim cirSim = (CirSim) this.cirSim;
         MenuBar m;
         optionsMenuBar = m = new MenuBar(true);
         menuBar.addItem(Locale.LS("Options"), optionsMenuBar);
