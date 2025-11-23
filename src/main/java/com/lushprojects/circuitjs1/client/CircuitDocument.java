@@ -18,6 +18,18 @@ public class CircuitDocument {
         adjustableManager = new AdjustableManager(cirSim);
         circuitEditor = new CircuitEditor(cirSim);
         circuitLoader = new CircuitLoader(cirSim);
+        initDefaultUIState();
+    }
+
+    void initDefaultUIState() {
+        dots = true;
+        volts = true;
+        power = false;
+        showValues = true;
+        smallGrid = false;
+        speedValue = 117;
+        currentValue = 50;
+        powerValue = 50;
     }
 
     CircuitInfo getCircuitInfo() {
@@ -46,5 +58,39 @@ public class CircuitDocument {
 
     CircuitLoader getCircuitLoader() {
         return circuitLoader;
+    }
+
+    // UI State
+    boolean dots, volts, power, showValues, smallGrid;
+    int speedValue = 117, currentValue = 50, powerValue = 50;
+
+    void saveUIState(MenuManager menuManager, CirSim cirSim) {
+        dots = menuManager.dotsCheckItem.getState();
+        volts = menuManager.voltsCheckItem.getState();
+        power = menuManager.powerCheckItem.getState();
+        showValues = menuManager.showValuesCheckItem.getState();
+        smallGrid = menuManager.smallGridCheckItem.getState();
+        
+        speedValue = cirSim.speedBar.getValue();
+        currentValue = cirSim.currentBar.getValue();
+        powerValue = cirSim.powerBar.getValue();
+    }
+
+    void restoreUIState(MenuManager menuManager, CirSim cirSim) {
+        menuManager.dotsCheckItem.setState(dots);
+        menuManager.voltsCheckItem.setState(volts);
+        menuManager.powerCheckItem.setState(power);
+        menuManager.showValuesCheckItem.setState(showValues);
+        menuManager.smallGridCheckItem.setState(smallGrid);
+        
+        cirSim.speedBar.setValue(speedValue);
+        cirSim.currentBar.setValue(currentValue);
+        cirSim.powerBar.setValue(powerValue);
+        
+        // Trigger side effects
+        if (smallGrid) {
+            cirSim.circuitEditor().setGrid();
+        }
+        cirSim.setPowerBarEnable();
     }
 }

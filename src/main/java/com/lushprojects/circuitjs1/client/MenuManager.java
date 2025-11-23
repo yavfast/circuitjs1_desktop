@@ -27,7 +27,7 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem closeItem;
     //CheckboxMenuItem fullscreenCheckItem;
     MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
-            printItem, recoverItem, saveFileItem;
+            printItem, recoverItem, saveFileItem, openLastClosedTabItem;
     //MenuItem importFromDropboxItem;
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem, modItem;
     MenuBar optionsMenuBar;
@@ -122,9 +122,17 @@ public class MenuManager extends BaseCirSimDelegate {
 
     void initFileMenuBar() {
         fileMenuBar = new MenuBar(true);
+        fileMenuBar.addItem(menuItemWithShortcut("doc-new", "New Tab", Locale.LS(ctrlMetaKey + "T"),
+                new MyCommand("file", "newtab")));
         fileMenuBar.addItem(menuItemWithShortcut("window", "New Window...", Locale.LS(ctrlMetaKey + "N"),
                 new MyCommand("file", "newwindow")));
         fileMenuBar.addItem(iconMenuItem("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
+        
+        // Add Open Last Closed Tab
+        openLastClosedTabItem = menuItemWithShortcut("back-in-time", "Open Last Closed Tab", Locale.LS(ctrlMetaKey + "Shift-T"),
+                new MyCommand("file", "openlastclosedtab"));
+        fileMenuBar.addItem(openLastClosedTabItem);
+        
         importFromLocalFileItem = menuItemWithShortcut("folder", "Open File...", Locale.LS(ctrlMetaKey + "O"),
                 new MyCommand("file", "importfromlocalfile"));
         importFromLocalFileItem.setEnabled(LoadFile.isSupported());
@@ -859,6 +867,10 @@ public class MenuManager extends BaseCirSimDelegate {
             // puts up a dialog box instead (see menuPerformed).
             //if (s.length() > 3 && s.substring(s.length()-3)=="Elm")
             //mainMenuItems.get(i).setEnabled(!noEditCheckItem.getState());
+        }
+
+        if (openLastClosedTabItem != null) {
+            openLastClosedTabItem.setEnabled(cirSim.documentManager.hasClosedTabs());
         }
 
         ScopeManager scopeManager = scopeManager();

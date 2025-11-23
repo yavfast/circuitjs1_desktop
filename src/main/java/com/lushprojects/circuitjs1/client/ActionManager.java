@@ -12,6 +12,7 @@ import static com.google.gwt.event.dom.client.KeyCodes.KEY_O;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_P;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_S;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_SPACE;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_T;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_V;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_X;
 import static com.google.gwt.event.dom.client.KeyCodes.KEY_Y;
@@ -94,8 +95,6 @@ public class ActionManager extends BaseCirSimDelegate {
                     scopeManager.scopes[scopeManager.scopeSelected].setElm(null);
                     scopeManager.scopeSelected = -1;
                 } else {
-                    circuitEditor().menuElm = null;
-                    circuitEditor().pushUndo();
                     circuitEditor().doDelete(true);
                     e.cancel();
                 }
@@ -143,6 +142,14 @@ public class ActionManager extends BaseCirSimDelegate {
                     menuPerformed("key", "newwindow");
                     e.cancel();
                 }
+                if (code == KEY_T) {
+                    if (e.getNativeEvent().getShiftKey()) {
+                        menuPerformed("key", "openlastclosedtab");
+                    } else {
+                        menuPerformed("key", "newtab");
+                    }
+                    e.cancel();
+                }
                 if (code == KEY_S) {
                     String cmd = (circuitInfo().filePath != null) ? "save" : "saveas";
                     menuPerformed("key", cmd);
@@ -150,6 +157,10 @@ public class ActionManager extends BaseCirSimDelegate {
                 }
                 if (code == KEY_O) {
                     menuPerformed("key", "importfromlocalfile");
+                    e.cancel();
+                }
+                if (code == KEY_T && e.getNativeEvent().getShiftKey()) {
+                    menuPerformed("key", "openlastclosedtab");
                     e.cancel();
                 }
             }
@@ -201,6 +212,13 @@ public class ActionManager extends BaseCirSimDelegate {
             //Window.open(Document.get().getURL(), "_blank", "");
             //Maybe this can help with lags:
             CirSim.executeJS("nw.Window.open('circuitjs.html', {new_instance: true, mixed_context: false});");
+        }
+        if (item == "newtab") {
+            CircuitDocument newDoc = cirSim.documentManager.createDocument();
+            cirSim.documentManager.setActiveDocument(newDoc);
+        }
+        if (item == "openlastclosedtab") {
+            cirSim.documentManager.restoreLastClosedTab();
         }
         if (item == "save") {
             if (circuitInfo().filePath != null)
@@ -334,7 +352,6 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "delete") {
             if (menu != "elm")
                 circuitEditor().menuElm = null;
-            circuitEditor().pushUndo();
             circuitEditor().doDelete(true);
         }
         if (item == "sliders")

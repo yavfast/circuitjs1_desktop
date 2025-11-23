@@ -59,15 +59,18 @@ import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
+import com.lushprojects.circuitjs1.client.ui.tabs.TabBarPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     public static int MENU_BAR_HEIGHT = 30;
     public static int TOOLBAR_HEIGHT = 40;
+    public static int TAB_BAR_HEIGHT = 28;
     public static int INFO_WIDTH = 160;
 
     Toolbar toolbar;
+    TabBarPanel tabBarPanel;
 
     DockLayoutPanel layoutPanel;
 
@@ -110,6 +113,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             height = RootLayoutPanel.get().getOffsetHeight();
 
             height = height - (circuitInfo().hideMenu ? 0 : MENU_BAR_HEIGHT);
+            height -= TAB_BAR_HEIGHT;
 
             if (menuManager.toolbarCheckItem.getState()) {
                 height -= TOOLBAR_HEIGHT;
@@ -212,11 +216,20 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
         toolbar = new Toolbar(this);
         toolbar.setEuroResistors(circuitInfo.euroSetting);
+        
+        tabBarPanel = new TabBarPanel(documentManager);
+        
+        // Now that UI is initialized, restore the UI state from the active document
+        activeDocument.restoreUIState(menuManager, this);
+        
+        boolean sessionRestored = documentManager.restoreSession();
+        
         if (!circuitInfo.hideMenu)
             layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
 
         // add toolbar immediately after menuBar
         layoutPanel.addNorth(toolbar, TOOLBAR_HEIGHT);
+        layoutPanel.addNorth(tabBarPanel, TAB_BAR_HEIGHT);
 
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
         menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
@@ -266,6 +279,12 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
         setColors(circuitInfo.positiveColor, circuitInfo.negativeColor, circuitInfo.neutralColor,
                 circuitInfo.selectColor, circuitInfo.currentColor);
+
+        if (sessionRestored && (circuitInfo.startCircuitText != null || circuitInfo.startCircuit != null || circuitInfo.startCircuitLink != null)) {
+             // If session restored and we have a start circuit, create a new tab for it
+             CircuitDocument newDoc = documentManager.createDocument();
+             documentManager.setActiveDocument(newDoc);
+        }
 
         CircuitLoader circuitLoader = activeDocument.circuitLoader;
         if (circuitInfo.startCircuitText != null) {
@@ -466,6 +485,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     public void setUnsavedChanges(boolean hasChanges) {
         super.setUnsavedChanges(hasChanges);
         changeWindowTitle(hasChanges);
+        if (documentManager != null && activeDocument != null) {
+            documentManager.notifyTitleChanged(activeDocument);
+        }
     }
 
     static native void changeWindowTitle(boolean isCircuitChanged)/*-{
@@ -588,6 +610,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     // JSInterface
     public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
         actionManager.importCircuitFromText(circuitText, subcircuitsOnly);
+        if (documentManager != null && activeDocument != null) {
+            documentManager.notifyTitleChanged(activeDocument);
+        }
     }
 
     static native void clipboardWriteImage(CanvasElement cv) /*-{
@@ -634,6 +659,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         super.createNewLoadFile();
 
         changeWindowTitle(false);
+        if (documentManager != null && activeDocument != null) {
+            documentManager.notifyTitleChanged(activeDocument);
+        }
     }
 
     void updateSlidersDialogPosition() {
@@ -852,6 +880,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     // JSInterface
     void setCircuitInfoFileName(String fileName) {
         circuitInfo().fileName = fileName;
+        if (documentManager != null && activeDocument != null) {
+            documentManager.notifyTitleChanged(activeDocument);
+        }
     }
 
     // JSInterface

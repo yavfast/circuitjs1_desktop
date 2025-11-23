@@ -987,7 +987,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     void doCut() {
-        pushUndo();
         circuitEditor().setMenuSelection();
         cirSim.clipboardManager.doCut();
         doDelete(true);
@@ -1006,6 +1005,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 if (element.isMouseElm()) {
                     setMouseElm(null);
                 }
+                if (element == menuElm) {
+                    menuElm = null;
+                }
                 element.delete();
                 simulator.elmList.remove(i);
                 hasDeleted = true;
@@ -1020,7 +1022,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     boolean willDelete(CircuitElm element) {
-        return element.isSelected() || element.isMouseElm();
+        return element.isSelected() || element.isMouseElm() || element == menuElm;
     }
 
     String copyOfSelectedElms() {

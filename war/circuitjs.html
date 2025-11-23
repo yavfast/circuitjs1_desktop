@@ -253,6 +253,89 @@
             z-index: 2;
         }
 
+        /* Tab Bar Styles */
+        .tabBarPanel {
+            background-color: #e0e0e0;
+            border-bottom: 1px solid #a0a0a0;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding-left: 5px;
+            overflow: hidden;
+        }
+
+        .tabsContainer {
+            display: flex;
+            flex-grow: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            height: 100%;
+            align-items: flex-end;
+        }
+
+        .tabWidget {
+            display: flex;
+            align-items: center;
+            background-color: #d0d0d0;
+            border: 1px solid #a0a0a0;
+            border-bottom: none;
+            border-radius: 5px 5px 0 0;
+            margin-right: 2px;
+            padding: 2px 5px;
+            cursor: pointer;
+            height: 20px;
+            min-width: 60px;
+            max-width: 150px;
+            user-select: none;
+        }
+
+        .tabWidget:hover {
+            background-color: #e8e8e8;
+        }
+
+        .activeTab {
+            background-color: #ffffff;
+            border-bottom: 1px solid #ffffff; /* Blend with content */
+            font-weight: bold;
+            height: 22px; /* Slightly taller */
+            margin-top: -2px;
+        }
+
+        .tabTitle {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+
+        .tabCloseBtn {
+            font-size: 10px;
+            color: #666;
+            cursor: pointer;
+            padding: 0 2px;
+            border-radius: 50%;
+        }
+
+        .tabCloseBtn:hover {
+            background-color: #ffcccc;
+            color: red;
+        }
+
+        .addTabButton {
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 8px;
+            color: #555;
+        }
+
+        .addTabButton:hover {
+            color: #000;
+            background-color: #d0d0d0;
+            border-radius: 3px;
+        }
+
         </style>
 
         <script src="js/sys.js"></script>

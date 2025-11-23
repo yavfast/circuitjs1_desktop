@@ -22,7 +22,7 @@ public class BaseCirSim {
 
     BaseCirSim() {
         CircuitDocument initialDocument = documentManager.createDocument();
-        documentManager.setActiveDocument(initialDocument);
+        documentManager.setInitialDocument(initialDocument);
     }
 
     void bindDocument(CircuitDocument document) {

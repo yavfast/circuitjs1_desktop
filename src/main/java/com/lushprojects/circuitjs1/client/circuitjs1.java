@@ -46,6 +46,14 @@ public class circuitjs1 implements EntryPoint {
     // This is the program entrypoint! 
     // Called by gtw automagically (see circuitjs1.gwt.xml)
     public void onModuleLoad() {
+        GWT.setUncaughtExceptionHandler(new GWT.UncaughtExceptionHandler() {
+            public void onUncaughtException(Throwable e) {
+                Window.alert("Uncaught exception: " + e.getMessage());
+                GWT.log("Uncaught exception", e);
+                e.printStackTrace();
+            }
+        });
+
         // loadLocale() launches the sim after determining the language (see below)
         loadLocale();
     }
