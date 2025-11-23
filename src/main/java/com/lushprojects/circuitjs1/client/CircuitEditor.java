@@ -599,8 +599,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         event.preventDefault();
         renderer().getCanvas().setFocus(true);
         simulator().stopElm = null;
-        menuX = menuClientX = event.getX();
-        menuY = menuClientY = event.getY();
+        menuClientX = event.getClientX();
+        menuClientY = event.getClientY();
+        menuX = event.getX();
+        menuY = event.getY();
         mouseDownTime = System.currentTimeMillis();
         cirSim.enablePaste();
 
@@ -795,10 +797,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     public void onContextMenu(ContextMenuEvent event) {
         event.preventDefault();
-        menuX = event.getNativeEvent().getClientX();
-        menuY = event.getNativeEvent().getClientY();
-        menuClientX = menuX;
-        menuClientY = menuY;
+        menuClientX = event.getNativeEvent().getClientX();
+        menuClientY = event.getNativeEvent().getClientY();
+        menuX = menuClientX - renderer().getCanvas().getAbsoluteLeft();
+        menuY = menuClientY - renderer().getCanvas().getAbsoluteTop();
         cirSim.menuManager.doPopupMenu();
     }
 

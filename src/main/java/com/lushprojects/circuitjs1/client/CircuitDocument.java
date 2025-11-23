@@ -63,6 +63,7 @@ public class CircuitDocument {
     // UI State
     boolean dots, volts, power, showValues, smallGrid;
     int speedValue = 117, currentValue = 50, powerValue = 50;
+    double[] transform = new double[6]; // Store view transform (zoom/pan)
 
     void saveUIState(MenuManager menuManager, CirSim cirSim) {
         dots = menuManager.dotsCheckItem.getState();
@@ -74,6 +75,9 @@ public class CircuitDocument {
         speedValue = cirSim.speedBar.getValue();
         currentValue = cirSim.currentBar.getValue();
         powerValue = cirSim.powerBar.getValue();
+        
+        // Save view transform
+        System.arraycopy(cirSim.renderer.transform, 0, transform, 0, 6);
     }
 
     void restoreUIState(MenuManager menuManager, CirSim cirSim) {
@@ -87,10 +91,21 @@ public class CircuitDocument {
         cirSim.currentBar.setValue(currentValue);
         cirSim.powerBar.setValue(powerValue);
         
+        // Restore view transform
+        if (transform[0] != 0) {
+             System.arraycopy(transform, 0, cirSim.renderer.transform, 0, 6);
+        } else {
+             // Reset to default if no saved transform
+             cirSim.renderer.centreCircuit();
+        }
+        
         // Trigger side effects
         if (smallGrid) {
             cirSim.circuitEditor().setGrid();
         }
         cirSim.setPowerBarEnable();
+        
+        // Restore sliders
+        adjustableManager.updateSliders();
     }
 }

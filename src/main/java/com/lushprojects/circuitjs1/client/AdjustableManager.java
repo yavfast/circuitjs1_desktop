@@ -53,6 +53,11 @@ public class AdjustableManager extends BaseCirSimDelegate {
         }
     }
 
+    public void updateSliders() {
+        clearSlidersDialog();
+        createSliders();
+    }
+
     public void reset() {
         adjustables.clear();
         clearSlidersDialog();
