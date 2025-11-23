@@ -423,11 +423,19 @@ public class ActionManager extends BaseCirSimDelegate {
             simulator().deleteUnusedScopeElms();
         }
         if (menu == "circuits" && item.indexOf("setup ") == 0) {
+            // Create new tab
+            CircuitDocument newDoc = cirSim.documentManager.createDocument();
+            cirSim.documentManager.setActiveDocument(newDoc);
+            
             circuitEditor().pushUndo();
             int sp = item.indexOf(' ', 6);
             getActiveDocument().circuitLoader.readSetupFile(item.substring(6, sp), item.substring(sp + 1));
         }
         if (item == "newblankcircuit") {
+            // Create new tab
+            CircuitDocument newDoc = cirSim.documentManager.createDocument();
+            cirSim.documentManager.setActiveDocument(newDoc);
+            
             circuitEditor().pushUndo();
             getActiveDocument().circuitLoader.readSetupFile("blank.txt", "Blank Circuit");
         }

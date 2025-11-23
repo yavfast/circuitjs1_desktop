@@ -38,6 +38,19 @@ public class LoadFile extends FileUpload implements ChangeHandler {
     }
 
     public void doLoad(String s, String t) {
+        // Check if we should create a new tab
+        boolean createNewTab = true;
+        if (sim.activeDocument.simulator.elmList.isEmpty() && 
+            !sim.activeDocument.circuitInfo.unsavedChanges &&
+            (sim.activeDocument.circuitInfo.fileName == null || sim.activeDocument.circuitInfo.fileName.isEmpty())) {
+            createNewTab = false;
+        }
+
+        if (createNewTab) {
+            CircuitDocument newDoc = sim.documentManager.createDocument();
+            sim.documentManager.setActiveDocument(newDoc);
+        }
+
         sim.activeDocument.circuitEditor.pushUndo();
         sim.activeDocument.circuitLoader.readCircuit(s);
         sim.createNewLoadFile();

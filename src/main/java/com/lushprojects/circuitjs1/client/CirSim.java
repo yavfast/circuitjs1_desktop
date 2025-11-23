@@ -188,10 +188,10 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         circuitInfo.loadQueryParameters();
 
         UndoManager undoManager = getActiveDocument().undoManager;
-        undoManager.readRecovery();
-        if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
-            circuitInfo.startCircuitText = undoManager.recovery;
-        }
+        // undoManager.readRecovery();
+        // if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
+        //    circuitInfo.startCircuitText = undoManager.recovery;
+        // }
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
 
@@ -222,7 +222,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         // Now that UI is initialized, restore the UI state from the active document
         activeDocument.restoreUIState(menuManager, this);
         
-        boolean sessionRestored = documentManager.restoreSession();
+        // boolean sessionRestored = documentManager.restoreSession();
         
         if (!circuitInfo.hideMenu)
             layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
@@ -280,30 +280,28 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         setColors(circuitInfo.positiveColor, circuitInfo.negativeColor, circuitInfo.neutralColor,
                 circuitInfo.selectColor, circuitInfo.currentColor);
 
-        if (sessionRestored && (circuitInfo.startCircuitText != null || circuitInfo.startCircuit != null || circuitInfo.startCircuitLink != null)) {
-             // If session restored and we have a start circuit, create a new tab for it
-             CircuitDocument newDoc = documentManager.createDocument();
-             documentManager.setActiveDocument(newDoc);
-        }
+        boolean sessionRestored = documentManager.restoreSession();
 
-        CircuitLoader circuitLoader = activeDocument.circuitLoader;
-        if (circuitInfo.startCircuitText != null) {
-            circuitLoader.getSetupList(false);
-            circuitLoader.readCircuit(circuitInfo.startCircuitText);
-            setUnsavedChanges(false);
-        } else {
-            if (simulator().stopMessage == null && circuitInfo.startCircuitLink != null) {
-                circuitLoader.readCircuit("");
+        if (!sessionRestored) {
+            CircuitLoader circuitLoader = activeDocument.circuitLoader;
+            if (circuitInfo.startCircuitText != null) {
                 circuitLoader.getSetupList(false);
-                //ImportFromDropboxDialog.setSim(this);
-                //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
+                circuitLoader.readCircuit(circuitInfo.startCircuitText);
+                setUnsavedChanges(false);
             } else {
-                circuitLoader.readCircuit("");
-                if (simulator().stopMessage == null && circuitInfo.startCircuit != null) {
+                if (simulator().stopMessage == null && circuitInfo.startCircuitLink != null) {
+                    circuitLoader.readCircuit("");
                     circuitLoader.getSetupList(false);
-                    circuitLoader.readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
-                } else
-                    circuitLoader.getSetupList(true);
+                    //ImportFromDropboxDialog.setSim(this);
+                    //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
+                } else {
+                    circuitLoader.readCircuit("");
+                    if (simulator().stopMessage == null && circuitInfo.startCircuit != null) {
+                        circuitLoader.getSetupList(false);
+                        circuitLoader.readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
+                    } else
+                        circuitLoader.getSetupList(true);
+                }
             }
         }
 

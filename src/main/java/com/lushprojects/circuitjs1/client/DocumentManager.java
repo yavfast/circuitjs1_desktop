@@ -205,6 +205,16 @@ public class DocumentManager {
             JSONObject docObj = new JSONObject();
             docObj.put("title", new JSONString(getTabTitle(doc)));
             
+            if (doc.circuitInfo.fileName != null) {
+                docObj.put("fileName", new JSONString(doc.circuitInfo.fileName));
+            }
+            if (doc.circuitInfo.filePath != null) {
+                docObj.put("filePath", new JSONString(doc.circuitInfo.filePath));
+            }
+            if (doc.circuitInfo.lastFileName != null) {
+                docObj.put("lastFileName", new JSONString(doc.circuitInfo.lastFileName));
+            }
+            
             String dump;
             if (doc == activeDocument) {
                 dump = cirSim.actionManager.dumpCircuit();
@@ -275,6 +285,18 @@ public class DocumentManager {
                 // We must make the document active to load it correctly because CircuitLoader interacts with global UI
                 setActiveDocument(doc);
                 doc.circuitLoader.readCircuit(data);
+                
+                if (docObj.containsKey("fileName")) {
+                    doc.circuitInfo.fileName = docObj.get("fileName").isString().stringValue();
+                }
+                if (docObj.containsKey("filePath")) {
+                    doc.circuitInfo.filePath = docObj.get("filePath").isString().stringValue();
+                }
+                if (docObj.containsKey("lastFileName")) {
+                    doc.circuitInfo.lastFileName = docObj.get("lastFileName").isString().stringValue();
+                }
+                
+                notifyTitleChanged(doc);
                 
                 if (docObj.containsKey("active")) {
                     activeDocToSet = doc;
