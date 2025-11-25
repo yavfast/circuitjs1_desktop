@@ -2,9 +2,7 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
-import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.InductorElm;
@@ -140,63 +138,41 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     private boolean needsRepaint = false;
-    final static int FAST_TIMER = 16;
 
-    final Timer timer = new Timer() {
-        public void run() {
-            updateCircuit();
-        }
-    };
-
-    void startTimer() {
-        timer.scheduleRepeating(FAST_TIMER);
-    }
-
-    void stopTimer() {
-        timer.cancel();
-    }
+    // Timer removed, simulation loop is now in CircuitDocument
 
     void repaint() {
         if (!needsRepaint) {
             needsRepaint = true;
-            Scheduler.get().scheduleFixedDelay(() -> {
-                updateCircuit();
+            Scheduler.get().scheduleDeferred(() -> {
+                render();
                 needsRepaint = false;
-                return false;
-            }, FAST_TIMER);
+            });
         }
     }
 
     private final PerfMonitor perfmon = new PerfMonitor();
 
-    public void updateCircuit() {
+    public void resetTimers() {
+        lastTimeMillis = 0;
+        lastSecondTimeMillis = 0;
+        frameCount = 0;
+        framesPerSecond = 0;
+        stepsPerSecond = 0;
+    }
+
+    public void render() {
         perfmon.reset();
-        perfmon.startContext("updateCircuit()");
+        perfmon.startContext("render()");
 
         checkCanvasSize();
 
         CircuitSimulator simulator = simulator();
-        boolean wasAnalyzed = needsAnalysis;
-        if (needsAnalysis || circuitInfo().dcAnalysisFlag) {
-            perfmon.startContext("analyzeCircuit()");
-            simulator.analyzeCircuit();
-            needsAnalysis = false;
-            perfmon.stopContext();
-        }
 
-        if (simulator.needsStamp && simulator.simRunning) {
-            perfmon.startContext("stampCircuit()");
-            try {
-                simulator.preStampAndStampCircuit();
-            } catch (Exception e) {
-                simulator.stop("Exception in stampCircuit()", null);
-                GWT.log("Exception in stampCircuit", e);
-            }
-            perfmon.stopContext();
-        }
+        // Simulation logic moved to CircuitDocument
 
         if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
-//            simulator().stopElm.setMouseElm(true);
+            // simulator().stopElm.setMouseElm(true);
         }
 
         scopeManager().setupScopes();
@@ -204,19 +180,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         Graphics graphics = new Graphics(canvasContext);
         setupFrame(graphics);
 
-        if (simulator.simRunning) {
-            if (simulator.needsStamp) {
-                CirSim.console("needsStamp while simRunning?");
-            }
-
-            perfmon.startContext("runCircuit()");
-            try {
-                simulator.runCircuit(wasAnalyzed);
-            } catch (Exception e) {
-                CirSim.console("exception in runCircuit " + e);
-            }
-            perfmon.stopContext();
-        }
+        // Simulation run logic moved to CircuitDocument
 
         updateSimulationTimers(simulator);
 
@@ -225,18 +189,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         perfmon.stopContext(); // graphics
 
         if (simulator.stopElm != null && simulator.stopElm != circuitEditor().mouseElm) {
-//            simulator.stopElm.setMouseElm(false);
+            // simulator.stopElm.setMouseElm(false);
         }
 
         frameCount++;
 
-        if (circuitInfo().dcAnalysisFlag) {
-            circuitInfo().dcAnalysisFlag = false;
-            needsAnalysis = true;
-        }
-
         lastFrameTimeMillis = lastTimeMillis;
-        perfmon.stopContext(); // updateCircuit
+        perfmon.stopContext(); // render
 
         if (circuitInfo().developerMode) {
             drawDeveloperInfo(graphics, perfmon);
@@ -304,7 +263,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         graphics.setColor(Color.white);
 
         double scale = CirSim.devicePixelRatio();
-        canvasContext.setTransform(transform[0] * scale, 0, 0, transform[3] * scale, transform[4] * scale, transform[5] * scale);
+        canvasContext.setTransform(transform[0] * scale, 0, 0, transform[3] * scale, transform[4] * scale,
+                transform[5] * scale);
 
         drawElements(graphics, simulator);
         drawHandles(graphics);
@@ -318,7 +278,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     private void drawElements(Graphics graphics, CircuitSimulator simulator) {
         perfmon.startContext("elm.draw()");
-        for (CircuitElm ce: simulator().elmList) {
+        for (CircuitElm ce : simulator.elmList) {
             if (cirSim.menuManager.powerCheckItem.getState()) {
                 graphics.setColor(Color.gray);
             }
@@ -327,18 +287,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         perfmon.stopContext();
 
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor().mouseMode != MouseMode.DRAG_ROW && circuitEditor().mouseMode != MouseMode.DRAG_COLUMN) {
-            for (Point item: simulator().postDrawList) {
+        if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN) {
+            for (Point item : simulator.postDrawList) {
                 CircuitElm.drawPost(graphics, item);
             }
         }
 
-        if (circuitEditor().tempMouseMode == MouseMode.DRAG_ROW ||
-                circuitEditor().tempMouseMode == MouseMode.DRAG_COLUMN ||
-                circuitEditor().tempMouseMode == MouseMode.DRAG_POST ||
-                circuitEditor().tempMouseMode == MouseMode.DRAG_SELECTED) {
-            for (CircuitElm ce: simulator().elmList) {
-                if (ce != circuitEditor().mouseElm || circuitEditor().tempMouseMode != MouseMode.DRAG_POST) {
+        if (circuitEditor.tempMouseMode == MouseMode.DRAG_ROW ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_COLUMN ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_POST ||
+                circuitEditor.tempMouseMode == MouseMode.DRAG_SELECTED) {
+            for (CircuitElm ce : simulator.elmList) {
+                if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != MouseMode.DRAG_POST) {
                     graphics.setColor(Color.gray);
                     graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
                     graphics.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
@@ -351,19 +311,20 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     private void drawHandles(Graphics graphics) {
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor().tempMouseMode == MouseMode.SELECT && circuitEditor().mouseElm != null) {
-            circuitEditor().mouseElm.drawHandles(graphics, CircuitElm.selectColor);
+        if (circuitEditor.tempMouseMode == MouseMode.SELECT && circuitEditor.mouseElm != null) {
+            circuitEditor.mouseElm.drawHandles(graphics, CircuitElm.selectColor);
         }
 
-        if (circuitEditor().dragElm != null && (circuitEditor().dragElm.x != circuitEditor().dragElm.x2 || circuitEditor().dragElm.y != circuitEditor().dragElm.y2)) {
-            circuitEditor().dragElm.draw(graphics);
-            circuitEditor().dragElm.drawHandles(graphics, CircuitElm.selectColor);
+        if (circuitEditor.dragElm != null && (circuitEditor.dragElm.x != circuitEditor.dragElm.x2
+                || circuitEditor.dragElm.y != circuitEditor.dragElm.y2)) {
+            circuitEditor.dragElm.draw(graphics);
+            circuitEditor.dragElm.drawHandles(graphics, CircuitElm.selectColor);
         }
     }
 
     private void drawBadConnections(Graphics graphics, CircuitSimulator simulator) {
-        for (int i = 0; i != simulator().badConnectionList.size(); i++) {
-            Point cn = simulator().badConnectionList.get(i);
+        for (int i = 0; i != simulator.badConnectionList.size(); i++) {
+            Point cn = simulator.badConnectionList.get(i);
             graphics.setColor(Color.red);
             graphics.fillOval(cn.x - 3, cn.y - 3, 7, 7);
         }
@@ -371,16 +332,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     private void drawSelectionAndCursor(Graphics graphics) {
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor().selectedArea != null) {
+        if (circuitEditor.selectedArea != null) {
             graphics.setColor(CircuitElm.selectColor);
-            graphics.drawRect(circuitEditor().selectedArea.x, circuitEditor().selectedArea.y, circuitEditor().selectedArea.width, circuitEditor().selectedArea.height);
+            graphics.drawRect(circuitEditor.selectedArea.x, circuitEditor.selectedArea.y,
+                    circuitEditor.selectedArea.width, circuitEditor.selectedArea.height);
         }
 
-        if (cirSim.menuManager.crossHairCheckItem.getState() && circuitEditor().mouseCursorX >= 0
-                && circuitEditor().mouseCursorX <= circuitArea.width && circuitEditor().mouseCursorY <= circuitArea.height) {
+        if (cirSim.menuManager.crossHairCheckItem.getState() && circuitEditor.mouseCursorX >= 0
+                && circuitEditor.mouseCursorX <= circuitArea.width
+                && circuitEditor.mouseCursorY <= circuitArea.height) {
             graphics.setColor(Color.gray);
-            int x = circuitEditor().snapGrid(inverseTransformX(circuitEditor().mouseCursorX));
-            int y = circuitEditor().snapGrid(inverseTransformY(circuitEditor().mouseCursorY));
+            int x = circuitEditor.snapGrid(inverseTransformX(circuitEditor.mouseCursorX));
+            int y = circuitEditor.snapGrid(inverseTransformY(circuitEditor.mouseCursorY));
             graphics.drawLine(x, inverseTransformY(0), x, inverseTransformY(circuitArea.height));
             graphics.drawLine(inverseTransformX(0), y, inverseTransformX(circuitArea.width), y);
         }
@@ -392,7 +355,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         graphics.setColor(Color.white);
         graphics.drawString("Framerate: " + CircuitElm.showFormat(framesPerSecond), 10, height);
         graphics.drawString("Steprate: " + CircuitElm.showFormat(stepsPerSecond), 10, height += increment);
-        graphics.drawString("Steprate/iter: " + CircuitElm.showFormat(stepsPerSecond / cirSim.getIterCount()), 10, height += increment);
+        graphics.drawString("Steprate/iter: " + CircuitElm.showFormat(stepsPerSecond / cirSim.getIterCount()), 10,
+                height += increment);
         graphics.drawString("iterc: " + CircuitElm.showFormat(cirSim.getIterCount()), 10, height += increment);
         graphics.drawString("Frames: " + frameCount, 10, height += increment);
 
@@ -410,7 +374,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             graphics.setColor(Color.black);
         else
             graphics.setColor(Color.white);
-        graphics.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor().mouseModeStr), 10, 29);
+        graphics.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor().mouseModeStr),
+                10, 29);
     }
 
     void drawBottomArea(Graphics g) {
@@ -432,7 +397,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             infoBoxHeight = 30;
 
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? "#eee" : "#111");
-        g.fillRect(infoBoxStartX, circuitArea.height - infoBoxHeight, circuitArea.width, canvasHeight - circuitArea.height + infoBoxHeight);
+        g.fillRect(infoBoxStartX, circuitArea.height - infoBoxHeight, circuitArea.width,
+                canvasHeight - circuitArea.height + infoBoxHeight);
         g.setFont(CircuitElm.unitsFont);
 
         int currentScopeCount = (simulator.stopMessage != null) ? 0 : scopeManager.scopeCount;
@@ -504,7 +470,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         int badNodes = simulator.badConnectionList.size();
         if (badNodes > 0) {
-            infoLines[lineIdx++] = badNodes + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
+            infoLines[lineIdx++] = badNodes
+                    + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
         }
         if (circuitInfo().savedFlag) {
             infoLines[lineIdx++] = "(saved)";
@@ -521,7 +488,6 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
     }
 
-
     String getHint() {
         CircuitElm c1 = simulator().getElm(hintItem1);
         CircuitElm c2 = simulator().getElm(hintItem2);
@@ -531,35 +497,40 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         switch (hintType) {
             case CircuitConst.HINT_LC: {
-                if (!(c1 instanceof InductorElm) || !(c2 instanceof CapacitorElm)) return null;
+                if (!(c1 instanceof InductorElm) || !(c2 instanceof CapacitorElm))
+                    return null;
                 InductorElm ie = (InductorElm) c1;
                 CapacitorElm ce = (CapacitorElm) c2;
                 return Locale.LS("res.f = ") + CircuitElm.getUnitText(1 / (2 * Math.PI * Math.sqrt(ie.inductance *
                         ce.capacitance)), "Hz");
             }
             case CircuitConst.HINT_RC: {
-                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm))
+                    return null;
                 ResistorElm re = (ResistorElm) c1;
                 CapacitorElm ce = (CapacitorElm) c2;
                 return "RC = " + CircuitElm.getUnitText(re.resistance * ce.capacitance,
                         "s");
             }
             case CircuitConst.HINT_3DB_C: {
-                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm))
+                    return null;
                 ResistorElm re = (ResistorElm) c1;
                 CapacitorElm ce = (CapacitorElm) c2;
                 return Locale.LS("f.3db = ") +
                         CircuitElm.getUnitText(1 / (2 * Math.PI * re.resistance * ce.capacitance), "Hz");
             }
             case CircuitConst.HINT_3DB_L: {
-                if (!(c1 instanceof ResistorElm) || !(c2 instanceof InductorElm)) return null;
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof InductorElm))
+                    return null;
                 ResistorElm re = (ResistorElm) c1;
                 InductorElm ie = (InductorElm) c2;
                 return Locale.LS("f.3db = ") +
                         CircuitElm.getUnitText(re.resistance / (2 * Math.PI * ie.inductance), "Hz");
             }
             case CircuitConst.HINT_TWINT: {
-                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm)) return null;
+                if (!(c1 instanceof ResistorElm) || !(c2 instanceof CapacitorElm))
+                    return null;
                 ResistorElm re = (ResistorElm) c1;
                 CapacitorElm ce = (CapacitorElm) c2;
                 return Locale.LS("fc = ") +
@@ -571,7 +542,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     void centreCircuit() {
-        if (simulator().elmList == null)  // avoid exception if called during initialization
+        if (simulator().elmList == null) // avoid exception if called during initialization
             return;
 
         Rectangle bounds = getCircuitBounds();
@@ -580,7 +551,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         double scale = 1.0;
         int effectiveCircuitHeight = circuitArea.height;
 
-        // If there's no scope and the window isn't very wide, don't use the full circuit area for centering.
+        // If there's no scope and the window isn't very wide, don't use the full
+        // circuit area for centering.
         if (scopeManager().scopeCount == 0 && circuitArea.width < 800) {
             effectiveCircuitHeight -= (int) ((double) effectiveCircuitHeight * scopeHeightFraction);
         }
@@ -606,12 +578,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     Rectangle getCircuitBounds() {
         int minx = 30000, maxx = -30000, miny = 30000, maxy = -30000;
         CircuitSimulator simulator = simulator();
-        if (simulator().elmList.isEmpty()) {
+        if (simulator.elmList.isEmpty()) {
             return null;
         }
 
-        for (CircuitElm ce : simulator().elmList) {
-            // Centered text causes problems when trying to center the circuit, so we special-case it here
+        for (CircuitElm ce : simulator.elmList) {
+            // Centered text causes problems when trying to center the circuit, so we
+            // special-case it here
             if (!ce.isCenteredText()) {
                 minx = Math.min(ce.x, Math.min(ce.x2, minx));
                 maxx = Math.max(ce.x, Math.max(ce.x2, maxx));
@@ -668,10 +641,10 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             graphics.setLineCap(Context2d.LineCap.ROUND);
 
             CircuitSimulator simulator = simulator();
-            for (CircuitElm elm : simulator().elmList) {
+            for (CircuitElm elm : simulator.elmList) {
                 elm.draw(graphics);
             }
-            for (Point post : simulator().postDrawList) {
+            for (Point post : simulator.postDrawList) {
                 CircuitElm.drawPost(graphics, post);
             }
 
@@ -686,7 +659,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     public Canvas getCircuitAsCanvas(int type) {
         Canvas exportCanvas = Canvas.createIfSupported();
         Rectangle bounds = getCircuitBounds();
-        if (bounds == null) return exportCanvas; // Return empty canvas if no bounds
+        if (bounds == null)
+            return exportCanvas; // Return empty canvas if no bounds
 
         int widthMargin = 140;
         int heightMargin = 100;
@@ -702,7 +676,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     public String getCircuitAsSVG() {
         Rectangle bounds = getCircuitBounds();
-        if (bounds == null) return ""; // Return empty string if no bounds
+        if (bounds == null)
+            return ""; // Return empty string if no bounds
 
         int widthMargin = 140;
         int heightMargin = 100;

@@ -101,7 +101,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         valueLabel = new Label();
         valueLabel.addStyleName("topSpace");
         int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
-        slider = new Scrollbar(Scrollbar.HORIZONTAL, intValue, 1, 0, 100, this, elm);
+        slider = new Scrollbar(cirSim, Scrollbar.HORIZONTAL, intValue, 1, 0, 100, this, elm);
 
         editAdjustableButton = new Button("\u2699"); // Gear icon
         editAdjustableButton.addClickHandler(new ClickHandler() {

@@ -16,8 +16,8 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
-    protected CircuitLoader(BaseCirSim cirSim) {
-        super(cirSim);
+    protected CircuitLoader(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
     }
 
     public void readCircuit(String circuitData, int flags) {
@@ -140,7 +140,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
         switch (typeIdentifier) {
             case 'o': // Scope
-                Scope scope = new Scope(cirSim);
+                Scope scope = new Scope(cirSim, getActiveDocument());
                 scope.position = scopeManager.scopeCount;
                 scope.undump(stringTokenizer);
                 scopeManager.scopes[scopeManager.scopeCount++] = scope;
@@ -207,7 +207,8 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         int elementFlags = CircuitElm.parseInt(stringTokenizer.nextToken());
 
         // Create the circuit element
-        CircuitElm newCircuitElement = CircuitElmCreator.createCe(typeIdentifier, startX, startY, endX, endY, elementFlags, stringTokenizer);
+        CircuitElm newCircuitElement = CircuitElmCreator.createCe(typeIdentifier, startX, startY, endX, endY,
+                elementFlags, stringTokenizer);
         if (newCircuitElement == null) {
             CirSim.console("unrecognized dump type: " + stringTokenizer.getOriginalString());
             return;
@@ -217,6 +218,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         CircuitElmCreator.readDescription(newCircuitElement, stringTokenizer);
 
         // Add element to simulation
+        newCircuitElement.setCircuitDocument(getActiveDocument());
         newCircuitElement.setPoints();
         simulator().elmList.add(newCircuitElement);
     }
@@ -285,7 +287,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         simulator().maxTimeStep = simulator().timeStep = CircuitElm.parseDouble(st.nextToken());
         double sp = CircuitElm.parseDouble(st.nextToken());
         int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
-        //int sp2 = (int) (Math.log(sp)*24+1.5);
+        // int sp2 = (int) (Math.log(sp)*24+1.5);
         cirSim.speedBar.setValue(sp2);
         cirSim.currentBar.setValue(CircuitElm.parseInt(st.nextToken()));
         CircuitElm.voltageRange = CircuitElm.parseDouble(st.nextToken());
@@ -299,9 +301,10 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         circuitEditor().setGrid();
     }
 
-    void getSetupList(final boolean openDefault) {
+    public static void loadSetupList(CirSim cirSim, final boolean openDefault) {
         String url;
         url = GWT.getModuleBaseURL() + "setuplist.txt"; // +"?v="+random.nextInt();
+        CirSim.console("Loading setup list from: " + url);
         RequestBuilder requestBuilder = new RequestBuilder(RequestBuilder.GET, url);
         try {
             requestBuilder.sendRequest(null, new RequestCallback() {
@@ -311,10 +314,15 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                 }
 
                 public void onResponseReceived(Request request, Response response) {
+                    CirSim.console("Setup list response: " + response.getStatusCode());
                     // processing goes here
-                    if (response.getStatusCode() == Response.SC_OK) {
+                    if (response.getStatusCode() == Response.SC_OK || response.getStatusCode() == 0) {
                         String text = response.getText();
-                        processSetupList(text.getBytes(), openDefault);
+                        if (text != null && !text.isEmpty()) {
+                            processSetupList(cirSim, text, openDefault);
+                        } else {
+                            CirSim.console("Setup list empty");
+                        }
                         // end or processing
                     } else {
                         Window.alert(Locale.LS("Can't load circuit list!"));
@@ -327,32 +335,26 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         }
     }
 
-    void processSetupList(byte[] b, boolean openDefault) {
-        MenuBar circuitsMenuBar = menuManager().circuitsMenuBar;
+    static void processSetupList(CirSim cirSim, String text, boolean openDefault) {
+        MenuBar circuitsMenuBar = cirSim.menuManager.circuitsMenuBar;
 
-        int len = b.length;
+        String[] lines = text.split("\r\n|\n|\r");
         MenuBar[] stack = new MenuBar[6];
         int stackptr = 0;
         stack[stackptr++] = circuitsMenuBar;
-        int p;
-        for (p = 0; p < len; ) {
-            int l;
-            for (l = 0; l != len - p; l++)
-                if (b[l + p] == '\n' || b[l + p] == '\r') {
-                    l++;
-                    break;
-                }
-            String line = new String(b, p, l - 1);
+        
+        for (String line : lines) {
             if (line.isEmpty() || line.charAt(0) == '#')
-                ;
+                continue;
             else if (line.charAt(0) == '+') {
-                //	MenuBar n = new Menu(line.substring(1));
+                // MenuBar n = new Menu(line.substring(1));
                 MenuBar n = new MenuBar(true);
                 n.setAutoOpen(true);
                 circuitsMenuBar.addItem(Locale.LS(line.substring(1)), n);
                 circuitsMenuBar = stack[stackptr++] = n;
             } else if (line.charAt(0) == '-') {
-                circuitsMenuBar = stack[--stackptr - 1];
+                if (stackptr > 1)
+                    circuitsMenuBar = stack[--stackptr - 1];
             } else {
                 int i = line.indexOf(' ');
                 if (i > 0) {
@@ -365,21 +367,19 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                             new MyCommand("circuits", "setup " + file + " " + title)));
 
                     // TODO:
-                    CircuitInfo circuitInfo = circuitInfo();
+                    CircuitInfo circuitInfo = cirSim.getActiveDocument().circuitInfo;
                     if (file.equals(circuitInfo.startCircuit) && circuitInfo.startLabel == null) {
                         circuitInfo.startLabel = title;
-                        CirSim cirSim = (CirSim) this.cirSim;
                         cirSim.setSlidersDialogHeight();
                     }
                     if (first && circuitInfo.startCircuit == null) {
                         circuitInfo.startCircuit = file;
                         circuitInfo.startLabel = title;
-                        if (openDefault && simulator().stopMessage == null)
-                            readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
+                        if (openDefault && cirSim.getActiveDocument().simulator.stopMessage == null)
+                            cirSim.getActiveDocument().circuitLoader.readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
                     }
                 }
             }
-            p += l;
         }
     }
 
@@ -406,7 +406,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                 }
 
                 public void onResponseReceived(Request request, Response response) {
-                    if (response.getStatusCode() == Response.SC_OK) {
+                    if (response.getStatusCode() == Response.SC_OK || response.getStatusCode() == 0) {
                         String text = response.getText();
                         readCircuit(text, CircuitConst.RC_KEEP_TITLE);
                         CirSim cirSim = (CirSim) CircuitLoader.this.cirSim;
@@ -425,6 +425,5 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         }
 
     }
-
 
 }

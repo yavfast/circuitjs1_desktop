@@ -9,8 +9,8 @@ public class AdjustableManager extends BaseCirSimDelegate {
 
     public final ArrayList<Adjustable> adjustables;
 
-    protected AdjustableManager(BaseCirSim cirSim) {
-        super(cirSim);
+    public AdjustableManager(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
         adjustables = new ArrayList<>();
     }
 
@@ -89,14 +89,17 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     public void setMouseElm(CircuitElm ce) {
-        for (Adjustable item: adjustables) {
+        for (Adjustable item : adjustables) {
             item.setMouseElm(ce);
         }
     }
 
-    // reorder adjustables so that items with sliders come first in the list, followed by items that reference them.
-    // this simplifies the UI code, and also makes it much easier to dump/undump the adjustables list, since we will
-    // always be undumping the adjustables with sliders first, then the adjustables that reference them.
+    // reorder adjustables so that items with sliders come first in the list,
+    // followed by items that reference them.
+    // this simplifies the UI code, and also makes it much easier to dump/undump the
+    // adjustables list, since we will
+    // always be undumping the adjustables with sliders first, then the adjustables
+    // that reference them.
     public void reorderAdjustables() {
         ArrayList<Adjustable> newList = new ArrayList<>();
         ArrayList<Adjustable> oldList = adjustables;

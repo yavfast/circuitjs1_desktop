@@ -98,7 +98,7 @@ public class MenuManager extends BaseCirSimDelegate {
         mainMenuBar = new MenuBar(true);
         menuBar = new MenuBar();
 
-        scopePopupMenu = new ScopePopupMenu();
+        scopePopupMenu = new ScopePopupMenu(cirSim);
 
         String os = Window.Navigator.getPlatform();
         isMac = (os.toLowerCase().contains("mac"));
@@ -232,9 +232,9 @@ public class MenuManager extends BaseCirSimDelegate {
         MenuBar m;
         optionsMenuBar = m = new MenuBar(true);
         menuBar.addItem(Locale.LS("Options"), optionsMenuBar);
-        m.addItem(dotsCheckItem = new CheckboxMenuItem(Locale.LS("Show Current")));
+        m.addItem(dotsCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Current")));
         dotsCheckItem.setState(true);
-        m.addItem(voltsCheckItem = new CheckboxMenuItem(Locale.LS("Show Voltage"),
+        m.addItem(voltsCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Voltage"),
                 new Command() {
                     public void execute() {
                         if (voltsCheckItem.getState())
@@ -243,7 +243,7 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         voltsCheckItem.setState(true);
-        m.addItem(powerCheckItem = new CheckboxMenuItem(Locale.LS("Show Power"),
+        m.addItem(powerCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Power"),
                 new Command() {
                     public void execute() {
                         if (powerCheckItem.getState())
@@ -251,16 +251,16 @@ public class MenuManager extends BaseCirSimDelegate {
                         cirSim.setPowerBarEnable();
                     }
                 }));
-        m.addItem(showValuesCheckItem = new CheckboxMenuItem(Locale.LS("Show Values")));
+        m.addItem(showValuesCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Values")));
         showValuesCheckItem.setState(true);
         //m.add(conductanceCheckItem = getCheckItem(LS("Show Conductance")));
-        m.addItem(smallGridCheckItem = new CheckboxMenuItem(Locale.LS("Small Grid"),
+        m.addItem(smallGridCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Small Grid"),
                 new Command() {
                     public void execute() {
                         circuitEditor().setGrid();
                     }
                 }));
-        m.addItem(toolbarCheckItem = new CheckboxMenuItem(Locale.LS("Toolbar"),
+        m.addItem(toolbarCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Toolbar"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("toolbar", toolbarCheckItem.getState());
@@ -268,21 +268,21 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         toolbarCheckItem.setState(OptionsManager.getBoolOptionFromStorage("toolbar", true));
-        m.addItem(mouseModeCheckItem = new CheckboxMenuItem(Locale.LS("Show Mode"),
+        m.addItem(mouseModeCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Mode"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("showMouseMode", mouseModeCheckItem.getState());
                     }
                 }));
         mouseModeCheckItem.setState(OptionsManager.getBoolOptionFromStorage("showMouseMode", true));
-        m.addItem(crossHairCheckItem = new CheckboxMenuItem(Locale.LS("Show Cursor Cross Hairs"),
+        m.addItem(crossHairCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Cursor Cross Hairs"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("crossHair", crossHairCheckItem.getState());
                     }
                 }));
         crossHairCheckItem.setState(OptionsManager.getBoolOptionFromStorage("crossHair", false));
-        m.addItem(euroResistorCheckItem = new CheckboxMenuItem(Locale.LS("European Resistors"),
+        m.addItem(euroResistorCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("European Resistors"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("euroResistors", euroResistorCheckItem.getState());
@@ -290,7 +290,7 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         euroResistorCheckItem.setState(circuitInfo().euroSetting);
-        m.addItem(euroGatesCheckItem = new CheckboxMenuItem(Locale.LS("IEC Gates"),
+        m.addItem(euroGatesCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("IEC Gates"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("euroGates", euroGatesCheckItem.getState());
@@ -300,7 +300,7 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         euroGatesCheckItem.setState(circuitInfo().euroGates);
-        m.addItem(printableCheckItem = new CheckboxMenuItem(Locale.LS("White Background"),
+        m.addItem(printableCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("White Background"),
                 new Command() {
                     public void execute() {
                         scopeManager().updateScopes();
@@ -309,7 +309,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 }));
         printableCheckItem.setState(circuitInfo().printable);
 
-        m.addItem(conventionCheckItem = new CheckboxMenuItem(Locale.LS("Conventional Current Motion"),
+        m.addItem(conventionCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Conventional Current Motion"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("conventionalCurrent", conventionCheckItem.getState());
@@ -320,10 +320,10 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         conventionCheckItem.setState(circuitInfo().convention);
-        m.addItem(noEditCheckItem = new CheckboxMenuItem(Locale.LS("Disable Editing")));
+        m.addItem(noEditCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Disable Editing")));
         noEditCheckItem.setState(circuitInfo().noEditing);
 
-        m.addItem(mouseWheelEditCheckItem = new CheckboxMenuItem(Locale.LS("Edit Values With Mouse Wheel"),
+        m.addItem(mouseWheelEditCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Edit Values With Mouse Wheel"),
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("mouseWheelEdit", mouseWheelEditCheckItem.getState());
@@ -549,9 +549,9 @@ public class MenuManager extends BaseCirSimDelegate {
         }
 
         if (shortcut == "")
-            mi = new CheckboxMenuItem(s);
+            mi = new CheckboxMenuItem(cirSim, s);
         else
-            mi = new CheckboxMenuItem(s, shortcut);
+            mi = new CheckboxMenuItem(cirSim, s, shortcut);
         mi.setScheduledCommand(new MyCommand("main", t));
         mainMenuItems.add(mi);
         mainMenuItemNames.add(t);

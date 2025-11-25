@@ -302,7 +302,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         positionLabel = new Label(Locale.LS("Position"));
         vScaleGrid.setWidget(1, 0, positionLabel);
         vScaleGrid.getCellFormatter().setVerticalAlignment(0, 0, HasVerticalAlignment.ALIGN_MIDDLE);
-        positionBar = new Scrollbar(Scrollbar.HORIZONTAL, 0, 1, -Scope.V_POSITION_STEPS, Scope.V_POSITION_STEPS, new Command() {
+        positionBar = new Scrollbar(sim, Scrollbar.HORIZONTAL, 0, 1, -Scope.V_POSITION_STEPS, Scope.V_POSITION_STEPS, new Command() {
             public void execute() {
                 positionBarChanged();
             }
@@ -362,7 +362,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         hScaleGrid = new Grid(2, 4);
         hScaleLabel = new ScopePropertiesDialog.expandingLabel(Locale.LS("Horizontal Scale"), displayScales);
         hScaleGrid.setWidget(0, 0, hScaleLabel.p);
-        speedBar = new Scrollbar(Scrollbar.HORIZONTAL, 2, 1, 0, 10, new Command() {
+        speedBar = new Scrollbar(sim, Scrollbar.HORIZONTAL, 2, 1, 0, 10, new Command() {
             public void execute() {
                 scrollbarChanged();
             }

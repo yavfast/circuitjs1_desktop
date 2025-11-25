@@ -28,8 +28,8 @@ public class DCMotorElm extends CircuitElm {
 
     public DCMotorElm(int xx, int yy) {
         super(xx, yy);
-        ind = new Inductor(simUi);
-        indInertia = new Inductor(simUi);
+        ind = new Inductor();
+        indInertia = new Inductor();
         inductance = .5;
         resistance = 1;
         angle = pi / 2;
@@ -61,8 +61,8 @@ public class DCMotorElm extends CircuitElm {
         gearRatio = parseDouble(st.nextToken());
         tau = parseDouble(st.nextToken());
 
-        ind = new Inductor(simUi);
-        indInertia = new Inductor(simUi);
+        ind = new Inductor();
+        indInertia = new Inductor();
         ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
         indInertia.setup(J, 0, Inductor.FLAG_BACK_EULER);
     }
@@ -278,5 +278,12 @@ public class DCMotorElm extends CircuitElm {
             b = ei.value;
         if (ei.value > 0 & n == 6)
             gearRatio = ei.value;
+    }
+
+        @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        ind.setSimulator(circuitDocument.simulator);
+        indInertia.setSimulator(circuitDocument.simulator);
     }
 }

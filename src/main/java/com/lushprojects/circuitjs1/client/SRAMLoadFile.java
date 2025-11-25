@@ -24,8 +24,15 @@ import com.lushprojects.circuitjs1.client.element.SRAMElm;
 
 public class SRAMLoadFile extends EditDialogLoadFile {
 
+    private final BaseCirSim cirSim;
+
+    public SRAMLoadFile(BaseCirSim cirSim) {
+        this.cirSim = cirSim;
+    }
+
     public final native void handle()
 	/*-{
+		var that = this;
 		var oFiles = $doc.getElementById("EditDialogLoadFileElement").files,
 		nFiles = oFiles.length;
 		if (nFiles>=1) {
@@ -40,16 +47,16 @@ public class SRAMLoadFile extends EditDialogLoadFile {
 				var str = "0:";
 				for (var i = 0; i < arr.length; i++)
 					str += " " + arr[i];
-				@com.lushprojects.circuitjs1.client.SRAMLoadFile::doLoadCallback(Ljava/lang/String;)(str);
+				that.@com.lushprojects.circuitjs1.client.SRAMLoadFile::handleLoad(Ljava/lang/String;)(str);
 			};
 	
 			reader.readAsArrayBuffer(oFiles[0]);
 		}
 	}-*/;
 
-    static public void doLoadCallback(String data) {
+    private void handleLoad(String data) {
         SRAMElm.contentsOverride = data;
-        CirSim.theSim.dialogManager.resetEditDialog();
+        cirSim.dialogManager.resetEditDialog();
         SRAMElm.contentsOverride = null;
     }
 }

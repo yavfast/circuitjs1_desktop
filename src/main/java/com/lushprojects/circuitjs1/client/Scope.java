@@ -107,8 +107,8 @@ public class Scope extends BaseCirSimDelegate {
     private static int cursorUnits;
     private static Scope cursorScope;
 
-    public Scope(BaseCirSim s) {
-        super(s);
+    public Scope(BaseCirSim s, CircuitDocument circuitDocument) {
+        super(s, circuitDocument);
         scale = new double[UNITS_COUNT];
         reduceRange = new boolean[UNITS_COUNT];
         manDivisions = lastManDivisions;
@@ -340,7 +340,7 @@ public class Scope extends BaseCirSimDelegate {
 
     void addValue(int val, CircuitElm ce) {
         if (val == 0) {
-            plots.add(new ScopePlot(ce, UNITS_V, VAL_VOLTAGE, getManScaleFromMaxScale(UNITS_V, false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, ce, UNITS_V, VAL_VOLTAGE, getManScaleFromMaxScale(UNITS_V, false)));
 
             // create plot for current if applicable
             if (ce != null &&
@@ -349,11 +349,11 @@ public class Scope extends BaseCirSimDelegate {
                             ce instanceof LogicOutputElm ||
                             ce instanceof AudioOutputElm ||
                             ce instanceof ProbeElm)) {
-                plots.add(new ScopePlot(ce, UNITS_A, VAL_CURRENT, getManScaleFromMaxScale(UNITS_A, false)));
+                plots.add(new ScopePlot(cirSim, circuitDocument, ce, UNITS_A, VAL_CURRENT, getManScaleFromMaxScale(UNITS_A, false)));
             }
         } else {
             int u = ce.getScopeUnits(val);
-            plots.add(new ScopePlot(ce, u, val, getManScaleFromMaxScale(u, false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, ce, u, val, getManScaleFromMaxScale(u, false)));
             if (u == UNITS_V) {
                 showV = true;
             }
@@ -373,14 +373,14 @@ public class Scope extends BaseCirSimDelegate {
     void setValues(int val, int ival, CircuitElm ce, CircuitElm yelm) {
         if (ival > 0) {
             plots = new Vector<>();
-            plots.add(new ScopePlot(ce, ce.getScopeUnits(val), val, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
-            plots.add(new ScopePlot(ce, ce.getScopeUnits(ival), ival, getManScaleFromMaxScale(ce.getScopeUnits(ival), false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, ce, ce.getScopeUnits(val), val, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, ce, ce.getScopeUnits(ival), ival, getManScaleFromMaxScale(ce.getScopeUnits(ival), false)));
             return;
         }
         if (yelm != null) {
             plots = new Vector<>();
-            plots.add(new ScopePlot(ce, ce.getScopeUnits(val), 0, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
-            plots.add(new ScopePlot(yelm, ce.getScopeUnits(ival), 0, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, ce, ce.getScopeUnits(val), 0, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
+            plots.add(new ScopePlot(cirSim, circuitDocument, yelm, ce.getScopeUnits(ival), 0, getManScaleFromMaxScale(ce.getScopeUnits(val), false)));
             return;
         }
         setValue(val);
@@ -432,7 +432,7 @@ public class Scope extends BaseCirSimDelegate {
             if (pos >= arr.length) {
                 return pos;
             }
-            Scope s = new Scope(cirSim);
+            Scope s = new Scope(cirSim, getActiveDocument());
             if (lastPlot != null && lastPlot.elm == sp.elm && lastPlot.value == VAL_VOLTAGE && sp.value == VAL_CURRENT) {
                 continue;
             }
@@ -1685,7 +1685,7 @@ public class Scope extends BaseCirSimDelegate {
                         if (u > UNITS_A) {
                             scale[u] = CircuitElm.parseDouble(st.nextToken());
                         }
-                        plots.add(new ScopePlot(elm, u, val, getManScaleFromMaxScale(u, false)));
+                        plots.add(new ScopePlot(cirSim, circuitDocument, elm, u, val, getManScaleFromMaxScale(u, false)));
                     }
                     ScopePlot p = plots.get(i);
                     p.acCoupled = (plotFlags & ScopePlot.FLAG_AC) != 0;
@@ -1905,7 +1905,7 @@ public class Scope extends BaseCirSimDelegate {
                         ce != plots.get(0).elm) {
                     yElm = ce;
                     if (plots.size() == 1) {
-                        plots.add(new ScopePlot(yElm, UNITS_V));
+                        plots.add(new ScopePlot(cirSim, circuitDocument, yElm, UNITS_V));
                     } else {
                         plots.get(1).elm = yElm;
                         plots.get(1).units = UNITS_V;

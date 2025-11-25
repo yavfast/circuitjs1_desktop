@@ -239,7 +239,7 @@ public class CustomCompositeElm extends CompositeElm {
             return;
         }
         if (n == 2) {
-            simUi.activeDocument.circuitLoader.readCircuit(model.modelCircuit);
+            simUi.getActiveDocument().circuitLoader.readCircuit(model.modelCircuit);
             simUi.dialogManager.closeDialog();
         }
     }

@@ -61,12 +61,12 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
         mainPanel.add(tabsContainer);
 
         initWidget(mainPanel);
-        
+
         // Initialize with existing documents
         for (CircuitDocument doc : documentManager.getDocuments()) {
             onDocumentAdded(doc);
         }
-        
+
         // Set active tab
         if (documentManager.getActiveDocument() != null) {
             onActiveDocumentChanged(null, documentManager.getActiveDocument());
@@ -76,24 +76,25 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
     private void showTabsListPopup(int x, int y) {
         PopupPanel popup = new PopupPanel(true);
         MenuBar menu = new MenuBar(true);
-        
+
         for (CircuitDocument doc : documentManager.getDocuments()) {
             String title = documentManager.getTabTitle(doc);
             if (doc == documentManager.getActiveDocument()) {
                 title = "<b>" + title + "</b>";
             }
-            
+
             final CircuitDocument targetDoc = doc;
-            MenuItem item = new MenuItem(com.google.gwt.safehtml.shared.SafeHtmlUtils.fromTrustedString(title), new Command() {
-                @Override
-                public void execute() {
-                    documentManager.setActiveDocument(targetDoc);
-                    popup.hide();
-                }
-            });
+            MenuItem item = new MenuItem(com.google.gwt.safehtml.shared.SafeHtmlUtils.fromTrustedString(title),
+                    new Command() {
+                        @Override
+                        public void execute() {
+                            documentManager.setActiveDocument(targetDoc);
+                            popup.hide();
+                        }
+                    });
             menu.addItem(item);
         }
-        
+
         popup.setWidget(menu);
         popup.setPopupPosition(x, y);
         popup.show();
@@ -103,12 +104,29 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
     public void onDocumentAdded(CircuitDocument document) {
         TabWidget tab = new TabWidget(document, this);
         tab.setTitle(documentManager.getTabTitle(document));
+        tab.setStatus(document.isRunning(), document.getErrorMessage() != null);
         tabsContainer.add(tab);
         tabMap.put(document, tab);
+
+        document.addStateListener(new CircuitDocument.SimulationStateListener() {
+            @Override
+            public void onSimulationStateChanged(boolean isRunning, String errorMessage) {
+                tab.setStatus(isRunning, errorMessage != null);
+            }
+        });
     }
 
     @Override
     public void onDocumentRemoved(CircuitDocument document) {
+        // Listeners are attached to the document.
+        // Ideally we should remove them, but since we used anonymous class, we can't
+        // easily.
+        // However, if the document is destroyed, it's fine.
+        // If the document is kept (e.g. closed but not destroyed?), we might leak.
+        // But DocumentManager.closeDocument usually implies removal.
+        // For now, let's assume it's fine or we can store the listener in a map if
+        // needed.
+
         TabWidget tab = tabMap.remove(document);
         if (tab != null) {
             tabsContainer.remove(tab);
@@ -150,4 +168,5 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
     public void onTabClosed(CircuitDocument document) {
         documentManager.closeDocument(document);
     }
+
 }

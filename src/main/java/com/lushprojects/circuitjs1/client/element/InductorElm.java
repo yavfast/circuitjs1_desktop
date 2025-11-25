@@ -31,7 +31,7 @@ public class InductorElm extends CircuitElm {
 
     public InductorElm(int xx, int yy) {
         super(xx, yy);
-        ind = new Inductor(simUi);
+        ind = new Inductor();
         inductance = 1;
         ind.setup(inductance, current, flags);
     }
@@ -39,7 +39,7 @@ public class InductorElm extends CircuitElm {
     public InductorElm(int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
         super(xa, ya, xb, yb, f);
-        ind = new Inductor(simUi);
+        ind = new Inductor();
         inductance = parseDouble(st.nextToken());
         current = parseDouble(st.nextToken());
         if (st.hasMoreTokens()) {
@@ -152,5 +152,11 @@ public class InductorElm extends CircuitElm {
     void setInductance(double l) {
         inductance = l;
         ind.setup(inductance, current, flags);
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        ind.setSimulator(circuitDocument.simulator);
     }
 }

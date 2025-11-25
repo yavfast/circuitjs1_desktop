@@ -73,6 +73,7 @@ public class VCVSElm extends VCCSElm {
             for (i = 0; i != inputCount; i++)
                 exprState.values[i] = volts[i];
             exprState.t = simulator().t;
+            exprState.timeStep = simulator().timeStep;
             double v0 = expr.eval(exprState);
             if (Math.abs(volts[inputCount] - volts[inputCount + 1] - v0) > Math.abs(v0) * .01 && simulator().subIterations < 100)
                 simulator().converged = false;

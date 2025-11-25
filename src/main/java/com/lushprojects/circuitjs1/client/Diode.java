@@ -25,9 +25,12 @@ public class Diode {
 
     int[] nodes;
 
-    public Diode(CirSim s) {
-        simulator = s.simulator();
+    public Diode() {
         nodes = new int[2];
+    }
+
+    public void setSimulator(CircuitSimulator s) {
+        simulator = s;
     }
 
     public void setup(DiodeModel model) {

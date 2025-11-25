@@ -67,7 +67,7 @@ public class ExportAsTextDialog extends Dialog {
 
         importButton.addClickHandler(event -> {
             String s1;
-            CircuitDocument circuitDocument = sim.activeDocument;
+            CircuitDocument circuitDocument = sim.getActiveDocument();
             circuitDocument.circuitEditor.pushUndo();
             closeDialog();
 

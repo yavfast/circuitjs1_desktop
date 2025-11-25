@@ -38,6 +38,7 @@ import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.Adjustable;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.SimulationContextAware;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -59,6 +60,9 @@ public class EditDialog extends Dialog {
         setText(Locale.LS("Edit Component"));
         cframe = f;
         elm = ce;
+        if (elm instanceof SimulationContextAware) {
+            ((SimulationContextAware) elm).setSimulationContext(cframe.getActiveDocument());
+        }
 //		setLayout(new EditDialogLayout());
         mainPanel = new VerticalPanel();
         setWidget(mainPanel);

@@ -128,8 +128,8 @@
                     <compilerArgs>
                         <!-- Ask GWT to create the Story of Your Compile (SOYC) (gwt:compile) -->
                         <compilerArg>-style</compilerArg>
-                        <compilerArg>OBFUSCATED</compilerArg>
-                        <!--<compilerArg>DETAILED</compilerArg>-->
+                        <compilerArg>DETAILED</compilerArg>
+                        <!--<compilerArg>OBFUSCATED</compilerArg>-->
 						<compilerArg>-draftCompile</compilerArg>
                     </compilerArgs>
                     <!-- DevMode configuration -->

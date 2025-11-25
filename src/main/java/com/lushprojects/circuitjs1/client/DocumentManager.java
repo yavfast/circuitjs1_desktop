@@ -70,6 +70,9 @@ public class DocumentManager {
         }
         closedTabsHistory.push(dump);
 
+        // Stop the simulation loop to prevent memory leaks
+        document.dispose();
+
         int index = documents.indexOf(document);
         documents.remove(document);
         notifyDocumentRemoved(document);

@@ -64,8 +64,8 @@ public class CircuitInfo extends BaseCirSimDelegate {
     /** Requested mouse mode */
     String mouseModeReq = null;
 
-    protected CircuitInfo(BaseCirSim cirSim) {
-        super(cirSim);
+    public CircuitInfo(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
     }
 
     void loadQueryParameters() {
@@ -88,15 +88,18 @@ public class CircuitInfo extends BaseCirSimDelegate {
             startLabel = qp.getValue("startLabel");
             startCircuitLink = qp.getValue("startCircuitLink");
             euroRes = qp.getBooleanValue("euroResistors", false);
-            euroGates = qp.getBooleanValue("IECGates", OptionsManager.getBoolOptionFromStorage("euroGates", cirSim.weAreInGermany()));
+            euroGates = qp.getBooleanValue("IECGates",
+                    OptionsManager.getBoolOptionFromStorage("euroGates", cirSim.weAreInGermany()));
             usRes = qp.getBooleanValue("usResistors", false);
             running = qp.getBooleanValue("running", false);
             hideMenu = qp.getBooleanValue("hideMenu", false);
-            printable = qp.getBooleanValue("whiteBackground", OptionsManager.getBoolOptionFromStorage("whiteBackground", false));
+            printable = qp.getBooleanValue("whiteBackground",
+                    OptionsManager.getBoolOptionFromStorage("whiteBackground", false));
             convention = qp.getBooleanValue("conventionalCurrent",
                     OptionsManager.getBoolOptionFromStorage("conventionalCurrent", true));
             noEditing = !qp.getBooleanValue("editable", true);
-            mouseWheelEdit = qp.getBooleanValue("mouseWheelEdit", OptionsManager.getBoolOptionFromStorage("mouseWheelEdit", true));
+            mouseWheelEdit = qp.getBooleanValue("mouseWheelEdit",
+                    OptionsManager.getBoolOptionFromStorage("mouseWheelEdit", true));
             positiveColor = qp.getValue("positiveColor");
             negativeColor = qp.getValue("negativeColor");
             neutralColor = qp.getValue("neutralColor");

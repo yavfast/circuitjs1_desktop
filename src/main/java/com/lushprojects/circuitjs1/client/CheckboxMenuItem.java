@@ -24,6 +24,7 @@ import com.google.gwt.user.client.ui.MenuItem;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 public class CheckboxMenuItem extends MenuItem implements Command {
+	private final BaseCirSim cirSim;
 	private boolean on=false;
 	private String name="";
 	private String shortcut="";
@@ -33,28 +34,30 @@ public class CheckboxMenuItem extends MenuItem implements Command {
 	public String getName() { return name; }
 	public String getShortcut() { return shortcut; }
 	
-	public CheckboxMenuItem(String s){
+	public CheckboxMenuItem(BaseCirSim cirSim, String s){
 		super(s, (Command)null);
+		this.cirSim = cirSim;
 		super.setScheduledCommand(this);
 		name=s;
 		setState(false);
 	}
 	
-	public CheckboxMenuItem(String s, Command cmd){
+	public CheckboxMenuItem(BaseCirSim cirSim, String s, Command cmd){
 		super(s, (Command)null);
+		this.cirSim = cirSim;
 		super.setScheduledCommand(this);
 		extcmd=cmd;
 		name=s;
 		setState(false);
 	}
 	
-	public CheckboxMenuItem(String s, String c, Command cmd){
-		this(s, cmd);
+	public CheckboxMenuItem(BaseCirSim cirSim, String s, String c, Command cmd){
+		this(cirSim, s, cmd);
 		shortcut=c;
 	}
 	
-	public CheckboxMenuItem(String s, String c){
-		this(s);
+	public CheckboxMenuItem(BaseCirSim cirSim, String s, String c){
+		this(cirSim, s);
 		shortcut=c;
 	}
 	
@@ -66,7 +69,9 @@ public class CheckboxMenuItem extends MenuItem implements Command {
 		setState(!on);
 		if (extcmd!=null) {
 		    extcmd.execute();
-		    CirSim.theSim.repaint();
+		    if (cirSim != null) {
+		        cirSim.repaint();
+		    }
 		}
       }
 

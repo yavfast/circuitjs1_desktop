@@ -129,7 +129,8 @@ public class DialogManager extends BaseCirSimDelegate {
     }
 
     void showExportAsImageDialog(int type) {
-        activeDialog = new ExportAsImageDialog(type);
+        CirSim cirSim = (CirSim) this.cirSim;
+        activeDialog = new ExportAsImageDialog(cirSim, type);
         activeDialog.show();
     }
 

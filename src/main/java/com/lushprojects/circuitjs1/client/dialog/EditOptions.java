@@ -38,7 +38,7 @@ public class EditOptions implements Editable {
 
     public EditInfo getEditInfo(int n) {
         if (n == 0)
-            return new EditInfo("Time step size (s)", sim.simulator().maxTimeStep, 0, 0);
+            return new EditInfo("Time step size (s)", sim.getActiveDocument().simulator.maxTimeStep, 0, 0);
         if (n == 1)
             return new EditInfo("Range for voltage color (V)",
                     CircuitElm.voltageRange, 0, 0);
@@ -99,27 +99,27 @@ public class EditOptions implements Editable {
             return new EditInfo("# of Decimal Digits (long format)", CircuitElm.decimalDigits);
         if (n == 10) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.checkbox = new Checkbox("Developer Mode", sim.circuitInfo().developerMode);
+            ei.checkbox = new Checkbox("Developer Mode", sim.getActiveDocument().circuitInfo.developerMode);
             return ei;
         }
         if (n == 11)
-            return new EditInfo("Minimum Target Frame Rate", sim.simulator().minFrameRate);
+            return new EditInfo("Minimum Target Frame Rate", sim.getActiveDocument().simulator.minFrameRate);
         if (n == 12)
-            return new EditInfo("Mouse Wheel Sensitivity", sim.activeDocument.circuitEditor.wheelSensitivity);
+            return new EditInfo("Mouse Wheel Sensitivity", sim.getActiveDocument().circuitEditor.wheelSensitivity);
         if (n == 13) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.checkbox = new Checkbox("Auto-Adjust Timestep", sim.simulator().adjustTimeStep);
+            ei.checkbox = new Checkbox("Auto-Adjust Timestep", sim.getActiveDocument().simulator.adjustTimeStep);
             return ei;
         }
-        if (n == 14 && sim.simulator().adjustTimeStep)
-            return new EditInfo("Minimum time step size (s)", sim.simulator().minTimeStep, 0, 0);
+        if (n == 14 && sim.getActiveDocument().simulator.adjustTimeStep)
+            return new EditInfo("Minimum time step size (s)", sim.getActiveDocument().simulator.minTimeStep, 0, 0);
 
         return null;
     }
 
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0 && ei.value > 0) {
-            sim.simulator().maxTimeStep = ei.value;
+            sim.getActiveDocument().simulator.maxTimeStep = ei.value;
 
             // if timestep changed manually, prompt before changing it again
             AudioOutputElm.okToChangeTimeStep = false;
@@ -207,17 +207,17 @@ public class EditOptions implements Editable {
         if (n == 10)
             sim.setDeveloperMode(ei.checkbox.getState());
         if (n == 11 && ei.value > 0)
-            sim.simulator().minFrameRate = ei.value;
+            sim.getActiveDocument().simulator.minFrameRate = ei.value;
         if (n == 12 && ei.value > 0) {
-            sim.activeDocument.circuitEditor.wheelSensitivity = ei.value;
-            OptionsManager.setOptionInStorage("wheelSensitivity", Double.toString(sim.activeDocument.circuitEditor.wheelSensitivity));
+            sim.getActiveDocument().circuitEditor.wheelSensitivity = ei.value;
+            OptionsManager.setOptionInStorage("wheelSensitivity", Double.toString(sim.getActiveDocument().circuitEditor.wheelSensitivity));
         }
         if (n == 13) {
-            sim.simulator().adjustTimeStep = ei.checkbox.getState();
+            sim.getActiveDocument().simulator.adjustTimeStep = ei.checkbox.getState();
             ei.newDialog = true;
         }
         if (n == 14 && ei.value > 0)
-            sim.simulator().minTimeStep = ei.value;
+            sim.getActiveDocument().simulator.minTimeStep = ei.value;
     }
 
     Color setColor(String name, EditInfo ei, Color def) {

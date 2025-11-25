@@ -18,7 +18,14 @@ public class BaseCirSim {
     public final LoadFile loadFileInput = new LoadFile(this);
     public final ActionManager actionManager = new ActionManager(this);
 
-    public CircuitDocument activeDocument;
+    private final CircuitDocument.SimulationUpdateListener updateListener = new CircuitDocument.SimulationUpdateListener() {
+        @Override
+        public void onSimulationUpdate() {
+            renderer.render();
+        }
+    };
+
+    private CircuitDocument activeDocument;
 
     BaseCirSim() {
         CircuitDocument initialDocument = documentManager.createDocument();
@@ -30,23 +37,18 @@ public class BaseCirSim {
             throw new IllegalArgumentException("document must not be null");
         }
 
+        if (activeDocument != null) {
+            activeDocument.removeUpdateListener(updateListener);
+            activeDocument.setActive(false);
+        }
         activeDocument = document;
-    }
-
-    public CircuitEditor circuitEditor() {
-        return activeDocument.circuitEditor;
-    }
-
-    public CircuitSimulator simulator() {
-        return activeDocument.simulator;
+        activeDocument.addUpdateListener(updateListener);
+        activeDocument.setActive(true);
+        renderer.resetTimers();
     }
 
     public CircuitDocument getActiveDocument() {
         return activeDocument;
-    }
-
-    public CircuitInfo circuitInfo() {
-        return activeDocument.circuitInfo;
     }
 
     public void setCanvasSize(int width, int height) {
@@ -64,16 +66,16 @@ public class BaseCirSim {
         // remember filename for use when saving a new file.
         // if s is null or automatically generated then just clear out old filename.
         if (s == null || s.startsWith("circuitjs-"))
-            circuitInfo().lastFileName = null;
+            activeDocument.circuitInfo.lastFileName = null;
         else
-            circuitInfo().lastFileName = s;
+            activeDocument.circuitInfo.lastFileName = s;
     }
 
     public String getLastFileName() {
         Date date = new Date();
         String fname;
-        if (circuitInfo().lastFileName != null)
-            fname = circuitInfo().lastFileName;
+        if (activeDocument.circuitInfo.lastFileName != null)
+            fname = activeDocument.circuitInfo.lastFileName;
         else {
             DateTimeFormat dtf = DateTimeFormat.getFormat("yyyyMMdd-HHmmss");
             fname = "circuitjs-" + dtf.format(date) + ".txt";
@@ -82,24 +84,25 @@ public class BaseCirSim {
     }
 
     public void setDeveloperMode(boolean enabled) {
-        if (circuitInfo().developerMode == enabled) {
+        if (activeDocument.circuitInfo.developerMode == enabled) {
             return;
         }
 
-        circuitInfo().developerMode = enabled;
+        activeDocument.circuitInfo.developerMode = enabled;
     }
 
     void repaint() {
         renderer.repaint();
     }
+
     public void needAnalyze() {
-        renderer.needsAnalysis();
+        activeDocument.circuitInfo.dcAnalysisFlag = true; // Trigger analysis in next update
         repaint();
         enableDisableMenuItems();
     }
 
     public void stop(String message, CircuitElm ce) {
-        simulator().stop(message, ce);
+        activeDocument.simulator.stop(message, ce);
     }
 
     public void stop() {
@@ -109,13 +112,11 @@ public class BaseCirSim {
 
     public void setSimRunning(boolean isRunning) {
         if (isRunning) {
-            if (simulator().stopMessage != null)
+            if (activeDocument.simulator.stopMessage != null)
                 return;
-            simulator().simRunning = true;
-            renderer.startTimer();
+            activeDocument.setSimRunning(true);
         } else {
-            simulator().simRunning = false;
-            renderer.stopTimer();
+            activeDocument.setSimRunning(false);
             renderer.repaint();
             // Ensure selection functionality works even when simulation is stopped
             activeDocument.circuitEditor.setMouseMode("Select");
@@ -123,18 +124,17 @@ public class BaseCirSim {
     }
 
     public boolean simIsRunning() {
-        return simulator().simRunning;
+        return activeDocument.isRunning();
     }
 
     public void resetAction() {
         renderer.needsAnalysis();
 
-        CircuitSimulator simulator = simulator();
+        CircuitSimulator simulator = activeDocument.simulator;
         simulator.t = simulator.timeStepAccum = 0;
         simulator.timeStepCount = 0;
         for (int i = 0; i != simulator.elmList.size(); i++)
             simulator.elmList.get(i).reset();
-
 
         ScopeManager scopeManager = getActiveDocument().scopeManager;
         for (int i = 0; i != scopeManager.scopeCount; i++)
@@ -149,7 +149,7 @@ public class BaseCirSim {
     }
 
     public void setUnsavedChanges(boolean hasChanges) {
-        circuitInfo().unsavedChanges = hasChanges;
+        activeDocument.circuitInfo.unsavedChanges = hasChanges;
     }
 
     void setCircuitTitle(String s) {
@@ -160,8 +160,8 @@ public class BaseCirSim {
         boolean canFlipX = true;
         boolean canFlipY = true;
         boolean canFlipXY = true;
-        int selCount = simulator().countSelected();
-        for (CircuitElm elm : simulator().elmList)
+        int selCount = activeDocument.simulator.countSelected();
+        for (CircuitElm elm : activeDocument.simulator.elmList)
             if (elm.isSelected() || selCount == 0) {
                 if (!elm.canFlipX())
                     canFlipX = false;
@@ -190,7 +190,8 @@ public class BaseCirSim {
     boolean dialogIsShowing() {
         if (menuManager.contextPanel != null && menuManager.contextPanel.isShowing())
             return true;
-        if (activeDocument.circuitEditor.scrollValuePopup != null && activeDocument.circuitEditor.scrollValuePopup.isShowing())
+        if (activeDocument.circuitEditor.scrollValuePopup != null
+                && activeDocument.circuitEditor.scrollValuePopup.isShowing())
             return true;
         if (dialogManager.dialogIsShowing()) {
             return true;
@@ -212,8 +213,8 @@ public class BaseCirSim {
         String cs;
 
         log("Elm list Dump");
-        for (i = 0; i < simulator().elmList.size(); i++) {
-            e = simulator().elmList.get(i);
+        for (i = 0; i < activeDocument.simulator.elmList.size(); i++) {
+            e = activeDocument.simulator.elmList.get(i);
             cs = e.getDumpClass().toString();
             int p = cs.lastIndexOf('.');
             cs = cs.substring(p + 1);
@@ -240,7 +241,7 @@ public class BaseCirSim {
     }
 
     void doDCAnalysis() {
-        circuitInfo().dcAnalysisFlag = true;
+        activeDocument.circuitInfo.dcAnalysisFlag = true;
         resetAction();
     }
 
@@ -249,7 +250,7 @@ public class BaseCirSim {
     }
 
     void createNewLoadFile() {
-        CircuitInfo circuitInfo = circuitInfo();
+        CircuitInfo circuitInfo = activeDocument.circuitInfo;
 
         circuitInfo.filePath = loadFileInput.getPath();
         log("filePath: " + circuitInfo.filePath);

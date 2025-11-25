@@ -5,6 +5,7 @@ public class ExprState {
     public double[] lastValues;
     public double lastOutput;
     public double t;
+    public double timeStep;
 
     public ExprState(int xx) {
         //n = xx;
@@ -24,5 +25,6 @@ public class ExprState {
         for (int i = 0; i != values.length; i++)
             lastValues[i] = 0;
         lastOutput = 0;
+        timeStep = 0;
     }
 }

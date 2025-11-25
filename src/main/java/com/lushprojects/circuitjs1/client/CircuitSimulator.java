@@ -70,17 +70,17 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     private int circuitMatrixFullSize;
     private boolean circuitNeedsMap;
 
-    public CircuitSimulator(BaseCirSim cirSim) {
-        super(cirSim);
+    public CircuitSimulator(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
     }
 
     public void stop(String message, CircuitElm ce) {
         stopMessage = Locale.LS(message);
         stopElm = ce;
 
-        circuitMatrix = null;  // causes an exception
+        circuitMatrix = null; // causes an exception
 
-        cirSim.stop();
+        getActiveDocument().stop(message, ce);
     }
 
     int locateElm(CircuitElm elm) {
@@ -120,9 +120,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     }
 
-    // find groups of nodes connected by wire equivalents and map them to the same node.  this speeds things
-    // up considerably by reducing the size of the matrix.  We do this for wires, labeled nodes, and ground.
-    // The actual node we map to is not assigned yet.  Instead we map to the same NodeMapEntry.
+    // find groups of nodes connected by wire equivalents and map them to the same
+    // node. this speeds things
+    // up considerably by reducing the size of the matrix. We do this for wires,
+    // labeled nodes, and ground.
+    // The actual node we map to is not assigned yet. Instead we map to the same
+    // NodeMapEntry.
     void calculateWireClosure() {
         LabeledNodeElm.resetNodeList();
         GroundElm.resetNodeList();
@@ -143,7 +146,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             // what post are we connected to
             Point p1 = ce.getConnectedPost();
             if (p1 == null) {
-                // no connected post (true for labeled node the first time it's encountered, or ground)
+                // no connected post (true for labeled node the first time it's encountered, or
+                // ground)
                 if (cn == null) {
                     cn = new NodeMapEntry();
                     nodeMap.put(p0, cn);
@@ -152,7 +156,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
             NodeMapEntry cn2 = nodeMap.get(p1);
             if (cn != null && cn2 != null) {
-                // merge nodes; go through map and change all keys pointing to cn2 to point to cn
+                // merge nodes; go through map and change all keys pointing to cn2 to point to
+                // cn
                 for (Map.Entry<Point, NodeMapEntry> entry : nodeMap.entrySet()) {
                     if (entry.getValue() == cn2) {
                         entry.setValue(cn);
@@ -174,17 +179,26 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             nodeMap.put(p1, cn);
         }
 
-//	console("got " + (groupCount-mergeCount) + " groups with " + nodeMap.size() + " nodes " + mergeCount);
+        // console("got " + (groupCount-mergeCount) + " groups with " + nodeMap.size() +
+        // " nodes " + mergeCount);
     }
 
-    // generate info we need to calculate wire currents.  Most other elements calculate currents using
-    // the voltage on their terminal nodes.  But wires have the same voltage at both ends, so we need
-    // to use the neighbors' currents instead.  We used to treat wires as zero voltage sources to make
-    // this easier, but this is very inefficient, since it makes the matrix 2 rows bigger for each wire.
-    // We create a list of WireInfo objects instead to help us calculate the wire currents instead,
-    // so we make the matrix less complex, and we only calculate the wire currents when we need them
-    // (once per frame, not once per subiteration).  We need the WireInfos arranged in the correct order,
-    // each one containing a list of neighbors and which end to use (since one end may be ready before
+    // generate info we need to calculate wire currents. Most other elements
+    // calculate currents using
+    // the voltage on their terminal nodes. But wires have the same voltage at both
+    // ends, so we need
+    // to use the neighbors' currents instead. We used to treat wires as zero
+    // voltage sources to make
+    // this easier, but this is very inefficient, since it makes the matrix 2 rows
+    // bigger for each wire.
+    // We create a list of WireInfo objects instead to help us calculate the wire
+    // currents instead,
+    // so we make the matrix less complex, and we only calculate the wire currents
+    // when we need them
+    // (once per frame, not once per subiteration). We need the WireInfos arranged
+    // in the correct order,
+    // each one containing a list of neighbors and which end to use (since one end
+    // may be ready before
     // the other)
     boolean calcWireInfo() {
         int moved = 0;
@@ -192,7 +206,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         for (int i = 0; i != wireInfoList.size(); i++) {
             WireInfo wi = wireInfoList.get(i);
             CircuitElm wire = wi.wire;
-            CircuitNode cn1 = nodeList.get(wire.getNode(0));  // both ends of wire have same node #
+            CircuitNode cn1 = nodeList.get(wire.getNode(0)); // both ends of wire have same node #
             int j;
 
             Vector<CircuitElm> neighbors0 = new Vector<>();
@@ -202,7 +216,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             // labeled nodes are treated as having 2 terminals, see below
             boolean isReady0 = true, isReady1 = !(wire instanceof GroundElm);
 
-            // go through elements sharing a node with this wire (may be connected indirectly
+            // go through elements sharing a node with this wire (may be connected
+            // indirectly
             // by other wires, but at least it's faster than going through all elements)
             for (j = 0; j != cn1.links.size(); j++) {
                 CircuitNodeLink cnl = cn1.links.get(j);
@@ -212,8 +227,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
                 Point pt = ce.getPost(cnl.num);
 
-                // is this a wire that doesn't have wire info yet?  If so we can't use it yet.
-                // That would create a circular dependency.  So that side isn't ready.
+                // is this a wire that doesn't have wire info yet? If so we can't use it yet.
+                // That would create a circular dependency. So that side isn't ready.
                 boolean notReady = (ce.isRemovableWire() && !ce.hasWireInfo);
 
                 // which post does this element connect to, if any?
@@ -232,7 +247,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     }
                 } else if (ce instanceof LabeledNodeElm && wire instanceof LabeledNodeElm &&
                         ((LabeledNodeElm) ce).text.equals(((LabeledNodeElm) wire).text)) {
-                    // ce and wire are both labeled nodes with matching labels.  treat them as neighbors
+                    // ce and wire are both labeled nodes with matching labels. treat them as
+                    // neighbors
                     neighbors1.add(ce);
                     if (notReady) {
                         isReady1 = false;
@@ -271,7 +287,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         boolean gotRail = false;
         CircuitElm volt = null;
 
-        //System.out.println("ac1");
+        // System.out.println("ac1");
         // look for voltage or ground element
         for (CircuitElm ce : elmList) {
             if (ce instanceof GroundElm) {
@@ -318,7 +334,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return nodeList.get(n);
     }
 
-
     // make list of nodes
     void makeNodeList() {
         int j;
@@ -333,10 +348,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 Point pt = ce.getPost(j);
                 NodeMapEntry cln = nodeMap.get(pt);
 
-                // is this node not in map yet?  or is the node number unallocated?
+                // is this node not in map yet? or is the node number unallocated?
                 // (we don't allocate nodes before this because changing the allocation order
                 // of nodes changes circuit behavior and breaks backward compatibility;
-                // the code below to connect unconnected nodes may connect a different node to ground)
+                // the code below to connect unconnected nodes may connect a different node to
+                // ground)
                 if (cln == null || cln.node == -1) {
                     CircuitNode cn = new CircuitNode();
                     CircuitNodeLink cnl = new CircuitNodeLink();
@@ -437,12 +453,13 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 continue;
             }
 
-            // connect one of the unconnected nodes to ground with a big resistor, then try again
+            // connect one of the unconnected nodes to ground with a big resistor, then try
+            // again
             for (i = 0; i != nodeList.size(); i++) {
                 if (!closure[i] && !getCircuitNode(i).internal) {
                     unconnectedNodes.add(i);
                     console("node " + i + " unconnected");
-//		    stampResistor(0, i, 1e8);   // do this later in connectUnconnectedNodes()
+                    // stampResistor(0, i, 1e8); // do this later in connectUnconnectedNodes()
                     closure[i] = true;
                     changed = true;
                     break;
@@ -451,8 +468,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
     }
 
-    // take list of unconnected nodes, which we identified earlier, and connect them to ground
-    // with a big resistor.  otherwise we will get matrix errors.  The resistor has to be big,
+    // take list of unconnected nodes, which we identified earlier, and connect them
+    // to ground
+    // with a big resistor. otherwise we will get matrix errors. The resistor has to
+    // be big,
     // otherwise circuits like 555 Square Wave will break
     void connectUnconnectedNodes() {
         for (int n : unconnectedNodes) {
@@ -478,7 +497,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         int vscount = 0;
         circuitNonLinear = false;
 
-        // determine if circuit is nonlinear.  also set voltage sources
+        // determine if circuit is nonlinear. also set voltage sources
         for (CircuitElm ce : elmList) {
             if (ce.nonLinear()) {
                 circuitNonLinear = true;
@@ -492,7 +511,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         voltageSourceCount = vscount;
 
         // show resistance in voltage sources if there's only one.
-        // can't use voltageSourceCount here since that counts internal voltage sources, like the one in GroundElm
+        // can't use voltageSourceCount here since that counts internal voltage sources,
+        // like the one in GroundElm
         boolean gotVoltageSource = false;
         circuitInfo().showResistanceInVoltageSources = true;
         for (CircuitElm ce : elmList) {
@@ -526,8 +546,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     void preStampAndStampCircuit() {
         int i;
 
-        // preStampCircuit returns false if there's an error.  It can return false if we have capacitor loops
-        // but we just need to try again in that case.  Try again 10 times to avoid infinite loop.
+        // preStampCircuit returns false if there's an error. It can return false if we
+        // have capacitor loops
+        // but we just need to try again in that case. Try again 10 times to avoid
+        // infinite loop.
         for (i = 0; i != 10; i++) {
             if (preStampCircuit(false) || stopMessage != null) {
                 break;
@@ -536,16 +558,18 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (stopMessage != null) {
             return;
         }
-//        if (i == 10) {
-//            cirSim.stop("failed to stamp circuit", null);
-//            return;
-//        }
+        // if (i == 10) {
+        // cirSim.stop("failed to stamp circuit", null);
+        // return;
+        // }
 
         stampCircuit();
     }
 
-    // stamp the matrix, meaning populate the matrix as required to simulate the circuit (for all linear elements, at least).
-    // this gets called after something changes in the circuit, and also when auto-adjusting timestep
+    // stamp the matrix, meaning populate the matrix as required to simulate the
+    // circuit (for all linear elements, at least).
+    // this gets called after something changes in the circuit, and also when
+    // auto-adjusting timestep
     void stampCircuit() {
         int matrixSize = nodeList.size() - 1 + voltageSourceCount;
         circuitMatrix = new double[matrixSize][matrixSize];
@@ -590,7 +614,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
 
-        // copy elmList to an array to avoid a bunch of calls to canCast() when doing simulation
+        // copy elmList to an array to avoid a bunch of calls to canCast() when doing
+        // simulation
         elmArr = new CircuitElm[elmList.size()];
         int scopeElmCount = 0;
         for (int i = 0; i < elmList.size(); i++) {
@@ -600,7 +625,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
 
-        // copy ScopeElms to an array to avoid a second pass over entire list of elms during simulation
+        // copy ScopeElms to an array to avoid a second pass over entire list of elms
+        // during simulation
         scopeElmArr = new ScopeElm[scopeElmCount];
         int j = 0;
         for (CircuitElm ce : elmList) {
@@ -612,7 +638,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         needsStamp = false;
     }
 
-    // simplify the matrix; this speeds things up quite a bit, especially for digital circuits.
+    // simplify the matrix; this speeds things up quite a bit, especially for
+    // digital circuits.
     // or at least it did before we added wire removal
     boolean simplifyMatrix(int matrixSize) {
         RowInfo[] circuitRowInfo = this.circuitRowInfo;
@@ -620,19 +647,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         double[] circuitRightSide = this.circuitRightSide;
 
         int i, j;
-        // Iterate through each row of the matrix to find opportunities for simplification.
+        // Iterate through each row of the matrix to find opportunities for
+        // simplification.
         for (i = 0; i < matrixSize; i++) {
             int pivotColumnIndex = -1; // Index of the first non-zero, non-constant element in the row.
             double pivotValue = 0; // Value of the first non-zero, non-constant element.
             RowInfo rowInfo = circuitRowInfo[i];
-            // Skip rows that are already simplified, marked for dropping, or have changing right-hand sides.
+            // Skip rows that are already simplified, marked for dropping, or have changing
+            // right-hand sides.
             if (rowInfo.lsChanges || rowInfo.dropRow || rowInfo.rsChanges) {
                 continue;
             }
             double rightSideAdjustment = 0; // Accumulator for adjustments to the right-hand side of the equation.
 
             // Scan the row to see if it can be simplified.
-            // A row can be simplified if it contains exactly one non-zero element corresponding to a non-constant variable.
+            // A row can be simplified if it contains exactly one non-zero element
+            // corresponding to a non-constant variable.
             for (j = 0; j < matrixSize; j++) {
                 double elementValue = circuitMatrix[i][j];
                 // If the element corresponds to a known constant, adjust the right-hand side.
@@ -649,14 +679,17 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     pivotValue = elementValue;
                     continue;
                 }
-                // If more than one non-zero element is found, this row cannot be simplified at this time.
+                // If more than one non-zero element is found, this row cannot be simplified at
+                // this time.
                 break;
             }
 
-            // If the loop completed, it means we found a row that can be simplified (j == matrixSize).
+            // If the loop completed, it means we found a row that can be simplified (j ==
+            // matrixSize).
             if (j == matrixSize) {
                 if (pivotColumnIndex == -1) {
-                    // This should not happen in a valid circuit. It might indicate a singular matrix.
+                    // This should not happen in a valid circuit. It might indicate a singular
+                    // matrix.
                     stop("Matrix error", null);
                     return false;
                 }
@@ -673,13 +706,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 circuitRowInfo[i].dropRow = true; // Mark the current row to be removed from the matrix.
 
                 // Now that we have a new constant, we need to re-check previous rows.
-                // Find the first row that referenced the element we just turned into a constant.
+                // Find the first row that referenced the element we just turned into a
+                // constant.
                 for (j = 0; j != i; j++) {
                     if (circuitMatrix[j][pivotColumnIndex] != 0) {
                         break;
                     }
                 }
-                // Restart the main loop from just before that row to apply the new simplification.
+                // Restart the main loop from just before that row to apply the new
+                // simplification.
                 i = j - 1;
             }
         }
@@ -737,8 +772,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return true;
     }
 
-    // make list of posts we need to draw.  posts shared by 2 elements should be hidden, all
-    // others should be drawn.  We can't use the node list for this purpose anymore because wires
+    // make list of posts we need to draw. posts shared by 2 elements should be
+    // hidden, all
+    // others should be drawn. We can't use the node list for this purpose anymore
+    // because wires
     // have the same node number at both ends.
     void makePostDrawList() {
         HashMap<Point, Integer> postCountMap = new HashMap<>();
@@ -757,7 +794,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 postDrawList.add(entry.getKey());
             }
 
-            // look for bad connections, posts not connected to other elements which intersect
+            // look for bad connections, posts not connected to other elements which
+            // intersect
             // other elements' bounding boxes
             if (entry.getValue() == 1) {
                 boolean bad = false;
@@ -806,7 +844,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     boolean needsStamp;
 
     // analyze the circuit when something changes, so it can be simulated.
-    // Most of this has been moved to preStampCircuit() so it can be avoided if the simulation is stopped.
+    // Most of this has been moved to preStampCircuit() so it can be avoided if the
+    // simulation is stopped.
     void analyzeCircuit() {
         stopMessage = null;
         stopElm = null;
@@ -886,7 +925,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         stampMatrix(n2, vn, -1);
     }
 
-    // use this if the amount of voltage is going to be updated in doStep(), by updateVoltageSource()
+    // use this if the amount of voltage is going to be updated in doStep(), by
+    // updateVoltageSource()
     public void stampVoltageSource(int n1, int n2, int vs) {
         int vn = nodeList.size() + vs;
         stampMatrix(vn, n1, -1);
@@ -920,7 +960,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         stampMatrix(n2, n1, -r0);
     }
 
-    // specify that current from cn1 to cn2 is equal to voltage from vn1 to 2, divided by g
+    // specify that current from cn1 to cn2 is equal to voltage from vn1 to 2,
+    // divided by g
     public void stampVCCurrentSource(int cn1, int cn2, int vn1, int vn2, double g) {
         stampMatrix(cn1, vn1, g);
         stampMatrix(cn2, vn2, g);
@@ -977,7 +1018,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
     }
 
-    // we removed wires from the matrix to speed things up.  in order to display wire currents,
+    // we removed wires from the matrix to speed things up. in order to display wire
+    // currents,
     // we need to calculate them now.
     void calcWireCurrents() {
         for (WireInfo wi : wireInfoList) {
@@ -1037,11 +1079,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public CustomCompositeModel getCircuitAsComposite() {
         String nodeDump;
         String dump;
-//	    String models = "";
+        // String models = "";
         CustomLogicModel.clearDumpedFlags();
         DiodeModel.clearDumpedFlags();
         TransistorModel.clearDumpedFlags();
-        @SuppressWarnings("unchecked") Vector<LabeledNodeElm>[] sideLabels = new Vector[]{
+        @SuppressWarnings("unchecked")
+        Vector<LabeledNodeElm>[] sideLabels = new Vector[] {
                 new Vector<>(), new Vector<>(),
                 new Vector<>(), new Vector<>()
         };
@@ -1141,7 +1184,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             ce.x = ce.y = ce.x2 = ce.y2 = 0;
 
             String tstring = ce.dump();
-            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint_x1 y1 x2 y2 coords for internal components
+            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint_x1 y1 x2 y2 coords for
+                                                                         // internal components
 
             // restore positions
             ce.x = x1;
@@ -1182,7 +1226,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return ccm;
     }
 
-
     public boolean converged; // TODO: Add checkConverged()
     public int subIterations;
 
@@ -1213,6 +1256,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         long stepRate = (long) (160 * cirSim.getIterCount());
         long tm = System.currentTimeMillis();
+        long frameStart = tm; // Capture start time of this simulation step
         long lit = lastIterTime;
         if (lit == 0) {
             lastIterTime = tm;
@@ -1220,7 +1264,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
 
         // Check if we don't need to run simulation (for very slow simulation speeds).
-        // If the circuit changed, do at least one iteration to make sure everything is consistent.
+        // If the circuit changed, do at least one iteration to make sure everything is
+        // consistent.
         if (1000 >= stepRate * (tm - lastIterTime) && !didAnalyze) {
             return;
         }
@@ -1234,7 +1279,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         int frameTimeLimit = (int) (1000 / minFrameRate);
 
-        for (int iter = 1; ; iter++) {
+        for (int iter = 1;; iter++) {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
                 // things are going well, double the time step
                 timeStep = Math.min(timeStep * 2, maxTimeStep);
@@ -1319,7 +1364,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     stop("Convergence failed!", null);
                     break;
                 }
-                // we reduced the timestep.  reset circuit state to the way it was at start of iteration
+                // we reduced the timestep. reset circuit state to the way it was at start of
+                // iteration
                 setNodeVoltages(lastNodeVoltages);
                 stampCircuit();
                 continue;
@@ -1363,9 +1409,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
             tm = System.currentTimeMillis();
             lit = tm;
-            // Check whether enough time has elapsed to perform an *additional* iteration after
-            // those we have already completed.  But limit total computation time to 50ms (20fps) by default
-            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= stepRate * (tm - lastIterTime) || (tm - cirSim.renderer.getLastFrameTime() > frameTimeLimit)) {
+            // Check whether enough time has elapsed to perform an *additional* iteration
+            // after
+            // those we have already completed. But limit total computation time to 50ms
+            // (20fps) by default
+            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= stepRate * (tm - lastIterTime)
+                    || (tm - frameStart > frameTimeLimit)) {
                 break;
             }
             if (!simRunning) {
@@ -1377,7 +1426,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         if (delayWireProcessing) {
             calcWireCurrents();
         }
-//	System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
+        // System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
     }
 
     String dumpSelectedItems() {
@@ -1397,4 +1446,3 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
 }
-

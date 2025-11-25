@@ -24,9 +24,8 @@ public class UndoManager extends BaseCirSimDelegate {
 
     String recovery;
 
-
-    protected UndoManager(BaseCirSim cirSim) {
-        super(cirSim);
+    public UndoManager(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
         undoStack = new Vector<>();
         redoStack = new Vector<>();
     }
@@ -80,7 +79,5 @@ public class UndoManager extends BaseCirSimDelegate {
     void readRecovery() {
         recovery = OptionsManager.getOptionFromStorage("circuitRecovery", null);
     }
-
-
 
 }

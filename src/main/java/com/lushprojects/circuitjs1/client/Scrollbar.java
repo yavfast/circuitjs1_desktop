@@ -62,6 +62,7 @@ public class Scrollbar extends Composite implements
     public static int BARWIDTH = 3;
     public static int BARMARGIN = 3;
 
+    private final BaseCirSim cirSim;
     Canvas can;
     VerticalPanel pan;
     Context2d g;
@@ -73,7 +74,8 @@ public class Scrollbar extends Composite implements
     Command command = null;
     CircuitElm attachedElm = null;
 
-    public Scrollbar(int orientation, int value, int visible, int minimum, int maximum) {
+    public Scrollbar(BaseCirSim cirSim, int orientation, int value, int visible, int minimum, int maximum) {
+        this.cirSim = cirSim;
         min = minimum;
         max = maximum;
         val = value;
@@ -102,15 +104,15 @@ public class Scrollbar extends Composite implements
         initWidget(pan);
     }
 
-    public Scrollbar(int orientation, int value, int visible, int minimum, int maximum,
+    public Scrollbar(BaseCirSim cirSim, int orientation, int value, int visible, int minimum, int maximum,
                      Command cmd, CircuitElm e) {
-        this(orientation, value, visible, minimum, maximum);
+        this(cirSim, orientation, value, visible, minimum, maximum);
         this.command = cmd;
         attachedElm = e;
     }
 
-    public Scrollbar(int orientation, int value, int visible, int minimum, int maximum, Command cmd) {
-        this(orientation, value, visible, minimum, maximum);
+    public Scrollbar(BaseCirSim cirSim, int orientation, int value, int visible, int minimum, int maximum, Command cmd) {
+        this(cirSim, orientation, value, visible, minimum, maximum);
         this.command = cmd;
     }
 
@@ -257,13 +259,13 @@ public class Scrollbar extends Composite implements
         if (dragging)
             return;
         if (enabled && attachedElm != null && attachedElm.isMouseElm())
-            CirSim.theSim.setMouseElm(null);
+            cirSim.setMouseElm(null);
     }
 
     public void onMouseOver(MouseOverEvent e) {
 
         if (enabled && attachedElm != null)
-            CirSim.theSim.setMouseElm(attachedElm);
+            cirSim.setMouseElm(attachedElm);
     }
 
     public void onMouseWheel(MouseWheelEvent e) {

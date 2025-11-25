@@ -207,7 +207,7 @@ public class Toolbar extends HorizontalPanel {
     // New method for creating variant buttons
     private Label createButtonSet(String info[]) {
         MyCommand mainCommand = new MyCommand("main", info[1]);
-        CirSim sim = CirSim.theSim;
+        CirSim sim = this.cirSim;
         Label iconLabel = createIconButton(info[0], sim.getLabelTextForClass(info[1]), mainCommand);
 
         FlowPanel paletteContainer = new FlowPanel();

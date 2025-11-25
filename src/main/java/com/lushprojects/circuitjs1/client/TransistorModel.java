@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Vector;
 
-public class TransistorModel implements Editable, Comparable<TransistorModel> {
+public class TransistorModel implements Editable, Comparable<TransistorModel>, SimulationContextAware {
 
     static HashMap<String, TransistorModel> modelMap;
 
@@ -23,6 +23,7 @@ public class TransistorModel implements Editable, Comparable<TransistorModel> {
     public boolean readOnly;
     public boolean builtIn;
     boolean internal;
+    private CircuitDocument circuitDocument;
 
     TransistorModel(String d, double sc) {
         description = d;
@@ -237,7 +238,14 @@ public class TransistorModel implements Editable, Comparable<TransistorModel> {
         if (n == 11) BCleakCur = ei.value;
         if (n == 12) leakBCemissionCoeff = ei.value;
         updateModel();
-        CirSim.theSim.simulator().updateModels();
+        if (circuitDocument != null) {
+            circuitDocument.simulator.updateModels();
+        }
+    }
+
+    @Override
+    public void setSimulationContext(CircuitDocument circuitDocument) {
+        this.circuitDocument = circuitDocument;
     }
 
     void updateModel() {

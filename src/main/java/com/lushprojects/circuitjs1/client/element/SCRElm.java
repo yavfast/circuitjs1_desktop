@@ -75,7 +75,7 @@ public class SCRElm extends CircuitElm {
     }
 
     void setup() {
-        diode = new Diode(simUi);
+        diode = new Diode();
         diode.setupForDefaultModel();
         aresistance = 1; // to avoid divide by zero
     }
@@ -310,6 +310,12 @@ public class SCRElm extends CircuitElm {
     public void flipXY(int c2, int count) {
         fixEnds();
         super.flipXY(c2, count);
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        diode.setSimulator(circuitDocument.simulator);
     }
 }
 

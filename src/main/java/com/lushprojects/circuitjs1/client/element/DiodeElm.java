@@ -47,7 +47,7 @@ public class DiodeElm extends CircuitElm {
     public DiodeElm(int xx, int yy) {
         super(xx, yy);
         modelName = lastModelName;
-        diode = new Diode(simUi);
+        diode = new Diode();
         setup();
     }
 
@@ -55,7 +55,7 @@ public class DiodeElm extends CircuitElm {
                     StringTokenizer st) {
         super(xa, ya, xb, yb, f);
         final double defaultdrop = .805904783;
-        diode = new Diode(simUi);
+        diode = new Diode();
         double fwdrop = defaultdrop;
         double zvoltage = 0;
         if ((f & FLAG_MODEL) != 0) {
@@ -275,6 +275,12 @@ public class DiodeElm extends CircuitElm {
         // stop for huge currents that make simulator act weird
         if (Math.abs(current) > 1e12)
             simulator().stop("max current exceeded", this);
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        diode.setSimulator(circuitDocument.simulator);
     }
 
 

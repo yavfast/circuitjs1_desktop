@@ -13,24 +13,30 @@ public class TabWidget extends Composite {
     private final CircuitDocument document;
     private final FlowPanel panel;
     private final Label titleLabel;
+    private final Label statusLabel;
     private final Label closeButton;
     private boolean isActive;
 
     public interface TabListener {
         void onTabSelected(CircuitDocument document);
+
         void onTabClosed(CircuitDocument document);
     }
 
     public TabWidget(CircuitDocument document, TabListener listener) {
         this.document = document;
         this.panel = new FlowPanel();
-        
+
         panel.setStyleName("tabWidget");
-        
+
         titleLabel = new Label();
         titleLabel.setStyleName("tabTitle");
         panel.add(titleLabel);
-        
+
+        statusLabel = new Label();
+        statusLabel.setStyleName("tabStatus");
+        panel.add(statusLabel);
+
         closeButton = new Label("x");
         closeButton.setStyleName("tabCloseBtn");
         closeButton.addClickHandler(new ClickHandler() {
@@ -41,7 +47,7 @@ public class TabWidget extends Composite {
             }
         });
         panel.add(closeButton);
-        
+
         panel.addDomHandler(new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
@@ -55,6 +61,22 @@ public class TabWidget extends Composite {
     public void setTitle(String title) {
         titleLabel.setText(title);
         titleLabel.setTitle(title); // Tooltip
+    }
+
+    public void setStatus(boolean isRunning, boolean hasError) {
+        if (hasError) {
+            statusLabel.setText("!");
+            statusLabel.setTitle("Error");
+            statusLabel.setStyleName("tabStatus error");
+        } else if (isRunning) {
+            statusLabel.setText("▶");
+            statusLabel.setTitle("Running");
+            statusLabel.setStyleName("tabStatus running");
+        } else {
+            statusLabel.setText("Ⅱ");
+            statusLabel.setTitle("Stopped");
+            statusLabel.setStyleName("tabStatus stopped");
+        }
     }
 
     public void setActive(boolean active) {

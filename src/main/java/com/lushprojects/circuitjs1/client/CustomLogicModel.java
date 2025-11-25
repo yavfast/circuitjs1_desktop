@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Vector;
 
-public class CustomLogicModel implements Editable {
+public class CustomLogicModel implements Editable, SimulationContextAware {
 
     static int FLAG_SCHMITT = 1;
     static HashMap<String, CustomLogicModel> modelMap;
@@ -25,6 +25,7 @@ public class CustomLogicModel implements Editable {
     public Vector<String> rulesLeft, rulesRight;
     public boolean dumped;
     public boolean triState;
+    private CircuitDocument circuitDocument;
 
     public static CustomLogicModel getModelWithName(String name) {
         if (modelMap == null)
@@ -162,7 +163,14 @@ public class CustomLogicModel implements Editable {
             else
                 flags &= ~FLAG_SCHMITT;
         }
-        CirSim.theSim.simulator().updateModels();
+        if (circuitDocument != null) {
+            circuitDocument.simulator.updateModels();
+        }
+    }
+
+    @Override
+    public void setSimulationContext(CircuitDocument circuitDocument) {
+        this.circuitDocument = circuitDocument;
     }
 
     void parseRules() {

@@ -34,7 +34,7 @@ public class JfetElm extends MosfetElm {
     JfetElm(int xx, int yy, boolean pnpflag) {
         super(xx, yy, pnpflag);
         noDiagonal = true;
-        diode = new Diode(simUi);
+        diode = new Diode();
         diode.setupForDefaultModel();
     }
 
@@ -42,7 +42,7 @@ public class JfetElm extends MosfetElm {
                    StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         noDiagonal = true;
-        diode = new Diode(simUi);
+        diode = new Diode();
         diode.setupForDefaultModel();
     }
 
@@ -170,5 +170,11 @@ public class JfetElm extends MosfetElm {
     @Override
     public String getScopeText(int v) {
         return Locale.LS(((pnp == -1) ? "p-" : "n-") + "JFET");
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        diode.setSimulator(circuitDocument.simulator);
     }
 }

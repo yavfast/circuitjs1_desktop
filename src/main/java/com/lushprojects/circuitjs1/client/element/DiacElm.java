@@ -56,8 +56,8 @@ public class DiacElm extends CircuitElm {
     }
 
     void createDiodes() {
-        diode1 = new Diode(simUi);
-        diode2 = new Diode(simUi);
+        diode1 = new Diode();
+        diode2 = new Diode();
         diode1.setupForDefaultModel();
         diode2.setupForDefaultModel();
     }
@@ -182,6 +182,13 @@ public class DiacElm extends CircuitElm {
             breakdown = ei.value;
         if (ei.value > 0 && n == 3)
             holdcurrent = ei.value;
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        diode1.setSimulator(circuitDocument.simulator);
+        diode2.setSimulator(circuitDocument.simulator);
     }
 }
 

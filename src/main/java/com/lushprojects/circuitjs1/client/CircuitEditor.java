@@ -31,7 +31,7 @@ import com.lushprojects.circuitjs1.client.element.SwitchElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
 
 public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandler, MouseMoveHandler, MouseUpHandler,
-    ClickHandler, DoubleClickHandler, ContextMenuHandler, MouseOutHandler, MouseWheelHandler {
+        ClickHandler, DoubleClickHandler, ContextMenuHandler, MouseOutHandler, MouseWheelHandler {
 
     private static final int POST_GRAB_SQ = 25;
     private static final int MIN_POST_GRAB_SIZE = 256;
@@ -83,9 +83,11 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     int menuClientX = 0;
     int menuClientY = 0;
 
-    protected CircuitEditor(BaseCirSim cirSim) {
-        super(cirSim);
-        setWheelSensitivity();
+    Canvas window;
+
+    protected CircuitEditor(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
+        window = renderer().getCanvas();
     }
 
     void setWheelSensitivity() {
@@ -224,7 +226,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     private boolean isRightMouseButton(MouseMoveEvent event) {
         return event.getNativeButton() == NativeEvent.BUTTON_RIGHT &&
-            !(event.isMetaKeyDown() || event.isShiftKeyDown() || event.isControlKeyDown() || event.isAltKeyDown());
+                !(event.isMetaKeyDown() || event.isShiftKeyDown() || event.isControlKeyDown() || event.isAltKeyDown());
     }
 
     private void updateDragCoordinates(int screenX, int screenY) {
@@ -237,7 +239,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             dragGridY = snapGrid(dragGridY);
         }
     }
-
 
     void dragSplitter(int x, int y) {
         double height = renderer().canvasHeight;
@@ -334,7 +335,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
 
         if (allowed) {
-            for (CircuitElm element: simulator.elmList) {
+            for (CircuitElm element : simulator.elmList) {
                 if (element.isSelected()) {
                     element.move(deltaX, deltaY);
                 }
@@ -351,8 +352,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void dragPost(int x, int y, boolean all) {
         if (draggingPost == -1) {
-            draggingPost = (Graphics.distanceSq(mouseElm.x, mouseElm.y, x, y) >
-                Graphics.distanceSq(mouseElm.x2, mouseElm.y2, x, y)) ? 1 : 0;
+            draggingPost = (Graphics.distanceSq(mouseElm.x, mouseElm.y, x, y) > Graphics.distanceSq(mouseElm.x2,
+                    mouseElm.y2, x, y)) ? 1 : 0;
         }
         int deltaX = x - dragGridX;
         int deltaY = y - dragGridY;
@@ -386,7 +387,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int y1 = Math.min(y, initDragGridY);
         int y2 = Math.max(y, initDragGridY);
         selectedArea = new Rectangle(x1, y1, x2 - x1, y2 - y1);
-        for (CircuitElm element: simulator().elmList) {
+        for (CircuitElm element : simulator().elmList) {
             element.selectRect(selectedArea, add);
         }
         cirSim.enableDisableMenuItems();
@@ -429,7 +430,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             return false;
         }
         boolean isOverSplitter = (x >= 0) && (x < renderer().circuitArea.width) &&
-            (y >= renderer().circuitArea.height - 5) && (y < renderer().circuitArea.height);
+                (y >= renderer().circuitArea.height - 5) && (y < renderer().circuitArea.height);
         if (isOverSplitter != mouseWasOverSplitter) {
             if (isOverSplitter) {
                 setCursorStyle("cursorSplitter");
@@ -487,7 +488,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         int gridY = renderer().inverseTransformY(screenY);
 
         if (renderer().circuitArea.contains(screenX, screenY)) {
-            if (mouseElm != null && (mouseElm.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0)) {
+            if (mouseElm != null
+                    && (mouseElm.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0)) {
                 return mouseElm;
             }
 
@@ -582,7 +584,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
     }
 
-
     void twoFingerTouch(int x, int y) {
         tempMouseMode = MouseMode.DRAG_ALL;
         dragScreenX = x;
@@ -606,7 +607,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         mouseDownTime = System.currentTimeMillis();
         cirSim.enablePaste();
 
-        if (event.getNativeButton() != NativeEvent.BUTTON_LEFT && event.getNativeButton() != NativeEvent.BUTTON_MIDDLE) {
+        if (event.getNativeButton() != NativeEvent.BUTTON_LEFT
+                && event.getNativeButton() != NativeEvent.BUTTON_MIDDLE) {
             return;
         }
 
@@ -637,8 +639,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
 
         if (tempMouseMode == MouseMode.SELECT && mouseElm != null && !menuManager().noEditCheckItem.getState() &&
-            mouseElm.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0 &&
-            !anySelectedButMouse()) {
+                mouseElm.getHandleGrabbedClose(gridX, gridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE) >= 0 &&
+                !anySelectedButMouse()) {
             tempMouseMode = MouseMode.DRAG_POST;
         }
 
@@ -657,6 +659,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             if (renderer().circuitArea.contains(event.getX(), event.getY())) {
                 try {
                     dragElm = CircuitElmCreator.constructElement(mouseModeStr, x0, y0);
+                    dragElm.setCircuitDocument(getActiveDocument());
                 } catch (Exception ex) {
                     CirSim.debugger();
                 }
@@ -686,8 +689,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     private boolean handleScopeSettings() {
         ScopeManager scopeManager = scopeManager();
         if (!(cirSim.dialogIsShowing()) &&
-            ((scopeManager.scopeSelected != -1 && scopeManager.scopes[scopeManager.scopeSelected].cursorInSettingsWheel()) ||
-                (scopeManager.scopeSelected == -1 && mouseElm instanceof ScopeElm && ((ScopeElm) mouseElm).elmScope.cursorInSettingsWheel()))) {
+                ((scopeManager.scopeSelected != -1
+                        && scopeManager.scopes[scopeManager.scopeSelected].cursorInSettingsWheel()) ||
+                        (scopeManager.scopeSelected == -1 && mouseElm instanceof ScopeElm
+                                && ((ScopeElm) mouseElm).elmScope.cursorInSettingsWheel()))) {
             if (menuManager().noEditCheckItem.getState()) {
                 return true;
             }
@@ -704,7 +709,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
         return false;
     }
-
 
     public void onMouseUp(MouseUpEvent event) {
         event.preventDefault();
@@ -815,7 +819,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void scrollValues(int x, int y, int deltay) {
         if (mouseElm != null && !cirSim.dialogIsShowing() && scopeManager().scopeSelected == -1) {
-            if (mouseElm instanceof ResistorElm || mouseElm instanceof CapacitorElm || mouseElm instanceof InductorElm) {
+            if (mouseElm instanceof ResistorElm || mouseElm instanceof CapacitorElm
+                    || mouseElm instanceof InductorElm) {
                 CirSim cirSim = (CirSim) this.cirSim;
                 scrollValuePopup = new ScrollValuePopup(x, y, deltay, mouseElm, cirSim);
                 cirSim.setUnsavedChanges(true);

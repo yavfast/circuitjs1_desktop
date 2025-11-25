@@ -67,9 +67,9 @@ public class TriacElm extends CircuitElm {
     }
 
     void setup() {
-        diode03 = new Diode(simUi);
+        diode03 = new Diode();
         diode03.setupForDefaultModel();
-        diode30 = new Diode(simUi);
+        diode30 = new Diode();
         diode30.setupForDefaultModel();
     }
 
@@ -293,5 +293,12 @@ public class TriacElm extends CircuitElm {
     public double getCurrent() {
         return i2;
     } // for scope
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        diode03.setSimulator(circuitDocument.simulator);
+        diode30.setSimulator(circuitDocument.simulator);
+    }
 }
 

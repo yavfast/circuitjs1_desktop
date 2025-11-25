@@ -33,8 +33,17 @@ public class ScopeElm extends CircuitElm {
         noDiagonal = false;
         x2 = x + 128;
         y2 = y + 64;
-        elmScope = new Scope(simUi);
+        elmScope = new Scope(simUi, null);
         setPoints();
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument doc) {
+        super.setCircuitDocument(doc);
+        if (elmScope != null) {
+            elmScope.setCircuitDocument(doc);
+            elmScope.resetGraph();
+        }
     }
 
     public void setScopeElm(CircuitElm e) {
@@ -48,7 +57,7 @@ public class ScopeElm extends CircuitElm {
         noDiagonal = false;
         String sStr = st.nextToken();
         StringTokenizer sst = new StringTokenizer(sStr, "_");
-        elmScope = new Scope(simUi);
+        elmScope = new Scope(simUi, null);
         elmScope.undump(sst);
         setPoints();
         elmScope.resetGraph();

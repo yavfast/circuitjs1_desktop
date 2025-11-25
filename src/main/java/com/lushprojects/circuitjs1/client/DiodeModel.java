@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Vector;
 
-public class DiodeModel implements Editable, Comparable<DiodeModel> {
+public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationContextAware {
 
     static HashMap<String, DiodeModel> modelMap;
 
@@ -37,6 +37,8 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
     double vdcoef;
     // voltage drop @ 1A
     public double fwdrop;
+
+    private CircuitDocument circuitDocument;
 
     protected DiodeModel(double sc, double sr, double ec, double bv, String d) {
         saturationCurrent = sc;
@@ -290,7 +292,14 @@ public class DiodeModel implements Editable, Comparable<DiodeModel> {
         if (n == 4)
             breakdownVoltage = Math.abs(ei.value);
         updateModel();
-        CirSim.theSim.simulator().updateModels();
+        if (circuitDocument != null) {
+            circuitDocument.simulator.updateModels();
+        }
+    }
+
+    @Override
+    public void setSimulationContext(CircuitDocument circuitDocument) {
+        this.circuitDocument = circuitDocument;
     }
 
     // set emission coefficient for simple mode if we have enough data  

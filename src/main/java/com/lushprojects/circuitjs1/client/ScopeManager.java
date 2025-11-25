@@ -13,9 +13,8 @@ public class ScopeManager extends BaseCirSimDelegate {
     int scopeMenuSelected = -1;
     int menuScope = -1;
 
-
-    public ScopeManager(BaseCirSim cirSim) {
-        super(cirSim);
+    public ScopeManager(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        super(cirSim, circuitDocument);
 
         scopes = new Scope[20];
         scopeColCount = new int[20];
@@ -38,8 +37,9 @@ public class ScopeManager extends BaseCirSimDelegate {
         return simulator().getNthScopeElm(scopeMenuSelected - scopeCount).elmScope == s;
     }
 
-    // we need to calculate wire currents for every iteration if someone is viewing a wire in the
-    // scope.  Otherwise we can do it only once per frame.
+    // we need to calculate wire currents for every iteration if someone is viewing
+    // a wire in the
+    // scope. Otherwise we can do it only once per frame.
     boolean canDelayWireProcessing() {
         for (int i = 0; i != scopeCount; i++)
             if (scopes[i].viewingWire())
@@ -67,7 +67,7 @@ public class ScopeManager extends BaseCirSimDelegate {
         newScope.setElmScope(scopes[menuScope]);
 
         int i;
-        // remove scope from list.  setupScopes() will fix the positions
+        // remove scope from list. setupScopes() will fix the positions
         for (i = menuScope; i < scopeCount; i++)
             scopes[i] = scopes[i + 1];
         scopeCount--;
@@ -93,7 +93,8 @@ public class ScopeManager extends BaseCirSimDelegate {
         if (s == 0)
             s = 1;
         if (scopes[s].position != scopes[s - 1].position) {
-            if (s + 1 < scopeCount && scopes[s + 1].position == scopes[s].position) // Allow you to unstack by selecting the top scope in the stack
+            if (s + 1 < scopeCount && scopes[s + 1].position == scopes[s].position) // Allow you to unstack by selecting
+                                                                                    // the top scope in the stack
                 return true;
             else
                 return false;
@@ -120,7 +121,8 @@ public class ScopeManager extends BaseCirSimDelegate {
         if (s == 0) {
             s = 1;
         }
-        if (scopes[s].position != scopes[s - 1].position) // Allow you to unstack by selecting the top scope in the stack
+        if (scopes[s].position != scopes[s - 1].position) // Allow you to unstack by selecting the top scope in the
+                                                          // stack
             s++;
         for (; s < scopeCount; s++)
             scopes[s].position++;
@@ -139,7 +141,6 @@ public class ScopeManager extends BaseCirSimDelegate {
 
         cirSim.setUnsavedChanges(true);
     }
-
 
     void stackAll() {
         int i;
@@ -192,9 +193,9 @@ public class ScopeManager extends BaseCirSimDelegate {
             if (scopeCount == scopes.length)
                 return;
             scopeCount++;
-            scopes[i] = new Scope(cirSim);
+            scopes[i] = new Scope(cirSim, getActiveDocument());
             scopes[i].position = i;
-            //handleResize();
+            // handleResize();
         }
         scopes[i].setElm(ce);
         if (i > 0)
@@ -276,6 +277,5 @@ public class ScopeManager extends BaseCirSimDelegate {
         }
         cirSim.repaint();
     }
-
 
 }

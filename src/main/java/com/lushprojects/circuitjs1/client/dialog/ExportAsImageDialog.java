@@ -34,14 +34,16 @@ import java.util.Date;
 public class ExportAsImageDialog extends Dialog {
 
     VerticalPanel vp;
+    private final CirSim cirSim;
 
     private static native String b64encode(String a) /*-{
 	  // string may have unicode text strings in it, so we don't just call btoa() 
 	  return window.btoa(unescape(encodeURIComponent(a)));
 	}-*/;
 
-    public ExportAsImageDialog(int type) {
+    public ExportAsImageDialog(CirSim cirSim, int type) {
         super();
+        this.cirSim = cirSim;
         Button okButton;
         Anchor a;
         vp = new VerticalPanel();
@@ -53,9 +55,9 @@ public class ExportAsImageDialog extends Dialog {
         String dataURL;
         String ext = ".png";
         if (type == CirSim.CAC_IMAGE) {
-            dataURL = CirSim.theSim.renderer.getCircuitAsCanvas(type).toDataUrl();
+            dataURL = cirSim.renderer.getCircuitAsCanvas(type).toDataUrl();
         } else {
-            String data = CirSim.theSim.renderer.getCircuitAsSVG();
+            String data = cirSim.renderer.getCircuitAsSVG();
             dataURL = "data:text/plain;base64," + b64encode(data);
             ext = ".svg";
         }

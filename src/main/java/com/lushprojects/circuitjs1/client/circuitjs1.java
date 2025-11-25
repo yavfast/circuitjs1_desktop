@@ -43,12 +43,16 @@ public class circuitjs1 implements EntryPoint {
 
     static CirSim mysim;
 
-    // This is the program entrypoint! 
+    // This is the program entrypoint!
     // Called by gtw automagically (see circuitjs1.gwt.xml)
     public void onModuleLoad() {
         GWT.setUncaughtExceptionHandler(new GWT.UncaughtExceptionHandler() {
             public void onUncaughtException(Throwable e) {
-                Window.alert("Uncaught exception: " + e.getMessage());
+                String stackTrace = "";
+                for (StackTraceElement element : e.getStackTrace()) {
+                    stackTrace += element.toString() + "\n";
+                }
+                Window.alert("Uncaught exception: " + e.getMessage() + "\n\nStack Trace:\n" + stackTrace);
                 GWT.log("Uncaught exception", e);
                 e.printStackTrace();
             }
@@ -111,7 +115,7 @@ public class circuitjs1 implements EntryPoint {
                         localizationMap = processLocale(text);
                     } else {
                         GWT.log("Bad file server response: " + response.getStatusText());
-                        // if there was an error in retrieving the 
+                        // if there was an error in retrieving the
                         // language, default to English (empty map)
                         localizationMap = new HashMap<String, String>();
                     }
@@ -139,7 +143,7 @@ public class circuitjs1 implements EntryPoint {
                     // Convert hex code to a Unicode character
                     int codePoint = Integer.parseInt(hexCode, 16);
                     result.append((char) codePoint);
-                    i += 6;  // Skip past the escape sequence
+                    i += 6; // Skip past the escape sequence
                 } catch (NumberFormatException e) {
                     // If the hex code is invalid, append as is
                     result.append("\\u").append(hexCode);
@@ -193,7 +197,7 @@ public class circuitjs1 implements EntryPoint {
             }
         });
 
-        mysim.renderer.updateCircuit();
+        mysim.renderer.render();
     }
 
 }

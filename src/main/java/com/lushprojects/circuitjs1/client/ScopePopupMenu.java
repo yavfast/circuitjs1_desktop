@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ScopePopupMenu {
 
+    private final BaseCirSim cirSim;
     private MenuBar m;
     private MenuItem removeScopeItem;
     private CheckboxMenuItem maxScaleItem;
@@ -37,12 +38,13 @@ public class ScopePopupMenu {
     private MenuItem dockItem;
     private MenuItem undockItem;
 
-    ScopePopupMenu() {
+    ScopePopupMenu(BaseCirSim cirSim) {
+        this.cirSim = cirSim;
         m = new MenuBar(true);
         m.addItem(removeScopeItem = new CheckboxAlignedMenuItem(Locale.LS("Remove Scope"), new MyCommand("scopepop", "remove")));
         m.addItem(dockItem = new CheckboxAlignedMenuItem(Locale.LS("Dock Scope"), new MyCommand("scopepop", "dock")));
         m.addItem(undockItem = new CheckboxAlignedMenuItem(Locale.LS("Undock Scope"), new MyCommand("scopepop", "undock")));
-        m.addItem(maxScaleItem = new CheckboxMenuItem(Locale.LS("Max Scale"), new MyCommand("scopepop", "maxscale")));
+        m.addItem(maxScaleItem = new CheckboxMenuItem(cirSim, Locale.LS("Max Scale"), new MyCommand("scopepop", "maxscale")));
         m.addItem(stackItem = new CheckboxAlignedMenuItem(Locale.LS("Stack"), new MyCommand("scopepop", "stack")));
         m.addItem(unstackItem = new CheckboxAlignedMenuItem(Locale.LS("Unstack"), new MyCommand("scopepop", "unstack")));
         m.addItem(combineItem = new CheckboxAlignedMenuItem(Locale.LS("Combine"), new MyCommand("scopepop", "combine")));

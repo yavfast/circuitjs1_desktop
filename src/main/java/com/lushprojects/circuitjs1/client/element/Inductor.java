@@ -32,9 +32,12 @@ public class Inductor {
     double compResistance, current;
     double curSourceValue;
 
-    public Inductor(CirSim s) {
-        simulator = s.simulator();
+    public Inductor() {
         nodes = new int[2];
+    }
+
+    public void setSimulator(CircuitSimulator s) {
+        simulator = s;
     }
 
     public void setup(double ic, double cr, int f) {

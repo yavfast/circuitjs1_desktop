@@ -4,13 +4,26 @@ public class BaseCirSimDelegate {
 
     final BaseCirSim cirSim;
 
-    protected BaseCirSimDelegate(BaseCirSim cirSim) {
-        this.cirSim = cirSim;
+    CircuitDocument circuitDocument;
 
+    protected BaseCirSimDelegate(BaseCirSim cirSim) {
+        this(cirSim, null);
+    }
+
+    protected BaseCirSimDelegate(BaseCirSim cirSim, CircuitDocument circuitDocument) {
+        this.cirSim = cirSim;
+        this.circuitDocument = circuitDocument;
+    }
+
+    public void setCircuitDocument(CircuitDocument circuitDocument) {
+        this.circuitDocument = circuitDocument;
     }
 
     public CircuitDocument getActiveDocument() {
-        return cirSim.activeDocument;
+        if (circuitDocument != null) {
+            return circuitDocument;
+        }
+        return cirSim.getActiveDocument();
     }
 
     CircuitSimulator simulator() {

@@ -123,6 +123,7 @@ public class CCCSElm extends VCCSElm {
             for (i = 0; i != inputPairCount; i++)
                 setCurrentExprValue(i, pins[i * 2 + 1].current);
             exprState.t = simulator().t;
+            exprState.timeStep = simulator().timeStep;
             double v0 = expr.eval(exprState);
             double rs = v0;
 

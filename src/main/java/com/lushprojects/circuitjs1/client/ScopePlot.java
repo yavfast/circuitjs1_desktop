@@ -5,6 +5,8 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 // plot of single value on a scope
 public class ScopePlot {
+    private final BaseCirSim cirSim;
+    private final CircuitDocument circuitDocument;
     double[] minValues;
     double[] maxValues;
     int scopePointCount;
@@ -32,12 +34,16 @@ public class ScopePlot {
 
     final static int FLAG_AC = 1;
 
-    ScopePlot(CircuitElm e, int u) {
+    ScopePlot(BaseCirSim cirSim, CircuitDocument circuitDocument, CircuitElm e, int u) {
+        this.cirSim = cirSim;
+        this.circuitDocument = circuitDocument;
         elm = e;
         units = u;
     }
 
-    ScopePlot(CircuitElm e, int u, int v, double manS) {
+    ScopePlot(BaseCirSim cirSim, CircuitDocument circuitDocument, CircuitElm e, int u, int v, double manS) {
+        this.cirSim = cirSim;
+        this.circuitDocument = circuitDocument;
         elm = e;
         units = u;
         value = v;
@@ -75,7 +81,7 @@ public class ScopePlot {
                 maxValues[i1] = oldMax[i2];
             }
         } else
-            lastUpdateTime = CirSim.theSim.simulator().t;
+            lastUpdateTime = circuitDocument.simulator.t;
         ptr = 0;
     }
 
@@ -95,10 +101,10 @@ public class ScopePlot {
             minValues[ptr] = v;
         if (v > maxValues[ptr])
             maxValues[ptr] = v;
-        if (CirSim.theSim.simulator().t - lastUpdateTime >= CirSim.theSim.simulator().maxTimeStep * scopePlotSpeed) {
+        if (circuitDocument.simulator.t - lastUpdateTime >= circuitDocument.simulator.maxTimeStep * scopePlotSpeed) {
             ptr = (ptr + 1) & (scopePointCount - 1);
             minValues[ptr] = maxValues[ptr] = v;
-            lastUpdateTime += CirSim.theSim.simulator().maxTimeStep * scopePlotSpeed;
+            lastUpdateTime += circuitDocument.simulator.maxTimeStep * scopePlotSpeed;
         }
     }
 
@@ -131,10 +137,10 @@ public class ScopePlot {
                 color = CircuitElm.positiveColor.getHexValue();
                 break;
             case Scope.UNITS_A:
-                color = (CirSim.theSim.menuManager.printableCheckItem.getState()) ? "#A0A000" : "#FFFF00";
+                color = (cirSim.menuManager.printableCheckItem.getState()) ? "#A0A000" : "#FFFF00";
                 break;
             default:
-                color = (CirSim.theSim.menuManager.printableCheckItem.getState()) ? "#000000" : "#FFFFFF";
+                color = (cirSim.menuManager.printableCheckItem.getState()) ? "#000000" : "#FFFFFF";
                 break;
         }
     }

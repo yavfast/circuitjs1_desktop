@@ -82,11 +82,18 @@ public class MosfetElm extends CircuitElm {
     // set up body diodes
     void setupDiodes() {
         // diode from node 1 to body terminal
-        diodeB1 = new Diode(simUi);
+        diodeB1 = new Diode();
         diodeB1.setupForDefaultModel();
         // diode from node 2 to body terminal
-        diodeB2 = new Diode(simUi);
+        diodeB2 = new Diode();
         diodeB2.setupForDefaultModel();
+    }
+
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument doc) {
+        super.setCircuitDocument(doc);
+        diodeB1.setSimulator(simulator());
+        diodeB2.setSimulator(simulator());
     }
 
     double getDefaultThreshold() {

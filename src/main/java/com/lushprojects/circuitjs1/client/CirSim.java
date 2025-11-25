@@ -27,6 +27,7 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.Callback;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
 import com.google.gwt.core.client.ScriptInjector;
@@ -84,7 +85,16 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     Frame iFrame = null;
 
-    public static CirSim theSim;
+    private static CirSim theSim;
+
+    private final CircuitDocument.SimulationStateListener stateListener = new CircuitDocument.SimulationStateListener() {
+        @Override
+        public void onSimulationStateChanged(boolean isRunning, String errorMessage) {
+            if (toolbar != null) {
+                toolbar.updateRunStopButton();
+            }
+        }
+    };
 
     static native float devicePixelRatio() /*-{
         return window.devicePixelRatio;
@@ -112,7 +122,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             width = RootLayoutPanel.get().getOffsetWidth();
             height = RootLayoutPanel.get().getOffsetHeight();
 
-            height = height - (circuitInfo().hideMenu ? 0 : MENU_BAR_HEIGHT);
+            height = height - (getActiveDocument().circuitInfo.hideMenu ? 0 : MENU_BAR_HEIGHT);
             height -= TAB_BAR_HEIGHT;
 
             if (menuManager.toolbarCheckItem.getState()) {
@@ -157,7 +167,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     void modSetDefault() {
         double MOD_UIScale = OptionsManager.getDoubleOptionFromStorage("MOD_UIScale", getDefaultScale());
         String MOD_TopMenuBar = OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "standart");
-        boolean MOD_setPauseWhenWinUnfocused = OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused", false);
+        boolean MOD_setPauseWhenWinUnfocused = OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused",
+                false);
 
         executeJS("document.body.style.zoom = " + MOD_UIScale + ";");
 
@@ -172,10 +183,30 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         theSim = this;
     }
 
+    @Override
+    void bindDocument(CircuitDocument document) {
+        if (getActiveDocument() != null && stateListener != null) {
+            getActiveDocument().removeStateListener(stateListener);
+        }
+        super.bindDocument(document);
+        if (getActiveDocument() != null && stateListener != null) {
+            getActiveDocument().addStateListener(stateListener);
+        }
+        if (toolbar != null) {
+            toolbar.updateRunStopButton();
+        }
+    }
+
     public void init() {
         console("Start");
 
-        //sets the meta tag to allow the css media queries to work
+        // Ensure stateListener is attached (it might have been skipped in constructor)
+        if (getActiveDocument() != null) {
+            getActiveDocument().removeStateListener(stateListener);
+            getActiveDocument().addStateListener(stateListener);
+        }
+
+        // sets the meta tag to allow the css media queries to work
         MetaElement meta = Document.get().createMetaElement();
         meta.setName("viewport");
         meta.setContent("width=device-width");
@@ -184,13 +215,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
         CircuitElm.initClass(this);
 
-        CircuitInfo circuitInfo = circuitInfo();
+        CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
         circuitInfo.loadQueryParameters();
 
         UndoManager undoManager = getActiveDocument().undoManager;
         // undoManager.readRecovery();
         // if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
-        //    circuitInfo.startCircuitText = undoManager.recovery;
+        // circuitInfo.startCircuitText = undoManager.recovery;
         // }
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
@@ -216,14 +247,14 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
         toolbar = new Toolbar(this);
         toolbar.setEuroResistors(circuitInfo.euroSetting);
-        
+
         tabBarPanel = new TabBarPanel(documentManager);
-        
+
         // Now that UI is initialized, restore the UI state from the active document
-        activeDocument.restoreUIState(menuManager, this);
-        
+        getActiveDocument().restoreUIState(menuManager, this);
+
         // boolean sessionRestored = documentManager.restoreSession();
-        
+
         if (!circuitInfo.hideMenu)
             layoutPanel.addNorth(menuBar, MENU_BAR_HEIGHT);
 
@@ -232,7 +263,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         layoutPanel.addNorth(tabBarPanel, TAB_BAR_HEIGHT);
 
         menuBar.getElement().insertFirst(menuBar.getElement().getChild(1));
-        menuBar.getElement().getFirstChildElement().setAttribute("onclick", "document.getElementsByClassName('toptrigger')[0].checked = false");
+        menuBar.getElement().getFirstChildElement().setAttribute("onclick",
+                "document.getElementsByClassName('toptrigger')[0].checked = false");
 
         RootLayoutPanel.get().add(layoutPanel);
 
@@ -242,7 +274,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             return;
         }
 
-        CircuitEditor circuitEditor = activeDocument.circuitEditor;
+        CircuitEditor circuitEditor = getActiveDocument().circuitEditor;
         cv.addMouseDownHandler(circuitEditor);
         cv.addMouseMoveHandler(circuitEditor);
         cv.addMouseOutHandler(circuitEditor);
@@ -273,7 +305,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             loadFileInput.setVisible(false);
         }
 
-        circuitEditor().setGrid();
+        getActiveDocument().circuitEditor.setGrid();
 
         menuManager.initElmMenuBar();
 
@@ -283,26 +315,28 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         boolean sessionRestored = documentManager.restoreSession();
 
         if (!sessionRestored) {
-            CircuitLoader circuitLoader = activeDocument.circuitLoader;
+            CircuitLoader circuitLoader = getActiveDocument().circuitLoader;
             if (circuitInfo.startCircuitText != null) {
-                circuitLoader.getSetupList(false);
+                CircuitLoader.loadSetupList(this, false);
                 circuitLoader.readCircuit(circuitInfo.startCircuitText);
                 setUnsavedChanges(false);
             } else {
-                if (simulator().stopMessage == null && circuitInfo.startCircuitLink != null) {
+                if (getActiveDocument().simulator.stopMessage == null && circuitInfo.startCircuitLink != null) {
                     circuitLoader.readCircuit("");
-                    circuitLoader.getSetupList(false);
-                    //ImportFromDropboxDialog.setSim(this);
-                    //ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
+                    CircuitLoader.loadSetupList(this, false);
+                    // ImportFromDropboxDialog.setSim(this);
+                    // ImportFromDropboxDialog.doImportDropboxLink(startCircuitLink, false);
                 } else {
                     circuitLoader.readCircuit("");
-                    if (simulator().stopMessage == null && circuitInfo.startCircuit != null) {
-                        circuitLoader.getSetupList(false);
+                    if (getActiveDocument().simulator.stopMessage == null && circuitInfo.startCircuit != null) {
+                        CircuitLoader.loadSetupList(this, false);
                         circuitLoader.readSetupFile(circuitInfo.startCircuit, circuitInfo.startLabel);
                     } else
-                        circuitLoader.getSetupList(true);
+                        CircuitLoader.loadSetupList(this, true);
                 }
             }
+        } else {
+            CircuitLoader.loadSetupList(this, false);
         }
 
         if (circuitInfo.mouseModeReq != null)
@@ -321,7 +355,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             public void onWindowClosing(ClosingEvent event) {
                 undoManager.writeRecoveryToStorage();
-                // there is a bug in electron that makes it impossible to close the app if this warning is given
+                // there is a bug in electron that makes it impossible to close the app if this
+                // warning is given
                 if (circuitInfo.unsavedChanges && !isElectron())
                     event.setMessage(Locale.LS("Are you sure?  There are unsaved changes."));
             }
@@ -333,7 +368,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         toolbar.updateRunStopButton();
     }
 
-    void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor, String currentColor) {
+    void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor,
+            String currentColor) {
         if (positiveColor == null)
             positiveColor = OptionsManager.getOptionFromStorage("positiveColor", null);
         if (negativeColor == null)
@@ -368,9 +404,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         CircuitElm.setColorScale();
     }
 
-
     // install touch handlers
-    // don't feel like rewriting this in java.  Anyway, java doesn't let us create mouse
+    // don't feel like rewriting this in java. Anyway, java doesn't let us create
+    // mouse
     // events and dispatch them.
     public native static void doTouchHandlers(CirSim sim, CanvasElement cv) /*-{
 	// Set up touch events for mobile, etc
@@ -442,9 +478,11 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     }-*/;
 
     public void setSlidersDialogHeight() {
-        if (slidersDialog == null) return;
+        if (slidersDialog == null)
+            return;
         int ih = RootLayoutPanel.get().getOffsetHeight() - 80;
-        if (ih < 100) ih = 100;
+        if (ih < 100)
+            ih = 100;
         slidersDialog.setMaxHeight(ih);
     }
 
@@ -463,12 +501,14 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     public static native void js_console(String text)
     /*-{
-	    console.log(text);
-	}-*/;
+        console.log(text);
+    }-*/;
 
-    public static void console(String text) {
-        js_console(text);
-        CirSim.theSim.log(text);
+    public static void console(String s) {
+        if (theSim != null && theSim.getActiveDocument() != null) {
+            theSim.getActiveDocument().logBuffer.log(s);
+        }
+        GWT.log(s);
     }
 
     public double getIterCount() {
@@ -483,8 +523,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     public void setUnsavedChanges(boolean hasChanges) {
         super.setUnsavedChanges(hasChanges);
         changeWindowTitle(hasChanges);
-        if (documentManager != null && activeDocument != null) {
-            documentManager.notifyTitleChanged(activeDocument);
+        if (documentManager != null && getActiveDocument() != null) {
+            documentManager.notifyTitleChanged(getActiveDocument());
         }
     }
 
@@ -552,13 +592,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         s = s.substring(s.lastIndexOf('\\') + 1);
         theSim.setCircuitTitle(s);
         theSim.allowSave(true);
-        theSim.circuitInfo().savedFlag = true;
+        theSim.getActiveDocument().circuitInfo.savedFlag = true;
         theSim.repaint();
     }
 
     // JSInterface
     static void electronSaveCallback() {
-        theSim.circuitInfo().savedFlag = true;
+        theSim.getActiveDocument().circuitInfo.savedFlag = true;
         theSim.repaint();
     }
 
@@ -608,8 +648,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     // JSInterface
     public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
         actionManager.importCircuitFromText(circuitText, subcircuitsOnly);
-        if (documentManager != null && activeDocument != null) {
-            documentManager.notifyTitleChanged(activeDocument);
+        if (documentManager != null && getActiveDocument() != null) {
+            documentManager.notifyTitleChanged(getActiveDocument());
         }
     }
 
@@ -645,20 +685,22 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     }
 
     void updateToolbar() {
-        toolbar.highlightButton(activeDocument.circuitEditor.mouseModeStr);
+        toolbar.highlightButton(getActiveDocument().circuitEditor.mouseModeStr);
     }
 
     void createNewLoadFile() {
         // This is a hack to fix what IMHO is a bug in the <INPUT FILE element
-        // reloading the same file doesn't create a change event so importing the same file twice
-        // doesn't work unless you destroy the original input element and replace it with a new one
+        // reloading the same file doesn't create a change event so importing the same
+        // file twice
+        // doesn't work unless you destroy the original input element and replace it
+        // with a new one
         int idx = controlsDialog.panel.getWidgetIndex(loadFileInput);
 
         super.createNewLoadFile();
 
         changeWindowTitle(false);
-        if (documentManager != null && activeDocument != null) {
-            documentManager.notifyTitleChanged(activeDocument);
+        if (documentManager != null && getActiveDocument() != null) {
+            documentManager.notifyTitleChanged(getActiveDocument());
         }
     }
 
@@ -804,14 +846,14 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         if (node <= 0)
             return 0;
         // subtract one because ground is not included in nodeVoltages[]
-        return simulator().getNodeVoltages(node - 1);
+        return getActiveDocument().simulator.getNodeVoltages(node - 1);
     }
 
     // JSInterface
     void setExtVoltage(String name, double v) {
         int i;
-        for (i = 0; i != simulator().elmList.size(); i++) {
-            CircuitElm ce = simulator().elmList.get(i);
+        for (i = 0; i != getActiveDocument().simulator.elmList.size(); i++) {
+            CircuitElm ce = getActiveDocument().simulator.elmList.get(i);
             if (ce instanceof ExtVoltageElm) {
                 ExtVoltageElm eve = (ExtVoltageElm) ce;
                 if (eve.getName().equals(name))
@@ -826,8 +868,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     JsArray<JavaScriptObject> getJSElements() {
         int i;
         JsArray<JavaScriptObject> arr = getJSArray();
-        for (i = 0; i != simulator().elmList.size(); i++) {
-            CircuitElm ce = simulator().elmList.get(i);
+        for (i = 0; i != getActiveDocument().simulator.elmList.size(); i++) {
+            CircuitElm ce = getActiveDocument().simulator.elmList.get(i);
             ce.addJSMethods();
             arr.push(ce.getJavaScriptObject());
         }
@@ -836,7 +878,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface
     void twoFingerTouch(int x, int y) {
-        activeDocument.circuitEditor.twoFingerTouch(x, y);
+        getActiveDocument().circuitEditor.twoFingerTouch(x, y);
     }
 
     // JSInterface
@@ -846,46 +888,46 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface
     double getTime() {
-        return simulator().t;
+        return getActiveDocument().simulator.t;
     }
 
     // JSInterface
     double getTimeStep() {
-        return simulator().timeStep;
+        return getActiveDocument().simulator.timeStep;
     }
 
     // JSInterface
     void setTimeStep(double ts) {
-        simulator().timeStep = ts;
+        getActiveDocument().simulator.timeStep = ts;
     }
 
     // JSInterface
     double getMaxTimeStep() {
-        return simulator().maxTimeStep;
+        return getActiveDocument().simulator.maxTimeStep;
     }
 
     // JSInterface
     void setMaxTimeStep(double ts) {
-        simulator().maxTimeStep = ts;
-        simulator().timeStep = ts;
+        getActiveDocument().simulator.maxTimeStep = ts;
+        getActiveDocument().simulator.timeStep = ts;
     }
 
     // JSInterface
     String getCircuitInfoFileName() {
-        return circuitInfo().fileName;
+        return getActiveDocument().circuitInfo.fileName;
     }
 
     // JSInterface
     void setCircuitInfoFileName(String fileName) {
-        circuitInfo().fileName = fileName;
-        if (documentManager != null && activeDocument != null) {
-            documentManager.notifyTitleChanged(activeDocument);
+        getActiveDocument().circuitInfo.fileName = fileName;
+        if (documentManager != null && getActiveDocument() != null) {
+            documentManager.notifyTitleChanged(getActiveDocument());
         }
     }
 
     // JSInterface
     void setCircuitInfoLastFileName(String fileName) {
-        circuitInfo().lastFileName = fileName;
+        getActiveDocument().circuitInfo.lastFileName = fileName;
     }
 
     native void setupJSInterface() /*-{
