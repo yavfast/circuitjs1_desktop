@@ -274,17 +274,19 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             return;
         }
 
-        CircuitEditor circuitEditor = getActiveDocument().circuitEditor;
-        cv.addMouseDownHandler(circuitEditor);
-        cv.addMouseMoveHandler(circuitEditor);
-        cv.addMouseOutHandler(circuitEditor);
-        cv.addMouseUpHandler(circuitEditor);
-        cv.addClickHandler(circuitEditor);
-        cv.addDoubleClickHandler(circuitEditor);
-        cv.addMouseWheelHandler(circuitEditor);
+        // Use delegating event handler that routes events to activeDocument.circuitEditor
+        // This enables proper multi-tab support where each tab has its own editor
+        CircuitEditorEventHandler eventHandler = new CircuitEditorEventHandler(this);
+        cv.addMouseDownHandler(eventHandler);
+        cv.addMouseMoveHandler(eventHandler);
+        cv.addMouseOutHandler(eventHandler);
+        cv.addMouseUpHandler(eventHandler);
+        cv.addClickHandler(eventHandler);
+        cv.addDoubleClickHandler(eventHandler);
+        cv.addMouseWheelHandler(eventHandler);
 
         doTouchHandlers(this, cv.getCanvasElement());
-        cv.addDomHandler(circuitEditor, ContextMenuEvent.getType());
+        cv.addDomHandler(eventHandler, ContextMenuEvent.getType());
 
         modSetDefault();
 
