@@ -37,7 +37,7 @@ public class TabWidget extends Composite {
         titleLabel.setStyleName("tabTitle");
         panel.add(titleLabel);
 
-        closeButton = new Label("X");
+        closeButton = new Label("✖");  
         closeButton.setStyleName("tabCloseBtn");
         closeButton.addClickHandler(new ClickHandler() {
             @Override

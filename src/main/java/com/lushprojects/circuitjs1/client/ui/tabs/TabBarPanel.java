@@ -32,8 +32,8 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
         mainPanel = new FlowPanel();
         mainPanel.setStyleName("tabBarPanel");
 
-        listTabsButton = new Label("v");
-        listTabsButton.setStyleName("addTabButton"); // Reuse style
+        listTabsButton = new Label("⌄");  
+        listTabsButton.setStyleName("addTabButton"); 
         listTabsButton.setTitle("List Tabs");
         listTabsButton.addClickHandler(new ClickHandler() {
             @Override
@@ -42,19 +42,6 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
             }
         });
         mainPanel.add(listTabsButton);
-
-        addTabButton = new Label("+");
-        addTabButton.setStyleName("addTabButton");
-        addTabButton.setTitle("New Tab");
-        addTabButton.addClickHandler(new ClickHandler() {
-            @Override
-            public void onClick(ClickEvent event) {
-                // Create a new blank document
-                CircuitDocument newDoc = documentManager.createDocument(); // This triggers onDocumentAdded
-                documentManager.setActiveDocument(newDoc);
-            }
-        });
-        mainPanel.add(addTabButton);
 
         tabsContainer = new FlowPanel();
         tabsContainer.setStyleName("tabsContainer");
