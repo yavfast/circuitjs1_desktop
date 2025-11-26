@@ -267,6 +267,9 @@ public class CircuitDocument {
         cirSim.speedBar.setValue(speedValue);
         cirSim.currentBar.setValue(currentValue);
         cirSim.powerBar.setValue(powerValue);
+        
+        // Update time step bar to match this document's simulator
+        cirSim.controlsDialog.updateTimeStepBar();
 
         // Restore view transform
         if (transform[0] != 0) {

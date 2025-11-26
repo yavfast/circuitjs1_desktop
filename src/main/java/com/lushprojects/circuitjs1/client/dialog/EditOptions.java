@@ -25,7 +25,6 @@ import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.OptionsManager;
-import com.lushprojects.circuitjs1.client.element.AudioOutputElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -37,12 +36,11 @@ public class EditOptions implements Editable {
     }
 
     public EditInfo getEditInfo(int n) {
+        // Note: Time step size is now controlled via scrollbar in ControlsDialog
         if (n == 0)
-            return new EditInfo("Time step size (s)", sim.getActiveDocument().simulator.maxTimeStep, 0, 0);
-        if (n == 1)
             return new EditInfo("Range for voltage color (V)",
                     CircuitElm.voltageRange, 0, 0);
-        if (n == 2) {
+        if (n == 1) {
             EditInfo ei = new EditInfo("Change Language", 0, -1, -1);
             ei.choice = new Choice();
             ei.choice.add("(no change)");
@@ -63,70 +61,65 @@ public class EditOptions implements Editable {
             return ei;
         }
 
-        if (n == 3) {
+        if (n == 2) {
             EditInfo ei = new EditInfo("Positive Color", CircuitElm.positiveColor.getHexValue());
             ei.isColor = true;
             return ei;
         }
 
-        if (n == 4) {
+        if (n == 3) {
             EditInfo ei = new EditInfo("Negative Color", CircuitElm.negativeColor.getHexValue());
             ei.isColor = true;
             return ei;
         }
 
-        if (n == 5) {
+        if (n == 4) {
             EditInfo ei = new EditInfo("Neutral Color", CircuitElm.neutralColor.getHexValue());
             ei.isColor = true;
             return ei;
         }
 
-        if (n == 6) {
+        if (n == 5) {
             EditInfo ei = new EditInfo("Selection Color", CircuitElm.selectColor.getHexValue());
             ei.isColor = true;
             return ei;
         }
 
-        if (n == 7) {
+        if (n == 6) {
             EditInfo ei = new EditInfo("Current Color", CircuitElm.currentColor.getHexValue());
             ei.isColor = true;
             return ei;
         }
 
-        if (n == 8)
+        if (n == 7)
             return new EditInfo("# of Decimal Digits (short format)", CircuitElm.shortDecimalDigits);
-        if (n == 9)
+        if (n == 8)
             return new EditInfo("# of Decimal Digits (long format)", CircuitElm.decimalDigits);
-        if (n == 10) {
+        if (n == 9) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Developer Mode", sim.getActiveDocument().circuitInfo.developerMode);
             return ei;
         }
-        if (n == 11)
+        if (n == 10)
             return new EditInfo("Minimum Target Frame Rate", sim.getActiveDocument().simulator.minFrameRate);
-        if (n == 12)
+        if (n == 11)
             return new EditInfo("Mouse Wheel Sensitivity", sim.getActiveDocument().circuitEditor.wheelSensitivity);
-        if (n == 13) {
+        if (n == 12) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Auto-Adjust Timestep", sim.getActiveDocument().simulator.adjustTimeStep);
             return ei;
         }
-        if (n == 14 && sim.getActiveDocument().simulator.adjustTimeStep)
+        if (n == 13 && sim.getActiveDocument().simulator.adjustTimeStep)
             return new EditInfo("Minimum time step size (s)", sim.getActiveDocument().simulator.minTimeStep, 0, 0);
 
         return null;
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        if (n == 0 && ei.value > 0) {
-            sim.getActiveDocument().simulator.maxTimeStep = ei.value;
-
-            // if timestep changed manually, prompt before changing it again
-            AudioOutputElm.okToChangeTimeStep = false;
-        }
-        if (n == 1 && ei.value > 0)
+        // Note: Time step size is now controlled via scrollbar in ControlsDialog
+        if (n == 0 && ei.value > 0)
             CircuitElm.voltageRange = ei.value;
-        if (n == 2) {
+        if (n == 1) {
             int lang = ei.choice.getSelectedIndex();
             if (lang == 0)
                 return;
@@ -184,39 +177,39 @@ public class EditOptions implements Editable {
                 Window.Location.reload();
             }
         }
-        if (n == 3) {
+        if (n == 2) {
             CircuitElm.positiveColor = setColor("positiveColor", ei, Color.green);
             CircuitElm.setColorScale();
         }
-        if (n == 4) {
+        if (n == 3) {
             CircuitElm.negativeColor = setColor("negativeColor", ei, Color.red);
             CircuitElm.setColorScale();
         }
-        if (n == 5) {
+        if (n == 4) {
             CircuitElm.neutralColor = setColor("neutralColor", ei, Color.gray);
             CircuitElm.setColorScale();
         }
-        if (n == 6)
+        if (n == 5)
             CircuitElm.selectColor = setColor("selectColor", ei, Color.cyan);
-        if (n == 7)
+        if (n == 6)
             CircuitElm.currentColor = setColor("currentColor", ei, Color.yellow);
-        if (n == 8)
+        if (n == 7)
             CircuitElm.setDecimalDigitsShort((int) ei.value, true);
-        if (n == 9)
+        if (n == 8)
             CircuitElm.setDecimalDigits((int) ei.value, true);
-        if (n == 10)
+        if (n == 9)
             sim.setDeveloperMode(ei.checkbox.getState());
-        if (n == 11 && ei.value > 0)
+        if (n == 10 && ei.value > 0)
             sim.getActiveDocument().simulator.minFrameRate = ei.value;
-        if (n == 12 && ei.value > 0) {
+        if (n == 11 && ei.value > 0) {
             sim.getActiveDocument().circuitEditor.wheelSensitivity = ei.value;
             OptionsManager.setOptionInStorage("wheelSensitivity", Double.toString(sim.getActiveDocument().circuitEditor.wheelSensitivity));
         }
-        if (n == 13) {
+        if (n == 12) {
             sim.getActiveDocument().simulator.adjustTimeStep = ei.checkbox.getState();
             ei.newDialog = true;
         }
-        if (n == 14 && ei.value > 0)
+        if (n == 13 && ei.value > 0)
             sim.getActiveDocument().simulator.minTimeStep = ei.value;
     }
 

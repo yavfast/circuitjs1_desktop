@@ -9,6 +9,7 @@ import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
+import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
 import com.lushprojects.circuitjs1.client.element.AudioInputElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.DataInputElm;
@@ -73,6 +74,8 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         // Reset UI components
         circuitEditor().setGrid();
         CirSim cirSim = (CirSim) this.cirSim;
+        cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(5e-6));
+        cirSim.controlsDialog.updateTimeStepLabel();
         cirSim.speedBar.setValue(117);
         cirSim.currentBar.setValue(50);
         cirSim.powerBar.setValue(50);
@@ -283,8 +286,12 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         menuManager.voltsCheckItem.setState((flags & 4) == 0);
         menuManager.powerCheckItem.setState((flags & 8) == 8);
         menuManager.showValuesCheckItem.setState((flags & 16) == 0);
-        simulator().adjustTimeStep = (flags & 64) != 0;
-        simulator().maxTimeStep = simulator().timeStep = CircuitElm.parseDouble(st.nextToken());
+        
+        simulator.adjustTimeStep = (flags & 64) != 0;
+        simulator.maxTimeStep = simulator.timeStep = CircuitElm.parseDouble(st.nextToken());
+        cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(simulator.maxTimeStep));
+        cirSim.controlsDialog.updateTimeStepLabel();
+        
         double sp = CircuitElm.parseDouble(st.nextToken());
         int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
         // int sp2 = (int) (Math.log(sp)*24+1.5);
@@ -294,11 +301,11 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
 
         try {
             cirSim.powerBar.setValue(CircuitElm.parseInt(st.nextToken()));
-            simulator().minTimeStep = CircuitElm.parseDouble(st.nextToken());
+            simulator.minTimeStep = CircuitElm.parseDouble(st.nextToken());
         } catch (Exception e) {
             // Ignore missing optional parameters
         }
-        circuitEditor().setGrid();
+        circuitEditor.setGrid();
     }
 
     public static void loadSetupList(CirSim cirSim, final boolean openDefault) {

@@ -82,6 +82,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     public Scrollbar speedBar;
     public Scrollbar currentBar;
     public Scrollbar powerBar;
+    public Scrollbar timeStepBar;
 
     Frame iFrame = null;
 
