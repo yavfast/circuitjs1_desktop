@@ -29,15 +29,15 @@ public class TabWidget extends Composite {
 
         panel.setStyleName("tabWidget");
 
-        titleLabel = new Label();
-        titleLabel.setStyleName("tabTitle");
-        panel.add(titleLabel);
-
         statusLabel = new Label();
         statusLabel.setStyleName("tabStatus");
         panel.add(statusLabel);
 
-        closeButton = new Label("x");
+        titleLabel = new Label();
+        titleLabel.setStyleName("tabTitle");
+        panel.add(titleLabel);
+
+        closeButton = new Label("X");
         closeButton.setStyleName("tabCloseBtn");
         closeButton.addClickHandler(new ClickHandler() {
             @Override
@@ -65,17 +65,20 @@ public class TabWidget extends Composite {
 
     public void setStatus(boolean isRunning, boolean hasError) {
         if (hasError) {
-            statusLabel.setText("!");
+            statusLabel.setText("⚠");  // Warning triangle
             statusLabel.setTitle("Error");
             statusLabel.setStyleName("tabStatus error");
+            statusLabel.setVisible(true);
         } else if (isRunning) {
-            statusLabel.setText("▶");
+            statusLabel.setText("●");  // Filled circle (process indicator)
             statusLabel.setTitle("Running");
             statusLabel.setStyleName("tabStatus running");
+            statusLabel.setVisible(true);
         } else {
-            statusLabel.setText("Ⅱ");
-            statusLabel.setTitle("Stopped");
-            statusLabel.setStyleName("tabStatus stopped");
+            statusLabel.setText("");
+            statusLabel.setTitle("");
+            statusLabel.setStyleName("tabStatus");
+            statusLabel.setVisible(false);  // Hide when stopped
         }
     }
 
