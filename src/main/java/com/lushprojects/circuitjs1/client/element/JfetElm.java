@@ -28,33 +28,41 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class JfetElm extends MosfetElm {
-    Diode diode;
-    double gateCurrent;
+    // Gate-Source diode (p-n junction)
+    Diode diodeGS;
+    // Gate-Drain diode (p-n junction)
+    Diode diodeGD;
+    double gateCurrentGS, gateCurrentGD;
 
     JfetElm(int xx, int yy, boolean pnpflag) {
         super(xx, yy, pnpflag);
         noDiagonal = true;
-        diode = new Diode();
-        diode.setupForDefaultModel();
+        diodeGS = new Diode();
+        diodeGS.setupForDefaultModel();
+        diodeGD = new Diode();
+        diodeGD.setupForDefaultModel();
     }
 
     public JfetElm(int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
         super(xa, ya, xb, yb, f, st);
         noDiagonal = true;
-        diode = new Diode();
-        diode.setupForDefaultModel();
+        diodeGS = new Diode();
+        diodeGS.setupForDefaultModel();
+        diodeGD = new Diode();
+        diodeGD.setupForDefaultModel();
     }
 
     public void reset() {
         super.reset();
-        diode.reset();
+        diodeGS.reset();
+        diodeGD.reset();
     }
 
     Polygon gatePoly;
     Polygon arrowPoly;
     Point gatePt;
-    double curcountg, curcounts, curcountd;
+    double curcountgs, curcountgd, curcounts, curcountd;
 
     public void draw(Graphics g) {
         setBbox(point1, point2, hs);
@@ -69,25 +77,31 @@ public class JfetElm extends MosfetElm {
         g.fillPolygon(arrowPoly);
         setPowerColor(g, true);
         g.fillPolygon(gatePoly);
+        
+        // Total gate current is sum of both diode currents
+        double totalGateCurrent = gateCurrentGS + gateCurrentGD;
         curcountd = updateDotCount(-ids, curcountd);
-        curcountg = updateDotCount(gateCurrent, curcountg);
-        curcounts = updateDotCount(-gateCurrent - ids, curcounts);
+        curcountgs = updateDotCount(gateCurrentGS, curcountgs);
+        curcountgd = updateDotCount(gateCurrentGD, curcountgd);
+        // Source current: channel current + gate-source diode current
+        curcounts = updateDotCount(-totalGateCurrent - ids, curcounts);
         if (curcountd != 0 || curcounts != 0) {
             drawDots(g, src[0], src[1], curcounts);
             drawDots(g, src[1], src[2], addCurCount(curcounts, 8));
             drawDots(g, drn[0], drn[1], -curcountd);
             drawDots(g, drn[1], drn[2], -addCurCount(curcountd, 8));
-            drawDots(g, point1, gatePt, curcountg);
+            drawDots(g, point1, gatePt, curcountgs + curcountgd);
         }
         drawPosts(g);
     }
 
     public double getCurrentIntoNode(int n) {
+        double totalGateCurrent = gateCurrentGS + gateCurrentGD;
         if (n == 0)
-            return -gateCurrent;
+            return -totalGateCurrent;
         if (n == 1)
-            return gateCurrent + ids;
-        return -ids;
+            return gateCurrentGS + ids;  // Source: channel current + GS diode
+        return -ids + gateCurrentGD;     // Drain: channel current + GD diode
     }
 
     public void setPoints() {
@@ -117,19 +131,47 @@ public class JfetElm extends MosfetElm {
 
     public void stamp() {
         super.stamp();
-        if (pnp < 0)
-            diode.stamp(nodes[1], nodes[0]);
-        else
-            diode.stamp(nodes[0], nodes[1]);
+        // JFET has two gate p-n junctions: Gate-Source and Gate-Drain
+        // For n-JFET (pnp=1): diodes conduct when gate is positive relative to S or D
+        //   - Diode GS: anode=gate(0), cathode=source(1)
+        //   - Diode GD: anode=gate(0), cathode=drain(2)
+        // For p-JFET (pnp=-1): diodes conduct when gate is negative relative to S or D
+        //   - Diode GS: anode=source(1), cathode=gate(0)
+        //   - Diode GD: anode=drain(2), cathode=gate(0)
+        if (pnp == 1) {
+            // n-JFET: gate positive conducts
+            diodeGS.stamp(nodes[0], nodes[1]);
+            diodeGD.stamp(nodes[0], nodes[2]);
+        } else {
+            // p-JFET: gate negative conducts (source/drain positive)
+            diodeGS.stamp(nodes[1], nodes[0]);
+            diodeGD.stamp(nodes[2], nodes[0]);
+        }
     }
 
     public void doStep() {
         super.doStep();
-        diode.doStep(pnp * (volts[0] - volts[1]));
+        // Calculate gate-source and gate-drain voltages
+        // For n-JFET: positive Vgs means forward bias
+        // For p-JFET: negative Vgs means forward bias (multiply by pnp to normalize)
+        double vgs = volts[0] - volts[1];  // Gate - Source voltage
+        double vgd = volts[0] - volts[2];  // Gate - Drain voltage
+        
+        // Diode models expect positive voltage for forward bias
+        // n-JFET (pnp=1): forward bias when Vg > Vs, so use vgs directly
+        // p-JFET (pnp=-1): forward bias when Vg < Vs, so negate: -(vgs) = Vs - Vg
+        diodeGS.doStep(pnp * vgs);
+        diodeGD.doStep(pnp * vgd);
     }
 
     void calculateCurrent() {
-        gateCurrent = pnp * diode.calculateCurrent(pnp * (volts[0] - volts[1]));
+        double vgs = volts[0] - volts[1];
+        double vgd = volts[0] - volts[2];
+        // Calculate diode currents (positive = current into gate)
+        // For n-JFET: current flows into gate when forward biased
+        // For p-JFET: current flows out of gate when forward biased, so multiply by pnp
+        gateCurrentGS = pnp * diodeGS.calculateCurrent(pnp * vgs);
+        gateCurrentGD = pnp * diodeGD.calculateCurrent(pnp * vgd);
     }
 
     boolean showBulk() {
@@ -175,6 +217,7 @@ public class JfetElm extends MosfetElm {
     @Override
     public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
         super.setCircuitDocument(circuitDocument);
-        diode.setSimulator(circuitDocument.simulator);
+        diodeGS.setSimulator(circuitDocument.simulator);
+        diodeGD.setSimulator(circuitDocument.simulator);
     }
 }
