@@ -590,7 +590,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         dragScreenY = y;
     }
 
-    void clearMouseElm() {
+    public void clearMouseElm() {
         scopeManager().scopeSelected = -1;
         setMouseElm(null);
         plotXElm = plotYElm = null;
@@ -832,7 +832,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         return (value + gridRound) & gridMask;
     }
 
-    void setGrid() {
+    public void setGrid() {
         gridSize = (menuManager().smallGridCheckItem.getState()) ? 8 : 16;
         gridMask = -gridSize;
         gridRound = gridSize / 2 - 1;

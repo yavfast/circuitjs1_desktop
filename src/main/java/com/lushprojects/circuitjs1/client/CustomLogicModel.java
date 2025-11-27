@@ -53,7 +53,7 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         return lm;
     }
 
-    static void clearDumpedFlags() {
+    public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
         Iterator it = modelMap.entrySet().iterator();
@@ -81,7 +81,7 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         rulesRight = copy.rulesRight;
     }
 
-    static void undumpModel(StringTokenizer st) {
+    public static void undumpModel(StringTokenizer st) {
         String name = unescape(st.nextToken());
         CustomLogicModel model = getModelWithName(name);
         model.undump(st);

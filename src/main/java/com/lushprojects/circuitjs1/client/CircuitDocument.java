@@ -7,6 +7,9 @@ import java.util.List;
 
 public class CircuitDocument {
 
+    // Reference to parent CirSim (needed for export/import operations)
+    final BaseCirSim cirSim;
+
     public final CircuitInfo circuitInfo;
     public final CircuitSimulator simulator;
     public final ScopeManager scopeManager;
@@ -34,6 +37,7 @@ public class CircuitDocument {
     private final List<SimulationUpdateListener> updateListeners = new ArrayList<>();
 
     CircuitDocument(BaseCirSim cirSim) {
+        this.cirSim = cirSim;
         circuitInfo = new CircuitInfo(cirSim, this);
         simulator = new CircuitSimulator(cirSim, this);
         scopeManager = new ScopeManager(cirSim, this);
@@ -235,6 +239,20 @@ public class CircuitDocument {
 
     CircuitLoader getCircuitLoader() {
         return circuitLoader;
+    }
+
+    /**
+     * Get the CircuitRenderer (owned by CirSim but accessed through document).
+     */
+    public CircuitRenderer getRenderer() {
+        return cirSim.renderer;
+    }
+
+    /**
+     * Get CirSim for export/import operations.
+     */
+    public CirSim getCirSim() {
+        return (CirSim) cirSim;
     }
 
     // UI State

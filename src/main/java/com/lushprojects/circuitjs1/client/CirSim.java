@@ -663,7 +663,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	});
     }-*/;
 
-    void setPowerBarEnable() {
+    public void setPowerBarEnable() {
         if (menuManager.powerCheckItem.getState()) {
             powerLabel.setStyleName("disabled", false);
             powerBar.enable();
@@ -673,7 +673,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         }
     }
 
-    void enableItems() {
+    public void enableItems() {
     }
 
     void setToolbar() {

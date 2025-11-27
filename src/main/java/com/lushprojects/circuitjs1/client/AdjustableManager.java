@@ -18,7 +18,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
         return adjustables;
     }
 
-    void addAdjustable(StringTokenizer st) {
+    public void addAdjustable(StringTokenizer st) {
         CirSim cirSim = (CirSim) this.cirSim;
         Adjustable adj = new Adjustable(st, cirSim);
         if (adj.elm != null) {
@@ -36,7 +36,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
         return null;
     }
 
-    String dump() {
+    public String dump() {
         String dump = "";
         for (int i = 0; i < adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);
@@ -45,7 +45,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
         return dump;
     }
 
-    void createSliders() {
+    public void createSliders() {
         for (int i = 0; i < adjustables.size(); i++) {
             if (!adjustables.get(i).createSlider()) {
                 adjustables.remove(i--);

@@ -27,6 +27,9 @@ import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
 import com.lushprojects.circuitjs1.client.dialog.ShowLogDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
+import com.lushprojects.circuitjs1.client.io.CircuitExporter;
+import com.lushprojects.circuitjs1.client.io.CircuitFormat;
+import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ActionManager extends BaseCirSimDelegate {
@@ -511,59 +514,57 @@ public class ActionManager extends BaseCirSimDelegate {
         }
     }
 
-    String dumpOptions() {
+    /**
+     * Dump circuit in specified format.
+     * @param formatId Format identifier (e.g., "text", "json")
+     * @return Circuit data as string
+     */
+    public String dumpCircuit(String formatId) {
+        CircuitFormat format = CircuitFormatRegistry.getById(formatId);
+        if (format == null) {
+            format = CircuitFormatRegistry.getDefault();
+        }
+        CircuitExporter exporter = format.createExporter();
+        return exporter.export(getActiveDocument());
+    }
+
+    /**
+     * Dump circuit in default (text) format.
+     * @return Circuit data as string
+     */
+    public String dumpCircuit() {
+        return dumpCircuit(CircuitFormatRegistry.DEFAULT_FORMAT_ID);
+    }
+
+    /**
+     * Dump simulation options header in text format.
+     * Used by CircuitEditor for copy/paste operations.
+     * @return Options line starting with '$'
+     */
+    public String dumpOptions() {
+        CirSim cirSim = (CirSim) this.cirSim;
         MenuManager menuManager = menuManager();
         CircuitSimulator simulator = simulator();
-        int f = (menuManager.dotsCheckItem.getState()) ? 1 : 0;
-        f |= (menuManager.smallGridCheckItem.getState()) ? 2 : 0;
-        f |= (menuManager.voltsCheckItem.getState()) ? 0 : 4;
-        f |= (menuManager.powerCheckItem.getState()) ? 8 : 0;
-        f |= (menuManager.showValuesCheckItem.getState()) ? 0 : 16;
-        // 32 = linear scale in afilter
-        f |= simulator().adjustTimeStep ? 64 : 0;
-        CirSim cirSim = (CirSim) this.cirSim;
+        CircuitDocument document = getActiveDocument();
+
+        // Build flags bitmask
+        int flags = 0;
+        flags |= menuManager.dotsCheckItem.getState() ? 1 : 0;      // Bit 0: Show dots
+        flags |= menuManager.smallGridCheckItem.getState() ? 2 : 0; // Bit 1: Small grid
+        flags |= menuManager.voltsCheckItem.getState() ? 0 : 4;     // Bit 2: Hide volts (inverted)
+        flags |= menuManager.powerCheckItem.getState() ? 8 : 0;     // Bit 3: Show power
+        flags |= menuManager.showValuesCheckItem.getState() ? 0 : 16; // Bit 4: Hide values (inverted)
+        flags |= simulator.adjustTimeStep ? 64 : 0;                 // Bit 6: Auto time step
+
         return CircuitElm.dumpValues(
-                "$", f, simulator().maxTimeStep, cirSim.getIterCount(),
-                cirSim.currentBar.getValue(), CircuitElm.voltageRange,
-                cirSim.powerBar.getValue(), simulator().minTimeStep);
+                "$",
+                flags,
+                simulator.maxTimeStep,
+                cirSim.getIterCount(),
+                cirSim.currentBar.getValue(),
+                CircuitElm.voltageRange,
+                cirSim.powerBar.getValue(),
+                simulator.minTimeStep
+        );
     }
-
-    public String dumpCircuit() {
-        CustomLogicModel.clearDumpedFlags();
-        CustomCompositeModel.clearDumpedFlags();
-        DiodeModel.clearDumpedFlags();
-        TransistorModel.clearDumpedFlags();
-
-        StringBuilder dump = new StringBuilder(4096);
-        // Circuit header
-        dump.append(dumpOptions()).append("\n");
-
-        CircuitSimulator simulator = simulator();
-        for (int i = 0; i != simulator().elmList.size(); i++) {
-            CircuitElm ce = simulator().elmList.get(i);
-            String modelDump = ce.dumpModel();
-            if (modelDump != null && !modelDump.isEmpty()) {
-                dump.append(modelDump).append("\n");
-            }
-            dump.append(CircuitElm.dumpElm(ce)).append("\n");
-        }
-        ScopeManager scopeManager = scopeManager();
-        for (int i = 0; i != scopeManager.scopeCount; i++) {
-            String d = scopeManager.scopes[i].dump();
-            if (d != null) {
-                dump.append(d).append("\n");
-            }
-        }
-        dump.append(getActiveDocument().adjustableManager.dump());
-
-        CircuitRenderer renderer = renderer();
-        if (renderer.hintType != -1) {
-            dump.append(CircuitElm.dumpValues("h", renderer.hintType, renderer.hintItem1, renderer.hintItem2)).append("\n");
-        }
-        return dump.toString();
-    }
-
-
-
-
 }

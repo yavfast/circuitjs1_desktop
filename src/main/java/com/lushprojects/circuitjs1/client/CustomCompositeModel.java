@@ -85,7 +85,7 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         return lm;
     }
 
-    static void clearDumpedFlags() {
+    public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
         for (Map.Entry<String, CustomCompositeModel> stringCustomCompositeModelEntry : modelMap.entrySet()) {

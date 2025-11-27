@@ -21,7 +21,6 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
     private final DocumentManager documentManager;
     private final FlowPanel mainPanel;
     private final FlowPanel tabsContainer;
-    private final Label addTabButton;
     private final Label listTabsButton;
     private final Map<CircuitDocument, TabWidget> tabMap = new HashMap<>();
 

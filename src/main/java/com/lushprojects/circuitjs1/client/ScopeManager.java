@@ -5,6 +5,7 @@ import com.lushprojects.circuitjs1.client.element.ScopeElm;
 
 public class ScopeManager extends BaseCirSimDelegate {
 
+    // Package-private but with public getters for IO operations
     int scopeCount;
     Scope[] scopes;
     int[] scopeColCount;
@@ -19,6 +20,26 @@ public class ScopeManager extends BaseCirSimDelegate {
         scopes = new Scope[20];
         scopeColCount = new int[20];
         scopeCount = 0;
+    }
+
+    /** Get number of scopes for export. */
+    public int getScopeCount() {
+        return scopeCount;
+    }
+
+    /** Set scope count (used during import). */
+    public void setScopeCount(int count) {
+        this.scopeCount = count;
+    }
+
+    /** Get scope at index for export. */
+    public Scope getScope(int index) {
+        return scopes[index];
+    }
+
+    /** Set scope at index (used during import). */
+    public void setScope(int index, Scope scope) {
+        scopes[index] = scope;
     }
 
     void updateScopes() {

@@ -170,7 +170,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
         dm.builtIn = dm.internal = true;
     }
 
-    static void clearDumpedFlags() {
+    public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
         Iterator it = modelMap.entrySet().iterator();
@@ -225,7 +225,7 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
         updateModel();
     }
 
-    static DiodeModel undumpModel(StringTokenizer st) {
+    public static DiodeModel undumpModel(StringTokenizer st) {
         String name = CustomLogicModel.unescape(st.nextToken());
         DiodeModel dm = DiodeModel.getModelWithName(name);
         dm.undump(st);

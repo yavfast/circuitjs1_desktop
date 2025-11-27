@@ -31,6 +31,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
     int hintType = -1, hintItem1, hintItem2;
 
+    // Public getters/setters for hint fields (used by export/import)
+    public int getHintType() { return hintType; }
+    public void setHintType(int type) { hintType = type; }
+    public int getHintItem1() { return hintItem1; }
+    public void setHintItem1(int item) { hintItem1 = item; }
+    public int getHintItem2() { return hintItem2; }
+    public void setHintItem2(int item) { hintItem2 = item; }
+
     public double[] transform = new double[6];
     Rectangle circuitArea;
 
@@ -541,7 +549,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
     }
 
-    void centreCircuit() {
+    public void centreCircuit() {
         if (simulator().elmList == null) // avoid exception if called during initialization
             return;
 

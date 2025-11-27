@@ -30,7 +30,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public double maxTimeStep;
     public double minTimeStep;
     // accumulated time since we incremented timeStepCount
-    double timeStepAccum;
+    public double timeStepAccum;
     // incremented each time we advance t by maxTimeStep
     public int timeStepCount;
 
@@ -1230,7 +1230,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public int subIterations;
 
     boolean dumpMatrix;
-    long lastIterTime;
+    public long lastIterTime;
     int steps = 0;
 
     void dumpCircuitMatrix() {
