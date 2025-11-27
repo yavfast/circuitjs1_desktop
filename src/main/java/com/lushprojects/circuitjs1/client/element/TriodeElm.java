@@ -279,4 +279,22 @@ public class TriodeElm extends CircuitElm {
     public boolean canFlipY() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Triode";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("mu", mu);
+        props.put("kg1", kg1);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "plate", "grid", "cathode" };
+    }
 }

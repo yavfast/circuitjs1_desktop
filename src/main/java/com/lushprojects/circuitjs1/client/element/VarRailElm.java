@@ -118,4 +118,15 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
             slider.onMouseWheel(e);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "VariableRail";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("slider_text", sliderText);
+        return props;
+    }
 }

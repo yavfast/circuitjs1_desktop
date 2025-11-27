@@ -279,4 +279,17 @@ public class SRAMElm extends ChipElm {
     int getDumpType() {
         return 413;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SRAM";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("address_bits", addressBits);
+        props.put("data_bits", dataBits);
+        return props;
+    }
 }

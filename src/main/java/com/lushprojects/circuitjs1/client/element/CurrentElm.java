@@ -126,4 +126,21 @@ public class CurrentElm extends CircuitElm {
     public double getPower() {
         return -getVoltageDiff() * current;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "CurrentSource";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("current", getUnitText(currentValue, "A"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "positive", "negative" };
+    }
 }

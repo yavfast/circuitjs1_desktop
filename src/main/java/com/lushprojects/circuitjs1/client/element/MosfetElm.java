@@ -616,4 +616,34 @@ public class MosfetElm extends CircuitElm {
         flags ^= FLAG_FLIP;
         super.flipXY(xmy, count);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return pnp == 1 ? "NMOS" : "PMOS";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("threshold_voltage", getUnitText(Math.abs(vt), "V"));
+        props.put("beta", beta);
+        if (drawDigital()) {
+            props.put("digital", true);
+        }
+        if (doBodyDiode()) {
+            props.put("body_diode", true);
+        }
+        if (hasBodyTerminal()) {
+            props.put("body_terminal", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        if (hasBodyTerminal()) {
+            return new String[] { "gate", "source", "drain", "body" };
+        }
+        return new String[] { "gate", "source", "drain" };
+    }
 }

@@ -440,4 +440,25 @@ public class ThreePhaseMotorElm extends CircuitElm {
     public boolean canFlipY() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() { return "ThreePhaseMotor"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("stator_inductance", getUnitText(Ls, "H"));
+        props.put("rotor_inductance", getUnitText(Lr, "H"));
+        props.put("stator_resistance", getUnitText(Rs, "Ohm"));
+        props.put("rotor_resistance", getUnitText(Rr, "Ohm"));
+        props.put("coupling_inductance", getUnitText(Lm, "H"));
+        props.put("friction_coefficient", b);
+        props.put("moment_of_inertia", J);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"U1", "U2", "V1", "V2", "W1", "W2"};
+    }
 }

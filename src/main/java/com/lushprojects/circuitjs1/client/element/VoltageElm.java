@@ -415,4 +415,43 @@ public class VoltageElm extends CircuitElm {
         if (n == 5)
             dutyCycle = ei.value * .01;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        switch (waveform) {
+            case WF_DC: return "VoltageSourceDC";
+            case WF_AC: return "VoltageSourceAC";
+            case WF_SQUARE: return "VoltageSourceSquare";
+            case WF_TRIANGLE: return "VoltageSourceTriangle";
+            case WF_SAWTOOTH: return "VoltageSourceSawtooth";
+            case WF_PULSE: return "VoltageSourcePulse";
+            case WF_NOISE: return "VoltageSourceNoise";
+            case WF_VAR: return "VoltageSourceVar";
+            default: return "VoltageSource";
+        }
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("max_voltage", getUnitText(maxVoltage, "V"));
+        if (bias != 0) {
+            props.put("dc_offset", getUnitText(bias, "V"));
+        }
+        if (waveform != WF_DC && waveform != WF_VAR && waveform != WF_NOISE) {
+            props.put("frequency", getUnitText(frequency, "Hz"));
+            if (phaseShift != 0) {
+                props.put("phase_shift", phaseShift * 180 / pi);
+            }
+            if (waveform == WF_PULSE || waveform == WF_SQUARE) {
+                props.put("duty_cycle", dutyCycle);
+            }
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "positive", "negative" };
+    }
 }

@@ -135,4 +135,21 @@ public class StopTriggerElm extends CircuitElm {
         if (n == 2)
             delay = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() { return "StopTrigger"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("trigger_voltage", getUnitText(triggerVoltage, "V"));
+        props.put("trigger_type", type == 0 ? ">=" : "<=");
+        props.put("delay", getUnitText(delay, "s"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in"};
+    }
 }

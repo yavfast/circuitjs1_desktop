@@ -269,4 +269,18 @@ public class CustomLogicElm extends ChipElm {
         super.getInfo(arr);
         arr[0] = model.infoText;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "CustomLogic";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("model_name", modelName);
+        props.put("input_count", inputCount);
+        props.put("output_count", outputCount);
+        return props;
+    }
 }

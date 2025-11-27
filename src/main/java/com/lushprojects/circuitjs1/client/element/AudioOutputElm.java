@@ -217,6 +217,25 @@ public class AudioOutputElm extends CircuitElm {
         }
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "AudioOutput";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("duration", getUnitText(duration, "s"));
+        props.put("sampling_rate", samplingRate + " Hz");
+        props.put("label_number", labelNum);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"input"};
+    }
+
     void setTimeStep() {
 	    /*
 	    // timestep must be smaller than 1/sampleRate

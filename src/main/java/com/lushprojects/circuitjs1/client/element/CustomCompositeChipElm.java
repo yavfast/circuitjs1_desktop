@@ -73,5 +73,16 @@ public class CustomCompositeChipElm extends ChipElm {
     public int getPostCount() {
         return pins == null ? 1 : pins.length;
     }
+
+    @Override
+    public String getJsonTypeName() { return "CustomCompositeChip"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        if (label != null)
+            props.put("label", label);
+        return props;
+    }
 }
 

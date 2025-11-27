@@ -256,5 +256,18 @@ public class VCCSElm extends ChipElm {
         super.reset();
         exprState.reset();
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "VCCS";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("expression", exprString);
+        props.put("input_count", inputCount);
+        return props;
+    }
 }
 

@@ -313,4 +313,28 @@ public abstract class GateElm extends CircuitElm {
             return current;
         return 0;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("input_count", inputCount);
+        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        if (hasSchmittInputs()) {
+            props.put("schmitt", true);
+        }
+        if (hasFlag(FLAG_INVERT_INPUTS)) {
+            props.put("invert_inputs", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        String[] names = new String[inputCount + 1];
+        for (int i = 0; i < inputCount; i++) {
+            names[i] = "in" + (i + 1);
+        }
+        names[inputCount] = "out";
+        return names;
+    }
 }

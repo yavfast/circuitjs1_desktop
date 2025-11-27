@@ -1009,14 +1009,53 @@ B --|                     |-- B
     }
   },
 
-  "scopes": {
-    "SCOPE1": {
-      "title": "Колектор Q1",
-      "signal_source": "Q1.collector",
-      "time_scale": 0.01,
-      "voltage_scale": "auto"
+  "scopes": [
+    {
+      "element": "Q1",
+      "position": 0,
+      "speed": 64,
+      "display": {
+        "show_voltage": true,
+        "show_current": false,
+        "show_scale": true,
+        "show_max": false,
+        "show_min": false,
+        "show_frequency": false,
+        "show_fft": false,
+        "show_rms": false,
+        "show_average": false,
+        "show_duty_cycle": false,
+        "show_negative": false,
+        "show_element_info": true
+      },
+      "plot_mode": {
+        "plot_2d": false,
+        "plot_xy": false,
+        "max_scale": false,
+        "log_spectrum": false
+      },
+      "plots": [
+        {
+          "element": "Q1",
+          "units": "V",
+          "color": "#00FF00",
+          "scale": 1.0,
+          "v_position": 0
+        }
+      ]
     }
-  }
+  ],
+
+  "adjustables": [
+    {
+      "element": "R1",
+      "edit_item": 0,
+      "label": "Опір R1",
+      "min_value": 100,
+      "max_value": 100000,
+      "current_value": 10000
+    }
+  ]
 }
 ```
 
@@ -1102,3 +1141,160 @@ B --|                     |-- B
 - Формат `connected_to` використовує нотацію `"ElementID.PinID"`
 - Усі рядкові значення обов'язково беруться в подвійні лапки
 - Специфічні властивості елемента виносяться в об'єкт `properties`
+
+---
+
+## Осцилографи (Scopes)
+
+Секція `scopes` містить масив конфігурацій осцилографів.
+
+### Структура scope
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `element` | string | ID головного елемента |
+| `position` | number | Позиція в стеку осцилографів |
+| `speed` | number | Швидкість розгортки (кроки симуляції на піксель) |
+| `display` | object | Налаштування відображення |
+| `plot_mode` | object | Режим побудови графіку |
+| `manual_scale` | object | Ручний масштаб (опціонально) |
+| `plots` | array | Масив окремих графіків |
+
+### Параметри display
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `show_voltage` | boolean | Показувати напругу |
+| `show_current` | boolean | Показувати струм |
+| `show_scale` | boolean | Показувати шкалу |
+| `show_max` | boolean | Показувати максимум |
+| `show_min` | boolean | Показувати мінімум |
+| `show_frequency` | boolean | Показувати частоту |
+| `show_fft` | boolean | Показувати FFT |
+| `show_rms` | boolean | Показувати RMS |
+| `show_average` | boolean | Показувати середнє |
+| `show_duty_cycle` | boolean | Показувати duty cycle |
+| `show_negative` | boolean | Показувати від'ємні значення |
+| `show_element_info` | boolean | Показувати інформацію про елемент |
+
+### Параметри plot_mode
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `plot_2d` | boolean | 2D графік |
+| `plot_xy` | boolean | X-Y графік |
+| `max_scale` | boolean | Максимальний масштаб |
+| `log_spectrum` | boolean | Логарифмічний спектр |
+
+### Структура plot
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `element` | string | ID елемента для цього графіка |
+| `units` | string | Одиниці: `"V"`, `"A"`, `"W"`, `"Ω"` |
+| `color` | string | Колір графіка (hex) |
+| `scale` | number | Масштаб (одиниць на поділку) |
+| `v_position` | number | Вертикальна позиція (-100 до +100) |
+| `ac_coupled` | boolean | AC-зв'язок (опціонально) |
+
+### Приклад scope
+
+```json
+{
+  "scopes": [
+    {
+      "element": "Q1",
+      "position": 0,
+      "speed": 64,
+      "display": {
+        "show_voltage": true,
+        "show_current": true,
+        "show_scale": true,
+        "show_frequency": true
+      },
+      "plot_mode": {
+        "plot_2d": false,
+        "plot_xy": false
+      },
+      "manual_scale": {
+        "enabled": true,
+        "divisions": 8
+      },
+      "plots": [
+        {
+          "element": "Q1",
+          "units": "V",
+          "color": "#00FF00",
+          "scale": 2.0,
+          "v_position": 0
+        },
+        {
+          "element": "Q1",
+          "units": "A",
+          "color": "#FFFF00",
+          "scale": 0.01,
+          "v_position": 0,
+          "ac_coupled": true
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Регулятори (Adjustables)
+
+Секція `adjustables` містить масив слайдерів для динамічного керування параметрами елементів.
+
+### Структура adjustable
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `element` | string | ID елемента, який контролюється |
+| `edit_item` | number | Індекс властивості в списку редагування |
+| `label` | string | Текстова мітка слайдера |
+| `min_value` | number | Мінімальне значення |
+| `max_value` | number | Максимальне значення |
+| `current_value` | number | Поточне значення |
+| `shared_slider` | number | Індекс спільного слайдера (опціонально) |
+
+### Приклад adjustables
+
+```json
+{
+  "adjustables": [
+    {
+      "element": "R1",
+      "edit_item": 0,
+      "label": "Опір R1",
+      "min_value": 100,
+      "max_value": 100000,
+      "current_value": 10000
+    },
+    {
+      "element": "C1",
+      "edit_item": 0,
+      "label": "Ємність C1",
+      "min_value": 1e-9,
+      "max_value": 1e-3,
+      "current_value": 1e-6
+    },
+    {
+      "element": "V1",
+      "edit_item": 0,
+      "label": "Напруга живлення",
+      "min_value": 1,
+      "max_value": 24,
+      "current_value": 12,
+      "shared_slider": 0
+    }
+  ]
+}
+```
+
+### Спільні слайдери
+
+Параметр `shared_slider` дозволяє декільком регуляторам використовувати один слайдер.
+Значення — це індекс слайдера в масиві `adjustables`, з яким буде синхронізоване значення.

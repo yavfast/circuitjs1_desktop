@@ -150,4 +150,14 @@ public class TunnelDiodeElm extends CircuitElm {
         arr[2] = "Vd = " + getVoltageText(getVoltageDiff());
         arr[3] = "P = " + getUnitText(getPower(), "W");
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "TunnelDiode";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "anode", "cathode" };
+    }
 }

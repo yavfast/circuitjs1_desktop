@@ -221,4 +221,21 @@ public class WattmeterElm extends CircuitElm {
     public boolean canFlipY() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Wattmeter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("width", width);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"I1+", "I1-", "V+", "V-"};
+    }
 }

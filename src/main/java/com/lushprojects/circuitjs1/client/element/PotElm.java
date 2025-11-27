@@ -371,5 +371,24 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         flags ^= FLAG_FLIP_OFFSET;
         super.flipXY(xmy, count);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Potentiometer";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("max_resistance", getUnitText(maxResistance, "Ohm"));
+        props.put("position", position);
+        props.put("slider_text", sliderText);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b", "wiper" };
+    }
 }
 

@@ -170,4 +170,23 @@ public class AMElm extends CircuitElm {
         if (n == 2)
             signalfreq = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "AMSource";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("carrier_frequency", getUnitText(carrierfreq, "Hz"));
+        props.put("signal_frequency", getUnitText(signalfreq, "Hz"));
+        props.put("max_voltage", getUnitText(maxVoltage, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "output" };
+    }
 }

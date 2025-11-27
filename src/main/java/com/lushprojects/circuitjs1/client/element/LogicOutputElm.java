@@ -172,4 +172,23 @@ public class LogicOutputElm extends CircuitElm {
 //		g.fillRect(x-3, y-3, 7, 7);
 //    }
 
+    @Override
+    public String getJsonTypeName() {
+        return "LogicOutput";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("threshold", getUnitText(threshold, "V"));
+        props.put("ternary", isTernary());
+        props.put("numeric", isNumeric());
+        props.put("pulldown", needsPullDown());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "input" };
+    }
 }

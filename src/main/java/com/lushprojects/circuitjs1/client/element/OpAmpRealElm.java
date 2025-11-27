@@ -319,4 +319,25 @@ public class OpAmpRealElm extends CompositeElm {
     public boolean canFlipY() {
         return (dx == 0);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "OpAmpReal";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        String[] models = {"LM741", "LM324", "LM324v2"};
+        props.put("model", models[modelType]);
+        props.put("slew_rate", slewRate + " V/us");
+        props.put("current_limit", getUnitText(currentLimit, "A"));
+        props.put("swap_inputs", (flags & FLAG_SWAP) != 0);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in-", "in+", "out", "V+", "V-"};
+    }
 }

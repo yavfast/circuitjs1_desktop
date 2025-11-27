@@ -18,6 +18,11 @@ public class ScopePlot {
     double lastValue;
     public String color;
     CircuitElm elm;
+    
+    public CircuitElm getElm() {
+        return elm;
+    }
+    
     // Has a manual scale in "/div" format been put in by the user (as opposed to being
     // inferred from a "MaxValue" format or from an automatically calculated scale)?
     // Manual scales should be kept to sane values anyway, but this shows if this is a user

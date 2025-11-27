@@ -16,6 +16,11 @@ import java.util.ArrayList;
 // values with sliders
 public class Adjustable extends BaseCirSimDelegate implements Command {
     CircuitElm elm;
+    
+    public CircuitElm getElm() {
+        return elm;
+    }
+    
     public double minValue;
     public double maxValue;
     int flags;
@@ -28,6 +33,10 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
 
     // index of value in getEditInfo() list that this slider controls
     int editItem;
+    
+    public int getEditItem() {
+        return editItem;
+    }
 
     public Label label, valueLabel;
     Scrollbar slider;
@@ -192,7 +201,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         valueLabel.setText(valueString);
     }
 
-    double getSliderValue() {
+    public double getSliderValue() {
         double val = sharedSlider == null ? slider.getValue() : sharedSlider.slider.getValue();
         return minValue + (maxValue - minValue) * val / 100;
     }

@@ -96,4 +96,16 @@ public class ADCElm extends ChipElm {
             setPoints();
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "ADC";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        return props;
+    }
 }

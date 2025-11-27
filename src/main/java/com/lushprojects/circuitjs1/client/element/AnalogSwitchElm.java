@@ -239,5 +239,26 @@ public class AnalogSwitchElm extends CircuitElm {
             return -current;
         return current;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "AnalogSwitch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("on_resistance", getUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getUnitText(r_off, "Ohm"));
+        props.put("threshold", getUnitText(threshold, "V"));
+        props.put("normally_closed", hasFlag(FLAG_INVERT));
+        props.put("pulldown", needsPulldown());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "in", "out", "control" };
+    }
 }
 

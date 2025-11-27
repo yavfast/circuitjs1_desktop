@@ -500,4 +500,19 @@ public class CustomTransformerElm extends CircuitElm {
         return false;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "CustomTransformer";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("coupling_coefficient", couplingCoef);
+        props.put("description", description);
+        props.put("coil_count", coilCount);
+        props.put("primary_coils", primaryCoils);
+        return props;
+    }
 }

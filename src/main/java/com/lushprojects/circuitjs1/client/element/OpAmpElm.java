@@ -280,4 +280,31 @@ public class OpAmpElm extends CircuitElm {
         super.flipXY(xmy, count);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "OpAmp";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("gain", gain);
+        props.put("max_output", getUnitText(maxOut, "V"));
+        props.put("min_output", getUnitText(minOut, "V"));
+        if (gbw != 1e6) {
+            props.put("gbw", getUnitText(gbw, "Hz"));
+        }
+        if ((flags & FLAG_SWAP) != 0) {
+            props.put("swap_inputs", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        if ((flags & FLAG_SWAP) != 0) {
+            return new String[] { "in+", "in-", "out" };
+        }
+        return new String[] { "in-", "in+", "out" };
+    }
 }

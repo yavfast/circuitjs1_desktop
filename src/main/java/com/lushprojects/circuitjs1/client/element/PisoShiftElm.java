@@ -168,4 +168,17 @@ public class PisoShiftElm extends ChipElm {
             return;
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "PISOShiftRegister";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        props.put("has_serial_input", hasNewBhvr());
+        return props;
+    }
 }

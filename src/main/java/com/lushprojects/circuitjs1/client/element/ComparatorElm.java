@@ -117,4 +117,21 @@ public class ComparatorElm extends CompositeElm {
         super.flipXY(xmy, count);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Comparator";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("swap_inputs", (flags & FLAG_SWAP) != 0);
+        props.put("small_size", opsize == 1);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in-", "in+", "out"};
+    }
 }

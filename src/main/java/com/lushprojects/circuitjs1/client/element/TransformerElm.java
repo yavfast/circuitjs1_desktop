@@ -353,4 +353,25 @@ public class TransformerElm extends CircuitElm {
         super.flipXY(xmy, count);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Transformer";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("ratio", ratio);
+        props.put("coupling", couplingCoef);
+        if (polarity == -1) {
+            props.put("reverse_polarity", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "pri1", "pri2", "sec1", "sec2" };
+    }
 }

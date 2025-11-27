@@ -171,4 +171,21 @@ public class InverterElm extends CircuitElm {
         return 0;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Inverter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        props.put("slew_rate", slewRate);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "in", "out" };
+    }
 }

@@ -31,4 +31,9 @@ public class PushSwitchElm extends SwitchElm {
     public int getShortcut() {
         return 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "PushSwitch";
+    }
 }

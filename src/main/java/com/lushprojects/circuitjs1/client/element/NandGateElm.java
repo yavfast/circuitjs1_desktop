@@ -46,4 +46,7 @@ public class NandGateElm extends AndGateElm {
     public int getShortcut() {
         return '@';
     }
+
+    @Override
+    public String getJsonTypeName() { return "NandGate"; }
 }

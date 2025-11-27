@@ -95,4 +95,16 @@ public class DACElm extends ChipElm {
             setPoints();
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "DAC";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        return props;
+    }
 }

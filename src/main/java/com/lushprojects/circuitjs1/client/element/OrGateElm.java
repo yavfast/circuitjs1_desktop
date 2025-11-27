@@ -133,4 +133,9 @@ public class OrGateElm extends GateElm {
     public int getShortcut() {
         return '3';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return isInverting() ? "NORGate" : "ORGate";
+    }
 }

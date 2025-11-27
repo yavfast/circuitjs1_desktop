@@ -253,5 +253,17 @@ public class CCCSElm extends VCCSElm {
         arr[i++] = null;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "CCCS";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("expression", exprString);
+        props.put("input_count", inputCount);
+        return props;
+    }
 }
 

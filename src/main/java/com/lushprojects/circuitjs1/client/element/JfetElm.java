@@ -220,4 +220,22 @@ public class JfetElm extends MosfetElm {
         diodeGS.setSimulator(circuitDocument.simulator);
         diodeGD.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return pnp == 1 ? "NJFET" : "PJFET";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = new java.util.LinkedHashMap<>();
+        props.put("threshold_voltage", getUnitText(Math.abs(vt), "V"));
+        props.put("beta", beta);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "gate", "source", "drain" };
+    }
 }

@@ -70,4 +70,9 @@ public class AntennaElm extends RailElm {
     public EditInfo getEditInfo(int n) {
         return null;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Antenna";
+    }
 }

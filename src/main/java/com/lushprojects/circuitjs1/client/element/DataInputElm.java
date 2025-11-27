@@ -213,4 +213,20 @@ public class DataInputElm extends RailElm {
     public static void clearCache() {
         dataFileMap.clear();
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "DataInput";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("sample_length", getUnitText(sampleLength, "s"));
+        props.put("scale_factor", scaleFactor);
+        props.put("repeat", doesRepeat());
+        if (fileName != null)
+            props.put("file_name", fileName);
+        return props;
+    }
 }

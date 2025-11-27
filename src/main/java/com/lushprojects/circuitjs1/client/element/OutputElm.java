@@ -139,6 +139,25 @@ public class OutputElm extends CircuitElm {
             flags = ei.changeFlag(flags, FLAG_FIXED);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Output";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("show_voltage", showVoltage());
+        props.put("scale", scale == SCALE_AUTO ? "auto" : scale == 1 ? "V" : scale == 2 ? "mV" : "uV");
+        props.put("fixed_precision", isFixed());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"output"};
+    }
+
 //    void drawHandles(Graphics g, Color c) {
 //    	g.setColor(c);
 //		g.fillRect(x-3, y-3, 7, 7);

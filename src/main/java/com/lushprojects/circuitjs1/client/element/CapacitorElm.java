@@ -292,4 +292,20 @@ public class CapacitorElm extends CircuitElm {
     public boolean isIdealCapacitor() {
         return (seriesResistance == 0);
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("capacitance", getUnitText(capacitance, "F"));
+        if (initialVoltage != 1e-3) {
+            props.put("initial_voltage", getUnitText(initialVoltage, "V"));
+        }
+        if (seriesResistance > 0) {
+            props.put("series_resistance", getUnitText(seriesResistance, "Ohm"));
+        }
+        if (!isTrapezoidal()) {
+            props.put("back_euler", true);
+        }
+        return props;
+    }
 }

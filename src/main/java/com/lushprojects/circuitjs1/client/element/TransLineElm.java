@@ -290,5 +290,24 @@ public class TransLineElm extends CircuitElm {
     public boolean canFlipY() {
         return dx == 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "TransmissionLine";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("delay", getUnitText(delay, "s"));
+        props.put("impedance", getUnitText(imped, "Ohm"));
+        props.put("width", width);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "gnd_in", "gnd_out", "sig_in", "sig_out" };
+    }
 }
 

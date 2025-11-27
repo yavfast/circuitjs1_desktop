@@ -155,4 +155,16 @@ public class SevenSegDecoderElm extends ChipElm {
         return 197;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "SevenSegmentDecoder";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("has_blank_pin", hasBlank());
+        props.put("blank_on_1111", blankOnF());
+        return props;
+    }
 }

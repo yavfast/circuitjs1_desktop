@@ -182,4 +182,25 @@ public class MemristorElm extends CircuitElm {
         if (n == 4)
             mobility = ei.value * 1e-12;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Memristor";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("min_resistance", getUnitText(r_on, "Ohm"));
+        props.put("max_resistance", getUnitText(r_off, "Ohm"));
+        props.put("dope_width", getUnitText(dopeWidth, "m"));
+        props.put("total_width", getUnitText(totalWidth, "m"));
+        props.put("mobility", mobility);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

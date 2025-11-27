@@ -200,4 +200,19 @@ public class AudioInputElm extends RailElm {
     public static void clearCache() {
         audioFileMap.clear();
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "AudioInput";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("max_voltage", getUnitText(maxVoltage, "V"));
+        props.put("start_position", getUnitText(startPosition, "s"));
+        if (fileName != null)
+            props.put("file_name", fileName);
+        return props;
+    }
 }

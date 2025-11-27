@@ -133,4 +133,25 @@ public class WireElm extends CircuitElm {
         return -1;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Wire";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        if (mustShowCurrent()) {
+            props.put("show_current", true);
+        }
+        if (mustShowVoltage()) {
+            props.put("show_voltage", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

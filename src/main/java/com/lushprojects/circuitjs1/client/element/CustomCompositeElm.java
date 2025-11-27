@@ -261,4 +261,18 @@ public class CustomCompositeElm extends CompositeElm {
             arr[i + 1] = model.extList.get(i).name + " = " + getVoltageText(volts[i]);
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Subcircuit";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("model_name", modelName);
+        props.put("input_count", inputCount);
+        props.put("output_count", outputCount);
+        return props;
+    }
 }

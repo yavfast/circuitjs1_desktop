@@ -215,4 +215,17 @@ public class LEDArrayElm extends ChipElm {
         arr[0] = getChipName();
         return;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "LEDArray";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("grid_width", sizeX);
+        props.put("grid_height", sizeY);
+        return props;
+    }
 }

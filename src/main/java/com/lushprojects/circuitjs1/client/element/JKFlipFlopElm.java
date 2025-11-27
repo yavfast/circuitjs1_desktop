@@ -170,4 +170,18 @@ public class JKFlipFlopElm extends ChipElm {
 
         super.setChipEditValue(n, ei);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "JKFlipFlop";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("has_reset", hasReset());
+        props.put("positive_edge_triggered", positiveEdgeTriggered());
+        props.put("invert_reset", invertReset());
+        return props;
+    }
 }

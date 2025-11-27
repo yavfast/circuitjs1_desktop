@@ -137,4 +137,7 @@ public class VCOElm extends ChipElm {
     boolean isDigitalChip() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() { return "VCO"; }
 }

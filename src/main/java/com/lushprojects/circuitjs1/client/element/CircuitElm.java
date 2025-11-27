@@ -1248,4 +1248,87 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public native JavaScriptObject getJavaScriptObject() /*-{ return this; }-*/;
 
+    // ==================== JSON Export Methods ====================
+
+    /**
+     * Returns the JSON type name for this element.
+     * Default implementation removes "Elm" suffix from class name.
+     * Subclasses may override to provide a more specific name.
+     * 
+     * Examples: "ResistorElm" -> "Resistor", "TransistorElm" -> "Transistor"
+     */
+    public String getJsonTypeName() {
+        String className = getClassName();
+        if (className.endsWith("Elm")) {
+            return className.substring(0, className.length() - 3);
+        }
+        return className;
+    }
+
+    /**
+     * Returns a map of property names to values for JSON export.
+     * Base implementation returns an empty map.
+     * Subclasses should override to provide element-specific properties.
+     * 
+     * Property values should be formatted with units where appropriate,
+     * e.g., "10 kOhm", "100 uF", "5 V"
+     */
+    public java.util.Map<String, Object> getJsonProperties() {
+        return new java.util.LinkedHashMap<>();
+    }
+
+    /**
+     * Returns an array of pin names for this element.
+     * Default implementation returns generic names based on post count.
+     * Subclasses should override to provide meaningful pin names
+     * like "base", "collector", "emitter" for transistors.
+     */
+    public String[] getJsonPinNames() {
+        int postCount = getPostCount();
+        if (postCount == 2) {
+            return new String[] {"pin1", "pin2"};
+        }
+        String[] names = new String[postCount];
+        for (int i = 0; i < postCount; i++) {
+            names[i] = "pin" + (i + 1);
+        }
+        return names;
+    }
+
+    /**
+     * Returns the position of a specific pin/post.
+     * Used for JSON export to get absolute coordinates.
+     * 
+     * @param pinIndex the index of the pin (0-based)
+     * @return Point with x,y coordinates, or null if invalid index
+     */
+    public Point getJsonPinPosition(int pinIndex) {
+        if (pinIndex < 0 || pinIndex >= getPostCount()) {
+            return null;
+        }
+        return getPost(pinIndex);
+    }
+
+    /**
+     * Returns the bounds of this element as a map.
+     * Used for JSON export. The map contains coordinates
+     * for the bounding rectangle.
+     */
+    public java.util.Map<String, Integer> getJsonBounds() {
+        java.util.Map<String, Integer> bounds = new java.util.LinkedHashMap<>();
+        bounds.put("left", boundingBox.x);
+        bounds.put("top", boundingBox.y);
+        bounds.put("right", boundingBox.x + boundingBox.width);
+        bounds.put("bottom", boundingBox.y + boundingBox.height);
+        return bounds;
+    }
+
+    /**
+     * Returns the flags for this element.
+     * Used for JSON export to preserve element state.
+     */
+    public int getJsonFlags() {
+        return flags;
+    }
+
 }

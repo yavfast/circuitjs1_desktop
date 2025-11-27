@@ -113,4 +113,13 @@ public class DeMultiplexerElm extends ChipElm {
         return 185;
     }
 
+    @Override
+    public String getJsonTypeName() { return "DeMultiplexer"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("select_bits", selectBitCount);
+        return props;
+    }
 }

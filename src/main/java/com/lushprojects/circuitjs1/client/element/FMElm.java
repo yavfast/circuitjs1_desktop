@@ -181,4 +181,24 @@ public class FMElm extends CircuitElm {
         if (n == 3)
             deviation = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "FMSource";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("carrier_frequency", getUnitText(carrierfreq, "Hz"));
+        props.put("signal_frequency", getUnitText(signalfreq, "Hz"));
+        props.put("max_voltage", getUnitText(maxVoltage, "V"));
+        props.put("deviation", getUnitText(deviation, "Hz"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "output" };
+    }
 }

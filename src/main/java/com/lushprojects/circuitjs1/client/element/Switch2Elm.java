@@ -241,4 +241,27 @@ public class Switch2Elm extends SwitchElm {
         position = posCount - 1 - position;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "SPDTSwitch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("link_group", link);
+        props.put("throw_count", throwCount);
+        props.put("center_off", hasCenterOff());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        String[] pins = new String[1 + throwCount];
+        pins[0] = "common";
+        for (int i = 0; i < throwCount; i++) {
+            pins[i + 1] = "throw" + (i + 1);
+        }
+        return pins;
+    }
 }

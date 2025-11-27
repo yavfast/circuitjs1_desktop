@@ -121,4 +121,16 @@ public class SipoShiftElm extends ChipElm {
             return;
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SIPOShiftRegister";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        return props;
+    }
 }

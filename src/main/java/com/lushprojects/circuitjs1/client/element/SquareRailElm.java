@@ -31,4 +31,9 @@ public class SquareRailElm extends RailElm {
     public int getShortcut() {
         return 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SquareRail";
+    }
 }

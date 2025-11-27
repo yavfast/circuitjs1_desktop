@@ -62,4 +62,9 @@ public class XorGateElm extends OrGateElm {
     public int getShortcut() {
         return '4';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return isInverting() ? "XNORGate" : "XORGate";
+    }
 }

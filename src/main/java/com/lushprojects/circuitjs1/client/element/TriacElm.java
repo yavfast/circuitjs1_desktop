@@ -300,5 +300,24 @@ public class TriacElm extends CircuitElm {
         diode03.setSimulator(circuitDocument.simulator);
         diode30.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Triac";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("trigger_current", getUnitText(triggerI, "A"));
+        props.put("holding_current", getUnitText(holdingI, "A"));
+        props.put("gate_resistance", getUnitText(cresistance, "Ohm"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "mt2", "mt1", "gate" };
+    }
 }
 

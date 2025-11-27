@@ -150,5 +150,25 @@ public class SparkGapElm extends CircuitElm {
         if (ei.value > 0 && n == 3)
             holdcurrent = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SparkGap";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("on_resistance", getUnitText(onresistance, "Ohm"));
+        props.put("off_resistance", getUnitText(offresistance, "Ohm"));
+        props.put("breakdown_voltage", getUnitText(breakdown, "V"));
+        props.put("holding_current", getUnitText(holdcurrent, "A"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }
 

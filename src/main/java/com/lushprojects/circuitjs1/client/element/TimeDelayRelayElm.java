@@ -144,5 +144,18 @@ public class TimeDelayRelayElm extends ChipElm {
         if (n == 3 && ei.value > 0)
             offResistance = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() { return "TimeDelayRelay"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("on_delay", getUnitText(onDelay, "s"));
+        props.put("off_delay", getUnitText(offDelay, "s"));
+        props.put("on_resistance", getUnitText(onResistance, "Ohm"));
+        props.put("off_resistance", getUnitText(offResistance, "Ohm"));
+        return props;
+    }
 }
 

@@ -367,4 +367,27 @@ public class ProbeElm extends CircuitElm {
         if (n == 4)
             resistance = ei.value;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Probe";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        String[] modes = {"voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width", "duty_cycle"};
+        props.put("mode", modes[meter]);
+        props.put("scale", scale == SCALE_AUTO ? "auto" : scale == 1 ? "V" : scale == 2 ? "mV" : "uV");
+        props.put("show_voltage", mustShowVoltage());
+        props.put("circular_symbol", drawAsCircle());
+        if (resistance != 0)
+            props.put("series_resistance", getUnitText(resistance, "Ohm"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"+", "-"};
+    }
 }

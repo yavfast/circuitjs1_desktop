@@ -147,4 +147,11 @@ public class ResistorElm extends CircuitElm {
     void setResistance(double r) {
         resistance = r;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        return props;
+    }
 }

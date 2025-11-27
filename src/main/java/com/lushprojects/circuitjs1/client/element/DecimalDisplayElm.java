@@ -115,4 +115,15 @@ public class DecimalDisplayElm extends ChipElm {
         super.setChipEditValue(n, ei);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "DecimalDisplay";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bitCount);
+        return props;
+    }
 }

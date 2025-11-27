@@ -142,4 +142,14 @@ public class ScopeElm extends CircuitElm {
     public void selectScope(int mx, int my) {
         elmScope.selectScope(mx, my);
     }
+
+    @Override
+    public String getJsonTypeName() { return "Scope"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        // Scope configuration would be exported separately in the scopes section
+        return props;
+    }
 }

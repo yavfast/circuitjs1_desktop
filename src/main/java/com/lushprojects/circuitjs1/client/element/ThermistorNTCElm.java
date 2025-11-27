@@ -260,5 +260,21 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         return (Math.log(r25) - Math.log(r50)) / ((1 / kelvin1) - (1 / kelvin2));
 
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "ThermistorNTC";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("r25", getUnitText(r25, "Ohm"));
+        props.put("r50", getUnitText(r50, "Ohm"));
+        props.put("min_temperature", minTempr);
+        props.put("max_temperature", maxTempr);
+        props.put("slider_text", sliderText);
+        return props;
+    }
 }
 

@@ -111,4 +111,16 @@ public class ZenerElm extends DiodeElm {
     void setLastModelName(String n) {
         lastZenerModelName = n;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "ZenerDiode";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("zener_voltage", getUnitText(model.breakdownVoltage, "V"));
+        return props;
+    }
 }

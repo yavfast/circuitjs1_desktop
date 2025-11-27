@@ -307,4 +307,22 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     public boolean canFlipY() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() { return "MotorProtectionSwitch"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("i2t", i2t);
+        props.put("blown", blown);
+        props.put("label", label);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"L1+", "L1-", "L2+", "L2-", "L3+", "L3-"};
+    }
 }

@@ -151,4 +151,18 @@ public class DarlingtonElm extends CompositeElm {
         return false;
     }
 
+    @Override
+    public String getJsonTypeName() { return "Darlington"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("pnp", pnp == -1);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"base", "collector", "emitter"};
+    }
 }

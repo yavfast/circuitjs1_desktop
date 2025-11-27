@@ -255,4 +255,13 @@ public class CrossSwitchElm extends SwitchElm {
         }
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "CrossSwitch";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "pole1", "throw1", "pole2", "throw2" };
+    }
 }

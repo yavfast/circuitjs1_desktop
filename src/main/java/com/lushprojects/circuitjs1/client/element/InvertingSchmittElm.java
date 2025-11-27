@@ -217,4 +217,22 @@ public class InvertingSchmittElm extends CircuitElm {
         return 0;
     }
 
+    @Override
+    public String getJsonTypeName() { return "InvertingSchmitt"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("lower_trigger", getUnitText(lowerTrigger, "V"));
+        props.put("upper_trigger", getUnitText(upperTrigger, "V"));
+        props.put("slew_rate", slewRate);
+        props.put("logic_on_level", getUnitText(logicOnLevel, "V"));
+        props.put("logic_off_level", getUnitText(logicOffLevel, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in", "out"};
+    }
 }

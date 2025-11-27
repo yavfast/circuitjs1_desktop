@@ -181,4 +181,19 @@ public class CounterElm extends ChipElm {
     int getDumpType() {
         return 164;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Counter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("modulus", modulus);
+        props.put("invert_reset", invertreset);
+        props.put("has_up_down", hasUpDown());
+        props.put("negative_edge_triggered", negativeEdgeTriggered());
+        return props;
+    }
 }

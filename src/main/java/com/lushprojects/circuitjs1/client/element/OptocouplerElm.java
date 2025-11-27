@@ -199,4 +199,14 @@ public class OptocouplerElm extends CompositeElm {
     public EditInfo getEditInfo(int n) {
         return null;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Optocoupler";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "led_anode", "led_cathode", "collector", "emitter" };
+    }
 }

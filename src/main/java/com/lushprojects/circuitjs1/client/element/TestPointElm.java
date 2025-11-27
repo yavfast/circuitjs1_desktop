@@ -407,5 +407,23 @@ public class TestPointElm extends CircuitElm {
             label = ei.textf.getText();
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "TestPoint";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        String[] modes = {"voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width", "duty_cycle"};
+        props.put("mode", modes[meter]);
+        props.put("label", label);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"probe"};
+    }
 }
 

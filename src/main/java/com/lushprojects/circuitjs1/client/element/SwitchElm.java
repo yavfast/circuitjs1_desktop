@@ -249,4 +249,28 @@ public class SwitchElm extends CircuitElm {
     public int getShortcut() {
         return 's';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return momentary ? "PushSwitch" : "Switch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("state", position == 0 ? "closed" : "open");
+        props.put("momentary", momentary);
+        if (label != null && !label.isEmpty()) {
+            props.put("label", label);
+        }
+        if (useIECSymbol()) {
+            props.put("iec_symbol", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

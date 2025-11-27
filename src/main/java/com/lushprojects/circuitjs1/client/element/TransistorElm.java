@@ -633,4 +633,26 @@ public class TransistorElm extends CircuitElm {
             return -ic;
         return -ie;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return pnp == 1 ? "TransistorNPN" : "TransistorPNP";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"base", "collector", "emitter"};
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        if (!"default".equals(modelName)) {
+            props.put("model", modelName);
+        }
+        if (beta != 100) {
+            props.put("beta", beta);
+        }
+        return props;
+    }
 }

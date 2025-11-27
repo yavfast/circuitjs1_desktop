@@ -150,5 +150,21 @@ public class VaractorElm extends DiodeElm {
     public int getInternalNodeCount() {
         return 1;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Varactor";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("base_capacitance", getUnitText(baseCapacitance, "F"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "anode", "cathode" };
+    }
 }
-    

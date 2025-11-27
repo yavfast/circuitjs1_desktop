@@ -113,5 +113,20 @@ public class BoxElm extends GraphicElm {
         else if (!add)
             selected = false;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Box";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("x", x);
+        props.put("y", y);
+        props.put("x2", x2);
+        props.put("y2", y2);
+        return props;
+    }
 }
 

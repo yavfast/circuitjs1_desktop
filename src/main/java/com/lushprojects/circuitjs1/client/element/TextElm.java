@@ -177,5 +177,19 @@ public class TextElm extends GraphicElm {
     public int getShortcut() {
         return 't';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Text";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("text", text);
+        props.put("size", size);
+        props.put("draw_bar", (flags & FLAG_BAR) != 0);
+        return props;
+    }
 }
 

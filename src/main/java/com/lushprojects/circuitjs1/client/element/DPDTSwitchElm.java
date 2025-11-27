@@ -252,4 +252,27 @@ public class DPDTSwitchElm extends SwitchElm {
         flip();
         super.flipXY(c2, count);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "DPDTSwitch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("pole_count", poleCount);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        String[] pins = new String[3 * poleCount];
+        for (int i = 0; i < poleCount; i++) {
+            pins[i * 3] = "pole" + (i + 1);
+            pins[i * 3 + 1] = "throw" + (i + 1) + "a";
+            pins[i * 3 + 2] = "throw" + (i + 1) + "b";
+        }
+        return pins;
+    }
 }

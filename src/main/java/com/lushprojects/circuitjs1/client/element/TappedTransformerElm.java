@@ -330,4 +330,24 @@ public class TappedTransformerElm extends CircuitElm {
         flags ^= FLAG_FLIP;
         super.flipXY(c2, count);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "TappedTransformer";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("primary_inductance", getUnitText(inductance, "H"));
+        props.put("ratio", ratio);
+        props.put("coupling_coefficient", couplingCoef);
+        props.put("trapezoidal", isTrapezoidal());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"pri1", "pri2", "sec1", "tap", "sec2"};
+    }
 }

@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.io;
 
+import com.lushprojects.circuitjs1.client.io.json.JsonCircuitFormat;
 import com.lushprojects.circuitjs1.client.io.text.TextCircuitFormat;
 
 import java.util.Collection;
@@ -39,8 +40,7 @@ public class CircuitFormatRegistry {
     static {
         // Register built-in formats
         register(new TextCircuitFormat());
-        // JSON format will be registered when implemented:
-        // register(new JsonCircuitFormat());
+        register(new JsonCircuitFormat());
     }
 
     /**

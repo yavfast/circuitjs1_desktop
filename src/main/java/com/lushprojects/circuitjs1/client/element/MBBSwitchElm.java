@@ -219,4 +219,21 @@ public class MBBSwitchElm extends SwitchElm {
     public int getShortcut() {
         return 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "MBBSwitch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("link_group", link);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "common", "throw1", "throw2" };
+    }
 }

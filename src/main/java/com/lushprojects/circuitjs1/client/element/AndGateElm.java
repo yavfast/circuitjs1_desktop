@@ -99,4 +99,9 @@ public class AndGateElm extends GateElm {
     public int getShortcut() {
         return '2';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return isInverting() ? "NANDGate" : "ANDGate";
+    }
 }

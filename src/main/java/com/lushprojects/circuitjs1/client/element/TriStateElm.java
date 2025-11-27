@@ -252,5 +252,23 @@ public class TriStateElm extends CircuitElm {
         flags ^= FLAG_FLIP;
         super.flipXY(c2, count);
     }
+
+    @Override
+    public String getJsonTypeName() { return "TriStateBuffer"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("on_resistance", getUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getUnitText(r_off, "Ohm"));
+        props.put("pulldown_resistance", getUnitText(r_off_ground, "Ohm"));
+        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in", "out", "enable"};
+    }
 }
 

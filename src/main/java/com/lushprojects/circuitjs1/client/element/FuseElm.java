@@ -197,4 +197,25 @@ public class FuseElm extends CircuitElm {
             setPoints();
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Fuse";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("i2t", i2t);
+        if (blown) {
+            props.put("blown", true);
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

@@ -146,4 +146,21 @@ public class DataRecorderElm extends CircuitElm {
         if (n == 1)
             return;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "DataRecorder";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("data_points", dataCount);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"input"};
+    }
 }

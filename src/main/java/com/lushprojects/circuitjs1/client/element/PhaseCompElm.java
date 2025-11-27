@@ -95,5 +95,8 @@ public class PhaseCompElm extends ChipElm {
     int getDumpType() {
         return 161;
     }
+
+    @Override
+    public String getJsonTypeName() { return "PhaseComparator"; }
 }
     

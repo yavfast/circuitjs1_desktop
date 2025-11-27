@@ -32,4 +32,9 @@ public class DCVoltageElm extends VoltageElm {
     public int getShortcut() {
         return 'v';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "DCVoltageSource";
+    }
 }

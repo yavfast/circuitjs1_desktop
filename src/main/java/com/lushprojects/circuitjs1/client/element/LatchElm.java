@@ -113,5 +113,15 @@ public class LatchElm extends ChipElm {
             flags = ei.changeFlagInverted(flags, FLAG_NO_EDGE);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Latch";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("edge_triggered", isEdgeTriggered());
+        return props;
+    }
 }
-    

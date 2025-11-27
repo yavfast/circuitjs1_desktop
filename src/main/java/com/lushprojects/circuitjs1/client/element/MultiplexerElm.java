@@ -159,4 +159,15 @@ public class MultiplexerElm extends ChipElm {
         super.setChipEditValue(n, ei);
     }
 
+    @Override
+    public String getJsonTypeName() { return "Multiplexer"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("select_bits", selectBitCount);
+        props.put("inverted_output", hasFlag(FLAG_INVERTED_OUTPUT));
+        props.put("strobe_pin", hasFlag(FLAG_STROBE));
+        return props;
+    }
 }

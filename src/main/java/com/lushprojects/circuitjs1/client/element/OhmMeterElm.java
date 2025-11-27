@@ -72,4 +72,14 @@ public class OhmMeterElm extends CurrentElm {
         else
             arr[1] = "R = " + getUnitText(getVoltageDiff() / current, Locale.ohmString);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "OhmMeter";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"probe+", "probe-"};
+    }
 }

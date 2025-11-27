@@ -167,5 +167,13 @@ public class UnijunctionElm extends CompositeElm {
         super.flipXY(xmy, count);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "UnijunctionTransistor";
+    }
 
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "emitter", "base1", "base2" };
+    }
 }

@@ -278,4 +278,23 @@ public class RelayContactElm extends CircuitElm {
     public boolean getConnection(int n1, int n2) {
         return true;
     }
+
+    @Override
+    public String getJsonTypeName() { return "RelayContact"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("label", label);
+        props.put("on_resistance", getUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getUnitText(r_off, "Ohm"));
+        props.put("normally_closed", isNormallyClosed());
+        props.put("iec_symbol", useIECSymbol());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"common", "no"};
+    }
 }

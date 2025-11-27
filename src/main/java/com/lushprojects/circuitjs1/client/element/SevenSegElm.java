@@ -408,4 +408,18 @@ public class SevenSegElm extends ChipElm {
     boolean isDigitalChip() {
         return false;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SevenSegment";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("segment_count", baseSegmentCount);
+        props.put("extra_segment", extraSegment == ES_NONE ? "none" : extraSegment == ES_DP ? "decimal_point" : "colon");
+        props.put("diode_type", diodeDirection == 1 ? "common_cathode" : diodeDirection == -1 ? "common_anode" : "logic_inputs");
+        return props;
+    }
 }

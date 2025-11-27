@@ -35,4 +35,9 @@ public class ClockElm extends RailElm {
     public int getShortcut() {
         return 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Clock";
+    }
 }

@@ -228,5 +228,24 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         return maxLux * position + minLux;
     }
 
+    @Override
+    public String getJsonTypeName() { return "LDR"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("position", position);
+        props.put("lux", lux);
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("min_lux", minLux);
+        props.put("max_lux", maxLux);
+        props.put("slider_text", sliderText);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"a", "b"};
+    }
 }
 

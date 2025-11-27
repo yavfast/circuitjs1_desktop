@@ -142,4 +142,17 @@ public class TFlipFlopElm extends ChipElm {
         }
         super.setChipEditValue(n, ei);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "TFlipFlop";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("has_reset", hasReset());
+        props.put("has_set", hasSet());
+        return props;
+    }
 }

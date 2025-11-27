@@ -124,4 +124,17 @@ public class MonostableElm extends ChipElm {
         }
         super.setChipEditValue(n, ei);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Monostable";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("delay", getUnitText(delay, "s"));
+        props.put("retriggerable", retriggerable);
+        return props;
+    }
 }

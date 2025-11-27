@@ -144,5 +144,15 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
             return current;
         return 0;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "AnalogSwitch2";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "common", "out1", "out2", "control" };
+    }
 }
 

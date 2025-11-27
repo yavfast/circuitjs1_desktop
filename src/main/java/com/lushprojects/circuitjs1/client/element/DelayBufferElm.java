@@ -168,4 +168,20 @@ public class DelayBufferElm extends CircuitElm {
         return 0;
     }
 
+    @Override
+    public String getJsonTypeName() { return "DelayBuffer"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("delay", getUnitText(delay, "s"));
+        props.put("threshold", getUnitText(threshold, "V"));
+        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in", "out"};
+    }
 }

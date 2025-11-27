@@ -110,4 +110,6 @@ public class SchmittElm extends InvertingSchmittElm {
         return 0;
     }
 
+    @Override
+    public String getJsonTypeName() { return "Schmitt"; }
 }

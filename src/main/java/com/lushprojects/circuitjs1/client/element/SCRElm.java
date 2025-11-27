@@ -317,5 +317,24 @@ public class SCRElm extends CircuitElm {
         super.setCircuitDocument(circuitDocument);
         diode.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SCR";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("trigger_current", getUnitText(triggerI, "A"));
+        props.put("holding_current", getUnitText(holdingI, "A"));
+        props.put("gate_resistance", getUnitText(gresistance, "Ohm"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "anode", "cathode", "gate" };
+    }
 }
 

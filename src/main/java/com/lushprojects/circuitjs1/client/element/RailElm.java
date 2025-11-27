@@ -130,4 +130,13 @@ public class RailElm extends VoltageElm {
 //		g.fillRect(x-3, y-3, 7, 7);
 //    }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Rail";
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "output" };
+    }
 }

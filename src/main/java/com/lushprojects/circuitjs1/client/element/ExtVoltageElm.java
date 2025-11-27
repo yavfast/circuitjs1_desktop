@@ -87,4 +87,16 @@ public class ExtVoltageElm extends RailElm {
         super.getInfo(arr);
         arr[0] = Locale.LS("ext. voltage") + " (" + name + ")";
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "ExternalVoltage";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("name", name);
+        return props;
+    }
 }

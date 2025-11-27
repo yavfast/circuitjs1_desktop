@@ -231,4 +231,23 @@ public class LampElm extends CircuitElm {
         return x == Scope.VAL_R;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Lamp";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("nominal_power", getUnitText(nom_pow, "W"));
+        props.put("nominal_voltage", getUnitText(nom_v, "V"));
+        props.put("warmup_time", getUnitText(warmTime, "s"));
+        props.put("cooldown_time", getUnitText(coolTime, "s"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

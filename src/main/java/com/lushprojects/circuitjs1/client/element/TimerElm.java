@@ -207,5 +207,17 @@ public class TimerElm extends ChipElm {
         super.setChipEditValue(n, ei);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Timer555";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("has_reset", hasReset());
+        props.put("has_ground_pin", hasGroundPin());
+        props.put("use_pin_numbers", usePinNumbers());
+        return props;
+    }
 }
-    

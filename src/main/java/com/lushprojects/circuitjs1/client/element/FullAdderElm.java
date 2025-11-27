@@ -111,4 +111,13 @@ public class FullAdderElm extends ChipElm {
         super.setChipEditValue(n, ei);
     }
 
+    @Override
+    public String getJsonTypeName() { return "FullAdder"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        return props;
+    }
 }

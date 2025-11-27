@@ -411,5 +411,27 @@ public class RelayCoilElm extends CircuitElm {
         super.setCircuitDocument(circuitDocument);
         ind.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public String getJsonTypeName() { return "RelayCoil"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("label", label);
+        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("on_current", getUnitText(onCurrent, "A"));
+        props.put("off_current", getUnitText(offCurrent, "A"));
+        props.put("coil_resistance", getUnitText(coilR, "Ohm"));
+        props.put("switching_time", getUnitText(switchingTime, "s"));
+        String[] typeNames = {"normal", "on_delay", "off_delay", "latching"};
+        props.put("type", typeNames[type]);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"coil+", "coil-"};
+    }
 }
 

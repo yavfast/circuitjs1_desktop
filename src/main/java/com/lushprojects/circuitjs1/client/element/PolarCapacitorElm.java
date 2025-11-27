@@ -83,4 +83,21 @@ public class PolarCapacitorElm extends CapacitorElm {
     public int getShortcut() {
         return 'C';
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "PolarCapacitor";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("max_reverse_voltage", getUnitText(maxNegativeVoltage, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "positive", "negative" };
+    }
 }

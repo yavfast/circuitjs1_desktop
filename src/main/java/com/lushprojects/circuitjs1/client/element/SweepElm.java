@@ -249,5 +249,26 @@ public class SweepElm extends CircuitElm {
     public double getPower() {
         return -getVoltageDiff() * current;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SweepGenerator";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("min_frequency", getUnitText(minF, "Hz"));
+        props.put("max_frequency", getUnitText(maxF, "Hz"));
+        props.put("max_voltage", getUnitText(maxV, "V"));
+        props.put("sweep_time", getUnitText(sweepTime, "s"));
+        props.put("logarithmic", (flags & FLAG_LOG) != 0);
+        props.put("bidirectional", (flags & FLAG_BIDIR) != 0);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "output" };
+    }
 }
-    

@@ -147,4 +147,19 @@ public class LEDElm extends DiodeElm {
     void setLastModelName(String n) {
         lastLEDModelName = n;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "LED";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("color_r", colorR);
+        props.put("color_g", colorG);
+        props.put("color_b", colorB);
+        props.put("max_brightness_current", getUnitText(maxBrightnessCurrent, "A"));
+        return props;
+    }
 }

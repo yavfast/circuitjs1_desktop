@@ -217,4 +217,22 @@ public class SeqGenElm extends ChipElm {
             return;
         }
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "SequenceGenerator";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bit_count", bitCount);
+        props.put("play_once", hasPlayOnce());
+        props.put("has_reset", hasReset());
+        StringBuilder sb = new StringBuilder(bitCount);
+        for (int i = 0; i < bitCount; i++)
+            sb.append((data[i / Integer.SIZE] & (1 << (i % Integer.SIZE))) != 0 ? '1' : '0');
+        props.put("sequence", sb.toString());
+        return props;
+    }
 }

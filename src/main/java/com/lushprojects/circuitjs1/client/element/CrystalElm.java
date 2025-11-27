@@ -169,4 +169,24 @@ public class CrystalElm extends CompositeElm {
             resistance = ei.value;
         initCrystal();
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Crystal";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("parallel_capacitance", getUnitText(parallelCapacitance, "F"));
+        props.put("series_capacitance", getUnitText(seriesCapacitance, "F"));
+        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "a", "b" };
+    }
 }

@@ -286,4 +286,25 @@ public class DCMotorElm extends CircuitElm {
         ind.setSimulator(circuitDocument.simulator);
         indInertia.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public String getJsonTypeName() { return "DCMotor"; }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("torque_constant", K);
+        props.put("back_emf_constant", Kb);
+        props.put("moment_of_inertia", J);
+        props.put("friction_coefficient", b);
+        props.put("gear_ratio", gearRatio);
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"a", "b"};
+    }
 }

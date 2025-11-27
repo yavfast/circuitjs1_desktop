@@ -657,5 +657,32 @@ public abstract class ChipElm extends CircuitElm {
 
 
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return getChipName().replace(" ", "").replace("-", "");
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        if (needsBits()) {
+            props.put("bits", bits);
+        }
+        if (hasCustomVoltage()) {
+            props.put("high_voltage", getUnitText(highVoltage, "V"));
+        }
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        if (pins == null) return super.getJsonPinNames();
+        String[] names = new String[pins.length];
+        for (int i = 0; i < pins.length; i++) {
+            names[i] = pins[i].text.isEmpty() ? "pin" + (i + 1) : pins[i].text;
+        }
+        return names;
+    }
 }
 

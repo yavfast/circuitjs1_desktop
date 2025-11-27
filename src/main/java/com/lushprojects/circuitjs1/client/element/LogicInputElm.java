@@ -198,4 +198,24 @@ public class LogicInputElm extends SwitchElm {
     public double getCurrentIntoNode(int n) {
         return current;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "LogicInput";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("high_voltage", getUnitText(hiV, "V"));
+        props.put("low_voltage", getUnitText(loV, "V"));
+        props.put("ternary", isTernary());
+        props.put("numeric", isNumeric());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] { "output" };
+    }
 }

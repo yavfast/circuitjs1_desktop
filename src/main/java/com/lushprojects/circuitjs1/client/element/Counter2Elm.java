@@ -172,4 +172,17 @@ public class Counter2Elm extends ChipElm {
     int getDumpType() {
         return 421;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "Counter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        props.put("modulus", modulus);
+        return props;
+    }
 }

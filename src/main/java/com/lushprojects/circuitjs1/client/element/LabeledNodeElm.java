@@ -195,4 +195,22 @@ public class LabeledNodeElm extends CircuitElm {
     String getName() {
         return text;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "LabeledNode";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("label", text);
+        props.put("internal", isInternal());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"node"};
+    }
 }

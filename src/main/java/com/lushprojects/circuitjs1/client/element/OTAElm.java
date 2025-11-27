@@ -187,4 +187,21 @@ public class OTAElm extends CompositeElm {
         return false;
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "OTA";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("positive_supply", getUnitText(posVolt, "V"));
+        props.put("negative_supply", getUnitText(negVolt, "V"));
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in+", "in-", "iabc", "ibias", "out"};
+    }
 }

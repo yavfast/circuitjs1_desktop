@@ -27,4 +27,9 @@ public class ACVoltageElm extends VoltageElm {
     public Class getDumpClass() {
         return VoltageElm.class;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "ACVoltageSource";
+    }
 }

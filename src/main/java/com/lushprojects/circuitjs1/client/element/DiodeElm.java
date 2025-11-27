@@ -283,5 +283,18 @@ public class DiodeElm extends CircuitElm {
         diode.setSimulator(circuitDocument.simulator);
     }
 
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"anode", "cathode"};
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        if (!"default".equals(modelName)) {
+            props.put("model", modelName);
+        }
+        return props;
+    }
 
 }

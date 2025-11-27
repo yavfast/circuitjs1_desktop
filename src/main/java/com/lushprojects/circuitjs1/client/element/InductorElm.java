@@ -159,4 +159,17 @@ public class InductorElm extends CircuitElm {
         super.setCircuitDocument(circuitDocument);
         ind.setSimulator(circuitDocument.simulator);
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("inductance", getUnitText(inductance, "H"));
+        if (initialCurrent != 0) {
+            props.put("initial_current", getUnitText(initialCurrent, "A"));
+        }
+        if (!ind.isTrapezoidal()) {
+            props.put("back_euler", true);
+        }
+        return props;
+    }
 }

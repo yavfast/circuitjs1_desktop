@@ -158,4 +158,18 @@ public class RingCounterElm extends ChipElm {
     int getDumpType() {
         return 163;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "RingCounter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("bits", bits);
+        props.put("invert_reset", hasInvertReset());
+        props.put("has_clock_inhibit", hasClockInhibit());
+        return props;
+    }
 }

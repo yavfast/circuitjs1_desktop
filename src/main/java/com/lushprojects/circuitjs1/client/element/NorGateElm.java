@@ -46,4 +46,7 @@ public class NorGateElm extends OrGateElm {
     public int getShortcut() {
         return '#';
     }
+
+    @Override
+    public String getJsonTypeName() { return "NorGate"; }
 }

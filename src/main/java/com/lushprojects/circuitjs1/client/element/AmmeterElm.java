@@ -287,4 +287,22 @@ public class AmmeterElm extends CircuitElm {
             flags = ei.changeFlag(flags, FLAG_CIRCLE);
     }
 
+    @Override
+    public String getJsonTypeName() {
+        return "Ammeter";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("mode", meter == AM_VOL ? "current" : "rms");
+        props.put("scale", scale == SCALE_AUTO ? "auto" : scale == 1 ? "A" : scale == 2 ? "mA" : "uA");
+        props.put("circular_symbol", drawAsCircle());
+        return props;
+    }
+
+    @Override
+    public String[] getJsonPinNames() {
+        return new String[] {"in+", "in-"};
+    }
 }

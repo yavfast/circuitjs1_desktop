@@ -71,4 +71,6 @@ public class HalfAdderElm extends ChipElm {
         return 195;
     }
 
+    @Override
+    public String getJsonTypeName() { return "HalfAdder"; }
 }

@@ -102,4 +102,17 @@ public class CC2Elm extends ChipElm {
     int getDumpType() {
         return 179;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "CC2";
+    }
+
+    @Override
+    public java.util.Map<String, Object> getJsonProperties() {
+        java.util.Map<String, Object> props = super.getJsonProperties();
+        props.put("gain", gain);
+        props.put("type", gain == 1 ? "CCII+" : "CCII-");
+        return props;
+    }
 }
