@@ -645,6 +645,13 @@ public class TransistorElm extends CircuitElm {
     }
 
     @Override
+    public Point getJsonEndPoint() {
+        // For transistor, point2 is not at any pin - it's a reference point
+        // for calculating collector and emitter positions
+        return new Point(x2, y2);
+    }
+
+    @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         if (!"default".equals(modelName)) {

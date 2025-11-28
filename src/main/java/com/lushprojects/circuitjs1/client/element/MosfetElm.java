@@ -648,6 +648,13 @@ public class MosfetElm extends CircuitElm {
     }
 
     @Override
+    public Point getJsonEndPoint() {
+        // For MOSFET, point2 is not at any pin - it's a reference point
+        // for calculating source and drain positions
+        return new Point(x2, y2);
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
         vt = pnp * getJsonDouble(properties, "threshold_voltage", pnp < 0 ? -1.5 : 1.5);

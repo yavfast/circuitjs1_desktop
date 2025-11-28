@@ -1310,6 +1310,44 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     /**
+     * Returns the start point (point1) for JSON export if it doesn't match the first pin.
+     * Override in subclasses where point1 is not at the first pin position.
+     * @return Point for _startpoint export, or null if point1 matches first pin
+     */
+    public Point getJsonStartPoint() {
+        // Default: point1 matches first pin, no need for _startpoint
+        if (getPostCount() >= 1) {
+            Point firstPin = getJsonPinPosition(0);
+            if (firstPin != null && firstPin.x == x && firstPin.y == y) {
+                return null; // point1 matches first pin
+            }
+        }
+        // point1 doesn't match first pin, export it
+        return new Point(x, y);
+    }
+
+    /**
+     * Returns the end point (point2) for JSON export if it doesn't match the second pin.
+     * Override in subclasses where point2 is not at the second pin position.
+     * @return Point for _endpoint export, or null if point2 matches second pin
+     */
+    public Point getJsonEndPoint() {
+        // Default for single-terminal elements: always export endpoint
+        if (getPostCount() == 1) {
+            return new Point(x2, y2);
+        }
+        // Default for 2+ terminal elements: point2 matches second pin
+        if (getPostCount() >= 2) {
+            Point secondPin = getJsonPinPosition(1);
+            if (secondPin != null && secondPin.x == x2 && secondPin.y == y2) {
+                return null; // point2 matches second pin
+            }
+        }
+        // point2 doesn't match second pin, export it
+        return new Point(x2, y2);
+    }
+
+    /**
      * Returns the bounds of this element as a map.
      * Used for JSON export. The map contains coordinates
      * for the bounding rectangle.
@@ -1365,27 +1403,41 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             return;
         }
 
+        // Check if _startpoint is present - if so, x/y are already set from it
+        // and we should not overwrite them from the first pin
+        boolean hasStartpoint = pins.containsKey("_startpoint");
+        
+        // Check if _endpoint is present - if so, x2/y2 are already set from it
+        // and we should not overwrite them from the second pin
+        boolean hasEndpoint = pins.containsKey("_endpoint");
+
         String[] pinNames = getJsonPinNames();
         if (pinNames.length >= 2) {
-            // Get first pin position
-            java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
-            if (pin1 != null) {
-                Integer px = pin1.get("x");
-                Integer py = pin1.get("y");
-                if (px != null && py != null) {
-                    x = px;
-                    y = py;
+            // Get first pin position - only if no _startpoint
+            // _startpoint means point1 doesn't correspond to any pin (e.g., OpAmp)
+            if (!hasStartpoint) {
+                java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
+                if (pin1 != null) {
+                    Integer px = pin1.get("x");
+                    Integer py = pin1.get("y");
+                    if (px != null && py != null) {
+                        x = px;
+                        y = py;
+                    }
                 }
             }
 
-            // Get second pin position
-            java.util.Map<String, Integer> pin2 = pins.get(pinNames[1]);
-            if (pin2 != null) {
-                Integer px = pin2.get("x");
-                Integer py = pin2.get("y");
-                if (px != null && py != null) {
-                    x2 = px;
-                    y2 = py;
+            // Get second pin position - only if no _endpoint
+            // _endpoint means point2 doesn't correspond to any pin (e.g., Transistor, MOSFET)
+            if (!hasEndpoint) {
+                java.util.Map<String, Integer> pin2 = pins.get(pinNames[1]);
+                if (pin2 != null) {
+                    Integer px = pin2.get("x");
+                    Integer py = pin2.get("y");
+                    if (px != null && py != null) {
+                        x2 = px;
+                        y2 = py;
+                    }
                 }
             }
         } else if (pinNames.length == 1) {

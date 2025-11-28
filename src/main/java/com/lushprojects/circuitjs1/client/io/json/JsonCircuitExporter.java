@@ -287,6 +287,29 @@ public class JsonCircuitExporter implements CircuitExporter {
                     pins.put(pinNames[i], pin);
                 }
             }
+            
+            // Add _startpoint if element needs it (delegates to element's getJsonStartPoint)
+            Point startPoint = elm.getJsonStartPoint();
+            if (startPoint != null) {
+                JSONObject startpointPin = new JSONObject();
+                JSONObject startpointPos = new JSONObject();
+                startpointPos.put("x", new JSONNumber(startPoint.x));
+                startpointPos.put("y", new JSONNumber(startPoint.y));
+                startpointPin.put("position", startpointPos);
+                pins.put("_startpoint", startpointPin);
+            }
+            
+            // Add _endpoint if element needs it (delegates to element's getJsonEndPoint)
+            Point endPoint = elm.getJsonEndPoint();
+            if (endPoint != null) {
+                JSONObject endpointPin = new JSONObject();
+                JSONObject endpointPos = new JSONObject();
+                endpointPos.put("x", new JSONNumber(endPoint.x));
+                endpointPos.put("y", new JSONNumber(endPoint.y));
+                endpointPin.put("position", endpointPos);
+                pins.put("_endpoint", endpointPin);
+            }
+            
             element.put("pins", pins);
         }
 

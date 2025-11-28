@@ -309,6 +309,20 @@ public class OpAmpElm extends CircuitElm {
     }
 
     @Override
+    public Point getJsonStartPoint() {
+        // For OpAmp, point1 is not at any pin - it's a reference point
+        // for calculating in+/in- positions
+        return new Point(x, y);
+    }
+
+    @Override
+    public Point getJsonEndPoint() {
+        // For OpAmp, point2 = out position, but out is not the second pin
+        // (second pin is in+), so we need to export it
+        return new Point(x2, y2);
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
         

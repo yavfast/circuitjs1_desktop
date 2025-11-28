@@ -240,6 +240,13 @@ public class JfetElm extends MosfetElm {
     }
 
     @Override
+    public Point getJsonEndPoint() {
+        // For JFET, point2 is not at any pin - it's a reference point
+        // for calculating source and drain positions
+        return new Point(x2, y2);
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         // Note: Don't call super here as JFET has different property handling than MOSFET
         // Parse threshold voltage

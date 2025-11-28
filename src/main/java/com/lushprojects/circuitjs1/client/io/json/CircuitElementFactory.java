@@ -314,27 +314,55 @@ public class CircuitElementFactory {
         // Get position from pins
         int x1 = 0, y1 = 0;
         int x2 = 0, y2 = 0;
+        boolean hasStartpoint = false;
+        boolean hasEndpoint = false;
 
         JSONValue pinsValue = elementJson.get("pins");
         if (pinsValue != null && pinsValue.isObject() != null) {
             JSONObject pins = pinsValue.isObject();
             
-            // Find first two pins
-            String[] pinKeys = getObjectKeys(pins);
-            if (pinKeys.length >= 1) {
-                int[] pos = getPinPosition(pins.get(pinKeys[0]));
-                if (pos != null) {
-                    x1 = pos[0];
-                    y1 = pos[1];
+            // Check for _startpoint (used for elements where point1 doesn't match any pin, like OpAmp)
+            JSONValue startpointValue = pins.get("_startpoint");
+            if (startpointValue != null && startpointValue.isObject() != null) {
+                int[] startpointPos = getPinPosition(startpointValue);
+                if (startpointPos != null) {
+                    x1 = startpointPos[0];
+                    y1 = startpointPos[1];
+                    hasStartpoint = true;
                 }
             }
-            if (pinKeys.length >= 2) {
-                int[] pos = getPinPosition(pins.get(pinKeys[1]));
-                if (pos != null) {
-                    x2 = pos[0];
-                    y2 = pos[1];
+            
+            // Check for _endpoint (used by single-terminal elements and elements where point2 doesn't match any pin)
+            JSONValue endpointValue = pins.get("_endpoint");
+            if (endpointValue != null && endpointValue.isObject() != null) {
+                int[] endpointPos = getPinPosition(endpointValue);
+                if (endpointPos != null) {
+                    x2 = endpointPos[0];
+                    y2 = endpointPos[1];
+                    hasEndpoint = true;
                 }
-            } else {
+            }
+            
+            // Find first two pins (excluding _startpoint and _endpoint)
+            String[] pinKeys = getObjectKeys(pins);
+            int pinCount = 0;
+            for (String key : pinKeys) {
+                if (key.equals("_startpoint") || key.equals("_endpoint")) continue;
+                
+                int[] pos = getPinPosition(pins.get(key));
+                if (pos != null) {
+                    if (pinCount == 0 && !hasStartpoint) {
+                        x1 = pos[0];
+                        y1 = pos[1];
+                    } else if (pinCount == 1 && !hasEndpoint) {
+                        x2 = pos[0];
+                        y2 = pos[1];
+                    }
+                    pinCount++;
+                }
+            }
+            
+            if (pinCount == 1 && !hasEndpoint) {
                 x2 = x1;
                 y2 = y1;
             }
@@ -351,9 +379,9 @@ public class CircuitElementFactory {
         elm.x2 = x2;
         elm.y2 = y2;
 
-        // For single-terminal elements, try to restore x2/y2 from bounds
-        // This preserves orientation/size for elements like Rail, Ground
-        if (elm.getPostCount() == 1) {
+        // For single-terminal elements without _endpoint, try to restore x2/y2 from bounds
+        // This preserves orientation/size for elements like Rail, Ground (legacy support)
+        if (elm.getPostCount() == 1 && !hasEndpoint) {
             JSONValue boundsValue = elementJson.get("bounds");
             if (boundsValue != null && boundsValue.isObject() != null) {
                 JSONObject bounds = boundsValue.isObject();
