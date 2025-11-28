@@ -67,6 +67,11 @@ public class JsonCircuitImporter implements CircuitImporter {
                 return;
             }
 
+            // Reset circuit state unless retaining (same as TextCircuitImporter)
+            if ((flags & CircuitConst.RC_RETAIN) == 0) {
+                resetCircuitState(document);
+            }
+
             importedElements = new HashMap<>();
 
             // 1. Parse simulation parameters
@@ -91,6 +96,32 @@ public class JsonCircuitImporter implements CircuitImporter {
             CirSim.console("JSON import error: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Reset circuit state before import (similar to TextCircuitImporter).
+     */
+    private void resetCircuitState(CircuitDocument document) {
+        CirSim cirSim = document.getCirSim();
+        CircuitSimulator simulator = document.simulator;
+        CircuitEditor circuitEditor = document.circuitEditor;
+        ScopeManager scopeManager = document.scopeManager;
+
+        // Clear existing elements
+        circuitEditor.clearMouseElm();
+        for (int i = 0; i < simulator.elmList.size(); i++) {
+            CircuitElm element = simulator.elmList.get(i);
+            element.delete();
+        }
+
+        // Reset simulation parameters
+        simulator.t = simulator.timeStepAccum = 0;
+        simulator.elmList.clear();
+        document.adjustableManager.reset();
+        simulator.lastIterTime = 0;
+
+        // Reset scope count
+        scopeManager.setScopeCount(0);
     }
 
     private void parseSimulation(JSONObject root, CircuitDocument document) {

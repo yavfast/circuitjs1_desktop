@@ -30,6 +30,7 @@ import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArray;
+import com.google.gwt.core.client.JsArrayString;
 import com.google.gwt.core.client.ScriptInjector;
 import com.google.gwt.dom.client.CanvasElement;
 import com.google.gwt.dom.client.Document;
@@ -915,6 +916,197 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         getActiveDocument().simulator.timeStep = ts;
     }
 
+    // JSInterface - Extended API for JSON export/import
+    String exportAsJson() {
+        return actionManager.dumpCircuit("json");
+    }
+
+    // JSInterface - Import from JSON
+    void importFromJson(String json) {
+        importCircuitFromText(json, false);
+    }
+
+    // JSInterface - Get element by index
+    JavaScriptObject getElementByIndex(int index) {
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        if (index < 0 || index >= simulator.elmList.size()) {
+            return null;
+        }
+        CircuitElm ce = simulator.elmList.get(index);
+        ce.addJSMethods();
+        return ce.getJavaScriptObject();
+    }
+
+    // JSInterface - Get element count
+    int getElementCount() {
+        return getActiveDocument().simulator.elmList.size();
+    }
+
+    // JSInterface - Clear circuit
+    void clearCircuit() {
+        actionManager.menuPerformed("main", "newblank");
+    }
+
+    // JSInterface - Reset simulation
+    void resetSimulation() {
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        // Reset time but keep circuit intact
+        simulator.t = simulator.timeStepAccum = 0;
+        simulator.lastIterTime = 0;
+        // Reset elements
+        for (int i = 0; i < simulator.elmList.size(); i++) {
+            CircuitElm ce = simulator.elmList.get(i);
+            ce.reset();
+        }
+        needAnalyze();
+    }
+
+    // JSInterface - Step simulation once
+    void stepSimulation() {
+        CircuitDocument doc = getActiveDocument();
+        CircuitSimulator simulator = doc.simulator;
+        
+        // Ensure we're stopped
+        boolean wasRunning = doc.isRunning();
+        if (wasRunning) {
+            setSimRunning(false);
+        }
+        
+        // Analyze if needed
+        if (doc.circuitInfo.dcAnalysisFlag) {
+            simulator.analyzeCircuit();
+            doc.circuitInfo.dcAnalysisFlag = false;
+        }
+        
+        // Stamp if needed
+        if (simulator.needsStamp) {
+            try {
+                simulator.preStampAndStampCircuit();
+            } catch (Exception e) {
+                stop("Exception in stampCircuit()", null);
+                return;
+            }
+        }
+        
+        // Force one iteration
+        simulator.lastIterTime = System.currentTimeMillis() - 1000; // Force iteration
+        simulator.runCircuit(true);
+        renderer.repaint();
+    }
+
+    // JSInterface - Get simulation info
+    JavaScriptObject getSimInfo() {
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        return createSimInfoObject(
+            simulator.t,
+            simulator.timeStep,
+            simulator.maxTimeStep,
+            getActiveDocument().isRunning(),
+            simulator.stopMessage != null ? simulator.stopMessage : "",
+            simulator.elmList.size()
+        );
+    }
+
+    private native JavaScriptObject createSimInfoObject(double time, double timeStep, double maxTimeStep, 
+            boolean running, String stopMessage, int elementCount) /*-{
+        return {
+            time: time,
+            timeStep: timeStep,
+            maxTimeStep: maxTimeStep,
+            running: running,
+            stopMessage: stopMessage,
+            elementCount: elementCount
+        };
+    }-*/;
+
+    // JSInterface - Get scope count
+    int getScopeCount() {
+        return getActiveDocument().scopeManager.getScopeCount();
+    }
+
+    // JSInterface - Get scope info
+    JavaScriptObject getScopeInfo(int index) {
+        ScopeManager scopeManager = getActiveDocument().scopeManager;
+        if (index < 0 || index >= scopeManager.getScopeCount()) {
+            return null;
+        }
+        Scope scope = scopeManager.getScope(index);
+        if (scope == null || scope.plots == null || scope.plots.isEmpty()) {
+            return null;
+        }
+        
+        ScopePlot plot = scope.plots.get(0);
+        CircuitElm elm = plot.getElm();
+        String elmType = elm != null ? elm.getClass().getSimpleName() : "";
+        
+        return createScopeInfoObject(
+            index,
+            elmType,
+            scope.showV,
+            scope.showI,
+            scope.showFFT,
+            scope.speed,
+            scope.plots.size()
+        );
+    }
+
+    private native JavaScriptObject createScopeInfoObject(int index, String elementType,
+            boolean showVoltage, boolean showCurrent, boolean showFFT, int speed, int plotCount) /*-{
+        return {
+            index: index,
+            elementType: elementType,
+            showVoltage: showVoltage,
+            showCurrent: showCurrent,
+            showFFT: showFFT,
+            speed: speed,
+            plotCount: plotCount
+        };
+    }-*/;
+
+    // JSInterface - Get scope data
+    JavaScriptObject getScopeData(int scopeIndex, int plotIndex) {
+        ScopeManager scopeManager = getActiveDocument().scopeManager;
+        if (scopeIndex < 0 || scopeIndex >= scopeManager.getScopeCount()) {
+            return null;
+        }
+        Scope scope = scopeManager.getScope(scopeIndex);
+        if (scope == null || scope.plots == null || plotIndex < 0 || plotIndex >= scope.plots.size()) {
+            return null;
+        }
+        
+        ScopePlot plot = scope.plots.get(plotIndex);
+        if (plot.minValues == null || plot.maxValues == null) {
+            return null;
+        }
+        
+        // Convert arrays to JS arrays
+        return createScopeDataObject(plot.minValues, plot.maxValues, plot.ptr, plot.scopePointCount, plot.units);
+    }
+
+    private native JavaScriptObject createScopeDataObject(double[] minValues, double[] maxValues, 
+            int ptr, int pointCount, int units) /*-{
+        return {
+            minValues: minValues,
+            maxValues: maxValues,
+            ptr: ptr,
+            pointCount: pointCount,
+            units: units
+        };
+    }-*/;
+
+    // JSInterface - Delete element by index
+    boolean deleteElementByIndex(int index) {
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        if (index < 0 || index >= simulator.elmList.size()) {
+            return false;
+        }
+        CircuitElm ce = simulator.elmList.get(index);
+        simulator.elmList.remove(ce);
+        ce.delete();
+        needAnalyze();
+        return true;
+    }
+
     // JSInterface
     String getCircuitInfoFileName() {
         return getActiveDocument().circuitInfo.fileName;
@@ -933,23 +1125,95 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         getActiveDocument().circuitInfo.lastFileName = fileName;
     }
 
+    // JSInterface - Get log entries
+    JsArrayString getLogs() {
+        JsArrayString arr = (JsArrayString) JsArrayString.createArray();
+        for (String entry : logManager.logEntries) {
+            arr.push(entry);
+        }
+        return arr;
+    }
+
+    // JSInterface - Get last N log entries
+    JsArrayString getLastLogs(int count) {
+        JsArrayString arr = (JsArrayString) JsArrayString.createArray();
+        int start = Math.max(0, logManager.logEntries.size() - count);
+        for (int i = start; i < logManager.logEntries.size(); i++) {
+            arr.push(logManager.logEntries.get(i));
+        }
+        return arr;
+    }
+
+    // JSInterface - Get log count
+    int getLogCount() {
+        return logManager.logEntries.size();
+    }
+
+    // JSInterface - Add log entry
+    void addLog(String message) {
+        logManager.addLogEntry(message);
+    }
+
+    // JSInterface - Clear logs
+    void clearLogs() {
+        logManager.logEntries.clear();
+    }
+
     native void setupJSInterface() /*-{
 	    var that = this;
 	    $wnd.CircuitJS1 = {
+	        // Simulation control
 	        setSimRunning: $entry(function(run) { that.@com.lushprojects.circuitjs1.client.CirSim::setSimRunning(Z)(run); } ),
+	        isRunning: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simIsRunning()(); } ),
 	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTime()(); } ),
 	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTimeStep()(); } ),
 	        setTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::setTimeStep(D)(ts); } ),
 	        getMaxTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getMaxTimeStep()(); } ),
 	        setMaxTimeStep: $entry(function(ts) { that.@com.lushprojects.circuitjs1.client.CirSim::setMaxTimeStep(D)(ts); } ),
-	        isRunning: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simIsRunning()(); } ),
+	        resetSimulation: $entry(function() { that.@com.lushprojects.circuitjs1.client.CirSim::resetSimulation()(); } ),
+	        stepSimulation: $entry(function() { that.@com.lushprojects.circuitjs1.client.CirSim::stepSimulation()(); } ),
+	        getSimInfo: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getSimInfo()(); } ),
+	        
+	        // Node and voltage access
 	        getNodeVoltage: $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.CirSim::getLabeledNodeVoltage(Ljava/lang/String;)(n); } ),
 	        setExtVoltage: $entry(function(n, v) { that.@com.lushprojects.circuitjs1.client.CirSim::setExtVoltage(Ljava/lang/String;D)(n, v); } ),
+	        
+	        // Element access
 	        getElements: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getJSElements()(); } ),
-	        getCircuitAsSVG: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::doExportAsSVGFromAPI()(); } ),
+	        getElementCount: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementCount()(); } ),
+	        getElementByIndex: $entry(function(i) { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementByIndex(I)(i); } ),
+	        deleteElementByIndex: $entry(function(i) { return that.@com.lushprojects.circuitjs1.client.CirSim::deleteElementByIndex(I)(i); } ),
+	        
+	        // Circuit export/import - Text format
 	        exportCircuit: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::dumpCircuit()(); } ),
 	        importCircuit: $entry(function(circuit, subcircuitsOnly) { return that.@com.lushprojects.circuitjs1.client.CirSim::importCircuitFromText(Ljava/lang/String;Z)(circuit, subcircuitsOnly); }),
+	        
+	        // Circuit export/import - JSON format
+	        exportAsJson: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::exportAsJson()(); } ),
+	        importFromJson: $entry(function(json) { that.@com.lushprojects.circuitjs1.client.CirSim::importFromJson(Ljava/lang/String;)(json); } ),
+	        
+	        // Circuit management
+	        clearCircuit: $entry(function() { that.@com.lushprojects.circuitjs1.client.CirSim::clearCircuit()(); } ),
+	        
+	        // SVG export
+	        getCircuitAsSVG: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::doExportAsSVGFromAPI()(); } ),
+	        
+	        // Scope access
+	        getScopeCount: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getScopeCount()(); } ),
+	        getScopeInfo: $entry(function(i) { return that.@com.lushprojects.circuitjs1.client.CirSim::getScopeInfo(I)(i); } ),
+	        getScopeData: $entry(function(scopeIdx, plotIdx) { return that.@com.lushprojects.circuitjs1.client.CirSim::getScopeData(II)(scopeIdx, plotIdx); } ),
+	        
+	        // Logging
+	        getLogs: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getLogs()(); } ),
+	        getLastLogs: $entry(function(count) { return that.@com.lushprojects.circuitjs1.client.CirSim::getLastLogs(I)(count); } ),
+	        getLogCount: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getLogCount()(); } ),
+	        addLog: $entry(function(msg) { that.@com.lushprojects.circuitjs1.client.CirSim::addLog(Ljava/lang/String;)(msg); } ),
+	        clearLogs: $entry(function() { that.@com.lushprojects.circuitjs1.client.CirSim::clearLogs()(); } ),
+	        
+	        // Canvas
 			redrawCanvasSize: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::redrawCanvasSize()(); } ),
+			
+			// Permissions
 			allowSave: $entry(function(b) { return that.@com.lushprojects.circuitjs1.client.CirSim::allowSave(Z)(b);})
 	    };
 	    var hook = $wnd.oncircuitjsloaded;

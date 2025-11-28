@@ -35,6 +35,6 @@ public class DCVoltageElm extends VoltageElm {
 
     @Override
     public String getJsonTypeName() {
-        return "DCVoltageSource";
+        return "VoltageSourceDC";
     }
 }
