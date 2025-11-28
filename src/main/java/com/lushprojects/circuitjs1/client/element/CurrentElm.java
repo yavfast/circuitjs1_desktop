@@ -143,4 +143,13 @@ public class CurrentElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "positive", "negative" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse current value
+        currentValue = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "current", "10 mA"));
+    }
 }

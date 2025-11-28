@@ -1331,4 +1331,170 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return flags;
     }
 
+    // ==================== JSON Import Methods ====================
+
+    /**
+     * Applies properties from JSON import to this element.
+     * Base implementation does nothing - subclasses should override
+     * to handle their specific properties.
+     * 
+     * This method is called after the element is created with basic
+     * coordinates. The properties map contains values that may be:
+     * - String with units: "10 kOhm", "100 nF"
+     * - Numeric values: 10000, 1e-7
+     * - Boolean values
+     * - Other objects
+     * 
+     * Use UnitParser.parseValue() to handle values with units.
+     * 
+     * @param properties Map of property name to value
+     */
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        // Base implementation - subclasses override
+    }
+
+    /**
+     * Sets element position from JSON pin coordinates.
+     * For simple 2-terminal elements, sets x, y, x2, y2 from pin positions.
+     * Subclasses with more complex positioning should override.
+     * 
+     * @param pins Map of pin name to position {x, y}
+     */
+    public void applyJsonPinPositions(java.util.Map<String, java.util.Map<String, Integer>> pins) {
+        if (pins == null || pins.isEmpty()) {
+            return;
+        }
+
+        String[] pinNames = getJsonPinNames();
+        if (pinNames.length >= 2) {
+            // Get first pin position
+            java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
+            if (pin1 != null) {
+                Integer px = pin1.get("x");
+                Integer py = pin1.get("y");
+                if (px != null && py != null) {
+                    x = px;
+                    y = py;
+                }
+            }
+
+            // Get second pin position
+            java.util.Map<String, Integer> pin2 = pins.get(pinNames[1]);
+            if (pin2 != null) {
+                Integer px = pin2.get("x");
+                Integer py = pin2.get("y");
+                if (px != null && py != null) {
+                    x2 = px;
+                    y2 = py;
+                }
+            }
+        } else if (pinNames.length == 1) {
+            // Single-terminal elements
+            java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
+            if (pin1 != null) {
+                Integer px = pin1.get("x");
+                Integer py = pin1.get("y");
+                if (px != null && py != null) {
+                    x = px;
+                    y = py;
+                    x2 = px;
+                    y2 = py;
+                }
+            }
+        }
+    }
+
+    /**
+     * Sets element flags from JSON import.
+     * 
+     * @param jsonFlags The flags value from JSON
+     */
+    public void applyJsonFlags(int jsonFlags) {
+        this.flags = jsonFlags;
+    }
+
+    /**
+     * Called after all JSON properties and positions are applied.
+     * Allows element to perform any post-import initialization.
+     * Default implementation calls setPoints().
+     */
+    public void finalizeJsonImport() {
+        setPoints();
+    }
+
+    /**
+     * Helper method to get a double value from properties map.
+     * Handles both numeric values and strings with units.
+     * 
+     * @param properties The properties map
+     * @param key The property key
+     * @param defaultValue Value to return if key not found
+     * @return The parsed value
+     */
+    protected static double getJsonDouble(java.util.Map<String, Object> properties, 
+                                          String key, double defaultValue) {
+        if (properties == null || !properties.containsKey(key)) {
+            return defaultValue;
+        }
+        Object value = properties.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String) {
+            return com.lushprojects.circuitjs1.client.io.json.UnitParser.parse((String) value);
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Helper method to get an int value from properties map.
+     */
+    protected static int getJsonInt(java.util.Map<String, Object> properties,
+                                    String key, int defaultValue) {
+        return (int) getJsonDouble(properties, key, defaultValue);
+    }
+
+    /**
+     * Helper method to get a boolean value from properties map.
+     */
+    protected static boolean getJsonBoolean(java.util.Map<String, Object> properties,
+                                            String key, boolean defaultValue) {
+        if (properties == null || !properties.containsKey(key)) {
+            return defaultValue;
+        }
+        Object value = properties.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        if (value instanceof String) {
+            String str = ((String) value).toLowerCase();
+            return "true".equals(str) || "yes".equals(str) || "1".equals(str);
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue() != 0;
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Helper method to get a String value from properties map.
+     */
+    protected static String getJsonString(java.util.Map<String, Object> properties,
+                                          String key, String defaultValue) {
+        if (properties == null || !properties.containsKey(key)) {
+            return defaultValue;
+        }
+        Object value = properties.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        return value.toString();
+    }
+
 }

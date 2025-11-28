@@ -250,4 +250,25 @@ public class LampElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse nominal power
+        nom_pow = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "nominal_power", "100 W"));
+        
+        // Parse nominal voltage
+        nom_v = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "nominal_voltage", "120 V"));
+        
+        // Parse warmup time
+        warmTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "warmup_time", "0.4 s"));
+        
+        // Parse cooldown time
+        coolTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "cooldown_time", "0.4 s"));
+    }
 }

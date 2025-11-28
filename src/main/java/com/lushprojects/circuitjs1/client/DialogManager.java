@@ -10,6 +10,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditOptions;
 import com.lushprojects.circuitjs1.client.dialog.EditTransistorModelDialog;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 import com.lushprojects.circuitjs1.client.dialog.ExportAsImageDialog;
+import com.lushprojects.circuitjs1.client.dialog.ExportAsJsonDialog;
 import com.lushprojects.circuitjs1.client.dialog.ExportAsTextDialog;
 import com.lushprojects.circuitjs1.client.dialog.ExportAsUrlDialog;
 import com.lushprojects.circuitjs1.client.dialog.HelpDialog;
@@ -125,6 +126,12 @@ public class DialogManager extends BaseCirSimDelegate {
     void showExportAsTextDialog(String dump) {
         CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new ExportAsTextDialog(cirSim, dump);
+        activeDialog.show();
+    }
+
+    void showExportAsJsonDialog(String dump) {
+        CirSim cirSim = (CirSim) this.cirSim;
+        activeDialog = new ExportAsJsonDialog(cirSim, dump);
         activeDialog.show();
     }
 

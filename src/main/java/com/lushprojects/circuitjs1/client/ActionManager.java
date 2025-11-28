@@ -254,6 +254,10 @@ public class ActionManager extends BaseCirSimDelegate {
             doExportAsText();
             cirSim.setUnsavedChanges(false);
         }
+        if (item == "exportasjson") {
+            doExportAsJson();
+            cirSim.setUnsavedChanges(false);
+        }
         if (item == "exportasimage")
             doExportAsImage();
         if (item == "copypng") {
@@ -481,6 +485,11 @@ public class ActionManager extends BaseCirSimDelegate {
     void doExportAsText() {
         String dump = dumpCircuit();
         dialogManager().showExportAsTextDialog(dump);
+    }
+
+    void doExportAsJson() {
+        String dump = dumpCircuit("json");
+        dialogManager().showExportAsJsonDialog(dump);
     }
 
     void doExportAsImage() {

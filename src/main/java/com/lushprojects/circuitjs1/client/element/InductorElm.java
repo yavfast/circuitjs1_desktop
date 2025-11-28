@@ -172,4 +172,15 @@ public class InductorElm extends CircuitElm {
         }
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        inductance = getJsonDouble(properties, "inductance", 1e-3);
+        initialCurrent = getJsonDouble(properties, "initial_current", 0);
+        if (getJsonBoolean(properties, "back_euler", false)) {
+            flags |= Inductor.FLAG_BACK_EULER;
+        }
+        ind.setup(inductance, current, flags);
+    }
 }

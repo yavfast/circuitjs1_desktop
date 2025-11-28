@@ -238,4 +238,17 @@ public class JfetElm extends MosfetElm {
     public String[] getJsonPinNames() {
         return new String[] { "gate", "source", "drain" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        // Note: Don't call super here as JFET has different property handling than MOSFET
+        // Parse threshold voltage
+        vt = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "threshold_voltage", "4 V"));
+        // Make negative for JFET
+        vt = -Math.abs(vt);
+        
+        // Parse beta
+        beta = getJsonDouble(props, "beta", getDefaultBeta());
+    }
 }

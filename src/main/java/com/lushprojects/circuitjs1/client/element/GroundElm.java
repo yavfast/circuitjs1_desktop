@@ -203,4 +203,18 @@ public class GroundElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "gnd" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse symbol type
+        String symbol = getJsonString(props, "symbol", "earth");
+        switch (symbol) {
+            case "chassis": symbolType = 1; break;
+            case "signal": symbolType = 2; break;
+            case "common": symbolType = 3; break;
+            default: symbolType = 0; break;
+        }
+    }
 }

@@ -162,4 +162,13 @@ public class LEDElm extends DiodeElm {
         props.put("max_brightness_current", getUnitText(maxBrightnessCurrent, "A"));
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        colorR = getJsonDouble(properties, "color_r", 1.0);
+        colorG = getJsonDouble(properties, "color_g", 0);
+        colorB = getJsonDouble(properties, "color_b", 0);
+        maxBrightnessCurrent = getJsonDouble(properties, "max_brightness_current", .01);
+    }
 }

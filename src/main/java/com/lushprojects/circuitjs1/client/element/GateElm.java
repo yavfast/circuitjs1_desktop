@@ -337,4 +337,30 @@ public abstract class GateElm extends CircuitElm {
         names[inputCount] = "out";
         return names;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse input count
+        inputCount = getJsonInt(props, "input_count", 2);
+        if (inputCount < 1) inputCount = 2;
+        
+        // Parse high voltage
+        highVoltage = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "high_voltage", "5 V"));
+        
+        // Parse schmitt inputs flag
+        if (getJsonBoolean(props, "schmitt", false)) {
+            flags |= FLAG_SCHMITT;
+        }
+        
+        // Parse invert inputs flag
+        if (getJsonBoolean(props, "invert_inputs", false)) {
+            flags |= FLAG_INVERT_INPUTS;
+        }
+        
+        allocNodes();
+        setupVolts();
+    }
 }

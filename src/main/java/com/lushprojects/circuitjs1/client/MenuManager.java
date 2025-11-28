@@ -26,7 +26,7 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem aboutCircuitsPLItem;
     MenuItem closeItem;
     //CheckboxMenuItem fullscreenCheckItem;
-    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
+    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem, exportAsJsonItem,
             printItem, recoverItem, saveFileItem, openLastClosedTabItem;
     //MenuItem importFromDropboxItem;
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem, modItem;
@@ -155,6 +155,8 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(exportAsUrlItem);
         exportAsTextItem = iconMenuItem("export", "Export As Text...", new MyCommand("file", "exportastext"));
         fileMenuBar.addItem(exportAsTextItem);
+        exportAsJsonItem = iconMenuItem("export", "Export As JSON...", new MyCommand("file", "exportasjson"));
+        fileMenuBar.addItem(exportAsJsonItem);
         fileMenuBar.addItem(iconMenuItem("image", "Export As Image...", new MyCommand("file", "exportasimage")));
         fileMenuBar.addItem(iconMenuItem("image", "Copy Circuit Image to Clipboard", new MyCommand("file", "copypng")));
         fileMenuBar.addItem(iconMenuItem("image", "Export As SVG...", new MyCommand("file", "exportassvg")));

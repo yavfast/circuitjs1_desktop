@@ -220,4 +220,32 @@ public class TimerElm extends ChipElm {
         props.put("use_pin_numbers", usePinNumbers());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse has_ground_pin
+        if (getJsonBoolean(props, "has_ground_pin", false)) {
+            flags |= FLAG_GROUND;
+        } else {
+            flags &= ~FLAG_GROUND;
+        }
+        
+        // Parse has_reset
+        if (getJsonBoolean(props, "has_reset", true)) {
+            flags |= FLAG_RESET;
+        } else {
+            flags &= ~FLAG_RESET;
+        }
+        
+        // Parse use_pin_numbers
+        if (getJsonBoolean(props, "use_pin_numbers", false)) {
+            flags |= FLAG_NUMBERS;
+        } else {
+            flags &= ~FLAG_NUMBERS;
+        }
+        
+        setupPins();
+    }
 }

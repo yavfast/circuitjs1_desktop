@@ -390,5 +390,31 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b", "wiper" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse max resistance
+        maxResistance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "max_resistance", "1 kOhm"));
+        
+        // Parse position (0.0 to 1.0)
+        position = getJsonDouble(props, "position", 0.5);
+        if (position < 0) position = 0;
+        if (position > 1) position = 1;
+        
+        // Parse slider text
+        sliderText = getJsonString(props, "slider_text", "Resistance");
+        if (label != null) {
+            label.setText(sliderText);
+        }
+        
+        // Update slider value
+        if (slider != null) {
+            int value = (int) Math.round((position - .005) / .0099);
+            slider.setValue(value);
+        }
+    }
 }
 

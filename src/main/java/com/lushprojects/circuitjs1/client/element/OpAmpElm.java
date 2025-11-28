@@ -307,4 +307,30 @@ public class OpAmpElm extends CircuitElm {
         }
         return new String[] { "in-", "in+", "out" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse gain
+        gain = getJsonDouble(props, "gain", 100000);
+        flags |= FLAG_GAIN;
+        
+        // Parse max/min output
+        maxOut = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "max_output", "15 V"));
+        minOut = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "min_output", "-15 V"));
+        
+        // Parse GBW if present
+        if (props.containsKey("gbw")) {
+            gbw = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+                getJsonString(props, "gbw", "1 MHz"));
+        }
+        
+        // Parse swap inputs
+        if (getJsonBoolean(props, "swap_inputs", false)) {
+            flags |= FLAG_SWAP;
+        }
+    }
 }

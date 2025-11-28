@@ -601,13 +601,18 @@ public class JsonCircuitExporter implements CircuitExporter {
     }
 
     /**
-     * Simple JSON formatter for readability.
+     * Compact JSON formatter - simple objects on one line, 
+     * complex structures with line breaks.
      */
     private String formatJson(String json) {
         StringBuilder sb = new StringBuilder();
         int indent = 0;
         boolean inString = false;
         char prevChar = 0;
+        
+        // Track nesting for compact output of simple objects
+        int[] nestingStack = new int[100];
+        int nestingDepth = 0;
 
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
@@ -618,19 +623,40 @@ public class JsonCircuitExporter implements CircuitExporter {
 
             if (!inString) {
                 if (c == '{' || c == '[') {
-                    sb.append(c);
-                    sb.append('\n');
-                    indent++;
-                    appendIndent(sb, indent);
+                    // Check if this is a simple object (no nested objects/arrays)
+                    boolean isSimple = isSimpleBlock(json, i);
+                    
+                    if (isSimple) {
+                        nestingStack[nestingDepth++] = 1; // Mark as compact
+                        sb.append(c);
+                    } else {
+                        nestingStack[nestingDepth++] = 0; // Mark as expanded
+                        sb.append(c);
+                        sb.append('\n');
+                        indent++;
+                        appendIndent(sb, indent);
+                    }
                 } else if (c == '}' || c == ']') {
-                    sb.append('\n');
-                    indent--;
-                    appendIndent(sb, indent);
-                    sb.append(c);
+                    nestingDepth--;
+                    boolean wasCompact = nestingDepth >= 0 && nestingStack[nestingDepth] == 1;
+                    
+                    if (wasCompact) {
+                        sb.append(c);
+                    } else {
+                        sb.append('\n');
+                        indent--;
+                        appendIndent(sb, indent);
+                        sb.append(c);
+                    }
                 } else if (c == ',') {
+                    boolean isCompact = nestingDepth > 0 && nestingStack[nestingDepth - 1] == 1;
                     sb.append(c);
-                    sb.append('\n');
-                    appendIndent(sb, indent);
+                    if (!isCompact) {
+                        sb.append('\n');
+                        appendIndent(sb, indent);
+                    } else {
+                        sb.append(' ');
+                    }
                 } else if (c == ':') {
                     sb.append(c);
                     sb.append(' ');
@@ -645,6 +671,38 @@ public class JsonCircuitExporter implements CircuitExporter {
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Check if block starting at position is simple (no nested objects/arrays).
+     */
+    private boolean isSimpleBlock(String json, int start) {
+        char openChar = json.charAt(start);
+        char closeChar = (openChar == '{') ? '}' : ']';
+        
+        int depth = 1;
+        boolean inStr = false;
+        
+        for (int i = start + 1; i < json.length() && depth > 0; i++) {
+            char c = json.charAt(i);
+            char prev = (i > 0) ? json.charAt(i - 1) : 0;
+            
+            if (c == '"' && prev != '\\') {
+                inStr = !inStr;
+            }
+            
+            if (!inStr) {
+                if (c == '{' || c == '[') {
+                    // Has nested structure - not simple
+                    return false;
+                } else if (c == closeChar) {
+                    depth--;
+                }
+            }
+        }
+        
+        // Simple if no nested structures
+        return true;
     }
 
     private void appendIndent(StringBuilder sb, int indent) {

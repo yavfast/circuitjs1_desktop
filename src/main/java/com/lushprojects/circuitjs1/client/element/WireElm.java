@@ -154,4 +154,19 @@ public class WireElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse show current flag
+        if (getJsonBoolean(props, "show_current", false)) {
+            flags |= FLAG_SHOWCURRENT;
+        }
+        
+        // Parse show voltage flag
+        if (getJsonBoolean(props, "show_voltage", false)) {
+            flags |= FLAG_SHOWVOLTAGE;
+        }
+    }
 }

@@ -273,4 +273,27 @@ public class SwitchElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse state (open/closed)
+        String state = getJsonString(props, "state", "closed");
+        position = "open".equals(state) ? 1 : 0;
+        
+        // Parse momentary
+        momentary = getJsonBoolean(props, "momentary", false);
+        
+        // Parse label
+        label = getJsonString(props, "label", null);
+        if (label != null && !label.isEmpty()) {
+            flags |= FLAG_LABEL;
+        }
+        
+        // Parse IEC symbol
+        if (getJsonBoolean(props, "iec_symbol", false)) {
+            flags |= FLAG_IEC;
+        }
+    }
 }

@@ -655,4 +655,15 @@ public class TransistorElm extends CircuitElm {
         }
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        beta = getJsonDouble(properties, "beta", 100);
+        String model = getJsonString(properties, "model", "default");
+        if (model != null && !model.isEmpty()) {
+            modelName = model;
+            setup();
+        }
+    }
 }

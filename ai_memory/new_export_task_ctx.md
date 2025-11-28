@@ -28,7 +28,9 @@
 Пакет `io.json`:
 - `JsonCircuitFormat.java` - Розширення: ".json", версія 2.0
 - `JsonCircuitExporter.java` - Повний експорт у JSON
-- `JsonCircuitImporter.java` - Заглушка (не реалізовано)
+- `JsonCircuitImporter.java` - **Повна реалізація імпорту**
+- `CircuitElementFactory.java` - Фабрика елементів для імпорту
+- `UnitParser.java` - Парсинг значень з одиницями (10 kOhm → 10000)
 
 ### 4. JSON Експорт - секції
 
@@ -41,25 +43,37 @@
 | `scopes` | ✅ | Осцилографи з повною конфігурацією |
 | `adjustables` | ✅ | Слайдери з діапазонами та значеннями |
 
-### 5. Елементи (✅ Завершено - 145 класів)
+### 5. JSON Імпорт - секції
 
-Додано методи до базового класу `CircuitElm`:
-- `getJsonTypeName()` - Тип елемента
-- `getJsonProperties()` - Map властивостей з одиницями
-- `getJsonPinNames()` - Масив імен пінів
-- `getJsonPinPosition(int)` - Координати піна
-- `getJsonBounds()` - Обмежуючий прямокутник
-- `getJsonFlags()` - Прапорці елемента
+| Секція | Статус | Опис |
+|--------|--------|------|
+| `schema` | ✅ | Валідація формату та версії |
+| `simulation` | ✅ | time_step, display options, speed |
+| `elements` | ✅ | Створення через CircuitElementFactory |
+| `scopes` | ✅ | Відновлення осцилографів |
+| `adjustables` | ✅ | Відновлення слайдерів |
 
-Кожен з 145 класів елементів перевизначає ці методи відповідно до своєї специфіки.
+### 6. Елементи з applyJsonProperties() (✅ Реалізовано)
 
-### 6. Додаткові зміни
+Додано метод імпорту до елементів:
+- `CircuitElm` (базовий) - applyJsonProperties(), applyJsonPinPositions(), getJsonDouble/Int/Boolean/String helpers
+- `ResistorElm` - resistance
+- `CapacitorElm` - capacitance, initial_voltage, series_resistance, back_euler
+- `InductorElm` - inductance, initial_current, back_euler
+- `TransistorElm` - beta, model
+- `DiodeElm` - model
+- `LEDElm` - color_r/g/b, max_brightness_current
+- `MosfetElm` - threshold_voltage, beta, digital, body_diode, body_terminal
+- `VoltageElm` - max_voltage, dc_offset, frequency, phase_shift, duty_cycle
 
-Додано публічні геттери:
-- `ScopePlot.getElm()` 
-- `Adjustable.getElm()`
-- `Adjustable.getEditItem()`
-- `Adjustable.getSliderValue()` (змінено на public)
+### 7. CircuitElementFactory (✅ Завершено)
+
+Мапінг 120+ JSON типів до Java класів:
+- Базові: Wire, Ground, Resistor, Capacitor, Inductor, Potentiometer
+- Джерела: DCVoltage, ACVoltage, Rail, CurrentSource, Noise, AM, FM
+- Напівпровідники: Diode, LED, TransistorNPN/PNP, NMOSFET/PMOSFET, SCR, Triac
+- Логіка: AndGate, OrGate, DFlipFlop, Counter, Timer555
+- І багато інших...
 
 ## Структура JSON експорту
 
@@ -97,15 +111,11 @@
 }
 ```
 
-## Файли документації
-
-- `docs/export_new_json.md` - Повна специфікація формату
-
 ## Що залишилось
 
-1. **JsonCircuitImporter** - Реалізація імпорту з JSON
+1. **UI інтеграція** - Меню для вибору формату експорту
 2. **Тестування** - Round-trip тести експорт→імпорт
-3. **UI інтеграція** - Меню для вибору формату експорту
+3. **Додаткові елементи** - applyJsonProperties() для решти елементів
 
 ## Команди
 
@@ -121,5 +131,5 @@ node ./scripts/dev_n_build.js --buildall
 
 - Дата: 2025-11-27
 - GWT компіляція: ✅
-- WAR: ✅
-- Linux x64 release: ✅
+- Імпортер: ✅ Повністю реалізований
+- Фабрика елементів: ✅

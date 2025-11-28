@@ -308,4 +308,18 @@ public class CapacitorElm extends CircuitElm {
         }
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        capacitance = getJsonDouble(properties, "capacitance", 1e-5);
+        initialVoltage = getJsonDouble(properties, "initial_voltage", 1e-3);
+        seriesResistance = getJsonDouble(properties, "series_resistance", 1e-3);
+        if (getJsonBoolean(properties, "back_euler", false)) {
+            flags |= FLAG_BACK_EULER;
+        }
+        if (seriesResistance > 0) {
+            flags |= FLAG_RESISTANCE;
+        }
+    }
 }

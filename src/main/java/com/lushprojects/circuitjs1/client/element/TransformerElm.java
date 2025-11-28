@@ -367,11 +367,57 @@ public class TransformerElm extends CircuitElm {
         if (polarity == -1) {
             props.put("reverse_polarity", true);
         }
+        // Orientation flags
+        if (hasFlag(FLAG_VERTICAL)) {
+            props.put("vertical", true);
+        }
+        if (hasFlag(FLAG_FLIP)) {
+            props.put("flip", true);
+        }
         return props;
     }
 
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "pri1", "pri2", "sec1", "sec2" };
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        // Parse inductance
+        inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "inductance", "4 H"));
+        
+        // Parse ratio
+        ratio = getJsonDouble(props, "ratio", 1);
+        
+        // Parse coupling coefficient
+        couplingCoef = getJsonDouble(props, "coupling", 0.999);
+        if (couplingCoef <= 0 || couplingCoef >= 1) couplingCoef = 0.999;
+        
+        // Parse polarity
+        if (getJsonBoolean(props, "reverse_polarity", false)) {
+            polarity = -1;
+            flags |= FLAG_REVERSE;
+        } else {
+            polarity = 1;
+        }
+        
+        // Parse orientation flags
+        if (getJsonBoolean(props, "vertical", false)) {
+            flags |= FLAG_VERTICAL;
+        }
+        if (getJsonBoolean(props, "flip", false)) {
+            flags |= FLAG_FLIP;
+        }
+        
+        // Recalculate width based on orientation
+        if (hasFlag(FLAG_VERTICAL)) {
+            width = -max(32, abs(x2 - x));
+        } else {
+            width = max(32, abs(y2 - y));
+        }
     }
 }

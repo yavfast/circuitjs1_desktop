@@ -575,5 +575,44 @@ public class RelayElm extends CircuitElm {
         }
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        com.lushprojects.circuitjs1.client.io.json.UnitParser parser = null;
+        
+        // Parse inductance
+        inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "inductance", "0.2 H"));
+        ind.setup(inductance, coilCurrent, Inductor.FLAG_BACK_EULER);
+        
+        // Parse resistances
+        r_on = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "on_resistance", "0.05 Ohm"));
+        r_off = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "off_resistance", "1 MOhm"));
+        coilR = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "coil_resistance", "20 Ohm"));
+        
+        // Parse currents
+        onCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "on_current", "20 mA"));
+        offCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "off_current", "15 mA"));
+        
+        // Parse pole count
+        poleCount = getJsonInt(props, "poles", 1);
+        if (poleCount < 1) poleCount = 1;
+        if (poleCount > 4) poleCount = 4;
+        
+        // Parse switching time
+        if (props.containsKey("switching_time")) {
+            switchingTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+                getJsonString(props, "switching_time", "5 ms"));
+        }
+        
+        setupPoles();
+    }
 }
 

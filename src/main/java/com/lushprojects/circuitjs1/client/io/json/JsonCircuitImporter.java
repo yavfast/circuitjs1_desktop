@@ -20,22 +20,26 @@
 package com.lushprojects.circuitjs1.client.io.json;
 
 import com.google.gwt.json.client.*;
-import com.lushprojects.circuitjs1.client.CirSim;
-import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.*;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Imports circuit from JSON format (version 2.0).
  * 
  * This importer handles the new JSON format with explicit
  * element properties and pin connections.
- * 
- * Note: Full implementation is TODO. Currently only validates format.
  */
 public class JsonCircuitImporter implements CircuitImporter {
 
     private final JsonCircuitFormat format;
+    
+    // Map from element ID to created element (for scope/adjustable references)
+    private Map<String, CircuitElm> importedElements;
 
     public JsonCircuitImporter(JsonCircuitFormat format) {
         this.format = format;
@@ -63,17 +67,321 @@ public class JsonCircuitImporter implements CircuitImporter {
                 return;
             }
 
-            // TODO: Full implementation
-            // 1. Parse simulation parameters
-            // 2. Parse elements and create CircuitElm instances
-            // 3. Parse scopes
-            // 4. Rebuild connections
+            importedElements = new HashMap<>();
 
-            CirSim.console("JSON import: format validated, full import TODO");
+            // 1. Parse simulation parameters
+            parseSimulation(root, document);
+
+            // 2. Parse elements
+            int elementCount = parseElements(root, document);
+
+            // 3. Parse scopes
+            int scopeCount = parseScopes(root, document);
+
+            // 4. Parse adjustables
+            int adjustableCount = parseAdjustables(root, document);
+
+            // 5. Notify document that import is complete
+            document.getCirSim().needAnalyze();
+
+            CirSim.console("JSON import: " + elementCount + " elements, " + 
+                          scopeCount + " scopes, " + adjustableCount + " adjustables");
 
         } catch (Exception e) {
             CirSim.console("JSON import error: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
+
+    private void parseSimulation(JSONObject root, CircuitDocument document) {
+        JSONValue simValue = root.get("simulation");
+        if (simValue == null || simValue.isObject() == null) {
+            return;
+        }
+
+        JSONObject sim = simValue.isObject();
+        CircuitSimulator simulator = document.simulator;
+        CirSim cirSim = document.getCirSim();
+        MenuManager menuManager = cirSim.menuManager;
+
+        // Time step
+        JSONValue timeStepValue = sim.get("time_step");
+        if (timeStepValue != null) {
+            if (timeStepValue.isString() != null) {
+                simulator.maxTimeStep = UnitParser.parse(timeStepValue.isString().stringValue());
+            } else if (timeStepValue.isNumber() != null) {
+                simulator.maxTimeStep = timeStepValue.isNumber().doubleValue();
+            }
+        }
+
+        JSONValue minTimeStepValue = sim.get("min_time_step");
+        if (minTimeStepValue != null) {
+            if (minTimeStepValue.isString() != null) {
+                simulator.minTimeStep = UnitParser.parse(minTimeStepValue.isString().stringValue());
+            } else if (minTimeStepValue.isNumber() != null) {
+                simulator.minTimeStep = minTimeStepValue.isNumber().doubleValue();
+            }
+        }
+
+        // Voltage range
+        JSONValue voltageRangeValue = sim.get("voltage_range");
+        if (voltageRangeValue != null) {
+            if (voltageRangeValue.isString() != null) {
+                CircuitElm.voltageRange = UnitParser.parse(voltageRangeValue.isString().stringValue());
+            } else if (voltageRangeValue.isNumber() != null) {
+                CircuitElm.voltageRange = voltageRangeValue.isNumber().doubleValue();
+            }
+        }
+
+        // Speed settings
+        JSONValue currentSpeedValue = sim.get("current_speed");
+        if (currentSpeedValue != null && currentSpeedValue.isNumber() != null) {
+            cirSim.currentBar.setValue((int) currentSpeedValue.isNumber().doubleValue());
+        }
+
+        JSONValue powerBrightnessValue = sim.get("power_brightness");
+        if (powerBrightnessValue != null && powerBrightnessValue.isNumber() != null) {
+            cirSim.powerBar.setValue((int) powerBrightnessValue.isNumber().doubleValue());
+        }
+
+        // Auto time step
+        JSONValue autoTimeStepValue = sim.get("auto_time_step");
+        if (autoTimeStepValue != null && autoTimeStepValue.isBoolean() != null) {
+            simulator.adjustTimeStep = autoTimeStepValue.isBoolean().booleanValue();
+        }
+
+        // Display options
+        JSONValue displayValue = sim.get("display");
+        if (displayValue != null && displayValue.isObject() != null) {
+            JSONObject display = displayValue.isObject();
+
+            setCheckItem(menuManager.dotsCheckItem, display, "show_dots");
+            setCheckItem(menuManager.voltsCheckItem, display, "show_voltage");
+            setCheckItem(menuManager.powerCheckItem, display, "show_power");
+            setCheckItem(menuManager.showValuesCheckItem, display, "show_values");
+            setCheckItem(menuManager.smallGridCheckItem, display, "small_grid");
+        }
+    }
+
+    private void setCheckItem(CheckboxMenuItem checkbox, JSONObject obj, String key) {
+        JSONValue value = obj.get(key);
+        if (value != null && value.isBoolean() != null) {
+            checkbox.setState(value.isBoolean().booleanValue());
+        }
+    }
+
+    private int parseElements(JSONObject root, CircuitDocument document) {
+        JSONValue elementsValue = root.get("elements");
+        if (elementsValue == null || elementsValue.isObject() == null) {
+            return 0;
+        }
+
+        JSONObject elements = elementsValue.isObject();
+        int count = 0;
+
+        for (String elementId : elements.keySet()) {
+            JSONValue elementValue = elements.get(elementId);
+            if (elementValue == null || elementValue.isObject() == null) {
+                continue;
+            }
+
+            JSONObject elementJson = elementValue.isObject();
+
+            // Get type
+            JSONValue typeValue = elementJson.get("type");
+            if (typeValue == null || typeValue.isString() == null) {
+                CirSim.console("JSON import: element " + elementId + " has no type");
+                continue;
+            }
+
+            String jsonType = typeValue.isString().stringValue();
+
+            // Create element using factory
+            CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson);
+            if (elm == null) {
+                CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
+                continue;
+            }
+
+            // Set circuit document
+            elm.setCircuitDocument(document);
+
+            // Add to simulator
+            document.simulator.elmList.add(elm);
+            
+            // Store for reference
+            importedElements.put(elementId, elm);
+            count++;
+        }
+
+        return count;
+    }
+
+    private int parseScopes(JSONObject root, CircuitDocument document) {
+        JSONValue scopesValue = root.get("scopes");
+        if (scopesValue == null || scopesValue.isArray() == null) {
+            return 0;
+        }
+
+        JSONArray scopes = scopesValue.isArray();
+        ScopeManager scopeManager = document.scopeManager;
+        CirSim cirSim = document.getCirSim();
+        int count = 0;
+
+        for (int i = 0; i < scopes.size(); i++) {
+            JSONValue scopeValue = scopes.get(i);
+            if (scopeValue == null || scopeValue.isObject() == null) {
+                continue;
+            }
+
+            JSONObject scopeJson = scopeValue.isObject();
+
+            // Get element reference
+            JSONValue elementValue = scopeJson.get("element");
+            if (elementValue == null || elementValue.isString() == null) {
+                continue;
+            }
+
+            String elementId = elementValue.isString().stringValue();
+            CircuitElm elm = importedElements.get(elementId);
+            if (elm == null) {
+                CirSim.console("JSON import: scope references unknown element: " + elementId);
+                continue;
+            }
+
+            // Create scope
+            Scope scope = new Scope(cirSim, document);
+            scope.setElm(elm);
+
+            // Position
+            JSONValue posValue = scopeJson.get("position");
+            if (posValue != null && posValue.isNumber() != null) {
+                scope.position = (int) posValue.isNumber().doubleValue();
+            }
+
+            // Speed
+            JSONValue speedValue = scopeJson.get("speed");
+            if (speedValue != null && speedValue.isNumber() != null) {
+                scope.speed = (int) speedValue.isNumber().doubleValue();
+            }
+
+            // Display options
+            JSONValue displayValue = scopeJson.get("display");
+            if (displayValue != null && displayValue.isObject() != null) {
+                JSONObject display = displayValue.isObject();
+                scope.showV = getBoolean(display, "show_voltage", true);
+                scope.showI = getBoolean(display, "show_current", false);
+                scope.showScale = getBoolean(display, "show_scale", true);
+                scope.showMax = getBoolean(display, "show_max", false);
+                scope.showMin = getBoolean(display, "show_min", false);
+                scope.showFreq = getBoolean(display, "show_frequency", false);
+                scope.showFFT = getBoolean(display, "show_fft", false);
+                scope.showRMS = getBoolean(display, "show_rms", false);
+                scope.showAverage = getBoolean(display, "show_average", false);
+                scope.showDutyCycle = getBoolean(display, "show_duty_cycle", false);
+                scope.showNegative = getBoolean(display, "show_negative", false);
+                scope.showElmInfo = getBoolean(display, "show_element_info", true);
+            }
+
+            // Plot modes
+            JSONValue plotModeValue = scopeJson.get("plot_mode");
+            if (plotModeValue != null && plotModeValue.isObject() != null) {
+                JSONObject plotMode = plotModeValue.isObject();
+                scope.plot2d = getBoolean(plotMode, "plot_2d", false);
+                scope.plotXY = getBoolean(plotMode, "plot_xy", false);
+                scope.maxScale = getBoolean(plotMode, "max_scale", false);
+                scope.logSpectrum = getBoolean(plotMode, "log_spectrum", false);
+            }
+
+            // Add scope at current index
+            scopeManager.setScope(count, scope);
+            count++;
+        }
+
+        // Update scope count
+        scopeManager.setScopeCount(count);
+        return count;
+    }
+
+    private int parseAdjustables(JSONObject root, CircuitDocument document) {
+        JSONValue adjustablesValue = root.get("adjustables");
+        if (adjustablesValue == null || adjustablesValue.isArray() == null) {
+            return 0;
+        }
+
+        JSONArray adjustables = adjustablesValue.isArray();
+        AdjustableManager adjustableManager = document.adjustableManager;
+        CirSim cirSim = document.getCirSim();
+        int count = 0;
+
+        for (int i = 0; i < adjustables.size(); i++) {
+            JSONValue adjValue = adjustables.get(i);
+            if (adjValue == null || adjValue.isObject() == null) {
+                continue;
+            }
+
+            JSONObject adjJson = adjValue.isObject();
+
+            // Get element reference
+            JSONValue elementValue = adjJson.get("element");
+            if (elementValue == null || elementValue.isString() == null) {
+                continue;
+            }
+
+            String elementId = elementValue.isString().stringValue();
+            CircuitElm elm = importedElements.get(elementId);
+            if (elm == null) {
+                CirSim.console("JSON import: adjustable references unknown element: " + elementId);
+                continue;
+            }
+
+            // Get edit item
+            int editItem = 0;
+            JSONValue editItemValue = adjJson.get("edit_item");
+            if (editItemValue != null && editItemValue.isNumber() != null) {
+                editItem = (int) editItemValue.isNumber().doubleValue();
+            }
+
+            // Create adjustable
+            Adjustable adj = new Adjustable(cirSim, elm, editItem);
+
+            // Label
+            JSONValue labelValue = adjJson.get("label");
+            if (labelValue != null && labelValue.isString() != null) {
+                adj.sliderText = labelValue.isString().stringValue();
+            }
+
+            // Value range
+            JSONValue minValue = adjJson.get("min_value");
+            if (minValue != null && minValue.isNumber() != null) {
+                adj.minValue = minValue.isNumber().doubleValue();
+            }
+
+            JSONValue maxValue = adjJson.get("max_value");
+            if (maxValue != null && maxValue.isNumber() != null) {
+                adj.maxValue = maxValue.isNumber().doubleValue();
+            }
+
+            // Current value
+            JSONValue currentValue = adjJson.get("current_value");
+            if (currentValue != null && currentValue.isNumber() != null) {
+                adj.setSliderValue(currentValue.isNumber().doubleValue());
+            }
+
+            // Add adjustable directly to the list
+            adjustableManager.adjustables.add(adj);
+            count++;
+        }
+
+        return count;
+    }
+
+    private boolean getBoolean(JSONObject obj, String key, boolean defaultValue) {
+        JSONValue value = obj.get(key);
+        if (value == null || value.isBoolean() == null) {
+            return defaultValue;
+        }
+        return value.isBoolean().booleanValue();
     }
 
     private boolean validateSchema(JSONObject root) {

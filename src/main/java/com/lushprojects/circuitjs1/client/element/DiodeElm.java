@@ -297,4 +297,14 @@ public class DiodeElm extends CircuitElm {
         return props;
     }
 
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        String model = getJsonString(properties, "model", "default");
+        if (model != null && !model.isEmpty()) {
+            modelName = model;
+            setup();
+        }
+    }
+
 }

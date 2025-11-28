@@ -646,4 +646,20 @@ public class MosfetElm extends CircuitElm {
         }
         return new String[] { "gate", "source", "drain" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        vt = pnp * getJsonDouble(properties, "threshold_voltage", pnp < 0 ? -1.5 : 1.5);
+        beta = getJsonDouble(properties, "beta", getDefaultBeta());
+        if (getJsonBoolean(properties, "digital", false)) {
+            flags |= FLAG_DIGITAL;
+        }
+        if (getJsonBoolean(properties, "body_diode", false)) {
+            flags |= FLAG_BODY_DIODE;
+        }
+        if (getJsonBoolean(properties, "body_terminal", false)) {
+            flags |= FLAG_BODY_TERMINAL;
+        }
+    }
 }

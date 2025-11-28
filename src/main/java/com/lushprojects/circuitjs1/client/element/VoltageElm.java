@@ -454,4 +454,14 @@ public class VoltageElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "positive", "negative" };
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        maxVoltage = getJsonDouble(properties, "max_voltage", 5);
+        bias = getJsonDouble(properties, "dc_offset", 0);
+        frequency = getJsonDouble(properties, "frequency", 40);
+        phaseShift = getJsonDouble(properties, "phase_shift", 0) * pi / 180;
+        dutyCycle = getJsonDouble(properties, "duty_cycle", 0.5);
+    }
 }
