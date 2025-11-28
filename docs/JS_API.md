@@ -2,6 +2,136 @@
 
 This document describes the JavaScript API available for programmatic control of CircuitJS1 from web browsers or automation tools.
 
+## Running the Application
+
+### Development Mode (GWT DevMode)
+
+For development and testing with live code reload:
+
+```bash
+# Navigate to project directory
+cd /path/to/circuitjs1_desktop
+
+# Start GWT DevMode
+mvn gwt:devmode
+```
+
+The application will be available at:
+- **Application**: http://127.0.0.1:8888/circuitjs.html
+- **Code Server**: http://127.0.0.1:9876/
+
+GWT DevMode automatically recompiles Java code when you refresh the page, making it ideal for development and testing the JavaScript API.
+
+### Production Build
+
+For production use:
+
+```bash
+# Compile GWT to JavaScript
+mvn gwt:compile
+
+# The compiled application is in target/circuitjs1mod-*/circuitjs1/
+```
+
+## Using with Chrome DevTools MCP
+
+The JavaScript API can be controlled programmatically using [Chrome DevTools MCP](https://github.com/anthropics/anthropic-cookbook/tree/main/misc/chrome_devtools_mcp) (Model Context Protocol). This enables AI assistants like Claude to directly interact with CircuitJS1.
+
+### Setup Chrome DevTools MCP
+
+1. Install Chrome DevTools MCP server
+2. Configure your MCP client (e.g., Claude Desktop) to connect to the server
+3. Open CircuitJS1 in Chrome browser
+4. The MCP tools can now control the browser
+
+### MCP Tools for CircuitJS1
+
+**Navigate to application:**
+```
+mcp_chrome-devtoo_navigate_page(url="http://127.0.0.1:8888/circuitjs.html")
+```
+
+**Execute JavaScript API calls:**
+```
+mcp_chrome-devtoo_evaluate_script(function="() => {
+  return CircuitJS1.getSimInfo();
+}")
+```
+
+**Take screenshots for verification:**
+```
+mcp_chrome-devtoo_take_screenshot()
+```
+
+**Get page snapshot (accessibility tree):**
+```
+mcp_chrome-devtoo_take_snapshot()
+```
+
+### Example: Automated Circuit Testing via MCP
+
+```javascript
+// Example evaluate_script for testing a circuit
+() => {
+  // Load test circuit (RC circuit with voltage source)
+  const circuit = {
+    "schema": {"format": "circuitjs", "version": "2.0"},
+    "simulation": {
+      "time_step": "5 us",
+      "voltage_range": "5 V"
+    },
+    "elements": {
+      "R1": {
+        "type": "Resistor",
+        "p1": {"x": 208, "y": 112},
+        "p2": {"x": 208, "y": 272},
+        "properties": {"resistance": "10 kΩ"}
+      },
+      "C1": {
+        "type": "Capacitor",
+        "p1": {"x": 208, "y": 272},
+        "p2": {"x": 352, "y": 272},
+        "properties": {"capacitance": "10 uF"}
+      },
+      "V1": {
+        "type": "VoltageSource",
+        "p1": {"x": 352, "y": 272},
+        "p2": {"x": 352, "y": 112},
+        "properties": {"waveform": "square", "frequency": "40 Hz", "voltage": "5 V"}
+      },
+      "W1": {
+        "type": "Wire",
+        "p1": {"x": 352, "y": 112},
+        "p2": {"x": 208, "y": 112}
+      }
+    }
+  };
+
+  CircuitJS1.importFromJson(JSON.stringify(circuit));
+  
+  // Run simulation
+  CircuitJS1.setSimRunning(true);
+  
+  return {
+    elementCount: CircuitJS1.getElementCount(),
+    isRunning: CircuitJS1.isRunning()
+  };
+}
+```
+
+### MCP Workflow for Development
+
+1. **Start DevMode**: Run `mvn gwt:devmode` in terminal
+2. **Navigate browser**: Use `navigate_page` to open CircuitJS1
+3. **Wait for load**: Wait ~20-30 seconds for GWT compilation on first load
+4. **Check API availability**: 
+   ```javascript
+   () => typeof CircuitJS1 !== 'undefined'
+   ```
+5. **Interact with API**: Use `evaluate_script` for any API calls
+6. **View console logs**: Use `list_console_messages` to see application logs
+7. **Capture state**: Use `take_screenshot` or `take_snapshot` as needed
+
 ## Global Object
 
 All API methods are available through the global `CircuitJS1` object that is created when the application loads.
@@ -200,14 +330,17 @@ const textData = CircuitJS1.exportCircuit();
 ```
 
 ### importCircuit(text: string, subcircuitsOnly: boolean): void
-Import circuit from text format.
+Import circuit from text format (legacy format).
 
 ```javascript
+// Legacy text format (still supported)
 const circuitText = `$ 1 0.000005 5.459815003314424 50 5 43 5e-11
 r 208 176 384 176 0 1000
 v 208 288 208 176 0 1 40 5 0 0 0.5`;
 
 CircuitJS1.importCircuit(circuitText, false);
+
+// Prefer using importFromJson() with JSON format instead
 ```
 
 ### exportAsJson(): string
@@ -219,12 +352,37 @@ console.log(JSON.parse(jsonData));
 ```
 
 ### importFromJson(json: string): void
-Import circuit from JSON format.
+Import circuit from JSON format (recommended).
 
 ```javascript
-const json = CircuitJS1.exportAsJson();
-// Modify or store...
-CircuitJS1.importFromJson(json);
+// Create circuit programmatically
+const circuit = {
+  "schema": {"format": "circuitjs", "version": "2.0"},
+  "simulation": {
+    "time_step": "5 us",
+    "voltage_range": "5 V"
+  },
+  "elements": {
+    "R1": {
+      "type": "Resistor",
+      "p1": {"x": 208, "y": 176},
+      "p2": {"x": 384, "y": 176},
+      "properties": {"resistance": "1 kΩ"}
+    },
+    "V1": {
+      "type": "VoltageSource", 
+      "p1": {"x": 208, "y": 288},
+      "p2": {"x": 208, "y": 176},
+      "properties": {"waveform": "square", "frequency": "40 Hz", "voltage": "5 V"}
+    }
+  }
+};
+
+CircuitJS1.importFromJson(JSON.stringify(circuit));
+
+// Or re-import exported circuit
+const exported = CircuitJS1.exportAsJson();
+CircuitJS1.importFromJson(exported);
 ```
 
 ### clearCircuit(): void
@@ -350,15 +508,45 @@ CircuitJS1.allowSave(true);
 // Wait for CircuitJS1 to load
 window.oncircuitjsloaded = function(api) {
     
-    // Import a simple RC circuit
-    const circuit = `$ 1 0.000005 10.634267539816555 50 5 50 5e-11
-r 208 112 208 272 0 10000
-c 208 272 352 272 0 0.00001 -2.1287128712871296
-v 352 272 352 112 0 1 40 5 0 0 0.5
-w 352 112 208 112 0
-o 0 64 0 4099 5 0.1 0 2 0 3`;
+    // Import a simple RC circuit using JSON format
+    const circuit = {
+      "schema": {"format": "circuitjs", "version": "2.0"},
+      "simulation": {
+        "time_step": "5 us",
+        "voltage_range": "5 V",
+        "current_speed": 50
+      },
+      "elements": {
+        "R1": {
+          "type": "Resistor",
+          "p1": {"x": 208, "y": 112},
+          "p2": {"x": 208, "y": 272},
+          "properties": {"resistance": "10 kΩ"}
+        },
+        "C1": {
+          "type": "Capacitor",
+          "p1": {"x": 208, "y": 272},
+          "p2": {"x": 352, "y": 272},
+          "properties": {"capacitance": "10 uF"}
+        },
+        "V1": {
+          "type": "VoltageSource",
+          "p1": {"x": 352, "y": 272},
+          "p2": {"x": 352, "y": 112},
+          "properties": {"waveform": "square", "frequency": "40 Hz", "voltage": "5 V"}
+        },
+        "W1": {
+          "type": "Wire",
+          "p1": {"x": 352, "y": 112},
+          "p2": {"x": 208, "y": 112}
+        }
+      },
+      "scopes": [
+        {"element": "C1", "show_voltage": true, "show_current": false}
+      ]
+    };
     
-    api.importCircuit(circuit, false);
+    api.importFromJson(JSON.stringify(circuit));
     
     // Register update hook
     api.onupdate = function() {
@@ -383,9 +571,9 @@ o 0 64 0 4099 5 0.1 0 2 0 3`;
 };
 ```
 
-## Using with Chrome DevTools
+## Using with Chrome DevTools Console
 
-The API can be tested directly in Chrome DevTools console:
+The API can be tested directly in Chrome DevTools console (F12 → Console):
 
 ```javascript
 // Check element count
@@ -403,7 +591,37 @@ CircuitJS1.stepSimulation()
 
 // Export to JSON
 CircuitJS1.exportAsJson()
+
+// View logs
+CircuitJS1.getLogs()
+CircuitJS1.getLastLogs(10)
 ```
+
+### Debugging Tips
+
+1. **Check API availability first:**
+   ```javascript
+   typeof CircuitJS1 !== 'undefined' // should return true
+   ```
+
+2. **List all available methods:**
+   ```javascript
+   Object.keys(CircuitJS1)
+   ```
+
+3. **Monitor simulation in real-time:**
+   ```javascript
+   setInterval(() => {
+     console.log('Time:', CircuitJS1.getTime().toFixed(6));
+   }, 100);
+   ```
+
+4. **Watch element voltages:**
+   ```javascript
+   CircuitJS1.getElements().forEach((elm, i) => {
+     console.log(i, elm.getType(), elm.getVoltageDiff().toFixed(3) + 'V');
+   });
+   ```
 
 ## Notes
 
@@ -413,3 +631,4 @@ CircuitJS1.exportAsJson()
 - Time values are in seconds
 - Voltage values are in Volts
 - Current values are in Amperes
+- GWT DevMode requires ~20-30 seconds for initial compilation on page load
