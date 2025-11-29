@@ -100,7 +100,8 @@ public class Graphics {
 
     public final native void ellipse(double x, double y, double rx, double ry, double ro, double sa, double ea, boolean ccw) /*-{
 	    if (rx >= 0 && ry >= 0) {
-	        context.ellipse(x, y, rx, ry, ro, sa, ea, ccw);
+	        var ctx = this.@com.lushprojects.circuitjs1.client.Graphics::context;
+	        ctx.ellipse(x, y, rx, ry, ro, sa, ea, ccw);
 	    }
 	}-*/;
 

@@ -294,6 +294,37 @@ public class RelayContactElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        if (props.containsKey("label")) {
+            label = String.valueOf(props.get("label"));
+        }
+        
+        r_on = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "on_resistance", "0.05 Ohm"));
+        r_off = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "off_resistance", "1 MOhm"));
+        
+        if (props.containsKey("normally_closed")) {
+            Object val = props.get("normally_closed");
+            if (val instanceof Boolean && (Boolean) val) {
+                flags |= FLAG_NORMALLY_CLOSED;
+            } else {
+                flags &= ~FLAG_NORMALLY_CLOSED;
+            }
+        }
+        if (props.containsKey("iec_symbol")) {
+            Object val = props.get("iec_symbol");
+            if (val instanceof Boolean && (Boolean) val) {
+                flags |= FLAG_IEC;
+            } else {
+                flags &= ~FLAG_IEC;
+            }
+        }
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] {"common", "no"};
     }

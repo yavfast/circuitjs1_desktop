@@ -1504,6 +1504,35 @@ public class Scope extends BaseCirSimDelegate {
         resetGraph();
     }
 
+    /**
+     * Get scale value for the given units type.
+     * @param units UNITS_V, UNITS_A, UNITS_OHMS, or UNITS_W
+     * @return current scale value
+     */
+    public double getScale(int units) {
+        if (units >= 0 && units < scale.length) {
+            return scale[units];
+        }
+        return 1.0;
+    }
+
+    /**
+     * Set scale value for the given units type.
+     * @param units UNITS_V, UNITS_A, UNITS_OHMS, or UNITS_W
+     * @param value new scale value
+     */
+    public void setScale(int units, double value) {
+        if (units >= 0 && units < scale.length && value > 0) {
+            scale[units] = value;
+            // Keep scaleX/scaleY in sync for XY plots
+            if (units == UNITS_V) {
+                scaleX = value;
+            } else if (units == UNITS_A) {
+                scaleY = value;
+            }
+        }
+    }
+
     void properties() {
         properties = cirSim.dialogManager.showScopePropertiesDialog(this);
     }

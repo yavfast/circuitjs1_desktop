@@ -132,7 +132,13 @@ public class RailElm extends VoltageElm {
 
     @Override
     public String getJsonTypeName() {
-        return "Rail";
+        // Return correct type based on waveform
+        switch (waveform) {
+            case WF_AC: return "ACRail";
+            case WF_SQUARE: return "SquareRail";
+            case WF_VAR: return "VariableRail";
+            default: return "Rail";
+        }
     }
 
     @Override

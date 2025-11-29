@@ -256,8 +256,9 @@ public class JsonCircuitExporter implements CircuitExporter {
         // Pins with connections
         String[] pinNames = elm.getJsonPinNames();
         int postCount = elm.getPostCount();
+        JSONObject pins = new JSONObject();
+        
         if (postCount > 0) {
-            JSONObject pins = new JSONObject();
             for (int i = 0; i < postCount && i < pinNames.length; i++) {
                 Point pos = elm.getJsonPinPosition(i);
                 if (pos != null) {
@@ -287,29 +288,33 @@ public class JsonCircuitExporter implements CircuitExporter {
                     pins.put(pinNames[i], pin);
                 }
             }
-            
-            // Add _startpoint if element needs it (delegates to element's getJsonStartPoint)
-            Point startPoint = elm.getJsonStartPoint();
-            if (startPoint != null) {
-                JSONObject startpointPin = new JSONObject();
-                JSONObject startpointPos = new JSONObject();
-                startpointPos.put("x", new JSONNumber(startPoint.x));
-                startpointPos.put("y", new JSONNumber(startPoint.y));
-                startpointPin.put("position", startpointPos);
-                pins.put("_startpoint", startpointPin);
-            }
-            
-            // Add _endpoint if element needs it (delegates to element's getJsonEndPoint)
-            Point endPoint = elm.getJsonEndPoint();
-            if (endPoint != null) {
-                JSONObject endpointPin = new JSONObject();
-                JSONObject endpointPos = new JSONObject();
-                endpointPos.put("x", new JSONNumber(endPoint.x));
-                endpointPos.put("y", new JSONNumber(endPoint.y));
-                endpointPin.put("position", endpointPos);
-                pins.put("_endpoint", endpointPin);
-            }
-            
+        }
+        
+        // Add _startpoint if element needs it (delegates to element's getJsonStartPoint)
+        // This is outside postCount check to support graphic elements (Text, Box, Line)
+        Point startPoint = elm.getJsonStartPoint();
+        if (startPoint != null) {
+            JSONObject startpointPin = new JSONObject();
+            JSONObject startpointPos = new JSONObject();
+            startpointPos.put("x", new JSONNumber(startPoint.x));
+            startpointPos.put("y", new JSONNumber(startPoint.y));
+            startpointPin.put("position", startpointPos);
+            pins.put("_startpoint", startpointPin);
+        }
+        
+        // Add _endpoint if element needs it (delegates to element's getJsonEndPoint)
+        Point endPoint = elm.getJsonEndPoint();
+        if (endPoint != null) {
+            JSONObject endpointPin = new JSONObject();
+            JSONObject endpointPos = new JSONObject();
+            endpointPos.put("x", new JSONNumber(endPoint.x));
+            endpointPos.put("y", new JSONNumber(endPoint.y));
+            endpointPin.put("position", endpointPos);
+            pins.put("_endpoint", endpointPin);
+        }
+        
+        // Only add pins section if there's something in it
+        if (pins.size() > 0) {
             element.put("pins", pins);
         }
 
@@ -412,6 +417,14 @@ public class JsonCircuitExporter implements CircuitExporter {
                 plotMode.put("log_spectrum", JSONBoolean.getInstance(scope.logSpectrum));
                 scopeObj.put("plot_mode", plotMode);
                 
+                // Scale settings for different units
+                JSONObject scales = new JSONObject();
+                scales.put("voltage", new JSONNumber(scope.getScale(Scope.UNITS_V)));
+                scales.put("current", new JSONNumber(scope.getScale(Scope.UNITS_A)));
+                scales.put("ohms", new JSONNumber(scope.getScale(Scope.UNITS_OHMS)));
+                scales.put("watts", new JSONNumber(scope.getScale(Scope.UNITS_W)));
+                scopeObj.put("scales", scales);
+                
                 // Manual scale settings
                 if (scope.isManualScale()) {
                     JSONObject manualScale = new JSONObject();
@@ -444,8 +457,10 @@ public class JsonCircuitExporter implements CircuitExporter {
                                 plotObj.put("color", new JSONString(plot.color));
                             }
                             
-                            // Manual scale for this plot
-                            plotObj.put("scale", new JSONNumber(plot.manScale));
+                            // Manual scale for this plot (skip Infinity values)
+                            if (Double.isFinite(plot.manScale)) {
+                                plotObj.put("scale", new JSONNumber(plot.manScale));
+                            }
                             plotObj.put("v_position", new JSONNumber(plot.manVPosition));
                             
                             // AC coupling

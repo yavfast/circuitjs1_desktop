@@ -70,11 +70,25 @@ public class CircuitElementFactory {
     private static final Map<String, ElementEntry> JSON_TYPE_TO_ENTRY = new HashMap<>();
 
     /**
+     * Flag to track if the factory has been initialized.
+     */
+    private static boolean initialized = false;
+
+    /**
      * Flag to track if the type map has been built.
      */
     private static boolean typeMapBuilt = false;
 
-    static {
+    /**
+     * Initializes the factory by registering all element constructors.
+     * Must be called explicitly before using the factory.
+     */
+    public static void init() {
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+        
         // Register all element constructors
         // The JSON type name is obtained from a temporary instance's getJsonTypeName()
 
@@ -267,6 +281,8 @@ public class CircuitElementFactory {
         register(BoxElm::new);
         register(LineElm::new);
         register(LabeledNodeElm::new);
+        
+        CirSim.console("CircuitElementFactory: initialized with " + ELEMENT_ENTRIES.size() + " element types");
     }
 
     /**
@@ -281,10 +297,14 @@ public class CircuitElementFactory {
     }
 
     /**
+     * Ensures the factory is initialized.
      * Builds the JSON type to entry map from the registered entries.
      * Called lazily on first use.
      */
-    private static void ensureTypeMapBuilt() {
+    private static void ensureInitialized() {
+        if (!initialized) {
+            init();
+        }
         if (typeMapBuilt) {
             return;
         }
@@ -302,7 +322,7 @@ public class CircuitElementFactory {
      * @return The created element, or null if type is unknown
      */
     public static CircuitElm createFromJson(String jsonType, JSONObject elementJson) {
-        ensureTypeMapBuilt();
+        ensureInitialized();
 
         // Get element entry from type mapping
         ElementEntry entry = JSON_TYPE_TO_ENTRY.get(jsonType);
@@ -446,7 +466,7 @@ public class CircuitElementFactory {
      * @return List of all known JSON type names
      */
     public static List<String> getAllJsonTypeNames() {
-        ensureTypeMapBuilt();
+        ensureInitialized();
         return new ArrayList<>(JSON_TYPE_TO_ENTRY.keySet());
     }
 
@@ -454,7 +474,7 @@ public class CircuitElementFactory {
      * Checks if a JSON type is known.
      */
     public static boolean isKnownType(String jsonType) {
-        ensureTypeMapBuilt();
+        ensureInitialized();
         return JSON_TYPE_TO_ENTRY.containsKey(jsonType);
     }
 

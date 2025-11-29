@@ -88,6 +88,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     public CircuitElm getElm(int n) {
+        if (n < 0 || n >= elmList.size()) {
+            CirSim.console("getElm: invalid index " + n + ", size=" + elmList.size());
+            return null;
+        }
         return elmList.get(n);
     }
 

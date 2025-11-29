@@ -179,6 +179,30 @@ public class TextElm extends GraphicElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        
+        if (properties.containsKey("text")) {
+            text = String.valueOf(properties.get("text"));
+            split();
+        }
+        if (properties.containsKey("size")) {
+            Object sizeVal = properties.get("size");
+            if (sizeVal instanceof Number) {
+                size = ((Number) sizeVal).intValue();
+            }
+        }
+        if (properties.containsKey("draw_bar")) {
+            Object drawBar = properties.get("draw_bar");
+            if (drawBar instanceof Boolean && (Boolean) drawBar) {
+                flags |= FLAG_BAR;
+            } else {
+                flags &= ~FLAG_BAR;
+            }
+        }
+    }
+
+    @Override
     public String getJsonTypeName() {
         return "Text";
     }

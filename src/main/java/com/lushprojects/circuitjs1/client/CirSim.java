@@ -61,6 +61,7 @@ import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
+import com.lushprojects.circuitjs1.client.io.json.CircuitElementFactory;
 import com.lushprojects.circuitjs1.client.ui.tabs.TabBarPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -201,6 +202,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     public void init() {
         console("Start");
+        
+        // Note: CircuitElementFactory.init() is called lazily on first JSON import/export
+        // to avoid initialization order issues with element constructors
 
         // Ensure stateListener is attached (it might have been skipped in constructor)
         if (getActiveDocument() != null) {
@@ -944,7 +948,36 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface - Clear circuit
     void clearCircuit() {
-        actionManager.menuPerformed("main", "newblank");
+        CircuitDocument doc = getActiveDocument();
+        CircuitSimulator simulator = doc.simulator;
+        CircuitEditor circuitEditor = doc.circuitEditor;
+        ScopeManager scopeManager = doc.scopeManager;
+        
+        // Clear mouse element reference first
+        circuitEditor.clearMouseElm();
+        
+        // Delete all elements properly
+        for (int i = 0; i < simulator.elmList.size(); i++) {
+            CircuitElm element = simulator.elmList.get(i);
+            element.delete();
+        }
+        
+        // Clear the list
+        simulator.elmList.clear();
+        
+        // Reset scope count
+        scopeManager.setScopeCount(0);
+        
+        // Clear adjustables
+        doc.adjustableManager.reset();
+        
+        // Reset simulation state
+        simulator.t = simulator.timeStepAccum = 0;
+        simulator.lastIterTime = 0;
+        
+        needAnalyze();
+        // Force redraw
+        repaint();
     }
 
     // JSInterface - Reset simulation

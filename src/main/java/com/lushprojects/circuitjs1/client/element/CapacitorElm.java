@@ -314,7 +314,8 @@ public class CapacitorElm extends CircuitElm {
         super.applyJsonProperties(properties);
         capacitance = getJsonDouble(properties, "capacitance", 1e-5);
         initialVoltage = getJsonDouble(properties, "initial_voltage", 1e-3);
-        seriesResistance = getJsonDouble(properties, "series_resistance", 1e-3);
+        // Default to 0 if not specified (no series resistance)
+        seriesResistance = getJsonDouble(properties, "series_resistance", 0);
         if (getJsonBoolean(properties, "back_euler", false)) {
             flags |= FLAG_BACK_EULER;
         }

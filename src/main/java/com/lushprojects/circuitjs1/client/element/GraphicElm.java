@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.Point;
+
 public class GraphicElm extends CircuitElm {
 
     public GraphicElm(int xx, int yy) {
@@ -31,6 +33,22 @@ public class GraphicElm extends CircuitElm {
 
     public int getPostCount() {
         return 0;
+    }
+
+    /**
+     * For graphic elements (no pins), always export _startpoint.
+     */
+    @Override
+    public Point getJsonStartPoint() {
+        return new Point(x, y);
+    }
+
+    /**
+     * For graphic elements (no pins), always export _endpoint.
+     */
+    @Override
+    public Point getJsonEndPoint() {
+        return new Point(x2, y2);
     }
 }
 

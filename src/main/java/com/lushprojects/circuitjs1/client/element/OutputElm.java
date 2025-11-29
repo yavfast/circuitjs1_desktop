@@ -154,6 +154,43 @@ public class OutputElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        
+        if (properties.containsKey("show_voltage")) {
+            Object val = properties.get("show_voltage");
+            if (val instanceof Boolean && (Boolean) val) {
+                flags |= FLAG_VALUE;
+            } else {
+                flags &= ~FLAG_VALUE;
+            }
+        }
+        if (properties.containsKey("scale")) {
+            Object val = properties.get("scale");
+            if (val != null) {
+                String scaleStr = String.valueOf(val);
+                if ("auto".equals(scaleStr)) {
+                    scale = SCALE_AUTO;
+                } else if ("V".equals(scaleStr)) {
+                    scale = 1;
+                } else if ("mV".equals(scaleStr)) {
+                    scale = 2;
+                } else if ("uV".equals(scaleStr)) {
+                    scale = 3;
+                }
+            }
+        }
+        if (properties.containsKey("fixed_precision")) {
+            Object val = properties.get("fixed_precision");
+            if (val instanceof Boolean && (Boolean) val) {
+                flags |= FLAG_FIXED;
+            } else {
+                flags &= ~FLAG_FIXED;
+            }
+        }
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] {"output"};
     }

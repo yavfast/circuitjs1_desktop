@@ -85,8 +85,11 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             // 4. Parse adjustables
             int adjustableCount = parseAdjustables(root, document);
+            
+            // 5. Create UI sliders for adjustables
+            document.adjustableManager.createSliders();
 
-            // 5. Notify document that import is complete
+            // 6. Notify document that import is complete
             document.getCirSim().needAnalyze();
 
             CirSim.console("JSON import: " + elementCount + " elements, " + 
@@ -166,12 +169,12 @@ public class JsonCircuitImporter implements CircuitImporter {
 
         // Speed settings
         JSONValue currentSpeedValue = sim.get("current_speed");
-        if (currentSpeedValue != null && currentSpeedValue.isNumber() != null) {
+        if (currentSpeedValue != null && currentSpeedValue.isNumber() != null && cirSim.currentBar != null) {
             cirSim.currentBar.setValue((int) currentSpeedValue.isNumber().doubleValue());
         }
 
         JSONValue powerBrightnessValue = sim.get("power_brightness");
-        if (powerBrightnessValue != null && powerBrightnessValue.isNumber() != null) {
+        if (powerBrightnessValue != null && powerBrightnessValue.isNumber() != null && cirSim.powerBar != null) {
             cirSim.powerBar.setValue((int) powerBrightnessValue.isNumber().doubleValue());
         }
 
@@ -290,10 +293,10 @@ public class JsonCircuitImporter implements CircuitImporter {
                 scope.position = (int) posValue.isNumber().doubleValue();
             }
 
-            // Speed
+            // Speed - use setSpeed() to sync with plots
             JSONValue speedValue = scopeJson.get("speed");
             if (speedValue != null && speedValue.isNumber() != null) {
-                scope.speed = (int) speedValue.isNumber().doubleValue();
+                scope.setSpeed((int) speedValue.isNumber().doubleValue());
             }
 
             // Display options
@@ -322,6 +325,16 @@ public class JsonCircuitImporter implements CircuitImporter {
                 scope.plotXY = getBoolean(plotMode, "plot_xy", false);
                 scope.maxScale = getBoolean(plotMode, "max_scale", false);
                 scope.logSpectrum = getBoolean(plotMode, "log_spectrum", false);
+            }
+
+            // Scale settings for different units
+            JSONValue scalesValue = scopeJson.get("scales");
+            if (scalesValue != null && scalesValue.isObject() != null) {
+                JSONObject scales = scalesValue.isObject();
+                scope.setScale(Scope.UNITS_V, getDouble(scales, "voltage", 5));
+                scope.setScale(Scope.UNITS_A, getDouble(scales, "current", 1));
+                scope.setScale(Scope.UNITS_OHMS, getDouble(scales, "ohms", 5));
+                scope.setScale(Scope.UNITS_W, getDouble(scales, "watts", 5));
             }
 
             // Add scope at current index
@@ -393,11 +406,10 @@ public class JsonCircuitImporter implements CircuitImporter {
                 adj.maxValue = maxValue.isNumber().doubleValue();
             }
 
-            // Current value
-            JSONValue currentValue = adjJson.get("current_value");
-            if (currentValue != null && currentValue.isNumber() != null) {
-                adj.setSliderValue(currentValue.isNumber().doubleValue());
-            }
+            // Note: current_value is not applied here because slider is not created yet.
+            // The slider will be created with default value by createSliders().
+            // If we need to restore the exact value, we would need to implement
+            // a deferred value setting mechanism.
 
             // Add adjustable directly to the list
             adjustableManager.adjustables.add(adj);
@@ -413,6 +425,14 @@ public class JsonCircuitImporter implements CircuitImporter {
             return defaultValue;
         }
         return value.isBoolean().booleanValue();
+    }
+
+    private double getDouble(JSONObject obj, String key, double defaultValue) {
+        JSONValue value = obj.get(key);
+        if (value == null || value.isNumber() == null) {
+            return defaultValue;
+        }
+        return value.isNumber().doubleValue();
     }
 
     private boolean validateSchema(JSONObject root) {

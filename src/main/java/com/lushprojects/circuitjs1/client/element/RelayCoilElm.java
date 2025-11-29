@@ -430,6 +430,38 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        
+        if (props.containsKey("label")) {
+            label = String.valueOf(props.get("label"));
+        }
+        
+        inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "inductance", "200 mH"));
+        ind.setup(inductance, coilCurrent, Inductor.FLAG_BACK_EULER);
+        
+        onCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "on_current", "20 mA"));
+        offCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "off_current", "15 mA"));
+        coilR = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "coil_resistance", "20 Ohm"));
+        switchingTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
+            getJsonString(props, "switching_time", "5 ms"));
+        
+        if (props.containsKey("type")) {
+            String typeStr = String.valueOf(props.get("type"));
+            if ("normal".equals(typeStr)) type = TYPE_NORMAL;
+            else if ("on_delay".equals(typeStr)) type = TYPE_ON_DELAY;
+            else if ("off_delay".equals(typeStr)) type = TYPE_OFF_DELAY;
+            else if ("latching".equals(typeStr)) type = TYPE_LATCHING;
+        }
+        
+        setupPoles();
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] {"coil+", "coil-"};
     }
