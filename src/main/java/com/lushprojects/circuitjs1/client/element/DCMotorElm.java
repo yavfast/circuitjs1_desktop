@@ -307,4 +307,27 @@ public class DCMotorElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"a", "b"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("angle", angle);
+        state.put("speed", speed);
+        state.put("coilCurrent", coilCurrent);
+        state.put("inertiaCurrent", inertiaCurrent);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("angle"))
+            angle = ((Number) state.get("angle")).doubleValue();
+        if (state.containsKey("speed"))
+            speed = ((Number) state.get("speed")).doubleValue();
+        if (state.containsKey("coilCurrent"))
+            coilCurrent = ((Number) state.get("coilCurrent")).doubleValue();
+        if (state.containsKey("inertiaCurrent"))
+            inertiaCurrent = ((Number) state.get("inertiaCurrent")).doubleValue();
+    }
 }

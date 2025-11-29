@@ -461,4 +461,32 @@ public class ThreePhaseMotorElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"U1", "U2", "V1", "V2", "W1", "W2"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("angle", angle);
+        state.put("speed", speed);
+        state.put("filteredSpeed", filteredSpeed);
+        // Save coil currents
+        for (int i = 0; i < coilCount; i++)
+            state.put("coilCurrent" + i, coilCurrents[i]);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("angle"))
+            angle = ((Number) state.get("angle")).doubleValue();
+        if (state.containsKey("speed"))
+            speed = ((Number) state.get("speed")).doubleValue();
+        if (state.containsKey("filteredSpeed"))
+            filteredSpeed = ((Number) state.get("filteredSpeed")).doubleValue();
+        // Restore coil currents
+        for (int i = 0; i < coilCount; i++) {
+            if (state.containsKey("coilCurrent" + i))
+                coilCurrents[i] = ((Number) state.get("coilCurrent" + i)).doubleValue();
+        }
+    }
 }

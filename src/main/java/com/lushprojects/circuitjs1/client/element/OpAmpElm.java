@@ -347,4 +347,25 @@ public class OpAmpElm extends CircuitElm {
             flags |= FLAG_SWAP;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export op-amp state
+        if (Double.isFinite(lastvd)) {
+            state.put("lastvd", lastvd);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            lastvd = getJsonDouble(stateMap, "lastvd", 0);
+        }
+    }
 }

@@ -319,5 +319,28 @@ public class TriacElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "mt2", "mt1", "gate" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export TRIAC state
+        state.put("on", this.state);
+        if (Double.isFinite(aresistance)) {
+            state.put("aresistance", aresistance);
+        }
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            this.state = getJsonBoolean(stateMap, "on", false);
+            aresistance = getJsonDouble(stateMap, "aresistance", this.state ? .01 : 10e5);
+        }
+    }
 }
 

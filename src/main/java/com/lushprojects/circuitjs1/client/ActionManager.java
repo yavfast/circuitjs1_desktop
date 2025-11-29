@@ -538,6 +538,20 @@ public class ActionManager extends BaseCirSimDelegate {
     }
 
     /**
+     * Dump circuit in specified format with simulation state.
+     * @param formatId Format identifier (e.g., "text", "json")
+     * @return Circuit data as string with simulation state
+     */
+    public String dumpCircuitWithState(String formatId) {
+        CircuitFormat format = CircuitFormatRegistry.getById(formatId);
+        if (format == null) {
+            format = CircuitFormatRegistry.getDefault();
+        }
+        CircuitExporter exporter = format.createExporter();
+        return exporter.export(getActiveDocument(), true);
+    }
+
+    /**
      * Dump circuit in default (text) format.
      * @return Circuit data as string
      */

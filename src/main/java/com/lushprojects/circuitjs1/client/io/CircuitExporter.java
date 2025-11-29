@@ -49,6 +49,17 @@ public interface CircuitExporter {
     }
 
     /**
+     * Export the entire circuit document with optional simulation state.
+     * @param document Circuit document to export
+     * @param includeState If true, include simulation state (pin voltages, currents, etc.)
+     * @return Exported data as string
+     */
+    default String export(CircuitDocument document, boolean includeState) {
+        // Default implementation exports without state
+        return export(document);
+    }
+
+    /**
      * Get the format this exporter produces.
      * @return Associated circuit format
      */

@@ -235,4 +235,21 @@ public class SeqGenElm extends ChipElm {
         props.put("sequence", sb.toString());
         return props;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("bitPosition", bitPosition);
+        state.put("clockstate", clockstate);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("bitPosition"))
+            bitPosition = ((Number) state.get("bitPosition")).intValue();
+        if (state.containsKey("clockstate"))
+            clockstate = (Boolean) state.get("clockstate");
+    }
 }

@@ -325,4 +325,28 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"L1+", "L1-", "L2+", "L2-", "L3+", "L3-"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("heat0", heats[0]);
+        state.put("heat1", heats[1]);
+        state.put("heat2", heats[2]);
+        state.put("blown", blown);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("heat0"))
+            heats[0] = ((Number) state.get("heat0")).doubleValue();
+        if (state.containsKey("heat1"))
+            heats[1] = ((Number) state.get("heat1")).doubleValue();
+        if (state.containsKey("heat2"))
+            heats[2] = ((Number) state.get("heat2")).doubleValue();
+        if (state.containsKey("blown"))
+            blown = (Boolean) state.get("blown");
+        setSwitchPositions();
+    }
 }

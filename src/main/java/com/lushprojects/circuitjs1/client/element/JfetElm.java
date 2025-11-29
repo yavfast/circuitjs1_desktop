@@ -258,4 +258,21 @@ public class JfetElm extends MosfetElm {
         // Parse beta
         beta = getJsonDouble(props, "beta", getDefaultBeta());
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("gateCurrentGS", gateCurrentGS);
+        state.put("gateCurrentGD", gateCurrentGD);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("gateCurrentGS"))
+            gateCurrentGS = ((Number) state.get("gateCurrentGS")).doubleValue();
+        if (state.containsKey("gateCurrentGD"))
+            gateCurrentGD = ((Number) state.get("gateCurrentGD")).doubleValue();
+    }
 }

@@ -465,5 +465,28 @@ public class RelayCoilElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"coil+", "coil-"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("coilCurrent", coilCurrent);
+        state.put("d_position", d_position);
+        state.put("i_position", i_position);
+        state.put("avgCurrent", avgCurrent);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("coilCurrent"))
+            coilCurrent = ((Number) state.get("coilCurrent")).doubleValue();
+        if (state.containsKey("d_position"))
+            d_position = ((Number) state.get("d_position")).doubleValue();
+        if (state.containsKey("i_position"))
+            i_position = ((Number) state.get("i_position")).intValue();
+        if (state.containsKey("avgCurrent"))
+            avgCurrent = ((Number) state.get("avgCurrent")).doubleValue();
+    }
 }
 

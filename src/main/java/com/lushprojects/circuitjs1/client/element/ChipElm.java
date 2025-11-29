@@ -684,5 +684,47 @@ public abstract class ChipElm extends CircuitElm {
         }
         return names;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export pin values (outputs state)
+        if (pins != null) {
+            java.util.Map<String, Object> pinStates = new java.util.LinkedHashMap<>();
+            for (int i = 0; i < pins.length; i++) {
+                if (pins[i].output || pins[i].state) {
+                    pinStates.put(pins[i].text.isEmpty() ? "pin" + (i + 1) : pins[i].text, pins[i].value);
+                }
+            }
+            if (!pinStates.isEmpty()) {
+                state.put("outputs", pinStates);
+            }
+        }
+        // Export last clock state
+        state.put("last_clock", lastClock);
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null && pins != null) {
+            lastClock = getJsonBoolean(stateMap, "last_clock", false);
+            Object outputsObj = stateMap.get("outputs");
+            if (outputsObj instanceof java.util.Map) {
+                java.util.Map<String, Object> outputs = (java.util.Map<String, Object>) outputsObj;
+                for (int i = 0; i < pins.length; i++) {
+                    String pinName = pins[i].text.isEmpty() ? "pin" + (i + 1) : pins[i].text;
+                    if (outputs.containsKey(pinName)) {
+                        pins[i].value = getJsonBoolean(outputs, pinName, false);
+                    }
+                }
+            }
+        }
+    }
 }
 

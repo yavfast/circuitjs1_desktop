@@ -160,4 +160,18 @@ public class TunnelDiodeElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "anode", "cathode" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("lastvoltdiff", lastvoltdiff);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("lastvoltdiff"))
+            lastvoltdiff = ((Number) state.get("lastvoltdiff")).doubleValue();
+    }
 }

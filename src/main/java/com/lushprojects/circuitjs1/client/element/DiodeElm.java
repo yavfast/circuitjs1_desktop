@@ -307,4 +307,25 @@ public class DiodeElm extends CircuitElm {
         }
     }
 
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export diode current
+        if (Double.isFinite(current)) {
+            state.put("current", current);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            current = getJsonDouble(state, "current", 0);
+        }
+    }
+
 }

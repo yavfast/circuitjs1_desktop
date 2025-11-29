@@ -309,5 +309,57 @@ public class TransLineElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "gnd_in", "gnd_out", "sig_in", "sig_out" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export transmission line state
+        state.put("ptr", ptr);
+        if (Double.isFinite(current1)) {
+            state.put("current1", current1);
+        }
+        if (Double.isFinite(current2)) {
+            state.put("current2", current2);
+        }
+        // Export delay line buffers if not too large
+        if (voltageL != null && lenSteps <= 1000) {
+            java.util.List<Double> vL = new java.util.ArrayList<>();
+            java.util.List<Double> vR = new java.util.ArrayList<>();
+            for (int i = 0; i < lenSteps; i++) {
+                vL.add(voltageL[i]);
+                vR.add(voltageR[i]);
+            }
+            state.put("voltageL", vL);
+            state.put("voltageR", vR);
+        }
+        return state;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            ptr = getJsonInt(stateMap, "ptr", 0);
+            current1 = getJsonDouble(stateMap, "current1", 0);
+            current2 = getJsonDouble(stateMap, "current2", 0);
+            // Restore delay line buffers
+            Object vLObj = stateMap.get("voltageL");
+            Object vRObj = stateMap.get("voltageR");
+            if (vLObj instanceof java.util.List && vRObj instanceof java.util.List) {
+                java.util.List<Double> vL = (java.util.List<Double>) vLObj;
+                java.util.List<Double> vR = (java.util.List<Double>) vRObj;
+                if (voltageL != null && voltageL.length == vL.size()) {
+                    for (int i = 0; i < vL.size(); i++) {
+                        voltageL[i] = vL.get(i);
+                        voltageR[i] = vR.get(i);
+                    }
+                }
+            }
+        }
+    }
 }
 

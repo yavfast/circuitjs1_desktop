@@ -167,4 +167,24 @@ public class VaractorElm extends DiodeElm {
     public String[] getJsonPinNames() {
         return new String[] { "anode", "cathode" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("capvoltdiff", capvoltdiff);
+        state.put("capacitance", capacitance);
+        state.put("capCurrent", capCurrent);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("capvoltdiff"))
+            capvoltdiff = ((Number) state.get("capvoltdiff")).doubleValue();
+        if (state.containsKey("capacitance"))
+            capacitance = ((Number) state.get("capacitance")).doubleValue();
+        if (state.containsKey("capCurrent"))
+            capCurrent = ((Number) state.get("capCurrent")).doubleValue();
+    }
 }

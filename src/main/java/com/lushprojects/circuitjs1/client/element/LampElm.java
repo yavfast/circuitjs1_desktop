@@ -271,4 +271,32 @@ public class LampElm extends CircuitElm {
         coolTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
             getJsonString(props, "cooldown_time", "0.4 s"));
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export lamp state (temperature and resistance)
+        if (Double.isFinite(temp)) {
+            state.put("temperature", temp);
+        }
+        if (Double.isFinite(resistance)) {
+            state.put("resistance", resistance);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            temp = getJsonDouble(stateMap, "temperature", roomTemp);
+            resistance = getJsonDouble(stateMap, "resistance", 0);
+            if (resistance == 0) {
+                startIteration(); // recalculate resistance from temperature
+            }
+        }
+    }
 }

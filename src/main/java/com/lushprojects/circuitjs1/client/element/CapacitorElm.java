@@ -323,4 +323,25 @@ public class CapacitorElm extends CircuitElm {
             flags |= FLAG_RESISTANCE;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export the voltage difference (charge state)
+        if (Double.isFinite(voltDiff)) {
+            state.put("voltage_diff", voltDiff);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            voltDiff = getJsonDouble(state, "voltage_diff", initialVoltage);
+        }
+    }
 }

@@ -297,4 +297,24 @@ public class TriodeElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "plate", "grid", "cathode" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("currentp", currentp);
+        state.put("currentg", currentg);
+        state.put("currentc", currentc);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("currentp"))
+            currentp = ((Number) state.get("currentp")).doubleValue();
+        if (state.containsKey("currentg"))
+            currentg = ((Number) state.get("currentg")).doubleValue();
+        if (state.containsKey("currentc"))
+            currentc = ((Number) state.get("currentc")).doubleValue();
+    }
 }

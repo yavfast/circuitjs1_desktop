@@ -515,4 +515,21 @@ public class CustomTransformerElm extends CircuitElm {
         props.put("primary_coils", primaryCoils);
         return props;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        for (int i = 0; i < coilCount; i++)
+            state.put("coilCurrent" + i, coilCurrents[i]);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        for (int i = 0; i < coilCount; i++) {
+            if (state.containsKey("coilCurrent" + i))
+                coilCurrents[i] = ((Number) state.get("coilCurrent" + i)).doubleValue();
+        }
+    }
 }

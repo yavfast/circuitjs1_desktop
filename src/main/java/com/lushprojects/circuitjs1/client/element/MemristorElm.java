@@ -203,4 +203,29 @@ public class MemristorElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export memristor state
+        if (Double.isFinite(dopeWidth)) {
+            state.put("dope_width", dopeWidth);
+        }
+        if (Double.isFinite(resistance)) {
+            state.put("resistance", resistance);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            dopeWidth = getJsonDouble(stateMap, "dope_width", 0);
+            resistance = getJsonDouble(stateMap, "resistance", 100);
+        }
+    }
 }

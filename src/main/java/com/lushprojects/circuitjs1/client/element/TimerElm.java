@@ -248,4 +248,21 @@ public class TimerElm extends ChipElm {
         
         setupPins();
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("out", out);
+        state.put("triggerSuppressed", triggerSuppressed);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("out"))
+            out = (Boolean) state.get("out");
+        if (state.containsKey("triggerSuppressed"))
+            triggerSuppressed = (Boolean) state.get("triggerSuppressed");
+    }
 }

@@ -170,5 +170,22 @@ public class SparkGapElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("state", state);
+        state.put("resistance", resistance);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("state"))
+            this.state = (Boolean) state.get("state");
+        if (state.containsKey("resistance"))
+            resistance = ((Number) state.get("resistance")).doubleValue();
+    }
 }
 

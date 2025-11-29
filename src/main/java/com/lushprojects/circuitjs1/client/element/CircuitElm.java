@@ -1347,6 +1347,87 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return new Point(x2, y2);
     }
 
+    // ==================== JSON State Export/Import Methods ====================
+
+    /**
+     * Returns the simulation state for this element.
+     * The state includes pin voltages/currents and element-specific internal state.
+     * Subclasses should override to add their specific state variables.
+     * 
+     * @return Map containing simulation state, or null if no state to export
+     */
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
+        
+        // Add pin states with named pins
+        int postCount = getPostCount();
+        if (postCount > 0) {
+            String[] pinNames = getJsonPinNames();
+            java.util.Map<String, Object> pins = new java.util.LinkedHashMap<>();
+            
+            for (int i = 0; i < postCount && i < pinNames.length; i++) {
+                java.util.Map<String, Object> pinState = new java.util.LinkedHashMap<>();
+                double voltage = getPostVoltage(i);
+                double current = getCurrentIntoNode(i);
+                
+                // Only add if values are valid (not NaN or Infinite)
+                if (Double.isFinite(voltage)) {
+                    pinState.put("v", voltage);
+                }
+                if (Double.isFinite(current)) {
+                    pinState.put("i", current);
+                }
+                
+                if (!pinState.isEmpty()) {
+                    pins.put(pinNames[i], pinState);
+                }
+            }
+            
+            if (!pins.isEmpty()) {
+                state.put("pins", pins);
+            }
+        }
+        
+        return state.isEmpty() ? null : state;
+    }
+
+    /**
+     * Applies simulation state from JSON import.
+     * Subclasses should override to handle their specific state variables.
+     * 
+     * @param state Map containing simulation state
+     */
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        if (state == null) {
+            return;
+        }
+        
+        // Apply pin voltages if present
+        Object pinsObj = state.get("pins");
+        if (pinsObj instanceof java.util.Map) {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> pins = (java.util.Map<String, Object>) pinsObj;
+            String[] pinNames = getJsonPinNames();
+            
+            for (int i = 0; i < pinNames.length && i < getPostCount(); i++) {
+                Object pinObj = pins.get(pinNames[i]);
+                if (pinObj instanceof java.util.Map) {
+                    @SuppressWarnings("unchecked")
+                    java.util.Map<String, Object> pinState = (java.util.Map<String, Object>) pinObj;
+                    
+                    // Apply voltage
+                    Object voltageObj = pinState.get("v");
+                    if (voltageObj instanceof Number) {
+                        double voltage = ((Number) voltageObj).doubleValue();
+                        if (Double.isFinite(voltage) && i < volts.length) {
+                            volts[i] = voltage;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * Returns the bounds of this element as a map.
      * Used for JSON export. The map contains coordinates

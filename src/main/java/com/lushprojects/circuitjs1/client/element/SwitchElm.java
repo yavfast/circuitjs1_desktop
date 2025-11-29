@@ -296,4 +296,23 @@ public class SwitchElm extends CircuitElm {
             flags |= FLAG_IEC;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export switch position
+        state.put("position", position);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            position = getJsonInt(state, "position", 0);
+        }
+    }
 }

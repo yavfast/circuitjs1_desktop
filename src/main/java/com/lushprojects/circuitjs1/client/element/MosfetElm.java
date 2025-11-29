@@ -669,4 +669,25 @@ public class MosfetElm extends CircuitElm {
             flags |= FLAG_BODY_TERMINAL;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export drain-source current
+        if (Double.isFinite(ids)) {
+            state.put("ids", ids);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            ids = getJsonDouble(state, "ids", 0);
+        }
+    }
 }

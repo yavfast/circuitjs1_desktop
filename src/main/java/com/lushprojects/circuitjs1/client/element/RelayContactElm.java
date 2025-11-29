@@ -328,4 +328,21 @@ public class RelayContactElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"common", "no"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("switchCurrent", switchCurrent);
+        state.put("i_position", i_position);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("switchCurrent"))
+            switchCurrent = ((Number) state.get("switchCurrent")).doubleValue();
+        if (state.containsKey("i_position"))
+            i_position = ((Number) state.get("i_position")).intValue();
+    }
 }

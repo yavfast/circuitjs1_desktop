@@ -925,6 +925,11 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         return actionManager.dumpCircuit("json");
     }
 
+    // JSInterface - Export JSON with simulation state (voltages, currents, internal state)
+    String exportAsJsonWithState() {
+        return actionManager.dumpCircuitWithState("json");
+    }
+
     // JSInterface - Import from JSON
     void importFromJson(String json) {
         importCircuitFromText(json, false);
@@ -1223,6 +1228,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	        
 	        // Circuit export/import - JSON format
 	        exportAsJson: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::exportAsJson()(); } ),
+	        exportAsJsonWithState: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::exportAsJsonWithState()(); } ),
 	        importFromJson: $entry(function(json) { that.@com.lushprojects.circuitjs1.client.CirSim::importFromJson(Ljava/lang/String;)(json); } ),
 	        
 	        // Circuit management

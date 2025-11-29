@@ -183,4 +183,26 @@ public class InductorElm extends CircuitElm {
         }
         ind.setup(inductance, current, flags);
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export the current through inductor (flux state)
+        if (Double.isFinite(current)) {
+            state.put("current", current);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            current = getJsonDouble(state, "current", initialCurrent);
+            ind.resetTo(current);
+        }
+    }
 }

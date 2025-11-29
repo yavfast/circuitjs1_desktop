@@ -673,4 +673,33 @@ public class TransistorElm extends CircuitElm {
             setup();
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export transistor currents
+        if (Double.isFinite(ib)) {
+            state.put("ib", ib);
+        }
+        if (Double.isFinite(ic)) {
+            state.put("ic", ic);
+        }
+        if (Double.isFinite(ie)) {
+            state.put("ie", ie);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            ib = getJsonDouble(state, "ib", 0);
+            ic = getJsonDouble(state, "ic", 0);
+            ie = getJsonDouble(state, "ie", 0);
+        }
+    }
 }

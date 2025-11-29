@@ -614,5 +614,35 @@ public class RelayElm extends CircuitElm {
         
         setupPoles();
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export relay state
+        state.put("on", onState);
+        state.put("position", i_position);
+        if (Double.isFinite(d_position)) {
+            state.put("d_position", d_position);
+        }
+        if (Double.isFinite(coilCurrent)) {
+            state.put("coil_current", coilCurrent);
+        }
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> stateMap) {
+        super.applyJsonState(stateMap);
+        if (stateMap != null) {
+            onState = getJsonBoolean(stateMap, "on", false);
+            i_position = getJsonInt(stateMap, "position", 0);
+            d_position = getJsonDouble(stateMap, "d_position", i_position);
+            coilCurrent = getJsonDouble(stateMap, "coil_current", 0);
+            ind.setup(inductance, coilCurrent, Inductor.FLAG_BACK_EULER);
+        }
+    }
 }
 

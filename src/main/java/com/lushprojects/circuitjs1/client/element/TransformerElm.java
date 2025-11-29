@@ -420,4 +420,29 @@ public class TransformerElm extends CircuitElm {
             width = max(32, abs(y2 - y));
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export winding currents
+        if (Double.isFinite(current[0])) {
+            state.put("current_primary", current[0]);
+        }
+        if (Double.isFinite(current[1])) {
+            state.put("current_secondary", current[1]);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            current[0] = getJsonDouble(state, "current_primary", 0);
+            current[1] = getJsonDouble(state, "current_secondary", 0);
+        }
+    }
 }

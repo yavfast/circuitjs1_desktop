@@ -1298,3 +1298,238 @@ B --|                     |-- B
 
 Параметр `shared_slider` дозволяє декільком регуляторам використовувати один слайдер.
 Значення — це індекс слайдера в масиві `adjustables`, з яким буде синхронізоване значення.
+
+---
+
+## Збереження стану симуляції
+
+При експорті схеми можна зберегти **поточний стан симуляції** — внутрішні змінні елементів,
+які визначають їхню поведінку в даний момент часу. Це дозволяє:
+
+- Продовжити симуляцію з точки зупинки
+- Зберегти стан схеми під час тестування
+- Відтворити конкретний момент роботи схеми
+
+### Опція збереження стану
+
+При експорті у JSON потрібно увімкнути опцію `include_state`:
+
+```json
+{
+  "schema": {
+    "version": "2.0",
+    "include_state": true,
+    ...
+  }
+}
+```
+
+### Структура стану елемента
+
+Стан зберігається в об'єкті `state` кожного елемента:
+
+```json
+{
+  "C1": {
+    "type": "Capacitor",
+    "properties": {
+      "capacitance": "100 uF"
+    },
+    "pins": {...},
+    "state": {
+      "pin_voltages": [5.0, 0.0],
+      "pin_currents": [0.001, -0.001],
+      "voltdiff": 5.0
+    }
+  }
+}
+```
+
+### Базовий стан (для всіх елементів)
+
+Кожен елемент успадковує базовий стан від `CircuitElm`:
+
+| Параметр | Тип | Опис |
+|----------|-----|------|
+| `pin_voltages` | number[] | Напруги на кожному піні елемента |
+| `pin_currents` | number[] | Струми через кожен пін елемента |
+
+### Специфічний стан елементів
+
+Різні типи елементів мають додаткові змінні стану:
+
+#### Пасивні компоненти
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `Capacitor` | `voltdiff` | Різниця напруг на конденсаторі |
+| `Inductor` | `current` | Струм через індуктивність |
+| `Memristor` | `dopeWidth`, `resistance` | Ширина допованої зони, поточний опір |
+
+#### Напівпровідники
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `Diode` | `current` | Струм через діод |
+| `TransistorNPN/PNP` | `ib`, `ic`, `ie` | Струми бази, колектора, емітера |
+| `NMOSFET/PMOSFET` | `ids` | Струм стоку |
+| `NJFET/PJFET` | `gateCurrentGS`, `gateCurrentGD` | Струми затвору |
+| `SCR` | `lastvac`, `lastvag`, `aresistance`, `ia`, `ig` | Стан тиристора |
+| `Triac` | `state`, `i1`, `i2`, `aresistance` | Стан симістора |
+| `Triode` | `currentp`, `currentg`, `currentc` | Струми аноду, сітки, катоду |
+| `VaractorDiode` | `capvoltdiff`, `capacitance`, `capCurrent` | Стан варикапа |
+| `TunnelDiode` | `lastvoltdiff` | Остання різниця напруг |
+
+#### Перемикачі та реле
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `Switch` | `position` | Позиція перемикача |
+| `Relay` | `d_position`, `i_position`, `onState`, `coilCurrent` | Стан реле |
+| `RelayCoil` | `coilCurrent`, `d_position`, `i_position`, `avgCurrent` | Стан котушки реле |
+| `RelayContact` | `switchCurrent`, `i_position` | Стан контакту реле |
+| `Fuse` | `heat`, `blown` | Нагрів, стан перегорання |
+| `SparkGap` | `state`, `resistance` | Стан розрядника |
+| `MotorProtectionSwitch` | `heats`, `blown` | Нагріви фаз, стан спрацювання |
+
+#### Трансформатори
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `Transformer` | `current[0]`, `current[1]` | Струми первинної та вторинної обмоток |
+| `TappedTransformer` | `current[0..3]` | Струми всіх обмоток |
+| `CustomTransformer` | `coilCurrents[]` | Масив струмів всіх обмоток |
+
+#### Двигуни
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `DCMotor` | `angle`, `speed`, `coilCurrent`, `inertiaCurrent` | Кут, швидкість, струми |
+| `ThreePhaseMotor` | `angle`, `speed`, `filteredSpeed`, `coilCurrents[]` | Кут, швидкості, струми фаз |
+
+#### Логічні та таймерні елементи
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `Chip` (базовий) | `values[]`, `lastClock` | Вихідні значення, стан clock |
+| `Timer555` | `out`, `triggerSuppressed` | Стан виходу, пригнічення тригера |
+| `Monostable` | `prevInputValue`, `triggered`, `lastRisingEdge` | Стан моностабільного мультивібратора |
+| `SeqGen` | `bitPosition`, `clockstate` | Позиція біта, стан clock |
+| `Sweep` | `frequency`, `freqTime`, `dir`, `v` | Параметри розгортки |
+| `TimeDelayRelay` | `lastTransition`, `poweredState`, `onState`, `resistance` | Стан реле затримки |
+
+#### Інші елементи
+
+| Елемент | Змінні стану | Опис |
+|---------|--------------|------|
+| `OpAmp` | `lastvd` | Остання різниця напруг на входах |
+| `Lamp` | `temp`, `resistance` | Температура нитки, опір |
+| `TransmissionLine` | `ptr`, `current1`, `current2` | Вказівник буфера, струми |
+| `CompositeElement` | `subElements[]` | Стан всіх підлеглих елементів |
+
+### Приклад експорту зі станом
+
+```json
+{
+  "schema": {
+    "version": "2.0",
+    "name": "RC фільтр",
+    "include_state": true
+  },
+  
+  "elements": {
+    "R1": {
+      "type": "Resistor",
+      "properties": {"resistance": "1 kOhm"},
+      "pins": {...},
+      "state": {
+        "pin_voltages": [5.0, 2.5],
+        "pin_currents": [0.0025, -0.0025]
+      }
+    },
+    "C1": {
+      "type": "Capacitor",
+      "properties": {"capacitance": "100 uF"},
+      "pins": {...},
+      "state": {
+        "pin_voltages": [2.5, 0.0],
+        "pin_currents": [0.0025, -0.0025],
+        "voltdiff": 2.5
+      }
+    },
+    "Q1": {
+      "type": "TransistorNPN",
+      "properties": {"hfe": 100},
+      "pins": {...},
+      "state": {
+        "pin_voltages": [0.7, 5.0, 0.0],
+        "pin_currents": [0.0001, 0.01, -0.0101],
+        "ib": 0.0001,
+        "ic": 0.01,
+        "ie": 0.0101
+      }
+    },
+    "M1": {
+      "type": "DCMotor",
+      "properties": {"coilInductance": "0.01 H"},
+      "pins": {...},
+      "state": {
+        "pin_voltages": [12.0, 0.0],
+        "pin_currents": [0.5, -0.5],
+        "angle": 45.7,
+        "speed": 1500.0,
+        "coilCurrent": 0.5,
+        "inertiaCurrent": 0.1
+      }
+    }
+  }
+}
+```
+
+### Застосування стану при імпорті
+
+При імпорті схеми зі станом, симулятор:
+
+1. Створює всі елементи схеми
+2. Відновлює напруги та струми пінів
+3. Відновлює специфічні змінні стану кожного елемента
+4. Продовжує симуляцію з відновленого стану
+
+### Програмний API
+
+#### Експорт стану
+
+```java
+// Експорт схеми зі станом
+JsonCircuitExporter exporter = new JsonCircuitExporter(sim.getCircuit());
+String json = exporter.exportToString(true); // true = includeState
+```
+
+#### Імпорт стану
+
+```java
+// Імпорт та відновлення стану
+JsonCircuitImporter importer = new JsonCircuitImporter(json);
+importer.importCircuit(sim.getCircuit());
+// Стан автоматично відновлюється, якщо присутній у JSON
+```
+
+#### Методи елементів
+
+Кожен елемент реалізує методи для роботи зі станом:
+
+```java
+// В класі елемента
+@Override
+public JsObject getJsonState() {
+    JsObject obj = super.getJsonState(); // Базові напруги/струми
+    obj.set("voltdiff", voltdiff);       // Специфічний стан
+    return obj;
+}
+
+@Override
+public void applyJsonState(JsObject state) {
+    super.applyJsonState(state);         // Відновити напруги/струми
+    voltdiff = state.getDouble("voltdiff", 0.0);
+}
+```

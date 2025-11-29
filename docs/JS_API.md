@@ -344,15 +344,37 @@ CircuitJS1.importCircuit(circuitText, false);
 ```
 
 ### exportAsJson(): string
-Export circuit in JSON format (version 2.0).
+Export circuit in JSON format (version 2.0) without simulation state.
 
 ```javascript
 const jsonData = CircuitJS1.exportAsJson();
 console.log(JSON.parse(jsonData));
 ```
 
+### exportAsJsonWithState(): string
+Export circuit in JSON format (version 2.0) including simulation state (pin voltages, currents, internal element states).
+
+This method includes additional `state` field for each element containing:
+- `pins`: Object with pin names as keys, each containing `v` (voltage) and `i` (current into node)
+- Element-specific state like `voltage_diff` for capacitors, `current` for inductors, `ib`/`ic`/`ie` for transistors
+
+```javascript
+const jsonData = CircuitJS1.exportAsJsonWithState();
+const circuit = JSON.parse(jsonData);
+
+// Access capacitor state
+const capState = circuit.elements.C1.state;
+console.log('Capacitor voltage difference:', capState.voltage_diff);
+console.log('Pin1 voltage:', capState.pins.pin1.v);
+
+// Access transistor state
+const transistorState = circuit.elements.Q1.state;
+console.log('Base voltage:', transistorState.pins.base.v);
+console.log('Collector current:', transistorState.ic);
+```
+
 ### importFromJson(json: string): void
-Import circuit from JSON format (recommended).
+Import circuit from JSON format (recommended). Supports importing simulation state if present.
 
 ```javascript
 // Create circuit programmatically

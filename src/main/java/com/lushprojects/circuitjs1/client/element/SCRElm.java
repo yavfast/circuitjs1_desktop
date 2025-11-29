@@ -336,5 +336,34 @@ public class SCRElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "anode", "cathode", "gate" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        if (state == null) {
+            state = new java.util.LinkedHashMap<>();
+        }
+        // Export SCR state
+        if (Double.isFinite(lastvac)) {
+            state.put("lastvac", lastvac);
+        }
+        if (Double.isFinite(lastvag)) {
+            state.put("lastvag", lastvag);
+        }
+        if (Double.isFinite(aresistance)) {
+            state.put("aresistance", aresistance);
+        }
+        return state.isEmpty() ? null : state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state != null) {
+            lastvac = getJsonDouble(state, "lastvac", 0);
+            lastvag = getJsonDouble(state, "lastvag", 0);
+            aresistance = getJsonDouble(state, "aresistance", 1);
+        }
+    }
 }
 

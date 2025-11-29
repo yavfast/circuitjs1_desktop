@@ -56,13 +56,21 @@ public class JsonCircuitExporter implements CircuitExporter {
     private final JsonCircuitFormat format;
     private int elementCounter;
     private Map<CircuitElm, String> elementIds;
+    private boolean includeState;
 
     public JsonCircuitExporter(JsonCircuitFormat format) {
         this.format = format;
+        this.includeState = false;
     }
 
     @Override
     public String export(CircuitDocument document) {
+        return export(document, false);
+    }
+
+    @Override
+    public String export(CircuitDocument document, boolean includeState) {
+        this.includeState = includeState;
         elementCounter = 0;
         elementIds = new HashMap<>();
 
@@ -322,6 +330,18 @@ public class JsonCircuitExporter implements CircuitExporter {
         int flags = elm.getJsonFlags();
         if (flags != 0) {
             element.put("_flags", new JSONNumber(flags));
+        }
+
+        // State (simulation state - voltages, currents, internal state)
+        if (includeState) {
+            java.util.Map<String, Object> state = elm.getJsonState();
+            if (state != null && !state.isEmpty()) {
+                JSONObject stateObj = new JSONObject();
+                for (java.util.Map.Entry<String, Object> entry : state.entrySet()) {
+                    stateObj.put(entry.getKey(), toJsonValue(entry.getValue()));
+                }
+                element.put("state", stateObj);
+            }
         }
 
         return element;
@@ -584,6 +604,7 @@ public class JsonCircuitExporter implements CircuitExporter {
         return id;
     }
 
+    @SuppressWarnings("unchecked")
     private JSONValue toJsonValue(Object value) {
         if (value == null) {
             return JSONNull.getInstance();
@@ -593,6 +614,14 @@ public class JsonCircuitExporter implements CircuitExporter {
             return new JSONNumber(((Number) value).doubleValue());
         } else if (value instanceof Boolean) {
             return JSONBoolean.getInstance((Boolean) value);
+        } else if (value instanceof java.util.Map) {
+            // Handle nested Map (for state pins)
+            JSONObject obj = new JSONObject();
+            java.util.Map<String, Object> map = (java.util.Map<String, Object>) value;
+            for (java.util.Map.Entry<String, Object> entry : map.entrySet()) {
+                obj.put(entry.getKey(), toJsonValue(entry.getValue()));
+            }
+            return obj;
         } else {
             return new JSONString(value.toString());
         }

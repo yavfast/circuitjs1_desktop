@@ -449,6 +449,13 @@ public class CircuitElementFactory {
             elm.applyJsonProperties(propsMap);
         }
 
+        // Apply simulation state (voltages, currents, internal state)
+        JSONValue stateValue = elementJson.get("state");
+        if (stateValue != null && stateValue.isObject() != null) {
+            Map<String, Object> stateMap = jsonObjectToMap(stateValue.isObject());
+            elm.applyJsonState(stateMap);
+        }
+
         // Apply description
         JSONValue descValue = elementJson.get("description");
         if (descValue != null && descValue.isString() != null) {

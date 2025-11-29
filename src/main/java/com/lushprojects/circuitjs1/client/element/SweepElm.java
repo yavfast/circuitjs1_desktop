@@ -271,4 +271,28 @@ public class SweepElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "output" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("frequency", frequency);
+        state.put("freqTime", freqTime);
+        state.put("dir", dir);
+        state.put("v", v);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("frequency"))
+            frequency = ((Number) state.get("frequency")).doubleValue();
+        if (state.containsKey("freqTime"))
+            freqTime = ((Number) state.get("freqTime")).doubleValue();
+        if (state.containsKey("dir"))
+            dir = ((Number) state.get("dir")).intValue();
+        if (state.containsKey("v"))
+            v = ((Number) state.get("v")).doubleValue();
+        setParams();
+    }
 }

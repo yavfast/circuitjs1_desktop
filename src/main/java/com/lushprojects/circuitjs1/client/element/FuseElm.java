@@ -218,4 +218,21 @@ public class FuseElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("heat", heat);
+        state.put("blown", blown);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("heat"))
+            heat = ((Number) state.get("heat")).doubleValue();
+        if (state.containsKey("blown"))
+            blown = (Boolean) state.get("blown");
+    }
 }

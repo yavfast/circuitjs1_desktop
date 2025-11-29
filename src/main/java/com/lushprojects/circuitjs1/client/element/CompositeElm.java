@@ -443,4 +443,36 @@ public abstract class CompositeElm extends CircuitElm {
         return c;
     }
 
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        // Save state of all sub-elements
+        java.util.List<Object> subStates = new java.util.ArrayList<>();
+        for (CircuitElm elm : compElmList) {
+            java.util.Map<String, Object> subState = elm.getJsonState();
+            if (subState != null && !subState.isEmpty()) {
+                subStates.add(subState);
+            }
+        }
+        if (!subStates.isEmpty()) {
+            state.put("subElements", subStates);
+        }
+        return state;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // Restore state of all sub-elements
+        if (state.containsKey("subElements")) {
+            java.util.List<Object> subStates = (java.util.List<Object>) state.get("subElements");
+            int count = Math.min(subStates.size(), compElmList.size());
+            for (int i = 0; i < count; i++) {
+                java.util.Map<String, Object> subState = (java.util.Map<String, Object>) subStates.get(i);
+                compElmList.get(i).applyJsonState(subState);
+            }
+        }
+    }
+
 }

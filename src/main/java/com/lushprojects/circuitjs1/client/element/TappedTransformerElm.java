@@ -350,4 +350,27 @@ public class TappedTransformerElm extends CircuitElm {
     public String[] getJsonPinNames() {
         return new String[] {"pri1", "pri2", "sec1", "tap", "sec2"};
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("current0", current[0]);
+        state.put("current1", current[1]);
+        state.put("current2", current[2]);
+        state.put("current3", current[3]);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("current0"))
+            current[0] = ((Number) state.get("current0")).doubleValue();
+        if (state.containsKey("current1"))
+            current[1] = ((Number) state.get("current1")).doubleValue();
+        if (state.containsKey("current2"))
+            current[2] = ((Number) state.get("current2")).doubleValue();
+        if (state.containsKey("current3"))
+            current[3] = ((Number) state.get("current3")).doubleValue();
+    }
 }

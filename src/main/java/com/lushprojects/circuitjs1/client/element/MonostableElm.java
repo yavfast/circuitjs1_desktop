@@ -137,4 +137,24 @@ public class MonostableElm extends ChipElm {
         props.put("retriggerable", retriggerable);
         return props;
     }
+
+    @Override
+    public java.util.Map<String, Object> getJsonState() {
+        java.util.Map<String, Object> state = super.getJsonState();
+        state.put("prevInputValue", prevInputValue);
+        state.put("triggered", triggered);
+        state.put("lastRisingEdge", lastRisingEdge);
+        return state;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        if (state.containsKey("prevInputValue"))
+            prevInputValue = (Boolean) state.get("prevInputValue");
+        if (state.containsKey("triggered"))
+            triggered = (Boolean) state.get("triggered");
+        if (state.containsKey("lastRisingEdge"))
+            lastRisingEdge = ((Number) state.get("lastRisingEdge")).doubleValue();
+    }
 }
