@@ -446,7 +446,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             int mousePost = circuitEditor.mousePost;
             if (mousePost == -1) {
                 mouseElm.getInfo(infoLines);
-                infoLines[0] = Locale.LS(infoLines[0]);
+                // Add element ID to the header
+                String id = mouseElm.getElementId();
+                if (id != null && !id.isEmpty()) {
+                    infoLines[0] = "[" + id + "] " + Locale.LS(infoLines[0]);
+                } else {
+                    infoLines[0] = Locale.LS(infoLines[0]);
+                }
                 if (infoLines[1] != null) {
                     infoLines[1] = Locale.LS(infoLines[1]);
                 }
@@ -490,7 +496,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             x = scopeManager().scopes[scopeCount - 1].rightEdge() + 20;
         }
 
-        int yBase = circuitArea.height;
+        // When no scopes, info box is drawn at bottom-right with fixed height
+        // Calculate yBase so text appears inside the info box area
+        int yBase;
+        if (scopeCount == 0) {
+            // Info box starts at canvasHeight - infoBoxHeight, where infoBoxHeight is approximately 20% of canvas
+            // We need to draw text starting from there
+            int h0 = (int) (canvasHeight * scopeHeightFraction);
+            int infoBoxHeight = (circuitEditor.mouseElm == null) ? 70 : h0;
+            yBase = canvasHeight - infoBoxHeight;
+        } else {
+            yBase = circuitArea.height;
+        }
         for (lineIdx = 0; infoLines[lineIdx] != null; lineIdx++) {
             graphics.drawString(infoLines[lineIdx], x, yBase + 15 * (lineIdx + 1));
         }
