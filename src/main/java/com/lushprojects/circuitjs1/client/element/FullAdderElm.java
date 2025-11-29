@@ -19,20 +19,22 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 public class FullAdderElm extends ChipElm {
-    public FullAdderElm(int xx, int yy) {
-        super(xx, yy);
+    public FullAdderElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         flags |= FLAG_BITS;
         bits = 4;
         setupPins();
     }
 
-    public FullAdderElm(int xa, int ya, int xb, int yb, int f,
+    public FullAdderElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         if (!needsBits())
             bits = 1;
         setupPins();

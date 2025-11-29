@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -37,8 +39,8 @@ public class OpAmpElm extends CircuitElm {
     final int FLAG_LOWGAIN = 4;
     final int FLAG_GAIN = 8;
 
-    public OpAmpElm(int xx, int yy) {
-        super(xx, yy);
+    public OpAmpElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = true;
         maxOut = 15;
         minOut = -15;
@@ -49,9 +51,9 @@ public class OpAmpElm extends CircuitElm {
         setSize(2); // default size
     }
 
-    public OpAmpElm(int xa, int ya, int xb, int yb, int f,
+    public OpAmpElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         maxOut = 15;
         minOut = -15;
         // GBW has no effect in this version of the simulator, but we

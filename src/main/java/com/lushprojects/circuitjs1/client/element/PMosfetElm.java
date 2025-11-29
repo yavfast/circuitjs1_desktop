@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class PMosfetElm extends MosfetElm {
-    public PMosfetElm(int xx, int yy) {
-        super(xx, yy, true);
+    public PMosfetElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, true);
     }
 
     public Class getDumpClass() {

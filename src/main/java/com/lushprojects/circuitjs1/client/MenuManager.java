@@ -25,11 +25,13 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem aboutCircuitsItem;
     MenuItem aboutCircuitsPLItem;
     MenuItem closeItem;
-    //CheckboxMenuItem fullscreenCheckItem;
-    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem, exportAsJsonItem,
+    // CheckboxMenuItem fullscreenCheckItem;
+    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
+            exportAsJsonItem,
             printItem, recoverItem, saveFileItem, openLastClosedTabItem;
-    //MenuItem importFromDropboxItem;
-    MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem, flipXYItem, modItem;
+    // MenuItem importFromDropboxItem;
+    MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem,
+            flipXYItem, modItem;
     MenuBar optionsMenuBar;
 
     public CheckboxMenuItem dotsCheckItem;
@@ -79,7 +81,6 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuBar drawMenuBar;
     MenuBar circuitsMenuBar;
 
-
     public Vector<CheckboxMenuItem> mainMenuItems = new Vector<>();
     public Vector<String> mainMenuItemNames = new Vector<>();
 
@@ -127,30 +128,36 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(menuItemWithShortcut("window", "New Window...", Locale.LS(ctrlMetaKey + "N"),
                 new MyCommand("file", "newwindow")));
         fileMenuBar.addItem(iconMenuItem("doc-new", "New Blank Circuit", new MyCommand("file", "newblankcircuit")));
-        
+
         // Add Open Last Closed Tab
-        openLastClosedTabItem = menuItemWithShortcut("back-in-time", "Open Last Closed Tab", Locale.LS(ctrlMetaKey + "Shift-T"),
+        openLastClosedTabItem = menuItemWithShortcut("back-in-time", "Open Last Closed Tab",
+                Locale.LS(ctrlMetaKey + "Shift-T"),
                 new MyCommand("file", "openlastclosedtab"));
         fileMenuBar.addItem(openLastClosedTabItem);
-        
+
         importFromLocalFileItem = menuItemWithShortcut("folder", "Open File...", Locale.LS(ctrlMetaKey + "O"),
                 new MyCommand("file", "importfromlocalfile"));
         importFromLocalFileItem.setEnabled(LoadFile.isSupported());
         fileMenuBar.addItem(importFromLocalFileItem);
         importFromTextItem = iconMenuItem("doc-text", "Import From Text...", new MyCommand("file", "importfromtext"));
         fileMenuBar.addItem(importFromTextItem);
-        //importFromDropboxItem = iconMenuItem("dropbox", "Import From Dropbox...", new MyCommand("file", "importfromdropbox"));
-        //fileMenuBar.addItem(importFromDropboxItem);
-        //if (isElectron()) {
+        // importFromDropboxItem = iconMenuItem("dropbox", "Import From Dropbox...", new
+        // MyCommand("file", "importfromdropbox"));
+        // fileMenuBar.addItem(importFromDropboxItem);
+        // if (isElectron()) {
         saveFileItem = fileMenuBar.addItem(menuItemWithShortcut("floppy", "Save", Locale.LS(ctrlMetaKey + "S"),
                 new MyCommand("file", "save")));
         fileMenuBar.addItem(iconMenuItem("floppy", "Save As...", new MyCommand("file", "saveas")));
-	/*} else {
-	    exportAsLocalFileItem = menuItemWithShortcut("floppy", "Save As...", Locale.LS(ctrlMetaKey + "S"),
-		    new MyCommand("file","exportaslocalfile"));
-	    exportAsLocalFileItem.setEnabled(ExportAsLocalFileDialog.downloadIsSupported());
-	    fileMenuBar.addItem(exportAsLocalFileItem);
-	}*/
+        /*
+         * } else {
+         * exportAsLocalFileItem = menuItemWithShortcut("floppy", "Save As...",
+         * Locale.LS(ctrlMetaKey + "S"),
+         * new MyCommand("file","exportaslocalfile"));
+         * exportAsLocalFileItem.setEnabled(ExportAsLocalFileDialog.downloadIsSupported(
+         * ));
+         * fileMenuBar.addItem(exportAsLocalFileItem);
+         * }
+         */
         exportAsUrlItem = iconMenuItem("export", "Export As Link...", new MyCommand("file", "exportasurl"));
         fileMenuBar.addItem(exportAsUrlItem);
         exportAsTextItem = iconMenuItem("export", "Export As Text...", new MyCommand("file", "exportastext"));
@@ -160,12 +167,14 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(iconMenuItem("image", "Export As Image...", new MyCommand("file", "exportasimage")));
         fileMenuBar.addItem(iconMenuItem("image", "Copy Circuit Image to Clipboard", new MyCommand("file", "copypng")));
         fileMenuBar.addItem(iconMenuItem("image", "Export As SVG...", new MyCommand("file", "exportassvg")));
-        fileMenuBar.addItem(iconMenuItem("microchip", "Create Subcircuit...", new MyCommand("file", "createsubcircuit")));
+        fileMenuBar
+                .addItem(iconMenuItem("microchip", "Create Subcircuit...", new MyCommand("file", "createsubcircuit")));
         fileMenuBar.addItem(iconMenuItem("magic", "Find DC Operating Point", new MyCommand("file", "dcanalysis")));
         recoverItem = iconMenuItem("back-in-time", "Recover Auto-Save", new MyCommand("file", "recover"));
         recoverItem.setEnabled(getActiveDocument().undoManager.recovery != null);
         fileMenuBar.addItem(recoverItem);
-        printItem = menuItemWithShortcut("print", "Print...", Locale.LS(ctrlMetaKey + "P"), new MyCommand("file", "print"));
+        printItem = menuItemWithShortcut("print", "Print...", Locale.LS(ctrlMetaKey + "P"),
+                new MyCommand("file", "print"));
         fileMenuBar.addItem(printItem);
         fileMenuBar.addSeparator();
         fileMenuBar.addItem(iconMenuItem("resize-full-alt", "Toggle Full Screen", new MyCommand("view", "fullscreen")));
@@ -178,28 +187,35 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         /*
-        aboutItem = iconMenuItem("info-circled", "About...", (Command)null);
-        fileMenuBar.addItem(aboutItem);
-        aboutItem.setScheduledCommand(new MyCommand("file","about"));
-        */
+         * aboutItem = iconMenuItem("info-circled", "About...", (Command)null);
+         * fileMenuBar.addItem(aboutItem);
+         * aboutItem.setScheduledCommand(new MyCommand("file","about"));
+         */
 
         menuBar.addItem(Locale.LS("File"), fileMenuBar);
     }
 
     void initEditMenuBar() {
         MenuBar m = new MenuBar(true);
-        m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"), new MyCommand("edit", "undo")));
-        m.addItem(redoItem = menuItemWithShortcut("cw", "Redo", Locale.LS(ctrlMetaKey + "Y"), new MyCommand("edit", "redo")));
+        m.addItem(undoItem = menuItemWithShortcut("ccw", "Undo", Locale.LS(ctrlMetaKey + "Z"),
+                new MyCommand("edit", "undo")));
+        m.addItem(redoItem = menuItemWithShortcut("cw", "Redo", Locale.LS(ctrlMetaKey + "Y"),
+                new MyCommand("edit", "redo")));
         m.addSeparator();
-        m.addItem(cutItem = menuItemWithShortcut("scissors", "Cut", Locale.LS(ctrlMetaKey + "X"), new MyCommand("edit", "cut")));
-        m.addItem(copyItem = menuItemWithShortcut("copy", "Copy", Locale.LS(ctrlMetaKey + "C"), new MyCommand("edit", "copy")));
-        m.addItem(pasteItem = menuItemWithShortcut("paste", "Paste", Locale.LS(ctrlMetaKey + "V"), new MyCommand("edit", "paste")));
+        m.addItem(cutItem = menuItemWithShortcut("scissors", "Cut", Locale.LS(ctrlMetaKey + "X"),
+                new MyCommand("edit", "cut")));
+        m.addItem(copyItem = menuItemWithShortcut("copy", "Copy", Locale.LS(ctrlMetaKey + "C"),
+                new MyCommand("edit", "copy")));
+        m.addItem(pasteItem = menuItemWithShortcut("paste", "Paste", Locale.LS(ctrlMetaKey + "V"),
+                new MyCommand("edit", "paste")));
         pasteItem.setEnabled(false);
 
-        m.addItem(menuItemWithShortcut("clone", "Duplicate", Locale.LS(ctrlMetaKey + "D"), new MyCommand("edit", "duplicate")));
+        m.addItem(menuItemWithShortcut("clone", "Duplicate", Locale.LS(ctrlMetaKey + "D"),
+                new MyCommand("edit", "duplicate")));
 
         m.addSeparator();
-        m.addItem(selectAllItem = menuItemWithShortcut("select-all", "Select All", Locale.LS(ctrlMetaKey + "A"), new MyCommand("edit", "selectAll")));
+        m.addItem(selectAllItem = menuItemWithShortcut("select-all", "Select All", Locale.LS(ctrlMetaKey + "A"),
+                new MyCommand("edit", "selectAll")));
         m.addSeparator();
         m.addItem(menuItemWithShortcut("search", "Find Component...", "/", new MyCommand("edit", "search")));
         m.addItem(iconMenuItem("target", "Center Circuit", new MyCommand("edit", "centrecircuit")));
@@ -225,7 +241,8 @@ public class MenuManager extends BaseCirSimDelegate {
         m.addItem(stackAllItem = iconMenuItem("lines", "Stack All", new MyCommand("scopes", "stackAll")));
         m.addItem(unstackAllItem = iconMenuItem("columns", "Unstack All", new MyCommand("scopes", "unstackAll")));
         m.addItem(combineAllItem = iconMenuItem("object-group", "Combine All", new MyCommand("scopes", "combineAll")));
-        m.addItem(separateAllItem = iconMenuItem("object-ungroup", "Separate All", new MyCommand("scopes", "separateAll")));
+        m.addItem(separateAllItem = iconMenuItem("object-ungroup", "Separate All",
+                new MyCommand("scopes", "separateAll")));
         menuBar.addItem(Locale.LS("Scopes"), m);
     }
 
@@ -255,7 +272,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 }));
         m.addItem(showValuesCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Show Values")));
         showValuesCheckItem.setState(true);
-        //m.add(conductanceCheckItem = getCheckItem(LS("Show Conductance")));
+        // m.add(conductanceCheckItem = getCheckItem(LS("Show Conductance")));
         m.addItem(smallGridCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Small Grid"),
                 new Command() {
                     public void execute() {
@@ -335,14 +352,16 @@ public class MenuManager extends BaseCirSimDelegate {
 
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Shortcuts..."), new MyCommand("options", "shortcuts")));
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Subcircuits..."), new MyCommand("options", "subcircuits")));
-        m.addItem(optionsItem = new CheckboxAlignedMenuItem(Locale.LS("Other Options..."), new MyCommand("options", "other")));
+        m.addItem(optionsItem = new CheckboxAlignedMenuItem(Locale.LS("Other Options..."),
+                new MyCommand("options", "other")));
         m.addItem(modItem = new CheckboxAlignedMenuItem("Modification Setup...", new MyCommand("options", "modsetup")));
         modItem.addStyleName("modItem");
         if (cirSim.isElectron())
             m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options", "devtools")));
     }
 
-    // this is called twice, once for the Draw menu, once for the right mouse popup menu
+    // this is called twice, once for the Draw menu, once for the right mouse popup
+    // menu
     public void composeMainMenu(MenuBar mainMenuBar, int num) {
         mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Wire"), "WireElm"));
         mainMenuBar.addItem(getClassCheckItem(Locale.LS("Add Resistor"), "ResistorElm"));
@@ -371,7 +390,8 @@ public class MenuManager extends BaseCirSimDelegate {
         passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Fuse"), "FuseElm"));
         passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Crystal"), "CrystalElm"));
         passMenuBar.addItem(getClassCheckItem(Locale.LS("Add Cross Switch"), "CrossSwitchElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Passive Components")), passMenuBar);
+        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(
+                CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Passive Components")), passMenuBar);
 
         MenuBar inputMenuBar = new MenuBar(true);
         inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Ground"), "GroundElm"));
@@ -392,7 +412,8 @@ public class MenuManager extends BaseCirSimDelegate {
         inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Data Input"), "DataInputElm"));
         inputMenuBar.addItem(getClassCheckItem(Locale.LS("Add External Voltage (JavaScript)"), "ExtVoltageElm"));
 
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Inputs and Sources")), inputMenuBar);
+        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(
+                CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Inputs and Sources")), inputMenuBar);
 
         MenuBar outputMenuBar = new MenuBar(true);
         outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Analog Output"), "OutputElm"));
@@ -414,7 +435,8 @@ public class MenuManager extends BaseCirSimDelegate {
         outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add Stop Trigger"), "StopTriggerElm"));
         outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add DC Motor"), "DCMotorElm"));
         outputMenuBar.addItem(getClassCheckItem(Locale.LS("Add 3-Phase Motor"), "ThreePhaseMotorElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Outputs and Labels")), outputMenuBar);
+        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(
+                CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Outputs and Labels")), outputMenuBar);
 
         MenuBar activeMenuBar = new MenuBar(true);
         activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Diode"), "DiodeElm"));
@@ -434,7 +456,8 @@ public class MenuManager extends BaseCirSimDelegate {
         activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Tunnel Diode"), "TunnelDiodeElm"));
         activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Triode"), "TriodeElm"));
         activeMenuBar.addItem(getClassCheckItem(Locale.LS("Add Unijunction Transistor"), "UnijunctionElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Components")), activeMenuBar);
+        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(
+                CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Components")), activeMenuBar);
 
         MenuBar activeBlocMenuBar = new MenuBar(true);
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Op Amp (ideal, - on top)"), "OpAmpElm"));
@@ -444,23 +467,32 @@ public class MenuManager extends BaseCirSimDelegate {
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Analog Switch (SPDT)"), "AnalogSwitch2Elm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Tristate Buffer"), "TriStateElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Schmitt Trigger"), "SchmittElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Schmitt Trigger (Inverting)"), "InvertingSchmittElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Schmitt Trigger (Inverting)"), "InvertingSchmittElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Delay Buffer"), "DelayBufferElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add CCII+"), "CC2Elm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add CCII-"), "CC2NegElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Comparator (Hi-Z/GND output)"), "ComparatorElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add OTA (LM13700 style)"), "OTAElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Voltage Source (VCVS)"), "VCVSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Current Source (VCCS)"), "VCCSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Voltage Source (CCVS)"), "CCVSElm"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Current Source (CCCS)"), "CCCSElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Voltage Source (VCVS)"), "VCVSElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Voltage-Controlled Current Source (VCCS)"), "VCCSElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Voltage Source (CCVS)"), "CCVSElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Current-Controlled Current Source (CCCS)"), "CCCSElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Optocoupler"), "OptocouplerElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Time Delay Relay"), "TimeDelayRelayElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add LM317"), "CustomCompositeElm:~LM317-v2"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add TL431"), "CustomCompositeElm:~TL431"));
-        activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Motor Protection Switch"), "MotorProtectionSwitchElm"));
+        activeBlocMenuBar
+                .addItem(getClassCheckItem(Locale.LS("Add Motor Protection Switch"), "MotorProtectionSwitchElm"));
         activeBlocMenuBar.addItem(getClassCheckItem(Locale.LS("Add Subcircuit Instance"), "CustomCompositeElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Building Blocks")), activeBlocMenuBar);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(
+                        CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Active Building Blocks")),
+                activeBlocMenuBar);
 
         MenuBar gateMenuBar = new MenuBar(true);
         gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add Logic Input"), "LogicInputElm"));
@@ -471,7 +503,10 @@ public class MenuManager extends BaseCirSimDelegate {
         gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add AND Gate"), "AndGateElm"));
         gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add OR Gate"), "OrGateElm"));
         gateMenuBar.addItem(getClassCheckItem(Locale.LS("Add XOR Gate"), "XorGateElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Logic Gates, Input and Output")), gateMenuBar);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(
+                        CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Logic Gates, Input and Output")),
+                gateMenuBar);
 
         MenuBar chipMenuBar = new MenuBar(true);
         chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add D Flip-Flop"), "DFlipFlopElm"));
@@ -490,9 +525,14 @@ public class MenuManager extends BaseCirSimDelegate {
         chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Sequence generator"), "SeqGenElm"));
         chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Adder"), "FullAdderElm"));
         chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Half Adder"), "HalfAdderElm"));
-        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Custom Logic"), "UserDefinedLogicElm")); // don't change this, it will break people's saved shortcuts
+        chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Custom Logic"), "UserDefinedLogicElm")); // don't change
+                                                                                                      // this, it will
+                                                                                                      // break people's
+                                                                                                      // saved shortcuts
         chipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Static RAM"), "SRAMElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Digital Chips")), chipMenuBar);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Digital Chips")),
+                chipMenuBar);
 
         MenuBar achipMenuBar = new MenuBar(true);
         achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add 555 Timer"), "TimerElm"));
@@ -501,12 +541,17 @@ public class MenuManager extends BaseCirSimDelegate {
         achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add ADC"), "ADCElm"));
         achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add VCO"), "VCOElm"));
         achipMenuBar.addItem(getClassCheckItem(Locale.LS("Add Monostable"), "MonostableElm"));
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Analog and Hybrid Chips")), achipMenuBar);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(
+                        CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Analog and Hybrid Chips")),
+                achipMenuBar);
 
         if (subcircuitMenuBar == null)
             subcircuitMenuBar = new MenuBar[2];
         subcircuitMenuBar[num] = new MenuBar(true);
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Subcircuits")), subcircuitMenuBar[num]);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Subcircuits")),
+                subcircuitMenuBar[num]);
 
         MenuBar otherMenuBar = new MenuBar(true);
         CheckboxMenuItem mi;
@@ -520,7 +565,9 @@ public class MenuManager extends BaseCirSimDelegate {
         otherMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Drag Post"), "DragPost"));
         mi.setShortcut("(" + ctrlMetaKey + "drag)");
 
-        mainMenuBar.addItem(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Drag")), otherMenuBar);
+        mainMenuBar.addItem(
+                SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + Locale.LS("&nbsp;</div>Drag")),
+                otherMenuBar);
 
         mainMenuBar.addItem(mi = getClassCheckItem(Locale.LS("Select/Drag Sel"), "Select"));
         mi.setShortcut(Locale.LS("(space or Shift-drag)"));
@@ -532,11 +579,12 @@ public class MenuManager extends BaseCirSimDelegate {
         String shortcut = "";
         CircuitElm elm = null;
         try {
-            elm = CircuitElmCreator.constructElement(t, 0, 0);
+            // Note: passing null for document is OK here since we only need shortcut info
+            elm = CircuitElmCreator.constructElement(null, t, 0, 0);
         } catch (Exception e) {
         }
         CheckboxMenuItem mi;
-        //  register(c, elm);
+        // register(c, elm);
         if (elm != null) {
             if (elm.needsShortcut()) {
                 int sc = elm.getShortcut();
@@ -565,7 +613,8 @@ public class MenuManager extends BaseCirSimDelegate {
             return;
         int mi;
 
-        // there are two menus to update: the one in the Draw menu, and the one in the right mouse menu
+        // there are two menus to update: the one in the Draw menu, and the one in the
+        // right mouse menu
         for (mi = 0; mi != 2; mi++) {
             MenuBar menu = subcircuitMenuBar[mi];
             menu.clearItems();
@@ -599,7 +648,8 @@ public class MenuManager extends BaseCirSimDelegate {
             l = simulator.getNthScopeElm(j).elmScope.getScopeLabelOrText();
             if (l != "")
                 s += " (" + SafeHtmlUtils.htmlEscape(l) + ")";
-            selectScopeMenuItems.add(new MenuItem(s, new MyCommand("elm", "addToScope" + Integer.toString(scopeManager.scopeCount + j))));
+            selectScopeMenuItems.add(new MenuItem(s,
+                    new MyCommand("elm", "addToScope" + Integer.toString(scopeManager.scopeCount + j))));
         }
         for (MenuItem mi : selectScopeMenuItems)
             sb.addItem(mi);
@@ -618,7 +668,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 for (i = 0; i != selectScopeMenuItems.size(); i++) {
                     MenuItem item = selectScopeMenuItems.get(i);
                     if (DOM.isOrHasChild(item.getElement(), DOM.eventGetTarget(event))) {
-                        //MenuItem found here
+                        // MenuItem found here
                         currentItem = i;
                     }
                 }
@@ -635,9 +685,12 @@ public class MenuManager extends BaseCirSimDelegate {
         };
 
         elmMenuBar.addItem(elmEditMenuItem = new MenuItem(Locale.LS("Edit..."), new MyCommand("elm", "edit")));
-        elmMenuBar.addItem(elmScopeMenuItem = new MenuItem(Locale.LS("View in New Scope"), new MyCommand("elm", "viewInScope")));
-        elmMenuBar.addItem(elmFloatScopeMenuItem = new MenuItem(Locale.LS("View in New Undocked Scope"), new MyCommand("elm", "viewInFloatScope")));
-        elmMenuBar.addItem(elmAddScopeMenuItem = new MenuItem(Locale.LS("Add to Existing Scope"), new MyCommand("elm", "addToScope0")));
+        elmMenuBar.addItem(
+                elmScopeMenuItem = new MenuItem(Locale.LS("View in New Scope"), new MyCommand("elm", "viewInScope")));
+        elmMenuBar.addItem(elmFloatScopeMenuItem = new MenuItem(Locale.LS("View in New Undocked Scope"),
+                new MyCommand("elm", "viewInFloatScope")));
+        elmMenuBar.addItem(elmAddScopeMenuItem = new MenuItem(Locale.LS("Add to Existing Scope"),
+                new MyCommand("elm", "addToScope0")));
         elmMenuBar.addItem(elmCutMenuItem = new MenuItem(Locale.LS("Cut"), new MyCommand("elm", "cut")));
         elmMenuBar.addItem(elmCopyMenuItem = new MenuItem(Locale.LS("Copy"), new MyCommand("elm", "copy")));
         elmMenuBar.addItem(elmDeleteMenuItem = new MenuItem(Locale.LS("Delete"), new MyCommand("elm", "delete")));
@@ -646,7 +699,8 @@ public class MenuManager extends BaseCirSimDelegate {
         elmMenuBar.addItem(elmFlipXMenuItem = new MenuItem(Locale.LS("Flip X"), new MyCommand("elm", "flipx")));
         elmMenuBar.addItem(elmFlipYMenuItem = new MenuItem(Locale.LS("Flip Y"), new MyCommand("elm", "flipy")));
         elmMenuBar.addItem(elmFlipXYMenuItem = new MenuItem(Locale.LS("Flip XY"), new MyCommand("elm", "flipxy")));
-        elmMenuBar.addItem(elmSplitMenuItem = menuItemWithShortcut("", "Split Wire", Locale.LS(ctrlMetaKey + "click"), new MyCommand("elm", "split")));
+        elmMenuBar.addItem(elmSplitMenuItem = menuItemWithShortcut("", "Split Wire", Locale.LS(ctrlMetaKey + "click"),
+                new MyCommand("elm", "split")));
         elmMenuBar.addItem(elmSliderMenuItem = new MenuItem(Locale.LS("Sliders..."), new MyCommand("elm", "sliders")));
     }
 
@@ -682,7 +736,8 @@ public class MenuManager extends BaseCirSimDelegate {
         h.addItem(aboutCircuitsPLItem = iconMenuItem("link", "About Circuits (Polish ver.)",
                 new Command() {
                     public void execute() {
-                        CirSim.executeJS("nw.Shell.openExternal('https://www.falstad.com/circuit/polish/e-index.html');");
+                        CirSim.executeJS(
+                                "nw.Shell.openExternal('https://www.falstad.com/circuit/polish/e-index.html');");
                     }
                 }));
 
@@ -715,13 +770,15 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem menuItemWithShortcut(String icon, String text, String shortcut, MyCommand cmd) {
         final String edithtml = "<div style=\"white-space:nowrap\"><div style=\"display:inline-block;width:100%;\"><i class=\"cirjsicon-";
         String nbsp = "&nbsp;";
-        if (icon == "") nbsp = "";
+        if (icon == "")
+            nbsp = "";
         String sn = edithtml + icon + "\"></i>" + nbsp + Locale.LS(text) + "</div>" + shortcut + "</div>";
         return new MenuItem(SafeHtmlUtils.fromTrustedString(sn), cmd);
     }
 
     MenuItem iconMenuItem(String icon, String text, Command cmd) {
-        String icoStr = "<i class=\"cirjsicon-" + icon + "\"></i>&nbsp;" + Locale.LS(text); //<i class="cirjsicon-"></i>&nbsp;
+        String icoStr = "<i class=\"cirjsicon-" + icon + "\"></i>&nbsp;" + Locale.LS(text); // <i
+                                                                                            // class="cirjsicon-"></i>&nbsp;
         return new MenuItem(SafeHtmlUtils.fromTrustedString(icoStr), cmd);
     }
 
@@ -754,8 +811,10 @@ public class MenuManager extends BaseCirSimDelegate {
             if (scopeManager.scopes[scopeManager.scopeSelected].canMenu()) {
                 scopeManager.menuScope = scopeManager.scopeSelected;
                 menuPlot = scopeManager.scopes[scopeManager.scopeSelected].selectedPlot;
-                scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected), scopeManager.canCombineScope(scopeManager.scopeSelected),
-                        scopeManager.canUnstackScope(scopeManager.scopeSelected), scopeManager.scopes[scopeManager.scopeSelected]);
+                scopePopupMenu.doScopePopupChecks(false, scopeManager.canStackScope(scopeManager.scopeSelected),
+                        scopeManager.canCombineScope(scopeManager.scopeSelected),
+                        scopeManager.canUnstackScope(scopeManager.scopeSelected),
+                        scopeManager.scopes[scopeManager.scopeSelected]);
 
                 if (contextPanel != null && contextPanel.isShowing()) {
                     contextPanel.hide();
@@ -779,7 +838,8 @@ public class MenuManager extends BaseCirSimDelegate {
                 if ((scopeManager.scopeCount + simulator.countScopeElms()) <= 1) {
                     elmAddScopeMenuItem.setCommand(new MyCommand("elm", "addToScope0"));
                     elmAddScopeMenuItem.setSubMenu(null);
-                    elmAddScopeMenuItem.setEnabled(mouseElm.canViewInScope() && (scopeManager.scopeCount + simulator.countScopeElms()) > 0);
+                    elmAddScopeMenuItem.setEnabled(
+                            mouseElm.canViewInScope() && (scopeManager.scopeCount + simulator.countScopeElms()) > 0);
                 } else {
                     composeSelectScopeMenu(selectScopeMenuBar);
                     elmAddScopeMenuItem.setCommand(null);
@@ -856,8 +916,9 @@ public class MenuManager extends BaseCirSimDelegate {
 
     static int lastSubcircuitMenuUpdate;
 
-    // check/uncheck/enable/disable menu items as appropriate when menu bar clicked on, or when
-    // right mouse menu accessed.  also displays shortcuts as a side effect
+    // check/uncheck/enable/disable menu items as appropriate when menu bar clicked
+    // on, or when
+    // right mouse menu accessed. also displays shortcuts as a side effect
     void doMainMenuChecks() {
         int c = mainMenuItems.size();
         int i;
@@ -865,10 +926,11 @@ public class MenuManager extends BaseCirSimDelegate {
             String s = mainMenuItemNames.get(i);
             mainMenuItems.get(i).setState(s == circuitEditor().mouseModeStr);
 
-            // Code to disable draw menu items when cct is not editable, but no used in this version as it
+            // Code to disable draw menu items when cct is not editable, but no used in this
+            // version as it
             // puts up a dialog box instead (see menuPerformed).
-            //if (s.length() > 3 && s.substring(s.length()-3)=="Elm")
-            //mainMenuItems.get(i).setEnabled(!noEditCheckItem.getState());
+            // if (s.length() > 3 && s.substring(s.length()-3)=="Elm")
+            // mainMenuItems.get(i).setEnabled(!noEditCheckItem.getState());
         }
 
         if (openLastClosedTabItem != null) {
@@ -877,8 +939,10 @@ public class MenuManager extends BaseCirSimDelegate {
 
         ScopeManager scopeManager = scopeManager();
 
-        stackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position > 0);
-        unstackAllItem.setEnabled(scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position != scopeManager.scopeCount - 1);
+        stackAllItem.setEnabled(
+                scopeManager.scopeCount > 1 && scopeManager.scopes[scopeManager.scopeCount - 1].position > 0);
+        unstackAllItem.setEnabled(scopeManager.scopeCount > 1
+                && scopeManager.scopes[scopeManager.scopeCount - 1].position != scopeManager.scopeCount - 1);
         combineAllItem.setEnabled(scopeManager.scopeCount > 1);
         separateAllItem.setEnabled(scopeManager.scopeCount > 0);
 
@@ -927,6 +991,5 @@ public class MenuManager extends BaseCirSimDelegate {
             setShortcut(className, c);
         }
     }
-
 
 }

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.TextArea;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -34,16 +36,16 @@ public class SRAMElm extends ChipElm {
     HashMap<Integer, Integer> map;
     public static String contentsOverride = null;
 
-    public SRAMElm(int xx, int yy) {
-        super(xx, yy);
+    public SRAMElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         addressBits = dataBits = 4;
         map = new HashMap<Integer, Integer>();
         setupPins();
     }
 
-    public SRAMElm(int xa, int ya, int xb, int yb, int f,
+    public SRAMElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         map = new HashMap<Integer, Integer>();
         addressBits = Integer.parseInt(st.nextToken());
         dataBits = Integer.parseInt(st.nextToken());

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -31,16 +33,16 @@ public class LogicInputElm extends SwitchElm {
     final int FLAG_NUMERIC = 2;
     double hiV, loV;
 
-    public LogicInputElm(int xx, int yy) {
-        super(xx, yy, false);
+    public LogicInputElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
         hiV = 5;
         loV = 0;
 
     }
 
-    public LogicInputElm(int xa, int ya, int xb, int yb, int f,
+    public LogicInputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                          StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         try {
             hiV = parseDouble(st.nextToken());
             loV = parseDouble(st.nextToken());

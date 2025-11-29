@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -41,8 +43,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     String label;
     final double blownResistance = 1e9;
 
-    public MotorProtectionSwitchElm(int xx, int yy) {
-        super(xx, yy);
+    public MotorProtectionSwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         // from https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
         i2t = 6.73;
         resistance = .0613;
@@ -52,9 +54,9 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         label = "";
     }
 
-    public MotorProtectionSwitchElm(int xa, int ya, int xb, int yb, int f,
+    public MotorProtectionSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
         blown = new Boolean(st.nextToken()).booleanValue();

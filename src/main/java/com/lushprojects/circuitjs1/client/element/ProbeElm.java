@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
@@ -48,8 +50,8 @@ public class ProbeElm extends CircuitElm {
     final int TP_PWI = 8;
     final int TP_DUT = 9; //mark to space ratio
 
-    public ProbeElm(int xx, int yy) {
-        super(xx, yy);
+    public ProbeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         meter = TP_VOL;
 
         // default for new elements
@@ -58,9 +60,9 @@ public class ProbeElm extends CircuitElm {
         resistance = 1e7;
     }
 
-    public ProbeElm(int xa, int ya, int xb, int yb, int f,
+    public ProbeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         meter = TP_VOL;
         scale = SCALE_AUTO;
         resistance = 0;

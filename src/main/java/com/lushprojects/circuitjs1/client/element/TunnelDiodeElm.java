@@ -19,20 +19,22 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class TunnelDiodeElm extends CircuitElm {
-    public TunnelDiodeElm(int xx, int yy) {
-        super(xx, yy);
+    public TunnelDiodeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setup();
     }
 
-    public TunnelDiodeElm(int xa, int ya, int xb, int yb, int f,
+    public TunnelDiodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         setup();
     }
 

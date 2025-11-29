@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
@@ -17,15 +19,15 @@ public class CustomLogicElm extends ChipElm {
     boolean highImpedance[];
     static String lastModelName = "default";
 
-    public CustomLogicElm(int xx, int yy) {
-        super(xx, yy);
+    public CustomLogicElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         modelName = lastModelName;
         setupPins();
     }
 
-    public CustomLogicElm(int xa, int ya, int xb, int yb, int f,
+    public CustomLogicElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         modelName = CustomLogicModel.unescape(st.nextToken());
         updateModels();
         int i;

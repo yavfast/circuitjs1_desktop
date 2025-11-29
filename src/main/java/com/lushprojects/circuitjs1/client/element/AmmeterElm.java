@@ -22,6 +22,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -45,15 +47,15 @@ public class AmmeterElm extends CircuitElm {
     double currents[];
     boolean increasingI = true, decreasingI = true;
 
-    public AmmeterElm(int xx, int yy) {
-        super(xx, yy);
+    public AmmeterElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         flags = FLAG_SHOWCURRENT | FLAG_CIRCLE;
         scale = SCALE_AUTO;
     }
 
-    public AmmeterElm(int xa, int ya, int xb, int yb, int f,
+    public AmmeterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         scale = SCALE_AUTO;
         meter = Integer.parseInt(st.nextToken());
         try {

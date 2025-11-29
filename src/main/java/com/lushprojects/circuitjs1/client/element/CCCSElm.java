@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.ExprState;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -30,17 +32,17 @@ public class CCCSElm extends VCCSElm {
     static int FLAG_SPICE = 2;
     VoltageElm voltageSources[];
 
-    public CCCSElm(int xa, int ya, int xb, int yb, int f,
+    public CCCSElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
 //	    exprString = CustomLogicModel.unescape(st.nextToken());
 //	    inputCount = 2;
 //	    parseExpr();
         setupPins();
     }
 
-    public CCCSElm(int xx, int yy) {
-        super(xx, yy);
+    public CCCSElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         exprString = "2*a";
         parseExpr();
 //	    setupPins();

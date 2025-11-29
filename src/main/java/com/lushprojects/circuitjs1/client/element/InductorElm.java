@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -29,16 +31,16 @@ public class InductorElm extends CircuitElm {
     public double inductance;
     double initialCurrent;
 
-    public InductorElm(int xx, int yy) {
-        super(xx, yy);
+    public InductorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         ind = new Inductor();
         inductance = 1;
         ind.setup(inductance, current, flags);
     }
 
-    public InductorElm(int xa, int ya, int xb, int yb, int f,
+    public InductorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         ind = new Inductor();
         inductance = parseDouble(st.nextToken());
         current = parseDouble(st.nextToken());

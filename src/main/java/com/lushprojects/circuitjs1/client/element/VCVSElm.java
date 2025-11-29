@@ -19,17 +19,19 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.ExprState;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class VCVSElm extends VCCSElm {
-    public VCVSElm(int xa, int ya, int xb, int yb, int f,
+    public VCVSElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
-    public VCVSElm(int xx, int yy) {
-        super(xx, yy);
+    public VCVSElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
     void setupPins() {

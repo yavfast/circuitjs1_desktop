@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -30,8 +32,8 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 public class MemristorElm extends CircuitElm {
     double r_on, r_off, dopeWidth, totalWidth, mobility, resistance;
 
-    public MemristorElm(int xx, int yy) {
-        super(xx, yy);
+    public MemristorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         r_on = 100;
         r_off = 160 * r_on;
         dopeWidth = 0;
@@ -40,9 +42,9 @@ public class MemristorElm extends CircuitElm {
         resistance = 100;
     }
 
-    public MemristorElm(int xa, int ya, int xb, int yb, int f,
+    public MemristorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         r_on = parseDouble(st.nextToken());
         r_off = parseDouble(st.nextToken());
         dopeWidth = parseDouble(st.nextToken());

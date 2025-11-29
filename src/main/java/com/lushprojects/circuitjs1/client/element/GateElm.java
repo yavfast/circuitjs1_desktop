@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -37,8 +39,8 @@ public abstract class GateElm extends CircuitElm {
     public static double lastHighVoltage = 5;
     static boolean lastSchmitt = false;
 
-    public GateElm(int xx, int yy) {
-        super(xx, yy);
+    public GateElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = true;
         inputCount = 2;
 
@@ -51,9 +53,9 @@ public abstract class GateElm extends CircuitElm {
         setSize(2); // default size
     }
 
-    public GateElm(int xa, int ya, int xb, int yb, int f,
+    public GateElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         inputCount = parseInt(st.nextToken());
         double lastOutputVoltage = parseDouble(st.nextToken());
         noDiagonal = true;

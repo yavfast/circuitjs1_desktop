@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -32,14 +34,14 @@ public class StopTriggerElm extends CircuitElm {
     double delay, triggerTime;
     int type;
 
-    public StopTriggerElm(int xx, int yy) {
-        super(xx, yy);
+    public StopTriggerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         triggerVoltage = 1;
     }
 
-    public StopTriggerElm(int xa, int ya, int xb, int yb, int f,
+    public StopTriggerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         triggerVoltage = Double.parseDouble(st.nextToken());
         type = Integer.parseInt(st.nextToken());
         delay = Double.parseDouble(st.nextToken());

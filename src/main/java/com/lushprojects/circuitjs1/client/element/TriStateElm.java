@@ -20,6 +20,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -38,8 +40,8 @@ public class TriStateElm extends CircuitElm {
     final int FLAG_FLIP_X = 2;
     final int FLAG_FLIP_Y = 4;
 
-    public TriStateElm(int xx, int yy) {
-        super(xx, yy);
+    public TriStateElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         r_on = 0.1;
         r_off = 1e10;
         r_off_ground = 1e8;
@@ -49,8 +51,8 @@ public class TriStateElm extends CircuitElm {
         highVoltage = GateElm.lastHighVoltage;
     }
 
-    public TriStateElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public TriStateElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         r_on = 0.1;
         r_off = 1e10;
         r_off_ground = 0;

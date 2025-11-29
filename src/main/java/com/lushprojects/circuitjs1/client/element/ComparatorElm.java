@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -18,8 +20,8 @@ public class ComparatorElm extends CompositeElm {
     Polygon triangle;
     Font plusFont;
 
-    public ComparatorElm(int xx, int yy) {
-        super(xx, yy, modelString, modelExternalNodes);
+    public ComparatorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, modelString, modelExternalNodes);
         noDiagonal = true;
         // Note: simUi.menuManager may not be available during factory registration
         // Size will be properly set when element is actually placed on canvas
@@ -27,8 +29,8 @@ public class ComparatorElm extends CompositeElm {
     }
 
 
-    public ComparatorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
+    public ComparatorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
         noDiagonal = true;
         setSize((f & FLAG_SMALL) != 0 ? 1 : 2);
     }

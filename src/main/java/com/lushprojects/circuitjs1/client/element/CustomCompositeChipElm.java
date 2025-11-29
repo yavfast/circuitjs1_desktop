@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Graphics;
 
@@ -27,8 +29,8 @@ import com.lushprojects.circuitjs1.client.Graphics;
 public class CustomCompositeChipElm extends ChipElm {
     String label;
 
-    public CustomCompositeChipElm(int xx, int yy) {
-        super(xx, yy);
+    public CustomCompositeChipElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setSize(2);
     }
 

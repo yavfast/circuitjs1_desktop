@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // Silicon-Controlled Rectifier
 // 3 nodes, 1 internal node
 // 0 = anode, 1 = cathode, 2 = gate
@@ -43,16 +45,16 @@ public class SCRElm extends CircuitElm {
     Diode diode;
     int dir;
 
-    public SCRElm(int xx, int yy) {
-        super(xx, yy);
+    public SCRElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setDefaults();
         flags |= FLAG_GATE_FIX;
         setup();
     }
 
-    public SCRElm(int xa, int ya, int xb, int yb, int f,
+    public SCRElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         setDefaults();
         try {
             lastvac = parseDouble(st.nextToken());

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -33,17 +35,17 @@ public class TransLineElm extends CircuitElm {
     int lenSteps, ptr, width;
     int lastStepCount;
 
-    public TransLineElm(int xx, int yy) {
-        super(xx, yy);
+    public TransLineElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         delay = 1000 * simulator().maxTimeStep;
         imped = 75;
         noDiagonal = true;
         reset();
     }
 
-    public TransLineElm(int xa, int ya, int xb, int yb, int f,
+    public TransLineElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         delay = parseDouble(st.nextToken());
         imped = parseDouble(st.nextToken());
         width = parseInt(st.nextToken());

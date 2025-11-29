@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -43,13 +45,13 @@ public class TimerElm extends ChipElm {
 
     int ground;
 
-    public TimerElm(int xx, int yy) {
-        super(xx, yy);
+    public TimerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public TimerElm(int xa, int ya, int xb, int yb, int f,
+    public TimerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
     String getChipName() {

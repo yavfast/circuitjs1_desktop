@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -30,8 +32,8 @@ public class SparkGapElm extends CircuitElm {
     double resistance, onresistance, offresistance, breakdown, holdcurrent;
     boolean state;
 
-    public SparkGapElm(int xx, int yy) {
-        super(xx, yy);
+    public SparkGapElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         offresistance = 1e9;
         onresistance = 1e3;
         breakdown = 1e3;
@@ -39,9 +41,9 @@ public class SparkGapElm extends CircuitElm {
         state = false;
     }
 
-    public SparkGapElm(int xa, int ya, int xb, int yb, int f,
+    public SparkGapElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         onresistance = parseDouble(st.nextToken());
         offresistance = parseDouble(st.nextToken());
         breakdown = parseDouble(st.nextToken());

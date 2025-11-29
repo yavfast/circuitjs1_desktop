@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
@@ -59,8 +61,8 @@ public class RelayContactElm extends CircuitElm {
     double currentOffset1, currentOffset2;
     Point extraPoints[];
 
-    public RelayContactElm(int xx, int yy) {
-        super(xx, yy);
+    public RelayContactElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = true;
         r_on = .05;
         r_off = 1e6;
@@ -68,9 +70,9 @@ public class RelayContactElm extends CircuitElm {
         flags |= FLAG_IEC;
     }
 
-    public RelayContactElm(int xa, int ya, int xb, int yb, int f,
+    public RelayContactElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                            StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         label = CustomLogicModel.unescape(st.nextToken());
         r_on = parseDouble(st.nextToken());
         r_off = parseDouble(st.nextToken());

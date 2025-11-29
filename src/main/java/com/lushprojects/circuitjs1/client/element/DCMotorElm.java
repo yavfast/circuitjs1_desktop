@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -26,8 +28,8 @@ public class DCMotorElm extends CircuitElm {
     double inertiaCurrent;
     int[] voltSources = new int[2];
 
-    public DCMotorElm(int xx, int yy) {
-        super(xx, yy);
+    public DCMotorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         ind = new Inductor();
         indInertia = new Inductor();
         inductance = .5;
@@ -45,9 +47,9 @@ public class DCMotorElm extends CircuitElm {
 
     }
 
-    public DCMotorElm(int xa, int ya, int xb, int yb, int f,
+    public DCMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         angle = pi / 2;
         speed = 0;
         //read:

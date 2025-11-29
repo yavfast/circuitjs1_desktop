@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
@@ -70,8 +72,8 @@ public class OpAmpRealElm extends CompositeElm {
     final double defaultCurrentLimit = .0231;
     final int FLAG_SWAP = 2;
 
-    public OpAmpRealElm(int xx, int yy) {
-        super(xx, yy); // , model741String, model741ExternalNodes);
+    public OpAmpRealElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy); // , model741String, model741ExternalNodes);
         noDiagonal = true;
         slewRate = .6;
         currentLimit = defaultCurrentLimit;
@@ -79,8 +81,8 @@ public class OpAmpRealElm extends CompositeElm {
         initModel();
     }
 
-    public OpAmpRealElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f); // , null, model741String, model741ExternalNodes);
+    public OpAmpRealElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f); // , null, model741String, model741ExternalNodes);
         noDiagonal = true;
         slewRate = Double.parseDouble(st.nextToken());
         capValue = Double.parseDouble(st.nextToken());

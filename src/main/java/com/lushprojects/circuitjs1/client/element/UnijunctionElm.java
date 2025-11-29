@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -31,13 +33,13 @@ public class UnijunctionElm extends CompositeElm {
 
     final int FLAG_FLIP = 2;
 
-    public UnijunctionElm(int xx, int yy) {
-        super(xx, yy);
+    public UnijunctionElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setup();
     }
 
-    public UnijunctionElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public UnijunctionElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         setup();
     }
 

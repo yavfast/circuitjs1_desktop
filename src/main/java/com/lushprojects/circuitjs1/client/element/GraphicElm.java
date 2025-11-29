@@ -19,16 +19,18 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Point;
 
 public class GraphicElm extends CircuitElm {
 
-    public GraphicElm(int xx, int yy) {
-        super(xx, yy);
+    public GraphicElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public GraphicElm(int xa, int ya, int xb, int yb, int flags) {
-        super(xa, ya, xb, yb, flags);
+    public GraphicElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int flags) {
+        super(circuitDocument, xa, ya, xb, yb, flags);
     }
 
     public int getPostCount() {

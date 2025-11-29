@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -26,19 +28,19 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 public class CC2Elm extends ChipElm {
     double gain;
 
-    public CC2Elm(int xx, int yy) {
-        super(xx, yy);
+    public CC2Elm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         gain = 1;
     }
 
-    public CC2Elm(int xx, int yy, int g) {
-        super(xx, yy);
+    public CC2Elm(CircuitDocument circuitDocument, int xx, int yy, int g) {
+        super(circuitDocument, xx, yy);
         gain = g;
     }
 
-    public CC2Elm(int xa, int ya, int xb, int yb, int f,
+    public CC2Elm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         gain = parseDouble(st.nextToken());
     }
 

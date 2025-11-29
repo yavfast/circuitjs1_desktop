@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // SPDT switch
 
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -32,21 +34,21 @@ public class Switch2Elm extends SwitchElm {
     int throwCount;
     static final int FLAG_CENTER_OFF = 1;
 
-    public Switch2Elm(int xx, int yy) {
-        super(xx, yy, false);
+    public Switch2Elm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
         noDiagonal = true;
         throwCount = 2;
     }
 
-    Switch2Elm(int xx, int yy, boolean mm) {
-        super(xx, yy, mm);
+    Switch2Elm(CircuitDocument circuitDocument, int xx, int yy, boolean mm) {
+        super(circuitDocument, xx, yy, mm);
         noDiagonal = true;
         throwCount = 2;
     }
 
-    public Switch2Elm(int xa, int ya, int xb, int yb, int f,
-                      StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public Switch2Elm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
+            StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         link = parseInt(st.nextToken());
         throwCount = 2;
         try {
@@ -183,11 +185,13 @@ public class Switch2Elm extends SwitchElm {
     }
 
     public EditInfo getEditInfo(int n) {
-	    /*if (n == 1) {
-	    	EditInfo ei = new EditInfo("", 0, -1, -1);
-	    	ei.checkbox = new Checkbox("Center Off", hasCenterOff());
-	    	return ei;
-	    }*/
+        /*
+         * if (n == 1) {
+         * EditInfo ei = new EditInfo("", 0, -1, -1);
+         * ei.checkbox = new Checkbox("Center Off", hasCenterOff());
+         * return ei;
+         * }
+         */
         if (n == 1)
             return new EditInfo("Switch Group", link, 0, 100).setDimensionless().disallowSliders();
         if (n == 2)
@@ -196,14 +200,16 @@ public class Switch2Elm extends SwitchElm {
     }
 
     public void setEditValue(int n, EditInfo ei) {
-	    /*if (n == 1) {
-	    	flags &= ~FLAG_CENTER_OFF;
-	    	if (ei.checkbox.getState())
-	    		flags |= FLAG_CENTER_OFF;
-	    	if (hasCenterOff())
-	    		momentary = false;
-	    	setPoints();
-	    } else*/
+        /*
+         * if (n == 1) {
+         * flags &= ~FLAG_CENTER_OFF;
+         * if (ei.checkbox.getState())
+         * flags |= FLAG_CENTER_OFF;
+         * if (hasCenterOff())
+         * momentary = false;
+         * setPoints();
+         * } else
+         */
         if (n == 1) {
             link = (int) ei.value;
         } else if (n == 2) {
@@ -217,7 +223,8 @@ public class Switch2Elm extends SwitchElm {
             super.setEditValue(n, ei);
     }
 
-    // this is for backwards compatibility only.  we only support it if throwCount = 2
+    // this is for backwards compatibility only. we only support it if throwCount =
+    // 2
     boolean hasCenterOff() {
         return (flags & FLAG_CENTER_OFF) != 0 && throwCount == 2;
     }

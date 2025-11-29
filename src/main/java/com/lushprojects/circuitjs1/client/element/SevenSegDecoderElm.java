@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -46,13 +48,13 @@ public class SevenSegDecoderElm extends ChipElm {
     static final int FLAG_ENABLE = (1 << 1);
     static final int FLAG_BLANK_F = (1 << 2);
 
-    public SevenSegDecoderElm(int xx, int yy) {
-        super(xx, yy);
+    public SevenSegDecoderElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public SevenSegDecoderElm(int xa, int ya, int xb, int yb, int f,
+    public SevenSegDecoderElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                               StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
     String getChipName() {

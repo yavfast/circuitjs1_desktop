@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
@@ -72,8 +74,8 @@ public class RelayElm extends CircuitElm {
     int nCoil1, nCoil2, nCoil3;
     double currentOffset1, currentOffset2;
 
-    public RelayElm(int xx, int yy) {
-        super(xx, yy);
+    public RelayElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         ind = new Inductor();
         inductance = .2;
         ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
@@ -90,9 +92,9 @@ public class RelayElm extends CircuitElm {
         setupPoles();
     }
 
-    public RelayElm(int xa, int ya, int xb, int yb, int f,
+    public RelayElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         poleCount = parseInt(st.nextToken());
         inductance = parseDouble(st.nextToken());
         coilCurrent = parseDouble(st.nextToken());

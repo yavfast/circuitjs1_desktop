@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.core.client.JsArrayInteger;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
@@ -32,8 +34,8 @@ public class AudioOutputElm extends CircuitElm {
     static int lastSamplingRate = 8000;
     public static boolean okToChangeTimeStep;
 
-    public AudioOutputElm(int xx, int yy) {
-        super(xx, yy);
+    public AudioOutputElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         duration = 1;
         samplingRate = lastSamplingRate;
         labelNum = getNextLabelNum();
@@ -41,9 +43,9 @@ public class AudioOutputElm extends CircuitElm {
         createButton();
     }
 
-    public AudioOutputElm(int xa, int ya, int xb, int yb, int f,
+    public AudioOutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         duration = Double.parseDouble(st.nextToken());
         samplingRate = Integer.parseInt(st.nextToken());
         labelNum = Integer.parseInt(st.nextToken());

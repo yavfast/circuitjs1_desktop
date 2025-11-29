@@ -19,16 +19,18 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class NorGateElm extends OrGateElm {
-    public NorGateElm(int xx, int yy) {
-        super(xx, yy);
+    public NorGateElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public NorGateElm(int xa, int ya, int xb, int yb, int f,
+    public NorGateElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
     String getGateName() {

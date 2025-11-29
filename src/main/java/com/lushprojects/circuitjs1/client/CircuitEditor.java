@@ -658,8 +658,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             int y0 = snapGrid(gridY);
             if (renderer().circuitArea.contains(event.getX(), event.getY())) {
                 try {
-                    dragElm = CircuitElmCreator.constructElement(mouseModeStr, x0, y0);
-                    dragElm.setCircuitDocument(getActiveDocument());
+                    dragElm = CircuitElmCreator.constructElement(getActiveDocument(), mouseModeStr, x0, y0);
                 } catch (Exception ex) {
                     CirSim.debugger();
                 }
@@ -892,7 +891,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             return;
         }
 
-        WireElm newWire = new WireElm(x, y);
+        WireElm newWire = new WireElm(getActiveDocument(), x, y);
         newWire.drag(element.x2, element.y2);
         element.drag(x, y);
         simulator().elmList.add(newWire);

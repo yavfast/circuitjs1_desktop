@@ -21,6 +21,7 @@ package com.lushprojects.circuitjs1.client.io.json;
 
 import com.google.gwt.json.client.*;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.element.*;
 
 import java.util.ArrayList;
@@ -32,42 +33,25 @@ import java.util.Map;
 /**
  * Factory for creating CircuitElm instances from JSON.
  * 
- * Uses element constructors list and builds JSON type mapping dynamically
- * from getJsonTypeName() method of each element.
+ * Uses element constructors with simple (x, y) parameters.
+ * JSON type names are registered explicitly for each element type.
+ * CircuitDocument is set via setCircuitDocument() after creation.
  */
 public class CircuitElementFactory {
 
     /**
      * Functional interface for element constructor.
-     * Since GWT doesn't support full reflection, we use explicit constructors.
+     * Uses (CircuitDocument, x, y) constructor.
      */
     @FunctionalInterface
     public interface ElementConstructor {
-        CircuitElm create(int x, int y);
+        CircuitElm create(CircuitDocument doc, int x, int y);
     }
 
     /**
-     * Element registration entry containing constructor and JSON type name.
+     * Mapping from JSON type name to element constructor.
      */
-    private static class ElementEntry {
-        final ElementConstructor constructor;
-        final String jsonTypeName;
-
-        ElementEntry(ElementConstructor constructor, String jsonTypeName) {
-            this.constructor = constructor;
-            this.jsonTypeName = jsonTypeName;
-        }
-    }
-
-    /**
-     * List of all registered element constructors.
-     */
-    private static final List<ElementEntry> ELEMENT_ENTRIES = new ArrayList<>();
-
-    /**
-     * Mapping from JSON type name to element entry (built from ELEMENT_ENTRIES).
-     */
-    private static final Map<String, ElementEntry> JSON_TYPE_TO_ENTRY = new HashMap<>();
+    private static final Map<String, ElementConstructor> JSON_TYPE_TO_CONSTRUCTOR = new HashMap<>();
 
     /**
      * Flag to track if the factory has been initialized.
@@ -75,13 +59,8 @@ public class CircuitElementFactory {
     private static boolean initialized = false;
 
     /**
-     * Flag to track if the type map has been built.
-     */
-    private static boolean typeMapBuilt = false;
-
-    /**
      * Initializes the factory by registering all element constructors.
-     * Must be called explicitly before using the factory.
+     * Called lazily on first use.
      */
     public static void init() {
         if (initialized) {
@@ -89,242 +68,217 @@ public class CircuitElementFactory {
         }
         initialized = true;
         
-        // Register all element constructors
-        // The JSON type name is obtained from a temporary instance's getJsonTypeName()
-
         // Basic passive elements
-        register(WireElm::new);
-        register(GroundElm::new);
-        register(ResistorElm::new);
-        register(CapacitorElm::new);
-        register(PolarCapacitorElm::new);
-        register(InductorElm::new);
-        register(PotElm::new);
+        register("Wire", WireElm::new);
+        register("Ground", GroundElm::new);
+        register("Resistor", ResistorElm::new);
+        register("Capacitor", CapacitorElm::new);
+        register("PolarCapacitor", PolarCapacitorElm::new);
+        register("Inductor", InductorElm::new);
+        register("Potentiometer", PotElm::new);
 
         // Voltage sources
-        register(DCVoltageElm::new);
-        register(ACVoltageElm::new);
-        register(RailElm::new);
-        register(ACRailElm::new);
-        register(SquareRailElm::new);
-        register(VarRailElm::new);
-        register(AntennaElm::new);
-        register(SweepElm::new);
-        register(NoiseElm::new);
-        register(AMElm::new);
-        register(FMElm::new);
+        register("DCVoltage", DCVoltageElm::new);
+        register("ACVoltage", ACVoltageElm::new);
+        register("Rail", RailElm::new);
+        register("ACRail", ACRailElm::new);
+        register("SquareRail", SquareRailElm::new);
+        register("VarRail", VarRailElm::new);
+        register("Antenna", AntennaElm::new);
+        register("Sweep", SweepElm::new);
+        register("Noise", NoiseElm::new);
+        register("AM", AMElm::new);
+        register("FM", FMElm::new);
 
         // Current source
-        register(CurrentElm::new);
+        register("Current", CurrentElm::new);
 
         // Diodes
-        register(DiodeElm::new);
-        register(ZenerElm::new);
-        register(LEDElm::new);
-        register(LEDArrayElm::new);
-        register(VaractorElm::new);
-        register(TunnelDiodeElm::new);
+        register("Diode", DiodeElm::new);
+        register("Zener", ZenerElm::new);
+        register("LED", LEDElm::new);
+        register("LEDArray", LEDArrayElm::new);
+        register("Varactor", VaractorElm::new);
+        register("TunnelDiode", TunnelDiodeElm::new);
 
         // Bipolar transistors
-        register(NTransistorElm::new);
-        register(PTransistorElm::new);
-        register(NDarlingtonElm::new);
-        register(PDarlingtonElm::new);
+        register("TransistorNPN", NTransistorElm::new);
+        register("TransistorPNP", PTransistorElm::new);
+        register("DarlingtonNPN", NDarlingtonElm::new);
+        register("DarlingtonPNP", PDarlingtonElm::new);
 
         // MOSFETs
-        register(NMosfetElm::new);
-        register(PMosfetElm::new);
+        register("MosfetN", NMosfetElm::new);
+        register("MosfetP", PMosfetElm::new);
+        register("NMosfet", NMosfetElm::new);  // Alternative name (from JSON export)
+        register("PMosfet", PMosfetElm::new);  // Alternative name (from JSON export)
 
         // JFETs
-        register(NJfetElm::new);
-        register(PJfetElm::new);
+        register("JfetN", NJfetElm::new);
+        register("JfetP", PJfetElm::new);
+        register("NJFET", NJfetElm::new);  // Alternative name (from JSON export)
+        register("PJFET", PJfetElm::new);  // Alternative name (from JSON export)
 
         // Thyristors
-        register(SCRElm::new);
-        register(DiacElm::new);
-        register(TriacElm::new);
+        register("SCR", SCRElm::new);
+        register("Diac", DiacElm::new);
+        register("Triac", TriacElm::new);
 
         // Other semiconductors
-        register(TriodeElm::new);
-        register(UnijunctionElm::new);
+        register("Triode", TriodeElm::new);
+        register("Unijunction", UnijunctionElm::new);
 
         // Op-amps
-        register(OpAmpElm::new);
-        register(OpAmpSwapElm::new);
-        register(OpAmpRealElm::new);
-        register(ComparatorElm::new);
-        register(OTAElm::new);
+        register("OpAmp", OpAmpElm::new);
+        register("OpAmpSwap", OpAmpSwapElm::new);
+        register("OpAmpReal", OpAmpRealElm::new);
+        register("Comparator", ComparatorElm::new);
+        register("OTA", OTAElm::new);
 
         // Controlled sources
-        register(VCVSElm::new);
-        register(VCCSElm::new);
-        register(CCVSElm::new);
-        register(CCCSElm::new);
-        register(CC2Elm::new);
-        register(CC2NegElm::new);
+        register("VCVS", VCVSElm::new);
+        register("VCCS", VCCSElm::new);
+        register("CCVS", CCVSElm::new);
+        register("CCCS", CCCSElm::new);
+        register("CC2", CC2Elm::new);
+        register("CC2Neg", CC2NegElm::new);
 
         // Switches
-        register(SwitchElm::new);
-        register(PushSwitchElm::new);
-        register(Switch2Elm::new);
-        register(MBBSwitchElm::new);
-        register(DPDTSwitchElm::new);
-        register(CrossSwitchElm::new);
-        register(AnalogSwitchElm::new);
-        register(AnalogSwitch2Elm::new);
-        register(TriStateElm::new);
-        register(RelayElm::new);
-        register(RelayCoilElm::new);
-        register(RelayContactElm::new);
-        register(TimeDelayRelayElm::new);
+        register("Switch", SwitchElm::new);
+        register("PushSwitch", PushSwitchElm::new);
+        register("Switch2", Switch2Elm::new);
+        register("MBBSwitch", MBBSwitchElm::new);
+        register("DPDTSwitch", DPDTSwitchElm::new);
+        register("CrossSwitch", CrossSwitchElm::new);
+        register("AnalogSwitch", AnalogSwitchElm::new);
+        register("AnalogSwitch2", AnalogSwitch2Elm::new);
+        register("TriState", TriStateElm::new);
+        register("Relay", RelayElm::new);
+        register("RelayCoil", RelayCoilElm::new);
+        register("RelayContact", RelayContactElm::new);
+        register("TimeDelayRelay", TimeDelayRelayElm::new);
 
         // Transformers
-        register(TransformerElm::new);
-        register(TappedTransformerElm::new);
-        register(CustomTransformerElm::new);
-        register(TransLineElm::new);
+        register("Transformer", TransformerElm::new);
+        register("TappedTransformer", TappedTransformerElm::new);
+        register("CustomTransformer", CustomTransformerElm::new);
+        register("TransLine", TransLineElm::new);
 
         // Logic gates
-        register(InverterElm::new);
-        register(AndGateElm::new);
-        register(NandGateElm::new);
-        register(OrGateElm::new);
-        register(NorGateElm::new);
-        register(XorGateElm::new);
-        register(SchmittElm::new);
-        register(InvertingSchmittElm::new);
-        register(DelayBufferElm::new);
+        register("Inverter", InverterElm::new);
+        register("AndGate", AndGateElm::new);
+        register("NandGate", NandGateElm::new);
+        register("OrGate", OrGateElm::new);
+        register("NorGate", NorGateElm::new);
+        register("XorGate", XorGateElm::new);
+        register("Schmitt", SchmittElm::new);
+        register("InvertingSchmitt", InvertingSchmittElm::new);
+        register("DelayBuffer", DelayBufferElm::new);
 
         // Flip-flops
-        register(DFlipFlopElm::new);
-        register(JKFlipFlopElm::new);
-        register(TFlipFlopElm::new);
-        register(LatchElm::new);
+        register("DFlipFlop", DFlipFlopElm::new);
+        register("JKFlipFlop", JKFlipFlopElm::new);
+        register("TFlipFlop", TFlipFlopElm::new);
+        register("Latch", LatchElm::new);
 
         // Counters
-        register(CounterElm::new);
-        register(Counter2Elm::new);
-        register(RingCounterElm::new);
+        register("Counter", CounterElm::new);
+        register("Counter2", Counter2Elm::new);
+        register("RingCounter", RingCounterElm::new);
 
         // Logic I/O
-        register(LogicInputElm::new);
-        register(LogicOutputElm::new);
-        register(ClockElm::new);
+        register("LogicInput", LogicInputElm::new);
+        register("LogicOutput", LogicOutputElm::new);
+        register("Clock", ClockElm::new);
 
         // Converters
-        register(DACElm::new);
-        register(ADCElm::new);
-        register(PhaseCompElm::new);
-        register(VCOElm::new);
+        register("DAC", DACElm::new);
+        register("ADC", ADCElm::new);
+        register("PhaseComp", PhaseCompElm::new);
+        register("VCO", VCOElm::new);
 
         // Multiplexers
-        register(MultiplexerElm::new);
-        register(DeMultiplexerElm::new);
-        register(SipoShiftElm::new);
-        register(PisoShiftElm::new);
-        register(SeqGenElm::new);
-        register(SRAMElm::new);
+        register("Multiplexer", MultiplexerElm::new);
+        register("DeMultiplexer", DeMultiplexerElm::new);
+        register("SipoShift", SipoShiftElm::new);
+        register("PisoShift", PisoShiftElm::new);
+        register("SeqGen", SeqGenElm::new);
+        register("SRAM", SRAMElm::new);
 
         // Adders
-        register(HalfAdderElm::new);
-        register(FullAdderElm::new);
-        register(MonostableElm::new);
+        register("HalfAdder", HalfAdderElm::new);
+        register("FullAdder", FullAdderElm::new);
+        register("Monostable", MonostableElm::new);
 
         // Displays
-        register(SevenSegElm::new);
-        register(SevenSegDecoderElm::new);
-        register(DecimalDisplayElm::new);
+        register("SevenSeg", SevenSegElm::new);
+        register("SevenSegDecoder", SevenSegDecoderElm::new);
+        register("DecimalDisplay", DecimalDisplayElm::new);
 
         // Timer
-        register(TimerElm::new);
+        register("Timer", TimerElm::new);
 
         // Custom logic
-        register(CustomLogicElm::new);
-        register(CustomCompositeElm::new);
+        register("CustomLogic", CustomLogicElm::new);
+        register("CustomComposite", CustomCompositeElm::new);
 
         // Measuring
-        register(ProbeElm::new);
-        register(OutputElm::new);
-        register(AmmeterElm::new);
-        register(OhmMeterElm::new);
-        register(WattmeterElm::new);
-        register(TestPointElm::new);
-        register(DataRecorderElm::new);
-        register(StopTriggerElm::new);
-        register(ScopeElm::new);
+        register("Probe", ProbeElm::new);
+        register("Output", OutputElm::new);
+        register("Ammeter", AmmeterElm::new);
+        register("OhmMeter", OhmMeterElm::new);
+        register("Wattmeter", WattmeterElm::new);
+        register("TestPoint", TestPointElm::new);
+        register("DataRecorder", DataRecorderElm::new);
+        register("StopTrigger", StopTriggerElm::new);
+        register("Scope", ScopeElm::new);
 
         // Audio
-        register(AudioOutputElm::new);
-        register(AudioInputElm::new);
+        register("AudioOutput", AudioOutputElm::new);
+        register("AudioInput", AudioInputElm::new);
 
         // Input
-        register(DataInputElm::new);
-        register(ExtVoltageElm::new);
+        register("DataInput", DataInputElm::new);
+        register("ExtVoltage", ExtVoltageElm::new);
 
         // Other components
-        register(LampElm::new);
-        register(FuseElm::new);
-        register(SparkGapElm::new);
-        register(MemristorElm::new);
-        register(CrystalElm::new);
-        register(LDRElm::new);
-        register(ThermistorNTCElm::new);
-        register(OptocouplerElm::new);
+        register("Lamp", LampElm::new);
+        register("Fuse", FuseElm::new);
+        register("SparkGap", SparkGapElm::new);
+        register("Memristor", MemristorElm::new);
+        register("Crystal", CrystalElm::new);
+        register("LDR", LDRElm::new);
+        register("ThermistorNTC", ThermistorNTCElm::new);
+        register("Optocoupler", OptocouplerElm::new);
 
         // Motors
-        register(DCMotorElm::new);
-        register(ThreePhaseMotorElm::new);
-        register(MotorProtectionSwitchElm::new);
+        register("DCMotor", DCMotorElm::new);
+        register("ThreePhaseMotor", ThreePhaseMotorElm::new);
+        register("MotorProtectionSwitch", MotorProtectionSwitchElm::new);
 
         // Labels and graphics
-        register(TextElm::new);
-        register(BoxElm::new);
-        register(LineElm::new);
-        register(LabeledNodeElm::new);
+        register("Text", TextElm::new);
+        register("Box", BoxElm::new);
+        register("Line", LineElm::new);
+        register("LabeledNode", LabeledNodeElm::new);
         
-        CirSim.console("CircuitElementFactory: initialized with " + ELEMENT_ENTRIES.size() + " element types");
+        CirSim.console("CircuitElementFactory: initialized with " + JSON_TYPE_TO_CONSTRUCTOR.size() + " element types");
     }
 
     /**
-     * Registers an element constructor.
-     * Creates a temporary instance to get the JSON type name.
-     * Note: This works because CircuitElm constructors no longer require circuitDocument.
-     */
-    private static void register(ElementConstructor constructor) {
-        try {
-            // Create temporary instance to get JSON type name
-            CircuitElm tempElm = constructor.create(0, 0);
-            String jsonTypeName = tempElm.getJsonTypeName();
-            ELEMENT_ENTRIES.add(new ElementEntry(constructor, jsonTypeName));
-        } catch (Exception e) {
-            CirSim.console("CircuitElementFactory: Failed to register element: " + e.getMessage());
-        }
-    }
-    
-    /**
      * Registers an element constructor with explicit JSON type name.
-     * Use this for elements whose constructors require circuitDocument.
      */
-    private static void register(ElementConstructor constructor, String jsonTypeName) {
-        ELEMENT_ENTRIES.add(new ElementEntry(constructor, jsonTypeName));
+    private static void register(String jsonTypeName, ElementConstructor constructor) {
+        JSON_TYPE_TO_CONSTRUCTOR.put(jsonTypeName, constructor);
     }
 
     /**
      * Ensures the factory is initialized.
-     * Builds the JSON type to entry map from the registered entries.
-     * Called lazily on first use.
      */
     private static void ensureInitialized() {
         if (!initialized) {
             init();
         }
-        if (typeMapBuilt) {
-            return;
-        }
-        for (ElementEntry entry : ELEMENT_ENTRIES) {
-            JSON_TYPE_TO_ENTRY.put(entry.jsonTypeName, entry);
-        }
-        typeMapBuilt = true;
     }
 
     /**
@@ -332,14 +286,18 @@ public class CircuitElementFactory {
      * 
      * @param jsonType The JSON type name (e.g., "Resistor")
      * @param elementJson The full JSON object for the element
+     * @param document The circuit document for the new element
      * @return The created element, or null if type is unknown
      */
-    public static CircuitElm createFromJson(String jsonType, JSONObject elementJson) {
+    public static CircuitElm createFromJson(String jsonType, JSONObject elementJson, CircuitDocument document) {
+        CirSim.console("createFromJson: START type='" + jsonType + "'");
         ensureInitialized();
+        CirSim.console("createFromJson: factory initialized, registered types count=" + JSON_TYPE_TO_CONSTRUCTOR.size());
 
-        // Get element entry from type mapping
-        ElementEntry entry = JSON_TYPE_TO_ENTRY.get(jsonType);
-        if (entry == null) {
+        // Get constructor from type mapping
+        ElementConstructor constructor = JSON_TYPE_TO_CONSTRUCTOR.get(jsonType);
+        CirSim.console("createFromJson: constructor for '" + jsonType + "' = " + (constructor != null ? "found" : "NOT FOUND"));
+        if (constructor == null) {
             CirSim.console("CircuitElementFactory: Unknown element type: " + jsonType);
             return null;
         }
@@ -401,8 +359,14 @@ public class CircuitElementFactory {
             }
         }
 
-        // Create element using constructor from registry
-        CircuitElm elm = entry.constructor.create(x1, y1);
+        // Create element using constructor with CircuitDocument
+        CircuitElm elm;
+        try {
+            elm = constructor.create(document, x1, y1);
+        } catch (Exception e) {
+            CirSim.console("CircuitElementFactory: Exception creating " + jsonType + ": " + e.getMessage());
+            return null;
+        }
         if (elm == null) {
             CirSim.console("CircuitElementFactory: Failed to create element: " + jsonType);
             return null;
@@ -487,7 +451,7 @@ public class CircuitElementFactory {
      */
     public static List<String> getAllJsonTypeNames() {
         ensureInitialized();
-        return new ArrayList<>(JSON_TYPE_TO_ENTRY.keySet());
+        return new ArrayList<>(JSON_TYPE_TO_CONSTRUCTOR.keySet());
     }
 
     /**
@@ -495,7 +459,7 @@ public class CircuitElementFactory {
      */
     public static boolean isKnownType(String jsonType) {
         ensureInitialized();
-        return JSON_TYPE_TO_ENTRY.containsKey(jsonType);
+        return JSON_TYPE_TO_CONSTRUCTOR.containsKey(jsonType);
     }
 
     // Helper methods

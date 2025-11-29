@@ -59,7 +59,8 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.HashSet;
 
-public class EditCompositeModelDialog extends Dialog implements MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler {
+public class EditCompositeModelDialog extends Dialog
+        implements MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler {
 
     final CirSim cirSim;
     VerticalPanel vp;
@@ -89,7 +90,7 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
         });
         int i;
         int postCount = model.extList.size();
-        int sideCounts[] = new int[]{0, 0, 0, 0};
+        int sideCounts[] = new int[] { 0, 0, 0, 0 };
         for (i = 0; i != postCount; i++) {
             ExtListEntry pin = model.extList.get(i);
             sideCounts[pin.side] += 1;
@@ -149,7 +150,7 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
         CirSim.doTouchHandlers(null, canvas.getCanvasElement());
         context = canvas.getContext2d();
 
-        chip = new CustomCompositeChipElm(50, 50);
+        chip = new CustomCompositeChipElm(cirSim.getActiveDocument(), 50, 50);
         chip.x2 = 200;
         chip.y2 = 50;
         selectedPin = -1;
@@ -165,7 +166,7 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
                     drawChip();
                 }
             });
-//		    modelNameTextBox.setText(model.name);
+            // modelNameTextBox.setText(model.name);
         }
 
         HorizontalPanel hp = new HorizontalPanel();
@@ -280,7 +281,8 @@ public class EditCompositeModelDialog extends Dialog implements MouseDownHandler
         context.setTransform(1, 0, 0, 1, 0, 0);
         context.fillRect(0, 0, context.getCanvas().getWidth(), context.getCanvas().getHeight());
         context.setTransform(1 / scale, 0, 0, 1 / scale, 0, 0);
-        chip.setLabel(!labelCheck.getValue() ? null : (modelNameTextBox != null) ? modelNameTextBox.getText() : model.name);
+        chip.setLabel(
+                !labelCheck.getValue() ? null : (modelNameTextBox != null) ? modelNameTextBox.getText() : model.name);
         chip.draw(g);
     }
 

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Font;
@@ -37,17 +39,17 @@ public class TextElm extends GraphicElm {
     final int FLAG_BAR = 2;
     final int FLAG_ESCAPE = 4;
 
-    public TextElm(int xx, int yy) {
-        super(xx, yy);
+    public TextElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         text = "hello";
         lines = new Vector<String>();
         lines.add(text);
         size = 24;
     }
 
-    public TextElm(int xa, int ya, int xb, int yb, int f,
+    public TextElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         size = parseInt(st.nextToken());
         text = st.nextToken();
         if ((flags & FLAG_ESCAPE) == 0) {

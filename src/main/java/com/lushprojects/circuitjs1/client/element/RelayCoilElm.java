@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -76,8 +78,8 @@ public class RelayCoilElm extends CircuitElm {
     int nCoil1, nCoil2, nCoil3;
     double currentOffset1, currentOffset2;
 
-    public RelayCoilElm(int xx, int yy) {
-        super(xx, yy);
+    public RelayCoilElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         ind = new Inductor();
         inductance = .2;
         ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
@@ -92,9 +94,9 @@ public class RelayCoilElm extends CircuitElm {
         setupPoles();
     }
 
-    public RelayCoilElm(int xa, int ya, int xb, int yb, int f,
+    public RelayCoilElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         label = CustomLogicModel.unescape(st.nextToken());
         inductance = parseDouble(st.nextToken());
         coilCurrent = parseDouble(st.nextToken());

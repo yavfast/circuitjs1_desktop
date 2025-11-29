@@ -74,6 +74,11 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     protected CircuitDocument circuitDocument;
 
+    /**
+     * Set the circuit document for this element.
+     * Used when loading from legacy text format where document isn't available at construction time.
+     * @param circuitDocument The circuit document
+     */
     public void setCircuitDocument(CircuitDocument circuitDocument) {
         this.circuitDocument = circuitDocument;
     }
@@ -275,9 +280,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     // create new element with one post at xx,yy, to be dragged out by user
-    // Note: circuitDocument must be set via setCircuitDocument() after construction
-    public CircuitElm(int xx, int yy) {
-        // circuitDocument will be set later via setCircuitDocument()
+    public CircuitElm(CircuitDocument circuitDocument, int xx, int yy) {
+        this.circuitDocument = circuitDocument;
         x = x2 = xx;
         y = y2 = yy;
         flags = getDefaultFlags();
@@ -285,10 +289,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         initBoundingBox();
     }
 
-    // create element between xa,ya and xb,yb from undump
-    // Note: circuitDocument must be set via setCircuitDocument() after construction
-    public CircuitElm(int xa, int ya, int xb, int yb, int f) {
-        // circuitDocument will be set later via setCircuitDocument()
+    // create element between xa,ya and xb,yb from undump (legacy text format)
+    public CircuitElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f) {
+        this.circuitDocument = circuitDocument;
         x = xa;
         y = ya;
         x2 = xb;

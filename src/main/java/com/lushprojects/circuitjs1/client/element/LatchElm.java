@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
@@ -26,15 +28,15 @@ public class LatchElm extends ChipElm {
     final int FLAG_STATE = 2;
     final int FLAG_NO_EDGE = 4;
 
-    public LatchElm(int xx, int yy) {
-        super(xx, yy);
+    public LatchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         flags |= FLAG_STATE;
         setupPins();
     }
 
-    public LatchElm(int xa, int ya, int xb, int yb, int f,
+    public LatchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
 
         // add FLAG_STATE flag to old latches so their state gets saved
         if ((flags & FLAG_STATE) == 0) {

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Diode;
@@ -28,13 +30,13 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 public class LEDArrayElm extends ChipElm {
-    public LEDArrayElm(int xx, int yy) {
-        super(xx, yy);
+    public LEDArrayElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public LEDArrayElm(int xa, int ya, int xb, int yb, int f,
+    public LEDArrayElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         try {
             sizeX = Integer.parseInt(st.nextToken());
             sizeY = Integer.parseInt(st.nextToken());

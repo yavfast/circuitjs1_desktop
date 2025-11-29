@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -32,14 +34,14 @@ public class OutputElm extends CircuitElm {
     final int FLAG_FIXED = 2;
     int scale;
 
-    public OutputElm(int xx, int yy) {
-        super(xx, yy);
+    public OutputElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         scale = SCALE_AUTO;
     }
 
-    public OutputElm(int xa, int ya, int xb, int yb, int f,
+    public OutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                      StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         scale = SCALE_AUTO;
         try {
             scale = Integer.parseInt(st.nextToken());

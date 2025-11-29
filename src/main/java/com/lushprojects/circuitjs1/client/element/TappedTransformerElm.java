@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -35,8 +37,8 @@ public class TappedTransformerElm extends CircuitElm {
     double[] current;
     double[] curcount;
 
-    public TappedTransformerElm(int xx, int yy) {
-        super(xx, yy);
+    public TappedTransformerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         inductance = 4;
         ratio = 1;
         noDiagonal = true;
@@ -48,9 +50,9 @@ public class TappedTransformerElm extends CircuitElm {
         a = new double[9];
     }
 
-    public TappedTransformerElm(int xa, int ya, int xb, int yb, int f,
+    public TappedTransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                                 StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         inductance = parseDouble(st.nextToken());
         ratio = parseDouble(st.nextToken());
         current = new double[4];

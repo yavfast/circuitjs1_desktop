@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class NTransistorElm extends TransistorElm {
-    public NTransistorElm(int xx, int yy) {
-        super(xx, yy, false);
+    public NTransistorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
     }
 
     public Class getDumpClass() {

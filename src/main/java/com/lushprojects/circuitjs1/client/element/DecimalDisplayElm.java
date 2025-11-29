@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -28,15 +30,15 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class DecimalDisplayElm extends ChipElm {
     int bitCount;
 
-    public DecimalDisplayElm(int xx, int yy) {
-        super(xx, yy);
+    public DecimalDisplayElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         bitCount = 4;
         setupPins();
     }
 
-    public DecimalDisplayElm(int xa, int ya, int xb, int yb, int f,
+    public DecimalDisplayElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                              StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         bitCount = 4;
         try {
             bitCount = Integer.parseInt(st.nextToken());

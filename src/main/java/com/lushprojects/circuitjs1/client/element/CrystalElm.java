@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -33,8 +35,8 @@ public class CrystalElm extends CompositeElm {
     private static String modelString = "CapacitorElm 1 2\rCapacitorElm 1 3\rInductorElm 3 4\rResistorElm 4 2";
     private static int[] modelExternalNodes = {1, 2};
 
-    public CrystalElm(int xx, int yy) {
-        super(xx, yy, modelString, modelExternalNodes);
+    public CrystalElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, modelString, modelExternalNodes);
         parallelCapacitance = 28.7e-12;
         seriesCapacitance = 0.1e-12;
         inductance = 2.5e-3;
@@ -42,9 +44,9 @@ public class CrystalElm extends CompositeElm {
         initCrystal();
     }
 
-    public CrystalElm(int xa, int ya, int xb, int yb, int f,
+    public CrystalElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
+        super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
         CapacitorElm c1 = (CapacitorElm) compElmList.get(0);
         parallelCapacitance = c1.getCapacitance();
         CapacitorElm c2 = (CapacitorElm) compElmList.get(1);

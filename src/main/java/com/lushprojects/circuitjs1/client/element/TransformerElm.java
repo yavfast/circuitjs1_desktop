@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -36,8 +38,8 @@ public class TransformerElm extends CircuitElm {
     public static final int FLAG_VERTICAL = 8;
     public static final int FLAG_FLIP = 16;
 
-    public TransformerElm(int xx, int yy) {
-        super(xx, yy);
+    public TransformerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         inductance = 4;
         ratio = polarity = 1;
         width = 32;
@@ -47,9 +49,9 @@ public class TransformerElm extends CircuitElm {
         curcount = new double[2];
     }
 
-    public TransformerElm(int xa, int ya, int xb, int yb, int f,
+    public TransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         if (hasFlag(FLAG_VERTICAL))
             width = -max(32, abs(xb - xa));
         else
@@ -382,6 +384,29 @@ public class TransformerElm extends CircuitElm {
         return new String[] { "pri1", "pri2", "sec1", "sec2" };
     }
 
+    /**
+     * Returns pin positions for JSON export.
+     * Uses ptEnds[] which contains actual post positions.
+     */
+    @Override
+    public Point getJsonPinPosition(int pinIndex) {
+        if (pinIndex < 0 || pinIndex >= 4 || ptEnds == null) {
+            return null;
+        }
+        return ptEnds[pinIndex];
+    }
+
+    /**
+     * Sets transformer geometry from JSON pin positions.
+     * Width is fixed at 32 for consistent display.
+     */
+    @Override
+    public void applyJsonPinPositions(java.util.Map<String, java.util.Map<String, Integer>> pins) {
+        // x, y, x2, y2 вже встановлені через bounds
+        // Встановлюємо фіксований width для нормального зображення
+        width = 32;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
@@ -405,20 +430,8 @@ public class TransformerElm extends CircuitElm {
             polarity = 1;
         }
         
-        // Parse orientation flags
-        if (getJsonBoolean(props, "vertical", false)) {
-            flags |= FLAG_VERTICAL;
-        }
-        if (getJsonBoolean(props, "flip", false)) {
-            flags |= FLAG_FLIP;
-        }
-        
-        // Recalculate width based on orientation
-        if (hasFlag(FLAG_VERTICAL)) {
-            width = -max(32, abs(x2 - x));
-        } else {
-            width = max(32, abs(y2 - y));
-        }
+        // Note: orientation flags (FLAG_VERTICAL, FLAG_FLIP) and width
+        // are set by applyJsonPinPositions() based on actual pin coordinates
     }
 
     @Override

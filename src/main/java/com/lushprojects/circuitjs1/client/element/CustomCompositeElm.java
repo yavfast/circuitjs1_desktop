@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Choice;
@@ -24,8 +26,8 @@ public class CustomCompositeElm extends CompositeElm {
     public static String lastModelName = "default";
     static final int FLAG_SMALL = 2;
 
-    public CustomCompositeElm(int xx, int yy) {
-        super(xx, yy);
+    public CustomCompositeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
 
         // use last model as default when creating new element in UI.
         // use default otherwise, to avoid infinite recursion when creating nested subcircuits.
@@ -37,17 +39,17 @@ public class CustomCompositeElm extends CompositeElm {
         updateModels();
     }
 
-    public CustomCompositeElm(int xx, int yy, String name) {
-        super(xx, yy);
+    public CustomCompositeElm(CircuitDocument circuitDocument, int xx, int yy, String name) {
+        super(circuitDocument, xx, yy);
         modelName = name;
         flags |= FLAG_ESCAPE;
         // Note: simUi.menuManager may not be available during factory registration
         updateModels();
     }
 
-    public CustomCompositeElm(int xa, int ya, int xb, int yb, int f,
+    public CustomCompositeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                               StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         modelName = CustomLogicModel.unescape(st.nextToken());
         updateModels(st);
     }
@@ -96,7 +98,7 @@ public class CustomCompositeElm extends CompositeElm {
     }
 
     public void setPoints() {
-        chip = new CustomCompositeChipElm(x, y);
+        chip = new CustomCompositeChipElm(circuitDocument, x, y);
         chip.x2 = x2;
         chip.y2 = y2;
         chip.flags = (flags & (ChipElm.FLAG_FLIP_X | ChipElm.FLAG_FLIP_Y | ChipElm.FLAG_FLIP_XY));

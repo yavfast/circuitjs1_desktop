@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -27,13 +29,13 @@ import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class SchmittElm extends InvertingSchmittElm {
-    public SchmittElm(int xx, int yy) {
-        super(xx, yy);
+    public SchmittElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public SchmittElm(int xa, int ya, int xb, int yb, int f,
+    public SchmittElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
     int getDumpType() {

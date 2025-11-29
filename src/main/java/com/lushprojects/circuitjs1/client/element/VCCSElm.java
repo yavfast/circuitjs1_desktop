@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Expr;
@@ -37,17 +39,17 @@ public class VCCSElm extends ChipElm {
     String exprString;
     public boolean broken;
 
-    public VCCSElm(int xa, int ya, int xb, int yb, int f,
+    public VCCSElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         inputCount = Integer.parseInt(st.nextToken());
         exprString = CustomLogicModel.unescape(st.nextToken());
         parseExpr();
         setupPins();
     }
 
-    public VCCSElm(int xx, int yy) {
-        super(xx, yy);
+    public VCCSElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         inputCount = 2;
         exprString = ".1*(a-b)";
         parseExpr();

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Diode;
@@ -46,15 +48,15 @@ public class SevenSegElm extends ChipElm {
     // 1 = common cathode, -1 = common anode, 0 = no diodes
     int diodeDirection;
 
-    public SevenSegElm(int xx, int yy) {
-        super(xx, yy);
+    public SevenSegElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setDefaults();
         setPinCount();
     }
 
-    public SevenSegElm(int xa, int ya, int xb, int yb, int f,
+    public SevenSegElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         setDefaults();
         try {
             baseSegmentCount = Integer.parseInt(st.nextToken());

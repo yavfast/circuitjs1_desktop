@@ -19,7 +19,10 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -42,15 +45,17 @@ public class CapacitorElm extends CircuitElm {
     Point[] plate1;
     Point[] plate2;
 
-    public CapacitorElm(int xx, int yy) {
-        super(xx, yy);
+    public CapacitorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
+        CirSim.console("CapacitorElm constructor called with (" + xx + ", " + yy + ")");
         capacitance = 1e-5;
         initialVoltage = 1e-3;
         seriesResistance = 1e-3;
+        CirSim.console("CapacitorElm constructor completed");
     }
 
-    public CapacitorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public CapacitorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         capacitance = parseDouble(st.nextToken());
         voltDiff = parseDouble(st.nextToken());
         initialVoltage = parseDouble(st.tryNextToken(), 1e-3);
@@ -214,6 +219,10 @@ public class CapacitorElm extends CircuitElm {
     }
 
     public int getInternalNodeCount() {
+        // Guard against null circuitDocument during construction
+        if (circuitDocument == null) {
+            return 0;  // Default to no internal nodes during construction
+        }
         return (!circuitDocument.circuitInfo.dcAnalysisFlag && seriesResistance > 0) ? 1 : 0;
     }
 

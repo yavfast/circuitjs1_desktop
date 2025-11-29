@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -30,8 +32,8 @@ public class SweepElm extends CircuitElm {
     final int FLAG_LOG = 1;
     final int FLAG_BIDIR = 2;
 
-    public SweepElm(int xx, int yy) {
-        super(xx, yy);
+    public SweepElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         minF = 20;
         maxF = 4000;
         maxV = 5;
@@ -40,8 +42,8 @@ public class SweepElm extends CircuitElm {
         reset();
     }
 
-    public SweepElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public SweepElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         minF = parseDouble(st.nextToken());
         maxF = parseDouble(st.nextToken());
         maxV = parseDouble(st.nextToken());

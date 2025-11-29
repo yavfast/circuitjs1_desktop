@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.ui.TextArea;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -38,8 +40,8 @@ public class SeqGenElm extends ChipElm {
     int data[];
     boolean clockstate = false;
 
-    public SeqGenElm(int xx, int yy) {
-        super(xx, yy);
+    public SeqGenElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         bitCount = 8;
         data = new int[]{0};
         flags |= FLAG_NEW_VERSION;
@@ -48,8 +50,8 @@ public class SeqGenElm extends ChipElm {
         allocNodes();
     }
 
-    public SeqGenElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public SeqGenElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         try {
             if ((flags & FLAG_NEW_VERSION) == 0) {
                 // This is an old sequence generator. Upgrade it to the new, flexible version.

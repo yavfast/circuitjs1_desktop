@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.user.client.ui.Label;
@@ -32,16 +34,16 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     Label label;
     String sliderText;
 
-    public VarRailElm(int xx, int yy) {
-        super(xx, yy, WF_VAR);
+    public VarRailElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_VAR);
         sliderText = "Voltage";
         frequency = maxVoltage;
         createSlider();
     }
 
-    public VarRailElm(int xa, int ya, int xb, int yb, int f,
+    public VarRailElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         sliderText = st.nextToken();
         while (st.hasMoreTokens())
             sliderText += ' ' + st.nextToken();

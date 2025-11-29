@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -33,8 +35,8 @@ public class LampElm extends CircuitElm {
     final double roomTemp = 300;
     double temp, nom_pow, nom_v, warmTime, coolTime;
 
-    public LampElm(int xx, int yy) {
-        super(xx, yy);
+    public LampElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         temp = roomTemp;
         nom_pow = 100;
         nom_v = 120;
@@ -43,9 +45,9 @@ public class LampElm extends CircuitElm {
         startIteration(); // set resistance
     }
 
-    public LampElm(int xa, int ya, int xb, int yb, int f,
+    public LampElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         temp = parseDouble(st.nextToken());
         if (Double.isNaN(temp))
             temp = roomTemp;

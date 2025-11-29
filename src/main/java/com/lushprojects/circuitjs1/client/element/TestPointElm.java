@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 /*    
     Copyright (C) Paul Falstad and Iain Sharp
     
@@ -61,15 +63,15 @@ public class TestPointElm extends CircuitElm {
     long periodStart, periodLength, pulseStart;//time between consecutive max values
     String label;
 
-    public TestPointElm(int xx, int yy) {
-        super(xx, yy);
+    public TestPointElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         meter = TP_VOL;
         label = "TP";
     }
 
-    public TestPointElm(int xa, int ya, int xb, int yb, int f,
+    public TestPointElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         meter = parseInt(st.nextToken()); //get meter type from saved dump
         if ((flags & FLAG_LABEL) != 0)
             label = CustomLogicModel.unescape(st.nextToken());

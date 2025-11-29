@@ -1,6 +1,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
@@ -40,8 +42,8 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     String sliderText;
 
     //constructor - when initially created
-    public ThermistorNTCElm(int xx, int yy) {
-        super(xx, yy);
+    public ThermistorNTCElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         //setup();
         minTempr = -40;//celsius
         maxTempr = 150;
@@ -58,9 +60,9 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     }
 
     //constructor - when read in from file
-    public ThermistorNTCElm(int xa, int ya, int xb, int yb, int f,
+    public ThermistorNTCElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                             StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         r25 = parseDouble(st.nextToken());
         r50 = parseDouble(st.nextToken());
         minTempr = parseDouble(st.nextToken());

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -34,8 +36,8 @@ public class JfetElm extends MosfetElm {
     Diode diodeGD;
     double gateCurrentGS, gateCurrentGD;
 
-    JfetElm(int xx, int yy, boolean pnpflag) {
-        super(xx, yy, pnpflag);
+    JfetElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
+        super(circuitDocument, xx, yy, pnpflag);
         noDiagonal = true;
         diodeGS = new Diode();
         diodeGS.setupForDefaultModel();
@@ -43,9 +45,9 @@ public class JfetElm extends MosfetElm {
         diodeGD.setupForDefaultModel();
     }
 
-    public JfetElm(int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public JfetElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
+            StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         noDiagonal = true;
         diodeGS = new Diode();
         diodeGS.setupForDefaultModel();
@@ -77,7 +79,7 @@ public class JfetElm extends MosfetElm {
         g.fillPolygon(arrowPoly);
         setPowerColor(g, true);
         g.fillPolygon(gatePoly);
-        
+
         // Total gate current is sum of both diode currents
         double totalGateCurrent = gateCurrentGS + gateCurrentGD;
         curcountd = updateDotCount(-ids, curcountd);
@@ -100,8 +102,8 @@ public class JfetElm extends MosfetElm {
         if (n == 0)
             return -totalGateCurrent;
         if (n == 1)
-            return gateCurrentGS + ids;  // Source: channel current + GS diode
-        return -ids + gateCurrentGD;     // Drain: channel current + GD diode
+            return gateCurrentGS + ids; // Source: channel current + GS diode
+        return -ids + gateCurrentGD; // Drain: channel current + GD diode
     }
 
     public void setPoints() {
@@ -133,11 +135,11 @@ public class JfetElm extends MosfetElm {
         super.stamp();
         // JFET has two gate p-n junctions: Gate-Source and Gate-Drain
         // For n-JFET (pnp=1): diodes conduct when gate is positive relative to S or D
-        //   - Diode GS: anode=gate(0), cathode=source(1)
-        //   - Diode GD: anode=gate(0), cathode=drain(2)
+        // - Diode GS: anode=gate(0), cathode=source(1)
+        // - Diode GD: anode=gate(0), cathode=drain(2)
         // For p-JFET (pnp=-1): diodes conduct when gate is negative relative to S or D
-        //   - Diode GS: anode=source(1), cathode=gate(0)
-        //   - Diode GD: anode=drain(2), cathode=gate(0)
+        // - Diode GS: anode=source(1), cathode=gate(0)
+        // - Diode GD: anode=drain(2), cathode=gate(0)
         if (pnp == 1) {
             // n-JFET: gate positive conducts
             diodeGS.stamp(nodes[0], nodes[1]);
@@ -154,9 +156,9 @@ public class JfetElm extends MosfetElm {
         // Calculate gate-source and gate-drain voltages
         // For n-JFET: positive Vgs means forward bias
         // For p-JFET: negative Vgs means forward bias (multiply by pnp to normalize)
-        double vgs = volts[0] - volts[1];  // Gate - Source voltage
-        double vgd = volts[0] - volts[2];  // Gate - Drain voltage
-        
+        double vgs = volts[0] - volts[1]; // Gate - Source voltage
+        double vgd = volts[0] - volts[2]; // Gate - Drain voltage
+
         // Diode models expect positive voltage for forward bias
         // n-JFET (pnp=1): forward bias when Vg > Vs, so use vgs directly
         // p-JFET (pnp=-1): forward bias when Vg < Vs, so negate: -(vgs) = Vs - Vg
@@ -248,13 +250,14 @@ public class JfetElm extends MosfetElm {
 
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
-        // Note: Don't call super here as JFET has different property handling than MOSFET
+        // Note: Don't call super here as JFET has different property handling than
+        // MOSFET
         // Parse threshold voltage
         vt = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "threshold_voltage", "4 V"));
+                getJsonString(props, "threshold_voltage", "4 V"));
         // Make negative for JFET
         vt = -Math.abs(vt);
-        
+
         // Parse beta
         beta = getJsonDouble(props, "beta", getDefaultBeta());
     }

@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class ClockElm extends RailElm {
-    public ClockElm(int xx, int yy) {
-        super(xx, yy, WF_SQUARE);
+    public ClockElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_SQUARE);
         maxVoltage = 2.5;
         bias = 2.5;
         frequency = 100;

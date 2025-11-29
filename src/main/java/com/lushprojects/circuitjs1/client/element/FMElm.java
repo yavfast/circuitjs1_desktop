@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -35,8 +37,8 @@ public class FMElm extends CircuitElm {
     double lasttime = 0;
     double funcx = 0;
 
-    public FMElm(int xx, int yy) {
-        super(xx, yy);
+    public FMElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         deviation = 200;
         maxVoltage = 5;
         carrierfreq = 800;
@@ -44,9 +46,9 @@ public class FMElm extends CircuitElm {
         reset();
     }
 
-    public FMElm(int xa, int ya, int xb, int yb, int f,
+    public FMElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                  StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         carrierfreq = parseDouble(st.nextToken());
         signalfreq = parseDouble(st.nextToken());
         maxVoltage = parseDouble(st.nextToken());

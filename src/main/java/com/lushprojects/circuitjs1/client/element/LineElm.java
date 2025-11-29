@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -26,16 +28,16 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 public class LineElm extends GraphicElm {
 
-    public LineElm(int xx, int yy) {
-        super(xx, yy);
+    public LineElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         x2 = xx;
         y2 = yy;
         setBbox(x, y, x2, y2);
     }
 
-    public LineElm(int xa, int ya, int xb, int yb, int f,
+    public LineElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         x2 = xb;
         y2 = yb;
         setBbox(x, y, x2, y2);

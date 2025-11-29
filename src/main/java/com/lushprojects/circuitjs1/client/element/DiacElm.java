@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -35,8 +37,8 @@ public class DiacElm extends CircuitElm {
     boolean state;
     Diode diode1, diode2;
 
-    public DiacElm(int xx, int yy) {
-        super(xx, yy);
+    public DiacElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         offresistance = 1e8;
         onresistance = 500;
         breakdown = 30;
@@ -45,9 +47,9 @@ public class DiacElm extends CircuitElm {
         createDiodes();
     }
 
-    public DiacElm(int xa, int ya, int xb, int yb, int f,
+    public DiacElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         onresistance = parseDouble(st.nextToken());
         offresistance = parseDouble(st.nextToken());
         breakdown = parseDouble(st.nextToken());

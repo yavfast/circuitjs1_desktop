@@ -37,7 +37,7 @@ import java.util.Map;
 public class JsonCircuitImporter implements CircuitImporter {
 
     private final JsonCircuitFormat format;
-    
+
     // Map from element ID to created element (for scope/adjustable references)
     private Map<String, CircuitElm> importedElements;
 
@@ -80,20 +80,23 @@ public class JsonCircuitImporter implements CircuitImporter {
             // 2. Parse elements
             int elementCount = parseElements(root, document);
 
-            // 3. Parse scopes
+            // 3. Create auto-wires from connected_to references
+            int wireCount = createAutoWires(root, document);
+
+            // 4. Parse scopes
             int scopeCount = parseScopes(root, document);
 
-            // 4. Parse adjustables
+            // 5. Parse adjustables
             int adjustableCount = parseAdjustables(root, document);
-            
-            // 5. Create UI sliders for adjustables
+
+            // 6. Create UI sliders for adjustables
             document.adjustableManager.createSliders();
 
-            // 6. Notify document that import is complete
+            // 7. Notify document that import is complete
             document.getCirSim().needAnalyze();
 
-            CirSim.console("JSON import: " + elementCount + " elements, " + 
-                          scopeCount + " scopes, " + adjustableCount + " adjustables");
+            CirSim.console("JSON import: " + elementCount + " elements, " + wireCount + " auto-wires, " +
+                    scopeCount + " scopes, " + adjustableCount + " adjustables");
 
         } catch (Exception e) {
             CirSim.console("JSON import error: " + e.getMessage());
@@ -206,16 +209,21 @@ public class JsonCircuitImporter implements CircuitImporter {
 
     private int parseElements(JSONObject root, CircuitDocument document) {
         JSONValue elementsValue = root.get("elements");
+        CirSim.console("parseElements: elementsValue=" + (elementsValue != null ? "exists" : "null"));
         if (elementsValue == null || elementsValue.isObject() == null) {
+            CirSim.console("parseElements: no elements object found");
             return 0;
         }
 
         JSONObject elements = elementsValue.isObject();
         int count = 0;
+        CirSim.console("parseElements: found " + elements.keySet().size() + " element keys");
 
         for (String elementId : elements.keySet()) {
+            CirSim.console("parseElements: processing element '" + elementId + "'");
             JSONValue elementValue = elements.get(elementId);
             if (elementValue == null || elementValue.isObject() == null) {
+                CirSim.console("parseElements: element '" + elementId + "' value is null or not object");
                 continue;
             }
 
@@ -229,9 +237,12 @@ public class JsonCircuitImporter implements CircuitImporter {
             }
 
             String jsonType = typeValue.isString().stringValue();
+            CirSim.console("parseElements: element '" + elementId + "' has type '" + jsonType + "'");
 
-            // Create element using factory
-            CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson);
+            // Create element using factory with CircuitDocument
+            CirSim.console("parseElements: calling CircuitElementFactory.createFromJson for '" + jsonType + "'");
+            CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson, document);
+            CirSim.console("parseElements: factory returned " + (elm != null ? elm.getClass().getSimpleName() : "null"));
             if (elm == null) {
                 CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
                 continue;
@@ -240,18 +251,164 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Set element ID from JSON (preserve original ID)
             elm.setElementId(elementId);
 
-            // Set circuit document
-            elm.setCircuitDocument(document);
-
             // Add to simulator
             document.simulator.elmList.add(elm);
-            
+
             // Store for reference
             importedElements.put(elementId, elm);
             count++;
         }
 
         return count;
+    }
+
+    /**
+     * Creates Wire elements automatically based on connected_to references in pin
+     * definitions.
+     * This allows netlist-style connections without requiring exact coordinate
+     * matching.
+     */
+    private int createAutoWires(JSONObject root, CircuitDocument document) {
+        JSONValue elementsValue = root.get("elements");
+        if (elementsValue == null || elementsValue.isObject() == null) {
+            return 0;
+        }
+
+        JSONObject elements = elementsValue.isObject();
+        int wireCount = 0;
+
+        // Track which connections we've already created to avoid duplicates
+        java.util.Set<String> createdConnections = new java.util.HashSet<>();
+
+        // Iterate through all elements and their pins
+        for (String elementId : elements.keySet()) {
+            JSONValue elementValue = elements.get(elementId);
+            if (elementValue == null || elementValue.isObject() == null) {
+                continue;
+            }
+
+            JSONObject elementJson = elementValue.isObject();
+            JSONValue pinsValue = elementJson.get("pins");
+            if (pinsValue == null || pinsValue.isObject() == null) {
+                continue;
+            }
+
+            JSONObject pins = pinsValue.isObject();
+
+            // Get the element
+            CircuitElm sourceElement = importedElements.get(elementId);
+            if (sourceElement == null) {
+                continue;
+            }
+
+            // Check each pin for connected_to
+            for (String pinName : pins.keySet()) {
+                JSONValue pinValue = pins.get(pinName);
+                if (pinValue == null || pinValue.isObject() == null) {
+                    continue;
+                }
+
+                JSONObject pin = pinValue.isObject();
+
+                // Look for connected_to reference
+                JSONValue connectedToValue = pin.get("connected_to");
+                if (connectedToValue == null || connectedToValue.isString() == null) {
+                    continue;
+                }
+
+                String connectedTo = connectedToValue.isString().stringValue();
+
+                // Parse connected_to reference (format: "elementId.pinName" or "elementId")
+                String[] parts = connectedTo.split("\\.");
+                String targetElementId = parts[0];
+                String targetPinName = parts.length > 1 ? parts[1] : null;
+
+                // Get target element
+                CircuitElm targetElement = importedElements.get(targetElementId);
+                if (targetElement == null) {
+                    CirSim.console("JSON auto-wire: target element not found: " + targetElementId);
+                    continue;
+                }
+
+                // Get source pin position
+                JSONValue sourcePosValue = pin.get("position");
+                if (sourcePosValue == null || sourcePosValue.isObject() == null) {
+                    continue;
+                }
+                JSONObject sourcePos = sourcePosValue.isObject();
+                JSONValue sourceXVal = sourcePos.get("x");
+                JSONValue sourceYVal = sourcePos.get("y");
+                if (sourceXVal == null || sourceYVal == null) {
+                    continue;
+                }
+                int sourceX = (int) sourceXVal.isNumber().doubleValue();
+                int sourceY = (int) sourceYVal.isNumber().doubleValue();
+
+                // Get target pin position
+                int targetX, targetY;
+                if (targetPinName != null) {
+                    // Specific pin referenced
+                    JSONValue targetElementValue = elements.get(targetElementId);
+                    if (targetElementValue == null || targetElementValue.isObject() == null) {
+                        continue;
+                    }
+                    JSONObject targetElementJson = targetElementValue.isObject();
+                    JSONValue targetPinsValue = targetElementJson.get("pins");
+                    if (targetPinsValue == null || targetPinsValue.isObject() == null) {
+                        continue;
+                    }
+                    JSONObject targetPins = targetPinsValue.isObject();
+                    JSONValue targetPinValue = targetPins.get(targetPinName);
+                    if (targetPinValue == null || targetPinValue.isObject() == null) {
+                        CirSim.console("JSON auto-wire: target pin not found: " + connectedTo);
+                        continue;
+                    }
+                    JSONObject targetPin = targetPinValue.isObject();
+                    JSONValue targetPosValue = targetPin.get("position");
+                    if (targetPosValue == null || targetPosValue.isObject() == null) {
+                        continue;
+                    }
+                    JSONObject targetPos = targetPosValue.isObject();
+                    JSONValue targetXVal = targetPos.get("x");
+                    JSONValue targetYVal = targetPos.get("y");
+                    if (targetXVal == null || targetYVal == null) {
+                        continue;
+                    }
+                    targetX = (int) targetXVal.isNumber().doubleValue();
+                    targetY = (int) targetYVal.isNumber().doubleValue();
+                } else {
+                    // No specific pin - use element's first post position
+                    targetX = targetElement.x;
+                    targetY = targetElement.y;
+                }
+
+                // Create unique connection ID to avoid duplicates
+                String connectionId1 = sourceX + "," + sourceY + "-" + targetX + "," + targetY;
+                String connectionId2 = targetX + "," + targetY + "-" + sourceX + "," + sourceY;
+
+                if (createdConnections.contains(connectionId1) || createdConnections.contains(connectionId2)) {
+                    continue; // Already created this wire
+                }
+
+                // Create Wire element
+                com.lushprojects.circuitjs1.client.element.WireElm wire = new com.lushprojects.circuitjs1.client.element.WireElm(
+                        document, sourceX, sourceY);
+                wire.x2 = targetX;
+                wire.y2 = targetY;
+                wire.setPoints();
+
+                // Add to simulator
+                document.simulator.elmList.add(wire);
+                wireCount++;
+
+                // Mark this connection as created
+                createdConnections.add(connectionId1);
+
+                CirSim.console("JSON auto-wire: created " + elementId + "." + pinName + " -> " + connectedTo);
+            }
+        }
+
+        return wireCount;
     }
 
     private int parseScopes(JSONObject root, CircuitDocument document) {
@@ -445,12 +602,12 @@ public class JsonCircuitImporter implements CircuitImporter {
         }
 
         JSONObject schema = schemaValue.isObject();
-        
+
         JSONValue formatValue = schema.get("format");
         if (formatValue == null || formatValue.isString() == null) {
             return false;
         }
-        
+
         String formatStr = formatValue.isString().stringValue();
         if (!"circuitjs".equals(formatStr)) {
             return false;
@@ -473,7 +630,7 @@ public class JsonCircuitImporter implements CircuitImporter {
         }
 
         String trimmed = data.trim();
-        
+
         // Quick check: must start with '{' for JSON object
         if (!trimmed.startsWith("{")) {
             return false;
@@ -487,7 +644,7 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             JSONObject root = parsed.isObject();
             return validateSchema(root);
-            
+
         } catch (Exception e) {
             return false;
         }

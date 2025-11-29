@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -26,13 +28,13 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 public class Counter2Elm extends ChipElm {
     int modulus;
 
-    public Counter2Elm(int xx, int yy) {
-        super(xx, yy);
+    public Counter2Elm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public Counter2Elm(int xa, int ya, int xb, int yb, int f,
+    public Counter2Elm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         try {
             modulus = Integer.parseInt(st.nextToken());
         } catch (Exception e) {

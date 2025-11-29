@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -36,8 +38,8 @@ public class InvertingSchmittElm extends CircuitElm {
     double logicOnLevel;
     double logicOffLevel;
 
-    public InvertingSchmittElm(int xx, int yy) {
-        super(xx, yy);
+    public InvertingSchmittElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = true;
         slewRate = .5;
         state = false;
@@ -47,9 +49,9 @@ public class InvertingSchmittElm extends CircuitElm {
         logicOffLevel = 0;
     }
 
-    public InvertingSchmittElm(int xa, int ya, int xb, int yb, int f,
+    public InvertingSchmittElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                                StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = true;
         slewRate = .5;
         lowerTrigger = 1.66;

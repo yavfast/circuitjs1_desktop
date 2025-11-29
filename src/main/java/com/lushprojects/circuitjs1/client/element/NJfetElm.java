@@ -19,13 +19,14 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class NJfetElm extends JfetElm {
-    public NJfetElm(int xx, int yy) {
-        super(xx, yy, false);
+    public NJfetElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
     }
 
     public Class getDumpClass() {
         return JfetElm.class;
     }
 }
-

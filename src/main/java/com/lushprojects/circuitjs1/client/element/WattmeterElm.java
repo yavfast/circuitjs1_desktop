@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -31,14 +33,14 @@ public class WattmeterElm extends CircuitElm {
     double currents[];
     double curcounts[];
 
-    public WattmeterElm(int xx, int yy) {
-        super(xx, yy);
+    public WattmeterElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setup();
     }
 
-    public WattmeterElm(int xa, int ya, int xb, int yb, int f,
+    public WattmeterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         width = Integer.parseInt(st.nextToken());
         setup();
     }

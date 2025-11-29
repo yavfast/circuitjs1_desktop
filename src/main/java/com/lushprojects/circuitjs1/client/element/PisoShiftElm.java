@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -33,15 +35,15 @@ public class PisoShiftElm extends ChipElm {
     boolean loadState = false;
     int dataPinIndex; // the register pins' starting index
 
-    public PisoShiftElm(int xx, int yy) {
-        super(xx, yy);
+    public PisoShiftElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         data = new boolean[bits];
         flags |= FLAG_NEW_BEHAVIOR;
         setupPins();
     }
 
-    public PisoShiftElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public PisoShiftElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         data = new boolean[bits];
         readBits(st, data);
         setupPins();

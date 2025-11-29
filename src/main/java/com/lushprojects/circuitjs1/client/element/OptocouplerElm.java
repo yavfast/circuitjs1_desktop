@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -17,15 +19,15 @@ public class OptocouplerElm extends CompositeElm {
     DiodeElm diode;
     TransistorElm transistor;
 
-    public OptocouplerElm(int xx, int yy) {
-        super(xx, yy, modelString, modelExternalNodes);
+    public OptocouplerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, modelString, modelExternalNodes);
         noDiagonal = true;
         initOptocoupler();
     }
 
-    public OptocouplerElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+    public OptocouplerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         // pass st=null since we don't need to undump any of the sub-elements
-        super(xa, ya, xb, yb, f, null, modelString, modelExternalNodes);
+        super(circuitDocument, xa, ya, xb, yb, f, null, modelString, modelExternalNodes);
         noDiagonal = true;
         initOptocoupler();
     }

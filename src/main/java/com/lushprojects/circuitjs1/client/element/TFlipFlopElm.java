@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -35,13 +37,13 @@ public class TFlipFlopElm extends ChipElm {
         return (flags & FLAG_SET) != 0;
     }
 
-    public TFlipFlopElm(int xx, int yy) {
-        super(xx, yy);
+    public TFlipFlopElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public TFlipFlopElm(int xa, int ya, int xb, int yb, int f,
+    public TFlipFlopElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         pins[2].value = !pins[1].value;
     }
 

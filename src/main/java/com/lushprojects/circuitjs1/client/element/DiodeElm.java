@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Choice;
@@ -44,16 +46,16 @@ public class DiodeElm extends CircuitElm {
     boolean hasResistance;
     int diodeEndNode;
 
-    public DiodeElm(int xx, int yy) {
-        super(xx, yy);
+    public DiodeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         modelName = lastModelName;
         diode = new Diode();
         setup();
     }
 
-    public DiodeElm(int xa, int ya, int xb, int yb, int f,
+    public DiodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         final double defaultdrop = .805904783;
         diode = new Diode();
         double fwdrop = defaultdrop;

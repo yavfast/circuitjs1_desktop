@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -29,14 +31,14 @@ public class CurrentElm extends CircuitElm {
     double currentValue;
     boolean broken;
 
-    public CurrentElm(int xx, int yy) {
-        super(xx, yy);
+    public CurrentElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         currentValue = .01;
     }
 
-    public CurrentElm(int xa, int ya, int xb, int yb, int f,
+    public CurrentElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         try {
             currentValue = parseDouble(st.nextToken());
         } catch (Exception e) {

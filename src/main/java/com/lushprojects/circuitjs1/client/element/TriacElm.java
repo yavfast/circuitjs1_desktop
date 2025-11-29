@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // 3 nodes, 2 internal nodes
 // 1 = MT1, 0 = MT2, 2 = gate
 // 3 = internal node between MT1 and MT2 (mtinode)
@@ -43,15 +45,15 @@ public class TriacElm extends CircuitElm {
     Diode diode03, diode30;
     boolean state;
 
-    public TriacElm(int xx, int yy) {
-        super(xx, yy);
+    public TriacElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setDefaults();
         setup();
     }
 
-    public TriacElm(int xa, int ya, int xb, int yb, int f,
+    public TriacElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         setDefaults();
         triggerI = Double.parseDouble(st.nextToken());
         holdingI = Double.parseDouble(st.nextToken());

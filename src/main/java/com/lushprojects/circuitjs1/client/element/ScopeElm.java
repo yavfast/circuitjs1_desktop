@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.Scope;
@@ -28,8 +30,8 @@ public class ScopeElm extends CircuitElm {
 
     public Scope elmScope;
 
-    public ScopeElm(int xx, int yy) {
-        super(xx, yy);
+    public ScopeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = false;
         x2 = x + 128;
         y2 = y + 64;
@@ -51,9 +53,9 @@ public class ScopeElm extends CircuitElm {
         elmScope.resetGraph();
     }
 
-    public ScopeElm(int xa, int ya, int xb, int yb, int f,
+    public ScopeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = false;
         String sStr = st.nextToken();
         StringTokenizer sst = new StringTokenizer(sStr, "_");

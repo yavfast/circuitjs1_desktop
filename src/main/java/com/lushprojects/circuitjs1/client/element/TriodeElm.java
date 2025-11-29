@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -31,16 +33,16 @@ public class TriodeElm extends CircuitElm {
     double curcountp, curcountc, curcountg, currentp, currentg, currentc;
     final double gridCurrentR = 6000;
 
-    public TriodeElm(int xx, int yy) {
-        super(xx, yy);
+    public TriodeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         mu = 93;
         kg1 = 680;
         setup();
     }
 
-    public TriodeElm(int xa, int ya, int xb, int yb, int f,
+    public TriodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                      StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         mu = parseDouble(st.nextToken());
         kg1 = parseDouble(st.nextToken());
         setup();

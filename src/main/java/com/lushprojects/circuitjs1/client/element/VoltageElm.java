@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Color;
@@ -46,8 +48,8 @@ public class VoltageElm extends CircuitElm {
 
     static final double defaultPulseDuty = 1 / (2 * Math.PI);
 
-    VoltageElm(int xx, int yy, int wf) {
-        super(xx, yy);
+    VoltageElm(CircuitDocument circuitDocument, int xx, int yy, int wf) {
+        super(circuitDocument, xx, yy);
         waveform = wf;
         maxVoltage = 5;
         frequency = 40;
@@ -55,9 +57,9 @@ public class VoltageElm extends CircuitElm {
         reset();
     }
 
-    public VoltageElm(int xa, int ya, int xb, int yb, int f,
+    public VoltageElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         maxVoltage = 5;
         frequency = 40;
         waveform = WF_DC;

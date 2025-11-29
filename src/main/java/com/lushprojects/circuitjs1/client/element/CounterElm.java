@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -30,13 +32,13 @@ public class CounterElm extends ChipElm {
     final int FLAG_UP_DOWN = 4;
     final int FLAG_NEGATIVE_EDGE = 8;
 
-    public CounterElm(int xx, int yy) {
-        super(xx, yy);
+    public CounterElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public CounterElm(int xa, int ya, int xb, int yb, int f,
+    public CounterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         invertreset = true;
         try {
             invertreset = Boolean.parseBoolean(st.nextToken());

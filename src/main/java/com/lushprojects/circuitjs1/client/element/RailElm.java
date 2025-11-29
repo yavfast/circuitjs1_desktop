@@ -19,23 +19,25 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class RailElm extends VoltageElm {
-    public RailElm(int xx, int yy) {
-        super(xx, yy, WF_DC);
+    public RailElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_DC);
 
     }
 
-    RailElm(int xx, int yy, int wf) {
-        super(xx, yy, wf);
+    RailElm(CircuitDocument circuitDocument, int xx, int yy, int wf) {
+        super(circuitDocument, xx, yy, wf);
     }
 
-    public RailElm(int xa, int ya, int xb, int yb, int f,
+    public RailElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
 

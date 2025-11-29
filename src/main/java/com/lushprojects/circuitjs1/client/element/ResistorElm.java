@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -29,14 +31,14 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 public class ResistorElm extends CircuitElm {
     public double resistance;
 
-    public ResistorElm(int xx, int yy) {
-        super(xx, yy);
+    public ResistorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         resistance = 1000;
     }
 
-    public ResistorElm(int xa, int ya, int xb, int yb, int f,
+    public ResistorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
     }
 

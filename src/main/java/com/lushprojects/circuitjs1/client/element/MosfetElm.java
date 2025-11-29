@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
@@ -51,8 +53,8 @@ public class MosfetElm extends CircuitElm {
     double curcount_body1, curcount_body2;
     static double lastBeta;
 
-    MosfetElm(int xx, int yy, boolean pnpflag) {
-        super(xx, yy);
+    MosfetElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
+        super(circuitDocument, xx, yy);
         pnp = (pnpflag) ? -1 : 1;
         flags = (pnpflag) ? FLAG_PNP : 0;
         flags |= FLAG_BODY_DIODE;
@@ -62,9 +64,9 @@ public class MosfetElm extends CircuitElm {
         vt = getDefaultThreshold();
     }
 
-    public MosfetElm(int xa, int ya, int xb, int yb, int f,
+    public MosfetElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                      StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         pnp = ((f & FLAG_PNP) != 0) ? -1 : 1;
         noDiagonal = true;
         setupDiodes();

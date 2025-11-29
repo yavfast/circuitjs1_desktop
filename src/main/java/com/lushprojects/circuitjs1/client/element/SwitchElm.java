@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -36,24 +38,24 @@ public class SwitchElm extends CircuitElm {
     final int FLAG_LABEL = 4;
     String label;
 
-    public SwitchElm(int xx, int yy) {
-        super(xx, yy);
+    public SwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         momentary = false;
         position = 0;
         posCount = 2;
         label = null;
     }
 
-    SwitchElm(int xx, int yy, boolean mm) {
-        super(xx, yy);
+    SwitchElm(CircuitDocument circuitDocument, int xx, int yy, boolean mm) {
+        super(circuitDocument, xx, yy);
         position = (mm) ? 1 : 0;
         momentary = mm;
         posCount = 2;
         label = null;
     }
 
-    public SwitchElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public SwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         String str = st.nextToken();
         if (str.compareTo("true") == 0)
             position = (this instanceof LogicInputElm) ? 0 : 1;

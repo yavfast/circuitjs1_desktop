@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.DiodeModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -31,8 +33,8 @@ public class LEDElm extends DiodeElm {
     double colorR, colorG, colorB, maxBrightnessCurrent;
     static String lastLEDModelName = "default-led";
 
-    public LEDElm(int xx, int yy) {
-        super(xx, yy);
+    public LEDElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         modelName = lastLEDModelName;
         setup();
         maxBrightnessCurrent = .01;
@@ -40,9 +42,9 @@ public class LEDElm extends DiodeElm {
         colorG = colorB = 0;
     }
 
-    public LEDElm(int xa, int ya, int xb, int yb, int f,
+    public LEDElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         if ((f & (FLAG_MODEL | FLAG_FWDROP)) == 0) {
             final double fwdrop = 2.1024259;
             model = DiodeModel.getModelWithParameters(fwdrop, 0);

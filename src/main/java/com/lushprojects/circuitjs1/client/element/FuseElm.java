@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -34,16 +36,16 @@ public class FuseElm extends CircuitElm {
     final int FLAG_IEC_SYMBOL = 1;
     final double blownResistance = 1e9;
 
-    public FuseElm(int xx, int yy) {
-        super(xx, yy);
+    public FuseElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         // from https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
         i2t = 6.73;
         resistance = .0613;
     }
 
-    public FuseElm(int xa, int ya, int xb, int yb, int f,
+    public FuseElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
         heat = parseDouble(st.nextToken());

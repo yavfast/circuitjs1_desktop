@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -32,14 +34,14 @@ public class LogicOutputElm extends CircuitElm {
     double threshold;
     String value;
 
-    public LogicOutputElm(int xx, int yy) {
-        super(xx, yy);
+    public LogicOutputElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         threshold = 2.5;
     }
 
-    public LogicOutputElm(int xa, int ya, int xb, int yb, int f,
+    public LogicOutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         try {
             threshold = parseDouble(st.nextToken());
         } catch (Exception e) {

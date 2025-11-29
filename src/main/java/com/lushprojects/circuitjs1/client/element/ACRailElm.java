@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class ACRailElm extends RailElm {
-    public ACRailElm(int xx, int yy) {
-        super(xx, yy, WF_AC);
+    public ACRailElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_AC);
     }
 
     public Class getDumpClass() {

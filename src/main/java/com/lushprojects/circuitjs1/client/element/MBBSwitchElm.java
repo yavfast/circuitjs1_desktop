@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -33,8 +35,8 @@ public class MBBSwitchElm extends SwitchElm {
     double curcounts[];
     boolean both;
 
-    public MBBSwitchElm(int xx, int yy) {
-        super(xx, yy, false);
+    public MBBSwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
         setup();
     }
 
@@ -45,9 +47,9 @@ public class MBBSwitchElm extends SwitchElm {
         curcounts = new double[3];
     }
 
-    public MBBSwitchElm(int xa, int ya, int xb, int yb, int f,
+    public MBBSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         link = parseInt(st.nextToken());
         setup();
     }

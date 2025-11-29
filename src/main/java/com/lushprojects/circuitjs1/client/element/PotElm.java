@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.user.client.Command;
@@ -44,8 +46,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     Label label;
     String sliderText;
 
-    public PotElm(int xx, int yy) {
-        super(xx, yy);
+    public PotElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setup();
         maxResistance = 1000;
         position = .5;
@@ -54,9 +56,9 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         createSlider();
     }
 
-    public PotElm(int xa, int ya, int xb, int yb, int f,
+    public PotElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         maxResistance = parseDouble(st.nextToken());
         position = parseDouble(st.nextToken());
         sliderText = st.nextToken();

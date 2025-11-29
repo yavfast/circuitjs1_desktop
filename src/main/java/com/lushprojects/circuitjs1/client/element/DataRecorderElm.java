@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.ui.Anchor;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
@@ -17,14 +19,14 @@ public class DataRecorderElm extends CircuitElm {
     double data[];
     boolean dataFull;
 
-    public DataRecorderElm(int xx, int yy) {
-        super(xx, yy);
+    public DataRecorderElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         setDataCount(10240);
     }
 
-    public DataRecorderElm(int xa, int ya, int xb, int yb, int f,
+    public DataRecorderElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                            StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         setDataCount(Integer.parseInt(st.nextToken()));
     }
 

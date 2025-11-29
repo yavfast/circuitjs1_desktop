@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -23,8 +25,8 @@ public class DarlingtonElm extends CompositeElm {
     private static String modelString = "NTransistorElm 1 2 4\rNTransistorElm 4 2 3";
     private static int[] modelExternalNodes = {1, 2, 3};
 
-    DarlingtonElm(int xx, int yy, boolean pnpflag) {
-        super(xx, yy, modelString, modelExternalNodes);
+    DarlingtonElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
+        super(circuitDocument, xx, yy, modelString, modelExternalNodes);
         pnp = (pnpflag) ? -1 : 1;
         ((TransistorElm) compElmList.get(0)).pnp = pnp;
         ((TransistorElm) compElmList.get(1)).pnp = pnp;
@@ -33,8 +35,8 @@ public class DarlingtonElm extends CompositeElm {
     }
 
 
-    public DarlingtonElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
+    public DarlingtonElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
         pnp = parseInt(st.nextToken());
         noDiagonal = true;
     }

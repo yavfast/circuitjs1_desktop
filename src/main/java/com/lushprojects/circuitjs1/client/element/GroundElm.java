@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -32,14 +34,14 @@ public class GroundElm extends CircuitElm {
     // this is needed for old subcircuits which have GroundElm dumped
     final int FLAG_OLD_STYLE = 1;
 
-    public GroundElm(int xx, int yy) {
-        super(xx, yy);
+    public GroundElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         symbolType = lastSymbolType;
     }
 
-    public GroundElm(int xa, int ya, int xb, int yb, int f,
+    public GroundElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                      StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         if (st.hasMoreTokens()) {
             try {
                 symbolType = Integer.parseInt(st.nextToken());

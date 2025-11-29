@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
@@ -27,8 +29,8 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
     String sliderText;
 
     //constructor - when initially created
-    public LDRElm(int xx, int yy) {
-        super(xx, yy);
+    public LDRElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         //setup();
         minLux = 0.1; //dark
         maxLux = 10000; // sunlight
@@ -41,9 +43,9 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     //constructor - when read in from file
-    public LDRElm(int xa, int ya, int xb, int yb, int f,
+    public LDRElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         minLux = 0.1; //dark
         maxLux = 10000; // sunlight
         position = parseDouble(st.nextToken());

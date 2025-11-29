@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Checkbox;
@@ -54,16 +56,16 @@ public class TransistorElm extends CircuitElm {
     static int globalFlags;
     int badIters;
 
-    TransistorElm(int xx, int yy, boolean pnpflag) {
-        super(xx, yy);
+    TransistorElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
+        super(circuitDocument, xx, yy);
         pnp = (pnpflag) ? -1 : 1;
         beta = 100;
         modelName = lastModelName;
         setup();
     }
 
-    public TransistorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public TransistorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         pnp = parseInt(st.nextToken());
         beta = 100;
         try {
@@ -219,8 +221,9 @@ public class TransistorElm extends CircuitElm {
         if (pnp == 1)
             arrowPoly = calcArrow(emit[1], emit[0], 8, 4);
         else {
-            Point pt = interpPoint(point1, point2, 1 - 11 / dn, -5 * dsign * pnp);
-            arrowPoly = calcArrow(emit[0], pt, 8, 4);
+            // For PNP, arrow points from emitter post toward the base rectangle
+            // Use same position as emit[1] for proper alignment
+            arrowPoly = calcArrow(emit[0], emit[1], 8, 4);
         }
 
         circleCenter = interpPoint(base, point2, .5);

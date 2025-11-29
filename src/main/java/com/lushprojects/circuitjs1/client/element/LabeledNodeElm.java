@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -33,14 +35,14 @@ public class LabeledNodeElm extends CircuitElm {
     final int FLAG_ESCAPE = 4;
     final int FLAG_INTERNAL = 1;
 
-    public LabeledNodeElm(int xx, int yy) {
-        super(xx, yy);
+    public LabeledNodeElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         text = "label";
     }
 
-    public LabeledNodeElm(int xa, int ya, int xb, int yb, int f,
+    public LabeledNodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                           StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         text = st.nextToken();
         if ((flags & FLAG_ESCAPE) == 0) {
             // old-style dump before escape/unescape

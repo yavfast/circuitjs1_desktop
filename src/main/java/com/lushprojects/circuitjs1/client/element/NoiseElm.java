@@ -19,16 +19,18 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class NoiseElm extends RailElm {
-    public NoiseElm(int xx, int yy) {
-        super(xx, yy, WF_NOISE);
+    public NoiseElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_NOISE);
     }
 
-    public NoiseElm(int xa, int ya, int xb, int yb, int f,
+    public NoiseElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         waveform = WF_NOISE;
     }
 

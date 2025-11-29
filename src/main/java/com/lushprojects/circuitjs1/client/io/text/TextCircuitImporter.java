@@ -289,7 +289,7 @@ public class TextCircuitImporter implements CircuitImporter {
 
         // Create the circuit element
         CircuitElm element = CircuitElmCreator.createCe(
-                typeId, startX, startY, endX, endY, elementFlags, tokenizer);
+                document, typeId, startX, startY, endX, endY, elementFlags, tokenizer);
         
         if (element == null) {
             CirSim.console("Unrecognized element type: " + tokenizer.getOriginalString());
@@ -300,7 +300,6 @@ public class TextCircuitImporter implements CircuitImporter {
         CircuitElmCreator.readDescription(element, tokenizer);
 
         // Add element to simulation
-        element.setCircuitDocument(document);
         element.setPoints();
         document.simulator.elmList.add(element);
     }

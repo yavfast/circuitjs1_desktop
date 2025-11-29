@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
@@ -38,8 +40,8 @@ public abstract class ChipElm extends CircuitElm {
     static final int FLAG_FLIP_XY = 1 << 12;
     static final int FLAG_CUSTOM_VOLTAGE = 1 << 13;
 
-    public ChipElm(int xx, int yy) {
-        super(xx, yy);
+    public ChipElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         if (needsBits())
             bits = defaultBitCount();
         highVoltage = 5;
@@ -49,9 +51,9 @@ public abstract class ChipElm extends CircuitElm {
         setSize(2); // default size
     }
 
-    public ChipElm(int xa, int ya, int xb, int yb, int f,
+    public ChipElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         if (needsBits())
             if (st.hasMoreTokens())
                 bits = parseInt(st.nextToken());

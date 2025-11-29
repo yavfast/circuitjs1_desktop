@@ -19,10 +19,12 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 
 public class DCVoltageElm extends VoltageElm {
-    public DCVoltageElm(int xx, int yy) {
-        super(xx, yy, WF_DC);
+    public DCVoltageElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, WF_DC);
     }
 
     public Class getDumpClass() {

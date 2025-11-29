@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -29,12 +31,12 @@ public class SipoShiftElm extends ChipElm {
 
     boolean clockstate = false;
 
-    public SipoShiftElm(int xx, int yy) {
-        super(xx, yy);
+    public SipoShiftElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
     }
 
-    public SipoShiftElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public SipoShiftElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
 
         boolean[] data = new boolean[bits];
         readBits(st, data);

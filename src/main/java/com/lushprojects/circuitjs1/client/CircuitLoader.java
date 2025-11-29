@@ -32,16 +32,22 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
      * @param flags Import flags (RC_RETAIN, RC_SUBCIRCUITS, etc.)
      */
     public void readCircuit(String circuitData, int flags) {
+        CirSim.console("CircuitLoader.readCircuit: data length=" + (circuitData != null ? circuitData.length() : 0));
         if (circuitData == null || circuitData.isEmpty()) {
+            CirSim.console("CircuitLoader.readCircuit: empty data, returning");
             return;
         }
 
         // Auto-detect format or use default
         CircuitFormat format = CircuitFormatRegistry.detectFormatOrDefault(circuitData);
+        CirSim.console("CircuitLoader.readCircuit: detected format=" + format.getId());
         CircuitImporter importer = format.createImporter();
+        CirSim.console("CircuitLoader.readCircuit: importer=" + importer.getClass().getSimpleName());
         
         // Delegate to importer
+        CirSim.console("CircuitLoader.readCircuit: calling importer.importCircuit...");
         importer.importCircuit(circuitData, getActiveDocument(), flags);
+        CirSim.console("CircuitLoader.readCircuit: import complete");
     }
 
     /**

@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.Color;
@@ -32,17 +34,17 @@ public class AMElm extends CircuitElm {
     static final int FLAG_COS = 2;
     double carrierfreq, signalfreq, maxVoltage, freqTimeZero;
 
-    public AMElm(int xx, int yy) {
-        super(xx, yy);
+    public AMElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         maxVoltage = 5;
         carrierfreq = 1000;
         signalfreq = 40;
         reset();
     }
 
-    public AMElm(int xa, int ya, int xb, int yb, int f,
+    public AMElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                  StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         carrierfreq = parseDouble(st.nextToken());
         signalfreq = parseDouble(st.nextToken());
         maxVoltage = parseDouble(st.nextToken());

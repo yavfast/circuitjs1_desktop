@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -30,8 +32,8 @@ public class InverterElm extends CircuitElm {
     double slewRate; // V/ns
     double highVoltage;
 
-    public InverterElm(int xx, int yy) {
-        super(xx, yy);
+    public InverterElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         noDiagonal = true;
         slewRate = .5;
 
@@ -39,9 +41,9 @@ public class InverterElm extends CircuitElm {
         highVoltage = GateElm.lastHighVoltage;
     }
 
-    public InverterElm(int xa, int ya, int xb, int yb, int f,
+    public InverterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                        StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = true;
         slewRate = .5;
         highVoltage = 5;

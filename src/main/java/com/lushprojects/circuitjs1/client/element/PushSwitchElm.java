@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class PushSwitchElm extends SwitchElm {
-    public PushSwitchElm(int xx, int yy) {
-        super(xx, yy, true);
+    public PushSwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, true);
     }
 
     public Class getDumpClass() {

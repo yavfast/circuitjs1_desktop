@@ -19,9 +19,11 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 public class OpAmpSwapElm extends OpAmpElm {
-    public OpAmpSwapElm(int xx, int yy) {
-        super(xx, yy);
+    public OpAmpSwapElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         flags |= FLAG_SWAP;
     }
 

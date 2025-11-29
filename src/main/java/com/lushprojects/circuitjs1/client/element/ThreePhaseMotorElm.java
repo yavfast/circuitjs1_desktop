@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.i18n.client.NumberFormat;
 import com.lushprojects.circuitjs1.client.CircuitMath;
@@ -26,8 +28,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
     double J;
     Point posts[], leads[];
 
-    public ThreePhaseMotorElm(int xx, int yy) {
-        super(xx, yy);
+    public ThreePhaseMotorElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         Rs = .435;
         Rr = .816;
         Ls = .0294;
@@ -42,8 +44,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
         coilCurrents = new double[coilCount];
     }
 
-    public ThreePhaseMotorElm(int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+    public ThreePhaseMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f);
         angle = pi / 2;
         filteredSpeed = speed = 0;
         Rs = parseDouble(st.nextToken());

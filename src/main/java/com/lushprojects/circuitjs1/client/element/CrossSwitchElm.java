@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -30,19 +32,19 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class CrossSwitchElm extends SwitchElm {
     final int poleCount = 2;
 
-    public CrossSwitchElm(int xx, int yy) {
-        super(xx, yy, false);
+    public CrossSwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy, false);
         noDiagonal = true;
     }
 
-    public CrossSwitchElm(int xx, int yy, boolean mm) {
-        super(xx, yy, mm);
+    public CrossSwitchElm(CircuitDocument circuitDocument, int xx, int yy, boolean mm) {
+        super(circuitDocument, xx, yy, mm);
         noDiagonal = true;
     }
 
-    public CrossSwitchElm(int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
-        super(xa, ya, xb, yb, f, st);
+    public CrossSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
+            StringTokenizer st) {
+        super(circuitDocument, xa, ya, xb, yb, f, st);
         noDiagonal = true;
     }
 
@@ -127,7 +129,8 @@ public class CrossSwitchElm extends SwitchElm {
                 int offset = -i * openhs * 3;
                 int adj = position * -3;
                 interpPoint(point1, point2, linePoints[0], .5, offset - openhs * (.5 - position) + adj);
-                interpPoint(point1, point2, linePoints[1], .5, offset - openhs * 3 - openhs * (.5 - position) + 7 + adj);
+                interpPoint(point1, point2, linePoints[1], .5,
+                        offset - openhs * 3 - openhs * (.5 - position) + 7 + adj);
                 g.setLineDash(4, 4);
                 g.drawLine(linePoints[0], linePoints[1]);
                 g.setLineDash(0, 0);
@@ -177,7 +180,8 @@ public class CrossSwitchElm extends SwitchElm {
     }
 
     public Rectangle getSwitchRect() {
-        return new Rectangle(poleLeads[0]).union(new Rectangle(throwLeads[1])).union(new Rectangle(throwLeads[poleCount * 4 - 4]));
+        return new Rectangle(poleLeads[0]).union(new Rectangle(throwLeads[1]))
+                .union(new Rectangle(throwLeads[poleCount * 4 - 4]));
     }
 
     public Point getPost(int n) {

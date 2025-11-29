@@ -19,6 +19,8 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.CircuitDocument;
+
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitMath;
@@ -51,8 +53,8 @@ public class CustomTransformerElm extends CircuitElm {
     Point dots[];
     int width;
 
-    public CustomTransformerElm(int xx, int yy) {
-        super(xx, yy);
+    public CustomTransformerElm(CircuitDocument circuitDocument, int xx, int yy) {
+        super(circuitDocument, xx, yy);
         inductance = 4;
         width = 32;
         noDiagonal = true;
@@ -61,9 +63,9 @@ public class CustomTransformerElm extends CircuitElm {
         parseDescription(description);
     }
 
-    public CustomTransformerElm(int xa, int ya, int xb, int yb, int f,
+    public CustomTransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                                 StringTokenizer st) {
-        super(xa, ya, xb, yb, f);
+        super(circuitDocument, xa, ya, xb, yb, f);
         width = 32; // max(32, abs(yb-ya));
         inductance = parseDouble(st.nextToken());
         couplingCoef = parseDouble(st.nextToken());
