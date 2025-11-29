@@ -45,7 +45,8 @@ public class OpAmpElm extends CircuitElm {
         gbw = 1e6;
         flags = FLAG_GAIN; // need to do this before setSize()
         gain = 100000;
-        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
+        // Note: simUi.menuManager may not be available during factory registration
+        setSize(2); // default size
     }
 
     public OpAmpElm(int xa, int ya, int xb, int yb, int f,

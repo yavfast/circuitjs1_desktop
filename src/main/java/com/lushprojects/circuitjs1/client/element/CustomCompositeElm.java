@@ -32,8 +32,8 @@ public class CustomCompositeElm extends CompositeElm {
         modelName = (xx == 0 && yy == 0) ? "default" : lastModelName;
 
         flags |= FLAG_ESCAPE;
-        if (simUi.menuManager.smallGridCheckItem.getState())
-            flags |= FLAG_SMALL;
+        // Note: simUi.menuManager may not be available during factory registration
+        // Small grid flag will be set when element is placed on canvas if needed
         updateModels();
     }
 
@@ -41,8 +41,7 @@ public class CustomCompositeElm extends CompositeElm {
         super(xx, yy);
         modelName = name;
         flags |= FLAG_ESCAPE;
-        if (simUi.menuManager.smallGridCheckItem.getState())
-            flags |= FLAG_SMALL;
+        // Note: simUi.menuManager may not be available during factory registration
         updateModels();
     }
 

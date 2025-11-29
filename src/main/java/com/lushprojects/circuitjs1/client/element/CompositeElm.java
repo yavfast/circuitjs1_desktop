@@ -69,6 +69,17 @@ public abstract class CompositeElm extends CircuitElm {
         allocNodes();
     }
 
+    @Override
+    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+        super.setCircuitDocument(circuitDocument);
+        // Propagate to all internal elements
+        if (compElmList != null) {
+            for (CircuitElm elm : compElmList) {
+                elm.setCircuitDocument(circuitDocument);
+            }
+        }
+    }
+
     boolean useEscape() {
         return (flags & FLAG_ESCAPE) != 0;
     }

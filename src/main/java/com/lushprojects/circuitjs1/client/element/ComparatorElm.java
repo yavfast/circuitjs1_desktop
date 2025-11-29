@@ -21,7 +21,9 @@ public class ComparatorElm extends CompositeElm {
     public ComparatorElm(int xx, int yy) {
         super(xx, yy, modelString, modelExternalNodes);
         noDiagonal = true;
-        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
+        // Note: simUi.menuManager may not be available during factory registration
+        // Size will be properly set when element is actually placed on canvas
+        setSize(2); // default size
     }
 
 

@@ -180,8 +180,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     // create new element with one post at xx,yy, to be dragged out by user
+    // Note: circuitDocument must be set via setCircuitDocument() after construction
     public CircuitElm(int xx, int yy) {
-        circuitDocument = simUi.getActiveDocument();
+        // circuitDocument will be set later via setCircuitDocument()
         x = x2 = xx;
         y = y2 = yy;
         flags = getDefaultFlags();
@@ -190,8 +191,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     // create element between xa,ya and xb,yb from undump
+    // Note: circuitDocument must be set via setCircuitDocument() after construction
     public CircuitElm(int xa, int ya, int xb, int yb, int f) {
-        circuitDocument = simUi.getActiveDocument();
+        // circuitDocument will be set later via setCircuitDocument()
         x = xa;
         y = ya;
         x2 = xb;
@@ -410,7 +412,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (mouseElmRef == this) {
             mouseElmRef = null;
         }
-        getCircuitDocument().adjustableManager.deleteSliders(this);
+        if (circuitDocument != null) {
+            circuitDocument.adjustableManager.deleteSliders(this);
+        }
     }
 
     public void startIteration() {

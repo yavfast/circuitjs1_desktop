@@ -288,11 +288,24 @@ public class CircuitElementFactory {
     /**
      * Registers an element constructor.
      * Creates a temporary instance to get the JSON type name.
+     * Note: This works because CircuitElm constructors no longer require circuitDocument.
      */
     private static void register(ElementConstructor constructor) {
-        // Create temporary instance to get JSON type name
-        CircuitElm tempElm = constructor.create(0, 0);
-        String jsonTypeName = tempElm.getJsonTypeName();
+        try {
+            // Create temporary instance to get JSON type name
+            CircuitElm tempElm = constructor.create(0, 0);
+            String jsonTypeName = tempElm.getJsonTypeName();
+            ELEMENT_ENTRIES.add(new ElementEntry(constructor, jsonTypeName));
+        } catch (Exception e) {
+            CirSim.console("CircuitElementFactory: Failed to register element: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Registers an element constructor with explicit JSON type name.
+     * Use this for elements whose constructors require circuitDocument.
+     */
+    private static void register(ElementConstructor constructor, String jsonTypeName) {
         ELEMENT_ENTRIES.add(new ElementEntry(constructor, jsonTypeName));
     }
 

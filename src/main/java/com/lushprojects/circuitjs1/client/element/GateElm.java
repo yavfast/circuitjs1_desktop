@@ -47,7 +47,8 @@ public abstract class GateElm extends CircuitElm {
         if (lastSchmitt)
             flags |= FLAG_SCHMITT;
 
-        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
+        // Note: simUi.menuManager may not be available during factory registration
+        setSize(2); // default size
     }
 
     public GateElm(int xa, int ya, int xb, int yb, int f,

@@ -45,7 +45,8 @@ public abstract class ChipElm extends CircuitElm {
         highVoltage = 5;
         noDiagonal = true;
         setupPins();
-        setSize(simUi.menuManager.smallGridCheckItem.getState() ? 1 : 2);
+        // Note: simUi.menuManager may not be available during factory registration
+        setSize(2); // default size
     }
 
     public ChipElm(int xa, int ya, int xb, int yb, int f,
