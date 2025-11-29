@@ -280,18 +280,26 @@ Get array of all circuit elements.
 ```javascript
 const elements = CircuitJS1.getElements();
 elements.forEach(elm => {
-    console.log(elm.getType(), elm.getVoltageDiff());
+    console.log(elm.getId(), elm.getType(), elm.getVoltageDiff());
 });
 ```
 
 Each element has these methods:
+- `getId()` - Unique element ID (e.g., "R1", "C2", "Q3")
 - `getType()` - Element class name (e.g., "ResistorElm")
-- `getInfo()` - Get element info (varies by element)
+- `getTypeName()` - JSON type name (e.g., "Resistor")
+- `getDescription()` - Element description if set
+- `getInfo()` - Get element info array (varies by element)
 - `getVoltageDiff()` - Voltage across element
 - `getVoltage(postIndex)` - Voltage at specific post
 - `getCurrent()` - Current through element
+- `getPower()` - Power dissipation/consumption
 - `getLabelName()` - Label if present
 - `getPostCount()` - Number of connection posts
+- `setProperty(name, value)` - Set a property value (returns boolean)
+- `getX()`, `getY()` - Start point coordinates
+- `getX2()`, `getY2()` - End point coordinates  
+- `isSelected()` - Check if element is selected
 
 ### getElementCount(): number
 Get total number of elements in circuit.
@@ -309,6 +317,176 @@ const elm = CircuitJS1.getElementByIndex(0);
 if (elm) {
     console.log("First element:", elm.getType());
 }
+```
+
+### getElementById(id: string): Element | null
+Get a specific element by its unique ID.
+
+```javascript
+const resistor = CircuitJS1.getElementById("R1");
+if (resistor) {
+    console.log("R1 voltage:", resistor.getVoltageDiff());
+    console.log("R1 current:", resistor.getCurrent());
+}
+```
+
+### getElementIds(): string[]
+Get array of all element IDs in the circuit.
+
+```javascript
+const ids = CircuitJS1.getElementIds();
+console.log("Element IDs:", ids);
+// ["R1", "R2", "C1", "V1", "GND1", ...]
+```
+
+### getElementInfo(id: string): ElementInfo | null
+Get comprehensive information about an element by ID.
+
+```javascript
+const info = CircuitJS1.getElementInfo("R1");
+console.log(info);
+// {
+//   id: "R1",
+//   type: "ResistorElm",
+//   typeName: "Resistor",
+//   description: null,
+//   postCount: 2,
+//   voltageDiff: 5.0,
+//   current: 0.005,
+//   power: 0.025,
+//   x: 200, y: 100,
+//   x2: 300, y2: 100,
+//   selected: false
+// }
+```
+
+### getElementProperties(id: string): object | null
+Get the editable properties of an element.
+
+```javascript
+const props = CircuitJS1.getElementProperties("R1");
+console.log(props);
+// { resistance: "1 kΩ" }
+
+const capProps = CircuitJS1.getElementProperties("C1");
+console.log(capProps);
+// { capacitance: "10 µF", initial_voltage: "0 V" }
+```
+
+### setElementProperty(id: string, property: string, value: number): boolean
+Set a property value for an element. Returns true if successful.
+
+```javascript
+// Change resistance of R1 to 2000 ohms
+const success = CircuitJS1.setElementProperty("R1", "resistance", 2000);
+console.log("Property set:", success);
+
+// Change capacitance of C1 to 100 microfarads
+CircuitJS1.setElementProperty("C1", "capacitance", 100e-6);
+```
+
+### updateElementProperties(id: string, properties: object): boolean
+Update multiple properties of an element at once. This method allows updating element
+properties without creating a new object, preserving the simulation state (voltages, currents).
+Returns true if successful.
+
+```javascript
+// Update multiple properties at once
+const success = CircuitJS1.updateElementProperties("R1", {
+    resistance: 4700
+});
+console.log("Properties updated:", success);
+
+// Example: Export-Modify-Update workflow (without recreating element)
+const props = CircuitJS1.getElementProperties("C1");
+console.log("Current props:", props);
+// Modify and update
+CircuitJS1.updateElementProperties("C1", {
+    capacitance: 47e-6,
+    initial_voltage: 5
+});
+```
+
+**Use case: Export-Modify-Import without creating new object**
+
+```javascript
+// 1. Get current properties
+const id = "R1";
+const currentProps = CircuitJS1.getElementProperties(id);
+console.log("Before:", currentProps);
+
+// 2. Modify properties (e.g., received from external editor)
+const modifiedProps = { resistance: 10000 };
+
+// 3. Apply changes without recreating element
+CircuitJS1.updateElementProperties(id, modifiedProps);
+
+// 4. Verify - simulation state is preserved
+const newProps = CircuitJS1.getElementProperties(id);
+console.log("After:", newProps);
+```
+
+**Use case: Move element to new position (delete + recreate)**
+
+When you need to change an element's position or connections, use delete + recreate workflow.
+This is the recommended approach because changing topology requires full circuit reanalysis anyway.
+
+```javascript
+// 1. Get current element data
+const id = "R1";
+const props = CircuitJS1.getElementProperties(id);
+const info = CircuitJS1.getElementInfo(id);
+console.log("Current position:", info.x, info.y, "->", info.x2, info.y2);
+
+// 2. Delete the old element
+CircuitJS1.deleteElementById(id);
+
+// 3. Create new element with same ID but different position
+const circuit = {
+    "version": "2.0",
+    "elements": {
+        "R1": {  // Same ID preserved
+            "type": "Resistor",
+            "pins": {
+                "A": {"x": 300, "y": 200},  // New position
+                "B": {"x": 400, "y": 200}
+            },
+            "properties": {
+                "resistance": 1000  // Use value from props if needed
+            }
+        }
+    }
+};
+CircuitJS1.importFromJson(JSON.stringify(circuit));
+
+// 4. Verify - element exists with same ID at new position
+const newInfo = CircuitJS1.getElementInfo(id);
+console.log("New position:", newInfo.x, newInfo.y, "->", newInfo.x2, newInfo.y2);
+```
+
+**Why delete + recreate instead of move API?**
+- Changing element position changes circuit topology
+- Circuit requires full reanalysis (`needAnalyze()`) anyway
+- This approach guarantees correct connections
+- Element ID can be preserved through JSON import
+
+### selectElementById(id: string, addToSelection?: boolean): boolean
+Select an element by ID. If `addToSelection` is true, adds to current selection.
+
+```javascript
+// Select only R1
+CircuitJS1.selectElementById("R1");
+
+// Add C1 to selection
+CircuitJS1.selectElementById("C1", true);
+```
+
+### deleteElementById(id: string): boolean
+Delete an element by ID.
+
+```javascript
+const deleted = CircuitJS1.deleteElementById("R1");
+console.log("Element deleted:", deleted);
 ```
 
 ### deleteElementByIndex(index: number): boolean

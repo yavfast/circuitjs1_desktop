@@ -980,10 +980,210 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         simulator.t = simulator.timeStepAccum = 0;
         simulator.lastIterTime = 0;
         
+        // Reset element ID counters
+        CircuitElm.resetIdCounters();
+        
         needAnalyze();
         // Force redraw
         repaint();
     }
+
+    // JSInterface - Get element by ID (e.g., "R1", "C2", "Q3")
+    JavaScriptObject getElementById(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        for (CircuitElm ce : simulator.elmList) {
+            if (id.equals(ce.getElementId())) {
+                ce.addJSMethods();
+                return ce.getJavaScriptObject();
+            }
+        }
+        return null;
+    }
+    
+    // JSInterface - Get all element IDs
+    JsArrayString getElementIds() {
+        JsArrayString ids = JsArrayString.createArray().cast();
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        for (CircuitElm ce : simulator.elmList) {
+            ids.push(ce.getElementId());
+        }
+        return ids;
+    }
+    
+    // JSInterface - Get element info as JSON object
+    JavaScriptObject getElementInfo(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        for (CircuitElm ce : simulator.elmList) {
+            if (id.equals(ce.getElementId())) {
+                return buildElementInfo(ce);
+            }
+        }
+        return null;
+    }
+    
+    // Build element info as JavaScript object
+    private native JavaScriptObject buildElementInfo(CircuitElm elm) /*-{
+        var that = elm;
+        return {
+            id: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getElementId()(),
+            type: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getClassName()(),
+            typeName: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getJsonTypeName()(),
+            description: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getDescription()(),
+            postCount: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getPostCount()(),
+            voltageDiff: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getVoltageDiff()(),
+            current: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getCurrent()(),
+            power: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getPower()(),
+            x: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x,
+            y: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y,
+            x2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x2,
+            y2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y2,
+            selected: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::selected
+        };
+    }-*/;
+    
+    // JSInterface - Set element property by ID
+    boolean setElementProperty(String id, String property, double value) {
+        if (id == null || id.isEmpty() || property == null) {
+            return false;
+        }
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        for (CircuitElm ce : simulator.elmList) {
+            if (id.equals(ce.getElementId())) {
+                boolean result = ce.setPropertyValue(property, value);
+                if (result) {
+                    needAnalyze();
+                }
+                return result;
+            }
+        }
+        return false;
+    }
+    
+    // JSInterface - Get element properties as JSON
+    JavaScriptObject getElementProperties(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        CircuitSimulator simulator = getActiveDocument().simulator;
+        for (CircuitElm ce : simulator.elmList) {
+            if (id.equals(ce.getElementId())) {
+                return buildElementProperties(ce);
+            }
+        }
+        return null;
+    }
+    
+    // Build properties as JavaScript object - using simpler approach
+    private native JavaScriptObject buildElementProperties(CircuitElm elm) /*-{
+        var result = {};
+        var propsArray = elm.@com.lushprojects.circuitjs1.client.element.CircuitElm::getJsonPropertiesAsArray()();
+        for (var i = 0; i < propsArray.length; i += 2) {
+            var key = propsArray[i];
+            var val = propsArray[i + 1];
+            if (key && val != null) {
+                result[key] = val;
+            }
+        }
+        return result;
+    }-*/;
+    
+    // JSInterface - Delete element by ID
+    boolean deleteElementById(String id) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        CircuitDocument doc = getActiveDocument();
+        CircuitSimulator simulator = doc.simulator;
+        for (int i = 0; i < simulator.elmList.size(); i++) {
+            CircuitElm ce = simulator.elmList.get(i);
+            if (id.equals(ce.getElementId())) {
+                ce.delete();
+                simulator.elmList.remove(i);
+                needAnalyze();
+                repaint();
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    // JSInterface - Select element by ID
+    boolean selectElementById(String id, boolean addToSelection) {
+        if (id == null || id.isEmpty()) {
+            return false;
+        }
+        CircuitDocument doc = getActiveDocument();
+        CircuitSimulator simulator = doc.simulator;
+        CircuitEditor circuitEditor = doc.circuitEditor;
+        
+        if (!addToSelection) {
+            // Clear previous selection
+            for (CircuitElm ce : simulator.elmList) {
+                ce.selected = false;
+            }
+        }
+        
+        for (CircuitElm ce : simulator.elmList) {
+            if (id.equals(ce.getElementId())) {
+                ce.selected = true;
+                circuitEditor.setMouseElm(ce);
+                repaint();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // JSInterface - Update element properties from JavaScript object
+    // This allows updating element without recreating it, preserving simulation state
+    native boolean updateElementProperties(String id, JavaScriptObject properties) /*-{
+        if (!id || !properties) {
+            return false;
+        }
+        
+        var that = this;
+        var simulator = that.@com.lushprojects.circuitjs1.client.CirSim::getActiveDocument()().@com.lushprojects.circuitjs1.client.CircuitDocument::simulator;
+        var elmList = simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::elmList;
+        var size = elmList.@java.util.Vector::size()();
+        
+        for (var i = 0; i < size; i++) {
+            var elm = elmList.@java.util.Vector::get(I)(i);
+            var elmId = elm.@com.lushprojects.circuitjs1.client.element.CircuitElm::getElementId()();
+            
+            if (elmId === id) {
+                // Convert JS object to Java Map
+                var map = @java.util.HashMap::new()();
+                for (var key in properties) {
+                    if (properties.hasOwnProperty(key)) {
+                        var value = properties[key];
+                        // Handle numeric values
+                        if (typeof value === 'number') {
+                            map.@java.util.HashMap::put(Ljava/lang/Object;Ljava/lang/Object;)(key, @java.lang.Double::valueOf(D)(value));
+                        } else if (typeof value === 'boolean') {
+                            map.@java.util.HashMap::put(Ljava/lang/Object;Ljava/lang/Object;)(key, @java.lang.Boolean::valueOf(Z)(value));
+                        } else if (typeof value === 'string') {
+                            map.@java.util.HashMap::put(Ljava/lang/Object;Ljava/lang/Object;)(key, value);
+                        }
+                    }
+                }
+                
+                // Apply properties to element
+                elm.@com.lushprojects.circuitjs1.client.element.CircuitElm::applyJsonProperties(Ljava/util/Map;)(map);
+                
+                // Mark circuit for reanalysis
+                that.@com.lushprojects.circuitjs1.client.CirSim::needAnalyze()();
+                
+                return true;
+            }
+        }
+        return false;
+    }-*/;
 
     // JSInterface - Reset simulation
     void resetSimulation() {
@@ -1221,6 +1421,16 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	        getElementCount: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementCount()(); } ),
 	        getElementByIndex: $entry(function(i) { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementByIndex(I)(i); } ),
 	        deleteElementByIndex: $entry(function(i) { return that.@com.lushprojects.circuitjs1.client.CirSim::deleteElementByIndex(I)(i); } ),
+	        
+	        // Element access by ID
+	        getElementById: $entry(function(id) { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementById(Ljava/lang/String;)(id); } ),
+	        getElementIds: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementIds()(); } ),
+	        getElementInfo: $entry(function(id) { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementInfo(Ljava/lang/String;)(id); } ),
+	        getElementProperties: $entry(function(id) { return that.@com.lushprojects.circuitjs1.client.CirSim::getElementProperties(Ljava/lang/String;)(id); } ),
+	        setElementProperty: $entry(function(id, prop, val) { return that.@com.lushprojects.circuitjs1.client.CirSim::setElementProperty(Ljava/lang/String;Ljava/lang/String;D)(id, prop, val); } ),
+	        updateElementProperties: $entry(function(id, props) { return that.@com.lushprojects.circuitjs1.client.CirSim::updateElementProperties(Ljava/lang/String;Lcom/google/gwt/core/client/JavaScriptObject;)(id, props); } ),
+	        deleteElementById: $entry(function(id) { return that.@com.lushprojects.circuitjs1.client.CirSim::deleteElementById(Ljava/lang/String;)(id); } ),
+	        selectElementById: $entry(function(id, addToSelection) { return that.@com.lushprojects.circuitjs1.client.CirSim::selectElementById(Ljava/lang/String;Z)(id, addToSelection || false); } ),
 	        
 	        // Circuit export/import - Text format
 	        exportCircuit: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::dumpCircuit()(); } ),

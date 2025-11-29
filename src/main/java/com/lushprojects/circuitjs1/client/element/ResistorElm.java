@@ -156,6 +156,15 @@ public class ResistorElm extends CircuitElm {
     }
 
     @Override
+    public boolean setPropertyValue(String property, double value) {
+        if ("resistance".equals(property)) {
+            resistance = value;
+            return true;
+        }
+        return super.setPropertyValue(property, value);
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
         resistance = getJsonDouble(properties, "resistance", 1000);

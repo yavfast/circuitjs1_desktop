@@ -44,6 +44,8 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
@@ -63,6 +65,13 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     static CircuitElm mouseElmRef = null;
 
+    // Element ID system - static counters per type prefix
+    private static Map<String, Integer> typeCounters = new HashMap<>();
+    private static int globalCounter = 0;
+    
+    // Unique identifier for this element (e.g., "R1", "C2", "Q3")
+    private String elementId;
+
     protected CircuitDocument circuitDocument;
 
     public void setCircuitDocument(CircuitDocument circuitDocument) {
@@ -79,6 +88,92 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public CircuitDocument getCircuitDocument() {
         return circuitDocument;
+    }
+
+    // ==================== Element ID Methods ====================
+    
+    /**
+     * Get the unique ID of this element.
+     * If no ID is set, generates one automatically.
+     */
+    public String getElementId() {
+        if (elementId == null) {
+            elementId = generateElementId();
+        }
+        return elementId;
+    }
+    
+    /**
+     * Set the element ID. Used when importing from JSON or for custom naming.
+     * @param id The ID to set
+     */
+    public void setElementId(String id) {
+        this.elementId = id;
+    }
+    
+    /**
+     * Check if element has an ID assigned.
+     */
+    public boolean hasElementId() {
+        return elementId != null;
+    }
+    
+    /**
+     * Generate a unique ID for this element based on its type.
+     * Format: PREFIX + NUMBER (e.g., R1, C2, Q3)
+     */
+    protected String generateElementId() {
+        String prefix = getIdPrefix();
+        globalCounter++;
+        int count = typeCounters.getOrDefault(prefix, 0) + 1;
+        typeCounters.put(prefix, count);
+        return prefix + count;
+    }
+    
+    /**
+     * Get the ID prefix for this element type.
+     * Override in subclasses for custom prefixes.
+     */
+    protected String getIdPrefix() {
+        String typeName = getJsonTypeName();
+        switch (typeName) {
+            case "Resistor": return "R";
+            case "Capacitor": return "C";
+            case "Inductor": return "L";
+            case "TransistorNPN":
+            case "TransistorPNP": return "Q";
+            case "Mosfet":
+            case "MosfetN":
+            case "MosfetP": return "M";
+            case "Diode": return "D";
+            case "LED": return "LED";
+            case "Zener": return "Z";
+            case "Wire": return "W";
+            case "Ground": return "GND";
+            case "VoltageSource":
+            case "DCVoltage":
+            case "Rail": return "V";
+            case "CurrentSource": return "I";
+            case "OpAmp": return "U";
+            case "Switch":
+            case "Switch2": return "SW";
+            case "Potentiometer": return "POT";
+            case "Transformer": return "T";
+            case "Relay": return "K";
+            default: 
+                // Use first 2-3 chars of type name
+                return typeName.length() > 3 
+                    ? typeName.substring(0, 3).toUpperCase() 
+                    : typeName.toUpperCase();
+        }
+    }
+    
+    /**
+     * Reset the ID counters. Called when clearing circuit.
+     */
+    public static void resetIdCounters() {
+        typeCounters.clear();
+        globalCounter = 0;
     }
 
     // initial point where user created element. For simple two-terminal elements,
@@ -1238,16 +1333,44 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     double getVoltageJS(int n) {
         return n >= volts.length ? 0 : volts[n];
     }
+    
+    // JS Interface - Set property value wrapper for JSNI
+    boolean setPropertyJS(String property, double value) {
+        return setPropertyValue(property, value);
+    }
 
     public native void addJSMethods() /*-{
         var that = this;
+        // Basic element info
+        this.getId = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getElementId()(); });
         this.getType = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getClassName()(); });
+        this.getTypeName = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getJsonTypeName()(); });
+        this.getDescription = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getDescription()(); });
         this.getInfo = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getInfoJS()(); });
+        
+        // Electrical values
         this.getVoltageDiff = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getVoltageDiff()(); });
         this.getVoltage = $entry(function(n) { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getVoltageJS(I)(n); });
         this.getCurrent = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getCurrent()(); });
+        this.getPower = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getPower()(); });
         this.getLabelName = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.LabeledNodeElm::getName()(); });
+        
+        // Element structure
         this.getPostCount = $entry(function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getPostCount()(); });
+        
+        // Property access
+        this.setProperty = $entry(function(prop, val) { 
+            return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::setPropertyJS(Ljava/lang/String;D)(prop, val); 
+        });
+        
+        // Position
+        this.getX = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x; };
+        this.getY = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y; };
+        this.getX2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x2; };
+        this.getY2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y2; };
+        
+        // Selection
+        this.isSelected = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::selected; };
     }-*/;
 
     public native JavaScriptObject getJavaScriptObject() /*-{ return this; }-*/;
@@ -1279,6 +1402,35 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      */
     public java.util.Map<String, Object> getJsonProperties() {
         return new java.util.LinkedHashMap<>();
+    }
+    
+    /**
+     * Returns properties as a flat array [key1, value1, key2, value2, ...] for JSNI access.
+     * Used by JavaScript API to get element properties.
+     */
+    public String[] getJsonPropertiesAsArray() {
+        java.util.Map<String, Object> props = getJsonProperties();
+        String[] result = new String[props.size() * 2];
+        int i = 0;
+        for (java.util.Map.Entry<String, Object> entry : props.entrySet()) {
+            result[i++] = entry.getKey();
+            result[i++] = entry.getValue() != null ? entry.getValue().toString() : null;
+        }
+        return result;
+    }
+
+    /**
+     * Sets a property value by name.
+     * Base implementation returns false.
+     * Subclasses should override to handle their specific properties.
+     * 
+     * @param property Property name (e.g., "resistance", "capacitance")
+     * @param value New value to set
+     * @return true if property was set successfully, false otherwise
+     */
+    public boolean setPropertyValue(String property, double value) {
+        // Base implementation does nothing
+        return false;
     }
 
     /**

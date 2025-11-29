@@ -237,6 +237,9 @@ public class JsonCircuitImporter implements CircuitImporter {
                 continue;
             }
 
+            // Set element ID from JSON (preserve original ID)
+            elm.setElementId(elementId);
+
             // Set circuit document
             elm.setCircuitDocument(document);
 

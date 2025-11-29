@@ -310,6 +310,28 @@ public class CapacitorElm extends CircuitElm {
     }
 
     @Override
+    public boolean setPropertyValue(String property, double value) {
+        switch (property) {
+            case "capacitance":
+                capacitance = value;
+                return true;
+            case "initial_voltage":
+                initialVoltage = value;
+                return true;
+            case "series_resistance":
+                seriesResistance = value;
+                if (seriesResistance > 0) {
+                    flags |= FLAG_RESISTANCE;
+                } else {
+                    flags &= ~FLAG_RESISTANCE;
+                }
+                return true;
+            default:
+                return super.setPropertyValue(property, value);
+        }
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
         capacitance = getJsonDouble(properties, "capacitance", 1e-5);
