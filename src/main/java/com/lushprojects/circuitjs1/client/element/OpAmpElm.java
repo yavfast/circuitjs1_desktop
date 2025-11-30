@@ -47,7 +47,8 @@ public class OpAmpElm extends CircuitElm {
         gbw = 1e6;
         flags = FLAG_GAIN; // need to do this before setSize()
         gain = 100000;
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
+        // because circuitDocument is not yet set
         setSize(2); // default size
     }
 

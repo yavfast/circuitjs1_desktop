@@ -299,6 +299,10 @@ public class TextCircuitImporter implements CircuitImporter {
         // Parse description from remaining tokens
         CircuitElmCreator.readDescription(element, tokenizer);
 
+        // Initialize element with document (important for elements that override setCircuitDocument
+        // to initialize internal components like diodes in MosfetElm)
+        element.setCircuitDocument(document);
+
         // Add element to simulation
         element.setPoints();
         document.simulator.elmList.add(element);

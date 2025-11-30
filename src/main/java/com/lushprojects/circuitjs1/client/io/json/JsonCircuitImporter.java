@@ -251,6 +251,10 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Set element ID from JSON (preserve original ID)
             elm.setElementId(elementId);
 
+            // Initialize element with document (important for elements that override setCircuitDocument
+            // to initialize internal components like diodes in MosfetElm)
+            elm.setCircuitDocument(document);
+
             // Add to simulator
             document.simulator.elmList.add(elm);
 
@@ -396,6 +400,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                 wire.x2 = targetX;
                 wire.y2 = targetY;
                 wire.setPoints();
+                wire.setCircuitDocument(document);
 
                 // Add to simulator
                 document.simulator.elmList.add(wire);

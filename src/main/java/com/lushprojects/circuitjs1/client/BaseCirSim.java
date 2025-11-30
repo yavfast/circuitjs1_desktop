@@ -14,6 +14,7 @@ public class BaseCirSim {
     public final ClipboardManager clipboardManager = new ClipboardManager(this);
     public final DialogManager dialogManager = new DialogManager(this);
     public final MenuManager menuManager = new MenuManager(this);
+    public final DisplaySettings displaySettings = new DisplaySettings(menuManager);
     public final DocumentManager documentManager = new DocumentManager(this);
     public final LoadFile loadFileInput = new LoadFile(this);
     public final ActionManager actionManager = new ActionManager(this);

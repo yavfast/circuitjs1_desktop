@@ -160,8 +160,8 @@ public class CircuitDocument {
                         try {
                             simulator.preStampAndStampCircuit();
                         } catch (Exception e) {
-                            CircuitDocument.this.stop("Exception in stampCircuit()", null);
-                            // GWT.log("Exception in stampCircuit", e); // TODO: Use LogBuffer
+                            logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
+                            CircuitDocument.this.stop("Exception in stampCircuit(): " + e.getMessage(), null);
                         }
                     }
 
@@ -169,6 +169,7 @@ public class CircuitDocument {
                     simulator.runCircuit(false); // wasAnalyzed?
 
                 } catch (Exception e) {
+                    logBuffer.log("Exception in simulation: " + e.getMessage());
                     CircuitDocument.this.stop("Exception in simulation: " + e.getMessage(), null);
                 }
             }
@@ -246,6 +247,20 @@ public class CircuitDocument {
      */
     public CircuitRenderer getRenderer() {
         return cirSim.renderer;
+    }
+
+    /**
+     * Get display settings (rendering options like show dots, voltage colors, etc.).
+     */
+    public DisplaySettings getDisplaySettings() {
+        return cirSim.displaySettings;
+    }
+
+    /**
+     * Get DialogManager for showing dialogs.
+     */
+    public DialogManager getDialogManager() {
+        return cirSim.dialogManager;
     }
 
     /**

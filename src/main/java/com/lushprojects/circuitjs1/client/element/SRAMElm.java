@@ -171,7 +171,7 @@ public class SRAMElm extends ChipElm {
         }
         if (n == 3 && SRAMLoadFile.isSupported()) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.loadFile = new SRAMLoadFile(simUi);
+            ei.loadFile = new SRAMLoadFile(cirSim());
             ei.button = new Button("Load Contents From File");
             ei.newDialog = true;
             return ei;

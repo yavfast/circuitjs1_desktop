@@ -1221,7 +1221,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             try {
                 simulator.preStampAndStampCircuit();
             } catch (Exception e) {
-                stop("Exception in stampCircuit()", null);
+                doc.logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
+                stop("Exception in stampCircuit(): " + e.getMessage(), null);
                 return;
             }
         }

@@ -47,7 +47,8 @@ public abstract class ChipElm extends CircuitElm {
         highVoltage = 5;
         noDiagonal = true;
         setupPins();
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
+        // because circuitDocument is not yet set
         setSize(2); // default size
     }
 
@@ -130,7 +131,7 @@ public abstract class ChipElm extends CircuitElm {
             p.curcount = updateDotCount(p.current, p.curcount);
             drawDots(g, b, a, p.curcount);
             if (p.bubble) {
-                g.setColor(simUi.getBackgroundColor());
+                g.setColor(cirSim().getBackgroundColor());
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 1);
                 g.setColor(elementColor);
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 3);

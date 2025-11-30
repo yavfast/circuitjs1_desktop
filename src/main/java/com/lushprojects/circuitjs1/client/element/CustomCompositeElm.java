@@ -34,7 +34,7 @@ public class CustomCompositeElm extends CompositeElm {
         modelName = (xx == 0 && yy == 0) ? "default" : lastModelName;
 
         flags |= FLAG_ESCAPE;
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
         // Small grid flag will be set when element is placed on canvas if needed
         updateModels();
     }
@@ -43,7 +43,7 @@ public class CustomCompositeElm extends CompositeElm {
         super(circuitDocument, xx, yy);
         modelName = name;
         flags |= FLAG_ESCAPE;
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
         updateModels();
     }
 
@@ -236,12 +236,12 @@ public class CustomCompositeElm extends CompositeElm {
                 Window.alert(Locale.LS("Can't edit this model."));
                 return;
             }
-            simUi.dialogManager.showEditCompositeModelDialog(model);
+            circuitDocument.getDialogManager().showEditCompositeModelDialog(model);
             return;
         }
         if (n == 2) {
-            simUi.getActiveDocument().circuitLoader.readCircuit(model.modelCircuit);
-            simUi.dialogManager.closeDialog();
+            cirSim().getActiveDocument().circuitLoader.readCircuit(model.modelCircuit);
+            circuitDocument.getDialogManager().closeDialog();
         }
     }
 

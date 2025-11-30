@@ -61,10 +61,10 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
 
     void createSlider() {
         waveform = WF_VAR;
-        simUi.addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
+        cirSim().addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
         label.addStyleName("topSpace");
         int value = (int) ((frequency - bias) * 100 / (maxVoltage - bias));
-        simUi.addWidgetToVerticalPanel(slider = new Scrollbar(simUi, Scrollbar.HORIZONTAL, value, 1, 0, 100,
+        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100,
                 null, this));
 //	    sim.verticalPanel.validate();
     }
@@ -75,8 +75,8 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     }
 
     public void delete() {
-        simUi.removeWidgetFromVerticalPanel(label);
-        simUi.removeWidgetFromVerticalPanel(slider);
+        cirSim().removeWidgetFromVerticalPanel(label);
+        cirSim().removeWidgetFromVerticalPanel(slider);
         super.delete();
     }
 
@@ -101,7 +101,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         if (n == 2) {
             sliderText = ei.textf.getText();
             label.setText(Locale.LS(sliderText));
-            simUi.setSlidersDialogHeight();
+            cirSim().setSlidersDialogHeight();
         }
     }
 

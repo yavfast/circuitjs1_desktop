@@ -49,7 +49,8 @@ public abstract class GateElm extends CircuitElm {
         if (lastSchmitt)
             flags |= FLAG_SCHMITT;
 
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
+        // because circuitDocument is not yet set
         setSize(2); // default size
     }
 
@@ -152,8 +153,8 @@ public abstract class GateElm extends CircuitElm {
         return null;
     }
 
-    static boolean useEuroGates() {
-        return simUi.menuManager.euroGatesCheckItem.getState();
+    boolean useEuroGates() {
+        return displaySettings().euroGates();
     }
 
     void drawGatePolygon(Graphics g) {

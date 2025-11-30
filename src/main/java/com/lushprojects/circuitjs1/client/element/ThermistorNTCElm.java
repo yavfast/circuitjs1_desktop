@@ -94,20 +94,20 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     }
 
     void createSlider() {
-        simUi.addWidgetToVerticalPanel(label = new Label(sliderText));
+        cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
         label.addStyleName("topSpace");
         int value = (int) (position * 100);
-        simUi.addWidgetToVerticalPanel(slider = new Scrollbar(simUi, Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
     }
 
     public void execute() {
-        simUi.renderer.needsAnalysis();
+        cirSim().renderer.needsAnalysis();
         setPoints();
     }
 
     public void delete() {
-        simUi.removeWidgetFromVerticalPanel(label);
-        simUi.removeWidgetFromVerticalPanel(slider);
+        cirSim().removeWidgetFromVerticalPanel(label);
+        cirSim().removeWidgetFromVerticalPanel(slider);
     }
 
     Point ps3, ps4;
@@ -141,7 +141,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
         grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
         g.setStrokeStyle(grad);
-        if (!simUi.menuManager.euroResistorCheckItem.getState()) {
+        if (!displaySettings().euroResistors()) {
             g.beginPath();
             g.moveTo(0, 0);
             for (i = 0; i < 4; i++) {
@@ -163,7 +163,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
 
 
         g.restore();
-        if (simUi.menuManager.showValuesCheckItem.getState()) {
+        if (displaySettings().showValues()) {
             temperature = temprFromSliderPos();
             resistance = calcResistance(temperature);
             String s = getShortUnitText(resistance, "");
@@ -225,7 +225,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         if (n == 4) {
             sliderText = ei.textf.getText();
             label.setText(sliderText);
-            simUi.setSlidersDialogHeight();
+            cirSim().setSlidersDialogHeight();
         }
         rneg40 = calcResistance(minTempr);
         b25100 = calcB25100(); //

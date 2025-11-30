@@ -68,7 +68,7 @@ public class DelayBufferElm extends CircuitElm {
         draw2Leads(g);
         g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, gatePoly);
-        if (GateElm.useEuroGates())
+        if (displaySettings().euroGates())
             drawCenteredText(g, "1", center.x, center.y - 6, true);
         curcount = updateDotCount(current, curcount);
         drawDots(g, lead2, point2, curcount);
@@ -85,7 +85,7 @@ public class DelayBufferElm extends CircuitElm {
         lead1 = interpPoint(point1, point2, .5 - ww / dn);
         lead2 = interpPoint(point1, point2, .5 + ww / dn);
 
-        if (GateElm.useEuroGates()) {
+        if (displaySettings().euroGates()) {
             Point pts[] = newPointArray(4);
             Point l2 = interpPoint(point1, point2, .5 + (ww - 5) / dn);
             interpPoint2(lead1, l2, pts[0], pts[1], 0, hs);

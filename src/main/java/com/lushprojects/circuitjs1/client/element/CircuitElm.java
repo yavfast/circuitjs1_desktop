@@ -32,6 +32,7 @@ import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
+import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.MouseMode;
@@ -56,8 +57,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // scratch points for convenience
     static Point ps1, ps2;
-
-    protected static CirSim simUi;
 
     static public Color backgroundColor, elementColor, selectColor;
     static public Color positiveColor, negativeColor, neutralColor, currentColor;
@@ -89,6 +88,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     protected CircuitEditor circuitEditor() {
         return circuitDocument.circuitEditor;
+    }
+
+    protected CirSim cirSim() {
+        return circuitDocument.getCirSim();
+    }
+
+    protected DisplaySettings displaySettings() {
+        return circuitDocument.getDisplaySettings();
     }
 
     public CircuitDocument getCircuitDocument() {
@@ -249,7 +256,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public static void initClass(CirSim s) {
         unitsFont = new Font("SansSerif", 0, 12);
-        simUi = s;
 
         colorScale = new Color[colorScaleCount];
 
@@ -590,7 +596,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // draw current dots from point a to b
     void drawDots(Graphics g, Point pa, Point pb, double pos) {
-        if ((!circuitDocument.isRunning()) || pos == 0 || !simUi.menuManager.dotsCheckItem.getState()) {
+        if ((!circuitDocument.isRunning()) || pos == 0 || !circuitDocument.getDisplaySettings().showDots()) {
             return;
         }
         int dx = pb.x - pa.x;
@@ -1007,7 +1013,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         g.setLineWidth(THICK_LINE_WIDTH);
         g.transform(((double) (p2.x - p1.x)) / len, ((double) (p2.y - p1.y)) / len,
                 -((double) (p2.y - p1.y)) / len, ((double) (p2.x - p1.x)) / len, p1.x, p1.y);
-        if (simUi.menuManager.voltsCheckItem.getState()) {
+        if (circuitDocument.getDisplaySettings().showVoltage()) {
             CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
             grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
@@ -1103,7 +1109,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (needsHighlight()) {
             return (selectColor);
         }
-        if (!simUi.menuManager.voltsCheckItem.getState()) {
+        if (!circuitDocument.getDisplaySettings().showVoltage()) {
             return (backgroundColor);
         }
         int c = (int) ((volts + voltageRange) * (colorScaleCount - 1) / (voltageRange * 2));
@@ -1122,14 +1128,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // yellow argument is unused, can't remember why it was there
     void setPowerColor(Graphics g, boolean yellow) {
-        if (!simUi.menuManager.powerCheckItem.getState()) {
+        if (!circuitDocument.getDisplaySettings().showPower()) {
             return;
         }
         setPowerColor(g, getPower());
     }
 
     void setPowerColor(Graphics g, double w0) {
-        if (!simUi.menuManager.powerCheckItem.getState()) {
+        if (!circuitDocument.getDisplaySettings().showPower()) {
             return;
         }
         if (needsHighlight()) {

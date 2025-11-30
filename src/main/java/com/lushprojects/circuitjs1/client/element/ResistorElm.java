@@ -75,7 +75,7 @@ public class ResistorElm extends CircuitElm {
         g.save();
         g.setLineWidth(3.0);
         g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
-        if (simUi.menuManager.voltsCheckItem.getState()) {
+        if (displaySettings().showVoltage()) {
             CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
             grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
@@ -84,7 +84,7 @@ public class ResistorElm extends CircuitElm {
             setPowerColor(g, true);
         if (dn < 30)
             hs = 2;
-        if (!simUi.menuManager.euroResistorCheckItem.getState()) {
+        if (!displaySettings().euroResistors()) {
             g.beginPath();
             g.moveTo(0, 0);
             for (i = 0; i < 4; i++) {
@@ -98,7 +98,7 @@ public class ResistorElm extends CircuitElm {
             g.strokeRect(0, -hs, len, 2.0 * hs);
         }
         g.restore();
-        if (simUi.menuManager.showValuesCheckItem.getState()) {
+        if (displaySettings().showValues()) {
             String s = getShortUnitText(resistance, "");
             drawValues(g, s, hs + 2);
         }

@@ -359,10 +359,10 @@ public class TestPointElm extends CircuitElm {
                 arr[1] = "Freq = " + getUnitText(frequency, "Hz");
                 break;
             case TP_PER:
-                arr[1] = "Period = " + getUnitText(period * simulator().maxTimeStep / simUi.getIterCount(), "S");
+                arr[1] = "Period = " + getUnitText(period * simulator().maxTimeStep / cirSim().getIterCount(), "S");
                 break;
             case TP_PWI:
-                arr[1] = "Pulse width = " + getUnitText(pulseWidth * simulator().maxTimeStep * simUi.getIterCount(), "S");
+                arr[1] = "Pulse width = " + getUnitText(pulseWidth * simulator().maxTimeStep * cirSim().getIterCount(), "S");
                 break;
             case TP_DUT:
                 arr[1] = "Duty cycle = " + showFormat(dutyCycle);

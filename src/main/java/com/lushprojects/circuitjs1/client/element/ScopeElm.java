@@ -35,7 +35,7 @@ public class ScopeElm extends CircuitElm {
         noDiagonal = false;
         x2 = x + 128;
         y2 = y + 64;
-        elmScope = new Scope(simUi, null);
+        elmScope = new Scope(cirSim(), null);
         setPoints();
     }
 
@@ -59,17 +59,17 @@ public class ScopeElm extends CircuitElm {
         noDiagonal = false;
         String sStr = st.nextToken();
         StringTokenizer sst = new StringTokenizer(sStr, "_");
-        elmScope = new Scope(simUi, null);
+        elmScope = new Scope(cirSim(), null);
         elmScope.undump(sst);
         setPoints();
         elmScope.resetGraph();
     }
 
     public void setScopeRect() {
-        int i1 = simUi.renderer.transformX(min(x, x2));
-        int i2 = simUi.renderer.transformX(max(x, x2));
-        int j1 = simUi.renderer.transformY(min(y, y2));
-        int j2 = simUi.renderer.transformY(max(y, y2));
+        int i1 = cirSim().renderer.transformX(min(x, x2));
+        int i2 = cirSim().renderer.transformX(max(x, x2));
+        int j1 = cirSim().renderer.transformY(min(y, y2));
+        int j2 = cirSim().renderer.transformY(max(y, y2));
         Rectangle r = new Rectangle(i1, j1, i2 - i1, j2 - j1);
         if (!r.equals(elmScope.rect))
             elmScope.setRect(r);
@@ -120,8 +120,8 @@ public class ScopeElm extends CircuitElm {
         g.setColor(needsHighlight() ? selectColor : backgroundColor);
         g.save();
         // setTransform() doesn't work in version of canvas2svg we are using
-        g.scale(1 / simUi.renderer.transform[0], 1 / simUi.renderer.transform[3]);
-        g.translate(-simUi.renderer.transform[4], -simUi.renderer.transform[5]);
+        g.scale(1 / cirSim().renderer.transform[0], 1 / cirSim().renderer.transform[3]);
+        g.translate(-cirSim().renderer.transform[4], -cirSim().renderer.transform[5]);
         //g.scale(CirSim.devicePixelRatio(), CirSim.devicePixelRatio());
 
         setScopeRect();

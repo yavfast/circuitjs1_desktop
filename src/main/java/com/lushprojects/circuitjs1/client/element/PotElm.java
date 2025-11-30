@@ -87,22 +87,22 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     void createSlider() {
-        simUi.addWidgetToVerticalPanel(label = new Label(sliderText));
+        cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
         label.addStyleName("topSpace");
         int value = (int) Math.round((position - .005) / .0099);
-        simUi.addWidgetToVerticalPanel(slider = new Scrollbar(simUi, Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
         // 	sim.verticalPanel.validate();
         // 	slider.addAdjustmentListener(this);
     }
 
     public void execute() {
-        simUi.renderer.needsAnalysis();
+        cirSim().renderer.needsAnalysis();
         setPoints();
     }
 
     public void delete() {
-        simUi.removeWidgetFromVerticalPanel(label);
-        simUi.removeWidgetFromVerticalPanel(slider);
+        cirSim().removeWidgetFromVerticalPanel(label);
+        cirSim().removeWidgetFromVerticalPanel(slider);
         super.delete();
     }
 
@@ -153,7 +153,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         int segments = 16;
         int i;
         int ox = 0;
-        int hs = simUi.menuManager.euroResistorCheckItem.getState() ? 6 : 8;
+        int hs = displaySettings().euroResistors() ? 6 : 8;
         double v1 = volts[0];
         double v2 = volts[1];
         double v3 = volts[2];
@@ -163,7 +163,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         setPowerColor(g, true);
         double segf = 1. / segments;
         int divide = (int) (segments * position);
-        if (!simUi.menuManager.euroResistorCheckItem.getState()) {
+        if (!displaySettings().euroResistors()) {
             // draw zigzag
             for (i = 0; i != segments; i++) {
                 int nx = 0;
@@ -221,7 +221,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         }
         drawPosts(g);
 
-        if (simUi.menuManager.showValuesCheckItem.getState() && resistance1 > 0 && (flags & FLAG_SHOW_VALUES) != 0) {
+        if (displaySettings().showValues() && resistance1 > 0 && (flags & FLAG_SHOW_VALUES) != 0) {
             // check for vertical pot with 3rd terminal on left
             boolean reverseY = (post3.x < lead1.x && lead1.x == lead2.x);
             // check for horizontal pot with 3rd terminal on top
@@ -339,7 +339,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         if (n == 1) {
             sliderText = ei.textf.getText();
             label.setText(sliderText);
-            simUi.setSlidersDialogHeight();
+            cirSim().setSlidersDialogHeight();
         }
         if (n == 2)
             flags = ei.changeFlag(flags, FLAG_SHOW_VALUES);

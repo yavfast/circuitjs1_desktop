@@ -69,7 +69,7 @@ public class InverterElm extends CircuitElm {
         draw2Leads(g);
         g.setColor(needsHighlight() ? selectColor : elementColor);
         drawThickPolygon(g, gatePoly);
-        if (GateElm.useEuroGates())
+        if (displaySettings().euroGates())
             drawCenteredText(g, "1", center.x, center.y - 6, true);
         drawThickCircle(g, pcircle.x, pcircle.y, 3);
         curcount = updateDotCount(current, curcount);
@@ -89,7 +89,7 @@ public class InverterElm extends CircuitElm {
         lead2 = interpPoint(point1, point2, .5 + (ww + 2) / dn);
         pcircle = interpPoint(point1, point2, .5 + (ww - 2) / dn);
 
-        if (GateElm.useEuroGates()) {
+        if (displaySettings().euroGates()) {
             Point pts[] = newPointArray(4);
             Point l2 = interpPoint(point1, point2, .5 + (ww - 5) / dn);   // make room for circle
             interpPoint2(lead1, l2, pts[0], pts[1], 0, hs);

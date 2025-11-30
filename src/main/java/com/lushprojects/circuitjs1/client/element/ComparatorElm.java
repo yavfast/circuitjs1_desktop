@@ -23,7 +23,8 @@ public class ComparatorElm extends CompositeElm {
     public ComparatorElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy, modelString, modelExternalNodes);
         noDiagonal = true;
-        // Note: simUi.menuManager may not be available during factory registration
+        // Note: displaySettings() may not be available during factory registration
+        // because circuitDocument is not yet set
         // Size will be properly set when element is actually placed on canvas
         setSize(2); // default size
     }

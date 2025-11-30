@@ -249,7 +249,7 @@ public class DiodeElm extends CircuitElm {
             newModel.setSimple(n == 1);
             if (newModel.isSimple())
                 newModel.setForwardVoltage();
-            simUi.dialogManager.showEditDiodeModelDialog(newModel, this);
+            circuitDocument.getDialogManager().showEditDiodeModelDialog(newModel, this);
             return;
         }
         if (n == 3) {
@@ -260,7 +260,7 @@ public class DiodeElm extends CircuitElm {
             }
             if (model.isSimple())
                 model.setForwardVoltage();
-            simUi.dialogManager.showEditDiodeModelDialog(model, null);
+            circuitDocument.getDialogManager().showEditDiodeModelDialog(model, null);
             return;
         }
     }

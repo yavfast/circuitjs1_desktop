@@ -150,7 +150,7 @@ public class TransistorElm extends CircuitElm {
         g.fillPolygon(arrowPoly);
         // draw base
         setVoltageColor(g, volts[0]);
-        if (simUi.menuManager.powerCheckItem.getState())
+        if (displaySettings().showPower())
             g.setColor(Color.gray);
         drawThickLine(g, point1, base);
         // draw dots
@@ -571,7 +571,7 @@ public class TransistorElm extends CircuitElm {
         }
         if (n == 4) {
             TransistorModel newModel = new TransistorModel(model);
-            simUi.dialogManager.showEditTransistorModelDialog(newModel, this);
+            circuitDocument.getDialogManager().showEditTransistorModelDialog(newModel, this);
             return;
         }
         if (n == 5) {
@@ -580,7 +580,7 @@ public class TransistorElm extends CircuitElm {
                 Window.alert(Locale.LS("This model cannot be modified.  Change the model name to allow customization."));
                 return;
             }
-            simUi.dialogManager.showEditTransistorModelDialog(model, null);
+            circuitDocument.getDialogManager().showEditTransistorModelDialog(model, null);
             return;
         }
     }

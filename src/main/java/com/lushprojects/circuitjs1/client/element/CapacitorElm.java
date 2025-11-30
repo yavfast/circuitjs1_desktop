@@ -114,7 +114,7 @@ public class CapacitorElm extends CircuitElm {
         drawThickLine(g, point1, lead1);
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
-        if (simUi.menuManager.powerCheckItem.getState())
+        if (displaySettings().showPower())
             g.setColor(Color.gray);
 
         // draw second lead and plate
@@ -136,7 +136,7 @@ public class CapacitorElm extends CircuitElm {
 
         drawPosts(g);
 
-        if (simUi.menuManager.showValuesCheckItem.getState()) {
+        if (displaySettings().showValues()) {
             String s = getShortUnitText(capacitance, "F");
             drawValues(g, s, hs);
         }
