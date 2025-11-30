@@ -1046,7 +1046,7 @@
 "Waveform"="Forma de onda"
 "Weak Coupling"="Acoplamento débil"
 "Wheatstone Bridge"="Puente de Wheatstone"
-"White Background"="Fondo en blanco"
+"Printable Mode"="Modo de impresión"
 "Width of Doped Region (nm)"="Anchura de la región dopada (nm)"
 "Width"="Anchura"
 "Wien Bridge Oscillator"="Oscilador puente de Wien"

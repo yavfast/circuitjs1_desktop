@@ -83,7 +83,7 @@ public class OutputElm extends CircuitElm {
         drawCenteredText(g, s, x2, y2, true);
         setVoltageColor(g, volts[0]);
         if (selected)
-            g.setColor(selectColor);
+            g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
         drawPosts(g);
         g.restore();

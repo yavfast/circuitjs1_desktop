@@ -204,7 +204,7 @@ public class TestPointElm extends CircuitElm {
 
         setVoltageColor(g, volts[0]);
         if (selected)
-            g.setColor(selectColor);
+            g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
         drawPosts(g);
         g.restore();

@@ -215,7 +215,7 @@ public class MosfetElm extends CircuitElm {
 
         if ((flags & FLAG_SHOWVT) != 0) {
             String s = "" + (vt * pnp);
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
             g.setFont(unitsFont);
             drawCenteredText(g, s, x2 + 2, y2, false);
         }
@@ -233,7 +233,7 @@ public class MosfetElm extends CircuitElm {
 
         // label pins when highlighted
         if (needsHighlight() || circuitEditor().dragElm == this) {
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
             g.setFont(unitsFont);
 
             // make fiddly adjustments to pin label locations depending on orientation

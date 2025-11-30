@@ -1049,7 +1049,7 @@
 "Waveform Clipper"="Waveform Clipper"
 "Weak Coupling"="Slabé spojení"
 "Wheatstone Bridge"="Wheatstoneův most"
-"White Background"="Bílé pozadí"
+"Printable Mode"="Režim pro tisk"
 "Width"="Šířka"
 "Width of Doped Region (nm)"="Šířka dopované oblasti (nm)"
 "Wien Bridge Oscillator"="Wien Bridge Oscilátor"

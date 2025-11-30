@@ -378,6 +378,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor,
             String currentColor) {
+        ColorSettings cs = ColorSettings.get();
+        
         if (positiveColor == null)
             positiveColor = OptionsManager.getOptionFromStorage("positiveColor", null);
         if (negativeColor == null)
@@ -390,26 +392,26 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             currentColor = OptionsManager.getOptionFromStorage("currentColor", null);
 
         if (positiveColor != null)
-            CircuitElm.positiveColor = new Color(URL.decodeQueryString(positiveColor));
+            cs.setPositiveColor(new Color(URL.decodeQueryString(positiveColor)));
         else if (OptionsManager.getBoolOptionFromStorage("alternativeColor", false))
-            CircuitElm.positiveColor = Color.blue;
+            cs.setPositiveColor(Color.blue);
 
         if (negativeColor != null)
-            CircuitElm.negativeColor = new Color(URL.decodeQueryString(negativeColor));
+            cs.setNegativeColor(new Color(URL.decodeQueryString(negativeColor)));
         if (neutralColor != null)
-            CircuitElm.neutralColor = new Color(URL.decodeQueryString(neutralColor));
+            cs.setNeutralColor(new Color(URL.decodeQueryString(neutralColor)));
 
         if (selectColor != null)
-            CircuitElm.selectColor = new Color(URL.decodeQueryString(selectColor));
+            cs.setSelectColor(new Color(URL.decodeQueryString(selectColor)));
         else
-            CircuitElm.selectColor = Color.cyan;
+            cs.setSelectColor(Color.cyan);
 
         if (currentColor != null)
-            CircuitElm.currentColor = new Color(URL.decodeQueryString(currentColor));
+            cs.setCurrentColor(new Color(URL.decodeQueryString(currentColor)));
         else
-            CircuitElm.currentColor = menuManager.conventionCheckItem.getState() ? Color.yellow : Color.cyan;
+            cs.setCurrentColor(menuManager.conventionCheckItem.getState() ? Color.yellow : Color.cyan);
 
-        CircuitElm.setColorScale();
+        cs.updateColorScale();
     }
 
     // install touch handlers

@@ -585,7 +585,7 @@ public class ActionManager extends BaseCirSimDelegate {
                 simulator.maxTimeStep,
                 cirSim.getIterCount(),
                 cirSim.currentBar.getValue(),
-                CircuitElm.voltageRange,
+                ColorSettings.get().getVoltageRange(),
                 cirSim.powerBar.getValue(),
                 simulator.minTimeStep
         );

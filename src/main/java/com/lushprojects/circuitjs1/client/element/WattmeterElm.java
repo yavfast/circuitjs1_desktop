@@ -169,7 +169,7 @@ public class WattmeterElm extends CircuitElm {
                 break;
             fsize--;
         }
-        g.setColor(backgroundColor);
+        g.setColor(backgroundColor());
         g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         g.drawString(str, center.x - w / 2, center.y);
         g.restore();

@@ -103,7 +103,7 @@ public class Switch2Elm extends SwitchElm {
 
         // draw switch
         if (!needsHighlight())
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
         drawThickLine(g, lead1, swpoles[position]);
 
         updateDotCount();

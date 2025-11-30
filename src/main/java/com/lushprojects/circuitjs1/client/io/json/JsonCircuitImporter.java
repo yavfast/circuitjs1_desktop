@@ -164,9 +164,9 @@ public class JsonCircuitImporter implements CircuitImporter {
         JSONValue voltageRangeValue = sim.get("voltage_range");
         if (voltageRangeValue != null) {
             if (voltageRangeValue.isString() != null) {
-                CircuitElm.voltageRange = UnitParser.parse(voltageRangeValue.isString().stringValue());
+                ColorSettings.get().setVoltageRange(UnitParser.parse(voltageRangeValue.isString().stringValue()));
             } else if (voltageRangeValue.isNumber() != null) {
-                CircuitElm.voltageRange = voltageRangeValue.isNumber().doubleValue();
+                ColorSettings.get().setVoltageRange(voltageRangeValue.isNumber().doubleValue());
             }
         }
 

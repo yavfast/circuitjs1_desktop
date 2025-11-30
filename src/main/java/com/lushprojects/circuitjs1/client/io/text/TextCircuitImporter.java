@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.CircuitElmCreator;
 import com.lushprojects.circuitjs1.client.CircuitRenderer;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.DiodeModel;
@@ -147,7 +148,7 @@ public class TextCircuitImporter implements CircuitImporter {
         cirSim.speedBar.setValue(117);
         cirSim.currentBar.setValue(50);
         cirSim.powerBar.setValue(50);
-        CircuitElm.voltageRange = 5;
+        ColorSettings.get().setVoltageRange(5);
         scopeManager.setScopeCount(0);
     }
 
@@ -353,7 +354,7 @@ public class TextCircuitImporter implements CircuitImporter {
         int sp2 = (int) (Math.log(10 * sp) * 24 + 61.5);
         cirSim.speedBar.setValue(sp2);
         cirSim.currentBar.setValue(CircuitElm.parseInt(tokenizer.nextToken()));
-        CircuitElm.voltageRange = CircuitElm.parseDouble(tokenizer.nextToken());
+        ColorSettings.get().setVoltageRange(CircuitElm.parseDouble(tokenizer.nextToken()));
 
         try {
             cirSim.powerBar.setValue(CircuitElm.parseInt(tokenizer.nextToken()));

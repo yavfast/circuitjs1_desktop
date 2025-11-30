@@ -509,11 +509,7 @@ public class Scope extends BaseCirSimDelegate {
             draw_ox = x2;
             draw_oy = y2;
         }
-        if (cirSim.menuManager.printableCheckItem.getState()) {
-            graphics.setStrokeStyle("#000000");
-        } else {
-            graphics.setStrokeStyle("#ffffff");
-        }
+        graphics.setStrokeStyle(ColorSettings.get().getForegroundColor().getHexValue());
         graphics.drawLine(draw_ox, draw_oy, x2, y2);
         draw_ox = x2;
         draw_oy = y2;
@@ -521,7 +517,8 @@ public class Scope extends BaseCirSimDelegate {
 
     void clear2dView() {
         if (graphics != null) {
-            if (cirSim.menuManager.printableCheckItem.getState()) {
+            // Use slightly different color from background for scope area
+            if (ColorSettings.get().isPrintable()) {
                 graphics.setColor("#eee");
             } else {
                 graphics.setColor("#111");
@@ -650,7 +647,7 @@ public class Scope extends BaseCirSimDelegate {
         if (showSettingsWheel()) {
             graphics.save();
             if (cursorInSettingsWheel()) {
-                graphics.setColor(CircuitElm.selectColor);
+                graphics.setColor(ColorSettings.get().getSelectColor());
             } else {
                 graphics.setColor(Color.dark_gray);
             }
@@ -683,20 +680,16 @@ public class Scope extends BaseCirSimDelegate {
             // fade out plot
             alphaCounter = 0;
             imageContext.setGlobalAlpha(0.01);
-            if (cirSim.menuManager.printableCheckItem.getState()) {
-                imageContext.setFillStyle("#ffffff");
-            } else {
-                imageContext.setFillStyle("#000000");
-            }
+            imageContext.setFillStyle(ColorSettings.get().getBackgroundColor().getHexValue());
             imageContext.fillRect(0, 0, rect.width, rect.height);
             imageContext.setGlobalAlpha(1.0);
         }
 
         graphics.drawImage(imageContext.getCanvas(), 0.0, 0.0);
-        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.setColor(ColorSettings.get().getBackgroundColor());
         graphics.fillOval(draw_ox - 2, draw_oy - 2, 5, 5);
         // Axis
-        graphics.setColor(CircuitElm.positiveColor);
+        graphics.setColor(ColorSettings.get().getPositiveColor());
         graphics.drawLine(0, rect.height / 2, rect.width - 1, rect.height / 2);
         if (!plotXY) {
             graphics.setColor(Color.yellow);
@@ -713,7 +706,7 @@ public class Scope extends BaseCirSimDelegate {
             }
         }
         textY = 10;
-        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.setColor(ColorSettings.get().getBackgroundColor());
         if (text != null) {
             drawInfoText(graphics, text);
         }
@@ -985,7 +978,7 @@ public class Scope extends BaseCirSimDelegate {
 
         String color = (somethingSelected) ? "#A0A0A0" : plot.color;
         if (allSelected || (scopeManager().scopeSelected == -1 && plot.elm.isMouseElm())) {
-            color = CircuitElm.selectColor.getHexValue();
+            color = ColorSettings.get().getSelectColor().getHexValue();
         } else if (selected) {
             color = plot.color;
         }
@@ -1041,13 +1034,13 @@ public class Scope extends BaseCirSimDelegate {
 
         String minorDiv = "#404040";
         String majorDiv = "#A0A0A0";
-        if (cirSim.menuManager.printableCheckItem.getState()) {
+        if (ColorSettings.get().isPrintable()) {
             minorDiv = "#D0D0D0";
             majorDiv = "#808080";
             curColor = "#A0A000";
         }
         if (allSelected) {
-            majorDiv = CircuitElm.selectColor.getHexValue();
+            majorDiv = ColorSettings.get().getSelectColor().getHexValue();
         }
 
         // Vertical (T) gridlines
@@ -1259,18 +1252,18 @@ public class Scope extends BaseCirSimDelegate {
             }
         }
 
-        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.setColor(ColorSettings.get().getBackgroundColor());
         graphics.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY) {
             graphics.drawLine(rect.x, circuitEditor().mouseCursorY, rect.x + rect.width, circuitEditor().mouseCursorY);
         }
-        graphics.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
+        graphics.setColor(ColorSettings.get().getBackgroundColor());
         int bx = x;
         if (bx < szw / 2) {
             bx = szw / 2;
         }
         graphics.fillRect(bx - szw / 2, rect.y - szh, szw, szh);
-        graphics.setColor(CircuitElm.backgroundColor);
+        graphics.setColor(ColorSettings.get().getForegroundColor());
         for (int i = 0; i != ct; i++) {
             int w = (int) graphics.measureWidth(info[i]);
             graphics.drawString(info[i], bx - w / 2, rect.y - 2 - (ct - 1 - i) * 15);
@@ -1336,7 +1329,7 @@ public class Scope extends BaseCirSimDelegate {
                     g.setColor(p.color);
                     g.fillOval((int) x + 7, textY - 9, 8, 8);
                     x += bulletWidth;
-                    g.setColor(CircuitElm.backgroundColor);
+                    g.setColor(ColorSettings.get().getBackgroundColor());
                     g.drawString(vScaleText, (int) x, textY);
                     x += vScaleWidth;
                 }
@@ -1403,7 +1396,7 @@ public class Scope extends BaseCirSimDelegate {
     }
 
     void drawInfoTexts(Graphics g) {
-        g.setColor(CircuitElm.backgroundColor);
+        g.setColor(ColorSettings.get().getForegroundColor());
         textY = 10;
 
         if (visiblePlots.isEmpty()) {

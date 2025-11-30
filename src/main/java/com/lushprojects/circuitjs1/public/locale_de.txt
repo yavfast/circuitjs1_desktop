@@ -645,7 +645,7 @@
 "Waveform Clipper"="Signalform-Kapper (Clipper)"
 "Weak Coupling"="Schwache Kopplung"
 "Wheatstone Bridge"="Wheatstonesche Brückenschaltung"
-"White Background"="Weißer Hintergrund"
+"Printable Mode"="Druckmodus"
 "Width of Doped Region (nm)"="Breite des dotierten Gebiets (nm)"
 "XOR Phase Detector"="Exklusiv-ODER-Phasendetektor (XOR)"
 "Zener Diodes"="Zenerdioden"

@@ -491,7 +491,7 @@
 "Waveform"="Bølgetype"
 "Weak Coupling"="Svag samling"
 "Wheatstone Bridge"="Wheatstonebro"
-"White Background"="Hvid baggrund"
+"Printable Mode"="Udskrivningstilstand"
 "Width of Doped Region (nm)"="Bredde af doped region (nm)"
 "XOR Phase Detector"="XOR fasedetektor"
 "Zener Diodes"="Zenerdioder"

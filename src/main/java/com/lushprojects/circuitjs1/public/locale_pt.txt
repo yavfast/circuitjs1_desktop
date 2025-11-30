@@ -732,7 +732,7 @@
 "Waveform Clipper"="Limitador de Forma de Onda"
 "Weak Coupling"="Acoplamento Fraco"
 "Wheatstone Bridge"="Ponte de Wheatstone"
-"White Background"="Fundo de Tela Branco"
+"Printable Mode"="Modo de impressão"
 "Width of Doped Region (nm)"="Largura da Região Dopada (nm)"
 "Wien Bridge Oscillator"="Oscilador Ponte de Wien"
 "X Resistance"="Resistência X"

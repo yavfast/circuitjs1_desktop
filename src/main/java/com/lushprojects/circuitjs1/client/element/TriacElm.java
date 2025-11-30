@@ -184,7 +184,7 @@ public class TriacElm extends CircuitElm {
         }
 
         if ((needsHighlight() || circuitEditor().dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
             int ds = sign(dx);
             g.drawString("MT1", lead2.x + ((ds < 0) ? 5 : -30), lead2.y + 12);
             g.drawString("MT2", lead1.x + 5, lead1.y - 4); // x+6 if ds=1, -12 if -1

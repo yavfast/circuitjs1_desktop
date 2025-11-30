@@ -22,6 +22,7 @@ import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Scope;
@@ -183,7 +184,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
                 chanButtons.add(b);
                 chanButtons.get(i).addClickHandler(new ScopePropertiesDialog.PlotClickHandler(i));
                 b.addStyleName("chbut");
-                if (CircuitElm.backgroundColor == Color.white)
+                if (ColorSettings.get().getBackgroundColor() == Color.white)
                     b.addStyleName("chbut-black");
                 else
                     b.addStyleName("chbut-white");

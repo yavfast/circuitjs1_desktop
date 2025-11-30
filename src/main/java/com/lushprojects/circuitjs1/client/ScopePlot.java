@@ -139,7 +139,7 @@ public class ScopePlot {
         }
         switch (units) {
             case Scope.UNITS_V:
-                color = CircuitElm.positiveColor.getHexValue();
+                color = ColorSettings.get().getPositiveColor().getHexValue();
                 break;
             case Scope.UNITS_A:
                 color = (cirSim.menuManager.printableCheckItem.getState()) ? "#A0A000" : "#FFFF00";

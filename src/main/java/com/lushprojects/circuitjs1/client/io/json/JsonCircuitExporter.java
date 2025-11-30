@@ -26,6 +26,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitRenderer;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.MenuManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Scope;
@@ -159,7 +160,7 @@ public class JsonCircuitExporter implements CircuitExporter {
         sim.put("display", display);
 
         // Voltage range
-        sim.put("voltage_range", new JSONString(formatWithUnit(CircuitElm.voltageRange, "V")));
+        sim.put("voltage_range", new JSONString(formatWithUnit(ColorSettings.get().getVoltageRange(), "V")));
 
         // Speed settings
         sim.put("current_speed", new JSONNumber(cirSim.currentBar.getValue()));

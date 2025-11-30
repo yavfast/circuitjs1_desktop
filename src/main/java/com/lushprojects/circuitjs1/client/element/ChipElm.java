@@ -133,11 +133,11 @@ public abstract class ChipElm extends CircuitElm {
             if (p.bubble) {
                 g.setColor(cirSim().getBackgroundColor());
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 1);
-                g.setColor(elementColor);
+                g.setColor(elementColor());
                 drawThickCircle(g, p.bubbleX, p.bubbleY, 3);
             }
             if (p.clockPointsX != null) {
-                g.setColor(elementColor);
+                g.setColor(elementColor());
                 g.drawPolyline(p.clockPointsX, p.clockPointsY, 3);
             }
             g.setColor(p.selected ? selectColor : backgroundColor);

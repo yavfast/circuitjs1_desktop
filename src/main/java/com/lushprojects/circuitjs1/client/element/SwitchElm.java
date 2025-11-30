@@ -116,7 +116,7 @@ public class SwitchElm extends CircuitElm {
             doDots(g);
 
         if (!needsHighlight())
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
         interpPoint(lead1, lead2, ps, 0, hs1);
         interpPoint(lead1, lead2, ps2, 1, hs2);
 

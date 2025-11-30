@@ -23,6 +23,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitRenderer;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CirSim;
+import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.DiodeModel;
@@ -163,7 +164,7 @@ public class TextCircuitExporter implements CircuitExporter {
                 simulator.maxTimeStep,
                 cirSim.getIterCount(),
                 cirSim.currentBar.getValue(),
-                CircuitElm.voltageRange,
+                ColorSettings.get().getVoltageRange(),
                 cirSim.powerBar.getValue(),
                 simulator.minTimeStep
         );

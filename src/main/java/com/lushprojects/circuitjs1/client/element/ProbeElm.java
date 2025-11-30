@@ -141,11 +141,11 @@ public class ProbeElm extends CircuitElm {
         calcLeads((int) len);
         setVoltageColor(g, volts[0]);
         if (selected)
-            g.setColor(selectColor);
+            g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
         setVoltageColor(g, volts[1]);
         if (selected)
-            g.setColor(selectColor);
+            g.setColor(selectColor());
         drawThickLine(g, lead2, point2);
         Font f = new Font("SansSerif", Font.BOLD, 14);
         g.setFont(f);
@@ -189,7 +189,7 @@ public class ProbeElm extends CircuitElm {
             }
             drawValues(g, s, drawAsCircle() ? circleSize + 3 : 4);
         }
-        g.setColor(backgroundColor);
+        g.setColor(backgroundColor());
         g.setFont(unitsFont);
         Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
         if (y2 > y)
@@ -199,7 +199,7 @@ public class ProbeElm extends CircuitElm {
         int w = (int) g.measureWidth("+");
         g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
         if (drawAsCircle()) {
-            g.setColor(elementColor);
+            g.setColor(elementColor());
             drawThickCircle(g, center.x, center.y, circleSize);
             drawCenteredText(g, "V", center.x, center.y, true);
         }

@@ -735,7 +735,7 @@
 "Waveform Clipper"="波形限幅器"
 "Weak Coupling"="弱耦合"
 "Wheatstone Bridge"="惠斯通电桥"
-"White Background"="白色背景"
+"Printable Mode"="打印模式"
 "Width of Doped Region (nm)"="宽度掺杂区域(nm)"
 "Wien Bridge Oscillator"="文氏桥振荡器"
 "X Resistance"="X电阻"

@@ -319,7 +319,7 @@ public class MenuManager extends BaseCirSimDelegate {
                     }
                 }));
         euroGatesCheckItem.setState(circuitInfo().euroGates);
-        m.addItem(printableCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("White Background"),
+        m.addItem(printableCheckItem = new CheckboxMenuItem(cirSim, Locale.LS("Printable Mode"),
                 new Command() {
                     public void execute() {
                         scopeManager().updateScopes();
@@ -332,10 +332,10 @@ public class MenuManager extends BaseCirSimDelegate {
                 new Command() {
                     public void execute() {
                         OptionsManager.setOptionInStorage("conventionalCurrent", conventionCheckItem.getState());
-                        String cc = CircuitElm.currentColor.getHexValue();
+                        String cc = ColorSettings.get().getCurrentColor().getHexValue();
                         // change the current color if it hasn't changed from the default
                         if (cc.equals("#ffff00") || cc.equals("#00ffff"))
-                            CircuitElm.currentColor = conventionCheckItem.getState() ? Color.yellow : Color.cyan;
+                            ColorSettings.get().setCurrentColor(conventionCheckItem.getState() ? Color.yellow : Color.cyan);
                     }
                 }));
         conventionCheckItem.setState(circuitInfo().convention);

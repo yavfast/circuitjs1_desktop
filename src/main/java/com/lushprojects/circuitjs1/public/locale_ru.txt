@@ -735,7 +735,7 @@
 "Waveform Clipper"="Диодный ограничитель"
 "Weak Coupling"="Слабая связь"
 "Wheatstone Bridge"="Мост Уитстона"
-"White Background"="Белый фон"
+"Printable Mode"="Режим печати"
 "Width of Doped Region (nm)"="Ширина легированной области [нм]"
 "Wien Bridge Oscillator"="Генератор с мостом Вина"
 "X Resistance"="Сопротивление цепи X"

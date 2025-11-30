@@ -24,6 +24,7 @@ import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Color;
+import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -36,10 +37,11 @@ public class EditOptions implements Editable {
     }
 
     public EditInfo getEditInfo(int n) {
+        ColorSettings cs = ColorSettings.get();
         // Note: Time step size is now controlled via scrollbar in ControlsDialog
         if (n == 0)
             return new EditInfo("Range for voltage color (V)",
-                    CircuitElm.voltageRange, 0, 0);
+                    cs.getVoltageRange(), 0, 0);
         if (n == 1) {
             EditInfo ei = new EditInfo("Change Language", 0, -1, -1);
             ei.choice = new Choice();
@@ -62,31 +64,31 @@ public class EditOptions implements Editable {
         }
 
         if (n == 2) {
-            EditInfo ei = new EditInfo("Positive Color", CircuitElm.positiveColor.getHexValue());
+            EditInfo ei = new EditInfo("Positive Color", cs.getPositiveColor().getHexValue());
             ei.isColor = true;
             return ei;
         }
 
         if (n == 3) {
-            EditInfo ei = new EditInfo("Negative Color", CircuitElm.negativeColor.getHexValue());
+            EditInfo ei = new EditInfo("Negative Color", cs.getNegativeColor().getHexValue());
             ei.isColor = true;
             return ei;
         }
 
         if (n == 4) {
-            EditInfo ei = new EditInfo("Neutral Color", CircuitElm.neutralColor.getHexValue());
+            EditInfo ei = new EditInfo("Neutral Color", cs.getNeutralColor().getHexValue());
             ei.isColor = true;
             return ei;
         }
 
         if (n == 5) {
-            EditInfo ei = new EditInfo("Selection Color", CircuitElm.selectColor.getHexValue());
+            EditInfo ei = new EditInfo("Selection Color", cs.getSelectColor().getHexValue());
             ei.isColor = true;
             return ei;
         }
 
         if (n == 6) {
-            EditInfo ei = new EditInfo("Current Color", CircuitElm.currentColor.getHexValue());
+            EditInfo ei = new EditInfo("Current Color", cs.getCurrentColor().getHexValue());
             ei.isColor = true;
             return ei;
         }
@@ -116,9 +118,10 @@ public class EditOptions implements Editable {
     }
 
     public void setEditValue(int n, EditInfo ei) {
+        ColorSettings cs = ColorSettings.get();
         // Note: Time step size is now controlled via scrollbar in ControlsDialog
         if (n == 0 && ei.value > 0)
-            CircuitElm.voltageRange = ei.value;
+            cs.setVoltageRange(ei.value);
         if (n == 1) {
             int lang = ei.choice.getSelectedIndex();
             if (lang == 0)
@@ -178,21 +181,21 @@ public class EditOptions implements Editable {
             }
         }
         if (n == 2) {
-            CircuitElm.positiveColor = setColor("positiveColor", ei, Color.green);
-            CircuitElm.setColorScale();
+            cs.setPositiveColor(setColor("positiveColor", ei, Color.green));
+            cs.updateColorScale();
         }
         if (n == 3) {
-            CircuitElm.negativeColor = setColor("negativeColor", ei, Color.red);
-            CircuitElm.setColorScale();
+            cs.setNegativeColor(setColor("negativeColor", ei, Color.red));
+            cs.updateColorScale();
         }
         if (n == 4) {
-            CircuitElm.neutralColor = setColor("neutralColor", ei, Color.gray);
-            CircuitElm.setColorScale();
+            cs.setNeutralColor(setColor("neutralColor", ei, Color.gray));
+            cs.updateColorScale();
         }
         if (n == 5)
-            CircuitElm.selectColor = setColor("selectColor", ei, Color.cyan);
+            cs.setSelectColor(setColor("selectColor", ei, Color.cyan));
         if (n == 6)
-            CircuitElm.currentColor = setColor("currentColor", ei, Color.yellow);
+            cs.setCurrentColor(setColor("currentColor", ei, Color.yellow));
         if (n == 7)
             CircuitElm.setDecimalDigitsShort((int) ei.value, true);
         if (n == 8)

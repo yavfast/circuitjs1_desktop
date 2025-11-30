@@ -1,7 +1,6 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
-
 import com.lushprojects.circuitjs1.client.CircuitElmCreator;
 import com.lushprojects.circuitjs1.client.CircuitNode;
 import com.lushprojects.circuitjs1.client.CircuitNodeLink;
@@ -37,15 +36,13 @@ public abstract class CompositeElm extends CircuitElm {
         CircuitElm elm;
     }
 
-    // need to use escape() instead of converting spaces to _'s so composite
-    // elements can be nested
+    // need to use escape() instead of converting spaces to _'s so composite elements can be nested
     final int FLAG_ESCAPE = 1;
 
     // list of elements contained in this subcircuit
     ArrayList<CircuitElm> compElmList;
 
-    // list of nodes, mapping each one to a list of elements that reference that
-    // node
+    // list of nodes, mapping each one to a list of elements that reference that node
     protected ArrayList<CircuitNode> compNodeList;
 
     protected int numPosts = 0;
@@ -67,8 +64,7 @@ public abstract class CompositeElm extends CircuitElm {
         allocNodes();
     }
 
-    public CompositeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st,
-            String s, int[] externalNodes) {
+    public CompositeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st, String s, int[] externalNodes) {
         super(circuitDocument, xa, ya, xb, yb, f);
         loadComposite(st, s, externalNodes);
         allocNodes();
@@ -176,11 +172,10 @@ public abstract class CompositeElm extends CircuitElm {
 
         numNodes = compNodeList.size();
 
-        // CirSim.console("Dumping compNodeList");
-        // for (int i = 0; i < numNodes; i++) {
-        // CirSim.console("New node" + i + " Size of links:" +
-        // compNodeList.get(i).links.size());
-        // }
+//	CirSim.console("Dumping compNodeList");
+//	for (int i = 0; i < numNodes; i++) {
+//	    CirSim.console("New node" + i + " Size of links:" + compNodeList.get(i).links.size());
+//	}
 
         posts = new Point[numPosts];
 
@@ -214,15 +209,13 @@ public abstract class CompositeElm extends CircuitElm {
         String dumpStr = "";
         for (int i = 0; i < compElmList.size(); i++) {
             String tstring = compElmList.get(i).dump();
-            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint x1 y1 x2 y2 coords for
-                                                                         // internal components
+            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint x1 y1 x2 y2 coords for internal components
             dumpStr += " " + CustomLogicModel.escape(tstring);
         }
         return dumpStr;
     }
 
-    // dump subset of elements (some of them may not have any state, and/or may be
-    // very long, so we avoid dumping them for brevity)
+    // dump subset of elements (some of them may not have any state, and/or may be very long, so we avoid dumping them for brevity)
     public String dumpWithMask(int mask) {
         String dumpStr = super.dump();
         return dumpStr + dumpElements(mask);
@@ -234,8 +227,7 @@ public abstract class CompositeElm extends CircuitElm {
             if ((mask & (1 << i)) == 0)
                 continue;
             String tstring = compElmList.get(i).dump();
-            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint x1 y1 x2 y2 coords for
-                                                                         // internal components
+            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint x1 y1 x2 y2 coords for internal components
             dumpStr += " " + CustomLogicModel.escape(tstring);
         }
         return dumpStr;

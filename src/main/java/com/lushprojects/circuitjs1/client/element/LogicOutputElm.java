@@ -83,7 +83,7 @@ public class LogicOutputElm extends CircuitElm {
         Font f = new Font("SansSerif", Font.BOLD, 20);
         g.setFont(f);
         //g.setColor(needsHighlight() ? selectColor : lightGrayColor);
-        g.setColor(elementColor);
+        g.setColor(elementColor());
         String s = (volts[0] < threshold) ? "L" : "H";
         if (isTernary()) {
             // we don't have 2 separate thresholds for ternary inputs so we do this instead

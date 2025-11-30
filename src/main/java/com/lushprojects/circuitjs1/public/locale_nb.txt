@@ -744,7 +744,7 @@
 "Waveform Clipper"="Bølgeformsklipper"
 "Weak Coupling"="Løs kobling"
 "Wheatstone Bridge"="Wheatstone-bro"
-"White Background"="Hvit bakgrunn"
+"Printable Mode"="Utskriftsmodus"
 "Width of Doped Region (nm)"="Bredde dopet grensesjikt (nm)"
 "Wien Bridge Oscillator"="Wien bro-oscillator"
 "X Resistance"="X motstand"

@@ -758,7 +758,7 @@
 "Waveform Clipper"="Ogranicznik diodowy"
 "Weak Coupling"="Słabe sprzężenie"
 "Wheatstone Bridge"="Mostek Wheatstone'a"
-"White Background"="Białe tło"
+"Printable Mode"="Tryb do druku"
 "Width of Doped Region (nm)"="Obszar domieszkowany [nm]"
 "Wien Bridge Oscillator"="Generator z mostkiem Wiena"
 "X Resistance"="Rezystancja obwodu X"

@@ -101,7 +101,7 @@ public class MBBSwitchElm extends SwitchElm {
 
         // draw switch
         if (!needsHighlight())
-            g.setColor(backgroundColor);
+            g.setColor(backgroundColor());
         if (both || position == 0)
             drawThickLine(g, lead1, swpoles[0]);
         if (both || position == 2)

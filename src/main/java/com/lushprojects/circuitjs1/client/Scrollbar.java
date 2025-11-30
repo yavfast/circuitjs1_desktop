@@ -150,7 +150,7 @@ public class Scrollbar extends Composite implements
         double p = HMARGIN + SCROLLHEIGHT + BARMARGIN + ((150 - 2 * (HMARGIN + SCROLLHEIGHT + BARMARGIN)) * ((double) (val - min))) / (max - min);
         if (enabled) {
             if (attachedElm != null && attachedElm.needsHighlight())
-                g.setStrokeStyle(CircuitElm.selectColor.getHexValue());
+                g.setStrokeStyle(ColorSettings.get().getSelectColor().getHexValue());
             else
                 g.setStrokeStyle("red");
             g.beginPath();

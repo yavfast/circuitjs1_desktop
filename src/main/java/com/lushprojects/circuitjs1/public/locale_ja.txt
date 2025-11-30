@@ -743,7 +743,7 @@
 "Waveform Clipper"="波形限幅器"
 "Weak Coupling"="弱カップリング"
 "Wheatstone Bridge"="ホイートストンブリッジ"
-"White Background"="白背景"
+"Printable Mode"="印刷モード"
 "Width of Doped Region (nm)"="ドープ領域の幅 (nm)"
 "Wien Bridge Oscillator"="ウィーンブリッジオシレータ"
 "X Resistance"="X抵抗値"

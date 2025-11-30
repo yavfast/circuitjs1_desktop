@@ -218,14 +218,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     }
 
     private void setupFrame(Graphics graphics) {
+        ColorSettings cs = ColorSettings.get();
         if (cirSim.menuManager.printableCheckItem.getState()) {
-            CircuitElm.backgroundColor = Color.black;
-            CircuitElm.elementColor = Color.black;
+            cs.setPrintable(true);
             graphics.setColor(Color.white);
             canvas.getElement().getStyle().setBackgroundColor("#fff");
         } else {
-            CircuitElm.backgroundColor = Color.white;
-            CircuitElm.elementColor = Color.lightGray;
+            cs.setPrintable(false);
             graphics.setColor(Color.black);
             canvas.getElement().getStyle().setBackgroundColor("#000");
         }
@@ -296,8 +295,20 @@ public class CircuitRenderer extends BaseCirSimDelegate {
 
         CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN) {
-            for (Point item : simulator.postDrawList) {
-                CircuitElm.drawPost(graphics, item);
+            for (Point pt : simulator.postDrawList) {
+                // Find voltage at this point from any element connected to it
+                double voltage = 0;
+                for (CircuitElm ce : simulator.elmList) {
+                    int posts = ce.getPostCount();
+                    for (int j = 0; j < posts; j++) {
+                        if (ce.getPost(j).equals(pt)) {
+                            voltage = ce.getPostVoltage(j);
+                            break;
+                        }
+                    }
+                }
+                graphics.setColor(ColorSettings.get().getVoltageColor(voltage));
+                graphics.fillOval(pt.x - 3, pt.y - 3, 7, 7);
             }
         }
 
@@ -311,7 +322,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                     graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
                     graphics.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
                 } else {
-                    ce.drawHandles(graphics, CircuitElm.selectColor);
+                    ce.drawHandles(graphics, ColorSettings.get().getSelectColor());
                 }
             }
         }
@@ -320,13 +331,13 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     private void drawHandles(Graphics graphics) {
         CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.tempMouseMode == MouseMode.SELECT && circuitEditor.mouseElm != null) {
-            circuitEditor.mouseElm.drawHandles(graphics, CircuitElm.selectColor);
+            circuitEditor.mouseElm.drawHandles(graphics, ColorSettings.get().getSelectColor());
         }
 
         if (circuitEditor.dragElm != null && (circuitEditor.dragElm.x != circuitEditor.dragElm.x2
                 || circuitEditor.dragElm.y != circuitEditor.dragElm.y2)) {
             circuitEditor.dragElm.draw(graphics);
-            circuitEditor.dragElm.drawHandles(graphics, CircuitElm.selectColor);
+            circuitEditor.dragElm.drawHandles(graphics, ColorSettings.get().getSelectColor());
         }
     }
 
@@ -341,7 +352,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     private void drawSelectionAndCursor(Graphics graphics) {
         CircuitEditor circuitEditor = circuitEditor();
         if (circuitEditor.selectedArea != null) {
-            graphics.setColor(CircuitElm.selectColor);
+            graphics.setColor(ColorSettings.get().getSelectColor());
             graphics.drawRect(circuitEditor.selectedArea.x, circuitEditor.selectedArea.y,
                     circuitEditor.selectedArea.width, circuitEditor.selectedArea.height);
         }
@@ -422,12 +433,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             scopeManager.scopes[i].draw(g);
 
         if (circuitEditor.mouseWasOverSplitter) {
-            g.setColor(CircuitElm.selectColor);
+            g.setColor(ColorSettings.get().getSelectColor());
             g.setLineWidth(4.0);
             g.drawLine(0, circuitArea.height - 2, circuitArea.width, circuitArea.height - 2);
             g.setLineWidth(1.0);
         }
-        g.setColor(CircuitElm.backgroundColor);
+        g.setColor(ColorSettings.get().getBackgroundColor());
 
         if (simulator.stopMessage != null) {
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
@@ -508,6 +519,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         } else {
             yBase = circuitArea.height;
         }
+        graphics.setColor(ColorSettings.get().getForegroundColor());
         for (lineIdx = 0; infoLines[lineIdx] != null; lineIdx++) {
             graphics.drawString(infoLines[lineIdx], x, yBase + 15 * (lineIdx + 1));
         }
@@ -640,13 +652,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 cirSim.menuManager.printableCheckItem.setState(true);
             }
 
+            ColorSettings cs = ColorSettings.get();
             if (cirSim.menuManager.printableCheckItem.getState()) {
-                CircuitElm.backgroundColor = Color.black;
-                CircuitElm.elementColor = Color.black;
+                cs.setPrintable(true);
                 graphics.setColor(Color.white);
             } else {
-                CircuitElm.backgroundColor = Color.white;
-                CircuitElm.elementColor = Color.lightGray;
+                cs.setPrintable(false);
                 graphics.setColor(Color.black);
             }
             graphics.fillRect(0, 0, w, h);

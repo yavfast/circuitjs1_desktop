@@ -38,7 +38,7 @@ echo ""
 # Run GWT DevMode
 # -Dgwt.codeserver.port=9876 - Code server port for Super Dev Mode
 # The startupUrl is configured in pom.xml
-mvn gwt:devmode -Dgwt.codeserver.port=9876
+mvn gwt:devmode -Dgwt.codeserver.port=9876 &
 
 # Alternative: Just compile and serve static files (uncomment if needed)
 # echo "Building..."

@@ -52,6 +52,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     private final ArrayList<WireInfo> wireInfoList = new ArrayList<>(256);
 
     final ArrayList<Point> postDrawList = new ArrayList<>(64);
+    final HashMap<Point, Double> postVoltageMap = new HashMap<>(64);
     final ArrayList<Point> badConnectionList = new ArrayList<>(64);
 
     private CircuitElm[] voltageSources;
@@ -792,6 +793,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
 
         postDrawList.clear();
+        postVoltageMap.clear();
         badConnectionList.clear();
         for (Map.Entry<Point, Integer> entry : postCountMap.entrySet()) {
             if (entry.getValue() != 2) {
