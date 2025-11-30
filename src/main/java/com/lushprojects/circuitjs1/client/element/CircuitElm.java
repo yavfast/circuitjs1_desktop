@@ -93,6 +93,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return ColorSettings.get().getPostColor();
     }
     
+    protected static Color foregroundColor() {
+        return ColorSettings.get().getForegroundColor();
+    }
+    
     // ========== Legacy static field aliases (deprecated) ==========
     
     /** @deprecated Use colorSettings().getBackgroundColor() or backgroundColor() */
@@ -1007,7 +1011,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         g.setFont(unitsFont);
         // FontMetrics fm = g.getFontMetrics();
         int w = (int) g.measureWidth(s);
-        g.setColor(colorSettings().getBackgroundColor());
+        g.setColor(colorSettings().getForegroundColor());
         int ya = g.getFontSize() / 2;
         int xc, yc;
         if (this instanceof RailElm || this instanceof SweepElm) {

@@ -140,7 +140,7 @@ public abstract class ChipElm extends CircuitElm {
                 g.setColor(elementColor());
                 g.drawPolyline(p.clockPointsX, p.clockPointsY, 3);
             }
-            g.setColor(p.selected ? selectColor : backgroundColor);
+            g.setColor(p.selected ? selectColor : foregroundColor());
             int fsz = 10 * csize;
             double availSpace = cspc * 2 - 8;
             // allow a little more space if the chip is wide and there are no vertical pins
