@@ -30,7 +30,7 @@ You can download this program for Windows (x32, x64), Linux (x32, x64) and Mac O
 
 The tools you will need to build the project are:
 
-* JDK 11+
+* JDK 17+
 * Maven 3+
 * Node.js with npm
 

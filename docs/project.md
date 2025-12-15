@@ -36,7 +36,7 @@
 
 ### Prerequisites
 
-- **Java JDK 11+**
+- **Java JDK 17+**
 - **Node.js** (for development scripts)
 - **Maven** (for building Java components)
 - (Optional) **Inno Setup** (for building Windows installers)
