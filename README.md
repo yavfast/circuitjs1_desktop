@@ -30,7 +30,7 @@ You can download this program for Windows (x32, x64), Linux (x32, x64) and Mac O
 
 The tools you will need to build the project are:
 
-* JDK 8+
+* JDK 11+
 * Maven 3+
 * Node.js with npm
 
@@ -39,12 +39,12 @@ Install the dependencies in the local `node_modules` folder:
 npm install
 ```
 
-For full build for all platforms without rebuilding GWT app run:
+For desktop packaging (currently builds a Linux x64 release by default):
 ```
 npm run build
 ```
 
-For full build with rebuilding GWT app run:
+For a full rebuild with complete cleanup (then package a Linux x64 release):
 ```
 npm run full
 ```
@@ -60,6 +60,8 @@ and run it in NW.js SDK version:
 ```
 npm start
 ```
+
+`npm start` launches NW.js in detached mode (the terminal command returns immediately).
 
 *Output folder:* `./target/site/`
 
@@ -84,6 +86,8 @@ npm run devmode
 ```
 
 Devmode works directly in the `war` directory separate from the `target/site` directory.
+
+Note: `npm run devmode` starts `mvn gwt:devmode` and also tries to launch NW.js for the dev UI; it is a long-running process.
 
 ## License
 

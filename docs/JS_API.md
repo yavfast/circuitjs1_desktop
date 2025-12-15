@@ -12,8 +12,11 @@ For development and testing with live code reload:
 # Navigate to project directory
 cd /path/to/circuitjs1_desktop
 
-# Start GWT DevMode
+# Option A (recommended for browser-based work): start GWT DevMode directly
 mvn gwt:devmode
+
+# Option B: npm wrapper (starts DevMode and also tries to launch NW.js)
+npm run devmode
 ```
 
 The application will be available at:
@@ -27,8 +30,11 @@ GWT DevMode automatically recompiles Java code when you refresh the page, making
 For production use:
 
 ```bash
-# Compile GWT to JavaScript
+# Option A: compile via Maven
 mvn gwt:compile
+
+# Option B: npm wrapper (runs a full Maven clean+install and copies output to target/site)
+npm run buildgwt
 
 # The compiled application is in target/circuitjs1mod-*/circuitjs1/
 ```
@@ -121,7 +127,7 @@ mcp_chrome-devtoo_take_snapshot()
 
 ### MCP Workflow for Development
 
-1. **Start DevMode**: Run `mvn gwt:devmode` in terminal
+1. **Start DevMode**: Run `mvn gwt:devmode` (or `npm run devmode` if you want the npm wrapper)
 2. **Navigate browser**: Use `navigate_page` to open CircuitJS1
 3. **Wait for load**: Wait ~20-30 seconds for GWT compilation on first load
 4. **Check API availability**: 

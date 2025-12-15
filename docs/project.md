@@ -15,7 +15,7 @@
 
 ## Technology Stack
 
-- **Java** (core simulation engine and desktop application)
+- **Java** (core simulator + GWT sources compiled to JavaScript)
 - **JavaScript/HTML/CSS** (web interface, GWT-based frontend)
 - **Maven** (build automation)
 - **Node.js** (scripts for development and packaging)
@@ -30,44 +30,60 @@
 - `icons/` — Application icons for various platforms.
 - `templates/` — Localization templates for different languages.
 - `tests/` — Test circuit files for simulation validation.
-- `target/` — Maven build output (JAR, WAR, compiled classes).
+- `target/` — Maven/GWT build output (compiled classes, GWT output, `target/site/`).
 
 ## Getting Started
 
 ### Prerequisites
 
-- **Java JDK 8+**
+- **Java JDK 11+**
 - **Node.js** (for development scripts)
 - **Maven** (for building Java components)
 - (Optional) **Inno Setup** (for building Windows installers)
 
 ### Build and Run
 
-1. **Build the project:**
+1. **Install Node dependencies:**
    ```sh
-   mvn clean package
+   npm install
    ```
-   This will generate the necessary JAR/WAR files in the `target/` directory.
 
-2. **Run the desktop application:**
-   - Use the generated JAR file:
+2. **Build and run (recommended workflow):**
+   - Build only the GWT web app:
      ```sh
-     java -jar target/circuitjs1mod-<version>.jar
+     npm run buildgwt
      ```
-   - Or use provided scripts in the `scripts/` directory for development/debugging.
+     Output: `./target/site/`
+   - Run it in NW.js SDK:
+     ```sh
+     npm start
+     ```
 
-3. **Run in development mode:**
-   - Use Node.js scripts or shell scripts in `scripts/` (e.g., `dev_n_build.js`, `quick_debug.sh`).
+3. **Full desktop build (packaging):**
+   - Build a desktop release (currently packages Linux x64 by default):
+     ```sh
+     npm run build
+     ```
+   - Full rebuild (complete cleanup, then package Linux x64):
+     ```sh
+     npm run full
+     ```
+   Output: `./out/`
+
+4. **GWT DevMode (for UI/Java iteration):**
+   ```sh
+   npm run devmode
+   ```
+   DevMode runs directly from `war/` and is separate from `target/site/`.
 
 ### Parameters
 
-- The application accepts standard Java command-line parameters (e.g., `-Xmx` for memory).
-- Additional parameters may be available for debugging or custom configuration (see scripts and README for details).
+- Runtime/debug options are controlled via scripts in `scripts/` and build flags; see the root README for the supported `npm` commands.
 
 ## Debugging Methods
 
 - **Debug scripts:** Use `scripts/debug_runner.js` or `scripts/debug-logger.js` for enhanced logging and debugging.
-- **Shell scripts:** `scripts/quick_debug.sh` and `scripts/run_release_debug.sh` provide quick ways to launch the app in debug mode.
+- **Shell scripts:** `scripts/run_dev_web.sh` and `scripts/run_dev_app.sh` are available for quick local workflows.
 - **Logs:** Check `debug.log` for runtime logs and errors.
 - **Maven:** Use `mvnDebug` for remote debugging with IDEs.
 
@@ -87,7 +103,7 @@ The `site/` and `war/` directories contain resources for the web version of Circ
 
 ### Licensing
 
-See `LICENSE` for open-source license details. The project is distributed under the MIT License.
+See `LICENSE` for licensing details. This project is distributed under the GNU General Public License (GPL), version 2 or later.
 
 ### Contributing
 
