@@ -11,6 +11,48 @@ const mvn = require('maven').create({cwd: '.'});
 const child_process = require('child_process');
 const { resolve } = require('node:path');
 
+function ensureJava17() {
+    function isJavac17(javacPath) {
+        try {
+            const result = child_process.spawnSync(javacPath, ['-version'], { encoding: 'utf8' });
+            const out = `${result.stdout || ''}${result.stderr || ''}`;
+            return /^javac\s+17(\.|\s|$)/m.test(out);
+        } catch {
+            return false;
+        }
+    }
+
+    const currentJavaHome = process.env.JAVA_HOME;
+    if (currentJavaHome) {
+        const javacPath = resolve(currentJavaHome, 'bin', 'javac');
+        if (isJavac17(javacPath)) {
+            process.env.PATH = `${resolve(currentJavaHome, 'bin')}${path.delimiter}${process.env.PATH || ''}`;
+            return;
+        }
+    }
+
+    const candidates = [
+        process.env.CIRCUITJS1_JAVA_HOME,
+        '/usr/lib/jvm/java-17-openjdk',
+        '/usr/lib/jvm/java-17-openjdk-amd64',
+        '/usr/lib/jvm/java-17',
+    ].filter(Boolean);
+
+    for (const candidate of candidates) {
+        const javacPath = resolve(candidate, 'bin', 'javac');
+        if (isJavac17(javacPath)) {
+            process.env.JAVA_HOME = candidate;
+            process.env.PATH = `${resolve(candidate, 'bin')}${path.delimiter}${process.env.PATH || ''}`;
+            console.log(`Using JDK 17: JAVA_HOME=${candidate}`);
+            return;
+        }
+    }
+
+    console.warn('Warning: JDK 17 not detected; build will use default java/javac on PATH');
+}
+
+ensureJava17();
+
 function cleanTargetDirectory() {
     const targetPath = './target';
     if (existsSync(targetPath)) {

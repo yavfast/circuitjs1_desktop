@@ -166,7 +166,7 @@ public class TransistorElm extends CircuitElm {
         g.fillPolygon(rectPoly);
 
         if ((needsHighlight() || circuitEditor().dragElm == this) && dy == 0) {
-            g.setColor(backgroundColor());
+            g.setColor(foregroundColor());
 // IES
 //		g.setFont(unitsFont);
             int ds = sign(dx);

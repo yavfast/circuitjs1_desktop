@@ -155,7 +155,7 @@ public class RelayCoilElm extends CircuitElm {
             g.fillRect(extraPoints[0].x, extraPoints[0].y, extraPoints[2].x - extraPoints[0].x, extraPoints[2].y - extraPoints[0].y);
         }
 
-        g.setColor(needsHighlight() ? selectColor : backgroundColor);
+        g.setColor(needsHighlight() ? selectColor : foregroundColor());
         if (x == x2)
             g.drawString(label, outline[2].x + 10, (y + y2) / 2 + 4);
         else {

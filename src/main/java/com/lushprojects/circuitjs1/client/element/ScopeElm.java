@@ -117,7 +117,7 @@ public class ScopeElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        g.setColor(needsHighlight() ? selectColor : backgroundColor);
+        g.setColor(needsHighlight() ? selectColor : foregroundColor());
         g.save();
         // setTransform() doesn't work in version of canvas2svg we are using
         g.scale(1 / cirSim().renderer.transform[0], 1 / cirSim().renderer.transform[3]);

@@ -73,7 +73,7 @@ public class StopTriggerElm extends CircuitElm {
         boolean selected = needsHighlight() || stopped;
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
-        g.setColor(selected ? selectColor : backgroundColor);
+        g.setColor(selected ? selectColor : foregroundColor());
         setBbox(point1, lead1, 0);
         String s = Locale.LS("trigger");
         drawLabeledNode(g, s, point1, lead1);

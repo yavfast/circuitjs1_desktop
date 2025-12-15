@@ -178,7 +178,7 @@ public class AmmeterElm extends CircuitElm {
             drawThickLine(graphics, point1, lead1);
             drawThickLine(graphics, lead2, point2);
 
-            graphics.setColor(backgroundColor);
+            graphics.setColor(foregroundColor());
             graphics.setFont(unitsFont);
             double len = circleSize * 2;
             Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);

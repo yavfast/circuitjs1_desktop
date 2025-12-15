@@ -21,7 +21,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <!-- Updated to Java 17 -->
+        <!-- Java level (keep in sync with the JDK used for builds) -->
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
 
@@ -122,7 +122,6 @@
                     <localWorkers>1C</localWorkers>
                     <warName>circuitjs</warName>
                     <failOnError>true</failOnError>
-                    <!-- Updated to Java 17 -->
                     <sourceLevel>17</sourceLevel>
                     <!-- Compiler configuration -->
                     <compilerArgs>

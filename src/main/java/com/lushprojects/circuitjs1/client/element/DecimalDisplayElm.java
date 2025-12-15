@@ -59,7 +59,7 @@ public class DecimalDisplayElm extends ChipElm {
             yl += ((flags & FLAG_FLIP_Y) != 0) ? -cspc / 2 : cspc / 2;
         g.save();
         g.setFont(new Font("SansSerif", 0, 15 * csize));
-        g.setColor(backgroundColor());
+        g.setColor(foregroundColor());
         g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
         int i;
         int value = 0;
