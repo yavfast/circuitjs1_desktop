@@ -9,8 +9,59 @@ public class DisplaySettings {
 
     private final MenuManager menuManager;
 
+    // Number formatting options. These are global display preferences (stored in OptionsManager).
+    private static int decimalDigits;
+    private static int shortDecimalDigits;
+    private static boolean numberFormatsLoaded;
+
     public DisplaySettings(MenuManager menuManager) {
         this.menuManager = menuManager;
+        // Preserve legacy behavior: make sure formatting prefs are available early.
+        ensureNumberFormatsLoaded();
+    }
+
+    private static void ensureNumberFormatsLoaded() {
+        if (!numberFormatsLoaded) {
+            reloadNumberFormatsFromStorage();
+        }
+    }
+
+    public static void reloadNumberFormatsFromStorage() {
+        decimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigits", 3);
+        shortDecimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigitsShort", 1);
+        numberFormatsLoaded = true;
+    }
+
+    public static int getDecimalDigits() {
+        ensureNumberFormatsLoaded();
+        return decimalDigits;
+    }
+
+    public static int getShortDecimalDigits() {
+        ensureNumberFormatsLoaded();
+        return shortDecimalDigits;
+    }
+
+    public static void setDecimalDigits(int num, boolean save) {
+        if (num < 0) {
+            num = 0;
+        }
+        decimalDigits = num;
+        numberFormatsLoaded = true;
+        if (save) {
+            OptionsManager.setOptionInStorage("decimalDigits", Integer.toString(num));
+        }
+    }
+
+    public static void setDecimalDigitsShort(int num, boolean save) {
+        if (num < 0) {
+            num = 0;
+        }
+        shortDecimalDigits = num;
+        numberFormatsLoaded = true;
+        if (save) {
+            OptionsManager.setOptionInStorage("decimalDigitsShort", Integer.toString(num));
+        }
     }
 
     /**

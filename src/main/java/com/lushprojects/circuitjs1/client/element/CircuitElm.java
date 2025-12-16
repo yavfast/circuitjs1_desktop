@@ -309,11 +309,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return (flags & f) != 0;
     }
 
-    public static void initClass(CirSim s) {
-        decimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigits", 3);
-        shortDecimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigitsShort", 1);
-    }
-
     /**
      * @deprecated Use ColorSettings.get().updateColorScale() instead
      */

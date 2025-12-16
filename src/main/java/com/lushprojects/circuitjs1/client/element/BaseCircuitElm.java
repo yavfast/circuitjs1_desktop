@@ -1,8 +1,8 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.google.gwt.i18n.client.NumberFormat;
+import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.Graphics;
-import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -18,9 +18,6 @@ public class BaseCircuitElm {
     static final int SCALE_M = 2;
     static final int SCALE_MU = 3;
 
-    public static int decimalDigits;
-    public static int shortDecimalDigits;
-
     /**
      * Default constructor for BaseCircuitElm.
      * Creates a new instance of the base circuit element utility class.
@@ -30,39 +27,13 @@ public class BaseCircuitElm {
     }
 
     /**
-     * Sets the number of decimal digits for standard formatting.
-     *
-     * @param num number of decimal digits to use
-     * @param save whether to save this setting to storage
-     */
-    public static void setDecimalDigits(int num, boolean save) {
-        decimalDigits = num;
-        if (save) {
-            OptionsManager.setOptionInStorage("decimalDigits", Integer.toString(num));
-        }
-    }
-
-    /**
-     * Sets the number of decimal digits for short formatting.
-     *
-     * @param num number of decimal digits to use for short format
-     * @param save whether to save this setting to storage
-     */
-    public static void setDecimalDigitsShort(int num, boolean save) {
-        shortDecimalDigits = num;
-        if (save) {
-            OptionsManager.setOptionInStorage("decimalDigitsShort", Integer.toString(num));
-        }
-    }
-
-    /**
      * Formats a number using short decimal digit settings without fixed decimal places.
      *
      * @param value the number to format
      * @return formatted number string using short format
      */
     public static String shortFormat(double value) {
-        return formatNumber(value, shortDecimalDigits, false);
+        return formatNumber(value, DisplaySettings.getShortDecimalDigits(), false);
     }
 
     /**
@@ -72,7 +43,7 @@ public class BaseCircuitElm {
      * @return formatted number string using standard format
      */
     public static String showFormat(double value) {
-        return formatNumber(value, decimalDigits, false);
+        return formatNumber(value, DisplaySettings.getDecimalDigits(), false);
     }
 
     /**
@@ -82,7 +53,7 @@ public class BaseCircuitElm {
      * @return formatted number string with fixed decimal places
      */
     public static String fixedFormat(double value) {
-        return formatNumber(value, decimalDigits, true);
+        return formatNumber(value, DisplaySettings.getDecimalDigits(), true);
     }
 
     /**

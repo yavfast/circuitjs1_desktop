@@ -219,8 +219,6 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         NodeList<com.google.gwt.dom.client.Element> node = Document.get().getElementsByTagName("head");
         node.getItem(0).appendChild(meta);
 
-        CircuitElm.initClass(this);
-
         CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
         circuitInfo.loadQueryParameters();
 

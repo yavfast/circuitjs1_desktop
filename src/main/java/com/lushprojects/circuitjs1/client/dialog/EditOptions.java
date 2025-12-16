@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.ColorSettings;
+import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -94,9 +95,9 @@ public class EditOptions implements Editable {
         }
 
         if (n == 7)
-            return new EditInfo("# of Decimal Digits (short format)", CircuitElm.shortDecimalDigits);
+            return new EditInfo("# of Decimal Digits (short format)", DisplaySettings.getShortDecimalDigits());
         if (n == 8)
-            return new EditInfo("# of Decimal Digits (long format)", CircuitElm.decimalDigits);
+            return new EditInfo("# of Decimal Digits (long format)", DisplaySettings.getDecimalDigits());
         if (n == 9) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Developer Mode", sim.getActiveDocument().circuitInfo.developerMode);
@@ -197,9 +198,9 @@ public class EditOptions implements Editable {
         if (n == 6)
             cs.setCurrentColor(setColor("currentColor", ei, Color.yellow));
         if (n == 7)
-            CircuitElm.setDecimalDigitsShort((int) ei.value, true);
+            DisplaySettings.setDecimalDigitsShort((int) ei.value, true);
         if (n == 8)
-            CircuitElm.setDecimalDigits((int) ei.value, true);
+            DisplaySettings.setDecimalDigits((int) ei.value, true);
         if (n == 9)
             sim.setDeveloperMode(ei.checkbox.getState());
         if (n == 10 && ei.value > 0)
