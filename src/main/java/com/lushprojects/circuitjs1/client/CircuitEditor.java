@@ -452,6 +452,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
         mouseSelect(event);
         scopeManager().scopeMenuSelected = -1;
+        // Ensure scopes (and other UI overlays) are repainted when the mouse moves
+        // even if the simulation is stopped, so cursor lines and readouts update.
+        renderer().repaint();
     }
 
     public void mouseSelect(MouseEvent<?> event) {

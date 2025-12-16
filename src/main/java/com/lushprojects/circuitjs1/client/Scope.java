@@ -1848,7 +1848,9 @@ public class Scope extends BaseCirSimDelegate {
             }
         }
 
-        graphics.setColor(ColorSettings.get().getBackgroundColor());
+        // Draw cursor lines using a visible highlight color (not background),
+        // so they are visible on both dark and light themes.
+        graphics.setColor(ColorSettings.get().getSelectColor());
         graphics.drawLine(x, rect.y, x, rect.y + rect.height);
         if (drawY) {
             graphics.drawLine(rect.x, circuitEditor().mouseCursorY, rect.x + rect.width, circuitEditor().mouseCursorY);

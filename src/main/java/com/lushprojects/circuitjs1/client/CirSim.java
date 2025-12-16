@@ -1244,18 +1244,20 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             simulator.maxTimeStep,
             getActiveDocument().isRunning(),
             simulator.stopMessage != null ? simulator.stopMessage : "",
+            getActiveDocument().getErrorMessage() != null ? getActiveDocument().getErrorMessage() : "",
             simulator.elmList.size()
         );
     }
 
     private native JavaScriptObject createSimInfoObject(double time, double timeStep, double maxTimeStep, 
-            boolean running, String stopMessage, int elementCount) /*-{
+            boolean running, String stopMessage, String errorMessage, int elementCount) /*-{
         return {
             time: time,
             timeStep: timeStep,
             maxTimeStep: maxTimeStep,
             running: running,
             stopMessage: stopMessage,
+            errorMessage: errorMessage,
             elementCount: elementCount
         };
     }-*/;

@@ -86,7 +86,9 @@ public class CircuitDocument {
     }
 
     public void setSimRunning(boolean running) {
-        if (errorMessage != null)
+        // If there's an active error message, do not allow starting the
+        // simulation, but still allow stopping it so the user can recover.
+        if (errorMessage != null && running)
             return; // Cannot start if there is an error
         if (isRunning == running)
             return;
