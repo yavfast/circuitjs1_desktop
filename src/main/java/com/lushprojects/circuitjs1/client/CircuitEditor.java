@@ -59,7 +59,24 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     public CircuitElm dragElm;
 
     public CircuitElm mouseElm = null;
+    // Element currently used for hover highlight. Previously stored as a static on CircuitElm,
+    // but kept here to avoid global state across multiple CircuitDocuments.
+    private CircuitElm mouseElmRef = null;
     public CircuitElm menuElm;
+
+    public CircuitElm getMouseElmRef() {
+        return mouseElmRef;
+    }
+
+    public void setMouseElmRef(CircuitElm element) {
+        mouseElmRef = element;
+    }
+
+    public void clearMouseElmRef(CircuitElm element) {
+        if (mouseElmRef == element) {
+            mouseElmRef = null;
+        }
+    }
 
     boolean didSwitch = false;
     int mousePost = -1;

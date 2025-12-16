@@ -54,8 +54,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // scratch points for convenience
     static Point ps1, ps2;
 
-    static CircuitElm mouseElmRef = null;
-
     // Element ID system - static counters per type prefix
     private static final Map<String, Integer> typeCounters = new HashMap<>();
     private static int globalCounter = 0;
@@ -103,6 +101,22 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             return new Font("SansSerif", 0, 12);
         }
         return circuitDocument.getRenderer().getUnitsFont();
+    }
+
+    private CircuitElm getMouseElmRef() {
+        return circuitDocument != null ? circuitDocument.circuitEditor.getMouseElmRef() : null;
+    }
+
+    private void setMouseElmRef(CircuitElm element) {
+        if (circuitDocument != null) {
+            circuitDocument.circuitEditor.setMouseElmRef(element);
+        }
+    }
+
+    private void clearMouseElmRef(CircuitElm element) {
+        if (circuitDocument != null) {
+            circuitDocument.circuitEditor.clearMouseElmRef(element);
+        }
     }
 
     /**
@@ -553,9 +567,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public void delete() {
-        if (mouseElmRef == this) {
-            mouseElmRef = null;
-        }
+        clearMouseElmRef(this);
         if (circuitDocument != null) {
             circuitDocument.adjustableManager.deleteSliders(this);
         }
@@ -1263,6 +1275,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public boolean needsHighlight() {
+        CircuitElm mouseElmRef = getMouseElmRef();
         return mouseElmRef == this || selected || circuitEditor().plotYElm == this ||
         // Test if the current mouseElm is a ScopeElm and, if so, does it belong to this
         // elm
@@ -1303,9 +1316,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public void setMouseElm(boolean v) {
         if (v) {
-            mouseElmRef = this;
-        } else if (mouseElmRef == this) {
-            mouseElmRef = null;
+            setMouseElmRef(this);
+        } else {
+            clearMouseElmRef(this);
         }
     }
 
@@ -1324,7 +1337,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public boolean isMouseElm() {
-        return mouseElmRef == this;
+        return getMouseElmRef() == this;
     }
 
     public void updateModels() {
