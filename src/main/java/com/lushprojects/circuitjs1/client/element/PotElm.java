@@ -232,7 +232,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             // draw units
             String s1 = getShortUnitText(rev ? resistance2 : resistance1, "");
             String s2 = getShortUnitText(rev ? resistance1 : resistance2, "");
-            g.setFont(unitsFont);
+            g.setFont(unitsFont());
             g.setColor(foregroundColor());
             int ya = (int) g.getFontSize() / 2;
             int w;
@@ -256,7 +256,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     void drawValues(Graphics g, String s, Point pt, int hs) {
         if (s == null)
             return;
-        g.setFont(unitsFont);
+        g.setFont(unitsFont());
         //FontMetrics fm = g.getFontMetrics();
         int w = (int) g.measureWidth(s);
         g.setColor(foregroundColor());

@@ -192,7 +192,7 @@ public class VoltageElm extends CircuitElm {
             else
                 inds = "*";
             g.setColor(foregroundColor());
-            g.setFont(unitsFont);
+            g.setFont(unitsFont());
             Point plusPoint = interpPoint(point1, point2, (dn / 2 + circleSize + 4) / dn, 10 * dsign);
             plusPoint.y += 4;
             int w = (int) g.measureWidth(inds);

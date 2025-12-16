@@ -29,6 +29,32 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     private int framesPerSecond = 0;
     private int stepsPerSecond = 0;
 
+    private Font unitsFont;
+
+    // Per-renderer (per-CirSim) draw scaling factors. These used to be static on CircuitElm.
+    // Keeping them here avoids global state when multiple CirSim instances exist.
+    private double currentMult = 0.0;
+    private double powerMult = 0.0;
+
+    public double getCurrentMult() {
+        return currentMult;
+    }
+
+    public double getPowerMult() {
+        return powerMult;
+    }
+
+    public Font getUnitsFont() {
+        if (unitsFont == null) {
+            unitsFont = new Font("SansSerif", 0, 12);
+        }
+        return unitsFont;
+    }
+
+    public void setUnitsFont(Font unitsFont) {
+        this.unitsFont = unitsFont;
+    }
+
     int hintType = -1, hintItem1, hintItem2;
 
     // Public getters/setters for hint fields (used by export/import)
@@ -239,9 +265,10 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 int timeDelta = (int) (sysTime - lastTimeMillis);
                 double currentSpeed = cirSim.currentBar.getValue();
                 currentSpeed = java.lang.Math.exp(currentSpeed / 3.5 - 14.2);
-                CircuitElm.currentMult = 1.7 * timeDelta * currentSpeed;
-                if (!cirSim.menuManager.conventionCheckItem.getState())
-                    CircuitElm.currentMult = -CircuitElm.currentMult;
+                currentMult = 1.7 * timeDelta * currentSpeed;
+                if (!cirSim.menuManager.conventionCheckItem.getState()) {
+                    currentMult = -currentMult;
+                }
             }
             lastTimeMillis = sysTime;
         } else {
@@ -256,11 +283,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             lastSecondTimeMillis = sysTime;
         }
 
-        CircuitElm.powerMult = Math.exp(cirSim.powerBar.getValue() / 4.762 - 7);
+        powerMult = Math.exp(cirSim.powerBar.getValue() / 4.762 - 7);
     }
 
     private void drawCircuit(Graphics graphics, CircuitSimulator simulator) {
-        graphics.setFont(CircuitElm.unitsFont);
+        graphics.setFont(getUnitsFont());
         graphics.setLineCap(Context2d.LineCap.ROUND);
 
         if (cirSim.menuManager.noEditCheckItem.getState()) {
@@ -418,7 +445,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         g.setColor(cirSim.menuManager.printableCheckItem.getState() ? "#eee" : "#111");
         g.fillRect(infoBoxStartX, circuitArea.height - infoBoxHeight, circuitArea.width,
                 canvasHeight - circuitArea.height + infoBoxHeight);
-        g.setFont(CircuitElm.unitsFont);
+        g.setFont(getUnitsFont());
 
         int currentScopeCount = (simulator.stopMessage != null) ? 0 : scopeManager.scopeCount;
 

@@ -51,52 +51,9 @@ import java.util.Map;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
-    public static double currentMult, powerMult;
-
     // scratch points for convenience
     static Point ps1, ps2;
 
-    public static Font unitsFont;
-
-    // ========== Color accessor delegates for backward compatibility ==========
-    // These provide static-like access to ColorSettings colors from subclasses
-    
-    protected static Color backgroundColor() {
-        return ColorSettings.get().getBackgroundColor();
-    }
-    
-    protected static Color elementColor() {
-        return ColorSettings.get().getElementColor();
-    }
-    
-    protected static Color selectColor() {
-        return ColorSettings.get().getSelectColor();
-    }
-    
-    protected static Color currentColor() {
-        return ColorSettings.get().getCurrentColor();
-    }
-    
-    protected static Color positiveColor() {
-        return ColorSettings.get().getPositiveColor();
-    }
-    
-    protected static Color negativeColor() {
-        return ColorSettings.get().getNegativeColor();
-    }
-    
-    protected static Color neutralColor() {
-        return ColorSettings.get().getNeutralColor();
-    }
-    
-    protected static Color postColor() {
-        return ColorSettings.get().getPostColor();
-    }
-    
-    protected static Color foregroundColor() {
-        return ColorSettings.get().getForegroundColor();
-    }
-    
     static CircuitElm mouseElmRef = null;
 
     // Element ID system - static counters per type prefix
@@ -133,11 +90,65 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return circuitDocument.getDisplaySettings();
     }
 
+    private double currentMult() {
+        return circuitDocument != null ? circuitDocument.getRenderer().getCurrentMult() : 0.0;
+    }
+
+    private double powerMult() {
+        return circuitDocument != null ? circuitDocument.getRenderer().getPowerMult() : 0.0;
+    }
+
+    protected Font unitsFont() {
+        if (circuitDocument == null) {
+            return new Font("SansSerif", 0, 12);
+        }
+        return circuitDocument.getRenderer().getUnitsFont();
+    }
+
     /**
      * Get the color settings singleton.
      */
     protected static ColorSettings colorSettings() {
         return ColorSettings.get();
+    }
+
+    // ========== Color accessor delegates for backward compatibility ==========
+    // These provide static-like access to ColorSettings colors from subclasses
+    
+    protected static Color backgroundColor() {
+        return colorSettings().getBackgroundColor();
+    }
+    
+    protected static Color elementColor() {
+        return colorSettings().getElementColor();
+    }
+    
+    protected static Color selectColor() {
+        return colorSettings().getSelectColor();
+    }
+    
+    protected static Color currentColor() {
+        return colorSettings().getCurrentColor();
+    }
+    
+    protected static Color positiveColor() {
+        return colorSettings().getPositiveColor();
+    }
+    
+    protected static Color negativeColor() {
+        return colorSettings().getNegativeColor();
+    }
+    
+    protected static Color neutralColor() {
+        return colorSettings().getNeutralColor();
+    }
+    
+    protected static Color postColor() {
+        return colorSettings().getPostColor();
+    }
+    
+    protected static Color foregroundColor() {
+        return colorSettings().getForegroundColor();
     }
 
     public CircuitDocument getCircuitDocument() {
@@ -297,7 +308,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public static void initClass(CirSim s) {
-        unitsFont = new Font("SansSerif", 0, 12);
+        s.renderer.setUnitsFont(new Font("SansSerif", 0, 12));
 
         ps1 = new Point();
         ps2 = new Point();
@@ -978,7 +989,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (s == null || s.isEmpty()) {
             return;
         }
-        g.setFont(unitsFont);
+        g.setFont(unitsFont());
         // FontMetrics fm = g.getFontMetrics();
         int w = (int) g.measureWidth(s);
         g.setColor(colorSettings().getForegroundColor());
@@ -1093,7 +1104,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (!circuitDocument.isRunning()) {
             return cc;
         }
-        double cadd = cur * currentMult;
+        double cadd = cur * currentMult();
         if (cadd > 6 || cadd < -6) {
             return CURRENT_TOO_FAST;
         }
@@ -1164,12 +1175,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             g.setColor(colorSettings().getSelectColor());
             return;
         }
-        w0 *= powerMult;
+        w0 *= powerMult();
         g.setColor(colorSettings().getPowerColor(w0));
     }
 
     void setConductanceColor(Graphics g, double w0) {
-        w0 *= powerMult;
+        w0 *= powerMult();
         // System.out.println(w);
         double w = (w0 < 0) ? -w0 : w0;
         if (w > 1) {
