@@ -3,7 +3,9 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class CircuitDocument {
 
@@ -24,6 +26,22 @@ public class CircuitDocument {
     private boolean isActive = false;
     private String errorMessage = null;
     private CircuitElm stopElm = null;
+
+    private final Map<String, Integer> elementTypeCounters = new HashMap<>();
+
+    public String nextElementId(String prefix) {
+        if (prefix == null) {
+            prefix = "";
+        }
+        Integer prev = elementTypeCounters.get(prefix);
+        int next = (prev == null) ? 1 : (prev + 1);
+        elementTypeCounters.put(prefix, next);
+        return prefix + next;
+    }
+
+    public void resetElementIdCounters() {
+        elementTypeCounters.clear();
+    }
 
     public interface SimulationStateListener {
         void onSimulationStateChanged(boolean isRunning, String errorMessage);

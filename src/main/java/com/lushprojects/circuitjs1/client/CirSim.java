@@ -983,7 +983,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         simulator.lastIterTime = 0;
         
         // Reset element ID counters
-        CircuitElm.resetIdCounters();
+        doc.resetElementIdCounters();
         
         needAnalyze();
         // Force redraw

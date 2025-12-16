@@ -46,17 +46,11 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.Editable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // scratch points for convenience
     static Point ps1, ps2;
-
-    // Element ID system - static counters per type prefix
-    private static final Map<String, Integer> typeCounters = new HashMap<>();
-    private static int globalCounter = 0;
     
     // Unique identifier for this element (e.g., "R1", "C2", "Q3")
     private String elementId;
@@ -203,10 +197,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      */
     protected String generateElementId() {
         String prefix = getIdPrefix();
-        globalCounter++;
-        int count = typeCounters.getOrDefault(prefix, 0) + 1;
-        typeCounters.put(prefix, count);
-        return prefix + count;
+        if (circuitDocument == null) {
+            return prefix + "1";
+        }
+        return circuitDocument.nextElementId(prefix);
     }
     
     /**
@@ -247,14 +241,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
     }
     
-    /**
-     * Reset the ID counters. Called when clearing circuit.
-     */
-    public static void resetIdCounters() {
-        typeCounters.clear();
-        globalCounter = 0;
-    }
-
     // initial point where user created element. For simple two-terminal elements,
     // this is the first node/post.
     public int x, y;
