@@ -297,7 +297,7 @@ public class Graphics {
     }
 
     public void lineTo(double x, double y) {
-        context.moveTo(x, y);
+        context.lineTo(x, y);
     }
 
     public void fill() {
