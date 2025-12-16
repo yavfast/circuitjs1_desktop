@@ -49,8 +49,6 @@ import java.util.ArrayList;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
-    // scratch points for convenience
-    static Point ps1, ps2;
     
     // Unique identifier for this element (e.g., "R1", "C2", "Q3")
     private String elementId;
@@ -284,6 +282,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public boolean hasWireInfo; // used in calcWireInfo()
 
+    // scratch points for convenience
+    protected final Point ps1 = new Point();
+    protected final Point ps2 = new Point();
+
     // abstract int getDumpType();
     int getDumpType() {
 
@@ -308,11 +310,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public static void initClass(CirSim s) {
-        s.renderer.setUnitsFont(new Font("SansSerif", 0, 12));
-
-        ps1 = new Point();
-        ps2 = new Point();
-
         decimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigits", 3);
         shortDecimalDigits = OptionsManager.getIntOptionFromStorage("decimalDigitsShort", 1);
     }
