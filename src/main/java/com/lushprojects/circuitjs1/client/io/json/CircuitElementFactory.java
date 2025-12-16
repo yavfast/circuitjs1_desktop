@@ -442,6 +442,38 @@ public class CircuitElementFactory {
         // Finalize import
         elm.finalizeJsonImport();
 
+        // Preserve explicit bounds from JSON if provided to ensure export/import idempotency
+        JSONValue boundsValueFinal = elementJson.get("bounds");
+        if (boundsValueFinal != null && boundsValueFinal.isObject() != null) {
+            JSONObject boundsObj = boundsValueFinal.isObject();
+            JSONValue leftVal = boundsObj.get("left");
+            JSONValue topVal = boundsObj.get("top");
+            JSONValue rightVal = boundsObj.get("right");
+            JSONValue bottomVal = boundsObj.get("bottom");
+            if (leftVal != null && topVal != null && rightVal != null && bottomVal != null
+                    && leftVal.isNumber() != null && topVal.isNumber() != null
+                    && rightVal.isNumber() != null && bottomVal.isNumber() != null) {
+                int left = (int) leftVal.isNumber().doubleValue();
+                int top = (int) topVal.isNumber().doubleValue();
+                int right = (int) rightVal.isNumber().doubleValue();
+                int bottom = (int) bottomVal.isNumber().doubleValue();
+                try {
+                    // Set coords to match JSON bounds so any later re-computation
+                    // uses the intended geometry.
+                    elm.x = left;
+                    elm.y = top;
+                    elm.x2 = right;
+                    elm.y2 = bottom;
+                    // Use public setBbox(Point,Point,double) to update boundingBox
+                    // (avoids calling package-private API and works across packages).
+                    elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
+                                new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                } catch (Exception e) {
+                    CirSim.console("CircuitElementFactory: failed to apply JSON bounds: " + e.getMessage());
+                }
+            }
+        }
+
         return elm;
     }
 

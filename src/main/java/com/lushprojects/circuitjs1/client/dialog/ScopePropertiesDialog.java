@@ -5,6 +5,8 @@ import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
+import com.google.gwt.event.dom.client.ChangeEvent;
+import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Button;
@@ -16,11 +18,13 @@ import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.ListBox;
 import com.google.gwt.user.client.ui.Panel;
 import com.google.gwt.user.client.ui.RadioButton;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.VerticalPanel;
+import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -51,6 +55,16 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
     TextBox labelTextBox, manualScaleTextBox, divisionsTextBox;
     Button applyButton, scaleUpButton, scaleDownButton;
     Scrollbar speedBar, positionBar;
+
+    // Trigger + History controls
+    CheckBox triggerEnableBox, historyEnableBox;
+    ListBox triggerModeBox, triggerSlopeBox, triggerSourceBox;
+    TextBox triggerLevelBox, triggerHoldoffBox, triggerPositionBox;
+    Button triggerRearmButton;
+
+    ListBox historyModeBox, historySourceBox;
+    TextBox historyDepthBox;
+    Button historyCaptureButton, historyClearButton;
     Scope scope;
     Grid grid, vScaleGrid, hScaleGrid;
     int nx, ny;
@@ -382,7 +396,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         CircuitElm elm = scope.getSingleElm();
         boolean transistor = elm != null && elm instanceof TransistorElm;
         if (!transistor) {
-            grid = new Grid(11, 3);
+            grid = new Grid(25, 3);
             gridLabels = new ScopePropertiesDialog.labelledGridManager(grid);
             gridLabels.addLabel(Locale.LS("Plots"), displayAll);
             addItemToGrid(grid, voltageBox = new ScopeCheckBox(Locale.LS("Show Voltage"), "showvoltage"));
@@ -390,7 +404,7 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
             addItemToGrid(grid, currentBox = new ScopeCheckBox(Locale.LS("Show Current"), "showcurrent"));
             currentBox.addValueChangeHandler(this);
         } else {
-            grid = new Grid(13, 3);
+            grid = new Grid(27, 3);
             gridLabels = new ScopePropertiesDialog.labelledGridManager(grid);
             gridLabels.addLabel(Locale.LS("Plots"), displayAll);
             addItemToGrid(grid, ibBox = new ScopeCheckBox(Locale.LS("Show Ib"), "showib"));
@@ -424,6 +438,139 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
             addItemToGrid(grid, vceIcBox = new ScopeCheckBox(Locale.LS("Show Vce vs Ic"), "showvcevsic"));
             vceIcBox.addValueChangeHandler(this);
         }
+
+        // *************** TRIGGER ***********************************************************
+        gridLabels.addLabel(Locale.LS("Trigger"), displayAll);
+        addItemToGrid(grid, triggerEnableBox = new CheckBox(Locale.LS("Enable Trigger")));
+        triggerEnableBox.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+            public void onValueChange(ValueChangeEvent<Boolean> event) {
+                scope.setTriggerEnabled(triggerEnableBox.getValue());
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Mode")));
+        addWidgetToGrid(grid, triggerModeBox = new ListBox());
+        triggerModeBox.addItem(Locale.LS("Auto"), String.valueOf(Scope.TRIG_MODE_AUTO));
+        triggerModeBox.addItem(Locale.LS("Normal"), String.valueOf(Scope.TRIG_MODE_NORMAL));
+        triggerModeBox.addItem(Locale.LS("Single"), String.valueOf(Scope.TRIG_MODE_SINGLE));
+        triggerModeBox.addChangeHandler(new ChangeHandler() {
+            public void onChange(ChangeEvent event) {
+                scope.setTriggerMode(Integer.parseInt(triggerModeBox.getValue(triggerModeBox.getSelectedIndex())));
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Slope")));
+        addWidgetToGrid(grid, triggerSlopeBox = new ListBox());
+        triggerSlopeBox.addItem(Locale.LS("Rising"), String.valueOf(Scope.TRIG_SLOPE_RISING));
+        triggerSlopeBox.addItem(Locale.LS("Falling"), String.valueOf(Scope.TRIG_SLOPE_FALLING));
+        triggerSlopeBox.addChangeHandler(new ChangeHandler() {
+            public void onChange(ChangeEvent event) {
+                scope.setTriggerSlope(Integer.parseInt(triggerSlopeBox.getValue(triggerSlopeBox.getSelectedIndex())));
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Level")));
+        addWidgetToGrid(grid, triggerLevelBox = new TextBox());
+        triggerLevelBox.addValueChangeHandler(new ValueChangeHandler<String>() {
+            public void onValueChange(ValueChangeEvent<String> event) {
+                applyTriggerHistory();
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Holdoff (s)")));
+        addWidgetToGrid(grid, triggerHoldoffBox = new TextBox());
+        triggerHoldoffBox.addValueChangeHandler(new ValueChangeHandler<String>() {
+            public void onValueChange(ValueChangeEvent<String> event) {
+                applyTriggerHistory();
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Position (0..1)")));
+        addWidgetToGrid(grid, triggerPositionBox = new TextBox());
+        triggerPositionBox.addValueChangeHandler(new ValueChangeHandler<String>() {
+            public void onValueChange(ValueChangeEvent<String> event) {
+                applyTriggerHistory();
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Source")));
+        addWidgetToGrid(grid, triggerSourceBox = new ListBox());
+        triggerSourceBox.addChangeHandler(new ChangeHandler() {
+            public void onChange(ChangeEvent event) {
+                scope.setTriggerSource(triggerSourceBox.getSelectedIndex());
+                updateUi();
+            }
+        });
+
+        addItemToGrid(grid, triggerRearmButton = new Button(Locale.LS("Re-arm")));
+        triggerRearmButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                scope.rearmSingleTrigger();
+                updateUi();
+            }
+        });
+
+        // *************** HISTORY ***********************************************************
+        gridLabels.addLabel(Locale.LS("History"), displayAll);
+        addItemToGrid(grid, historyEnableBox = new CheckBox(Locale.LS("Enable History")));
+        historyEnableBox.addValueChangeHandler(new ValueChangeHandler<Boolean>() {
+            public void onValueChange(ValueChangeEvent<Boolean> event) {
+                scope.setHistoryEnabled(historyEnableBox.getValue());
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Depth")));
+        addWidgetToGrid(grid, historyDepthBox = new TextBox());
+        historyDepthBox.addValueChangeHandler(new ValueChangeHandler<String>() {
+            public void onValueChange(ValueChangeEvent<String> event) {
+                applyTriggerHistory();
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Capture")));
+        addWidgetToGrid(grid, historyModeBox = new ListBox());
+        historyModeBox.addItem(Locale.LS("Manual"), String.valueOf(Scope.HISTORY_CAPTURE_MANUAL));
+        historyModeBox.addItem(Locale.LS("On Trigger"), String.valueOf(Scope.HISTORY_CAPTURE_ON_TRIGGER));
+        historyModeBox.addChangeHandler(new ChangeHandler() {
+            public void onChange(ChangeEvent event) {
+                scope.setHistoryCaptureMode(Integer.parseInt(historyModeBox.getValue(historyModeBox.getSelectedIndex())));
+                updateUi();
+            }
+        });
+
+        addWidgetToGrid(grid, new Label(Locale.LS("Source")));
+        addWidgetToGrid(grid, historySourceBox = new ListBox());
+        historySourceBox.addChangeHandler(new ChangeHandler() {
+            public void onChange(ChangeEvent event) {
+                scope.setHistorySource(historySourceBox.getSelectedIndex());
+                updateUi();
+            }
+        });
+
+        addItemToGrid(grid, historyCaptureButton = new Button(Locale.LS("Capture")));
+        historyCaptureButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                scope.captureHistoryNow();
+                updateUi();
+            }
+        });
+
+        addItemToGrid(grid, historyClearButton = new Button(Locale.LS("Clear")));
+        historyClearButton.addClickHandler(new ClickHandler() {
+            public void onClick(ClickEvent event) {
+                scope.clearHistory();
+                updateUi();
+            }
+        });
+
         gridLabels.addLabel(Locale.LS("Show Info"), displayAll);
         addItemToGrid(grid, scaleBox = new ScopeCheckBox(Locale.LS("Show Scale"), "showscale"));
         scaleBox.addValueChangeHandler(this);
@@ -534,6 +681,14 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         }
     }
 
+    void addWidgetToGrid(Grid g, Widget w) {
+        g.setWidget(ny, nx, w);
+        if (++nx >= grid.getColumnCount()) {
+            nx = 0;
+            ny++;
+        }
+    }
+
 
     void scrollbarChanged() {
         int newsp = (int) Math.pow(2, 10 - speedBar.getValue());
@@ -590,8 +745,91 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
         }
         updateManualScaleUi();
 
+        updateTriggerHistoryUi();
+
 
         // if you add more here, make sure it still works with transistor scopes
+    }
+
+    void updateTriggerHistoryUi() {
+        boolean timeDomainAvailable = scope.isTriggerAvailable();
+
+        if (triggerEnableBox != null) {
+            triggerEnableBox.setEnabled(timeDomainAvailable);
+            triggerEnableBox.setValue(scope.isTriggerEnabled());
+        }
+        if (triggerModeBox != null) {
+            triggerModeBox.setEnabled(timeDomainAvailable);
+            triggerModeBox.setSelectedIndex(Math.max(0, Math.min(2, scope.getTriggerMode())));
+        }
+        if (triggerSlopeBox != null) {
+            triggerSlopeBox.setEnabled(timeDomainAvailable);
+            triggerSlopeBox.setSelectedIndex(scope.getTriggerSlope() == Scope.TRIG_SLOPE_FALLING ? 1 : 0);
+        }
+        if (triggerLevelBox != null) {
+            triggerLevelBox.setEnabled(timeDomainAvailable);
+            triggerLevelBox.setText(EditDialog.unitString(null, scope.getTriggerLevel()));
+        }
+        if (triggerHoldoffBox != null) {
+            triggerHoldoffBox.setEnabled(timeDomainAvailable);
+            triggerHoldoffBox.setText(Double.toString(scope.getTriggerHoldoff()));
+        }
+        if (triggerPositionBox != null) {
+            triggerPositionBox.setEnabled(timeDomainAvailable);
+            triggerPositionBox.setText(Double.toString(scope.getTriggerPosition()));
+        }
+        if (triggerSourceBox != null) {
+            triggerSourceBox.setEnabled(timeDomainAvailable);
+            fillChannelList(triggerSourceBox);
+            int idx = scope.getTriggerSource();
+            if (idx < 0 || idx >= triggerSourceBox.getItemCount()) {
+                idx = 0;
+            }
+            triggerSourceBox.setSelectedIndex(idx);
+        }
+        if (triggerRearmButton != null) {
+            triggerRearmButton.setEnabled(timeDomainAvailable && scope.getTriggerMode() == Scope.TRIG_MODE_SINGLE);
+        }
+
+        if (historyEnableBox != null) {
+            historyEnableBox.setEnabled(scope.isHistoryAvailable());
+            historyEnableBox.setValue(scope.isHistoryEnabled());
+        }
+        if (historyDepthBox != null) {
+            historyDepthBox.setEnabled(scope.isHistoryAvailable());
+            historyDepthBox.setText(Integer.toString(scope.getHistoryDepth()));
+        }
+        if (historyModeBox != null) {
+            historyModeBox.setEnabled(scope.isHistoryAvailable());
+            historyModeBox.setSelectedIndex(scope.getHistoryCaptureMode() == Scope.HISTORY_CAPTURE_MANUAL ? 0 : 1);
+        }
+        if (historySourceBox != null) {
+            historySourceBox.setEnabled(scope.isHistoryAvailable());
+            fillChannelList(historySourceBox);
+            int idx = scope.getHistorySource();
+            if (idx < 0 || idx >= historySourceBox.getItemCount()) {
+                idx = 0;
+            }
+            historySourceBox.setSelectedIndex(idx);
+        }
+        if (historyCaptureButton != null) {
+            historyCaptureButton.setEnabled(scope.isHistoryAvailable() && scope.isHistoryEnabled());
+        }
+        if (historyClearButton != null) {
+            historyClearButton.setEnabled(scope.isHistoryAvailable() && scope.isHistoryEnabled());
+        }
+    }
+
+    void fillChannelList(ListBox lb) {
+        lb.clear();
+        for (int i = 0; i < scope.visiblePlots.size(); i++) {
+            ScopePlot p = scope.visiblePlots.get(i);
+            String label = "CH " + (i + 1) + " (" + Scope.getScaleUnitsText(p.units) + ")";
+            lb.addItem(label);
+        }
+        if (lb.getItemCount() == 0) {
+            lb.addItem("CH 1");
+        }
     }
 
     void updateManualScaleUi() {
@@ -689,6 +927,36 @@ public class ScopePropertiesDialog extends Dialog implements ValueChangeHandler<
             int n = getDivisionsValue();
             if (n > 0)
                 scope.setManDivisions(n);
+        }
+
+        applyTriggerHistory();
+    }
+
+    void applyTriggerHistory() {
+        try {
+            if (triggerLevelBox != null) {
+                scope.setTriggerLevel(EditDialog.parseUnits(triggerLevelBox.getText()));
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (triggerHoldoffBox != null) {
+                scope.setTriggerHoldoff(Double.parseDouble(triggerHoldoffBox.getText()));
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            if (triggerPositionBox != null) {
+                scope.setTriggerPosition(Double.parseDouble(triggerPositionBox.getText()));
+            }
+        } catch (Exception ignored) {
+        }
+
+        try {
+            if (historyDepthBox != null) {
+                scope.setHistoryDepth(Integer.parseInt(historyDepthBox.getText()));
+            }
+        } catch (Exception ignored) {
         }
     }
 

@@ -437,6 +437,40 @@ public class JsonCircuitExporter implements CircuitExporter {
                 plotMode.put("max_scale", JSONBoolean.getInstance(scope.maxScale));
                 plotMode.put("log_spectrum", JSONBoolean.getInstance(scope.logSpectrum));
                 scopeObj.put("plot_mode", plotMode);
+
+                // Trigger settings (optional)
+                boolean dumpTrigger = scope.isTriggerEnabled() ||
+                        scope.getTriggerMode() != Scope.TRIG_MODE_AUTO ||
+                        scope.getTriggerSlope() != Scope.TRIG_SLOPE_RISING ||
+                        scope.getTriggerLevel() != 0.0 ||
+                        scope.getTriggerHoldoff() != 0.0 ||
+                        scope.getTriggerPosition() != 0.25 ||
+                        scope.getTriggerSource() != 0;
+                if (dumpTrigger) {
+                    JSONObject trigger = new JSONObject();
+                    trigger.put("enabled", JSONBoolean.getInstance(scope.isTriggerEnabled()));
+                    trigger.put("mode", new JSONNumber(scope.getTriggerMode()));
+                    trigger.put("slope", new JSONNumber(scope.getTriggerSlope()));
+                    trigger.put("level", new JSONNumber(scope.getTriggerLevel()));
+                    trigger.put("holdoff", new JSONNumber(scope.getTriggerHoldoff()));
+                    trigger.put("position", new JSONNumber(scope.getTriggerPosition()));
+                    trigger.put("source", new JSONNumber(scope.getTriggerSource()));
+                    scopeObj.put("trigger", trigger);
+                }
+
+                // History settings (optional)
+                boolean dumpHistory = scope.isHistoryEnabled() ||
+                        scope.getHistoryDepth() != 8 ||
+                        scope.getHistoryCaptureMode() != Scope.HISTORY_CAPTURE_ON_TRIGGER ||
+                        scope.getHistorySource() != 0;
+                if (dumpHistory) {
+                    JSONObject history = new JSONObject();
+                    history.put("enabled", JSONBoolean.getInstance(scope.isHistoryEnabled()));
+                    history.put("depth", new JSONNumber(scope.getHistoryDepth()));
+                    history.put("capture_mode", new JSONNumber(scope.getHistoryCaptureMode()));
+                    history.put("source", new JSONNumber(scope.getHistorySource()));
+                    scopeObj.put("history", history);
+                }
                 
                 // Scale settings for different units
                 JSONObject scales = new JSONObject();
@@ -472,6 +506,9 @@ public class JsonCircuitExporter implements CircuitExporter {
                             
                             // Units type (0=V, 1=A, 2=W, 3=Ohm)
                             plotObj.put("units", new JSONString(getUnitsName(plot.units)));
+
+                            // The value being plotted (e.g. VAL_VOLTAGE, VAL_CURRENT, etc)
+                            plotObj.put("value", new JSONNumber(plot.getValue()));
                             
                             // Color
                             if (plot.color != null) {

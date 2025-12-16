@@ -30,6 +30,7 @@ import com.google.gwt.http.client.RequestException;
 import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.util.Locale;
+import com.lushprojects.circuitjs1.client.dialog.UncaughtExceptionDialog;
 
 import java.util.HashMap;
 
@@ -52,7 +53,13 @@ public class circuitjs1 implements EntryPoint {
                 for (StackTraceElement element : e.getStackTrace()) {
                     stackTrace += element.toString() + "\n";
                 }
-                Window.alert("Uncaught exception: " + e.getMessage() + "\n\nStack Trace:\n" + stackTrace);
+
+                // Use non-blocking GWT dialog instead of browser alert().
+                try {
+                    UncaughtExceptionDialog.show(e, stackTrace);
+                } catch (Throwable ignored) {
+                    // If UI fails, at least log to console.
+                }
                 GWT.log("Uncaught exception", e);
                 e.printStackTrace();
             }

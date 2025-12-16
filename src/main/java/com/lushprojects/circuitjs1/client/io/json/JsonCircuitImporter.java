@@ -95,6 +95,46 @@ public class JsonCircuitImporter implements CircuitImporter {
             // 7. Notify document that import is complete
             document.getCirSim().needAnalyze();
 
+            // 8. Re-apply explicit element bounds from JSON after analysis to preserve exact geometry
+            JSONValue elementsValue = root.get("elements");
+            if (elementsValue != null && elementsValue.isObject() != null) {
+                JSONObject elementsObj = elementsValue.isObject();
+                for (String elementId : elementsObj.keySet()) {
+                    JSONValue elementValue = elementsObj.get(elementId);
+                    if (elementValue == null || elementValue.isObject() == null) continue;
+                    JSONObject elementJson = elementValue.isObject();
+                    JSONValue boundsVal = elementJson.get("bounds");
+                    if (boundsVal != null && boundsVal.isObject() != null) {
+                        JSONObject b = boundsVal.isObject();
+                        JSONValue lv = b.get("left");
+                        JSONValue tv = b.get("top");
+                        JSONValue rv = b.get("right");
+                        JSONValue bv = b.get("bottom");
+                        if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null) {
+                            CircuitElm elm = importedElements.get(elementId);
+                            if (elm != null) {
+                                try {
+                                    int left = (int) lv.isNumber().doubleValue();
+                                    int top = (int) tv.isNumber().doubleValue();
+                                    int right = (int) rv.isNumber().doubleValue();
+                                    int bottom = (int) bv.isNumber().doubleValue();
+                                    // Re-apply bounds and coords after analysis so element
+                                    // re-initialization does not revert imported geometry.
+                                    elm.x = left;
+                                    elm.y = top;
+                                    elm.x2 = right;
+                                    elm.y2 = bottom;
+                                    elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
+                                                new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                                } catch (Exception e) {
+                                    CirSim.console("JSON import: failed to re-apply bounds for " + elementId + ": " + e.getMessage());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             CirSim.console("JSON import: " + elementCount + " elements, " + wireCount + " auto-wires, " +
                     scopeCount + " scopes, " + adjustableCount + " adjustables");
 
@@ -260,6 +300,33 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             // Store for reference
             importedElements.put(elementId, elm);
+
+            // If explicit bounds were provided in JSON, apply them now (after full initialization)
+            JSONValue boundsVal = elementJson.get("bounds");
+            if (boundsVal != null && boundsVal.isObject() != null) {
+                JSONObject b = boundsVal.isObject();
+                JSONValue lv = b.get("left");
+                JSONValue tv = b.get("top");
+                JSONValue rv = b.get("right");
+                JSONValue bv = b.get("bottom");
+                if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null) {
+                    try {
+                        int left = (int) lv.isNumber().doubleValue();
+                        int top = (int) tv.isNumber().doubleValue();
+                        int right = (int) rv.isNumber().doubleValue();
+                        int bottom = (int) bv.isNumber().doubleValue();
+                        elm.x = left;
+                        elm.y = top;
+                        elm.x2 = right;
+                        elm.y2 = bottom;
+                        elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
+                                    new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                    } catch (Exception e) {
+                        CirSim.console("JSON import: failed to apply bounds for " + elementId + ": " + e.getMessage());
+                    }
+                }
+            }
+
             count++;
         }
 
@@ -437,14 +504,41 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             // Get element reference
             JSONValue elementValue = scopeJson.get("element");
-            if (elementValue == null || elementValue.isString() == null) {
-                continue;
+            CircuitElm elm = null;
+            if (elementValue != null && elementValue.isString() != null) {
+                String elementId = elementValue.isString().stringValue();
+                elm = importedElements.get(elementId);
+                if (elm == null) {
+                    CirSim.console("JSON import: scope references unknown element: " + elementId + " — attempting fallback");
+                    // try to fallback to the first plot element specified in the scope
+                    JSONValue plotsValueFallback = scopeJson.get("plots");
+                    if (plotsValueFallback != null && plotsValueFallback.isArray() != null) {
+                        JSONArray plotsArrayFallback = plotsValueFallback.isArray();
+                        for (int pf = 0; pf < plotsArrayFallback.size(); pf++) {
+                            JSONValue pv = plotsArrayFallback.get(pf);
+                            if (pv == null || pv.isObject() == null) continue;
+                            JSONObject pj = pv.isObject();
+                            JSONValue pvElmVal = pj.get("element");
+                            if (pvElmVal != null && pvElmVal.isString() != null) {
+                                String pid = pvElmVal.isString().stringValue();
+                                CircuitElm resolved = importedElements.get(pid);
+                                if (resolved != null) {
+                                    elm = resolved;
+                                    CirSim.console("JSON import: scope fallback attached to plot element: " + pid);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // final fallback: attach to first imported element (if any)
+                    if (elm == null && !importedElements.isEmpty()) {
+                        for (CircuitElm c : importedElements.values()) { elm = c; break; }
+                        CirSim.console("JSON import: scope fallback attached to first imported element");
+                    }
+                }
             }
-
-            String elementId = elementValue.isString().stringValue();
-            CircuitElm elm = importedElements.get(elementId);
             if (elm == null) {
-                CirSim.console("JSON import: scope references unknown element: " + elementId);
+                CirSim.console("JSON import: skipping scope because no available element to attach");
                 continue;
             }
 
@@ -458,10 +552,11 @@ public class JsonCircuitImporter implements CircuitImporter {
                 scope.position = (int) posValue.isNumber().doubleValue();
             }
 
-            // Speed - use setSpeed() to sync with plots
+            // Speed (applied after plots/settings are restored)
+            int scopeSpeed = scope.speed;
             JSONValue speedValue = scopeJson.get("speed");
             if (speedValue != null && speedValue.isNumber() != null) {
-                scope.setSpeed((int) speedValue.isNumber().doubleValue());
+                scopeSpeed = (int) speedValue.isNumber().doubleValue();
             }
 
             // Display options
@@ -492,6 +587,19 @@ public class JsonCircuitImporter implements CircuitImporter {
                 scope.logSpectrum = getBoolean(plotMode, "log_spectrum", false);
             }
 
+            // Trigger settings (optional)
+            JSONValue triggerValue = scopeJson.get("trigger");
+            if (triggerValue != null && triggerValue.isObject() != null) {
+                JSONObject trigger = triggerValue.isObject();
+                scope.setTriggerEnabled(getBoolean(trigger, "enabled", scope.isTriggerEnabled()));
+                scope.setTriggerMode(getInt(trigger, "mode", scope.getTriggerMode()));
+                scope.setTriggerSlope(getInt(trigger, "slope", scope.getTriggerSlope()));
+                scope.setTriggerLevel(getDouble(trigger, "level", scope.getTriggerLevel()));
+                scope.setTriggerHoldoff(getDouble(trigger, "holdoff", scope.getTriggerHoldoff()));
+                scope.setTriggerPosition(getDouble(trigger, "position", scope.getTriggerPosition()));
+                scope.setTriggerSource(getInt(trigger, "source", scope.getTriggerSource()));
+            }
+
             // Scale settings for different units
             JSONValue scalesValue = scopeJson.get("scales");
             if (scalesValue != null && scalesValue.isObject() != null) {
@@ -501,6 +609,103 @@ public class JsonCircuitImporter implements CircuitImporter {
                 scope.setScale(Scope.UNITS_OHMS, getDouble(scales, "ohms", 5));
                 scope.setScale(Scope.UNITS_W, getDouble(scales, "watts", 5));
             }
+
+            // Manual scale settings
+            JSONValue manualScaleValue = scopeJson.get("manual_scale");
+            if (manualScaleValue != null && manualScaleValue.isObject() != null) {
+                JSONObject manualScale = manualScaleValue.isObject();
+                boolean enabled = getBoolean(manualScale, "enabled", false);
+                scope.setManualScale(enabled, false);
+                if (enabled) {
+                    int divisions = getInt(manualScale, "divisions", scope.manDivisions);
+                    scope.setManDivisions(divisions);
+                }
+            }
+
+            // Plots (individual traces)
+            JSONValue plotsValue = scopeJson.get("plots");
+            if (plotsValue != null && plotsValue.isArray() != null) {
+                JSONArray plotsArray = plotsValue.isArray();
+                java.util.Vector<ScopePlot> restoredPlots = new java.util.Vector<>();
+
+                for (int p = 0; p < plotsArray.size(); p++) {
+                    JSONValue plotValue = plotsArray.get(p);
+                    if (plotValue == null || plotValue.isObject() == null) {
+                        continue;
+                    }
+                    JSONObject plotJson = plotValue.isObject();
+
+                    // Plot element reference (optional; defaults to scope element)
+                    CircuitElm plotElm = elm;
+                    JSONValue plotElmValue = plotJson.get("element");
+                    if (plotElmValue != null && plotElmValue.isString() != null) {
+                        String plotElmId = plotElmValue.isString().stringValue();
+                        CircuitElm resolved = importedElements.get(plotElmId);
+                        if (resolved != null) {
+                            plotElm = resolved;
+                        }
+                    }
+
+                    // Plot value (preferred). If missing, infer from units.
+                    int value = Scope.VAL_VOLTAGE;
+                    JSONValue valueValue = plotJson.get("value");
+                    if (valueValue != null && valueValue.isNumber() != null) {
+                        value = (int) valueValue.isNumber().doubleValue();
+                    } else {
+                        JSONValue unitsValue = plotJson.get("units");
+                        if (unitsValue != null && unitsValue.isString() != null) {
+                            value = inferScopeValueFromUnits(unitsValue.isString().stringValue());
+                        }
+                    }
+
+                    int units = plotElm.getScopeUnits(value);
+                    ScopePlot sp = ScopePlot.create(cirSim, document, plotElm, units, value, scope.getManScaleFromMaxScale(units, false));
+
+                    // Color
+                    JSONValue colorValue = plotJson.get("color");
+                    if (colorValue != null && colorValue.isString() != null) {
+                        sp.color = colorValue.isString().stringValue();
+                    }
+
+                    // Manual scale for this plot
+                    JSONValue plotScaleValue = plotJson.get("scale");
+                    JSONValue vPosValue = plotJson.get("v_position");
+                    if (plotScaleValue != null && plotScaleValue.isNumber() != null) {
+                        int vPos = 0;
+                        if (vPosValue != null && vPosValue.isNumber() != null) {
+                            vPos = (int) vPosValue.isNumber().doubleValue();
+                        }
+                        sp.applyManualScale(plotScaleValue.isNumber().doubleValue(), vPos);
+                    } else if (vPosValue != null && vPosValue.isNumber() != null) {
+                        sp.manVPosition = (int) vPosValue.isNumber().doubleValue();
+                    }
+
+                    // AC coupling
+                    if (getBoolean(plotJson, "ac_coupled", false)) {
+                        sp.setAcCoupled(true);
+                    }
+
+                    restoredPlots.add(sp);
+                }
+
+                if (!restoredPlots.isEmpty()) {
+                    scope.plots = restoredPlots;
+                }
+            }
+
+
+            // History settings
+            JSONValue historyValue = scopeJson.get("history");
+            if (historyValue != null && historyValue.isObject() != null) {
+                JSONObject history = historyValue.isObject();
+                scope.setHistoryEnabled(getBoolean(history, "enabled", false));
+                scope.setHistoryDepth(getInt(history, "depth", 8));
+                scope.setHistoryCaptureMode(getInt(history, "capture_mode", Scope.HISTORY_CAPTURE_ON_TRIGGER));
+                scope.setHistorySource(getInt(history, "source", 0));
+            }
+
+            // Apply speed last so it reinitializes plot buffers with restored settings.
+            scope.setSpeed(scopeSpeed);
 
             // Add scope at current index
             scopeManager.setScope(count, scope);
@@ -598,6 +803,32 @@ public class JsonCircuitImporter implements CircuitImporter {
             return defaultValue;
         }
         return value.isNumber().doubleValue();
+    }
+
+    private int getInt(JSONObject obj, String key, int defaultValue) {
+        JSONValue value = obj.get(key);
+        if (value == null || value.isNumber() == null) {
+            return defaultValue;
+        }
+        return (int) value.isNumber().doubleValue();
+    }
+
+    private int inferScopeValueFromUnits(String units) {
+        if (units == null) {
+            return Scope.VAL_VOLTAGE;
+        }
+        switch (units) {
+            case "V":
+                return Scope.VAL_VOLTAGE;
+            case "A":
+                return Scope.VAL_CURRENT;
+            case "W":
+                return Scope.VAL_POWER;
+            case "Ohm":
+                return Scope.VAL_R;
+            default:
+                return Scope.VAL_VOLTAGE;
+        }
     }
 
     private boolean validateSchema(JSONObject root) {

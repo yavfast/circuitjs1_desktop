@@ -691,6 +691,26 @@ Add a custom log entry.
 CircuitJS1.addLog("Custom message from API");
 ```
 
+### Global error logging
+Uncaught exceptions and unhandled promise rejections are automatically captured by the application and recorded in the same log store available via `getLogs()` / `getLastLogs()`. Error entries include a timestamp and, when available, a stack trace and context. Entries use the tags **[UNHANDLED_ERROR]** and **[UNHANDLED_REJECTION]** so they are easy to filter.
+
+A user-facing modal dialog is shown when an unhandled error or rejection occurs (titles: **"Unhandled error"** / **"Unhandled promise rejection"**). The dialog contains the error details and a **Copy details** button so users can easily share the information.
+
+Example: retrieve and filter recent error logs
+
+```javascript
+// get the last 50 log entries and show only error-related lines
+const logs = CircuitJS1.getLastLogs(50);
+const errors = logs.filter(l => /UNHANDLED_ERROR|UNHANDLED_REJECTION|API_LOG/i.test(l));
+console.log('Recent errors:', errors);
+```
+
+If the optional `scripts/debug-logger.js` is loaded, an on-page debug panel is available as `window.debugConsole` and logs are also written into that panel. The debug logger also queues API logs when `CircuitJS1.addLog` is not yet available and flushes them when the API becomes ready (exposed via `window.debugConsole._flushPendingApiLogs()`).
+
+Notes:
+- Use `CircuitJS1.getLogCount()` and `CircuitJS1.getLastLogs()` to programmatically collect error logs for reporting or telemetry.
+- The error dialog is intended for interactive desktop/dev use; if you need to suppress UI in automated or production runs, add a small wrapper to disable the debug UI or load a production configuration that omits `debug-logger.js`.
+
 ### clearLogs(): void
 Clear all log entries.
 

@@ -87,6 +87,14 @@ npm run devmode
 
 Devmode works directly in the `war` directory separate from the `target/site` directory.
 
+### Standard circuits location
+
+The built-in/standard example circuits (the files served under `/circuits/...` in the web UI/devmode) are stored in:
+
+`src/main/java/com/lushprojects/circuitjs1/public/circuits`
+
+These circuits are a convenient baseline corpus for testing (manual checks and automated import/export roundtrips).
+
 Note: `npm run devmode` starts `mvn gwt:devmode` and also tries to launch NW.js for the dev UI; it is a long-running process.
 
 ## License

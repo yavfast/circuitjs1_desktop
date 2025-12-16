@@ -9,6 +9,7 @@ public class ScopePlot {
     private final CircuitDocument circuitDocument;
     double[] minValues;
     double[] maxValues;
+    double[] sampleValues;
     int scopePointCount;
     int ptr; // ptr is pointer to the current sample
     int value; // Value - the property being shown - e.g. VAL_CURRENT
@@ -21,6 +22,10 @@ public class ScopePlot {
     
     public CircuitElm getElm() {
         return elm;
+    }
+
+    public int getValue() {
+        return value;
     }
     
     // Has a manual scale in "/div" format been put in by the user (as opposed to being
@@ -59,6 +64,16 @@ public class ScopePlot {
             manVPosition = -Scope.V_POSITION_STEPS / 2;
     }
 
+    public static ScopePlot create(BaseCirSim cirSim, CircuitDocument circuitDocument, CircuitElm e, int units, int value, double manScale) {
+        return new ScopePlot(cirSim, circuitDocument, e, units, value, manScale);
+    }
+
+    public void applyManualScale(double scalePerDivision, int vPosition) {
+        manScaleSet = true;
+        manScale = scalePerDivision;
+        manVPosition = vPosition;
+    }
+
     int startIndex(int w) {
         return ptr + scopePointCount - w;
     }
@@ -74,8 +89,10 @@ public class ScopePlot {
         acAlpha = 1.0 - 1.0 / (1.15 * scopePlotSpeed * scopePointCount);
         double[] oldMin = minValues;
         double[] oldMax = maxValues;
+        double[] oldSample = sampleValues;
         minValues = new double[scopePointCount];
         maxValues = new double[scopePointCount];
+        sampleValues = new double[scopePointCount];
         if (oldMin != null && !full) {
             // preserve old data if possible
             int i;
@@ -84,6 +101,9 @@ public class ScopePlot {
                 int i2 = (ptr - i) & (oldSpc - 1);
                 minValues[i1] = oldMin[i2];
                 maxValues[i1] = oldMax[i2];
+                if (oldSample != null) {
+                    sampleValues[i1] = oldSample[i2];
+                }
             }
         } else
             lastUpdateTime = circuitDocument.simulator.t;
@@ -102,6 +122,7 @@ public class ScopePlot {
         acLastOut = newAcOut;
         if (isAcCoupled())
             v = newAcOut;
+        sampleValues[ptr] = v;
         if (v < minValues[ptr])
             minValues[ptr] = v;
         if (v > maxValues[ptr])
@@ -109,6 +130,7 @@ public class ScopePlot {
         if (circuitDocument.simulator.t - lastUpdateTime >= circuitDocument.simulator.maxTimeStep * scopePlotSpeed) {
             ptr = (ptr + 1) & (scopePointCount - 1);
             minValues[ptr] = maxValues[ptr] = v;
+            sampleValues[ptr] = v;
             lastUpdateTime += circuitDocument.simulator.maxTimeStep * scopePlotSpeed;
         }
     }

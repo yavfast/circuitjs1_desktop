@@ -44,7 +44,19 @@ public class Scope extends BaseCirSimDelegate {
     private static final int FLAG_PERPLOT_MAN_SCALE = 1 << 19; // new-new style dump with manual included in each plot
     private static final int FLAG_MAN_SCALE = 16;
     private static final int FLAG_DIVISIONS = 1 << 21; // dump manDivisions
+    private static final int FLAG_TRIGGER = 1 << 22; // dump trigger settings
+    private static final int FLAG_HISTORY = 1 << 23; // dump history/persistence settings
     // other flags go here too, see getFlags()
+
+    public static final int TRIG_MODE_AUTO = 0;
+    public static final int TRIG_MODE_NORMAL = 1;
+    public static final int TRIG_MODE_SINGLE = 2;
+
+    public static final int TRIG_SLOPE_RISING = 0;
+    public static final int TRIG_SLOPE_FALLING = 1;
+
+    public static final int HISTORY_CAPTURE_MANUAL = 0;
+    public static final int HISTORY_CAPTURE_ON_TRIGGER = 1;
 
     public static final int VAL_POWER = 7;
     public static final int VAL_POWER_OLD = 1;
@@ -106,6 +118,128 @@ public class Scope extends BaseCirSimDelegate {
     private static double cursorTime;
     private static int cursorUnits;
     private static Scope cursorScope;
+
+    // Trigger/timebase (time-domain only)
+    private boolean triggerEnabled = false;
+    private int triggerMode = TRIG_MODE_AUTO;
+    private int triggerSlope = TRIG_SLOPE_RISING;
+    private double triggerLevel = 0.0;
+    private double triggerHoldoff = 0.0; // seconds
+    private double triggerPosition = 0.25; // fraction of screen used as pre-trigger
+    private int triggerSource = 0; // index in visiblePlots
+
+    private boolean singleTriggered = false;
+    private int singleFrozenStartIndex = 0;
+    private double singleFrozenRightEdgeTime = 0.0;
+    private double singleFrozenTriggerTime = 0.0;
+    private double lastTriggerTime = -1;
+    private int lastTriggeredStartIndex = -1;
+
+    // Current draw cycle timebase; null means rolling/free-run
+    private Integer timeBaseStartIndexOverride = null;
+    private double timeBaseRightEdgeTime = 0.0;
+    private double timeBaseTriggerTime = 0.0;
+
+    // Last displayed timebase start index (used to freeze display in NORMAL/SINGLE when no trigger is found)
+    private int lastDisplayedStartIndex = 0;
+
+    // History / persistence overlay (time-domain only)
+    static class HistoryFrame {
+        final int width;
+        final double[] minValues;
+        final double[] maxValues;
+        final String color;
+
+        HistoryFrame(int width, double[] minValues, double[] maxValues, String color) {
+            this.width = width;
+            this.minValues = minValues;
+            this.maxValues = maxValues;
+            this.color = color;
+        }
+    }
+
+    private boolean historyEnabled = false;
+    private int historyDepth = 8;
+    private int historyCaptureMode = HISTORY_CAPTURE_ON_TRIGGER;
+    private int historySource = 0; // index in visiblePlots
+    private final Vector<HistoryFrame> historyFrames = new Vector<>();
+    private int lastHistoryCapturedStartIndex = -1;
+
+    // Triggered display frame (time-domain only). Used for stable display in NORMAL/SINGLE modes.
+    static class TriggerFrame {
+        final int width;
+        final int plotCount;
+        final double[][] minValues;
+        final double[][] maxValues;
+        final int startIndex;
+        final double rightEdgeTime;
+        final double triggerTime;
+
+        TriggerFrame(int width, int plotCount, double[][] minValues, double[][] maxValues,
+                     int startIndex, double rightEdgeTime, double triggerTime) {
+            this.width = width;
+            this.plotCount = plotCount;
+            this.minValues = minValues;
+            this.maxValues = maxValues;
+            this.startIndex = startIndex;
+            this.rightEdgeTime = rightEdgeTime;
+            this.triggerTime = triggerTime;
+        }
+    }
+
+    private TriggerFrame triggerFrame;
+
+    private boolean shouldUseTriggerFrameForDisplay() {
+        if (!triggerEnabled || !isTriggerAvailable()) {
+            return false;
+        }
+        if (triggerMode != TRIG_MODE_NORMAL && triggerMode != TRIG_MODE_SINGLE) {
+            return false;
+        }
+        return triggerFrame != null && triggerFrame.width == rect.width && triggerFrame.plotCount == plots.size();
+    }
+
+    private int getPlotIndex(ScopePlot plot) {
+        for (int i = 0; i < plots.size(); i++) {
+            if (plots.get(i) == plot) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void captureTriggerFrame(int startIndex, double rightEdgeTime, double triggerTime) {
+        int width = rect.width;
+        if (width < 2 || plots == null || plots.isEmpty()) {
+            triggerFrame = null;
+            return;
+        }
+
+        int plotCount = plots.size();
+        double[][] min = new double[plotCount][];
+        double[][] max = new double[plotCount][];
+
+        int mask = scopePointCount - 1;
+        for (int pi = 0; pi < plotCount; pi++) {
+            ScopePlot p = plots.get(pi);
+            if (p == null || p.minValues == null || p.maxValues == null) {
+                min[pi] = null;
+                max[pi] = null;
+                continue;
+            }
+            double[] mn = new double[width];
+            double[] mx = new double[width];
+            for (int i = 0; i < width; i++) {
+                int ip = (startIndex + i) & mask;
+                mn[i] = p.minValues[ip];
+                mx[i] = p.maxValues[ip];
+            }
+            min[pi] = mn;
+            max[pi] = mx;
+        }
+
+        triggerFrame = new TriggerFrame(width, plotCount, min, max, startIndex, rightEdgeTime, triggerTime);
+    }
 
     public Scope(BaseCirSim s, CircuitDocument circuitDocument) {
         super(s, circuitDocument);
@@ -189,9 +323,365 @@ public class Scope extends BaseCirSimDelegate {
         for (ScopePlot plot : plots) {
             plot.reset(scopePointCount, speed, full);
         }
+        clearHistory();
+        triggerFrame = null;
+        rearmSingleTrigger();
+        lastDisplayedStartIndex = 0;
         calcVisiblePlots();
         scopeTimeStep = simulator().maxTimeStep;
         allocImage();
+    }
+
+    public boolean isTriggerAvailable() {
+        return !(showFFT || plot2d || plotXY);
+    }
+
+    public boolean isHistoryAvailable() {
+        return !(showFFT || plot2d || plotXY);
+    }
+
+    public boolean isTriggerEnabled() {
+        return triggerEnabled;
+    }
+
+    public void setTriggerEnabled(boolean enabled) {
+        triggerEnabled = enabled;
+        if (!enabled) {
+            timeBaseStartIndexOverride = null;
+            timeBaseRightEdgeTime = simulator().t;
+            triggerFrame = null;
+            rearmSingleTrigger();
+        }
+    }
+
+    public int getTriggerMode() {
+        return triggerMode;
+    }
+
+    public void setTriggerMode(int mode) {
+        triggerMode = mode;
+        if (triggerMode != TRIG_MODE_NORMAL && triggerMode != TRIG_MODE_SINGLE) {
+            triggerFrame = null;
+        }
+        rearmSingleTrigger();
+    }
+
+    public int getTriggerSlope() {
+        return triggerSlope;
+    }
+
+    public void setTriggerSlope(int slope) {
+        triggerSlope = slope;
+    }
+
+    public double getTriggerLevel() {
+        return triggerLevel;
+    }
+
+    public void setTriggerLevel(double level) {
+        triggerLevel = level;
+    }
+
+    public double getTriggerHoldoff() {
+        return triggerHoldoff;
+    }
+
+    public void setTriggerHoldoff(double holdoffSeconds) {
+        triggerHoldoff = Math.max(0, holdoffSeconds);
+    }
+
+    public double getTriggerPosition() {
+        return triggerPosition;
+    }
+
+    public void setTriggerPosition(double posFraction) {
+        triggerPosition = Math.max(0, Math.min(1, posFraction));
+    }
+
+    public int getTriggerSource() {
+        return triggerSource;
+    }
+
+    public void setTriggerSource(int idx) {
+        triggerSource = idx;
+    }
+
+    public void rearmSingleTrigger() {
+        singleTriggered = false;
+        singleFrozenStartIndex = 0;
+        singleFrozenRightEdgeTime = 0.0;
+        singleFrozenTriggerTime = 0.0;
+        lastTriggeredStartIndex = -1;
+        lastTriggerTime = -1;
+        if (triggerMode == TRIG_MODE_SINGLE) {
+            triggerFrame = null;
+        }
+    }
+
+    public boolean isHistoryEnabled() {
+        return historyEnabled;
+    }
+
+    public void setHistoryEnabled(boolean enabled) {
+        historyEnabled = enabled;
+        if (!enabled) {
+            clearHistory();
+        }
+    }
+
+    public int getHistoryDepth() {
+        return historyDepth;
+    }
+
+    public void setHistoryDepth(int depth) {
+        historyDepth = Math.max(1, Math.min(64, depth));
+        trimHistoryToDepth();
+    }
+
+    public int getHistoryCaptureMode() {
+        return historyCaptureMode;
+    }
+
+    public void setHistoryCaptureMode(int mode) {
+        historyCaptureMode = mode;
+    }
+
+    public int getHistorySource() {
+        return historySource;
+    }
+
+    public void setHistorySource(int idx) {
+        historySource = idx;
+    }
+
+    public void clearHistory() {
+        historyFrames.clear();
+        lastHistoryCapturedStartIndex = -1;
+    }
+
+    public void captureHistoryNow() {
+        if (!historyEnabled || !isHistoryAvailable()) {
+            return;
+        }
+        ScopePlot p = getHistorySourcePlot();
+        if (p == null) {
+            return;
+        }
+        captureHistoryFrame(p, getPlotStartIndex(p));
+    }
+
+    private void trimHistoryToDepth() {
+        while (historyFrames.size() > historyDepth) {
+            historyFrames.remove(0);
+        }
+    }
+
+    private ScopePlot getTriggerSourcePlot() {
+        if (visiblePlots.isEmpty()) {
+            return null;
+        }
+        int idx = triggerSource;
+        if (idx < 0 || idx >= visiblePlots.size()) {
+            idx = 0;
+        }
+        return visiblePlots.get(idx);
+    }
+
+    private ScopePlot getHistorySourcePlot() {
+        if (visiblePlots.isEmpty()) {
+            return null;
+        }
+        int idx = historySource;
+        if (idx < 0 || idx >= visiblePlots.size()) {
+            idx = 0;
+        }
+        return visiblePlots.get(idx);
+    }
+
+    private int getPlotStartIndex(ScopePlot plot) {
+        if (timeBaseStartIndexOverride != null) {
+            return timeBaseStartIndexOverride;
+        }
+        return plot.startIndex(rect.width);
+    }
+
+    private double getTimeBaseRightEdgeTime() {
+        if (timeBaseStartIndexOverride != null) {
+            return timeBaseRightEdgeTime;
+        }
+        return simulator().t;
+    }
+
+    private int getTriggerPixelX() {
+        int width = rect.width;
+        if (width <= 0) {
+            return 0;
+        }
+        int pre = (int) Math.round(width * triggerPosition);
+        if (pre < 0) pre = 0;
+        if (pre > width - 1) pre = width - 1;
+        return pre;
+    }
+
+    private double getTimeBaseTriggerTime() {
+        return timeBaseTriggerTime;
+    }
+
+    private int findTriggerIndex(ScopePlot plot, int pre, int post) {
+        if (plot == null || plot.sampleValues == null) {
+            return -1;
+        }
+        int width = rect.width;
+        if (width < 4) {
+            return -1;
+        }
+        int mask = scopePointCount - 1;
+        int ptr = plot.ptr;
+        int maxSearch = Math.min(scopePointCount - 2, Math.max(width * 4, width + post + 2));
+
+        double dt = simulator().maxTimeStep * speed;
+        for (int stepsBack = post; stepsBack < maxSearch; stepsBack++) {
+            int cur = (ptr - stepsBack) & mask;
+            int prev = (cur - 1) & mask;
+            double a = plot.sampleValues[prev];
+            double b = plot.sampleValues[cur];
+            boolean crossed;
+            if (triggerSlope == TRIG_SLOPE_FALLING) {
+                crossed = (a > triggerLevel && b <= triggerLevel);
+            } else {
+                crossed = (a < triggerLevel && b >= triggerLevel);
+            }
+            if (!crossed) {
+                continue;
+            }
+            double triggerTime = simulator().t - stepsBack * dt;
+            if (triggerHoldoff > 0 && lastTriggerTime >= 0 && (triggerTime - lastTriggerTime) < triggerHoldoff) {
+                continue;
+            }
+            lastTriggerTime = triggerTime;
+            return cur;
+        }
+        return -1;
+    }
+
+    private void updateTimeBaseForDraw() {
+        // If trigger mode is NORMAL (waiting) or SINGLE (armed), and no trigger is found,
+        // we should keep displaying the previous frame rather than rolling/free-running.
+        final Integer prevStartIndexOverride = timeBaseStartIndexOverride;
+        final double prevRightEdgeTime = timeBaseRightEdgeTime;
+        final double prevTriggerTime = timeBaseTriggerTime;
+        final int prevDisplayedStartIndex = lastDisplayedStartIndex;
+
+        timeBaseStartIndexOverride = null;
+        timeBaseRightEdgeTime = simulator().t;
+        timeBaseTriggerTime = simulator().t;
+
+        ScopePlot plot = null;
+        if (triggerEnabled && isTriggerAvailable() && !visiblePlots.isEmpty()) {
+            plot = getTriggerSourcePlot();
+        }
+
+        int width = rect.width;
+
+        if (plot != null) {
+            int pre = getTriggerPixelX();
+            int post = width - pre;
+            int mask = scopePointCount - 1;
+
+            double dt = simulator().maxTimeStep * speed;
+
+            if (triggerMode == TRIG_MODE_SINGLE && singleTriggered) {
+                // Freeze the timebase as captured at the trigger moment.
+                if (triggerFrame != null) {
+                    timeBaseStartIndexOverride = triggerFrame.startIndex;
+                    timeBaseRightEdgeTime = triggerFrame.rightEdgeTime;
+                    timeBaseTriggerTime = triggerFrame.triggerTime;
+                } else {
+                    timeBaseStartIndexOverride = singleFrozenStartIndex;
+                    timeBaseRightEdgeTime = singleFrozenRightEdgeTime;
+                    timeBaseTriggerTime = singleFrozenTriggerTime;
+                }
+            } else {
+                int triggerIndex = findTriggerIndex(plot, pre, post);
+                if (triggerIndex >= 0) {
+                    int startIndex = (triggerIndex - pre) & mask;
+                    timeBaseStartIndexOverride = startIndex;
+                    lastTriggeredStartIndex = startIndex;
+
+                    int endIndex = (startIndex + width - 1) & mask;
+                    int stepsBackEnd = (plot.ptr - endIndex) & mask;
+                    timeBaseRightEdgeTime = simulator().t - stepsBackEnd * dt;
+                    timeBaseTriggerTime = timeBaseRightEdgeTime - post * dt;
+
+                    if (triggerMode == TRIG_MODE_NORMAL || triggerMode == TRIG_MODE_SINGLE) {
+                        // Capture a stable display frame so the ring buffer overwrites don't change the display.
+                        captureTriggerFrame(startIndex, timeBaseRightEdgeTime, timeBaseTriggerTime);
+                    }
+
+                    if (historyEnabled && historyCaptureMode == HISTORY_CAPTURE_ON_TRIGGER) {
+                        if (lastHistoryCapturedStartIndex != startIndex) {
+                            captureHistoryFrame(getHistorySourcePlot(), startIndex);
+                            lastHistoryCapturedStartIndex = startIndex;
+                        }
+                    }
+
+                    if (triggerMode == TRIG_MODE_SINGLE) {
+                        singleTriggered = true;
+                        singleFrozenStartIndex = startIndex;
+                        singleFrozenRightEdgeTime = timeBaseRightEdgeTime;
+                        singleFrozenTriggerTime = timeBaseTriggerTime;
+                    }
+                } else if (triggerMode == TRIG_MODE_NORMAL || triggerMode == TRIG_MODE_SINGLE) {
+                    // no trigger found
+                    // NORMAL: hold the last displayed frame until a trigger is found.
+                    // SINGLE (armed): also hold the last displayed frame until the first trigger.
+                    if (triggerFrame == null || triggerFrame.width != rect.width || triggerFrame.plotCount != plots.size()) {
+                        // Initialize a stable frame from the current rolling window.
+                        int startIndex = plot.startIndex(width);
+                        double rightEdgeTime = simulator().t;
+                        double triggerTime = rightEdgeTime - post * dt;
+                        captureTriggerFrame(startIndex, rightEdgeTime, triggerTime);
+                    }
+
+                    if (triggerFrame != null) {
+                        timeBaseStartIndexOverride = triggerFrame.startIndex;
+                        timeBaseRightEdgeTime = triggerFrame.rightEdgeTime;
+                        timeBaseTriggerTime = triggerFrame.triggerTime;
+                    } else {
+                        timeBaseStartIndexOverride = (prevStartIndexOverride != null) ? prevStartIndexOverride : prevDisplayedStartIndex;
+                        timeBaseRightEdgeTime = prevRightEdgeTime;
+                        timeBaseTriggerTime = prevTriggerTime;
+                    }
+                }
+                // AUTO: fall back to rolling (null override)
+            }
+        }
+
+        // Record the displayed start index so we can freeze from a rolling state next draw.
+        ScopePlot recordPlot = (plot != null) ? plot : (!plots.isEmpty() ? plots.get(0) : null);
+        if (recordPlot != null && width > 0) {
+            lastDisplayedStartIndex = (timeBaseStartIndexOverride != null) ? timeBaseStartIndexOverride : recordPlot.startIndex(width);
+        }
+    }
+
+    private void captureHistoryFrame(ScopePlot plot, int startIndex) {
+        if (plot == null || plot.elm == null || rect.width < 2) {
+            return;
+        }
+        int width = rect.width;
+        if (plot.minValues == null || plot.maxValues == null) {
+            return;
+        }
+        int mask = scopePointCount - 1;
+        double[] min = new double[width];
+        double[] max = new double[width];
+        for (int i = 0; i < width; i++) {
+            int ip = (startIndex + i) & mask;
+            min[i] = plot.minValues[ip];
+            max[i] = plot.maxValues[ip];
+        }
+        historyFrames.add(new HistoryFrame(width, min, max, plot.color));
+        trimHistoryToDepth();
     }
 
     public void setManualScaleValue(int plotId, double d) {
@@ -804,6 +1294,8 @@ public class Scope extends BaseCirSimDelegate {
         graphics.translate(rect.x, rect.y);
         graphics.clipRect(0, 0, rect.width, rect.height);
 
+        updateTimeBaseForDraw();
+
         if (showFFT) {
             drawFFTVerticalGridLines(graphics);
             drawFFT(graphics);
@@ -893,11 +1385,31 @@ public class Scope extends BaseCirSimDelegate {
     void calcMaxAndMin(int units) {
         maxValue = -1e8;
         minValue = 1e8;
+        boolean useFrame = shouldUseTriggerFrameForDisplay();
         for (ScopePlot plot : visiblePlots) {
             if (plot.units != units) {
                 continue;
             }
-            int ipa = plot.startIndex(rect.width);
+
+            if (useFrame) {
+                int pi = getPlotIndex(plot);
+                if (pi < 0 || triggerFrame.maxValues[pi] == null || triggerFrame.minValues[pi] == null) {
+                    continue;
+                }
+                double[] maxV = triggerFrame.maxValues[pi];
+                double[] minV = triggerFrame.minValues[pi];
+                for (int i = 0; i != rect.width; i++) {
+                    if (maxV[i] > maxValue) {
+                        maxValue = maxV[i];
+                    }
+                    if (minV[i] < minValue) {
+                        minValue = minV[i];
+                    }
+                }
+                continue;
+            }
+
+            int ipa = getPlotStartIndex(plot);
             double[] maxV = plot.maxValues;
             double[] minV = plot.minValues;
             for (int i = 0; i != rect.width; i++) {
@@ -917,18 +1429,40 @@ public class Scope extends BaseCirSimDelegate {
         if (manualScale) {
             return;
         }
-        int ipa = plot.startIndex(rect.width);
-        double[] maxV = plot.maxValues;
-        double[] minV = plot.minValues;
+        boolean useFrame = shouldUseTriggerFrameForDisplay();
+        int ipa = 0;
+        double[] maxV;
+        double[] minV;
+        if (useFrame) {
+            int pi = getPlotIndex(plot);
+            if (pi < 0 || triggerFrame.maxValues[pi] == null || triggerFrame.minValues[pi] == null) {
+                return;
+            }
+            maxV = triggerFrame.maxValues[pi];
+            minV = triggerFrame.minValues[pi];
+        } else {
+            ipa = getPlotStartIndex(plot);
+            maxV = plot.maxValues;
+            minV = plot.minValues;
+        }
         double max = 0;
         double gridMax = scale[plot.units];
         for (int i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            if (maxV[ip] > max) {
-                max = maxV[ip];
-            }
-            if (minV[ip] < -max) {
-                max = -minV[ip];
+            if (useFrame) {
+                if (maxV[i] > max) {
+                    max = maxV[i];
+                }
+                if (minV[i] < -max) {
+                    max = -minV[i];
+                }
+            } else {
+                int ip = (i + ipa) & (scopePointCount - 1);
+                if (maxV[ip] > max) {
+                    max = maxV[ip];
+                }
+                if (minV[ip] < -max) {
+                    max = -minV[ip];
+                }
             }
         }
         // scale fixed at maximum?
@@ -982,9 +1516,22 @@ public class Scope extends BaseCirSimDelegate {
         } else if (selected) {
             color = plot.color;
         }
-        int ipa = plot.startIndex(rect.width);
-        double[] maxV = plot.maxValues;
-        double[] minV = plot.minValues;
+        boolean useFrame = shouldUseTriggerFrameForDisplay();
+        int ipa = 0;
+        double[] maxV;
+        double[] minV;
+        if (useFrame) {
+            int pi = getPlotIndex(plot);
+            if (pi < 0 || triggerFrame.maxValues[pi] == null || triggerFrame.minValues[pi] == null) {
+                return;
+            }
+            maxV = triggerFrame.maxValues[pi];
+            minV = triggerFrame.minValues[pi];
+        } else {
+            ipa = getPlotStartIndex(plot);
+            maxV = plot.maxValues;
+            minV = plot.minValues;
+        }
         double gridMax;
         double gridMid;
         double positionOffset;
@@ -1068,8 +1615,9 @@ public class Scope extends BaseCirSimDelegate {
             }
 
             // vertical gridlines
-            double tstart = simulator().t - simulator().maxTimeStep * speed * rect.width;
-            double tx = simulator().t - (simulator().t % gridStepX);
+            double rightEdgeTime = getTimeBaseRightEdgeTime();
+            double tstart = rightEdgeTime - simulator().maxTimeStep * speed * rect.width;
+            double tx = rightEdgeTime - (rightEdgeTime % gridStepX);
 
             for (int ll = 0; ; ll++) {
                 double tl = tx - gridStepX * ll;
@@ -1091,10 +1639,44 @@ public class Scope extends BaseCirSimDelegate {
                 g.setColor(col);
                 g.drawLine(gx, 0, gx, rect.height - 1);
             }
+
+            // Trigger marker (time-domain only)
+            if (triggerEnabled && isTriggerAvailable() && timeBaseStartIndexOverride != null) {
+                int trigX = getTriggerPixelX();
+                g.save();
+                g.setAlpha(0.6);
+                g.setColor(majorDiv);
+                g.drawLine(trigX, 0, trigX, rect.height - 1);
+                g.restore();
+            }
         }
 
         // only need gridlines drawn once
         drawGridLines = false;
+
+        // History overlay (draw behind live trace)
+        if (historyEnabled && isHistoryAvailable() && plot == getHistorySourcePlot() && !historyFrames.isEmpty()) {
+            int frameCount = historyFrames.size();
+            for (int fi = 0; fi < frameCount; fi++) {
+                HistoryFrame f = historyFrames.get(fi);
+                if (f == null || f.width != rect.width) {
+                    continue;
+                }
+                double alpha = 0.08 + 0.32 * ((double) (fi + 1) / (double) (frameCount + 1));
+                g.save();
+                g.setAlpha(alpha);
+                g.setColor(f.color);
+                for (int i = 0; i != rect.width; i++) {
+                    int minvy = (int) (plot.gridMult * (f.minValues[i] + plot.plotOffset));
+                    int maxvy = (int) (plot.gridMult * (f.maxValues[i] + plot.plotOffset));
+                    if (minvy <= maxy && minvy != maxvy) {
+                        g.drawLine(x + i, maxy - minvy, x + i, maxy - maxvy);
+                    }
+                }
+                g.restore();
+            }
+            g.setAlpha(1.0);
+        }
 
         g.setColor(color);
 
@@ -1107,9 +1689,18 @@ public class Scope extends BaseCirSimDelegate {
 
         int ox = -1, oy = -1;
         for (int i = 0; i != rect.width; i++) {
-            int ip = (i + ipa) & (scopePointCount - 1);
-            int minvy = (int) (plot.gridMult * (minV[ip] + plot.plotOffset));
-            int maxvy = (int) (plot.gridMult * (maxV[ip] + plot.plotOffset));
+            double vmin;
+            double vmax;
+            if (useFrame) {
+                vmin = minV[i];
+                vmax = maxV[i];
+            } else {
+                int ip = (i + ipa) & (scopePointCount - 1);
+                vmin = minV[ip];
+                vmax = maxV[ip];
+            }
+            int minvy = (int) (plot.gridMult * (vmin + plot.plotOffset));
+            int maxvy = (int) (plot.gridMult * (vmax + plot.plotOffset));
             if (minvy <= maxy) {
                 if (minvy < minRangeLo || maxvy > minRangeHi) {
                     // we got a value outside min range, so we don't need to rescale later
@@ -1150,7 +1741,7 @@ public class Scope extends BaseCirSimDelegate {
         if (plot2d || visiblePlots.isEmpty()) {
             cursorTime = -1;
         } else {
-            cursorTime = simulator().t - simulator().maxTimeStep * speed * (rect.x + rect.width - mouseX);
+            cursorTime = getTimeBaseRightEdgeTime() - simulator().maxTimeStep * speed * (rect.x + rect.width - mouseX);
         }
         checkForSelection(mouseX, mouseY);
         cursorScope = this;
@@ -1169,7 +1760,7 @@ public class Scope extends BaseCirSimDelegate {
             selectedPlot = -1;
             return;
         }
-        int ipa = plots.get(0).startIndex(rect.width);
+        int ipa = getPlotStartIndex(plots.get(0));
         int ip = (mouseX - rect.x + ipa) & (scopePointCount - 1);
         int maxy = (rect.height - 1) / 2;
         int y = maxy;
@@ -1201,9 +1792,9 @@ public class Scope extends BaseCirSimDelegate {
         int cursorX = -1;
         int ct = 0;
         if (cursorTime >= 0) {
-            cursorX = -(int) ((simulator().t - cursorTime) / (simulator().maxTimeStep * speed) - rect.x - rect.width);
+            cursorX = -(int) ((getTimeBaseRightEdgeTime() - cursorTime) / (simulator().maxTimeStep * speed) - rect.x - rect.width);
             if (cursorX >= rect.x) {
-                int ipa = plots.get(0).startIndex(rect.width);
+                int ipa = getPlotStartIndex(plots.get(0));
                 int ip = (cursorX - rect.x + ipa) & (scopePointCount - 1);
                 int maxy = (rect.height - 1) / 2;
                 int y = maxy;
@@ -1229,7 +1820,12 @@ public class Scope extends BaseCirSimDelegate {
         }
 
         if (!visiblePlots.isEmpty()) {
-            info[ct++] = CircuitElm.getTimeText(cursorTime);
+            if (triggerEnabled && isTriggerAvailable() && timeBaseStartIndexOverride != null && cursorScope == this) {
+                double dt = cursorTime - getTimeBaseTriggerTime();
+                info[ct++] = "dt=" + CircuitElm.getTimeText(dt);
+            } else {
+                info[ct++] = CircuitElm.getTimeText(cursorTime);
+            }
         }
 
         if (cursorScope != this) {
@@ -1289,7 +1885,7 @@ public class Scope extends BaseCirSimDelegate {
             return;
         }
         ScopePlot plot = visiblePlots.firstElement();
-        int startIndex = plot.ptr + scopePointCount - rect.width;
+        int startIndex = getPlotStartIndex(plot);
         double midpoint = (maxValue + minValue) / 2;
         CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
@@ -1302,7 +1898,15 @@ public class Scope extends BaseCirSimDelegate {
         if (!isManualScale()) {
             if (gridStepY != 0 && (!(showV && showI))) {
                 String vScaleText = " V=" + plot.getUnitText(gridStepY) + "/div";
-                drawInfoText(g, "H=" + CircuitElm.getUnitText(gridStepX, "s") + "/div" + vScaleText);
+                String h = "H=" + CircuitElm.getUnitText(gridStepX, "s") + "/div";
+                if (triggerEnabled && isTriggerAvailable() && timeBaseStartIndexOverride != null) {
+                    double dt = simulator().maxTimeStep * speed;
+                    int pre = getTriggerPixelX();
+                    double preT = pre * dt;
+                    double postT = (rect.width - pre) * dt;
+                    h += "  T=0:[-" + CircuitElm.getUnitText(preT, "s") + ",+" + CircuitElm.getUnitText(postT, "s") + "]";
+                }
+                drawInfoText(g, h + vScaleText);
             }
         } else {
             if (rect.y + rect.height <= textY + 5) {
@@ -1342,7 +1946,7 @@ public class Scope extends BaseCirSimDelegate {
 
     void drawAverage(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int startIndex = plot.ptr + scopePointCount - rect.width;
+        int startIndex = getPlotStartIndex(plot);
         double midpoint = (maxValue + minValue) / 2;
         CircuitMath.WaveformMetrics metrics = CircuitMath.calculateWaveformMetrics(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
@@ -1353,7 +1957,7 @@ public class Scope extends BaseCirSimDelegate {
 
     void drawDutyCycle(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int startIndex = plot.ptr + scopePointCount - rect.width;
+        int startIndex = getPlotStartIndex(plot);
         double midpoint = (maxValue + minValue) / 2;
         CircuitMath.DutyCycleInfo info = CircuitMath.calculateDutyCycle(rect.width, startIndex, scopePointCount, plot.maxValues, plot.minValues, midpoint);
 
@@ -1365,7 +1969,7 @@ public class Scope extends BaseCirSimDelegate {
     // calc frequency if possible and display it
     void drawFrequency(Graphics g) {
         ScopePlot plot = visiblePlots.firstElement();
-        int ipa = plot.ptr + scopePointCount - rect.width;
+        int ipa = getPlotStartIndex(plot);
         double[] minV = plot.minValues;
         double[] maxV = plot.maxValues;
 
@@ -1583,6 +2187,13 @@ public class Scope extends BaseCirSimDelegate {
                 (showFFT ? 1024 : 0) | (maxScale ? 8192 : 0) | (showRMS ? 16384 : 0) |
                 (showDutyCycle ? 32768 : 0) | (logSpectrum ? 65536 : 0) |
                 (showAverage ? (1 << 17) : 0) | (showElmInfo ? (1 << 20) : 0);
+
+        if (shouldDumpTriggerSettings()) {
+            flags |= FLAG_TRIGGER;
+        }
+        if (shouldDumpHistorySettings()) {
+            flags |= FLAG_HISTORY;
+        }
         flags |= FLAG_PLOTS; // 4096
         int allPlotFlags = 0;
         for (ScopePlot p : plots) {
@@ -1597,6 +2208,23 @@ public class Scope extends BaseCirSimDelegate {
             flags |= FLAG_DIVISIONS;
         }
         return flags;
+    }
+
+    private boolean shouldDumpTriggerSettings() {
+        return triggerEnabled ||
+                triggerMode != TRIG_MODE_AUTO ||
+                triggerSlope != TRIG_SLOPE_RISING ||
+                triggerLevel != 0.0 ||
+                triggerHoldoff != 0.0 ||
+                triggerPosition != 0.25 ||
+                triggerSource != 0;
+    }
+
+    private boolean shouldDumpHistorySettings() {
+        return historyEnabled ||
+                historyDepth != 8 ||
+                historyCaptureMode != HISTORY_CAPTURE_ON_TRIGGER ||
+                historySource != 0;
     }
 
 
@@ -1637,6 +2265,23 @@ public class Scope extends BaseCirSimDelegate {
                 x += " " + CircuitElm.dumpValue(p.manScale) + " " + CircuitElm.dumpValue(p.manVPosition);
             }
         }
+
+        if ((flags & FLAG_TRIGGER) != 0) {
+            x += " " + (triggerEnabled ? 1 : 0);
+            x += " " + triggerMode;
+            x += " " + triggerSlope;
+            x += " " + CircuitElm.dumpValue(triggerLevel);
+            x += " " + CircuitElm.dumpValue(triggerHoldoff);
+            x += " " + CircuitElm.dumpValue(triggerPosition);
+            x += " " + triggerSource;
+        }
+        if ((flags & FLAG_HISTORY) != 0) {
+            x += " " + (historyEnabled ? 1 : 0);
+            x += " " + historyDepth;
+            x += " " + historyCaptureMode;
+            x += " " + historySource;
+        }
+
         if (text != null) {
             x += " " + CustomLogicModel.escape(text);
         }
@@ -1717,6 +2362,29 @@ public class Scope extends BaseCirSimDelegate {
                         p.manVPosition = CircuitElm.parseInt(st.nextToken());
                     }
                 }
+
+                // Optional extensions (must come before optional custom label text)
+                try {
+                    if ((flags & FLAG_TRIGGER) != 0 && st.hasMoreTokens()) {
+                        triggerEnabled = CircuitElm.parseInt(st.nextToken()) != 0;
+                        triggerMode = CircuitElm.parseInt(st.nextToken());
+                        triggerSlope = CircuitElm.parseInt(st.nextToken());
+                        triggerLevel = CircuitElm.parseDouble(st.nextToken());
+                        triggerHoldoff = CircuitElm.parseDouble(st.nextToken());
+                        triggerPosition = CircuitElm.parseDouble(st.nextToken());
+                        triggerSource = CircuitElm.parseInt(st.nextToken());
+                        rearmSingleTrigger();
+                    }
+                    if ((flags & FLAG_HISTORY) != 0 && st.hasMoreTokens()) {
+                        historyEnabled = CircuitElm.parseInt(st.nextToken()) != 0;
+                        historyDepth = CircuitElm.parseInt(st.nextToken());
+                        historyCaptureMode = CircuitElm.parseInt(st.nextToken());
+                        historySource = CircuitElm.parseInt(st.nextToken());
+                        trimHistoryToDepth();
+                    }
+                } catch (Exception ignored) {
+                }
+
                 while (st.hasMoreTokens()) {
                     if (text == null) {
                         text = st.nextToken();
@@ -1747,6 +2415,29 @@ public class Scope extends BaseCirSimDelegate {
                 if ((flags & FLAG_IVALUE) != 0) {
                     ivalue = CircuitElm.parseInt(st.nextToken());
                 }
+
+                // Optional extensions (must come before optional custom label text)
+                try {
+                    if ((flags & FLAG_TRIGGER) != 0 && st.hasMoreTokens()) {
+                        triggerEnabled = CircuitElm.parseInt(st.nextToken()) != 0;
+                        triggerMode = CircuitElm.parseInt(st.nextToken());
+                        triggerSlope = CircuitElm.parseInt(st.nextToken());
+                        triggerLevel = CircuitElm.parseDouble(st.nextToken());
+                        triggerHoldoff = CircuitElm.parseDouble(st.nextToken());
+                        triggerPosition = CircuitElm.parseDouble(st.nextToken());
+                        triggerSource = CircuitElm.parseInt(st.nextToken());
+                        rearmSingleTrigger();
+                    }
+                    if ((flags & FLAG_HISTORY) != 0 && st.hasMoreTokens()) {
+                        historyEnabled = CircuitElm.parseInt(st.nextToken()) != 0;
+                        historyDepth = CircuitElm.parseInt(st.nextToken());
+                        historyCaptureMode = CircuitElm.parseInt(st.nextToken());
+                        historySource = CircuitElm.parseInt(st.nextToken());
+                        trimHistoryToDepth();
+                    }
+                } catch (Exception ignored) {
+                }
+
                 while (st.hasMoreTokens()) {
                     if (text == null) {
                         text = st.nextToken();

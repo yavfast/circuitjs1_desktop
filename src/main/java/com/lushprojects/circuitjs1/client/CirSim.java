@@ -1320,18 +1320,26 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             return null;
         }
         
-        // Convert arrays to JS arrays
-        return createScopeDataObject(plot.minValues, plot.maxValues, plot.ptr, plot.scopePointCount, plot.units);
+        // Convert arrays to plain JS arrays (not Java array objects).
+        return createScopeDataObject(plot.minValues, plot.maxValues, plot.ptr, plot.scopePointCount, plot.units, scope.rect.width);
     }
 
     private native JavaScriptObject createScopeDataObject(double[] minValues, double[] maxValues, 
-            int ptr, int pointCount, int units) /*-{
+            int ptr, int pointCount, int units, int width) /*-{
+        var mn = [];
+        var mx = [];
+        var len = minValues.length;
+        for (var i = 0; i < len; i++) {
+            mn[i] = minValues[i];
+            mx[i] = maxValues[i];
+        }
         return {
-            minValues: minValues,
-            maxValues: maxValues,
+            minValues: mn,
+            maxValues: mx,
             ptr: ptr,
             pointCount: pointCount,
-            units: units
+            units: units,
+            width: width
         };
     }-*/;
 
