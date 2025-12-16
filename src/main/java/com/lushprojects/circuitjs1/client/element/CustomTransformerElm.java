@@ -213,11 +213,11 @@ public class CustomTransformerElm extends CircuitElm {
             setPowerColor(g, coilCurrents[i] * (volts[n] - volts[n + 1]));
             drawCoil(g, (i >= primaryCoils ? -6 * flip : 6 * flip), nodeTaps[n], nodeTaps[n + 1], volts[n], volts[n + 1]);
             if (dots != null) {
-                g.setColor(needsHighlight() ? selectColor : elementColor);
+                g.setColor(needsHighlight() ? selectColor() : elementColor());
                 g.fillOval(dots[i].x - 2, dots[i].y - 2, 5, 5);
             }
         }
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
 
         // draw core
         for (i = 0; i != 2; i++) {

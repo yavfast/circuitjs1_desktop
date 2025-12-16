@@ -23,7 +23,6 @@ public class Color {
     public final static Color white = new Color(255, 255, 255);
     public final static Color lightGray = new Color(192, 192, 192);
     public final static Color gray = new Color(128, 128, 128);
-    public final static Color GRAY = new Color(128, 128, 128);
     public final static Color dark_gray = new Color(64, 64, 64);
     public final static Color darkGray = new Color(64, 64, 64);
     public final static Color black = new Color(0, 0, 0);

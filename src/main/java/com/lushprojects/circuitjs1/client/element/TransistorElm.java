@@ -135,7 +135,7 @@ public class TransistorElm extends CircuitElm {
 
         setBbox(point1, point2, 16);
         if (hasCircle()) {
-            g.setColor(Color.gray);
+            g.setColor(neutralColor());
             drawThickCircle(g, circleCenter.x, circleCenter.y, 20);
         }
         setPowerColor(g, true);
@@ -150,8 +150,9 @@ public class TransistorElm extends CircuitElm {
         g.fillPolygon(arrowPoly);
         // draw base
         setVoltageColor(g, volts[0]);
-        if (displaySettings().showPower())
-            g.setColor(Color.gray);
+        if (displaySettings().showPower()) {
+            g.setColor(neutralColor());
+        }
         drawThickLine(g, point1, base);
         // draw dots
         curcount_b = updateDotCount(-ib, curcount_b);

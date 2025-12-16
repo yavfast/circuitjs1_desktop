@@ -203,8 +203,9 @@ public class MosfetElm extends CircuitElm {
             setVoltageColor(g, volts[bodyTerminal]);
             g.fillPolygon(arrowPoly);
         }
-        if (power)
-            g.setColor(Color.gray);
+        if (power) {
+            g.setColor(neutralColor());
+        }
 
         // draw gate
         setVoltageColor(g, volts[0]);

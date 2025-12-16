@@ -57,7 +57,7 @@ public class ComparatorElm extends CompositeElm {
         drawThickLine(g, in1p[0], in1p[1]);
         setVoltageColor(g, volts[1]);
         drawThickLine(g, in2p[0], in2p[1]);
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
         drawThickPolygon(g, triangle);
         g.setFont(plusFont);

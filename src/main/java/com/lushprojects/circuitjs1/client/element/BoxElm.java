@@ -62,8 +62,7 @@ public class BoxElm extends GraphicElm {
     }
 
     public void draw(Graphics g) {
-        //g.setColor(needsHighlight() ? selectColor : lightGrayColor);
-        g.setColor(needsHighlight() ? selectColor : Color.GRAY);
+        g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setBbox(x, y, x2, y2);
         g.setLineDash(16, 6);
         if (x < x2 && y < y2)

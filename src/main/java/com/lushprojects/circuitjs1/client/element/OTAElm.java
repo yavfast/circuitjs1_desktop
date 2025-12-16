@@ -72,7 +72,7 @@ public class OTAElm extends CompositeElm {
         drawThickLine(g, in3p[0], in3p[1]);
         setVoltageColor(g, volts[3]);
         drawThickLine(g, in4p[0], in4p[1]);
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
         drawThickPolygon(g, triangle);
         g.fillPolygon(arrowPoly1);

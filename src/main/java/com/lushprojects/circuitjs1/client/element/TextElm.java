@@ -106,7 +106,7 @@ public class TextElm extends GraphicElm {
         //g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
         //	RenderingHints.VALUE_ANTIALIAS_ON);
         g.save();
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         Font f = new Font("SansSerif", 0, size);
         g.setFont(f);
 //	FontMetrics fm = g.getFontMetrics();

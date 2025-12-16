@@ -212,7 +212,7 @@ public class VoltageElm extends CircuitElm {
     }
 
     void drawWaveform(Graphics g, Point center) {
-        g.setColor(needsHighlight() ? selectColor : Color.gray);
+        g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
         int xc = center.x;
         int yc = center.y;
@@ -256,7 +256,7 @@ public class VoltageElm extends CircuitElm {
                 break;
             }
             case WF_NOISE: {
-                g.setColor(needsHighlight() ? selectColor : foregroundColor());
+                g.setColor(needsHighlight() ? selectColor() : foregroundColor());
                 setPowerColor(g, false);
                 drawLabeledNode(g, Locale.LS("Noise"), point1, lead1);
                 break;

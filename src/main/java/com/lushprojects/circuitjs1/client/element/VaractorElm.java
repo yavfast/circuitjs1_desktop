@@ -82,8 +82,9 @@ public class VaractorElm extends DiodeElm {
         setVoltageColor(g, volts[0]);
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
-        if (displaySettings().showPower())
-            g.setColor(Color.gray);
+        if (displaySettings().showPower()) {
+            g.setColor(neutralColor());
+        }
 
         // draw second plate
         setVoltageColor(g, volts[1]);

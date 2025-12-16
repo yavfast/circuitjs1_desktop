@@ -67,7 +67,7 @@ public class InverterElm extends CircuitElm {
     public void draw(Graphics g) {
         drawPosts(g);
         draw2Leads(g);
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         drawThickPolygon(g, gatePoly);
         if (displaySettings().euroGates())
             drawCenteredText(g, "1", center.x, center.y - 6, true);

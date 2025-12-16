@@ -97,40 +97,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return ColorSettings.get().getForegroundColor();
     }
     
-    // ========== Legacy static field aliases (deprecated) ==========
-    
-    /** @deprecated Use colorSettings().getBackgroundColor() or backgroundColor() */
-    @Deprecated
-    public static Color backgroundColor = null;
-    
-    /** @deprecated Use colorSettings().getSelectColor() or selectColor() */
-    @Deprecated
-    public static Color selectColor = null;
-    
-    /** @deprecated Use colorSettings().getElementColor() or elementColor() */
-    @Deprecated
-    public static Color elementColor = null;
-    
-    /** @deprecated Use colorSettings().getCurrentColor() or currentColor() */
-    @Deprecated
-    public static Color currentColor = null;
-    
-    /** @deprecated Use colorSettings().getPositiveColor() or positiveColor() */
-    @Deprecated
-    public static Color positiveColor = null;
-    
-    /** @deprecated Use colorSettings().getNegativeColor() or negativeColor() */
-    @Deprecated
-    public static Color negativeColor = null;
-    
-    /** @deprecated Use colorSettings().getNeutralColor() or neutralColor() */
-    @Deprecated
-    public static Color neutralColor = null;
-
     static CircuitElm mouseElmRef = null;
 
     // Element ID system - static counters per type prefix
-    private static Map<String, Integer> typeCounters = new HashMap<>();
+    private static final Map<String, Integer> typeCounters = new HashMap<>();
     private static int globalCounter = 0;
     
     // Unique identifier for this element (e.g., "R1", "C2", "Q3")

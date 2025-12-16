@@ -138,7 +138,7 @@ public class RelayCoilElm extends CircuitElm {
         setPowerColor(g, coilCurrent * (volts[nCoil1] - volts[nCoil2]));
 
         // draw rectangle
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         drawThickLine(g, outline[0], outline[1]);
         drawThickLine(g, outline[1], outline[2]);
         drawThickLine(g, outline[2], outline[3]);
@@ -155,7 +155,7 @@ public class RelayCoilElm extends CircuitElm {
             g.fillRect(extraPoints[0].x, extraPoints[0].y, extraPoints[2].x - extraPoints[0].x, extraPoints[2].y - extraPoints[0].y);
         }
 
-        g.setColor(needsHighlight() ? selectColor : foregroundColor());
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         if (x == x2)
             g.drawString(label, outline[2].x + 10, (y + y2) / 2 + 4);
         else {

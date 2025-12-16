@@ -71,8 +71,9 @@ public class DarlingtonElm extends CompositeElm {
         g.fillPolygon(arrowPoly);
         // draw base
         setVoltageColor(g, volts[0]);
-        if (displaySettings().showPower())
-            g.setColor(Color.gray);
+        if (displaySettings().showPower()) {
+            g.setColor(neutralColor());
+        }
         drawThickLine(g, point1, base);
         // draw dots
         curcount_b = updateDotCount(getCurrentIntoNode(0), curcount_b);

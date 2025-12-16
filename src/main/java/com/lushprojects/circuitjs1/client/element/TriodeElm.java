@@ -102,7 +102,7 @@ public class TriodeElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        g.setColor(Color.gray);
+        g.setColor(neutralColor());
         drawThickCircle(g, point2.x, point2.y, circler);
         setBbox(point1, plate[0], 16);
         adjustBbox(cath[0].x, cath[1].y, point2.x + circler, point2.y + circler);

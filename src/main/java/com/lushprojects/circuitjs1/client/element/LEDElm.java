@@ -86,7 +86,7 @@ public class LEDElm extends DiodeElm {
         setVoltageColor(g, volts[1]);
         drawThickLine(g, ledLead2, point2);
 
-        g.setColor(Color.gray);
+        g.setColor(neutralColor());
         int cr = 12;
         drawThickCircle(g, ledCenter.x, ledCenter.y, cr);
         cr -= 4;

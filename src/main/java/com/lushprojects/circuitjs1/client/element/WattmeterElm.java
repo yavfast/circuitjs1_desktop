@@ -151,7 +151,7 @@ public class WattmeterElm extends CircuitElm {
             flip *= -1;
         }
 
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         drawThickPolygon(g, rectPointsX, rectPointsY, 4);
 
         setBbox(posts[0].x, posts[0].y, posts[3].x, posts[3].y);

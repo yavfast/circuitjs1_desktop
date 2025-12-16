@@ -103,7 +103,7 @@ public class FMElm extends CircuitElm {
 
         Font f = new Font("SansSerif", 0, 12);
         g.setFont(f);
-        g.setColor(needsHighlight() ? selectColor : foregroundColor());
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
         double v = getVoltage();
         String s = "FM";
@@ -116,7 +116,7 @@ public class FMElm extends CircuitElm {
     }
 
     void drawWaveform(Graphics g, Point center) {
-        g.setColor(needsHighlight() ? selectColor : Color.gray);
+        g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
         int xc = center.x;
         int yc = center.y;

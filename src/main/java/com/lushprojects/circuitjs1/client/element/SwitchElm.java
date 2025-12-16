@@ -123,7 +123,7 @@ public class SwitchElm extends CircuitElm {
         drawThickLine(g, ps, ps2);
 
         if (label != null) {
-            g.setColor(needsHighlight() ? selectColor : foregroundColor());
+            g.setColor(needsHighlight() ? selectColor() : foregroundColor());
             if (Math.abs(dy) > Math.abs(dx))
                 g.drawString(label, x + 10, (y < y2 ? lead1 : lead2).y - 5);
             else {

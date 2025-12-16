@@ -169,7 +169,7 @@ public class AmmeterElm extends CircuitElm {
             drawThickLine(graphics, point1, point2);
             graphics.fillPolygon(arrowPoly);
         } else {
-            graphics.setColor(needsHighlight() ? selectColor : elementColor);
+            graphics.setColor(needsHighlight() ? selectColor() : elementColor());
             drawThickCircle(graphics, center.x, center.y, circleSize);
             drawCenteredText(graphics, "A", center.x, center.y, true);
 

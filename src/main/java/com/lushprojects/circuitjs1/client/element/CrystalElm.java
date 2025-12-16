@@ -107,8 +107,9 @@ public class CrystalElm extends CompositeElm {
         drawThickLine(g, point1, lead1);
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
-        if (displaySettings().showPower())
-            g.setColor(Color.gray);
+        if (displaySettings().showPower()) {
+            g.setColor(neutralColor());
+        }
 
         // draw second lead and plate
         setVoltageColor(g, volts[1]);

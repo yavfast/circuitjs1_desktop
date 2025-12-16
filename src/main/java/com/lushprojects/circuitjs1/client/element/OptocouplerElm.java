@@ -61,7 +61,7 @@ public class OptocouplerElm extends CompositeElm {
     }
 
     public void draw(Graphics g) {
-        g.setColor(needsHighlight() ? selectColor : elementColor);
+        g.setColor(needsHighlight() ? selectColor() : elementColor());
         drawThickPolygon(g, rectPointsX, rectPointsY, 4);
 
         // draw stubs
