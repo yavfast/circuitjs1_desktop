@@ -42,6 +42,11 @@ public class ResistorElm extends CircuitElm {
         resistance = parseDouble(st.nextToken());
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "R";
+    }
+
     int getDumpType() {
         return 'r';
     }

@@ -81,6 +81,11 @@ public class MosfetElm extends CircuitElm {
         allocNodes(); // make sure volts[] has the right number of elements when hasBodyTerminal() is true
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "M";
+    }
+
     // set up body diodes
     void setupDiodes() {
         // diode from node 1 to body terminal

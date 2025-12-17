@@ -207,36 +207,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      */
     protected String getIdPrefix() {
         String typeName = getJsonTypeName();
-        switch (typeName) {
-            case "Resistor": return "R";
-            case "Capacitor": return "C";
-            case "Inductor": return "L";
-            case "TransistorNPN":
-            case "TransistorPNP": return "Q";
-            case "Mosfet":
-            case "MosfetN":
-            case "MosfetP": return "M";
-            case "Diode": return "D";
-            case "LED": return "LED";
-            case "Zener": return "Z";
-            case "Wire": return "W";
-            case "Ground": return "GND";
-            case "VoltageSource":
-            case "DCVoltage":
-            case "Rail": return "V";
-            case "CurrentSource": return "I";
-            case "OpAmp": return "U";
-            case "Switch":
-            case "Switch2": return "SW";
-            case "Potentiometer": return "POT";
-            case "Transformer": return "T";
-            case "Relay": return "K";
-            default: 
-                // Use first 2-3 chars of type name
-                return typeName.length() > 3 
-                    ? typeName.substring(0, 3).toUpperCase() 
-                    : typeName.toUpperCase();
-        }
+        // Use first 2-3 chars of type name
+        return typeName.length() > 3 
+            ? typeName.substring(0, 3).toUpperCase() 
+            : typeName.toUpperCase();
     }
     
     // initial point where user created element. For simple two-terminal elements,

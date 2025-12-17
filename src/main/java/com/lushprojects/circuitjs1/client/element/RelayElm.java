@@ -122,6 +122,11 @@ public class RelayElm extends CircuitElm {
         allocNodes();
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "K";
+    }
+
     void setupPoles() {
         nCoil1 = 3 * poleCount;
         nCoil2 = nCoil1 + 1;

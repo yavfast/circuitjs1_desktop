@@ -229,6 +229,11 @@ public class JfetElm extends MosfetElm {
     }
 
     @Override
+    protected String getIdPrefix() {
+        return "M";
+    }
+
+    @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = new java.util.LinkedHashMap<>();
         props.put("threshold_voltage", getUnitText(Math.abs(vt), "V"));

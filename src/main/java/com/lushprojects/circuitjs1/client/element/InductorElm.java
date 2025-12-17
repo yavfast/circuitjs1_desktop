@@ -50,6 +50,11 @@ public class InductorElm extends CircuitElm {
         ind.setup(inductance, current, flags);
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "L";
+    }
+
     int getDumpType() {
         return 'l';
     }

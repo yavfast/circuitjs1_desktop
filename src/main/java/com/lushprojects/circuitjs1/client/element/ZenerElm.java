@@ -51,6 +51,11 @@ public class ZenerElm extends DiodeElm {
         setup();
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "Z";
+    }
+
     int getDumpType() {
         return 'z';
     }

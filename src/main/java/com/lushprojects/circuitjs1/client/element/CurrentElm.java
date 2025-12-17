@@ -46,6 +46,11 @@ public class CurrentElm extends CircuitElm {
         }
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "I";
+    }
+
     public String dump() {
         return dumpValues(super.dump(), currentValue);
     }

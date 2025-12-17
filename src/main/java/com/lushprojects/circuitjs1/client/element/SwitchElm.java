@@ -70,6 +70,11 @@ public class SwitchElm extends CircuitElm {
             label = unescape(st.nextToken());
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "SW";
+    }
+
     int getDumpType() {
         return 's';
     }

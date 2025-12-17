@@ -36,6 +36,11 @@ public class WireElm extends CircuitElm {
         super(circuitDocument, xa, ya, xb, yb, f);
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "W";
+    }
+
     static final int FLAG_SHOWCURRENT = 1;
     static final int FLAG_SHOWVOLTAGE = 2;
 

@@ -74,6 +74,11 @@ public class OpAmpElm extends CircuitElm {
         setGain();
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "U";
+    }
+
     void setGain() {
         if ((flags & FLAG_GAIN) != 0)
             return;

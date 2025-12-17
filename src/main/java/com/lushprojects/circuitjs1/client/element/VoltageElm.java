@@ -86,6 +86,11 @@ public class VoltageElm extends CircuitElm {
         reset();
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "V";
+    }
+
     int getDumpType() {
         return 'v';
     }

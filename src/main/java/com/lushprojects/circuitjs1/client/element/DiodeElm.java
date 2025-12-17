@@ -76,6 +76,11 @@ public class DiodeElm extends CircuitElm {
         setup();
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "D";
+    }
+
     public boolean nonLinear() {
         return true;
     }

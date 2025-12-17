@@ -50,6 +50,11 @@ public class GroundElm extends CircuitElm {
         }
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "GND";
+    }
+
     public String dump() {
         return dumpValues(super.dump(), symbolType);
     }

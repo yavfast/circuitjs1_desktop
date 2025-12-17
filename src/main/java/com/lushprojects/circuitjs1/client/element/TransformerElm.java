@@ -68,6 +68,11 @@ public class TransformerElm extends CircuitElm {
         polarity = (hasFlag(FLAG_REVERSE)) ? -1 : 1;
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "T";
+    }
+
     public void drag(int xx, int yy) {
         xx = circuitEditor().snapGrid(xx);
         yy = circuitEditor().snapGrid(yy);

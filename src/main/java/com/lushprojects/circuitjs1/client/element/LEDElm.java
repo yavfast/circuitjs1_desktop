@@ -58,6 +58,11 @@ public class LEDElm extends DiodeElm {
         maxBrightnessCurrent = parseDouble(st.nextToken(), .01);
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "LED";
+    }
+
     int getDumpType() {
         return 162;
     }

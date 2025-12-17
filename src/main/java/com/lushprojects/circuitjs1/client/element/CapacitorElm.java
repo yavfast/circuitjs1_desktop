@@ -64,6 +64,11 @@ public class CapacitorElm extends CircuitElm {
         }
     }
 
+    @Override
+    protected String getIdPrefix() {
+        return "C";
+    }
+
     boolean isTrapezoidal() {
         return (flags & FLAG_BACK_EULER) == 0;
     }
