@@ -47,6 +47,16 @@ public class TransformerElm extends CircuitElm {
         couplingCoef = .999;
         current = new double[2];
         curcount = new double[2];
+
+        // Fixed nominal size on creation (no resize while adding).
+        int grid = circuitEditor().gridSize;
+        int nominalLen = grid * 8;
+        int nominalWidth = grid * 4;
+        flags &= ~FLAG_VERTICAL;
+        width = nominalWidth;
+        x2 = x + nominalLen;
+        y2 = y + nominalWidth;
+        setPoints();
     }
 
     public TransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
@@ -56,6 +66,16 @@ public class TransformerElm extends CircuitElm {
             width = -max(32, abs(xb - xa));
         else
             width = max(32, abs(yb - ya));
+
+        // If the saved endpoints are axis-aligned (no diagonal), synthesize the
+        // diagonal corner used by resize handles from the spacing.
+        if (hasFlag(FLAG_VERTICAL)) {
+            if (x2 == x)
+                x2 = x + abs(width);
+        } else {
+            if (y2 == y)
+                y2 = y + abs(width);
+        }
 
         inductance = parseDouble(st.nextToken());
         ratio = parseDouble(st.nextToken());
@@ -73,21 +93,170 @@ public class TransformerElm extends CircuitElm {
         return "T";
     }
 
+    @Override
+    public boolean isFixedSizeOnCreate() {
+        return true;
+    }
+
+    @Override
+    int getNumHandles() {
+        return 4;
+    }
+
+    @Override
+    public Point getHandlePoint(int n) {
+        // Handles are the 4 rectangle corners. The underlying data for this element
+        // stores (x,y) and (x2,y2) as diagonal corners (used for length + spacing).
+        if (hasFlag(FLAG_VERTICAL)) {
+            switch (n) {
+                case 0:
+                    return new Point(x, y);
+                case 1:
+                    return new Point(x, y2);
+                case 2:
+                    return new Point(x2, y2);
+                case 3:
+                    return new Point(x2, y);
+                default:
+                    return super.getHandlePoint(n);
+            }
+        }
+
+        switch (n) {
+            case 0:
+                return new Point(x, y);
+            case 1:
+                return new Point(x2, y);
+            case 2:
+                return new Point(x2, y2);
+            case 3:
+                return new Point(x, y2);
+            default:
+                return super.getHandlePoint(n);
+        }
+    }
+
     public void drag(int xx, int yy) {
-        xx = circuitEditor().snapGrid(xx);
-        yy = circuitEditor().snapGrid(yy);
-        if (abs(xx - x) > abs(yy - y)) {
+        int sx = circuitEditor().snapGrid(xx);
+        int sy = circuitEditor().snapGrid(yy);
+
+        // Keep the end point diagonal:
+        // - major axis chooses orientation
+        // - minor axis controls winding spacing (width)
+        if (abs(sx - x) > abs(sy - y)) {
             flags &= ~FLAG_VERTICAL;
-        } else
+        } else {
             flags |= FLAG_VERTICAL;
+        }
+
         if (hasFlag(FLAG_VERTICAL))
-            width = -max(32, abs(xx - x));
+            width = -max(32, abs(sx - x));
         else
-            width = max(32, abs(yy - y));
-        if (xx == x)
-            yy = y;
-        x2 = xx;
-        y2 = yy;
+            width = max(32, abs(sy - y));
+
+        x2 = sx;
+        y2 = sy;
+        setPoints();
+    }
+
+    @Override
+    public void movePoint(int n, int dx, int dy) {
+        // 4-corner resizing with minimum nominal size. Do not change orientation.
+        int minLen = 32;
+        int minWidth = 32;
+
+        Point moved = getHandlePoint(n);
+        if (moved == null) {
+            return;
+        }
+
+        int opp;
+        switch (n) {
+            case 0:
+                opp = 2;
+                break;
+            case 1:
+                opp = 3;
+                break;
+            case 2:
+                opp = 0;
+                break;
+            case 3:
+                opp = 1;
+                break;
+            default:
+                super.movePoint(n, dx, dy);
+                return;
+        }
+
+        Point fixed = getHandlePoint(opp);
+        if (fixed == null) {
+            return;
+        }
+
+        int mx = circuitEditor().snapGrid(moved.x + dx);
+        int my = circuitEditor().snapGrid(moved.y + dy);
+        int fx = fixed.x;
+        int fy = fixed.y;
+
+        if (hasFlag(FLAG_VERTICAL)) {
+            // Keep rectangle ordered: x <= x2, y <= y2
+            if (n == 0 || n == 1) {
+                if (fx - mx < minWidth)
+                    mx = fx - minWidth;
+            } else {
+                if (mx - fx < minWidth)
+                    mx = fx + minWidth;
+            }
+            if (n == 0 || n == 3) {
+                if (fy - my < minLen)
+                    my = fy - minLen;
+            } else {
+                if (my - fy < minLen)
+                    my = fy + minLen;
+            }
+
+            int nx1 = (n == 0 || n == 1) ? mx : fx;
+            int nx2 = (n == 0 || n == 1) ? fx : mx;
+            int ny1 = (n == 0 || n == 3) ? my : fy;
+            int ny2 = (n == 0 || n == 3) ? fy : my;
+
+            x = nx1;
+            y = ny1;
+            x2 = nx2;
+            y2 = ny2;
+
+            width = -max(minWidth, abs(x2 - x));
+        } else {
+            // Horizontal
+            if (n == 0 || n == 3) {
+                if (fx - mx < minLen)
+                    mx = fx - minLen;
+            } else {
+                if (mx - fx < minLen)
+                    mx = fx + minLen;
+            }
+            if (n == 0 || n == 1) {
+                if (fy - my < minWidth)
+                    my = fy - minWidth;
+            } else {
+                if (my - fy < minWidth)
+                    my = fy + minWidth;
+            }
+
+            int nx1 = (n == 0 || n == 3) ? mx : fx;
+            int nx2 = (n == 0 || n == 3) ? fx : mx;
+            int ny1 = (n == 0 || n == 1) ? my : fy;
+            int ny2 = (n == 0 || n == 1) ? fy : my;
+
+            x = nx1;
+            y = ny1;
+            x2 = nx2;
+            y2 = ny2;
+
+            width = max(minWidth, abs(y2 - y));
+        }
+
         setPoints();
     }
 
@@ -176,14 +345,24 @@ public class TransformerElm extends CircuitElm {
 
         drawPosts(g);
         setBbox(ptEnds[0], ptEnds[polarity == 1 ? 3 : 1], 0);
+        adjustBbox(new Point(x, y), new Point(x2, y2));
     }
 
     public void setPoints() {
         super.setPoints();
+        // Keep the resize handle diagonal (x2/y2) but constrain the rendered axis.
         if (hasFlag(FLAG_VERTICAL))
             point2.x = point1.x;
         else
             point2.y = point1.y;
+        dx = point2.x - point1.x;
+        dy = point2.y - point1.y;
+        dn = Math.sqrt(dx * dx + dy * dy);
+        if (dn < 1)
+            dn = 1;
+        dpx1 = dy / dn;
+        dpy1 = -dx / dn;
+        dsign = (dy == 0) ? sign(dx) : sign(dy);
         ptEnds = newPointArray(4);
         ptCoil = newPointArray(4);
         ptCore = newPointArray(4);

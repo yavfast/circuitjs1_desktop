@@ -190,7 +190,11 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
         boolean changed = false;
         if (dragElm != null) {
-            dragElm.drag(gridX, gridY);
+            if (tempMouseMode == MouseMode.ADD_ELM && dragElm.isFixedSizeOnCreate()) {
+                dragElm.dragFixedSize(snapGrid(gridX), snapGrid(gridY));
+            } else {
+                dragElm.drag(gridX, gridY);
+            }
         }
 
         boolean success = true;
@@ -369,8 +373,13 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
 
     void dragPost(int x, int y, boolean all) {
         if (draggingPost == -1) {
-            draggingPost = (Graphics.distanceSq(mouseElm.x, mouseElm.y, x, y) > Graphics.distanceSq(mouseElm.x2,
-                    mouseElm.y2, x, y)) ? 1 : 0;
+            // Prefer the handle index we actually grabbed (supports >2 handles).
+            draggingPost = mouseElm.getHandleGrabbedClose(dragGridX, dragGridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE);
+            if (draggingPost < 0) {
+                // Fallback to legacy endpoint heuristic.
+                draggingPost = (Graphics.distanceSq(mouseElm.x, mouseElm.y, x, y) > Graphics.distanceSq(mouseElm.x2,
+                        mouseElm.y2, x, y)) ? 1 : 0;
+            }
         }
         int deltaX = x - dragGridX;
         int deltaY = y - dragGridY;

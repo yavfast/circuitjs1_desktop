@@ -37,7 +37,6 @@ import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.MouseMode;
-import com.lushprojects.circuitjs1.client.OptionsManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
 import com.lushprojects.circuitjs1.client.Rectangle;
@@ -773,33 +772,95 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
     }
 
+    /**
+     * Number of resize handles drawn for this element.
+     *
+     * Most elements have up to 2 handles (endpoints). Elements with 0 or 1 posts
+     * default to 0/1 handles respectively. Elements can override this to expose
+     * more handles (e.g., 4-corner resizing).
+     */
     int getNumHandles() {
-        return getPostCount();
+        int pc = getPostCount();
+        if (pc <= 1) {
+            return pc;
+        }
+        return 2;
+    }
+
+    /**
+     * Handle location for the given handle index.
+     */
+    public Point getHandlePoint(int n) {
+        if (n == 0) {
+            return new Point(x, y);
+        }
+        if (n == 1) {
+            return new Point(x2, y2);
+        }
+        return new Point(x2, y2);
+    }
+
+    /**
+     * If true, the element should be created at a nominal size and must not be
+     * resized by dragging during creation.
+     */
+    public boolean isFixedSizeOnCreate() {
+        return false;
+    }
+
+    /**
+     * Called while creating an element when {@link #isFixedSizeOnCreate()} is true.
+     * Default behavior is to translate the element so its first point follows the cursor.
+     */
+    public void dragFixedSize(int gridX, int gridY) {
+        int deltaX = gridX - x;
+        int deltaY = gridY - y;
+        x += deltaX;
+        y += deltaY;
+        x2 += deltaX;
+        y2 += deltaY;
+        setPoints();
     }
 
     public void drawHandles(Graphics g, Color c) {
         g.setColor(c);
-        if (lastHandleGrabbed == -1) {
-            g.fillRect(x - 3, y - 3, 7, 7);
-        } else if (lastHandleGrabbed == 0) {
-            g.fillRect(x - 4, y - 4, 9, 9);
-        }
-        if (getNumHandles() > 1) {
+        int hc = getNumHandles();
+        for (int i = 0; i < hc; i++) {
+            Point p = getHandlePoint(i);
+            if (p == null) {
+                continue;
+            }
             if (lastHandleGrabbed == -1) {
-                g.fillRect(x2 - 3, y2 - 3, 7, 7);
-            } else if (lastHandleGrabbed == 1) {
-                g.fillRect(x2 - 4, y2 - 4, 9, 9);
+                g.fillRect(p.x - 3, p.y - 3, 7, 7);
+            } else if (lastHandleGrabbed == i) {
+                g.fillRect(p.x - 4, p.y - 4, 9, 9);
+            } else {
+                g.fillRect(p.x - 3, p.y - 3, 7, 7);
             }
         }
     }
 
     public int getHandleGrabbedClose(int xtest, int ytest, int deltaSq, int minSize) {
         lastHandleGrabbed = -1;
-        if (Graphics.distanceSq(x, y, x2, y2) >= minSize) {
-            if (Graphics.distanceSq(x, y, xtest, ytest) <= deltaSq) {
-                lastHandleGrabbed = 0;
-            } else if (getNumHandles() > 1 && Graphics.distanceSq(x2, y2, xtest, ytest) <= deltaSq) {
-                lastHandleGrabbed = 1;
+        int hc = getNumHandles();
+        if (hc <= 0) {
+            return -1;
+        }
+
+        // Avoid grabbing handles on elements that are effectively too small.
+        if (hc >= 2) {
+            Point p0 = getHandlePoint(0);
+            Point p1 = (hc > 2) ? getHandlePoint(2) : getHandlePoint(1);
+            if (p0 != null && p1 != null && Graphics.distanceSq(p0.x, p0.y, p1.x, p1.y) < minSize) {
+                return -1;
+            }
+        }
+
+        for (int i = 0; i < hc; i++) {
+            Point p = getHandlePoint(i);
+            if (p != null && Graphics.distanceSq(p.x, p.y, xtest, ytest) <= deltaSq) {
+                lastHandleGrabbed = i;
+                break;
             }
         }
         return lastHandleGrabbed;
