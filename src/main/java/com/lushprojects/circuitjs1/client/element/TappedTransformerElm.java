@@ -88,6 +88,58 @@ public class TappedTransformerElm extends CircuitElm {
             drawCoil(g, i > 1 ? -6 * flip : 6 * flip,
                     ptCoil[i], ptCoil[i + 1], volts[i], volts[i + 1]);
         }
+
+        // winding labels (turns)
+        g.save();
+        g.setFont(unitsFont());
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        double coreCx = 0, coreCy = 0;
+        for (i = 0; i != 4; i++) {
+            coreCx += ptCore[i].x;
+            coreCy += ptCore[i].y;
+        }
+        coreCx /= 4;
+        coreCy /= 4;
+        double halfSecondaryTurns = Math.abs(ratio) / 2.0;
+        for (i = 0; i != 4; i++) {
+            if (i == 1)
+                continue;
+            String label;
+            if (i == 0)
+                label = "1T";
+            else
+                label = shortFormat(halfSecondaryTurns) + "T";
+            Point a = ptCoil[i];
+            Point b = ptCoil[i + 1];
+            double mx = (a.x + b.x) / 2.0;
+            double my = (a.y + b.y) / 2.0;
+            double dxl = b.x - a.x;
+            double dyl = b.y - a.y;
+            double len = Math.sqrt(dxl * dxl + dyl * dyl);
+            if (len < 1) {
+                dxl = 1;
+                dyl = 0;
+                len = 1;
+            }
+
+            // unit perpendicular to coil segment
+            double px = -dyl / len;
+            double py = dxl / len;
+
+            // choose side that points away from the core center
+            double toCoreX = coreCx - mx;
+            double toCoreY = coreCy - my;
+            if (px * toCoreX + py * toCoreY > 0) {
+                px = -px;
+                py = -py;
+            }
+
+            int lx = (int) Math.round(mx + px * 12);
+            int ly = (int) Math.round(my + py * 12);
+            drawCenteredText(g, label, lx, ly, true);
+        }
+        g.restore();
+
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         for (i = 0; i != 4; i += 2) {
             drawThickLine(g, ptCore[i], ptCore[i + 1]);

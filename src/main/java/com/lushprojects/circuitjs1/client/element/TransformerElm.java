@@ -116,6 +116,51 @@ public class TransformerElm extends CircuitElm {
                 csign *= -1;
             drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], volts[i], volts[i + 2]);
         }
+
+        // winding labels (turns)
+        g.save();
+        g.setFont(unitsFont());
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        double coreCx = 0, coreCy = 0;
+        for (i = 0; i != 4; i++) {
+            coreCx += ptCore[i].x;
+            coreCy += ptCore[i].y;
+        }
+        coreCx /= 4;
+        coreCy /= 4;
+        String[] turnsLabels = new String[] {"1T", shortFormat(Math.abs(ratio)) + "T"};
+        for (i = 0; i != 2; i++) {
+            Point a = ptCoil[i];
+            Point b = ptCoil[i + 2];
+            double mx = (a.x + b.x) / 2.0;
+            double my = (a.y + b.y) / 2.0;
+            double dxl = b.x - a.x;
+            double dyl = b.y - a.y;
+            double len = Math.sqrt(dxl * dxl + dyl * dyl);
+            if (len < 1) {
+                dxl = 1;
+                dyl = 0;
+                len = 1;
+            }
+
+            // unit perpendicular to coil segment
+            double px = -dyl / len;
+            double py = dxl / len;
+
+            // choose side that points away from the core center
+            double toCoreX = coreCx - mx;
+            double toCoreY = coreCy - my;
+            if (px * toCoreX + py * toCoreY > 0) {
+                px = -px;
+                py = -py;
+            }
+
+            int lx = (int) Math.round(mx + px * 12);
+            int ly = (int) Math.round(my + py * 12);
+            drawCenteredText(g, turnsLabels[i], lx, ly, true);
+        }
+        g.restore();
+
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         for (i = 0; i != 2; i++) {
             drawThickLine(g, ptCore[i], ptCore[i + 2]);
