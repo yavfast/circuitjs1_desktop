@@ -36,7 +36,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
         Lr = .0297;
         Lm = .0287;
         J = 1;
-        angle = pi / 2;
+        angle = PI / 2;
         speed = filteredSpeed = 0;
         b = 0.05;
         voltSources = new int[2];
@@ -46,7 +46,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     public ThreePhaseMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        angle = pi / 2;
+        angle = PI / 2;
         filteredSpeed = speed = 0;
         Rs = parseDouble(st.nextToken());
         Rr = parseDouble(st.nextToken());
@@ -313,13 +313,13 @@ public class ThreePhaseMotorElm extends CircuitElm {
         interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio), -q * Math.sin(angleAux * gearRatio));
 
         drawThickerLine(g, ps1, ps2);
-        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + pi / 3), q * Math.sin(angleAux * gearRatio + pi / 3));
-        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + pi / 3), -q * Math.sin(angleAux * gearRatio + pi / 3));
+        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + PI / 3), q * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + PI / 3), -q * Math.sin(angleAux * gearRatio + PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
-        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + 2 * pi / 3), q * Math.sin(angleAux * gearRatio + 2 * pi / 3));
-        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + 2 * pi / 3), -q * Math.sin(angleAux * gearRatio + 2 * pi / 3));
+        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + 2 * PI / 3), q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + 2 * PI / 3), -q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 

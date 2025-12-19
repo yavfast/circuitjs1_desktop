@@ -24,7 +24,6 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 // contributed by Edward Calver
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -88,9 +87,9 @@ public class FMElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         double deltaT = simulator().t - lasttime;
         lasttime = simulator().t;
-        double signalamplitude = Math.sin((2 * pi * (simulator().t - freqTimeZero)) * signalfreq);
+        double signalamplitude = Math.sin((2 * PI * (simulator().t - freqTimeZero)) * signalfreq);
         funcx += deltaT * (carrierfreq + (signalamplitude * deviation));
-        double w = 2 * pi * funcx;
+        double w = 2 * PI * funcx;
         return Math.sin(w) * maxVoltage;
     }
 

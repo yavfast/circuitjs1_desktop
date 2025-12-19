@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -96,7 +95,7 @@ public class SweepElm extends CircuitElm {
         g.beginPath();
         g.setLineWidth(3.0);
         for (i = -xl; i <= xl; i++) {
-            int yy = yc + (int) (.95 * Math.sin(i * pi * w / xl) * wl);
+            int yy = yc + (int) (.95 * Math.sin(i * PI * w / xl) * wl);
             if (i == -xl)
                 g.moveTo(xc + i, yy);
             else
@@ -154,7 +153,7 @@ public class SweepElm extends CircuitElm {
         if (simulator().timeStep != savedTimeStep)
             setParams();
         v = Math.sin(freqTime) * maxV;
-        freqTime += frequency * 2 * pi * simulator().timeStep;
+        freqTime += frequency * 2 * PI * simulator().timeStep;
         frequency = frequency * fmul + fadd;
         if (frequency >= maxF && dir == 1) {
             if ((flags & FLAG_BIDIR) != 0) {

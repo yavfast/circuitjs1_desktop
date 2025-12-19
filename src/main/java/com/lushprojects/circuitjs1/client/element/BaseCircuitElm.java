@@ -9,9 +9,11 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class BaseCircuitElm {
 
+    static final double PI = Math.PI;
+    static final double PI_2 = Math.PI * 2.0;
+
     static final int CURRENT_TOO_FAST = 100;
     static final double THICK_LINE_WIDTH = 2.0;
-    static final double pi = Math.PI;
 
     static final int SCALE_AUTO = 0;
     static final int SCALE_1 = 1;

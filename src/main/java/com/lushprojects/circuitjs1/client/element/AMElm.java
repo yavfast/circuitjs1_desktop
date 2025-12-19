@@ -23,7 +23,6 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 // contributed by Edward Calver
 
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -84,7 +83,7 @@ public class AMElm extends CircuitElm {
     }
 
     double getVoltage() {
-        double w = 2 * pi * (simulator().t - freqTimeZero);
+        double w = 2 * PI * (simulator().t - freqTimeZero);
         return ((Math.sin(w * signalfreq) + 1) / 2) * Math.sin(w * carrierfreq) * maxVoltage;
     }
 

@@ -53,7 +53,7 @@ public class RailElm extends VoltageElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - circleSize / dn);
+        lead1 = interpPoint(point1, point2, 1 - CIRCLE_SIZE / dn);
     }
 
     String getRailText() {
@@ -62,11 +62,11 @@ public class RailElm extends VoltageElm {
 
     public void draw(Graphics g) {
         String rt = getRailText();
-        double w = rt == null ? circleSize : g.measureWidth(rt) / 2;
+        double w = rt == null ? CIRCLE_SIZE : g.measureWidth(rt) / 2;
         if (w > dn * .8)
             w = dn * .8;
         lead1 = interpPoint(point1, point2, 1 - w / dn);
-        setBbox(point1, point2, circleSize);
+        setBbox(point1, point2, CIRCLE_SIZE);
         setVoltageColor(g, volts[0]);
         drawThickLine(g, point1, lead1);
         drawRail(g);

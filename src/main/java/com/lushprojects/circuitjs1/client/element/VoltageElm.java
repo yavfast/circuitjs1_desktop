@@ -23,7 +23,6 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.Choice;
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.RandomUtils;
@@ -31,10 +30,11 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
+import java.util.Map;
+
 public class VoltageElm extends CircuitElm {
     static final int FLAG_COS = 2;
     static final int FLAG_PULSE_DUTY = 4;
-    int waveform;
     static final int WF_DC = 0;
     static final int WF_AC = 1;
     static final int WF_SQUARE = 2;
@@ -43,10 +43,18 @@ public class VoltageElm extends CircuitElm {
     static final int WF_PULSE = 5;
     static final int WF_NOISE = 6;
     static final int WF_VAR = 7;
-    double frequency, maxVoltage, freqTimeZero, bias,
-            phaseShift, dutyCycle, noiseValue;
 
-    static final double defaultPulseDuty = 1 / (2 * Math.PI);
+    int waveform;
+
+    double frequency;
+    double maxVoltage;
+    double freqTimeZero;
+    double bias;
+    double phaseShift;
+    double dutyCycle;
+    double noiseValue;
+
+    static final double defaultPulseDuty = 1 / PI_2;
 
     VoltageElm(CircuitDocument circuitDocument, int xx, int yy, int wf) {
         super(circuitDocument, xx, yy);
@@ -75,7 +83,7 @@ public class VoltageElm extends CircuitElm {
         }
         if ((flags & FLAG_COS) != 0) {
             flags &= ~FLAG_COS;
-            phaseShift = pi / 2;
+            phaseShift = PI / 2;
         }
 
         // old circuit files have the wrong duty cycle for pulse waveforms (wasn't configurable in the past)
@@ -97,10 +105,11 @@ public class VoltageElm extends CircuitElm {
 
     public String dump() {
         // set flag so we know if duty cycle is correct for pulse waveforms
-        if (waveform == WF_PULSE)
+        if (waveform == WF_PULSE) {
             flags |= FLAG_PULSE_DUTY;
-        else
+        } else {
             flags &= ~FLAG_PULSE_DUTY;
+        }
 
         return dumpValues(getDumpType(), x, y, x2, y2, flags, waveform, frequency, maxVoltage, bias, phaseShift, dutyCycle);
         // VarRailElm adds text at the end
@@ -111,10 +120,11 @@ public class VoltageElm extends CircuitElm {
         curcount = 0;
     }
 
-    double triangleFunc(double x) {
-        if (x < pi)
-            return x * (2 / pi) - 1;
-        return 1 - (x - pi) * (2 / pi);
+    static double triangleFunc(double x) {
+        if (x < PI) {
+            return x * (2.0 / PI) - 1.0;
+        }
+        return 1.0 - (x - PI) * (2.0 / PI);
     }
 
     int getVoltageSource() {
@@ -122,43 +132,43 @@ public class VoltageElm extends CircuitElm {
     }
 
     public void stamp() {
-        if (waveform == WF_DC)
-            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource,
-                    getVoltage());
-        else
+        if (waveform == WF_DC) {
+            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource, getVoltage());
+        } else {
             simulator().stampVoltageSource(nodes[0], nodes[1], voltSource);
+        }
     }
 
     public void doStep() {
-        if (waveform != WF_DC)
-            simulator().updateVoltageSource(nodes[0], nodes[1], voltSource,
-                    getVoltage());
+        if (waveform != WF_DC) {
+            simulator().updateVoltageSource(nodes[0], nodes[1], voltSource, getVoltage());
+        }
     }
 
     public void stepFinished() {
-        if (waveform == WF_NOISE)
+        if (waveform == WF_NOISE) {
             noiseValue = (RandomUtils.getRandom().nextDouble() * 2 - 1) * maxVoltage + bias;
+        }
     }
 
     double getVoltage() {
-        if (waveform != WF_DC && circuitDocument.circuitInfo.dcAnalysisFlag)
+        if (waveform != WF_DC && circuitDocument.circuitInfo.dcAnalysisFlag) {
             return bias;
+        }
 
-        double w = 2 * pi * (simulator().t - freqTimeZero) * frequency + phaseShift;
         switch (waveform) {
             case WF_DC:
                 return maxVoltage + bias;
             case WF_AC:
-                return Math.sin(w) * maxVoltage + bias;
+                return Math.sin(w()) * maxVoltage + bias;
             case WF_SQUARE:
-                return bias + ((w % (2 * pi) > (2 * pi * dutyCycle)) ?
-                        -maxVoltage : maxVoltage);
+                return bias + ((w() % PI_2 > (PI_2 * dutyCycle)) ? -maxVoltage : maxVoltage);
             case WF_TRIANGLE:
-                return bias + triangleFunc(w % (2 * pi)) * maxVoltage;
+                return bias + triangleFunc(w() % PI_2) * maxVoltage;
             case WF_SAWTOOTH:
-                return bias + (w % (2 * pi)) * (maxVoltage / pi) - maxVoltage;
+                return bias + (w() % PI_2) * (maxVoltage / PI) - maxVoltage;
             case WF_PULSE:
-                return ((w % (2 * pi)) < (2 * pi * dutyCycle)) ? maxVoltage + bias : bias;
+                return ((w() % PI_2) < (PI_2 * dutyCycle)) ? maxVoltage + bias : bias;
             case WF_NOISE:
                 return noiseValue;
             default:
@@ -166,11 +176,15 @@ public class VoltageElm extends CircuitElm {
         }
     }
 
-    final int circleSize = 17;
+    protected double w() {
+        return PI_2 * (simulator().t - freqTimeZero) * frequency + phaseShift;
+    }
+
+    static final int CIRCLE_SIZE = 17;
 
     public void setPoints() {
         super.setPoints();
-        calcLeads((waveform == WF_DC || waveform == WF_VAR) ? 8 : circleSize * 2);
+        calcLeads((waveform == WF_DC || waveform == WF_VAR) ? 8 : CIRCLE_SIZE * 2);
     }
 
     public void draw(Graphics g) {
@@ -192,27 +206,27 @@ public class VoltageElm extends CircuitElm {
                 drawValues(g, s, hs);
             }
         } else {
-            setBbox(point1, point2, circleSize);
+            setBbox(point1, point2, CIRCLE_SIZE);
             interpPoint(lead1, lead2, ps1, .5);
             drawWaveform(g, ps1);
             String inds;
-            if (bias > 0 || (bias == 0 && waveform == WF_PULSE))
+            if (bias > 0 || (bias == 0 && waveform == WF_PULSE)) {
                 inds = "+";
-            else
+            } else {
                 inds = "*";
+            }
             g.setColor(foregroundColor());
             g.setFont(unitsFont());
-            Point plusPoint = interpPoint(point1, point2, (dn / 2 + circleSize + 4) / dn, 10 * dsign);
+            Point plusPoint = interpPoint(point1, point2, (dn / 2 + CIRCLE_SIZE + 4) / dn, 10 * dsign);
             plusPoint.y += 4;
             int w = (int) g.measureWidth(inds);
-            ;
             g.drawString(inds, plusPoint.x - w / 2, plusPoint.y);
         }
         updateDotCount();
         if (circuitEditor().dragElm != this) {
-            if (waveform == WF_DC)
+            if (waveform == WF_DC) {
                 drawDots(g, point1, point2, curcount);
-            else {
+            } else {
                 drawDots(g, point1, lead1, curcount);
                 drawDots(g, point2, lead2, -curcount);
             }
@@ -225,16 +239,16 @@ public class VoltageElm extends CircuitElm {
         setPowerColor(g, false);
         int xc = center.x;
         int yc = center.y;
-        if (waveform != WF_NOISE)
-            drawThickCircle(g, xc, yc, circleSize);
+        if (waveform != WF_NOISE) {
+            drawThickCircle(g, xc, yc, CIRCLE_SIZE);
+        }
         int wl = 8;
-        adjustBbox(xc - circleSize, yc - circleSize,
-                xc + circleSize, yc + circleSize);
+        adjustBbox(xc - CIRCLE_SIZE, yc - CIRCLE_SIZE,
+                xc + CIRCLE_SIZE, yc + CIRCLE_SIZE);
         int xc2;
         switch (waveform) {
-            case WF_DC: {
+            case WF_DC:
                 break;
-            }
             case WF_SQUARE:
                 xc2 = (int) (wl * 2 * dutyCycle - wl + xc);
                 xc2 = max(xc - wl + 3, min(xc + wl - 3, xc2));
@@ -277,11 +291,12 @@ public class VoltageElm extends CircuitElm {
                 g.setLineWidth(3.0);
 
                 for (i = -xl; i <= xl; i++) {
-                    int yy = yc + (int) (.95 * Math.sin(i * pi / xl) * wl);
-                    if (i == -xl)
+                    int yy = yc + (int) (.95 * Math.sin(i * PI / xl) * wl);
+                    if (i == -xl) {
                         g.moveTo(xc + i, yy);
-                    else
+                    } else {
                         g.lineTo(xc + i, yy);
+                    }
                 }
                 g.stroke();
                 g.setLineWidth(1.0);
@@ -290,8 +305,9 @@ public class VoltageElm extends CircuitElm {
         }
         if (displaySettings().showValues() && waveform != WF_NOISE) {
             String s = getShortUnitText(frequency, "Hz");
-            if (dx == 0 || dy == 0)
-                drawValues(g, s, circleSize);
+            if (dx == 0 || dy == 0) {
+                drawValues(g, s, CIRCLE_SIZE);
+            }
         }
     }
 
@@ -307,7 +323,7 @@ public class VoltageElm extends CircuitElm {
         return volts[1] - volts[0];
     }
 
-    public void getInfo(String arr[]) {
+    public void getInfo(String[] arr) {
         switch (waveform) {
             case WF_DC:
             case WF_VAR:
@@ -333,29 +349,31 @@ public class VoltageElm extends CircuitElm {
                 break;
         }
         arr[1] = "I = " + getCurrentText(getCurrent());
-        arr[2] = ((this instanceof RailElm) ? "V = " : "Vd = ") +
-                getVoltageText(getVoltageDiff());
+        arr[2] = ((this instanceof RailElm) ? "V = " : "Vd = ") + getVoltageText(getVoltageDiff());
         int i = 3;
         if (waveform != WF_DC && waveform != WF_VAR && waveform != WF_NOISE) {
             arr[i++] = "f = " + getUnitText(frequency, "Hz");
             arr[i++] = "Vmax = " + getVoltageText(maxVoltage);
-            if (waveform == WF_AC && bias == 0)
+            if (waveform == WF_AC && bias == 0) {
                 arr[i++] = "V(rms) = " + getVoltageText(maxVoltage / 1.41421356);
-            if (bias != 0)
+            }
+            if (bias != 0) {
                 arr[i++] = "Voff = " + getVoltageText(bias);
-            else if (frequency > 500)
-                arr[i++] = "wavelength = " +
-                        getUnitText(2.9979e8 / frequency, "m");
+            } else if (frequency > 500) {
+                arr[i++] = "wavelength = " + getUnitText(2.9979e8 / frequency, "m");
+            }
         }
-        if (waveform == WF_DC && current != 0 && circuitDocument.circuitInfo.showResistanceInVoltageSources)
+        if (waveform == WF_DC && current != 0 && circuitDocument.circuitInfo.showResistanceInVoltageSources) {
             arr[i++] = "(R = " + getUnitText(maxVoltage / current, Locale.ohmString) + ")";
+        }
         arr[i++] = "P = " + getUnitText(getPower(), "W");
     }
 
     public EditInfo getEditInfo(int n) {
-        if (n == 0)
+        if (n == 0) {
             return new EditInfo(waveform == WF_DC ? "Voltage" :
                     "Max Voltage", maxVoltage, -20, 20, "V");
+        }
         if (n == 1) {
             EditInfo ei = new EditInfo("Waveform", waveform, -1, -1);
             ei.choice = new Choice();
@@ -369,26 +387,31 @@ public class VoltageElm extends CircuitElm {
             ei.choice.select(waveform);
             return ei;
         }
-        if (n == 2)
+        if (n == 2) {
             return new EditInfo("DC Offset (V)", bias, -20, 20, "V");
-        if (waveform == WF_DC || waveform == WF_NOISE)
+        }
+        if (waveform == WF_DC || waveform == WF_NOISE) {
             return null;
-        if (n == 3)
+        }
+        if (n == 3) {
             return new EditInfo("Frequency (Hz)", frequency, 4, 500, "Hz");
-        if (n == 4)
-            return new EditInfo("Phase Offset (degrees)", phaseShift * 180 / pi,
-                    -180, 180).setDimensionless();
-        if (n == 5 && (waveform == WF_PULSE || waveform == WF_SQUARE))
-            return new EditInfo("Duty Cycle", dutyCycle * 100, 0, 100).
-                    setDimensionless();
+        }
+        if (n == 4) {
+            return new EditInfo("Phase Offset (degrees)", phaseShift * 180 / PI, -180, 180).setDimensionless();
+        }
+        if (n == 5 && (waveform == WF_PULSE || waveform == WF_SQUARE)) {
+            return new EditInfo("Duty Cycle", dutyCycle * 100, 0, 100).setDimensionless();
+        }
         return null;
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        if (n == 0)
+        if (n == 0) {
             maxVoltage = ei.value;
-        if (n == 2)
+        }
+        if (n == 2) {
             bias = ei.value;
+        }
         if (n == 3) {
             // adjust time zero to maintain continuity ind the waveform
             // even though the frequency has changed.
@@ -396,10 +419,11 @@ public class VoltageElm extends CircuitElm {
             frequency = ei.value;
             double maxfreq = 1 / (8 * simulator().maxTimeStep);
             if (frequency > maxfreq) {
-                if (Window.confirm(Locale.LS("Adjust timestep to allow for higher frequencies?")))
+                if (Window.confirm(Locale.LS("Adjust timestep to allow for higher frequencies?"))) {
                     simulator().maxTimeStep = 1 / (32 * frequency);
-                else
+                } else {
                     frequency = maxfreq;
+                }
             }
             double adj = frequency - oldfreq;
             freqTimeZero = (frequency == 0) ? 0 : simulator().t - oldfreq * (simulator().t - freqTimeZero) / frequency;
@@ -410,21 +434,25 @@ public class VoltageElm extends CircuitElm {
             if (waveform == WF_DC && ow != WF_DC) {
                 ei.newDialog = true;
                 bias = 0;
-            } else if (waveform != ow)
+            } else if (waveform != ow) {
                 ei.newDialog = true;
+            }
 
             // change duty cycle if we're changing to or from pulse
-            if (waveform == WF_PULSE && ow != WF_PULSE)
+            if (waveform == WF_PULSE && ow != WF_PULSE) {
                 dutyCycle = defaultPulseDuty;
-            else if (ow == WF_PULSE && waveform != WF_PULSE)
+            } else if (ow == WF_PULSE && waveform != WF_PULSE) {
                 dutyCycle = .5;
+            }
 
             setPoints();
         }
-        if (n == 4)
-            phaseShift = ei.value * pi / 180;
-        if (n == 5)
+        if (n == 4) {
+            phaseShift = ei.value * PI / 180;
+        }
+        if (n == 5) {
             dutyCycle = ei.value * .01;
+        }
     }
 
     @Override
@@ -443,8 +471,8 @@ public class VoltageElm extends CircuitElm {
     }
 
     @Override
-    public java.util.Map<String, Object> getJsonProperties() {
-        java.util.Map<String, Object> props = super.getJsonProperties();
+    public Map<String, Object> getJsonProperties() {
+        Map<String, Object> props = super.getJsonProperties();
         props.put("max_voltage", getUnitText(maxVoltage, "V"));
         if (bias != 0) {
             props.put("dc_offset", getUnitText(bias, "V"));
@@ -452,7 +480,7 @@ public class VoltageElm extends CircuitElm {
         if (waveform != WF_DC && waveform != WF_VAR && waveform != WF_NOISE) {
             props.put("frequency", getUnitText(frequency, "Hz"));
             if (phaseShift != 0) {
-                props.put("phase_shift", phaseShift * 180 / pi);
+                props.put("phase_shift", phaseShift * 180 / PI);
             }
             if (waveform == WF_PULSE || waveform == WF_SQUARE) {
                 props.put("duty_cycle", dutyCycle);
@@ -472,7 +500,7 @@ public class VoltageElm extends CircuitElm {
         maxVoltage = getJsonDouble(properties, "max_voltage", 5);
         bias = getJsonDouble(properties, "dc_offset", 0);
         frequency = getJsonDouble(properties, "frequency", 40);
-        phaseShift = getJsonDouble(properties, "phase_shift", 0) * pi / 180;
+        phaseShift = getJsonDouble(properties, "phase_shift", 0) * PI / 180;
         dutyCycle = getJsonDouble(properties, "duty_cycle", 0.5);
     }
 }

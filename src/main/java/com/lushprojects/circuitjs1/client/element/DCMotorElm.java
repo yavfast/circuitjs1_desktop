@@ -34,7 +34,7 @@ public class DCMotorElm extends CircuitElm {
         indInertia = new Inductor();
         inductance = .5;
         resistance = 1;
-        angle = pi / 2;
+        angle = PI / 2;
         speed = 0;
         K = 0.15;
         b = 0.05;
@@ -50,7 +50,7 @@ public class DCMotorElm extends CircuitElm {
     public DCMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                       StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        angle = pi / 2;
+        angle = PI / 2;
         speed = 0;
         //read:
         // inductance; resistance, K, Kb, J, b, gearRatio, tau
@@ -205,13 +205,13 @@ public class DCMotorElm extends CircuitElm {
         interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio), -.28 * Math.sin(angleAux * gearRatio));
 
         drawThickerLine(g, ps1, ps2);
-        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + pi / 3), .28 * Math.sin(angleAux * gearRatio + pi / 3));
-        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + pi / 3), -.28 * Math.sin(angleAux * gearRatio + pi / 3));
+        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + PI / 3), .28 * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + PI / 3), -.28 * Math.sin(angleAux * gearRatio + PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
-        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + 2 * pi / 3), .28 * Math.sin(angleAux * gearRatio + 2 * pi / 3));
-        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + 2 * pi / 3), -.28 * Math.sin(angleAux * gearRatio + 2 * pi / 3));
+        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3), .28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3), -.28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
