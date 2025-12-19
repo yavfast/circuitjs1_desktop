@@ -1,7 +1,5 @@
 package com.lushprojects.circuitjs1.client;
 
-import java.util.ArrayList;
-
 public class CircuitMath {
 
     public static boolean isConverged(double v1, double v2) {
@@ -54,8 +52,10 @@ public class CircuitMath {
     // matrix to be factored.  ipvt[] returns an integer vector of pivot
     // indices, used in the lu_solve() routine.
     public static boolean lu_factor(double[][] a, int n, int[] ipvt) {
-        // Early exit for edge cases
-        if (n <= 0) return false;
+        // Early exit for edge cases.
+        // A 0x0 matrix is a valid case (everything simplified to constants).
+        if (n < 0) return false;
+        if (n == 0) return true;
         if (n == 1) {
             ipvt[0] = 0;
             return a[0][0] != 0.0;

@@ -20,13 +20,14 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 
 public class ClockElm extends RailElm {
     public ClockElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_SQUARE);
-        maxVoltage = 2.5;
-        bias = 2.5;
-        frequency = 100;
+        super(circuitDocument, xx, yy, Waveform.WF_SQUARE);
+        waveformInstance.maxVoltage = 2.5;
+        waveformInstance.bias = 2.5;
+        waveformInstance.frequency = 100;
         flags |= FLAG_CLOCK;
     }
 

@@ -22,16 +22,17 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.StringTokenizer;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 
 public class NoiseElm extends RailElm {
     public NoiseElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_NOISE);
+        super(circuitDocument, xx, yy, Waveform.WF_NOISE);
     }
 
     public NoiseElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                     StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
-        waveform = WF_NOISE;
+        waveform = Waveform.WF_NOISE;
     }
 
     // dump this class as a RailElm.  The 'n' dump type is still used in CirSim.createCe to read old files

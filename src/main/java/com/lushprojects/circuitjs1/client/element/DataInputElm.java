@@ -29,6 +29,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class DataInputElm extends RailElm {
     static HashMap<Integer, DataFileEntry> dataFileMap = new HashMap<Integer, DataFileEntry>();
 
     public DataInputElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_AC);
+        super(circuitDocument, xx, yy, Waveform.WF_AC);
         scaleFactor = 1;
         sampleLength = 1e-3;
     }
@@ -62,7 +63,7 @@ public class DataInputElm extends RailElm {
     public DataInputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                         StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
-        waveform = WF_AC;
+        waveform = Waveform.WF_AC;
         sampleLength = Double.parseDouble(st.nextToken());
         scaleFactor = Double.parseDouble(st.nextToken());
         fileNum = Integer.parseInt(st.nextToken());

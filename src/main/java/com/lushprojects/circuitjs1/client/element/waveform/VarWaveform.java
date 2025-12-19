@@ -1,7 +1,6 @@
 package com.lushprojects.circuitjs1.client.element.waveform;
 
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
-import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.VarRailElm;
 
 import com.lushprojects.circuitjs1.client.Graphics;
@@ -11,17 +10,27 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class VarWaveform extends Waveform {
     @Override
     public int getType() {
-        return VoltageElm.WF_VAR;
+        return Waveform.WF_VAR;
     }
 
     @Override
     public double getVoltage(VoltageElm elm) {
         if (elm instanceof VarRailElm) {
             VarRailElm vrelm = (VarRailElm) elm;
-            elm.frequency = vrelm.slider.getValue() * (elm.maxVoltage - elm.bias) / 100. + elm.bias;
-            return elm.frequency;
+            frequency = vrelm.slider.getValue() * (maxVoltage - bias) / 100. + bias;
+            return frequency;
         }
-        return elm.maxVoltage + elm.bias;
+        return maxVoltage + bias;
+    }
+
+    @Override
+    public boolean usesShortLeads() {
+        return true;
+    }
+
+    @Override
+    public boolean showFrequency() {
+        return false;
     }
 
     @Override
@@ -38,8 +47,8 @@ public class VarWaveform extends Waveform {
     public EditInfo getEditInfo(VoltageElm elm, int n) {
         if (elm instanceof VarRailElm) {
             VarRailElm vrelm = (VarRailElm) elm;
-            if (n == 0) return new EditInfo("Min Voltage", elm.bias, -20, 20);
-            if (n == 1) return new EditInfo("Max Voltage", elm.maxVoltage, -20, 20);
+            if (n == 0) return new EditInfo("Min Voltage", bias, -20, 20);
+            if (n == 1) return new EditInfo("Max Voltage", maxVoltage, -20, 20);
             if (n == 2) {
                 EditInfo ei = new EditInfo("Slider Text", 0, -1, -1);
                 ei.text = vrelm.sliderText;
@@ -53,8 +62,8 @@ public class VarWaveform extends Waveform {
     public void setEditValue(VoltageElm elm, int n, EditInfo ei) {
         if (elm instanceof VarRailElm) {
             VarRailElm vrelm = (VarRailElm) elm;
-            if (n == 0) elm.bias = ei.value;
-            if (n == 1) elm.maxVoltage = ei.value;
+            if (n == 0) bias = ei.value;
+            if (n == 1) maxVoltage = ei.value;
             if (n == 2) {
                 vrelm.sliderText = ei.textf.getText();
                 vrelm.label.setText(com.lushprojects.circuitjs1.client.util.Locale.LS(vrelm.sliderText));
@@ -65,9 +74,9 @@ public class VarWaveform extends Waveform {
 
     @Override
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", elm.getUnitText(elm.maxVoltage, "V"));
-        if (elm.bias != 0) {
-            props.put("dc_offset", elm.getUnitText(elm.bias, "V"));
+        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
+        if (bias != 0) {
+            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
         }
     }
 

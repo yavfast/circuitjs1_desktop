@@ -44,13 +44,13 @@ public class OTAElm extends CompositeElm {
     public OTAElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
         noDiagonal = true;
-        negVolt = ((RailElm) compElmList.get(0)).maxVoltage;
-        posVolt = ((RailElm) compElmList.get(1)).maxVoltage;
+        negVolt = ((RailElm) compElmList.get(0)).waveformInstance.maxVoltage;
+        posVolt = ((RailElm) compElmList.get(1)).waveformInstance.maxVoltage;
     }
 
     private void initOTA() {
-        ((RailElm) compElmList.get(0)).maxVoltage = negVolt;
-        ((RailElm) compElmList.get(1)).maxVoltage = posVolt;
+        ((RailElm) compElmList.get(0)).waveformInstance.maxVoltage = negVolt;
+        ((RailElm) compElmList.get(1)).waveformInstance.maxVoltage = posVolt;
     }
 
     public void reset() {

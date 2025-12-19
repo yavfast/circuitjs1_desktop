@@ -27,6 +27,7 @@ import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.Scrollbar;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class VarRailElm extends RailElm implements MouseWheelHandler {
@@ -35,9 +36,9 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     public String sliderText;
 
     public VarRailElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_VAR);
+        super(circuitDocument, xx, yy, Waveform.WF_VAR);
         sliderText = "Voltage";
-        frequency = maxVoltage;
+        waveformInstance.frequency = waveformInstance.maxVoltage;
         createSlider();
     }
 
@@ -60,10 +61,10 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     }
 
     void createSlider() {
-        waveform = WF_VAR;
+        waveform = Waveform.WF_VAR;
         cirSim().addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
         label.addStyleName("topSpace");
-        int value = (int) ((frequency - bias) * 100 / (maxVoltage - bias));
+        int value = (int) ((waveformInstance.frequency - waveformInstance.bias) * 100 / (waveformInstance.maxVoltage - waveformInstance.bias));
         cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100,
                 null, this));
 //	    sim.verticalPanel.validate();

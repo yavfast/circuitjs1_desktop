@@ -25,11 +25,12 @@ import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class ExtVoltageElm extends RailElm {
     public ExtVoltageElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_AC);
+        super(circuitDocument, xx, yy, Waveform.WF_AC);
         name = "ext";
     }
 
@@ -37,7 +38,7 @@ public class ExtVoltageElm extends RailElm {
                          StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         name = CustomLogicModel.unescape(st.nextToken());
-        waveform = WF_AC;
+        waveform = Waveform.WF_AC;
     }
 
     String name;

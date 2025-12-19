@@ -20,11 +20,12 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 
 
 public class DCVoltageElm extends VoltageElm {
     public DCVoltageElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_DC);
+        super(circuitDocument, xx, yy, Waveform.WF_DC);
     }
 
     public Class getDumpClass() {

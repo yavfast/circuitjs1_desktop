@@ -84,6 +84,18 @@ public class CircuitElementFactory {
         register("ACRail", ACRailElm::new);
         register("SquareRail", SquareRailElm::new);
         register("VarRail", VarRailElm::new);
+        // Aliases used by element JSON export (waveform-specific type names)
+        register("VoltageSourceDC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_DC));
+        register("VoltageSourceAC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_AC));
+        register("VoltageSourceSquare", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SQUARE));
+        register("VoltageSourceTriangle", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_TRIANGLE));
+        register("VoltageSourceSawtooth", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SAWTOOTH));
+        register("VoltageSourcePulse", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_PULSE));
+        register("VoltageSourceNoise", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_NOISE));
+        register("VoltageSourceVar", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_VAR));
+        // Rail aliases
+        register("VariableRail", VarRailElm::new);
+        register("ExternalVoltage", ExtVoltageElm::new);
         register("Antenna", AntennaElm::new);
         register("Sweep", SweepElm::new);
         register("Noise", NoiseElm::new);

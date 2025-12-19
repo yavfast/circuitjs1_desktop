@@ -29,6 +29,7 @@ import com.google.gwt.user.client.ui.FileUpload;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
+import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.HashMap;
@@ -55,14 +56,14 @@ public class AudioInputElm extends RailElm {
     static HashMap<Integer, AudioFileEntry> audioFileMap = new HashMap<Integer, AudioFileEntry>();
 
     public AudioInputElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_AC);
+        super(circuitDocument, xx, yy, Waveform.WF_AC);
         maxVoltage = 5;
     }
 
     public AudioInputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                          StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
-        waveform = WF_AC;
+        waveform = Waveform.WF_AC;
         maxVoltage = Double.parseDouble(st.nextToken());
         startPosition = Double.parseDouble(st.nextToken());
         fileNum = Integer.parseInt(st.nextToken());

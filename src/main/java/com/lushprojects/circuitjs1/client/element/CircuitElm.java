@@ -1780,7 +1780,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * @param defaultValue Value to return if key not found
      * @return The parsed value
      */
-    protected static double getJsonDouble(java.util.Map<String, Object> properties, 
+    public static double getJsonDouble(java.util.Map<String, Object> properties, 
                                           String key, double defaultValue) {
         if (properties == null || !properties.containsKey(key)) {
             return defaultValue;

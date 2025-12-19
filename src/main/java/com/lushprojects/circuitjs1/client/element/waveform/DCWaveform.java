@@ -12,12 +12,12 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 public class DCWaveform extends Waveform {
     @Override
     public int getType() {
-        return VoltageElm.WF_DC;
+        return Waveform.WF_DC;
     }
 
     @Override
     public double getVoltage(VoltageElm elm) {
-        return elm.maxVoltage + elm.bias;
+        return maxVoltage + bias;
     }
 
     @Override
@@ -45,17 +45,17 @@ public class DCWaveform extends Waveform {
     public void getInfo(VoltageElm elm, String[] arr, int i) {
         arr[0] = "voltage source";
         if (elm.current != 0 && elm.circuitDocument.circuitInfo.showResistanceInVoltageSources) {
-            arr[i] = "(R = " + elm.getUnitText(elm.maxVoltage / elm.current, Locale.ohmString) + ")";
+            arr[i] = "(R = " + elm.getUnitText(maxVoltage / elm.current, Locale.ohmString) + ")";
         }
     }
 
     @Override
     public EditInfo getEditInfo(VoltageElm elm, int n) {
         if (n == 0) {
-            return new EditInfo("Voltage", elm.maxVoltage, -20, 20, "V");
+            return new EditInfo("Voltage", maxVoltage, -20, 20, "V");
         }
         if (n == 2) {
-            return new EditInfo("DC Offset (V)", elm.bias, -20, 20, "V");
+            return new EditInfo("DC Offset (V)", bias, -20, 20, "V");
         }
         return null;
     }
@@ -63,10 +63,10 @@ public class DCWaveform extends Waveform {
     @Override
     public void setEditValue(VoltageElm elm, int n, EditInfo ei) {
         if (n == 0) {
-            elm.maxVoltage = ei.value;
+            maxVoltage = ei.value;
         }
         if (n == 2) {
-            elm.bias = ei.value;
+            bias = ei.value;
         }
     }
 
@@ -82,9 +82,9 @@ public class DCWaveform extends Waveform {
 
     @Override
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", elm.getUnitText(elm.maxVoltage, "V"));
-        if (elm.bias != 0) {
-            props.put("dc_offset", elm.getUnitText(elm.bias, "V"));
+        props.put("max_voltage", elm.getUnitText(maxVoltage, "V"));
+        if (bias != 0) {
+            props.put("dc_offset", elm.getUnitText(bias, "V"));
         }
     }
 

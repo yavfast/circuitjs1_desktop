@@ -28,7 +28,7 @@ import com.lushprojects.circuitjs1.client.element.waveform.*;
 
 public class RailElm extends VoltageElm {
     public RailElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, WF_DC);
+        super(circuitDocument, xx, yy, Waveform.WF_DC);
 
     }
 
