@@ -187,6 +187,10 @@ public class VoltageElm extends CircuitElm {
             setBbox(point1, point2, hs);
             interpPoint2(lead1, lead2, ps1, ps2, 1, hs);
             drawThickLine(g, ps1, ps2);
+            if (displaySettings().showValues()) {
+                String s = getVoltageText(getVoltage());
+                drawValues(g, s, hs);
+            }
         } else {
             setBbox(point1, point2, circleSize);
             interpPoint(lead1, lead2, ps1, .5);
