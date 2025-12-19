@@ -59,7 +59,7 @@ public class ExtVoltageElm extends RailElm {
         return name;
     }
 
-    double getVoltage() {
+    public double getVoltage() {
         return voltage;
     }
 

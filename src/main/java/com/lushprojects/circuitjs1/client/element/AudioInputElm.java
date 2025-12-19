@@ -107,7 +107,7 @@ public class AudioInputElm extends RailElm {
         samplingRate = sr;
     }
 
-    double getVoltage() {
+    public double getVoltage() {
         if (data == null)
             return 0;
         if (timeOffset < startPosition)

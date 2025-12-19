@@ -29,36 +29,39 @@ import com.lushprojects.circuitjs1.client.RandomUtils;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
+import com.lushprojects.circuitjs1.client.element.waveform.*;
 
 import java.util.Map;
 
 public class VoltageElm extends CircuitElm {
-    static final int FLAG_COS = 2;
-    static final int FLAG_PULSE_DUTY = 4;
-    static final int WF_DC = 0;
-    static final int WF_AC = 1;
-    static final int WF_SQUARE = 2;
-    static final int WF_TRIANGLE = 3;
-    static final int WF_SAWTOOTH = 4;
-    static final int WF_PULSE = 5;
-    static final int WF_NOISE = 6;
-    static final int WF_VAR = 7;
+    public static final int FLAG_COS = 2;
+    public static final int FLAG_PULSE_DUTY = 4;
+    public static final int WF_DC = 0;
+    public static final int WF_AC = 1;
+    public static final int WF_SQUARE = 2;
+    public static final int WF_TRIANGLE = 3;
+    public static final int WF_SAWTOOTH = 4;
+    public static final int WF_PULSE = 5;
+    public static final int WF_NOISE = 6;
+    public static final int WF_VAR = 7;
 
-    int waveform;
+    public int waveform;
+    public Waveform waveformInstance;
 
-    double frequency;
-    double maxVoltage;
-    double freqTimeZero;
-    double bias;
-    double phaseShift;
-    double dutyCycle;
-    double noiseValue;
+    public double frequency;
+    public double maxVoltage;
+    public double freqTimeZero;
+    public double bias;
+    public double phaseShift;
+    public double dutyCycle;
+    public double noiseValue;
 
     static final double defaultPulseDuty = 1 / PI_2;
 
     VoltageElm(CircuitDocument circuitDocument, int xx, int yy, int wf) {
         super(circuitDocument, xx, yy);
         waveform = wf;
+        createWaveformInstance();
         maxVoltage = 5;
         frequency = 40;
         dutyCycle = .5;
@@ -81,6 +84,7 @@ public class VoltageElm extends CircuitElm {
             dutyCycle = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
+        createWaveformInstance();
         if ((flags & FLAG_COS) != 0) {
             flags &= ~FLAG_COS;
             phaseShift = PI / 2;
@@ -105,7 +109,7 @@ public class VoltageElm extends CircuitElm {
 
     public String dump() {
         // set flag so we know if duty cycle is correct for pulse waveforms
-        if (waveform == WF_PULSE) {
+        if (waveformInstance.isPulse()) {
             flags |= FLAG_PULSE_DUTY;
         } else {
             flags &= ~FLAG_PULSE_DUTY;
@@ -120,7 +124,21 @@ public class VoltageElm extends CircuitElm {
         curcount = 0;
     }
 
-    static double triangleFunc(double x) {
+    void createWaveformInstance() {
+        switch (waveform) {
+            case WF_DC: waveformInstance = new DCWaveform(); break;
+            case WF_AC: waveformInstance = new ACWaveform(); break;
+            case WF_SQUARE: waveformInstance = new SquareWaveform(); break;
+            case WF_TRIANGLE: waveformInstance = new TriangleWaveform(); break;
+            case WF_SAWTOOTH: waveformInstance = new SawtoothWaveform(); break;
+            case WF_PULSE: waveformInstance = new PulseWaveform(); break;
+            case WF_NOISE: waveformInstance = new NoiseWaveform(); break;
+            case WF_VAR: waveformInstance = new VarWaveform(); break;
+            default: waveformInstance = new DCWaveform(); break;
+        }
+    }
+
+    public static double triangleFunc(double x) {
         if (x < PI) {
             return x * (2.0 / PI) - 1.0;
         }
@@ -132,11 +150,7 @@ public class VoltageElm extends CircuitElm {
     }
 
     public void stamp() {
-        if (waveform == WF_DC) {
-            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource, getVoltage());
-        } else {
-            simulator().stampVoltageSource(nodes[0], nodes[1], voltSource);
-        }
+        waveformInstance.stamp(this);
     }
 
     public void doStep() {
@@ -146,37 +160,14 @@ public class VoltageElm extends CircuitElm {
     }
 
     public void stepFinished() {
-        if (waveform == WF_NOISE) {
-            noiseValue = (RandomUtils.getRandom().nextDouble() * 2 - 1) * maxVoltage + bias;
-        }
+        waveformInstance.stepFinished(this);
     }
 
-    double getVoltage() {
-        if (waveform != WF_DC && circuitDocument.circuitInfo.dcAnalysisFlag) {
-            return bias;
-        }
-
-        switch (waveform) {
-            case WF_DC:
-                return maxVoltage + bias;
-            case WF_AC:
-                return Math.sin(w()) * maxVoltage + bias;
-            case WF_SQUARE:
-                return bias + ((w() % PI_2 > (PI_2 * dutyCycle)) ? -maxVoltage : maxVoltage);
-            case WF_TRIANGLE:
-                return bias + triangleFunc(w() % PI_2) * maxVoltage;
-            case WF_SAWTOOTH:
-                return bias + (w() % PI_2) * (maxVoltage / PI) - maxVoltage;
-            case WF_PULSE:
-                return ((w() % PI_2) < (PI_2 * dutyCycle)) ? maxVoltage + bias : bias;
-            case WF_NOISE:
-                return noiseValue;
-            default:
-                return 0;
-        }
+    public double getVoltage() {
+        return waveformInstance.getVoltage(this);
     }
 
-    protected double w() {
+    public double w() {
         return PI_2 * (simulator().t - freqTimeZero) * frequency + phaseShift;
     }
 
@@ -184,13 +175,13 @@ public class VoltageElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        calcLeads((waveform == WF_DC || waveform == WF_VAR) ? 8 : CIRCLE_SIZE * 2);
+        calcLeads((waveformInstance.isDC() || waveform == WF_VAR) ? 8 : CIRCLE_SIZE * 2);
     }
 
     public void draw(Graphics g) {
         setBbox(x, y, x2, y2);
         draw2Leads(g);
-        if (waveform == WF_DC) {
+        if (waveformInstance.isDC()) {
             setVoltageColor(g, volts[0]);
             setPowerColor(g, false);
             interpPoint2(lead1, lead2, ps1, ps2, 0, 10);
@@ -210,7 +201,7 @@ public class VoltageElm extends CircuitElm {
             interpPoint(lead1, lead2, ps1, .5);
             drawWaveform(g, ps1);
             String inds;
-            if (bias > 0 || (bias == 0 && waveform == WF_PULSE)) {
+            if (bias > 0 || (bias == 0 && waveformInstance.isPulse())) {
                 inds = "+";
             } else {
                 inds = "*";
@@ -224,7 +215,7 @@ public class VoltageElm extends CircuitElm {
         }
         updateDotCount();
         if (circuitEditor().dragElm != this) {
-            if (waveform == WF_DC) {
+            if (waveformInstance.isDC()) {
                 drawDots(g, point1, point2, curcount);
             } else {
                 drawDots(g, point1, lead1, curcount);
@@ -234,7 +225,7 @@ public class VoltageElm extends CircuitElm {
         drawPosts(g);
     }
 
-    void drawWaveform(Graphics g, Point center) {
+    public void drawWaveform(Graphics g, Point center) {
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
         int xc = center.x;
@@ -242,67 +233,9 @@ public class VoltageElm extends CircuitElm {
         if (waveform != WF_NOISE) {
             drawThickCircle(g, xc, yc, CIRCLE_SIZE);
         }
-        int wl = 8;
         adjustBbox(xc - CIRCLE_SIZE, yc - CIRCLE_SIZE,
                 xc + CIRCLE_SIZE, yc + CIRCLE_SIZE);
-        int xc2;
-        switch (waveform) {
-            case WF_DC:
-                break;
-            case WF_SQUARE:
-                xc2 = (int) (wl * 2 * dutyCycle - wl + xc);
-                xc2 = max(xc - wl + 3, min(xc + wl - 3, xc2));
-                drawThickLine(g, xc - wl, yc - wl, xc - wl, yc);
-                drawThickLine(g, xc - wl, yc - wl, xc2, yc - wl);
-                drawThickLine(g, xc2, yc - wl, xc2, yc + wl);
-                drawThickLine(g, xc + wl, yc + wl, xc2, yc + wl);
-                drawThickLine(g, xc + wl, yc, xc + wl, yc + wl);
-                break;
-            case WF_PULSE:
-                yc += wl / 2;
-                drawThickLine(g, xc - wl, yc - wl, xc - wl, yc);
-                drawThickLine(g, xc - wl, yc - wl, xc - wl / 2, yc - wl);
-                drawThickLine(g, xc - wl / 2, yc - wl, xc - wl / 2, yc);
-                drawThickLine(g, xc - wl / 2, yc, xc + wl, yc);
-                break;
-            case WF_SAWTOOTH:
-                drawThickLine(g, xc, yc - wl, xc - wl, yc);
-                drawThickLine(g, xc, yc - wl, xc, yc + wl);
-                drawThickLine(g, xc, yc + wl, xc + wl, yc);
-                break;
-            case WF_TRIANGLE: {
-                int xl = 5;
-                drawThickLine(g, xc - xl * 2, yc, xc - xl, yc - wl);
-                drawThickLine(g, xc - xl, yc - wl, xc, yc);
-                drawThickLine(g, xc, yc, xc + xl, yc + wl);
-                drawThickLine(g, xc + xl, yc + wl, xc + xl * 2, yc);
-                break;
-            }
-            case WF_NOISE: {
-                g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-                setPowerColor(g, false);
-                drawLabeledNode(g, Locale.LS("Noise"), point1, lead1);
-                break;
-            }
-            case WF_AC: {
-                int i;
-                int xl = 10;
-                g.beginPath();
-                g.setLineWidth(3.0);
-
-                for (i = -xl; i <= xl; i++) {
-                    int yy = yc + (int) (.95 * Math.sin(i * PI / xl) * wl);
-                    if (i == -xl) {
-                        g.moveTo(xc + i, yy);
-                    } else {
-                        g.lineTo(xc + i, yy);
-                    }
-                }
-                g.stroke();
-                g.setLineWidth(1.0);
-                break;
-            }
-        }
+        waveformInstance.draw(g, center, this);
         if (displaySettings().showValues() && waveform != WF_NOISE) {
             String s = getShortUnitText(frequency, "Hz");
             if (dx == 0 || dy == 0) {
@@ -324,56 +257,16 @@ public class VoltageElm extends CircuitElm {
     }
 
     public void getInfo(String[] arr) {
-        switch (waveform) {
-            case WF_DC:
-            case WF_VAR:
-                arr[0] = "voltage source";
-                break;
-            case WF_AC:
-                arr[0] = "A/C source";
-                break;
-            case WF_SQUARE:
-                arr[0] = "square wave gen";
-                break;
-            case WF_PULSE:
-                arr[0] = "pulse gen";
-                break;
-            case WF_SAWTOOTH:
-                arr[0] = "sawtooth gen";
-                break;
-            case WF_TRIANGLE:
-                arr[0] = "triangle gen";
-                break;
-            case WF_NOISE:
-                arr[0] = "noise gen";
-                break;
-        }
         arr[1] = "I = " + getCurrentText(getCurrent());
         arr[2] = ((this instanceof RailElm) ? "V = " : "Vd = ") + getVoltageText(getVoltageDiff());
+        waveformInstance.getInfo(this, arr, 3);
         int i = 3;
-        if (waveform != WF_DC && waveform != WF_VAR && waveform != WF_NOISE) {
-            arr[i++] = "f = " + getUnitText(frequency, "Hz");
-            arr[i++] = "Vmax = " + getVoltageText(maxVoltage);
-            if (waveform == WF_AC && bias == 0) {
-                arr[i++] = "V(rms) = " + getVoltageText(maxVoltage / 1.41421356);
-            }
-            if (bias != 0) {
-                arr[i++] = "Voff = " + getVoltageText(bias);
-            } else if (frequency > 500) {
-                arr[i++] = "wavelength = " + getUnitText(2.9979e8 / frequency, "m");
-            }
-        }
-        if (waveform == WF_DC && current != 0 && circuitDocument.circuitInfo.showResistanceInVoltageSources) {
-            arr[i++] = "(R = " + getUnitText(maxVoltage / current, Locale.ohmString) + ")";
-        }
-        arr[i++] = "P = " + getUnitText(getPower(), "W");
+        while (i < arr.length && arr[i] != null) i++;
+        if (i < arr.length)
+            arr[i] = "P = " + getUnitText(getPower(), "W");
     }
 
     public EditInfo getEditInfo(int n) {
-        if (n == 0) {
-            return new EditInfo(waveform == WF_DC ? "Voltage" :
-                    "Max Voltage", maxVoltage, -20, 20, "V");
-        }
         if (n == 1) {
             EditInfo ei = new EditInfo("Waveform", waveform, -1, -1);
             ei.choice = new Choice();
@@ -387,47 +280,10 @@ public class VoltageElm extends CircuitElm {
             ei.choice.select(waveform);
             return ei;
         }
-        if (n == 2) {
-            return new EditInfo("DC Offset (V)", bias, -20, 20, "V");
-        }
-        if (waveform == WF_DC || waveform == WF_NOISE) {
-            return null;
-        }
-        if (n == 3) {
-            return new EditInfo("Frequency (Hz)", frequency, 4, 500, "Hz");
-        }
-        if (n == 4) {
-            return new EditInfo("Phase Offset (degrees)", phaseShift * 180 / PI, -180, 180).setDimensionless();
-        }
-        if (n == 5 && (waveform == WF_PULSE || waveform == WF_SQUARE)) {
-            return new EditInfo("Duty Cycle", dutyCycle * 100, 0, 100).setDimensionless();
-        }
-        return null;
+        return waveformInstance.getEditInfo(this, n);
     }
 
     public void setEditValue(int n, EditInfo ei) {
-        if (n == 0) {
-            maxVoltage = ei.value;
-        }
-        if (n == 2) {
-            bias = ei.value;
-        }
-        if (n == 3) {
-            // adjust time zero to maintain continuity ind the waveform
-            // even though the frequency has changed.
-            double oldfreq = frequency;
-            frequency = ei.value;
-            double maxfreq = 1 / (8 * simulator().maxTimeStep);
-            if (frequency > maxfreq) {
-                if (Window.confirm(Locale.LS("Adjust timestep to allow for higher frequencies?"))) {
-                    simulator().maxTimeStep = 1 / (32 * frequency);
-                } else {
-                    frequency = maxfreq;
-                }
-            }
-            double adj = frequency - oldfreq;
-            freqTimeZero = (frequency == 0) ? 0 : simulator().t - oldfreq * (simulator().t - freqTimeZero) / frequency;
-        }
         if (n == 1) {
             int ow = waveform;
             waveform = ei.choice.getSelectedIndex();
@@ -445,47 +301,22 @@ public class VoltageElm extends CircuitElm {
                 dutyCycle = .5;
             }
 
+            createWaveformInstance();
             setPoints();
+            return;
         }
-        if (n == 4) {
-            phaseShift = ei.value * PI / 180;
-        }
-        if (n == 5) {
-            dutyCycle = ei.value * .01;
-        }
+        waveformInstance.setEditValue(this, n, ei);
     }
 
     @Override
     public String getJsonTypeName() {
-        switch (waveform) {
-            case WF_DC: return "VoltageSourceDC";
-            case WF_AC: return "VoltageSourceAC";
-            case WF_SQUARE: return "VoltageSourceSquare";
-            case WF_TRIANGLE: return "VoltageSourceTriangle";
-            case WF_SAWTOOTH: return "VoltageSourceSawtooth";
-            case WF_PULSE: return "VoltageSourcePulse";
-            case WF_NOISE: return "VoltageSourceNoise";
-            case WF_VAR: return "VoltageSourceVar";
-            default: return "VoltageSource";
-        }
+        return waveformInstance.getJsonTypeName();
     }
 
     @Override
     public Map<String, Object> getJsonProperties() {
         Map<String, Object> props = super.getJsonProperties();
-        props.put("max_voltage", getUnitText(maxVoltage, "V"));
-        if (bias != 0) {
-            props.put("dc_offset", getUnitText(bias, "V"));
-        }
-        if (waveform != WF_DC && waveform != WF_VAR && waveform != WF_NOISE) {
-            props.put("frequency", getUnitText(frequency, "Hz"));
-            if (phaseShift != 0) {
-                props.put("phase_shift", phaseShift * 180 / PI);
-            }
-            if (waveform == WF_PULSE || waveform == WF_SQUARE) {
-                props.put("duty_cycle", dutyCycle);
-            }
-        }
+        waveformInstance.getJsonProperties(this, props);
         return props;
     }
 

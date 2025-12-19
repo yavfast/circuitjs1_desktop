@@ -24,6 +24,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
+import com.lushprojects.circuitjs1.client.element.waveform.*;
 
 public class RailElm extends VoltageElm {
     public RailElm(CircuitDocument circuitDocument, int xx, int yy) {
@@ -41,7 +42,7 @@ public class RailElm extends VoltageElm {
     }
 
 
-    final int FLAG_CLOCK = 1;
+    public static final int FLAG_CLOCK = 1;
 
     int getDumpType() {
         return 'R';
@@ -77,26 +78,10 @@ public class RailElm extends VoltageElm {
     }
 
     void drawRail(Graphics g) {
-        if (waveform == WF_SQUARE && (flags & FLAG_CLOCK) != 0)
-            drawRailText(g, "CLK");
-        else if (waveform == WF_DC || waveform == WF_VAR) {
-            g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-            setPowerColor(g, false);
-            double v = getVoltage();
-            String s;
-            if (Math.abs(v) < 1)
-                s = showFormat(v) + " V";
-            else
-                s = getShortUnitText(v, "V");
-            if (getVoltage() > 0)
-                s = "+" + s;
-            drawLabeledNode(g, s, point1, lead1);
-        } else {
-            drawWaveform(g, point2);
-        }
+        waveformInstance.drawRail(g, this);
     }
 
-    void drawRailText(Graphics g, String s) {
+    public void drawRailText(Graphics g, String s) {
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
         drawLabeledNode(g, s, point1, lead1);
@@ -107,15 +92,11 @@ public class RailElm extends VoltageElm {
     }
 
     public void stamp() {
-        CircuitSimulator simulator = simulator();
-        if (waveform == WF_DC)
-            simulator().stampVoltageSource(0, nodes[0], voltSource, getVoltage());
-        else
-            simulator().stampVoltageSource(0, nodes[0], voltSource);
+        waveformInstance.stampRail(this);
     }
 
     public void doStep() {
-        if (waveform != WF_DC)
+        if (!waveformInstance.isDC())
             simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
     }
 
@@ -134,13 +115,7 @@ public class RailElm extends VoltageElm {
 
     @Override
     public String getJsonTypeName() {
-        // Return correct type based on waveform
-        switch (waveform) {
-            case WF_AC: return "ACRail";
-            case WF_SQUARE: return "SquareRail";
-            case WF_VAR: return "VariableRail";
-            default: return "Rail";
-        }
+        return waveformInstance.getJsonRailTypeName();
     }
 
     @Override

@@ -43,17 +43,17 @@ public class AntennaElm extends RailElm {
         drawRailText(g, "Ant");
     }
 
-    double getVoltage() {
+    public double getVoltage() {
         CircuitSimulator simulator = simulator();
         double fm = 3 * Math.sin(fmphase);
-        return Math.sin(2 * PI * simulator().t * 3000) * (1.3 + Math.sin(2 * PI * simulator().t * 12)) * 3 +
-                Math.sin(2 * PI * simulator().t * 2710) * (1.3 + Math.sin(2 * PI * simulator().t * 13)) * 3 +
-                Math.sin(2 * PI * simulator().t * 2433) * (1.3 + Math.sin(2 * PI * simulator().t * 14)) * 3 + fm;
+        return Math.sin(2 * PI * simulator.t * 3000) * (1.3 + Math.sin(2 * PI * simulator.t * 12)) * 3 +
+                Math.sin(2 * PI * simulator.t * 2710) * (1.3 + Math.sin(2 * PI * simulator.t * 13)) * 3 +
+                Math.sin(2 * PI * simulator.t * 2433) * (1.3 + Math.sin(2 * PI * simulator.t * 14)) * 3 + fm;
     }
 
     public void stepFinished() {
         CircuitSimulator simulator = simulator();
-        fmphase += 2 * PI * (2200 + Math.sin(2 * PI * simulator().t * 13) * 100) * simulator().timeStep;
+        fmphase += 2 * PI * (2200 + Math.sin(2 * PI * simulator.t * 13) * 100) * simulator.timeStep;
     }
 
     int getDumpType() {

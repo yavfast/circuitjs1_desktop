@@ -52,7 +52,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // Unique identifier for this element (e.g., "R1", "C2", "Q3")
     private String elementId;
 
-    protected CircuitDocument circuitDocument;
+    public CircuitDocument circuitDocument;
 
     /**
      * Set the circuit document for this element.
@@ -63,7 +63,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         this.circuitDocument = circuitDocument;
     }
 
-    protected CircuitSimulator simulator() {
+    public CircuitSimulator simulator() {
         return circuitDocument.simulator;
     }
 
@@ -71,7 +71,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return circuitDocument.circuitEditor;
     }
 
-    protected CirSim cirSim() {
+    public CirSim cirSim() {
         return circuitDocument.getCirSim();
     }
 
@@ -128,31 +128,31 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return colorSettings().getElementColor();
     }
     
-    protected static Color selectColor() {
+    public static Color selectColor() {
         return colorSettings().getSelectColor();
     }
     
-    protected static Color currentColor() {
+    public static Color currentColor() {
         return colorSettings().getCurrentColor();
     }
     
-    protected static Color positiveColor() {
+    public static Color positiveColor() {
         return colorSettings().getPositiveColor();
     }
     
-    protected static Color negativeColor() {
+    public static Color negativeColor() {
         return colorSettings().getNegativeColor();
     }
     
-    protected static Color neutralColor() {
+    public static Color neutralColor() {
         return colorSettings().getNeutralColor();
     }
     
-    protected static Color postColor() {
+    public static Color postColor() {
         return colorSettings().getPostColor();
     }
     
-    protected static Color foregroundColor() {
+    public static Color foregroundColor() {
         return colorSettings().getForegroundColor();
     }
 
@@ -220,9 +220,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // this is the second node/post
     public int x2, y2;
 
-    int flags;
+    public int flags;
     public int[] nodes;
-    int voltSource;
+    public int voltSource;
 
     private String description;
 
@@ -240,12 +240,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public Point point1, point2;
 
     // lead points (ends of wire stubs for simple two-terminal elements)
-    Point lead1, lead2;
+    public Point lead1, lead2;
 
     // voltages at each node
     public double[] volts;
 
-    double current, curcount;
+    public double current, curcount;
     public Rectangle boundingBox;
 
     // if subclasses set this to true, element will be horizontal or vertical only
@@ -1040,7 +1040,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
     }
 
-    void drawLabeledNode(Graphics g, String str, Point pt1, Point pt2) {
+    public void drawLabeledNode(Graphics g, String str, Point pt1, Point pt2) {
         boolean lineOver = false;
         if (str.startsWith("/")) {
             lineOver = true;
@@ -1185,14 +1185,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     // yellow argument is unused, can't remember why it was there
-    void setPowerColor(Graphics g, boolean yellow) {
+    public void setPowerColor(Graphics g, boolean yellow) {
         if (!circuitDocument.getDisplaySettings().showPower()) {
             return;
         }
         setPowerColor(g, getPower());
     }
 
-    void setPowerColor(Graphics g, double w0) {
+    public void setPowerColor(Graphics g, double w0) {
         if (!circuitDocument.getDisplaySettings().showPower()) {
             return;
         }

@@ -30,9 +30,9 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class VarRailElm extends RailElm implements MouseWheelHandler {
-    Scrollbar slider;
-    Label label;
-    String sliderText;
+    public Scrollbar slider;
+    public Label label;
+    public String sliderText;
 
     public VarRailElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy, WF_VAR);
@@ -69,40 +69,10 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
 //	    sim.verticalPanel.validate();
     }
 
-    double getVoltage() {
-        frequency = slider.getValue() * (maxVoltage - bias) / 100. + bias;
-        return frequency;
-    }
-
     public void delete() {
         cirSim().removeWidgetFromVerticalPanel(label);
         cirSim().removeWidgetFromVerticalPanel(slider);
         super.delete();
-    }
-
-    public EditInfo getEditInfo(int n) {
-        if (n == 0)
-            return new EditInfo("Min Voltage", bias, -20, 20);
-        if (n == 1)
-            return new EditInfo("Max Voltage", maxVoltage, -20, 20);
-        if (n == 2) {
-            EditInfo ei = new EditInfo("Slider Text", 0, -1, -1);
-            ei.text = sliderText;
-            return ei;
-        }
-        return null;
-    }
-
-    public void setEditValue(int n, EditInfo ei) {
-        if (n == 0)
-            bias = ei.value;
-        if (n == 1)
-            maxVoltage = ei.value;
-        if (n == 2) {
-            sliderText = ei.textf.getText();
-            label.setText(Locale.LS(sliderText));
-            cirSim().setSlidersDialogHeight();
-        }
     }
 
     public int getShortcut() {

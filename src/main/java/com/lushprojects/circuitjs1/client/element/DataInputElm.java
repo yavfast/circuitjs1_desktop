@@ -106,7 +106,7 @@ public class DataInputElm extends RailElm {
         return (flags & FLAG_REPEAT) != 0;
     }
 
-    double getVoltage() {
+    public double getVoltage() {
         if (data == null)
             return 0;
         int ptr = (int) (timeOffset / sampleLength);
