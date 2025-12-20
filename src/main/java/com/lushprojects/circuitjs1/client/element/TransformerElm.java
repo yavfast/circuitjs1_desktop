@@ -49,9 +49,8 @@ public class TransformerElm extends CircuitElm {
         curcount = new double[2];
 
         // Fixed nominal size on creation (no resize while adding).
-        int grid = circuitEditor().gridSize;
-        int nominalLen = grid * 8;
-        int nominalWidth = grid * 4;
+        int nominalLen = 32;
+        int nominalWidth = 32;
         flags &= ~FLAG_VERTICAL;
         width = nominalWidth;
         x2 = x + nominalLen;

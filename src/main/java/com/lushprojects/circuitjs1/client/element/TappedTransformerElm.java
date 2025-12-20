@@ -54,9 +54,8 @@ public class TappedTransformerElm extends CircuitElm {
         a = new double[9];
 
         // Fixed nominal size on creation (no resize while adding).
-        int grid = circuitEditor().gridSize;
-        int nominalLen = grid * 8;
-        int nominalSpacing = grid * 4;
+        int nominalLen = 32;
+        int nominalSpacing = 16;
         spacing = nominalSpacing;
         tapPos = nominalSpacing;
         x2 = x + nominalLen;

@@ -53,7 +53,7 @@ public class CustomTransformerElm extends CircuitElm {
     Point dots[];
     int width;
 
-    private static final int NODE_GAP = 16;
+    private static final int NODE_GAP = 8;
 
     // Nodes that were created by a "+" tap connection in the description.
     boolean[] isTapNode;
@@ -69,9 +69,7 @@ public class CustomTransformerElm extends CircuitElm {
     double[] nodeOffsetComputed;
 
     private int minCoilWidth() {
-        // Match TappedTransformerElm philosophy: allow smaller spacing than the old grid*4.
-        // Keep a sensible floor so coils remain visible.
-        return max(16, circuitEditor().gridSize * 2);
+        return 16;
     }
 
     private int minLen() {
@@ -79,7 +77,7 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     private int minTapSeg() {
-        return circuitEditor().gridSize * 2;
+        return 16;
     }
 
     private void rebuildTapNodeIndices() {
@@ -186,7 +184,7 @@ public class CustomTransformerElm extends CircuitElm {
 
     public CustomTransformerElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        inductance = 4;
+        inductance = 1;
         width = 32;
         noDiagonal = true;
         couplingCoef = .999;
@@ -194,9 +192,8 @@ public class CustomTransformerElm extends CircuitElm {
         parseDescription(description);
 
         // Fixed nominal size on creation (no resize while adding).
-        int grid = circuitEditor().gridSize;
-        int nominalLen = grid * 8;
-        int nominalCoilWidth = grid * 4;
+        int nominalLen = 32;
+        int nominalCoilWidth = 32;
         width = nominalCoilWidth;
         x2 = x + nominalLen;
         y2 = y;
