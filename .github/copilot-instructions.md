@@ -1,3 +1,13 @@
+# Core project documentation (review at chat start)
+
+- `docs/project.md` — project overview, structure, and tooling stack (Maven/GWT/Node/NW.js).
+iteration).
+- `docs/JS_API.md` — JavaScript API for automation/testing (import/export, simulation control, scopes, logs).
+- `docs/EXPORT_CJS.md` — proposed/modern JSON circuit export format (self-describing schema, pins/nodes).
+- `docs/EXPORT_OLD.md` — legacy “dump” text export format (element line encodings + header).
+- `docs/circuit_manual_uk.md` — Ukrainian manual for authoring circuits in text format (practical examples).
+- `docs/elements.md` — catalog of circuit elements (menu categories, classes, short descriptions).
+
 # AI Skills Protocol
 
 ## Mandatory usage at chat start
@@ -10,6 +20,7 @@ The following project-wide instructions are mandatory. They apply at the beginni
 ### Startup checklist (MUST)
 
 1) Protocol reference: Load and adhere to `ai_skills/skills_agent.md`.
+2) Project docs onboarding: At the start of every new chat, quickly review the project documentation (see list below) before making plans or code changes.
 2) Skills root path: Set the skills search root to `${WORKSPACE_ROOT}/ai_skills/skills`.
 3) Recursively discover `skill.yaml` files.
 4) Base flow before execution: For any non-trivial request, run the base sequence

@@ -12,16 +12,32 @@ For development and testing with live code reload:
 # Navigate to project directory
 cd /path/to/circuitjs1_desktop
 
-# Option A (recommended for browser-based work): start GWT DevMode directly
-mvn gwt:devmode
+# Before starting, check DevMode isn't already running
+# (it typically listens on 8888 for the app and 9876 for the code server)
+ss -ltnp | grep -E ':(8888|9876)\b' || true
+
+# If you prefer checking by process name instead of ports:
+pgrep -fa 'gwt:devmode' || true
+
+# Recommended: start DevMode in the background so it keeps running
+# even if you run other build commands / restart shells.
+nohup mvn gwt:devmode > devmode.log 2>&1 & disown
+
+# Follow logs (optional)
+tail -f devmode.log
+
+# Option A (foreground): start GWT DevMode directly
+mvn gwt:devmode &
 
 # Option B: npm wrapper (starts DevMode and also tries to launch NW.js)
-npm run devmode
+npm run devmode &
 ```
 
 The application will be available at:
 - **Application**: http://127.0.0.1:8888/circuitjs.html
 - **Code Server**: http://127.0.0.1:9876/
+
+When you plan to use the JavaScript API interactively or via Chrome DevTools MCP, open the application URL in **Google Chrome** and use **Chrome DevTools** (Console). This is the supported workflow for automation; avoid relying on embedded/alternate browsers where DevTools/MCP attachment may not work.
 
 GWT DevMode automatically recompiles Java code when you refresh the page, making it ideal for development and testing the JavaScript API.
 
@@ -43,12 +59,25 @@ npm run buildgwt
 
 The JavaScript API can be controlled programmatically using [Chrome DevTools MCP](https://github.com/anthropics/anthropic-cookbook/tree/main/misc/chrome_devtools_mcp) (Model Context Protocol). This enables AI assistants like Claude to directly interact with CircuitJS1.
 
+Important: MCP can only control pages that are open inside the **Chrome instance connected to the MCP server** (agent-controlled Chrome). Opening CircuitJS1 in a different browser window, an embedded preview, or a separate Chrome profile that is not connected to MCP will not be controllable via MCP.
+
 ### Setup Chrome DevTools MCP
 
 1. Install Chrome DevTools MCP server
 2. Configure your MCP client (e.g., Claude Desktop) to connect to the server
-3. Open CircuitJS1 in Chrome browser
-4. The MCP tools can now control the browser
+3. Start/open the **agent-controlled Chrome** instance (the one exposed to MCP)
+4. Open CircuitJS1 inside that Chrome instance (via navigation or creating a new page)
+5. The MCP tools can now control the browser and execute API calls on the selected page
+
+Minimal “agent Chrome” workflow:
+
+```text
+# Create/open a page inside the MCP-controlled Chrome
+mcp_chrome-devtoo_new_page(url="http://127.0.0.1:8888/circuitjs.html")
+
+# Verify the app is loaded and the API is available
+mcp_chrome-devtoo_evaluate_script(function="() => ({ ready: document.readyState, hasCircuitJS1: typeof CircuitJS1 !== 'undefined' })")
+```
 
 ### MCP Tools for CircuitJS1
 
