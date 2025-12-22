@@ -33,8 +33,8 @@ public class CustomLogicElm extends ChipElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].output) {
-                volts[i] = parseDouble(st.nextToken());
-                pins[i].value = volts[i] > getThreshold();
+                setNodeVoltageDirect(i, parseDouble(st.nextToken()));
+                pins[i].value = getNodeVoltage(i) > getThreshold();
             }
         }
     }
@@ -49,7 +49,7 @@ public class CustomLogicElm extends ChipElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].output)
-                values[i+1] = volts[i];
+                values[i+1] = getNodeVoltage(i);
         }
         return dumpValues(super.dump(), values);
     }
@@ -129,10 +129,10 @@ public class CustomLogicElm extends ChipElm {
         for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator().stampVoltageSource(0, nodes[i + add], p.voltSource);
+                simulator().stampVoltageSource(0, getNode(i + add), p.voltSource);
                 if (hasTriState()) {
-                    simulator().stampNonLinear(nodes[i + add]);
-                    simulator().stampNonLinear(nodes[i]);
+                    simulator().stampNonLinear(getNode(i + add));
+                    simulator().stampNonLinear(getNode(i));
                 }
             }
         }
@@ -144,7 +144,7 @@ public class CustomLogicElm extends ChipElm {
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (!p.output)
-                p.value = volts[i] > getThreshold();
+                p.value = getNodeVoltage(i) > getThreshold();
         }
         execute();
         int add = (hasTriState()) ? outputCount : 0;
@@ -152,11 +152,11 @@ public class CustomLogicElm extends ChipElm {
             Pin p = pins[i];
             if (p.output) {
                 // connect output voltage source (to internal node if tri-state, otherwise connect directly to output)
-                simulator().updateVoltageSource(0, nodes[i + add], p.voltSource, p.value ? highVoltage : 0);
+                simulator().updateVoltageSource(0, getNode(i + add), p.voltSource, p.value ? highVoltage : 0);
 
                 // add resistor for tri-state if necessary
                 if (hasTriState())
-                    simulator().stampResistor(nodes[i + add], nodes[i], highImpedance[i] ? 1e8 : 1e-3);
+                    simulator().stampResistor(getNode(i + add), getNode(i), highImpedance[i] ? 1e8 : 1e-3);
             }
         }
     }

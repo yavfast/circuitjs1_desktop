@@ -67,8 +67,8 @@ public class TunnelDiodeElm extends CircuitElm {
     public void draw(Graphics g) {
         setBbox(point1, point2, hs);
 
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
 
         draw2Leads(g);
 
@@ -88,7 +88,10 @@ public class TunnelDiodeElm extends CircuitElm {
     }
 
     public void reset() {
-        lastvoltdiff = volts[0] = volts[1] = curcount = 0;
+        lastvoltdiff = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        curcount = 0;
     }
 
     double lastvoltdiff;
@@ -104,8 +107,8 @@ public class TunnelDiodeElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
     }
 
     static final double pvp = .1;
@@ -116,7 +119,7 @@ public class TunnelDiodeElm extends CircuitElm {
     static final double piv = 370e-6;
 
     public void doStep() {
-        double voltdiff = volts[0] - volts[1];
+        double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
         if (Math.abs(voltdiff - lastvoltdiff) > .01)
             simulator().converged = false;
         //System.out.println(voltdiff + " " + lastvoltdiff + " " + Math.abs(voltdiff-lastvoltdiff));
@@ -134,12 +137,12 @@ public class TunnelDiodeElm extends CircuitElm {
                 - Math.exp(1 - voltdiff / pvp) * pip * voltdiff / (pvp * pvp) +
                 Math.exp(voltdiff - pvv) * piv;
         double nc = i - geq * voltdiff;
-        simulator().stampConductance(nodes[0], nodes[1], geq);
-        simulator().stampCurrentSource(nodes[0], nodes[1], nc);
+        simulator().stampConductance(getNode(0), getNode(1), geq);
+        simulator().stampCurrentSource(getNode(0), getNode(1), nc);
     }
 
     void calculateCurrent() {
-        double voltdiff = volts[0] - volts[1];
+        double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
         double i0 = piv * Math.exp(-pvv);
         current = pip * Math.exp(-pvpp / pvt) * (Math.exp(voltdiff / pvt) - 1) +
                 pip * (voltdiff / pvp) * Math.exp(1 - voltdiff / pvp) +

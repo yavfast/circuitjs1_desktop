@@ -76,11 +76,11 @@ public class FMElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, getNode(0), voltSource);
     }
 
     public void doStep() {
-        simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
+        simulator().updateVoltageSource(0, getNode(0), voltSource, getVoltage());
     }
 
     double getVoltage() {
@@ -97,7 +97,7 @@ public class FMElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setBbox(point1, point2, circleSize);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
 
         Font f = new Font("SansSerif", 0, 12);
@@ -132,7 +132,7 @@ public class FMElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public boolean hasGroundConnection(int n1) {

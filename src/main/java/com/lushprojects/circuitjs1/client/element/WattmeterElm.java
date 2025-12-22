@@ -131,8 +131,8 @@ public class WattmeterElm extends CircuitElm {
 
     public void stamp() {
         // zero-valued voltage sources from 0 to 1 and 2 to 3, so we can measure current
-        simulator().stampVoltageSource(nodes[0], nodes[1], voltSources[0], 0);
-        simulator().stampVoltageSource(nodes[2], nodes[3], voltSources[1], 0);
+        simulator().stampVoltageSource(getNode(0), getNode(1), voltSources[0], 0);
+        simulator().stampVoltageSource(getNode(2), getNode(3), voltSources[1], 0);
     }
 
     public void setVoltageSource(int j, int vs) {
@@ -145,7 +145,7 @@ public class WattmeterElm extends CircuitElm {
             curcounts[i] = updateDotCount(currents[i], curcounts[i]);
         double flip = 1;
         for (i = 0; i != 4; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, posts[i], inner[i]);
             drawDots(g, posts[i], inner[i], curcounts[i / 2] * flip);
             flip *= -1;
@@ -213,7 +213,7 @@ public class WattmeterElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[2] - volts[0];
+        return getNodeVoltage(2) - getNodeVoltage(0);
     }
 
     public boolean canFlipX() {

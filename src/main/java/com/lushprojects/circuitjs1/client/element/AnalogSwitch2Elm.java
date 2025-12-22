@@ -57,15 +57,15 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
         setBbox(point1, point2, openhs);
 
         // draw first lead
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
 
         // draw second lead
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, swpoles[0], swposts[0]);
 
         // draw third lead
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, swpoles[1], swposts[1]);
 
         // draw switch
@@ -89,35 +89,35 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
 
     void calculateCurrent() {
         if (open)
-            current = (volts[0] - volts[2]) / r_on;
+            current = (getNodeVoltage(0) - getNodeVoltage(2)) / r_on;
         else
-            current = (volts[0] - volts[1]) / r_on;
+            current = (getNodeVoltage(0) - getNodeVoltage(1)) / r_on;
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
-        simulator().stampNonLinear(nodes[2]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
+        simulator().stampNonLinear(getNode(2));
         if (needsPulldown()) {
-            simulator().stampResistor(nodes[1], 0, r_off);
-            simulator().stampResistor(nodes[2], 0, r_off);
+            simulator().stampResistor(getNode(1), 0, r_off);
+            simulator().stampResistor(getNode(2), 0, r_off);
         }
     }
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        open = (volts[3] < threshold);
+        open = (getNodeVoltage(3) < threshold);
         if (hasFlag(FLAG_INVERT))
             open = !open;
         if (open) {
-            simulator().stampResistor(nodes[0], nodes[2], r_on);
+            simulator().stampResistor(getNode(0), getNode(2), r_on);
             if (!needsPulldown())
-                simulator().stampResistor(nodes[0], nodes[1], r_off);
+                simulator().stampResistor(getNode(0), getNode(1), r_off);
         } else {
-            simulator().stampResistor(nodes[0], nodes[1], r_on);
+            simulator().stampResistor(getNode(0), getNode(1), r_on);
             if (!needsPulldown())
-                simulator().stampResistor(nodes[0], nodes[2], r_off);
+                simulator().stampResistor(getNode(0), getNode(2), r_off);
         }
     }
 

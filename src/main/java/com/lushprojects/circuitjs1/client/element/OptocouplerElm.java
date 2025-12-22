@@ -67,7 +67,7 @@ public class OptocouplerElm extends CompositeElm {
         // draw stubs
         int i;
         for (i = 0; i != 4; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             Point a = posts[i];
             Point b = stubs[i];
             drawThickLine(g, a, b);

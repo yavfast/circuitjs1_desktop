@@ -231,7 +231,7 @@ public class BaseCirSim {
             }
             s = cs;
             for (j = 0; j < e.getPostCount(); j++) {
-                s = s + " " + e.nodes[j];
+                s = s + " " + e.getNode(j);
             }
             log(s);
         }

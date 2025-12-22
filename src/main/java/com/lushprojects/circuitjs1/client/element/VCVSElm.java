@@ -56,7 +56,7 @@ public class VCVSElm extends VCCSElm {
     public void stamp() {
         int vn = pins[inputCount].voltSource + simulator().nodeList.size();
         simulator().stampNonLinear(vn);
-        simulator().stampVoltageSource(nodes[inputCount + 1], nodes[inputCount], pins[inputCount].voltSource);
+        simulator().stampVoltageSource(getNode(inputCount + 1), getNode(inputCount), pins[inputCount].voltSource);
     }
 
     public void doStep() {
@@ -64,51 +64,52 @@ public class VCVSElm extends VCCSElm {
         // converged yet?
         double convergeLimit = getConvergeLimit();
         for (i = 0; i != inputCount; i++) {
-            if (Math.abs(volts[i] - lastVolts[i]) > convergeLimit)
+            if (Math.abs(getNodeVoltage(i) - lastVolts[i]) > convergeLimit)
                 simulator().converged = false;
-//        	if (Double.isNaN(volts[i]))
-//        	    volts[i] = 0;
+//        	if (Double.isNaN(getNodeVoltage(i)))
+//        	    setNodeVoltageDirect(i, 0);
         }
         int vn = pins[inputCount].voltSource + simulator().nodeList.size();
         if (expr != null) {
             // calculate output
             for (i = 0; i != inputCount; i++)
-                exprState.values[i] = volts[i];
+                exprState.values[i] = getNodeVoltage(i);
             exprState.t = simulator().t;
             exprState.timeStep = simulator().timeStep;
             double v0 = expr.eval(exprState);
-            if (Math.abs(volts[inputCount] - volts[inputCount + 1] - v0) > Math.abs(v0) * .01 && simulator().subIterations < 100)
+            if (Math.abs(getNodeVoltage(inputCount) - getNodeVoltage(inputCount + 1) - v0) > Math.abs(v0) * .01 && simulator().subIterations < 100)
                 simulator().converged = false;
             double rs = v0;
 
             // calculate and stamp output derivatives
             for (i = 0; i != inputCount; i++) {
-                double dv = volts[i] - lastVolts[i];
+                double vi = getNodeVoltage(i);
+                double dv = vi - lastVolts[i];
                 if (Math.abs(dv) < 1e-6)
                     dv = 1e-6;
-                exprState.values[i] = volts[i];
+                exprState.values[i] = vi;
                 double v = expr.eval(exprState);
-                exprState.values[i] = volts[i] - dv;
+                exprState.values[i] = vi - dv;
                 double v2 = expr.eval(exprState);
                 double dx = (v - v2) / dv;
                 if (Math.abs(dx) < 1e-6)
                     dx = sign(dx, 1e-6);
 //        	    if (sim.subIterations > 1)
-//        		sim.console("ccedx " + i + " " + dx + " v " + v + " v2 " + v2 + " dv " + dv + " lv " + lastVolts[i] + " " + volts[i] + " " + sim.subIterations + " " + sim.t);
-                simulator().stampMatrix(vn, nodes[i], -dx);
+//        		sim.console("ccedx " + i + " " + dx + " v " + v + " v2 " + v2 + " dv " + dv + " lv " + lastVolts[i] + " " + getNodeVoltage(i) + " " + sim.subIterations + " " + sim.t);
+                simulator().stampMatrix(vn, getNode(i), -dx);
                 // adjust right side
-                rs -= dx * volts[i];
-                exprState.values[i] = volts[i];
+                rs -= dx * vi;
+                exprState.values[i] = vi;
             }
             simulator().stampRightSide(vn, rs);
         }
 
         for (i = 0; i != inputCount; i++)
-            lastVolts[i] = volts[i];
+            lastVolts[i] = getNodeVoltage(i);
     }
 
     public void stepFinished() {
-        exprState.updateLastValues(volts[inputCount] - volts[inputCount + 1]);
+        exprState.updateLastValues(getNodeVoltage(inputCount) - getNodeVoltage(inputCount + 1));
     }
 
     public int getPostCount() {

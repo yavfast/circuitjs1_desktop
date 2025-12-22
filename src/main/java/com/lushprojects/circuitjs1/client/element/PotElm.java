@@ -154,9 +154,9 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         int i;
         int ox = 0;
         int hs = displaySettings().euroResistors() ? 6 : 8;
-        double v1 = volts[0];
-        double v2 = volts[1];
-        double v3 = volts[2];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
+        double v3 = getNodeVoltage(2);
         setBbox(point1, point2, hs);
         adjustBbox(post3, post3);
         draw2Leads(g);
@@ -285,8 +285,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     void calculateCurrent() {
         if (resistance1 == 0)
             return; // avoid NaN
-        current1 = (volts[0] - volts[2]) / resistance1;
-        current2 = (volts[1] - volts[2]) / resistance2;
+        current1 = (getNodeVoltage(0) - getNodeVoltage(2)) / resistance1;
+        current2 = (getNodeVoltage(1) - getNodeVoltage(2)) / resistance2;
         current3 = -current1 - current2;
     }
 
@@ -303,8 +303,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         resistance1 = maxResistance * position;
         resistance2 = maxResistance * (1 - position);
         CircuitSimulator simulator = simulator();
-        simulator().stampResistor(nodes[0], nodes[2], resistance1);
-        simulator().stampResistor(nodes[2], nodes[1], resistance2);
+        simulator().stampResistor(getNode(0), getNode(2), resistance1);
+        simulator().stampResistor(getNode(2), getNode(1), resistance2);
     }
 
     public void getInfo(String arr[]) {

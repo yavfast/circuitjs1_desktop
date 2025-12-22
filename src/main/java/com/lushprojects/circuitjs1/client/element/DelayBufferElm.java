@@ -106,32 +106,32 @@ public class DelayBufferElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, getNode(1), voltSource);
     }
 
     double delayEndTime;
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        boolean inState = volts[0] > threshold;
-        boolean outState = volts[1] > threshold;
+        boolean inState = getNodeVoltage(0) > threshold;
+        boolean outState = getNodeVoltage(1) > threshold;
         if (inState != outState) {
             if (simulator().t >= delayEndTime)
                 outState = inState;
         } else
             delayEndTime = simulator().t + delay;
-        simulator().updateVoltageSource(0, nodes[1], voltSource, outState ? highVoltage : 0);
+        simulator().updateVoltageSource(0, getNode(1), voltSource, outState ? highVoltage : 0);
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = Locale.LS("buffer");
         arr[1] = Locale.LS("delay = ") + getUnitText(delay, "s");
-        arr[2] = "Vi = " + getVoltageText(volts[0]);
-        arr[3] = "Vo = " + getVoltageText(volts[1]);
+        arr[2] = "Vi = " + getVoltageText(getNodeVoltage(0));
+        arr[3] = "Vo = " + getVoltageText(getNodeVoltage(1));
     }
 
     public EditInfo getEditInfo(int n) {

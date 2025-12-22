@@ -140,11 +140,11 @@ public class VoltageElm extends CircuitElm {
         setBbox(x, y, x2, y2);
         draw2Leads(g);
         if (waveformInstance.isDC()) {
-            setVoltageColor(g, volts[0]);
+            setVoltageColor(g, getNodeVoltage(0));
             setPowerColor(g, false);
             interpPoint2(lead1, lead2, ps1, ps2, 0, 10);
             drawThickLine(g, ps1, ps2);
-            setVoltageColor(g, volts[1]);
+            setVoltageColor(g, getNodeVoltage(1));
             setPowerColor(g, false);
             int hs = 16;
             setBbox(point1, point2, hs);
@@ -210,7 +210,7 @@ public class VoltageElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[1] - volts[0];
+        return getNodeVoltage(1) - getNodeVoltage(0);
     }
 
     public void getInfo(String[] arr) {

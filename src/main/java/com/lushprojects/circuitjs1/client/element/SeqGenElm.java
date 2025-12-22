@@ -99,7 +99,7 @@ public class SeqGenElm extends ChipElm {
     }
 
     double getVoltageDiff() {
-        return volts[1];
+        return getNodeVoltage(1);
     }
 
     public int getPostCount() {

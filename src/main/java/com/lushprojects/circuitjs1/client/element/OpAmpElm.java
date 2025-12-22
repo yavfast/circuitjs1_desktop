@@ -64,8 +64,8 @@ public class OpAmpElm extends CircuitElm {
             maxOut = parseDouble(st.nextToken());
             minOut = parseDouble(st.nextToken());
             gbw = parseDouble(st.nextToken());
-            volts[0] = parseDouble(st.nextToken());
-            volts[1] = parseDouble(st.nextToken());
+            setNodeVoltageDirect(0, parseDouble(st.nextToken()));
+            setNodeVoltageDirect(1, parseDouble(st.nextToken()));
             gain = parseDouble(st.nextToken());
         } catch (Exception e) {
         }
@@ -90,7 +90,7 @@ public class OpAmpElm extends CircuitElm {
 
     public String dump() {
         flags |= FLAG_GAIN;
-        return dumpValues(super.dump(), maxOut, minOut, gbw, volts[0], volts[1], gain);
+        return dumpValues(super.dump(), maxOut, minOut, gbw, getNodeVoltage(0), getNodeVoltage(1), gain);
     }
 
     public boolean nonLinear() {
@@ -99,11 +99,11 @@ public class OpAmpElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setBbox(point1, point2, opheight * 2);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, in1p[0], in1p[1]);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, in2p[0], in2p[1]);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, lead2, point2);
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
@@ -117,7 +117,7 @@ public class OpAmpElm extends CircuitElm {
     }
 
     public double getPower() {
-        return volts[2] * current;
+        return getNodeVoltage(2) * current;
     }
 
     Point in1p[], in2p[], textp[];
@@ -168,11 +168,11 @@ public class OpAmpElm extends CircuitElm {
 
     public void getInfo(String arr[]) {
         arr[0] = "op-amp";
-        arr[1] = "V+ = " + getVoltageText(volts[1]);
-        arr[2] = "V- = " + getVoltageText(volts[0]);
+        arr[1] = "V+ = " + getVoltageText(getNodeVoltage(1));
+        arr[2] = "V- = " + getVoltageText(getNodeVoltage(0));
         // sometimes the voltage goes slightly outside range, to make
         // convergence easier.  so we hide that here.
-        double vo = Math.max(Math.min(volts[2], maxOut), minOut);
+        double vo = Math.max(Math.min(getNodeVoltage(2), maxOut), minOut);
         arr[3] = "Vout = " + getVoltageText(vo);
         arr[4] = "Iout = " + getCurrentText(-current);
         arr[5] = "range = " + getVoltageText(minOut) + " to " +
@@ -185,16 +185,16 @@ public class OpAmpElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         int vn = simulator().nodeList.size() + voltSource;
         simulator().stampNonLinear(vn);
-        simulator().stampMatrix(nodes[2], vn, 1);
+        simulator().stampMatrix(getNode(2), vn, 1);
     }
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        double vd = volts[1] - volts[0];
+        double vd = getNodeVoltage(1) - getNodeVoltage(0);
         double midpoint = (maxOut + minOut) * .5;
         if (Math.abs(lastvd - vd) > .1)
             simulator().converged = false;
-        else if (volts[2] > maxOut + .1 || volts[2] < minOut - .1)
+        else if (getNodeVoltage(2) > maxOut + .1 || getNodeVoltage(2) < minOut - .1)
             simulator().converged = false;
         double x = 0;
         int vn = simulator().nodeList.size() + voltSource;
@@ -211,17 +211,17 @@ public class OpAmpElm extends CircuitElm {
             dx = gain;
             x = midpoint;
         }
-        //System.out.println("opamp " + vd + " " + volts[2] + " " + dx + " "  + x + " " + lastvd + " " + sim.converged);
+        //System.out.println("opamp " + vd + " " + getNodeVoltage(2) + " " + dx + " "  + x + " " + lastvd + " " + sim.converged);
 
         // newton-raphson
-        simulator().stampMatrix(vn, nodes[0], dx);
-        simulator().stampMatrix(vn, nodes[1], -dx);
-        simulator().stampMatrix(vn, nodes[2], 1);
+        simulator().stampMatrix(vn, getNode(0), dx);
+        simulator().stampMatrix(vn, getNode(1), -dx);
+        simulator().stampMatrix(vn, getNode(2), 1);
         simulator().stampRightSide(vn, x);
 
         lastvd = vd;
 	    /*if (sim.converged)
-	      System.out.println((volts[1]-volts[0]) + " " + volts[2] + " " + initvd);*/
+          System.out.println((getNodeVoltage(1)-getNodeVoltage(0)) + " " + getNodeVoltage(2) + " " + initvd);*/
     }
 
     // there is no current path through the op-amp inputs, but there
@@ -235,7 +235,7 @@ public class OpAmpElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[2] - volts[1];
+        return getNodeVoltage(2) - getNodeVoltage(1);
     }
 
     int getDumpType() {

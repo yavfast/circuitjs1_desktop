@@ -216,9 +216,9 @@ public class SevenSegElm extends ChipElm {
             diodes[i].setSimulator(simulator());
             diodes[i].setup(model);
             if (diodeDirection == 1)
-                diodes[i].stamp(nodes[i], nodes[commonPin]);
+                diodes[i].stamp(getNode(i), getNode(commonPin));
             else
-                diodes[i].stamp(nodes[commonPin], nodes[i]);
+                diodes[i].stamp(getNode(commonPin), getNode(i));
         }
     }
 
@@ -230,7 +230,7 @@ public class SevenSegElm extends ChipElm {
 
         int i;
         for (i = 0; i != segmentCount; i++)
-            diodes[i].doStep(diodeDirection * (volts[i] - volts[commonPin]));
+            diodes[i].doStep(diodeDirection * (getNodeVoltage(i) - getNodeVoltage(commonPin)));
     }
 
     public boolean nonLinear() {
@@ -294,7 +294,7 @@ public class SevenSegElm extends ChipElm {
         int i;
         pins[commonPin].current = 0;
         for (i = 0; i != segmentCount; i++) {
-            pins[i].current = -diodeDirection * diodes[i].calculateCurrent(diodeDirection * (volts[i] - volts[commonPin]));
+            pins[i].current = -diodeDirection * diodes[i].calculateCurrent(diodeDirection * (getNodeVoltage(i) - getNodeVoltage(commonPin)));
             pins[commonPin].current -= pins[i].current;
         }
     }

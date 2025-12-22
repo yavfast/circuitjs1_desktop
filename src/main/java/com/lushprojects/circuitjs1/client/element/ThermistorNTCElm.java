@@ -128,8 +128,8 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         int i;
         //int ox = 0;
         int hs = 6; //is this a width
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         setBbox(point1, point2, hs); //the two points that are there when the device is being created
         draw2Leads(g); //from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
         setPowerColor(g, true);
@@ -176,13 +176,13 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     }
 
     void calculateCurrent() {
-        current = (volts[0] - volts[1]) / resistance;
+        current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
     }
 
     public void stamp() {
         temperature = temprFromSliderPos(); //e.g. 190 - 40 for range -40 to +150
         resistance = calcResistance(temperature);
-        simulator().stampResistor(nodes[0], nodes[1], resistance); //show temperature as well??
+        simulator().stampResistor(getNode(0), getNode(1), resistance); //show temperature as well??
     }
 
     public void getInfo(String arr[]) {

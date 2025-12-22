@@ -45,13 +45,13 @@ public class SchmittElm extends InvertingSchmittElm {
     double lastOutputVoltage;
 
     public void startIteration() {
-        lastOutputVoltage = volts[1];
+        lastOutputVoltage = getNodeVoltage(1);
     }
 
     public void doStep() {
         double out;
         if (state) {//Output is high
-            if (volts[0] > upperTrigger)//Input voltage high enough to set output high
+            if (getNodeVoltage(0) > upperTrigger)//Input voltage high enough to set output high
             {
                 state = false;
                 out = logicOnLevel;
@@ -59,7 +59,7 @@ public class SchmittElm extends InvertingSchmittElm {
                 out = logicOffLevel;
             }
         } else {//Output is low
-            if (volts[0] < lowerTrigger)//Input voltage low enough to set output low
+            if (getNodeVoltage(0) < lowerTrigger)//Input voltage low enough to set output low
             {
                 state = true;
                 out = logicOffLevel;
@@ -69,9 +69,9 @@ public class SchmittElm extends InvertingSchmittElm {
         }
 
         CircuitSimulator simulator = simulator();
-        double maxStep = slewRate * simulator().timeStep * 1e9;
+        double maxStep = slewRate * simulator.timeStep * 1e9;
         out = Math.max(Math.min(lastOutputVoltage + maxStep, out), lastOutputVoltage - maxStep);
-        simulator().updateVoltageSource(0, nodes[1], voltSource, out);
+        simulator.updateVoltageSource(0, getNode(1), voltSource, out);
     }
 
     public void draw(Graphics g) {

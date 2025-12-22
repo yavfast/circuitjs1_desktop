@@ -84,7 +84,7 @@ public class CCVSElm extends VCCSElm {
             // voltage source (0V) between C+ and C- so we can measure current
             for (i = 0; i != inputCount; i += 2) {
                 int vn1 = pins[i + 1].voltSource;
-				simulator.stampVoltageSource(nodes[i], nodes[i + 1], vn1, 0);
+				simulator.stampVoltageSource(getNode(i), getNode(i + 1), vn1, 0);
             }
         }
 
@@ -92,7 +92,7 @@ public class CCVSElm extends VCCSElm {
         int vn2 = pins[inputCount].voltSource;
         outputVS = vn2;
 		simulator.stampNonLinear(vn2 + simulator().nodeList.size());
-		simulator.stampVoltageSource(nodes[inputCount + 1], nodes[inputCount], vn2);
+		simulator.stampVoltageSource(getNode(inputCount + 1), getNode(inputCount), vn2);
     }
 
     double lastCurrents[];
@@ -152,7 +152,7 @@ public class CCVSElm extends VCCSElm {
     }
 
     public void stepFinished() {
-        exprState.updateLastValues(volts[inputCount] - volts[inputCount + 1]);
+        exprState.updateLastValues(getNodeVoltage(inputCount) - getNodeVoltage(inputCount + 1));
     }
 
     void setCurrentExprValue(int n, double cur) {
@@ -229,7 +229,7 @@ public class CCVSElm extends VCCSElm {
                 CircuitElm ce = elmList.get(j);
                 if (!(ce instanceof VoltageElm))
                     continue;
-                if (ce.getNode(0) == nodes[i] && ce.getNode(1) == nodes[i + 1])
+                if (ce.getNode(0) == getNode(i) && ce.getNode(1) == getNode(i + 1))
                     voltageSources[i / 2] = (VoltageElm) ce;
             }
         }
@@ -248,7 +248,7 @@ public class CCVSElm extends VCCSElm {
         int j;
         for (j = 0; j != inputCount; j += 2)
             arr[i++] = pins[j].text + " = " + getCurrentText(-pins[j].current);
-        arr[i++] = pins[j].text + " = " + getVoltageText(volts[j]) + "; " + pins[j + 1].text + " = " + getVoltageText(volts[j + 1]);
+        arr[i++] = pins[j].text + " = " + getVoltageText(getNodeVoltage(j)) + "; " + pins[j + 1].text + " = " + getVoltageText(getNodeVoltage(j + 1));
         arr[i++] = "I = " + getCurrentText(pins[j].current);
         arr[i++] = null;
     }

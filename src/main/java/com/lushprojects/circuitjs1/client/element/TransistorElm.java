@@ -71,9 +71,9 @@ public class TransistorElm extends CircuitElm {
         try {
             lastvbe = parseDouble(st.nextToken());
             lastvbc = parseDouble(st.nextToken());
-            volts[0] = 0;
-            volts[1] = -lastvbe;
-            volts[2] = -lastvbc;
+            setNodeVoltageDirect(0, 0);
+            setNodeVoltageDirect(1, -lastvbe);
+            setNodeVoltageDirect(2, -lastvbc);
             beta = parseDouble(st.nextToken());
             modelName = CustomLogicModel.unescape(st.nextToken());
         } catch (Exception e) {
@@ -95,7 +95,9 @@ public class TransistorElm extends CircuitElm {
     }
 
     public void reset() {
-        volts[0] = volts[1] = volts[2] = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        setNodeVoltageDirect(2, 0);
         lastvbc = lastvbe = curcount_c = curcount_e = curcount_b = 0;
         badIters = 0;
     }
@@ -105,7 +107,7 @@ public class TransistorElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), pnp, (volts[0] - volts[1]), (volts[0] - volts[2]), beta, escape(modelName));
+        return dumpValues(super.dump(), pnp, (getNodeVoltage(0) - getNodeVoltage(1)), (getNodeVoltage(0) - getNodeVoltage(2)), beta, escape(modelName));
     }
 
     public void updateModels() {
@@ -140,16 +142,16 @@ public class TransistorElm extends CircuitElm {
         }
         setPowerColor(g, true);
         // draw collector
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, coll[0], coll[1]);
         // draw emitter
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, emit[0], emit[1]);
         // draw arrow
         g.setColor(elementColor());
         g.fillPolygon(arrowPoly);
         // draw base
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         if (displaySettings().showPower()) {
             g.setColor(neutralColor());
         }
@@ -162,7 +164,7 @@ public class TransistorElm extends CircuitElm {
         curcount_e = updateDotCount(-ie, curcount_e);
         drawDots(g, emit[1], emit[0], curcount_e);
         // draw base rectangle
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         setPowerColor(g, true);
         g.fillPolygon(rectPoly);
 
@@ -187,7 +189,7 @@ public class TransistorElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (volts[0] - volts[2]) * ib + (volts[1] - volts[2]) * ic;
+        return (getNodeVoltage(0) - getNodeVoltage(2)) * ib + (getNodeVoltage(1) - getNodeVoltage(2)) * ic;
     }
 
     Point rect[], coll[], emit[], base;
@@ -258,14 +260,14 @@ public class TransistorElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
-        simulator().stampNonLinear(nodes[2]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
+        simulator().stampNonLinear(getNode(2));
     }
 
     public void doStep() {
-        double vbc = pnp * (volts[0] - volts[1]); // typically negative
-        double vbe = pnp * (volts[0] - volts[2]); // typically positive
+        double vbc = pnp * (getNodeVoltage(0) - getNodeVoltage(1)); // typically negative
+        double vbe = pnp * (getNodeVoltage(0) - getNodeVoltage(2)); // typically positive
         if (!CircuitMath.isConverged(vbc, lastvbc) || !CircuitMath.isConverged(vbe, lastvbe)) {
             System.out.println("Convergence failed: vbc=" + vbc + ", lastvbc=" + lastvbc + ", vbe=" + vbe + ", lastvbe=" + lastvbe);
             simulator().converged = false;
@@ -398,22 +400,22 @@ public class TransistorElm extends CircuitElm {
 
         // stamp matrix.
         // Node 0 is the base, node 1 the collector, node 2 the emitter.
-        simulator().stampMatrix(nodes[1], nodes[1], gmu + go);
-        simulator().stampMatrix(nodes[1], nodes[0], -gmu + gm);
-        simulator().stampMatrix(nodes[1], nodes[2], -gm - go);
-        simulator().stampMatrix(nodes[0], nodes[0], gpi + gmu);
-        simulator().stampMatrix(nodes[0], nodes[2], -gpi);
-        simulator().stampMatrix(nodes[0], nodes[1], -gmu);
-        simulator().stampMatrix(nodes[2], nodes[0], -gpi - gm);
-        simulator().stampMatrix(nodes[2], nodes[1], -go);
-        simulator().stampMatrix(nodes[2], nodes[2], gpi + gm + go);
+        simulator().stampMatrix(getNode(1), getNode(1), gmu + go);
+        simulator().stampMatrix(getNode(1), getNode(0), -gmu + gm);
+        simulator().stampMatrix(getNode(1), getNode(2), -gm - go);
+        simulator().stampMatrix(getNode(0), getNode(0), gpi + gmu);
+        simulator().stampMatrix(getNode(0), getNode(2), -gpi);
+        simulator().stampMatrix(getNode(0), getNode(1), -gmu);
+        simulator().stampMatrix(getNode(2), getNode(0), -gpi - gm);
+        simulator().stampMatrix(getNode(2), getNode(1), -go);
+        simulator().stampMatrix(getNode(2), getNode(2), gpi + gm + go);
 
         /*
          *  load current excitation vector (right side)
          */
-        simulator().stampRightSide(nodes[0], -ceqbe - ceqbc);
-        simulator().stampRightSide(nodes[1], ceqbc);
-        simulator().stampRightSide(nodes[2], ceqbe);
+        simulator().stampRightSide(getNode(0), -ceqbe - ceqbc);
+        simulator().stampRightSide(getNode(1), ceqbc);
+        simulator().stampRightSide(getNode(2), ceqbe);
 
     }
 
@@ -448,9 +450,9 @@ public class TransistorElm extends CircuitElm {
 
     public void getInfo(String arr[]) {
         arr[0] = Locale.LS("transistor") + " (" + ((pnp == -1) ? "PNP" : "NPN") + ", " + model.name + ", \u03b2=" + showFormat(beta) + ")";
-        double vbc = volts[0] - volts[1];
-        double vbe = volts[0] - volts[2];
-        double vce = volts[1] - volts[2];
+        double vbc = getNodeVoltage(0) - getNodeVoltage(1);
+        double vbe = getNodeVoltage(0) - getNodeVoltage(2);
+        double vce = getNodeVoltage(1) - getNodeVoltage(2);
         if (vbc * pnp > .2)
             arr[1] = vbe * pnp > .2 ? "saturation" : "reverse active";
         else
@@ -473,11 +475,11 @@ public class TransistorElm extends CircuitElm {
             case Scope.VAL_IE:
                 return ie;
             case Scope.VAL_VBE:
-                return volts[0] - volts[2];
+                return getNodeVoltage(0) - getNodeVoltage(2);
             case Scope.VAL_VBC:
-                return volts[0] - volts[1];
+                return getNodeVoltage(0) - getNodeVoltage(1);
             case Scope.VAL_VCE:
-                return volts[1] - volts[2];
+                return getNodeVoltage(1) - getNodeVoltage(2);
             case Scope.VAL_POWER:
                 return getPower();
         }

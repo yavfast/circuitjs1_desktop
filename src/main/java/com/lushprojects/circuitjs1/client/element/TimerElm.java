@@ -103,32 +103,32 @@ public class TimerElm extends ChipElm {
     }
 
     public void stamp() {
-        ground = hasGroundPin() ? nodes[N_GND] : 0;
+        ground = hasGroundPin() ? getNode(N_GND) : 0;
         // stamp voltage divider to put ctl pin at 2/3 V
-        simulator().stampResistor(nodes[N_VCC], nodes[N_CTL], 5000);
-        simulator().stampResistor(nodes[N_CTL], ground, 10000);
+        simulator().stampResistor(getNode(N_VCC), getNode(N_CTL), 5000);
+        simulator().stampResistor(getNode(N_CTL), ground, 10000);
         // discharge, output, and Vcc pins change in doStep()
-        simulator().stampNonLinear(nodes[N_DIS]);
-        simulator().stampNonLinear(nodes[N_OUT]);
-        simulator().stampNonLinear(nodes[N_VCC]);
+        simulator().stampNonLinear(getNode(N_DIS));
+        simulator().stampNonLinear(getNode(N_OUT));
+        simulator().stampNonLinear(getNode(N_VCC));
         if (hasGroundPin())
-            simulator().stampNonLinear(nodes[N_GND]);
+            simulator().stampNonLinear(getNode(N_GND));
     }
 
     void calculateCurrent() {
         // need current for V, discharge, control, ground; output current is
         // calculated for us, and other pins have no current.
-        pins[N_VCC].current = (volts[N_CTL] - volts[N_VCC]) / 5000;
-        double groundVolts = hasGroundPin() ? volts[N_GND] : 0;
-        pins[N_CTL].current = -(volts[N_CTL] - groundVolts) / 10000 - pins[N_VCC].current;
-        pins[N_DIS].current = (!out) ? -(volts[N_DIS] - groundVolts) / 10 : 0;
-        pins[N_OUT].current = -(volts[N_OUT] - (out ? volts[N_VCC] : groundVolts));
+        pins[N_VCC].current = (getNodeVoltage(N_CTL) - getNodeVoltage(N_VCC)) / 5000;
+        double groundVolts = hasGroundPin() ? getNodeVoltage(N_GND) : 0;
+        pins[N_CTL].current = -(getNodeVoltage(N_CTL) - groundVolts) / 10000 - pins[N_VCC].current;
+        pins[N_DIS].current = (!out) ? -(getNodeVoltage(N_DIS) - groundVolts) / 10 : 0;
+        pins[N_OUT].current = -(getNodeVoltage(N_OUT) - (out ? getNodeVoltage(N_VCC) : groundVolts));
         if (out)
             pins[N_VCC].current -= pins[N_OUT].current;
         if (hasGroundPin()) {
-            pins[N_GND].current = (volts[N_CTL] - groundVolts) / 10000;
+            pins[N_GND].current = (getNodeVoltage(N_CTL) - groundVolts) / 10000;
             if (!out)
-                pins[N_GND].current += (volts[N_DIS] - groundVolts) / 10 + (volts[N_OUT] - groundVolts);
+                pins[N_GND].current += (getNodeVoltage(N_DIS) - groundVolts) / 10 + (getNodeVoltage(N_OUT) - groundVolts);
         }
     }
 
@@ -136,20 +136,20 @@ public class TimerElm extends ChipElm {
     boolean triggerSuppressed;
 
     public void startIteration() {
-        double groundVolts = hasGroundPin() ? volts[N_GND] : 0;
-        out = volts[N_OUT] > (volts[N_VCC] + groundVolts) / 2;
+        double groundVolts = hasGroundPin() ? getNodeVoltage(N_GND) : 0;
+        out = getNodeVoltage(N_OUT) > (getNodeVoltage(N_VCC) + groundVolts) / 2;
         // check comparators
-        if (volts[N_THRES] > volts[N_CTL])
+        if (getNodeVoltage(N_THRES) > getNodeVoltage(N_CTL))
             out = false;
 
         // trigger overrides threshold
         // (save triggered flag in case reset and trigger pins are tied together)
-        boolean triggered = ((volts[N_CTL] + groundVolts) / 2 > volts[N_TRIG]);
+        boolean triggered = ((getNodeVoltage(N_CTL) + groundVolts) / 2 > getNodeVoltage(N_TRIG));
         if (triggered || triggerSuppressed)
             out = true;
 
         // reset overrides trigger
-        if (hasReset() && volts[N_RST] < .7 + groundVolts) {
+        if (hasReset() && getNodeVoltage(N_RST) < .7 + groundVolts) {
             out = false;
             // if trigger is overriden, save it
             triggerSuppressed = triggered;
@@ -162,10 +162,10 @@ public class TimerElm extends ChipElm {
         // resistor because it's easier, and sometimes people tie
         // the discharge pin to the trigger and threshold pins.
         if (!out)
-            simulator().stampResistor(nodes[N_DIS], ground, 10);
+            simulator().stampResistor(getNode(N_DIS), ground, 10);
 
         // if output is high, connect Vcc to output with a small resistor.  Otherwise connect output to ground.
-        simulator().stampResistor(out ? nodes[N_VCC] : ground, nodes[N_OUT], 1);
+        simulator().stampResistor(out ? getNode(N_VCC) : ground, getNode(N_OUT), 1);
     }
 
     public int getPostCount() {

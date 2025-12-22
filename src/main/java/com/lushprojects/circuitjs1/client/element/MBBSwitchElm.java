@@ -89,13 +89,13 @@ public class MBBSwitchElm extends SwitchElm {
         adjustBbox(swposts[0], swposts[1]);
 
         // draw first lead
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
 
         // draw other leads
         int i;
         for (i = 0; i != 2; i++) {
-            setVoltageColor(g, volts[i + 1]);
+            setVoltageColor(g, getNodeVoltage(i + 1));
             drawThickLine(g, swpoles[i], swposts[i]);
         }
 
@@ -157,9 +157,9 @@ public class MBBSwitchElm extends SwitchElm {
         CircuitSimulator simulator = simulator();
         int vs = 0;
         if (both || position == 0)
-            simulator().stampVoltageSource(nodes[0], nodes[1], voltSources[vs++], 0);
+            simulator().stampVoltageSource(getNode(0), getNode(1), voltSources[vs++], 0);
         if (both || position == 2)
-            simulator().stampVoltageSource(nodes[0], nodes[2], voltSources[vs++], 0);
+            simulator().stampVoltageSource(getNode(0), getNode(2), voltSources[vs++], 0);
     }
 
     // connection is implemented by voltage source with voltage = 0.

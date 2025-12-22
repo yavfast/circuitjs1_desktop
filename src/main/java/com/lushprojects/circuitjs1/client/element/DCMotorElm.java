@@ -119,30 +119,30 @@ public class DCMotorElm extends CircuitElm {
         // stamp a bunch of internal parts to help us simulate the motor.  It would be better to simulate this mini-circuit in code to reduce
         // the size of the matrix.
 
-        //nodes[0] nodes [1] are the external nodes
+        // getNode(0), getNode(1) are the external nodes
         //Electrical part:
-        // inductor from motor nodes[0] to internal nodes[2]
-        ind.stamp(nodes[0], nodes[2]);
+        // inductor from motor getNode(0) to internal node 2
+        ind.stamp(getNode(0), getNode(2));
         CircuitSimulator simulator = simulator();
-        // resistor from internal nodes[2] to internal nodes[3] // motor post 2
-        simulator().stampResistor(nodes[2], nodes[3], resistance);
-        // Back emf voltage source from internal nodes[3] to external nodes [1]
-        simulator().stampVoltageSource(nodes[3], nodes[1], voltSources[0]); //
+        // resistor from internal node 2 to internal node 3 // motor post 2
+        simulator().stampResistor(getNode(2), getNode(3), resistance);
+        // Back emf voltage source from internal node 3 to external node 1
+        simulator().stampVoltageSource(getNode(3), getNode(1), voltSources[0]); //
 
         //Mechanical part:
-        // inertia inductor from internal nodes[4] to internal nodes[5]
-        indInertia.stamp(nodes[4], nodes[5]);
-        // resistor from  internal nodes[5] to  ground
-        simulator().stampResistor(nodes[5], 0, b);
-        // Voltage Source from  internal nodes[4] to ground
+        // inertia inductor from internal node 4 to internal node 5
+        indInertia.stamp(getNode(4), getNode(5));
+        // resistor from  internal node 5 to  ground
+        simulator().stampResistor(getNode(5), 0, b);
+        // Voltage Source from  internal node 4 to ground
         //System.out.println("doing stamp voltage");
-        simulator().stampVoltageSource(nodes[4], 0, voltSources[1]);
+        simulator().stampVoltageSource(getNode(4), 0, voltSources[1]);
         //System.out.println("doing stamp voltage "+voltSource);
     }
 
     public void startIteration() {
-        ind.startIteration(volts[0] - volts[2]);
-        indInertia.startIteration(volts[4] - volts[5]);
+        ind.startIteration(getNodeVoltage(0) - getNodeVoltage(2));
+        indInertia.startIteration(getNodeVoltage(4) - getNodeVoltage(5));
         // update angle:
         angle = angle + speed * simulator().timeStep;
     }
@@ -161,21 +161,21 @@ public class DCMotorElm extends CircuitElm {
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        simulator().updateVoltageSource(nodes[4], 0, voltSources[1],
+        simulator().updateVoltageSource(getNode(4), 0, voltSources[1],
                 coilCurrent * K);
-        simulator().updateVoltageSource(nodes[3], nodes[1], voltSources[0],
+        simulator().updateVoltageSource(getNode(3), getNode(1), voltSources[0],
                 inertiaCurrent * Kb);
-        ind.doStep(volts[0] - volts[2]);
-        indInertia.doStep(volts[4] - volts[5]);
+        ind.doStep(getNodeVoltage(0) - getNodeVoltage(2));
+        indInertia.doStep(getNodeVoltage(4) - getNodeVoltage(5));
     }
 
     void calculateCurrent() {
-        coilCurrent = ind.calculateCurrent(volts[0] - volts[2]);
-        inertiaCurrent = indInertia.calculateCurrent(volts[4] - volts[5]);
-//	current = (volts[2]-volts[3])/resistance;
+        coilCurrent = ind.calculateCurrent(getNodeVoltage(0) - getNodeVoltage(2));
+        inertiaCurrent = indInertia.calculateCurrent(getNodeVoltage(4) - getNodeVoltage(5));
+//	current = (getNodeVoltage(2)-getNodeVoltage(3))/resistance;
         speed = inertiaCurrent;
     }
-//    public double getCurrent() { current = (volts[2]-volts[3])/resistance; return current; }
+//    public double getCurrent() { current = (getNodeVoltage(2)-getNodeVoltage(3))/resistance; return current; }
 
     public void setCurrent(int vn, double c) {
         if (vn == voltSources[0])

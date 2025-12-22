@@ -57,7 +57,9 @@ public class TriodeElm extends CircuitElm {
     }
 
     public void reset() {
-        volts[0] = volts[1] = volts[2] = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        setNodeVoltageDirect(2, 0);
         curcount = 0;
     }
 
@@ -107,18 +109,18 @@ public class TriodeElm extends CircuitElm {
         setBbox(point1, plate[0], 16);
         adjustBbox(cath[0].x, cath[1].y, point2.x + circler, point2.y + circler);
         // draw plate
-        setVoltageColor(g, volts[0]);
-        setPowerColor(g, currentp * (volts[0] - volts[2]));
+        setVoltageColor(g, getNodeVoltage(0));
+        setPowerColor(g, currentp * (getNodeVoltage(0) - getNodeVoltage(2)));
         drawThickLine(g, plate[0], plate[1]);
         drawThickLine(g, plate[2], plate[3]);
         // draw grid
-        setVoltageColor(g, volts[1]);
-        setPowerColor(g, currentg * (volts[1] - volts[2]));
+        setVoltageColor(g, getNodeVoltage(1));
+        setPowerColor(g, currentg * (getNodeVoltage(1) - getNodeVoltage(2)) );
         int i;
         for (i = 0; i != 8; i += 2)
             drawThickLine(g, grid[i], grid[i + 1]);
         // draw cathode
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         setPowerColor(g, 0);
         for (i = 0; i != 3; i++)
             drawThickLine(g, cath[i], cath[i + 1]);
@@ -153,7 +155,7 @@ public class TriodeElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (volts[0] - volts[2]) * currentc + (volts[gridN] - volts[cathN]) * currentg;
+        return (getNodeVoltage(0) - getNodeVoltage(2)) * currentc + (getNodeVoltage(gridN) - getNodeVoltage(cathN)) * currentg;
     }
 
     public double getCurrent() {
@@ -168,9 +170,9 @@ public class TriodeElm extends CircuitElm {
 
     public void doStep() {
         double vs[] = new double[3];
-        vs[0] = volts[0];
-        vs[1] = volts[1];
-        vs[2] = volts[2];
+        vs[0] = getNodeVoltage(0);
+        vs[1] = getNodeVoltage(1);
+        vs[2] = getNodeVoltage(2);
         if (vs[1] > lastv1 + .5)
             vs[1] = lastv1 + .5;
         if (vs[1] < lastv1 - .5)
@@ -195,10 +197,10 @@ public class TriodeElm extends CircuitElm {
         double ival = vgk + vpk / mu;
         currentg = 0;
         if (vgk > .01) {
-			simulator.stampResistor(nodes[gridN], nodes[cathN], gridCurrentR);
+		simulator.stampResistor(getNode(gridN), getNode(cathN), gridCurrentR);
             currentg = vgk / gridCurrentR;
         } else
-			simulator.stampResistor(nodes[gridN], nodes[cathN], 1e8); // avoid singular matrix
+		simulator.stampResistor(getNode(gridN), getNode(cathN), 1e8); // avoid singular matrix
         if (ival < 0) {
             // should be all zero, but that causes a singular matrix,
             // so instead we treat it as a large resistor
@@ -215,30 +217,30 @@ public class TriodeElm extends CircuitElm {
         currentp = ids;
         currentc = ids + currentg;
         double rs = -ids + Gds * vpk + gm * vgk;
-		simulator.stampMatrix(nodes[plateN], nodes[plateN], Gds);
-		simulator.stampMatrix(nodes[plateN], nodes[cathN], -Gds - gm);
-		simulator.stampMatrix(nodes[plateN], nodes[gridN], gm);
+		simulator.stampMatrix(getNode(plateN), getNode(plateN), Gds);
+		simulator.stampMatrix(getNode(plateN), getNode(cathN), -Gds - gm);
+		simulator.stampMatrix(getNode(plateN), getNode(gridN), gm);
 
-		simulator.stampMatrix(nodes[cathN], nodes[plateN], -Gds);
-		simulator.stampMatrix(nodes[cathN], nodes[cathN], Gds + gm);
-		simulator.stampMatrix(nodes[cathN], nodes[gridN], -gm);
+		simulator.stampMatrix(getNode(cathN), getNode(plateN), -Gds);
+		simulator.stampMatrix(getNode(cathN), getNode(cathN), Gds + gm);
+		simulator.stampMatrix(getNode(cathN), getNode(gridN), -gm);
 
-		simulator.stampRightSide(nodes[plateN], rs);
-		simulator.stampRightSide(nodes[cathN], -rs);
+		simulator.stampRightSide(getNode(plateN), rs);
+		simulator.stampRightSide(getNode(cathN), -rs);
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator.stampNonLinear(nodes[0]);
-		simulator.stampNonLinear(nodes[1]);
-		simulator.stampNonLinear(nodes[2]);
+        simulator.stampNonLinear(getNode(0));
+		simulator.stampNonLinear(getNode(1));
+		simulator.stampNonLinear(getNode(2));
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "triode";
-        double vac = volts[plateN] - volts[cathN];
-        double vgc = volts[gridN] - volts[cathN];
-        double vag = volts[plateN] - volts[gridN];
+        double vac = getNodeVoltage(plateN) - getNodeVoltage(cathN);
+        double vgc = getNodeVoltage(gridN) - getNodeVoltage(cathN);
+        double vag = getNodeVoltage(plateN) - getNodeVoltage(gridN);
         arr[1] = "Vac = " + getVoltageText(vac);
         arr[2] = "Vgc = " + getVoltageText(vgc);
         arr[3] = "Vag = " + getVoltageText(vag);
@@ -271,7 +273,7 @@ public class TriodeElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[plateN] - volts[cathN];
+        return getNodeVoltage(plateN) - getNodeVoltage(cathN);
     }
 
     public boolean canFlipX() {

@@ -86,9 +86,9 @@ public class LEDElm extends DiodeElm {
             super.draw(g);
             return;
         }
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, ledLead1);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, ledLead2, point2);
 
         g.setColor(neutralColor());

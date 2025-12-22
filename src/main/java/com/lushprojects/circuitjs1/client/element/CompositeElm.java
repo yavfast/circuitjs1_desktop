@@ -47,6 +47,7 @@ public abstract class CompositeElm extends CircuitElm {
 
     protected int numPosts = 0;
     protected int numNodes = 0;
+    protected int[] nodes;
     protected Point[] posts;
     protected ArrayList<VoltageSourceRecord> voltageSources;
 
@@ -171,6 +172,7 @@ public abstract class CompositeElm extends CircuitElm {
         }
 
         numNodes = compNodeList.size();
+        nodes = new int[numNodes];
 
 //	CirSim.console("Dumping compNodeList");
 //	for (int i = 0; i < numNodes; i++) {
@@ -388,7 +390,7 @@ public abstract class CompositeElm extends CircuitElm {
 
     // called to set node p (local to this element) to equal n (global)
     public void setNode(int p, int n) {
-        // nodes[p] = n
+        nodes[p] = n;
         ArrayList<CircuitNodeLink> cnLinks;
         super.setNode(p, n);
         cnLinks = compNodeList.get(p).links;
@@ -401,14 +403,13 @@ public abstract class CompositeElm extends CircuitElm {
     }
 
     public void setNodeVoltage(int n, double c) {
-        // volts[n] = c;
         ArrayList<CircuitNodeLink> cnLinks;
         super.setNodeVoltage(n, c);
         cnLinks = compNodeList.get(n).links;
         for (int i = 0; i < cnLinks.size(); i++) {
             cnLinks.get(i).elm.setNodeVoltage(cnLinks.get(i).num, c);
         }
-        volts[n] = c;
+        setNodeVoltageDirect(n, c);
     }
 
     public boolean canViewInScope() {

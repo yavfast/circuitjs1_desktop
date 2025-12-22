@@ -80,19 +80,19 @@ public class TimeDelayRelayElm extends ChipElm {
 
     public void stamp() {
         resistance = (onState) ? onResistance : offResistance;
-        simulator().stampResistor(nodes[0], nodes[1], vinResistance);
-        simulator().stampNonLinear(nodes[2]);
-        simulator().stampNonLinear(nodes[3]);
+        simulator().stampResistor(getNode(0), getNode(1), vinResistance);
+        simulator().stampNonLinear(getNode(2));
+        simulator().stampNonLinear(getNode(3));
     }
 
     public void doStep() {
         resistance = (onState) ? onResistance : offResistance;
-        simulator().stampResistor(nodes[2], nodes[3], resistance);
+        simulator().stampResistor(getNode(2), getNode(3), resistance);
     }
 
     public void stepFinished() {
         boolean oldState = poweredState;
-        poweredState = (volts[0] - volts[1] > 2.5);
+        poweredState = (getNodeVoltage(0) - getNodeVoltage(1) > 2.5);
         if (oldState != poweredState)
             lastTransition = simulator().t;
         if (simulator().t > lastTransition + (poweredState ? onDelay : offDelay))
@@ -100,8 +100,8 @@ public class TimeDelayRelayElm extends ChipElm {
     }
 
     public void draw(Graphics g) {
-        pins[0].current = -(volts[0] - volts[1]) / vinResistance;
-        pins[2].current = -(volts[2] - volts[3]) / resistance;
+        pins[0].current = -(getNodeVoltage(0) - getNodeVoltage(1)) / vinResistance;
+        pins[2].current = -(getNodeVoltage(2) - getNodeVoltage(3)) / resistance;
         pins[1].current = -pins[0].current;
         pins[3].current = -pins[2].current;
         drawChip(g);

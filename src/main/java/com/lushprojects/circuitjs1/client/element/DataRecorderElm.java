@@ -62,7 +62,7 @@ public class DataRecorderElm extends CircuitElm {
         setBbox(point1, lead1, 0);
         String s = Locale.LS("export");
         drawLabeledNode(g, s, point1, lead1);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
@@ -71,12 +71,12 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "data export";
-        arr[1] = "V = " + getVoltageText(volts[0]);
+        arr[1] = "V = " + getVoltageText(getNodeVoltage(0));
         arr[2] = (dataFull ? dataCount : dataPtr) + "/" + dataCount;
     }
 
@@ -84,7 +84,7 @@ public class DataRecorderElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         if (lastTimeStepCount == simulator().timeStepCount)
             return;
-        data[dataPtr++] = volts[0];
+        data[dataPtr++] = getNodeVoltage(0);
         lastTimeStepCount = simulator().timeStepCount;
         if (dataPtr >= dataCount) {
             dataPtr = 0;

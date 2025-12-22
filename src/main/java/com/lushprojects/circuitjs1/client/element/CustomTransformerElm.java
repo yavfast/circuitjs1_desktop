@@ -579,15 +579,15 @@ public class CustomTransformerElm extends CircuitElm {
 
         // draw taps
         for (i = 0; i != getPostCount(); i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, nodeData[i].point, nodeData[i].tap);
         }
 
         // draw coils
         for (i = 0; i != coilCount; i++) {
             int n = windings[i].startNode;
-            setVoltageColor(g, volts[n]);
-            setPowerColor(g, windings[i].current * (volts[n] - volts[n + 1]));
+            setVoltageColor(g, getNodeVoltage(n));
+            setPowerColor(g, windings[i].current * (getNodeVoltage(n) - getNodeVoltage(n + 1)));
 
             // Make the coil "bulge" face the core (inward), independent of winding order/flip.
             Point a = nodeData[n].tap;
@@ -613,7 +613,7 @@ public class CustomTransformerElm extends CircuitElm {
             // opposite of the geometric (px,py) dot-product test.
             int hs = (px * toCoreX + py * toCoreY >= 0) ? -6 : 6;
 
-            drawCoil(g, hs, a, b, volts[n], volts[n + 1]);
+            drawCoil(g, hs, a, b, getNodeVoltage(n), getNodeVoltage(n + 1));
             if (dots != null) {
                 g.setColor(needsHighlight() ? selectColor() : elementColor());
                 g.fillOval(dots[i].x - 2, dots[i].y - 2, 5, 5);
@@ -830,7 +830,7 @@ public class CustomTransformerElm extends CircuitElm {
             windings[i].currentCount = 0;
         }
         for (int i = 0; i != nodeCount; i++) {
-            volts[i] = 0;
+            setNodeVoltageDirect(i, 0);
             nodeData[i].current = 0;
             nodeData[i].currentCount = 0;
         }
@@ -883,12 +883,12 @@ public class CustomTransformerElm extends CircuitElm {
                 int ni = windings[i].startNode;
                 int nj = windings[j].startNode;
                 if (i == j)
-                    simulator.stampConductance(nodes[ni], nodes[ni + 1], xformMatrix[i][i]);
+                    simulator.stampConductance(getNode(ni), getNode(ni + 1), xformMatrix[i][i]);
                 else
-                    simulator.stampVCCurrentSource(nodes[ni], nodes[ni + 1], nodes[nj], nodes[nj + 1], xformMatrix[i][j]);
+                    simulator.stampVCCurrentSource(getNode(ni), getNode(ni + 1), getNode(nj), getNode(nj + 1), xformMatrix[i][j]);
             }
         for (i = 0; i != nodeCount; i++)
-            simulator.stampRightSide(nodes[i]);
+            simulator.stampRightSide(getNode(i));
     }
 
     public void startIteration() {
@@ -899,7 +899,7 @@ public class CustomTransformerElm extends CircuitElm {
                 int j;
                 for (j = 0; j != coilCount; j++) {
                     int n = windings[j].startNode;
-                    double voltdiff = volts[n] - volts[n + 1];
+                    double voltdiff = getNodeVoltage(n) - getNodeVoltage(n + 1);
                     val += voltdiff * xformMatrix[i][j];
                 }
             }
@@ -911,7 +911,7 @@ public class CustomTransformerElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != coilCount; i++) {
             int n = windings[i].startNode;
-            simulator.stampCurrentSource(nodes[n], nodes[n + 1], windings[i].curSourceValue);
+            simulator.stampCurrentSource(getNode(n), getNode(n + 1), windings[i].curSourceValue);
         }
     }
 
@@ -925,7 +925,7 @@ public class CustomTransformerElm extends CircuitElm {
                 int j;
                 for (j = 0; j != coilCount; j++) {
                     int n = windings[j].startNode;
-                    double voltdiff = volts[n] - volts[n + 1];
+                    double voltdiff = getNodeVoltage(n) - getNodeVoltage(n + 1);
                     val += voltdiff * xformMatrix[i][j];
                 }
             }
@@ -949,7 +949,7 @@ public class CustomTransformerElm extends CircuitElm {
             if (2 + i * 2 >= arr.length)
                 break;
             int ni = windings[i].startNode;
-            arr[2 + i * 2] = "Vd" + (i + 1) + " = " + getVoltageText(volts[ni] - volts[ni + 1]);
+            arr[2 + i * 2] = "Vd" + (i + 1) + " = " + getVoltageText(getNodeVoltage(ni) - getNodeVoltage(ni + 1));
             arr[3 + i * 2] = "I" + (i + 1) + " = " + getCurrentText(windings[i].current);
         }
     }

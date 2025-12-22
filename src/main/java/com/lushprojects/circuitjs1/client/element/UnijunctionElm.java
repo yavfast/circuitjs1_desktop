@@ -80,13 +80,13 @@ public class UnijunctionElm extends CompositeElm {
 
     public void draw(Graphics g) {
         setBbox(point1, b1[0], 0);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, b1[0], b1[1]);
         drawThickLine(g, b1[1], b1[2]);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, b2[0], b2[1]);
         drawThickLine(g, b2[1], b2[2]);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, emitter[0], emitter[1]);
         drawThickLine(g, emitter[1], emitter[2]);
         g.fillPolygon(arrowPoly);
@@ -147,8 +147,8 @@ public class UnijunctionElm extends CompositeElm {
         arr[0] = "unijunction transistor";
         arr[1] = "Ie = " + getCurrentText(-getCurrentIntoNode(0));
         arr[2] = "Ib2 = " + getCurrentText(-getCurrentIntoNode(2));
-        arr[3] = "Veb1 = " + getVoltageText(volts[0] - volts[1]);
-        arr[4] = "Vb2b1 = " + getVoltageText(volts[2] - volts[1]);
+        arr[3] = "Veb1 = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(1));
+        arr[4] = "Vb2b1 = " + getVoltageText(getNodeVoltage(2) - getNodeVoltage(1));
         arr[5] = "P = " + getUnitText(getPower(), "W");
     }
 

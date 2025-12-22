@@ -108,7 +108,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     Color getTempColor(Graphics g, int num) {
-        Color c = getVoltageColor(g, volts[num * 2]);
+        Color c = getVoltageColor(g, getNodeVoltage(num * 2));
         double temp = heats[num] / i2t;
         if (temp < .3333) {
             double val = temp * 3;
@@ -153,7 +153,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
 
         for (i = 0; i != 3; i++) {
             // terminal at top
-            setVoltageColor(g, volts[i * 2]);
+            setVoltageColor(g, getNodeVoltage(i * 2));
             drawThickLine(g, i * spx, 0, i * spx, 32);
             if (blown)
                 drawThickLine(g, i * spx - 4, 32, i * spx + 4, 32);
@@ -163,7 +163,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
             drawThickLine(g, i * spx, 64, i * spx, 80);
             g.drawLine(i * spx - 4, 16 - 4, i * spx + 4, 16 + 4);
             g.drawLine(i * spx + 4, 16 - 4, i * spx - 4, 16 + 4);
-            setVoltageColor(g, volts[i * 2 + 1]);
+            setVoltageColor(g, getNodeVoltage(i * 2 + 1));
             drawThickLine(g, i * spx, 176, i * spx, 192);
             g.setLineCap(LineCap.ROUND);
             g.setColor(getTempColor(g, i));
@@ -210,13 +210,13 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     void calculateCurrent() {
         int i;
         for (i = 0; i != 3; i++)
-            currents[i] = (volts[i * 2] - volts[i * 2 + 1]) / (blown ? blownResistance : resistance);
+            currents[i] = (getNodeVoltage(i * 2) - getNodeVoltage(i * 2 + 1)) / (blown ? blownResistance : resistance);
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != 6; i++)
-            simulator().stampNonLinear(nodes[i]);
+            simulator().stampNonLinear(getNode(i));
     }
 
     public boolean nonLinear() {
@@ -267,7 +267,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != 3; i++)
-            simulator().stampResistor(nodes[i * 2], nodes[i * 2 + 1], blown ? blownResistance : resistance);
+            simulator().stampResistor(getNode(i * 2), getNode(i * 2 + 1), blown ? blownResistance : resistance);
     }
 
     public void getInfo(String arr[]) {

@@ -117,14 +117,14 @@ public class InvertingSchmittElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, getNode(1), voltSource);
     }
 
     public void doStep() {
-        double v0 = volts[1];
+        double v0 = getNodeVoltage(1);
         double out;
         if (state) {//Output is high
-            if (volts[0] > upperTrigger)//Input voltage high enough to set output low
+            if (getNodeVoltage(0) > upperTrigger)//Input voltage high enough to set output low
             {
                 state = false;
                 out = logicOffLevel;
@@ -132,7 +132,7 @@ public class InvertingSchmittElm extends CircuitElm {
                 out = logicOnLevel;
             }
         } else {//Output is low
-            if (volts[0] < lowerTrigger)//Input voltage low enough to set output high
+            if (getNodeVoltage(0) < lowerTrigger)//Input voltage low enough to set output high
             {
                 state = true;
                 out = logicOnLevel;
@@ -144,17 +144,17 @@ public class InvertingSchmittElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         double maxStep = slewRate * simulator().timeStep * 1e9;
         out = Math.max(Math.min(v0 + maxStep, out), v0 - maxStep);
-        simulator().updateVoltageSource(0, nodes[1], voltSource, out);
+        simulator().updateVoltageSource(0, getNode(1), voltSource, out);
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "inverting Schmitt trigger";
-        arr[1] = "Vi = " + getVoltageText(volts[0]);
-        arr[2] = "Vo = " + getVoltageText(volts[1]);
+        arr[1] = "Vi = " + getVoltageText(getNodeVoltage(0));
+        arr[2] = "Vo = " + getVoltageText(getNodeVoltage(1));
     }
 
     public EditInfo getEditInfo(int n) {

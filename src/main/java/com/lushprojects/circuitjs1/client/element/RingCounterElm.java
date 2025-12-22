@@ -98,7 +98,7 @@ public class RingCounterElm extends ChipElm {
     void execute() {
         int i;
 
-        // if we just loaded then the volts[] array is likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
+        // if we just loaded then the voltages are likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
         if (justLoaded) {
             justLoaded = false;
             return;

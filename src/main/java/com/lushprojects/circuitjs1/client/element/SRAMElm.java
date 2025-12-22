@@ -234,21 +234,21 @@ public class SRAMElm extends ChipElm {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator().stampVoltageSource(0, nodes[internalNodes + i], p.voltSource);
-            simulator().stampNonLinear(nodes[internalNodes + i]);
-            simulator().stampNonLinear(nodes[dataNodes + i]);
+            simulator().stampVoltageSource(0, getNode(internalNodes + i), p.voltSource);
+            simulator().stampNonLinear(getNode(internalNodes + i));
+            simulator().stampNonLinear(getNode(dataNodes + i));
         }
     }
 
     public void doStep() {
         int i;
-        boolean writeEnabled = volts[0] < getThreshold();
-        boolean outputEnabled = (volts[1] < getThreshold()) && !writeEnabled;
+        boolean writeEnabled = getNodeVoltage(0) < getThreshold();
+        boolean outputEnabled = (getNodeVoltage(1) < getThreshold()) && !writeEnabled;
 
         // get address
         address = 0;
         for (i = 0; i != addressBits; i++) {
-            address |= (volts[addressNodes + i] > getThreshold()) ? 1 << (addressBits - 1 - i) : 0;
+            address |= (getNodeVoltage(addressNodes + i) > getThreshold()) ? 1 << (addressBits - 1 - i) : 0;
         }
 
         Integer dataObj = map.get(address);
@@ -256,24 +256,24 @@ public class SRAMElm extends ChipElm {
         CircuitSimulator simulator = simulator();
         for (i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator().updateVoltageSource(0, nodes[internalNodes + i], p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
+            simulator().updateVoltageSource(0, getNode(internalNodes + i), p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
 
             // stamp resistor from internal voltage source to data pin.
             // if output enabled, make it a small resistor.  otherwise large.
-            simulator().stampResistor(nodes[internalNodes + i], nodes[dataNodes + i], outputEnabled ? 1 : 1e8);
+            simulator().stampResistor(getNode(internalNodes + i), getNode(dataNodes + i), outputEnabled ? 1 : 1e8);
         }
     }
 
     public void stepFinished() {
         int i;
         int data = 0;
-        boolean writeEnabled = volts[0] < getThreshold();
+        boolean writeEnabled = getNodeVoltage(0) < getThreshold();
         if (!writeEnabled)
             return;
 
         // store data in RAM
         for (i = 0; i != dataBits; i++) {
-            data |= (volts[dataNodes + i] > getThreshold()) ? 1 << (dataBits - 1 - i) : 0;
+            data |= (getNodeVoltage(dataNodes + i) > getThreshold()) ? 1 << (dataBits - 1 - i) : 0;
         }
         map.put(address, data);
     }

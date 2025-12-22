@@ -71,7 +71,7 @@ public class SweepElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setBbox(point1, point2, circleSize);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
@@ -117,7 +117,7 @@ public class SweepElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, getNode(0), voltSource);
     }
 
     double fadd, fmul, freqTime, savedTimeStep;
@@ -171,11 +171,11 @@ public class SweepElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator().updateVoltageSource(0, nodes[0], voltSource, v);
+        simulator().updateVoltageSource(0, getNode(0), voltSource, v);
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public int getVoltageSourceCount() {
@@ -189,7 +189,7 @@ public class SweepElm extends CircuitElm {
     public void getInfo(String arr[]) {
         arr[0] = "sweep " + (((flags & FLAG_LOG) == 0) ? "(linear)" : "(log)");
         arr[1] = "I = " + getCurrentDText(getCurrent());
-        arr[2] = "V = " + getVoltageText(volts[0]);
+        arr[2] = "V = " + getVoltageText(getNodeVoltage(0));
         arr[3] = "f = " + getUnitText(frequency, "Hz");
         arr[4] = "range = " + getUnitText(minF, "Hz") + " .. " +
                 getUnitText(maxF, "Hz");

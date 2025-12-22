@@ -77,7 +77,7 @@ public class FuseElm extends CircuitElm {
     }
 
     Color getTempColor(Graphics g) {
-        Color c = getVoltageColor(g, volts[0]);
+        Color c = getVoltageColor(g, getNodeVoltage(0));
         double temp = heat / i2t;
         if (temp < .3333) {
             double val = temp * 3;
@@ -137,13 +137,13 @@ public class FuseElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        current = (volts[0] - volts[1]) / (blown ? blownResistance : resistance);
+        current = (getNodeVoltage(0) - getNodeVoltage(1)) / (blown ? blownResistance : resistance);
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
     }
 
     public boolean nonLinear() {
@@ -167,7 +167,7 @@ public class FuseElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator().stampResistor(nodes[0], nodes[1], blown ? blownResistance : resistance);
+        simulator().stampResistor(getNode(0), getNode(1), blown ? blownResistance : resistance);
     }
 
     public void getInfo(String arr[]) {

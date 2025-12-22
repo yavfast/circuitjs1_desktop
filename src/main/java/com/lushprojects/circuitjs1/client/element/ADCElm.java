@@ -59,7 +59,7 @@ public class ADCElm extends ChipElm {
     void execute() {
         int imax = (1 << bits) - 1;
         // if we round, the half-flash doesn't work
-        double val = imax * volts[bits] / volts[bits + 1]; // + .5;
+        double val = imax * getNodeVoltage(bits) / getNodeVoltage(bits + 1); // + .5;
         int ival = (int) val;
         ival = min(imax, max(0, ival));
         int i;

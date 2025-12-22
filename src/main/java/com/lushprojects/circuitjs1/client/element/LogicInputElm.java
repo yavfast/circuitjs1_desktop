@@ -89,7 +89,7 @@ public class LogicInputElm extends SwitchElm {
             s = "" + position;
         setBbox(point1, lead1, 0);
         drawCenteredText(g, s, x2, y2, true);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         updateDotCount();
         drawDots(g, point1, lead1, -curcount);
@@ -109,7 +109,7 @@ public class LogicInputElm extends SwitchElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[0], voltSource);
+        simulator().stampVoltageSource(0, getNode(0), voltSource);
     }
 
     public boolean isWireEquivalent() {
@@ -124,7 +124,7 @@ public class LogicInputElm extends SwitchElm {
         double v = (position == 0) ? loV : hiV;
         if (isTernary())
             v = loV + position * (hiV - loV) * .5;
-        simulator().updateVoltageSource(0, nodes[0], voltSource, v);
+        simulator().updateVoltageSource(0, getNode(0), voltSource, v);
     }
 
     public int getVoltageSourceCount() {
@@ -132,7 +132,7 @@ public class LogicInputElm extends SwitchElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
@@ -140,7 +140,7 @@ public class LogicInputElm extends SwitchElm {
         arr[1] = (position == 0) ? "low" : "high";
         if (isNumeric())
             arr[1] = "" + position;
-        arr[1] += " (" + getVoltageText(volts[0]) + ")";
+        arr[1] += " (" + getVoltageText(getNodeVoltage(0)) + ")";
         arr[2] = "I = " + getCurrentText(getCurrent());
     }
 

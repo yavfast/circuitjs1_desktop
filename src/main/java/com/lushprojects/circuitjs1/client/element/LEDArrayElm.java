@@ -84,7 +84,7 @@ public class LEDArrayElm extends ChipElm {
             diodes[i] = new Diode();
             diodes[i].setSimulator(simulator());
             diodes[i].setup(model);
-            diodes[i].stamp(nodes[sizeX + (i / sizeX)], nodes[i % sizeX]);
+            diodes[i].stamp(getNode(sizeX + (i / sizeX)), getNode(i % sizeX));
         }
         currents = new double[diodes.length];
     }
@@ -95,7 +95,7 @@ public class LEDArrayElm extends ChipElm {
         int ix, iy, i = 0;
         for (iy = 0; iy != sizeY; iy++)
             for (ix = 0; ix != sizeX; ix++, i++)
-                diodes[i].doStep(volts[sizeX + iy] - volts[ix]);
+                diodes[i].doStep(getNodeVoltage(sizeX + iy) - getNodeVoltage(ix));
     }
 
     public boolean nonLinear() {
@@ -134,7 +134,7 @@ public class LEDArrayElm extends ChipElm {
         for (iy = 0; iy != sizeY; iy++) {
             double cur = 0;
             for (ix = 0; ix != sizeX; ix++, i++) {
-                currents[i] = diodes[i].calculateCurrent(volts[sizeX + iy] - volts[ix]);
+                currents[i] = diodes[i].calculateCurrent(getNodeVoltage(sizeX + iy) - getNodeVoltage(ix));
                 cur += currents[i];
                 pins[ix].current += currents[i];
             }

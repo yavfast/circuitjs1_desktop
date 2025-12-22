@@ -115,7 +115,7 @@ public class CapacitorElm extends CircuitElm {
         setBbox(point1, point2, hs);
 
         // draw first lead and plate
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
@@ -124,7 +124,7 @@ public class CapacitorElm extends CircuitElm {
         }
 
         // draw second lead and plate
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, point2, lead2);
         setPowerColor(g, false);
         if (platePoints == null) {
@@ -152,7 +152,7 @@ public class CapacitorElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             // when finding DC operating point, replace cap with a 100M resistor
-            simulator.stampResistor(nodes[0], nodes[1], 1e8);
+            simulator.stampResistor(getNode(0), getNode(1), 1e8);
             curSourceValue = 0;
             capNode2 = 1;
             return;
@@ -174,11 +174,11 @@ public class CapacitorElm extends CircuitElm {
         } else {
             compResistance = simulator.timeStep / capacitance;
         }
-        simulator.stampResistor(nodes[0], nodes[capNode2], compResistance);
-        simulator.stampRightSide(nodes[0]);
-        simulator.stampRightSide(nodes[capNode2]);
+        simulator.stampResistor(getNode(0), getNode(capNode2), compResistance);
+        simulator.stampRightSide(getNode(0));
+        simulator.stampRightSide(getNode(capNode2));
         if (seriesResistance > 0) {
-            simulator.stampResistor(nodes[1], nodes[2], seriesResistance);
+            simulator.stampResistor(getNode(1), getNode(2), seriesResistance);
         }
     }
 
@@ -191,7 +191,7 @@ public class CapacitorElm extends CircuitElm {
     }
 
     public void stepFinished() {
-        voltDiff = volts[0] - volts[capNode2];
+        voltDiff = getNodeVoltage(0) - getNodeVoltage(capNode2);
         calculateCurrent();
     }
 
@@ -199,11 +199,11 @@ public class CapacitorElm extends CircuitElm {
         // do not calculate current, that only gets done in stepFinished().  otherwise calculateCurrent() may get
         // called while stamping the circuit, which might discharge the cap (since we use that current to calculate
         // curSourceValue in startIteration)
-        volts[n] = c;
+        setNodeVoltageDirect(n, c);
     }
 
     void calculateCurrent() {
-        double voltdiff = volts[0] - volts[capNode2];
+        double voltdiff = getNodeVoltage(0) - getNodeVoltage(capNode2);
         if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             current = voltdiff / 1e8;
             return;
@@ -221,7 +221,7 @@ public class CapacitorElm extends CircuitElm {
         if (circuitDocument.circuitInfo.dcAnalysisFlag) {
             return;
         }
-        simulator().stampCurrentSource(nodes[0], nodes[capNode2], curSourceValue);
+        simulator().stampCurrentSource(getNode(0), getNode(capNode2), curSourceValue);
     }
 
     public int getInternalNodeCount() {

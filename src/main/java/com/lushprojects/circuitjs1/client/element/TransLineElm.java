@@ -135,7 +135,7 @@ public class TransLineElm extends CircuitElm {
         g.fillRect(inner[2].x, inner[2].y,
                 inner[1].x - inner[2].x + 2, inner[1].y - inner[2].y + 2);
         for (i = 0; i != 4; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, posts[i], inner[i]);
         }
         if (voltageL != null) {
@@ -151,7 +151,7 @@ public class TransLineElm extends CircuitElm {
                 drawThickLine(g, ps1, ps2);
             }
         }
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, inner[0], inner[1]);
         drawPosts(g);
 
@@ -184,10 +184,10 @@ public class TransLineElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-		simulator.stampVoltageSource(nodes[4], nodes[0], voltSource1);
-		simulator.stampVoltageSource(nodes[5], nodes[1], voltSource2);
-		simulator.stampResistor(nodes[2], nodes[4], imped);
-		simulator.stampResistor(nodes[3], nodes[5], imped);
+        simulator.stampVoltageSource(getNode(4), getNode(0), voltSource1);
+        simulator.stampVoltageSource(getNode(5), getNode(1), voltSource2);
+        simulator.stampResistor(getNode(2), getNode(4), imped);
+        simulator.stampResistor(getNode(3), getNode(5), imped);
     }
 
     public void startIteration() {
@@ -196,9 +196,15 @@ public class TransLineElm extends CircuitElm {
             simulator().stop("Transmission line delay too large!", this);
             return;
         }
-        voltageL[ptr] = volts[2] - volts[0] + volts[2] - volts[4];
-        voltageR[ptr] = volts[3] - volts[1] + volts[3] - volts[5];
-        //System.out.println(volts[2] + " " + volts[0] + " " + (volts[2]-volts[0]) + " " + (imped*current1) + " " + voltageL[ptr]);
+        double v0 = getNodeVoltage(0);
+        double v1 = getNodeVoltage(1);
+        double v2 = getNodeVoltage(2);
+        double v3 = getNodeVoltage(3);
+        double v4 = getNodeVoltage(4);
+        double v5 = getNodeVoltage(5);
+        voltageL[ptr] = v2 - v0 + v2 - v4;
+        voltageR[ptr] = v3 - v1 + v3 - v5;
+        //System.out.println(v2 + " " + v0 + " " + (v2-v0) + " " + (imped*current1) + " " + voltageL[ptr]);
 	/*System.out.println("sending fwd  " + currentL[ptr] + " " + current1);
 	  System.out.println("sending back " + currentR[ptr] + " " + current2);*/
         //System.out.println("sending back " + voltageR[ptr]);
@@ -211,9 +217,9 @@ public class TransLineElm extends CircuitElm {
         }
         int nextPtr = (ptr + 1) % lenSteps;
         CircuitSimulator simulator = simulator();
-        simulator.updateVoltageSource(nodes[4], nodes[0], voltSource1, -voltageR[nextPtr]);
-		simulator.updateVoltageSource(nodes[5], nodes[1], voltSource2, -voltageL[nextPtr]);
-        if (Math.abs(volts[0]) > 1e-5 || Math.abs(volts[1]) > 1e-5) {
+        simulator.updateVoltageSource(getNode(4), getNode(0), voltSource1, -voltageR[nextPtr]);
+		simulator.updateVoltageSource(getNode(5), getNode(1), voltSource2, -voltageL[nextPtr]);
+        if (Math.abs(getNodeVoltage(0)) > 1e-5 || Math.abs(getNodeVoltage(1)) > 1e-5) {
             simulator().stop("Need to ground transmission line!", this);
             return;
         }
@@ -230,7 +236,7 @@ public class TransLineElm extends CircuitElm {
         return posts[n];
     }
 
-    //double getVoltageDiff() { return volts[0]; }
+    //double getVoltageDiff() { return getNodeVoltage(0); }
     public int getVoltageSourceCount() {
         return 2;
     }

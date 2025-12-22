@@ -67,10 +67,11 @@ public abstract class ChipElm extends CircuitElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins == null)
-                volts[i] = parseDouble(st.nextToken());
+                setNodeVoltageDirect(i, parseDouble(st.nextToken()));
             else if (pins[i].state) {
-                volts[i] = parseDouble(st.nextToken());
-                pins[i].value = volts[i] > getThreshold();
+                double v = parseDouble(st.nextToken());
+                setNodeVoltageDirect(i, v);
+                pins[i].value = v > getThreshold();
             }
         }
     }
@@ -124,7 +125,7 @@ public abstract class ChipElm extends CircuitElm {
         for (i = 0; i != getPostCount(); i++) {
             g.setFont(f);
             Pin p = pins[i];
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             Point a = p.post;
             Point b = p.stub;
             drawThickLine(g, a, b);
@@ -313,7 +314,7 @@ public abstract class ChipElm extends CircuitElm {
         for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator().stampVoltageSource(0, nodes[i], p.voltSource);
+                simulator().stampVoltageSource(0, getNode(i), p.voltSource);
                 vsc++;
             }
         }
@@ -329,14 +330,14 @@ public abstract class ChipElm extends CircuitElm {
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (!p.output)
-                p.value = volts[i] > getThreshold();
+                p.value = getNodeVoltage(i) > getThreshold();
         }
         execute();
         CircuitSimulator simulator = simulator();
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output)
-                simulator().updateVoltageSource(0, nodes[i], p.voltSource,
+                simulator().updateVoltageSource(0, getNode(i), p.voltSource,
                         p.value ? highVoltage : 0);
         }
     }
@@ -346,7 +347,7 @@ public abstract class ChipElm extends CircuitElm {
         for (i = 0; i != getPostCount(); i++) {
             pins[i].value = false;
             pins[i].curcount = 0;
-            volts[i] = 0;
+            setNodeVoltageDirect(i, 0);
         }
         lastClock = false;
     }
@@ -365,7 +366,7 @@ public abstract class ChipElm extends CircuitElm {
         int i;
         for (i = 0; i != getPostCount(); i++) {
             if (pins[i].state)
-                values[i+2] = volts[i];
+                values[i + 2] = getNodeVoltage(i);
         }
         return dumpValues(super.dump(), values);
     }
@@ -390,7 +391,7 @@ public abstract class ChipElm extends CircuitElm {
                 t += '\'';
             if (p.clock)
                 t = "Clk";
-            arr[a] += t + " = " + getVoltageText(volts[i]);
+            arr[a] += t + " = " + getVoltageText(getNodeVoltage(i));
             if (i % 2 == 1)
                 a++;
         }

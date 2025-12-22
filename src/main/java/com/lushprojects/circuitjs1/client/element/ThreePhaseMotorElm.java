@@ -135,17 +135,17 @@ public class ThreePhaseMotorElm extends CircuitElm {
     public void stamp() {
         int i;
 
-        int n001 = nodes[n001_ind];
-        int n002 = nodes[n002_ind];
-        int n003 = nodes[n003_ind];
-        int n004 = nodes[n004_ind];
-        int n005 = nodes[n005_ind];
-        int n006 = nodes[n006_ind];
-        int n007 = nodes[n007_ind];
+        int n001 = getNode(n001_ind);
+        int n002 = getNode(n002_ind);
+        int n003 = getNode(n003_ind);
+        int n004 = getNode(n004_ind);
+        int n005 = getNode(n005_ind);
+        int n006 = getNode(n006_ind);
+        int n007 = getNode(n007_ind);
 
-        simulator().stampResistor(nodes[0], n001, Rs);
-        simulator().stampResistor(nodes[2], n003, Rs);
-        simulator().stampResistor(nodes[4], n005, Rs);
+        simulator().stampResistor(getNode(0), n001, Rs);
+        simulator().stampResistor(getNode(2), n003, Rs);
+        simulator().stampResistor(getNode(4), n005, Rs);
         simulator().stampResistor(n004, 0, 1.5 * Rr);
         simulator().stampResistor(n007, 0, 1.5 * Rr);
 
@@ -185,12 +185,12 @@ public class ThreePhaseMotorElm extends CircuitElm {
                 int ni2 = coilNodes[i * 2 + 1];
                 int nj2 = coilNodes[j * 2 + 1];
                 if (i == j)
-                    simulator().stampConductance(nodes[ni1], nodes[ni2], xformMatrix[i][i]);
+                    simulator().stampConductance(getNode(ni1), getNode(ni2), xformMatrix[i][i]);
                 else
-                    simulator().stampVCCurrentSource(nodes[ni1], nodes[ni2], nodes[nj1], nodes[nj2], xformMatrix[i][j]);
+                    simulator().stampVCCurrentSource(getNode(ni1), getNode(ni2), getNode(nj1), getNode(nj2), xformMatrix[i][j]);
             }
         for (i = 0; i != 10; i++)
-            simulator().stampRightSide(nodes[coilNodes[i]]);
+            simulator().stampRightSide(getNode(coilNodes[i]));
 
         simulator().stampVoltageSource(n002, 0, voltSources[0]);
         simulator().stampVoltageSource(n006, 0, voltSources[1]);
@@ -235,10 +235,10 @@ public class ThreePhaseMotorElm extends CircuitElm {
         for (i = 0; i != coilCount; i++) {
             int n1 = coilNodes[i * 2];
             int n2 = coilNodes[i * 2 + 1];
-            simulator().stampCurrentSource(nodes[n1], nodes[n2], coilCurSourceValues[i]);
+            simulator().stampCurrentSource(getNode(n1), getNode(n2), coilCurSourceValues[i]);
         }
-        int n002 = nodes[n002_ind];
-        int n006 = nodes[n006_ind];
+        int n002 = getNode(n002_ind);
+        int n006 = getNode(n006_ind);
         simulator().updateVoltageSource(n002, 0, voltSources[0], -vs1value);
         simulator().updateVoltageSource(n006, 0, voltSources[1], -vs2value);
     }
@@ -257,7 +257,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
                 for (j = 0; j != coilCount; j++) {
                     int n1 = coilNodes[j * 2];
                     int n2 = coilNodes[j * 2 + 1];
-                    double voltdiff = volts[n1] - volts[n2];
+                    double voltdiff = getNodeVoltage(n1) - getNodeVoltage(n2);
                     val += voltdiff * xformMatrix[i][j];
                 }
             }
@@ -286,7 +286,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         int i;
         for (i = 0; i != 6; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, posts[i], leads[i]);
         }
         for (i = 0; i != 3; i++) {

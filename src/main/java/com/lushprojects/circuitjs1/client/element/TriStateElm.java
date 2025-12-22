@@ -112,7 +112,7 @@ public class TriStateElm extends CircuitElm {
 
         g.setColor(elementColor());
         drawThickPolygon(g, gatePoly);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, point3, lead3);
         curcount = updateDotCount(current, curcount);
         drawDots(g, lead2, point2, curcount);
@@ -121,10 +121,10 @@ public class TriStateElm extends CircuitElm {
 
     void calculateCurrent() {
         // current from node 3 to node 1
-        double current31 = (volts[3] - volts[1]) / resistance;
+        double current31 = (getNodeVoltage(3) - getNodeVoltage(1)) / resistance;
 
         // current from node 1 through pulldown
-        double current10 = (r_off_ground == 0) ? 0 : volts[1] / r_off_ground;
+        double current10 = (r_off_ground == 0) ? 0 : getNodeVoltage(1) / r_off_ground;
 
         // output current is difference of these
         current = current31 - current10;
@@ -148,22 +148,22 @@ public class TriStateElm extends CircuitElm {
     // there is a voltage source connected to node 3, and a resistor (r_off or r_on) from node 3 to 1.
     // then there is a pulldown resistor from node 1 to ground.
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[3], voltSource);
-        simulator().stampNonLinear(nodes[3]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampVoltageSource(0, getNode(3), voltSource);
+        simulator().stampNonLinear(getNode(3));
+        simulator().stampNonLinear(getNode(1));
     }
 
     public void doStep() {
-        open = (volts[2] < highVoltage * .5);
+        open = (getNodeVoltage(2) < highVoltage * .5);
         resistance = (open) ? r_off : r_on;
-        simulator().stampResistor(nodes[3], nodes[1], resistance);
+        simulator().stampResistor(getNode(3), getNode(1), resistance);
 
         // Add pulldown resistor for output, so that disabled tristate has output near ground if nothing
         // else is driving the output.  Otherwise people get confused.
         if (r_off_ground > 0)
-            simulator().stampResistor(nodes[1], 0, r_off_ground);
+            simulator().stampResistor(getNode(1), 0, r_off_ground);
 
-        simulator().updateVoltageSource(0, nodes[3], voltSource, volts[0] > highVoltage * .5 ? highVoltage : 0);
+        simulator().updateVoltageSource(0, getNode(3), voltSource, getNodeVoltage(0) > highVoltage * .5 ? highVoltage : 0);
     }
 
     public void drag(int xx, int yy) {
@@ -203,7 +203,7 @@ public class TriStateElm extends CircuitElm {
         arr[1] = open ? "open" : "closed";
         arr[2] = "Vd = " + getVoltageDText(getVoltageDiff());
         arr[3] = "I = " + getCurrentDText(getCurrent());
-        arr[4] = "Vc = " + getVoltageText(volts[2]);
+        arr[4] = "Vc = " + getVoltageText(getNodeVoltage(2));
     }
 
     // there is no current path through the input, but there

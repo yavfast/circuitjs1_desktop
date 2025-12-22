@@ -41,7 +41,7 @@ public class VaractorElm extends DiodeElm {
     Point plate1[], plate2[];
 
     public void stepFinished() {
-        capvoltdiff = volts[0] - volts[1];
+        capvoltdiff = getNodeVoltage(0) - getNodeVoltage(1);
     }
 
     void calculateCurrent() {
@@ -79,7 +79,7 @@ public class VaractorElm extends DiodeElm {
         drawDiode(g);
 
         // draw first plate
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
         if (displaySettings().showPower()) {
@@ -87,7 +87,7 @@ public class VaractorElm extends DiodeElm {
         }
 
         // draw second plate
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         setPowerColor(g, false);
         drawThickLine(g, plate2[0], plate2[1]);
 
@@ -97,8 +97,8 @@ public class VaractorElm extends DiodeElm {
 
     public void stamp() {
         super.stamp();
-        simulator().stampVoltageSource(nodes[0], nodes[2], voltSource);
-        simulator().stampNonLinear(nodes[2]);
+        simulator().stampVoltageSource(getNode(0), getNode(2), voltSource);
+        simulator().stampNonLinear(getNode(2));
     }
 
     public void startIteration() {
@@ -117,8 +117,8 @@ public class VaractorElm extends DiodeElm {
 
     public void doStep() {
         super.doStep();
-        simulator().stampResistor(nodes[2], nodes[1], compResistance);
-        simulator().updateVoltageSource(nodes[0], nodes[2], voltSource,
+        simulator().stampResistor(getNode(2), getNode(1), compResistance);
+        simulator().updateVoltageSource(getNode(0), getNode(2), voltSource,
                 voltSourceValue);
     }
 

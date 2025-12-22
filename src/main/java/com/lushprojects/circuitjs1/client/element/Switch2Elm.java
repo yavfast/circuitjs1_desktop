@@ -91,13 +91,13 @@ public class Switch2Elm extends SwitchElm {
         adjustBbox(swposts[0], swposts[throwCount - 1]);
 
         // draw first lead
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
 
         // draw other leads
         int i;
         for (i = 0; i != throwCount; i++) {
-            setVoltageColor(g, volts[i + 1]);
+            setVoltageColor(g, getNodeVoltage(i + 1));
             drawThickLine(g, swpoles[i], swposts[i]);
         }
 
@@ -141,7 +141,7 @@ public class Switch2Elm extends SwitchElm {
     public void stamp() {
         if (position == 2 && hasCenterOff()) // in center?
             return;
-        simulator().stampVoltageSource(nodes[0], nodes[position + 1], voltSource, 0);
+        simulator().stampVoltageSource(getNode(0), getNode(position + 1), voltSource, 0);
     }
 
     public int getVoltageSourceCount() {

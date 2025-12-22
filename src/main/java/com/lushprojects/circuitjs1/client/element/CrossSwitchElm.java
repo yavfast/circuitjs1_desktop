@@ -101,24 +101,24 @@ public class CrossSwitchElm extends SwitchElm {
 
         int i;
 
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, crossPoints[1], crossPoints[2]);
         drawThickLine(g, crossPoints[1], crossPoints[3]);
         drawThickLine(g, crossPoints[3], throwPosts[0]);
         drawThickLine(g, throwPosts[0], throwPosts[3]);
-        setVoltageColor(g, volts[3]);
+        setVoltageColor(g, getNodeVoltage(3));
         drawThickLine(g, throwPosts[2], crossPoints[5]);
         drawThickLine(g, throwPosts[1], crossPoints[0]);
         drawThickLine(g, crossPoints[0], crossPoints[4]);
 
         for (i = 0; i != poleCount; i++) {
-            setVoltageColor(g, volts[i * 2]);
+            setVoltageColor(g, getNodeVoltage(i * 2));
             drawThickLine(g, polePosts[i], poleLeads[i]);
-            setVoltageColor(g, volts[i * 2 + 1]);
+            setVoltageColor(g, getNodeVoltage(i * 2 + 1));
             if (useIECSymbol())
                 drawThickLine(g, throwLeads[i * 4], throwLeads[i * 4 + 2]);
             drawThickLine(g, throwPosts[i * 2], throwLeads[i * 4]);
-            setVoltageColor(g, volts[3 - i * 2]);
+            setVoltageColor(g, getNodeVoltage(3 - i * 2));
             drawThickLine(g, throwPosts[i * 2 + 1], throwLeads[i * 4 + 1]);
 
             // draw line
@@ -208,10 +208,10 @@ public class CrossSwitchElm extends SwitchElm {
         CircuitSimulator simulator = simulator();
         if (position == 0) {
             for (i = 0; i != poleCount; i++)
-                simulator().stampVoltageSource(nodes[i * 2], nodes[i * 2 + 1], voltageSources[i], 0);
+                simulator().stampVoltageSource(getNode(i * 2), getNode(i * 2 + 1), voltageSources[i], 0);
         } else {
             for (i = 0; i != poleCount; i++)
-                simulator().stampVoltageSource(nodes[i * 2], nodes[3 - i * 2], voltageSources[i], 0);
+                simulator().stampVoltageSource(getNode(i * 2), getNode(3 - i * 2), voltageSources[i], 0);
         }
     }
 

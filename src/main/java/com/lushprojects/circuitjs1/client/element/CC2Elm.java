@@ -64,8 +64,8 @@ public class CC2Elm extends ChipElm {
 
     public void getInfo(String arr[]) {
         arr[0] = (gain == 1) ? "CCII+~" : "CCII-~"; // ~ is for localization
-        arr[1] = "X,Y = " + getVoltageText(volts[0]);
-        arr[2] = "Z = " + getVoltageText(volts[2]);
+        arr[1] = "X,Y = " + getVoltageText(getNodeVoltage(0));
+        arr[2] = "Z = " + getVoltageText(getNodeVoltage(2));
         arr[3] = "I = " + getCurrentText(pins[0].current);
     }
 
@@ -78,10 +78,10 @@ public class CC2Elm extends ChipElm {
     public void stamp() {
         // X voltage = Y voltage
         CircuitSimulator simulator = simulator();
-        simulator().stampVoltageSource(0, nodes[0], pins[0].voltSource);
-		simulator.stampVCVS(0, nodes[1], 1, pins[0].voltSource);
+        simulator().stampVoltageSource(0, getNode(0), pins[0].voltSource);
+		simulator.stampVCVS(0, getNode(1), 1, pins[0].voltSource);
         // Z current = gain * X current
-		simulator.stampCCCS(0, nodes[2], pins[0].voltSource, gain);
+		simulator.stampCCCS(0, getNode(2), pins[0].voltSource, gain);
     }
 
     void calculateCurrent() {

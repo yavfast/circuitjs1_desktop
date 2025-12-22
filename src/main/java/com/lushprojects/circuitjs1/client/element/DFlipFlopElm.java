@@ -94,12 +94,12 @@ public class DFlipFlopElm extends ChipElm {
 
     public void reset() {
         super.reset();
-        volts[2] = highVoltage;
+        setNodeVoltageDirect(2, highVoltage);
         pins[2].value = true;
     }
 
     void execute() {
-        // if we just loaded then the volts[] array is likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
+        // if we just loaded then the voltages are likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
         if (justLoaded) {
             justLoaded = false;
             return;

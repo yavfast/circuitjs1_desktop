@@ -101,8 +101,8 @@ public class DiacElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         setBbox(point1, point2, 6);
         draw2Leads(g);
         setVoltageColor(g, v1);
@@ -122,11 +122,11 @@ public class DiacElm extends CircuitElm {
 
     void calculateCurrent() {
         double r = (state) ? onresistance : offresistance;
-        current = (volts[0] - volts[2]) / r + (volts[0] - volts[3]) / r;
+        current = (getNodeVoltage(0) - getNodeVoltage(2)) / r + (getNodeVoltage(0) - getNodeVoltage(3)) / r;
     }
 
     public void startIteration() {
-        double vd = volts[0] - volts[1];
+        double vd = getNodeVoltage(0) - getNodeVoltage(1);
         if (Math.abs(current) < holdcurrent) state = false;
         if (Math.abs(vd) > breakdown) state = true;
     }
@@ -134,18 +134,18 @@ public class DiacElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         double r = (state) ? onresistance : offresistance;
-        simulator().stampResistor(nodes[0], nodes[2], r);
-        simulator().stampResistor(nodes[0], nodes[3], r);
-        diode1.doStep(volts[2] - volts[1]);
-        diode2.doStep(volts[1] - volts[3]);
+        simulator().stampResistor(getNode(0), getNode(2), r);
+        simulator().stampResistor(getNode(0), getNode(3), r);
+        diode1.doStep(getNodeVoltage(2) - getNodeVoltage(1));
+        diode2.doStep(getNodeVoltage(1) - getNodeVoltage(3));
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
-        diode1.stamp(nodes[2], nodes[1]);
-        diode2.stamp(nodes[1], nodes[3]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
+        diode1.stamp(getNode(2), getNode(1));
+        diode2.stamp(getNode(1), getNode(3));
     }
 
     public int getInternalNodeCount() {

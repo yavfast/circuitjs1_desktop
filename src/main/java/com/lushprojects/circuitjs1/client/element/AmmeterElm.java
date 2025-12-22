@@ -163,7 +163,7 @@ public class AmmeterElm extends CircuitElm {
 
     public void draw(Graphics graphics) {
         super.draw(graphics);//BC required for highlighting
-        setVoltageColor(graphics, volts[0]);
+        setVoltageColor(graphics, getNodeVoltage(0));
         double width = 4;
         if (!drawAsCircle()) {
             drawThickLine(graphics, point1, point2);
@@ -174,7 +174,7 @@ public class AmmeterElm extends CircuitElm {
             drawCenteredText(graphics, "A", center.x, center.y, true);
 
             calcLeads(circleSize * 2);
-            setVoltageColor(graphics, volts[0]);
+            setVoltageColor(graphics, getNodeVoltage(0));
             drawThickLine(graphics, point1, lead1);
             drawThickLine(graphics, lead2, point2);
 
@@ -214,7 +214,7 @@ public class AmmeterElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(nodes[0], nodes[1], voltSource, 0);
+        simulator().stampVoltageSource(getNode(0), getNode(1), voltSource, 0);
     }
 
     boolean mustShowCurrent() {
@@ -242,7 +242,7 @@ public class AmmeterElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     // do not optimize out, even though isWireEquivalent() is true

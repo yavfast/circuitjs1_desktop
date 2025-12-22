@@ -132,10 +132,10 @@ public class RelayCoilElm extends CircuitElm {
     public void draw(Graphics g) {
         int i, p;
         for (i = 0; i != 2; i++) {
-            setVoltageColor(g, volts[nCoil1 + i]);
+            setVoltageColor(g, getNodeVoltage(nCoil1 + i));
             drawThickLine(g, coilLeads[i], coilPosts[i]);
         }
-        setPowerColor(g, coilCurrent * (volts[nCoil1] - volts[nCoil2]));
+        setPowerColor(g, coilCurrent * (getNodeVoltage(nCoil1) - getNodeVoltage(nCoil2)));
 
         // draw rectangle
         g.setColor(needsHighlight() ? selectColor() : elementColor());
@@ -258,9 +258,9 @@ public class RelayCoilElm extends CircuitElm {
 
     public void stamp() {
         // inductor from coil post 1 to internal node
-        ind.stamp(nodes[nCoil1], nodes[nCoil3]);
+        ind.stamp(getNode(nCoil1), getNode(nCoil3));
         // resistor from internal node to coil post 2
-        simulator().stampResistor(nodes[nCoil3], nodes[nCoil2], coilR);
+        simulator().stampResistor(getNode(nCoil3), getNode(nCoil2), coilR);
 
         if (type == TYPE_ON_DELAY) {
             switchingTimeOn = switchingTime;
@@ -276,7 +276,7 @@ public class RelayCoilElm extends CircuitElm {
 
     public void startIteration() {
         CircuitSimulator simulator = simulator();
-        ind.startIteration(volts[nCoil1] - volts[nCoil3]);
+        ind.startIteration(getNodeVoltage(nCoil1) - getNodeVoltage(nCoil3));
         double absCurrent = Math.abs(coilCurrent);
         double a = Math.exp(-simulator.timeStep * 1e3);
         avgCurrent = a * avgCurrent + (1 - a) * absCurrent;
@@ -335,12 +335,12 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     public void doStep() {
-        double voltdiff = volts[nCoil1] - volts[nCoil3];
+        double voltdiff = getNodeVoltage(nCoil1) - getNodeVoltage(nCoil3);
         ind.doStep(voltdiff);
     }
 
     void calculateCurrent() {
-        double voltdiff = volts[nCoil1] - volts[nCoil3];
+        double voltdiff = getNodeVoltage(nCoil1) - getNodeVoltage(nCoil3);
         coilCurrent = ind.calculateCurrent(voltdiff);
     }
 
@@ -354,7 +354,7 @@ public class RelayCoilElm extends CircuitElm {
         int ln = 1;
         arr[ln++] = Locale.LS("coil I") + " = " + getCurrentDText(coilCurrent);
         arr[ln++] = Locale.LS("coil Vd") + " = " +
-                getVoltageDText(volts[nCoil1] - volts[nCoil2]);
+                getVoltageDText(getNodeVoltage(nCoil1) - getNodeVoltage(nCoil2));
     }
 
     public EditInfo getEditInfo(int n) {

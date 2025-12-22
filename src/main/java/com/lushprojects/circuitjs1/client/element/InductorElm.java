@@ -69,8 +69,8 @@ public class InductorElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         int i;
         int hs = 8;
         setBbox(point1, point2, hs);
@@ -86,17 +86,19 @@ public class InductorElm extends CircuitElm {
     }
 
     public void reset() {
-        volts[0] = volts[1] = curcount = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        curcount = 0;
         current = initialCurrent;
         ind.resetTo(initialCurrent);
     }
 
     public void stamp() {
-        ind.stamp(nodes[0], nodes[1]);
+        ind.stamp(getNode(0), getNode(1));
     }
 
     public void startIteration() {
-        ind.startIteration(volts[0] - volts[1]);
+        ind.startIteration(getNodeVoltage(0) - getNodeVoltage(1));
     }
 
     public boolean nonLinear() {
@@ -104,12 +106,12 @@ public class InductorElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        double voltdiff = volts[0] - volts[1];
+        double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
         current = ind.calculateCurrent(voltdiff);
     }
 
     public void doStep() {
-        double voltdiff = volts[0] - volts[1];
+        double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
         ind.doStep(voltdiff);
     }
 

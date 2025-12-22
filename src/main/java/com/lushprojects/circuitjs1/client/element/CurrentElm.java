@@ -75,7 +75,7 @@ public class CurrentElm extends CircuitElm {
     public void draw(Graphics g) {
         int cr = 12;
         draw2Leads(g);
-        setVoltageColor(g, (volts[0] + volts[1]) / 2);
+        setVoltageColor(g, (getNodeVoltage(0) + getNodeVoltage(1)) / 2);
         setPowerColor(g, false);
 
         drawThickCircle(g, center.x, center.y, cr);
@@ -101,11 +101,11 @@ public class CurrentElm extends CircuitElm {
     public void stamp() {
         if (broken) {
             // no current path; stamping a current source would cause a matrix error.
-            simulator().stampResistor(nodes[0], nodes[1], 1e8);
+            simulator().stampResistor(getNode(0), getNode(1), 1e8);
             current = 0;
         } else {
             // ok to stamp a current source
-            simulator().stampCurrentSource(nodes[0], nodes[1], currentValue);
+            simulator().stampCurrentSource(getNode(0), getNode(1), currentValue);
             current = currentValue;
         }
     }
@@ -127,7 +127,7 @@ public class CurrentElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[1] - volts[0];
+        return getNodeVoltage(1) - getNodeVoltage(0);
     }
 
     public double getPower() {

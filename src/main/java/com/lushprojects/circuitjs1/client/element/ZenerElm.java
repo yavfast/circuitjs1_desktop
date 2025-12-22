@@ -81,8 +81,8 @@ public class ZenerElm extends DiodeElm {
     public void draw(Graphics g) {
         setBbox(point1, point2, hs);
 
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
 
         draw2Leads(g);
 

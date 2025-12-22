@@ -139,11 +139,11 @@ public class ProbeElm extends CircuitElm {
         if (drawAsCircle())
             len = circleSize * 2;
         calcLeads((int) len);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, lead2, point2);
@@ -293,12 +293,12 @@ public class ProbeElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        current = (resistance == 0) ? 0 : (volts[0] - volts[1]) / resistance;
+        current = (resistance == 0) ? 0 : (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
     }
 
     public void stamp() {
         if (resistance != 0)
-            simulator().stampResistor(nodes[0], nodes[1], resistance);
+            simulator().stampResistor(getNode(0), getNode(1), resistance);
     }
 
     public void getInfo(String arr[]) {

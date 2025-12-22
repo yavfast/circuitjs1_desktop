@@ -29,7 +29,7 @@ public class OhmMeterElm extends CurrentElm {
     public void draw(Graphics g) {
         int cr = 12;
         draw2Leads(g);
-        setVoltageColor(g, (volts[0] + volts[1]) / 2);
+        setVoltageColor(g, (getNodeVoltage(0) + getNodeVoltage(1)) / 2);
         setPowerColor(g, false);
 
         drawThickCircle(g, center.x, center.y, cr);

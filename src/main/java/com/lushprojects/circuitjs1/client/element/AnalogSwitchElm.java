@@ -125,7 +125,7 @@ public class AnalogSwitchElm extends CircuitElm {
         interpPoint(lead1, lead2, ps, 1, hs);
         drawThickLine(g, lead1, ps);
 
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, point3, lead3);
 
         if (!open)
@@ -137,7 +137,7 @@ public class AnalogSwitchElm extends CircuitElm {
         if (needsPulldown() && open)
             current = 0;
         else
-            current = (volts[0] - volts[1]) / resistance;
+            current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
     }
 
     // we need this to be able to change the matrix for each step
@@ -151,17 +151,17 @@ public class AnalogSwitchElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
         if (needsPulldown()) {
             // pulldown resistor on each side
-            simulator().stampResistor(nodes[0], 0, r_off);
-            simulator().stampResistor(nodes[1], 0, r_off);
+            simulator().stampResistor(getNode(0), 0, r_off);
+            simulator().stampResistor(getNode(1), 0, r_off);
         }
     }
 
     public void doStep() {
-        open = (volts[2] < threshold);
+        open = (getNodeVoltage(2) < threshold);
         if (hasFlag(FLAG_INVERT))
             open = !open;
 
@@ -169,7 +169,7 @@ public class AnalogSwitchElm extends CircuitElm {
         // if pulldown flag is unset, resistance is r_on for on, r_off for off.
         if (!(needsPulldown() && open)) {
             resistance = (open) ? r_off : r_on;
-            simulator().stampResistor(nodes[0], nodes[1], resistance);
+            simulator().stampResistor(getNode(0), getNode(1), resistance);
         }
     }
 
@@ -186,7 +186,7 @@ public class AnalogSwitchElm extends CircuitElm {
         arr[1] = open ? "open" : "closed";
         arr[2] = "Vd = " + getVoltageDText(getVoltageDiff());
         arr[3] = "I = " + getCurrentDText(getCurrent());
-        arr[4] = "Vc = " + getVoltageText(volts[2]);
+        arr[4] = "Vc = " + getVoltageText(getNodeVoltage(2));
     }
 
     // we have to just assume current will flow either way, even though that

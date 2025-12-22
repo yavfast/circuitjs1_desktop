@@ -68,13 +68,13 @@ public class JfetElm extends MosfetElm {
 
     public void draw(Graphics g) {
         setBbox(point1, point2, hs);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, src[0], src[1]);
         drawThickLine(g, src[1], src[2]);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, drn[0], drn[1]);
         drawThickLine(g, drn[1], drn[2]);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, gatePt);
         g.fillPolygon(arrowPoly);
         setPowerColor(g, true);
@@ -142,12 +142,12 @@ public class JfetElm extends MosfetElm {
         // - Diode GD: anode=drain(2), cathode=gate(0)
         if (pnp == 1) {
             // n-JFET: gate positive conducts
-            diodeGS.stamp(nodes[0], nodes[1]);
-            diodeGD.stamp(nodes[0], nodes[2]);
+            diodeGS.stamp(getNode(0), getNode(1));
+            diodeGD.stamp(getNode(0), getNode(2));
         } else {
             // p-JFET: gate negative conducts (source/drain positive)
-            diodeGS.stamp(nodes[1], nodes[0]);
-            diodeGD.stamp(nodes[2], nodes[0]);
+            diodeGS.stamp(getNode(1), getNode(0));
+            diodeGD.stamp(getNode(2), getNode(0));
         }
     }
 
@@ -156,8 +156,8 @@ public class JfetElm extends MosfetElm {
         // Calculate gate-source and gate-drain voltages
         // For n-JFET: positive Vgs means forward bias
         // For p-JFET: negative Vgs means forward bias (multiply by pnp to normalize)
-        double vgs = volts[0] - volts[1]; // Gate - Source voltage
-        double vgd = volts[0] - volts[2]; // Gate - Drain voltage
+        double vgs = getNodeVoltage(0) - getNodeVoltage(1); // Gate - Source voltage
+        double vgd = getNodeVoltage(0) - getNodeVoltage(2); // Gate - Drain voltage
 
         // Diode models expect positive voltage for forward bias
         // n-JFET (pnp=1): forward bias when Vg > Vs, so use vgs directly
@@ -167,8 +167,8 @@ public class JfetElm extends MosfetElm {
     }
 
     void calculateCurrent() {
-        double vgs = volts[0] - volts[1];
-        double vgd = volts[0] - volts[2];
+        double vgs = getNodeVoltage(0) - getNodeVoltage(1);
+        double vgd = getNodeVoltage(0) - getNodeVoltage(2);
         // Calculate diode currents (positive = current into gate)
         // For n-JFET: current flows into gate when forward biased
         // For p-JFET: current flows out of gate when forward biased, so multiply by pnp

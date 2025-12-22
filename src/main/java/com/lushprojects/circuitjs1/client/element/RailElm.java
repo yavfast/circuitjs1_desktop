@@ -68,7 +68,7 @@ public class RailElm extends VoltageElm {
             w = dn * .8;
         lead1 = interpPoint(point1, point2, 1 - w / dn);
         setBbox(point1, point2, CIRCLE_SIZE);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         drawRail(g);
         drawPosts(g);
@@ -88,7 +88,7 @@ public class RailElm extends VoltageElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void stamp() {
@@ -97,7 +97,7 @@ public class RailElm extends VoltageElm {
 
     public void doStep() {
         if (!waveformInstance.isDC())
-            simulator().updateVoltageSource(0, nodes[0], voltSource, getVoltage());
+            simulator().updateVoltageSource(0, getNode(0), voltSource, getVoltage());
     }
 
     public boolean hasGroundConnection(int n1) {

@@ -311,15 +311,15 @@ public class TappedTransformerElm extends CircuitElm {
     public void draw(Graphics g) {
         int i;
         for (i = 0; i != 5; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, ptEnds[i], ptCoil[i]);
         }
         for (i = 0; i != 4; i++) {
             if (i == 1)
                 continue;
-            setPowerColor(g, current[i] * (volts[i] - volts[i + 1]));
+            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 1)));
             drawCoil(g, i > 1 ? -6 * flip : 6 * flip,
-                    ptCoil[i], ptCoil[i + 1], volts[i], volts[i + 1]);
+                    ptCoil[i], ptCoil[i + 1], getNodeVoltage(i), getNodeVoltage(i + 1));
         }
 
         // winding labels (turns)
@@ -436,8 +436,13 @@ public class TappedTransformerElm extends CircuitElm {
     }
 
     public void reset() {
-        current[0] = current[1] = current[2] = current[3] = volts[0] = volts[1] = volts[2] =
-                volts[3] = volts[4] = curcount[0] = curcount[1] = curcount[2] = 0;
+        current[0] = current[1] = current[2] = current[3] = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        setNodeVoltageDirect(2, 0);
+        setNodeVoltageDirect(3, 0);
+        setNodeVoltageDirect(4, 0);
+        curcount[0] = curcount[1] = curcount[2] = 0;
         // need to set current-source values here in case one of the nodes is node 0.  In that case
         // calculateCurrent() may get called (from setNodeVoltage()) when analyzing circuit, before
         // startIteration() gets called
@@ -486,20 +491,20 @@ public class TappedTransformerElm extends CircuitElm {
         double det = l1 * (l2 + m2) - 2 * m1 * m1;
         for (i = 0; i != 9; i++)
             a[i] *= (isTrapezoidal() ? simulator().timeStep / 2 : simulator().timeStep) / det;
-        simulator().stampConductance(nodes[0], nodes[1], a[0]);
-        simulator().stampVCCurrentSource(nodes[0], nodes[1], nodes[2], nodes[3], a[1]);
-        simulator().stampVCCurrentSource(nodes[0], nodes[1], nodes[3], nodes[4], a[2]);
+        simulator().stampConductance(getNode(0), getNode(1), a[0]);
+        simulator().stampVCCurrentSource(getNode(0), getNode(1), getNode(2), getNode(3), a[1]);
+        simulator().stampVCCurrentSource(getNode(0), getNode(1), getNode(3), getNode(4), a[2]);
 
-        simulator().stampVCCurrentSource(nodes[2], nodes[3], nodes[0], nodes[1], a[3]);
-        simulator().stampConductance(nodes[2], nodes[3], a[4]);
-        simulator().stampVCCurrentSource(nodes[2], nodes[3], nodes[3], nodes[4], a[5]);
+        simulator().stampVCCurrentSource(getNode(2), getNode(3), getNode(0), getNode(1), a[3]);
+        simulator().stampConductance(getNode(2), getNode(3), a[4]);
+        simulator().stampVCCurrentSource(getNode(2), getNode(3), getNode(3), getNode(4), a[5]);
 
-        simulator().stampVCCurrentSource(nodes[3], nodes[4], nodes[0], nodes[1], a[6]);
-        simulator().stampVCCurrentSource(nodes[3], nodes[4], nodes[2], nodes[3], a[7]);
-        simulator().stampConductance(nodes[3], nodes[4], a[8]);
+        simulator().stampVCCurrentSource(getNode(3), getNode(4), getNode(0), getNode(1), a[6]);
+        simulator().stampVCCurrentSource(getNode(3), getNode(4), getNode(2), getNode(3), a[7]);
+        simulator().stampConductance(getNode(3), getNode(4), a[8]);
 
         for (i = 0; i != 5; i++)
-            simulator().stampRightSide(nodes[i]);
+            simulator().stampRightSide(getNode(i));
     }
 
     boolean isTrapezoidal() {
@@ -507,9 +512,9 @@ public class TappedTransformerElm extends CircuitElm {
     }
 
     public void startIteration() {
-        voltdiff[0] = volts[0] - volts[1];
-        voltdiff[1] = volts[2] - volts[3];
-        voltdiff[2] = volts[3] - volts[4];
+        voltdiff[0] = getNodeVoltage(0) - getNodeVoltage(1);
+        voltdiff[1] = getNodeVoltage(2) - getNodeVoltage(3);
+        voltdiff[2] = getNodeVoltage(3) - getNodeVoltage(4);
         int i, j;
         for (i = 0; i != 3; i++) {
             curSourceValue[i] = current[i];
@@ -522,15 +527,15 @@ public class TappedTransformerElm extends CircuitElm {
     double curSourceValue[], voltdiff[];
 
     public void doStep() {
-        simulator().stampCurrentSource(nodes[0], nodes[1], curSourceValue[0]);
-        simulator().stampCurrentSource(nodes[2], nodes[3], curSourceValue[1]);
-        simulator().stampCurrentSource(nodes[3], nodes[4], curSourceValue[2]);
+        simulator().stampCurrentSource(getNode(0), getNode(1), curSourceValue[0]);
+        simulator().stampCurrentSource(getNode(2), getNode(3), curSourceValue[1]);
+        simulator().stampCurrentSource(getNode(3), getNode(4), curSourceValue[2]);
     }
 
     void calculateCurrent() {
-        voltdiff[0] = volts[0] - volts[1];
-        voltdiff[1] = volts[2] - volts[3];
-        voltdiff[2] = volts[3] - volts[4];
+        voltdiff[0] = getNodeVoltage(0) - getNodeVoltage(1);
+        voltdiff[1] = getNodeVoltage(2) - getNodeVoltage(3);
+        voltdiff[2] = getNodeVoltage(3) - getNodeVoltage(4);
         int i, j;
         for (i = 0; i != 3; i++) {
             current[i] = curSourceValue[i];
@@ -546,9 +551,9 @@ public class TappedTransformerElm extends CircuitElm {
         arr[1] = "L = " + getUnitText(inductance, "H");
         arr[2] = "Ratio = 1:" + ratio;
         //arr[3] = "I1 = " + getCurrentText(current1);
-        arr[3] = "Vd1 = " + getVoltageText(volts[0] - volts[2]);
+        arr[3] = "Vd1 = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(2));
         //arr[5] = "I2 = " + getCurrentText(current2);
-        arr[4] = "Vd2 = " + getVoltageText(volts[1] - volts[3]);
+        arr[4] = "Vd2 = " + getVoltageText(getNodeVoltage(1) - getNodeVoltage(3));
     }
 
     @Override

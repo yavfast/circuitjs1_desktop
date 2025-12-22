@@ -274,15 +274,15 @@ public class TransformerElm extends CircuitElm {
     public void draw(Graphics g) {
         int i;
         for (i = 0; i != 4; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, ptEnds[i], ptCoil[i]);
         }
         for (i = 0; i != 2; i++) {
-            setPowerColor(g, current[i] * (volts[i] - volts[i + 2]));
+            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 2)));
             int csign = dsign * (i == 1 ? -6 * polarity : 6) * flip;
             if (hasFlag(FLAG_VERTICAL))
                 csign *= -1;
-            drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], volts[i], volts[i + 2]);
+            drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], getNodeVoltage(i), getNodeVoltage(i + 2));
         }
 
         // winding labels (turns)
@@ -407,8 +407,13 @@ public class TransformerElm extends CircuitElm {
         // need to set current-source values here in case one of the nodes is node 0.  In that case
         // calculateCurrent() may get called (from setNodeVoltage()) when analyzing circuit, before
         // startIteration() gets called
-        current[0] = current[1] = volts[0] = volts[1] = volts[2] =
-                volts[3] = curcount[0] = curcount[1] = curSourceValue1 = curSourceValue2 = 0;
+        current[0] = current[1] = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        setNodeVoltageDirect(2, 0);
+        setNodeVoltageDirect(3, 0);
+        curcount[0] = curcount[1] = 0;
+        curSourceValue1 = curSourceValue2 = 0;
     }
 
     double a1, a2, a3, a4;
@@ -453,19 +458,19 @@ public class TransformerElm extends CircuitElm {
         a4 = l1 * deti * ts;
 
         CircuitSimulator simulator = simulator();
-        simulator.stampConductance(nodes[0], nodes[2], a1);
-		simulator.stampVCCurrentSource(nodes[0], nodes[2], nodes[1], nodes[3], a2);
-		simulator.stampVCCurrentSource(nodes[1], nodes[3], nodes[0], nodes[2], a3);
-		simulator.stampConductance(nodes[1], nodes[3], a4);
-		simulator.stampRightSide(nodes[0]);
-		simulator.stampRightSide(nodes[1]);
-		simulator.stampRightSide(nodes[2]);
-		simulator.stampRightSide(nodes[3]);
+        simulator.stampConductance(getNode(0), getNode(2), a1);
+		simulator.stampVCCurrentSource(getNode(0), getNode(2), getNode(1), getNode(3), a2);
+		simulator.stampVCCurrentSource(getNode(1), getNode(3), getNode(0), getNode(2), a3);
+		simulator.stampConductance(getNode(1), getNode(3), a4);
+		simulator.stampRightSide(getNode(0));
+		simulator.stampRightSide(getNode(1));
+		simulator.stampRightSide(getNode(2));
+		simulator.stampRightSide(getNode(3));
     }
 
     public void startIteration() {
-        double voltdiff1 = volts[0] - volts[2];
-        double voltdiff2 = volts[1] - volts[3];
+        double voltdiff1 = getNodeVoltage(0) - getNodeVoltage(2);
+        double voltdiff2 = getNodeVoltage(1) - getNodeVoltage(3);
         if (isTrapezoidal()) {
             curSourceValue1 = voltdiff1 * a1 + voltdiff2 * a2 + current[0];
             curSourceValue2 = voltdiff1 * a3 + voltdiff2 * a4 + current[1];
@@ -479,13 +484,13 @@ public class TransformerElm extends CircuitElm {
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        simulator.stampCurrentSource(nodes[0], nodes[2], curSourceValue1);
-		simulator.stampCurrentSource(nodes[1], nodes[3], curSourceValue2);
+        simulator.stampCurrentSource(getNode(0), getNode(2), curSourceValue1);
+		simulator.stampCurrentSource(getNode(1), getNode(3), curSourceValue2);
     }
 
     void calculateCurrent() {
-        double voltdiff1 = volts[0] - volts[2];
-        double voltdiff2 = volts[1] - volts[3];
+        double voltdiff1 = getNodeVoltage(0) - getNodeVoltage(2);
+        double voltdiff2 = getNodeVoltage(1) - getNodeVoltage(3);
         current[0] = voltdiff1 * a1 + voltdiff2 * a2 + curSourceValue1;
         current[1] = voltdiff1 * a3 + voltdiff2 * a4 + curSourceValue2;
     }
@@ -501,8 +506,8 @@ public class TransformerElm extends CircuitElm {
         arr[0] = "transformer";
         arr[1] = "L = " + getUnitText(inductance, "H");
         arr[2] = "Ratio = 1:" + ratio;
-        arr[3] = "Vd1 = " + getVoltageText(volts[0] - volts[2]);
-        arr[4] = "Vd2 = " + getVoltageText(volts[1] - volts[3]);
+        arr[3] = "Vd1 = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(2));
+        arr[4] = "Vd2 = " + getVoltageText(getNodeVoltage(1) - getNodeVoltage(3));
         arr[5] = "I1 = " + getCurrentText(current[0]);
         arr[6] = "I2 = " + getCurrentText(current[1]);
     }

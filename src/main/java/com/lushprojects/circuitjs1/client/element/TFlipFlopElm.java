@@ -82,7 +82,7 @@ public class TFlipFlopElm extends ChipElm {
 
     public void reset() {
         super.reset();
-        volts[2] = highVoltage;
+        setNodeVoltageDirect(2, highVoltage);
         pins[2].value = true;
     }
 

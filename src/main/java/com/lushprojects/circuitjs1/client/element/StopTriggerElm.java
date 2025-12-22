@@ -77,7 +77,7 @@ public class StopTriggerElm extends CircuitElm {
         setBbox(point1, lead1, 0);
         String s = Locale.LS("trigger");
         drawLabeledNode(g, s, point1, lead1);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
@@ -87,7 +87,8 @@ public class StopTriggerElm extends CircuitElm {
 
     public void stepFinished() {
         stopped = false;
-        if (!triggered && ((type == 0 && volts[0] >= triggerVoltage) || (type == 1 && volts[0] <= triggerVoltage))) {
+        double v = getNodeVoltage(0);
+        if (!triggered && ((type == 0 && v >= triggerVoltage) || (type == 1 && v <= triggerVoltage))) {
             triggered = true;
             triggerTime = simulator().t;
         }
@@ -99,12 +100,12 @@ public class StopTriggerElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "stop trigger";
-        arr[1] = "V = " + getVoltageText(volts[0]);
+        arr[1] = "V = " + getVoltageText(getNodeVoltage(0));
         arr[2] = "Vtrigger = " + getVoltageText(triggerVoltage);
         arr[3] = (triggered) ? ("stopping in " + getUnitText(triggerTime + delay - simulator().t, "s")) : (stopped) ? "stopped" : "waiting";
     }

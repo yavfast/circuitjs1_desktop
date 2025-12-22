@@ -23,10 +23,9 @@ package com.lushprojects.circuitjs1.client;
 public class Diode {
     CircuitSimulator simulator;
 
-    int[] nodes;
+    int n0, n1;
 
     public Diode() {
-        nodes = new int[2];
     }
 
     public void setSimulator(CircuitSimulator s) {
@@ -136,10 +135,10 @@ public class Diode {
     }
 
     public void stamp(int n0, int n1) {
-        nodes[0] = n0;
-        nodes[1] = n1;
-        simulator.stampNonLinear(nodes[0]);
-        simulator.stampNonLinear(nodes[1]);
+        this.n0 = n0;
+        this.n1 = n1;
+        simulator.stampNonLinear(this.n0);
+        simulator.stampNonLinear(this.n1);
     }
 
     public void doStep(double voltdiff) {
@@ -165,8 +164,8 @@ public class Diode {
             double eval = Math.exp(voltdiff * vdcoef);
             double geq = vdcoef * leakage * eval + gmin;
             double nc = (eval - 1) * leakage - geq * voltdiff;
-            simulator.stampConductance(nodes[0], nodes[1], geq);
-            simulator.stampCurrentSource(nodes[0], nodes[1], nc);
+            simulator.stampConductance(n0, n1, geq);
+            simulator.stampCurrentSource(n0, n1, nc);
         } else {
             // Zener diode
 
@@ -191,8 +190,8 @@ public class Diode {
                             - 1
             ) + geq * (-voltdiff);
 
-            simulator.stampConductance(nodes[0], nodes[1], geq);
-            simulator.stampCurrentSource(nodes[0], nodes[1], nc);
+            simulator.stampConductance(n0, n1, geq);
+            simulator.stampCurrentSource(n0, n1, nc);
         }
     }
 

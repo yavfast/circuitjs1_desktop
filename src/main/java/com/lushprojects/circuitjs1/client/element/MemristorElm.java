@@ -78,8 +78,8 @@ public class MemristorElm extends CircuitElm {
         int segments = 6;
         int i;
         int ox = 0;
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         int hs = 2 + (int) (8 * (1 - dopeWidth / totalWidth));
         setBbox(point1, point2, hs);
         draw2Leads(g);
@@ -112,7 +112,7 @@ public class MemristorElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        current = (volts[0] - volts[1]) / resistance;
+        current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
     }
 
     public void reset() {
@@ -131,12 +131,12 @@ public class MemristorElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
     }
 
     public void doStep() {
-        simulator().stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(getNode(0), getNode(1), resistance);
     }
 
     public void getInfo(String arr[]) {

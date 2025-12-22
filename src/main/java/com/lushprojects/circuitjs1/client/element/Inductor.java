@@ -24,7 +24,7 @@ import com.lushprojects.circuitjs1.client.CircuitSimulator;
 
 public class Inductor {
     public static final int FLAG_BACK_EULER = 2;
-    int[] nodes;
+    int n0, n1;
     int flags;
     CircuitSimulator simulator;
 
@@ -33,7 +33,6 @@ public class Inductor {
     double curSourceValue;
 
     public Inductor() {
-        nodes = new int[2];
     }
 
     public void setSimulator(CircuitSimulator s) {
@@ -67,15 +66,15 @@ public class Inductor {
         // source in parallel with a resistor.  Trapezoidal is more
         // accurate than backward euler but can cause oscillatory behavior.
         // The oscillation is a real problem in circuits with switches.
-        nodes[0] = n0;
-        nodes[1] = n1;
+        this.n0 = n0;
+        this.n1 = n1;
         if (isTrapezoidal())
             compResistance = 2 * inductance / simulator.timeStep;
         else // backward euler
             compResistance = inductance / simulator.timeStep;
-        simulator.stampResistor(nodes[0], nodes[1], compResistance);
-        simulator.stampRightSide(nodes[0]);
-        simulator.stampRightSide(nodes[1]);
+        simulator.stampResistor(this.n0, this.n1, compResistance);
+        simulator.stampRightSide(this.n0);
+        simulator.stampRightSide(this.n1);
     }
 
     public boolean nonLinear() {
@@ -99,6 +98,6 @@ public class Inductor {
     }
 
     public void doStep(double voltdiff) {
-        simulator.stampCurrentSource(nodes[0], nodes[1], curSourceValue);
+        simulator.stampCurrentSource(n0, n1, curSourceValue);
     }
 }

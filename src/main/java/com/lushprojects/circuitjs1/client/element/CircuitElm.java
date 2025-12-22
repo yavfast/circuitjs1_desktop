@@ -221,7 +221,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public int x2, y2;
 
     public int flags;
-    public int[] nodes;
+    // Legacy node-number array removed; use NodeState via getNode()/setNode() instead.
     public int voltSource;
 
     private String description;
@@ -243,10 +243,23 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public Point lead1, lead2;
 
     // voltages at each node
-    public double[] volts;
+    // Legacy node-voltage array removed; use NodeState via getNodeVoltage()/setNodeVoltageDirect() instead.
+
+    /**
+     * Canonical per-index state for nodes (posts + internal nodes).
+     *
+     * Indexing matches the legacy {@link #nodes}/{@link #volts} arrays:
+     * [0..getPostCount()) are external posts, followed by internal nodes.
+     */
+    private transient NodeState[] nodeStates;
 
     public double current, curcount;
     public Rectangle boundingBox;
+
+    static final class NodeState {
+        int node;
+        double voltage;
+    }
 
     // if subclasses set this to true, element will be horizontal or vertical only
     public boolean noDiagonal;
@@ -321,12 +334,25 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // allocate nodes/volts arrays we need
     void allocNodes() {
         int n = getPostCount() + getInternalNodeCount();
-        // preserve voltages if possible
-        if (nodes == null || nodes.length != n) {
-            nodes = new int[n];
-            volts = new double[n];
+
+        boolean resized = (nodeStates == null || nodeStates.length != n);
+        if (resized) {
+            NodeState[] oldStates = nodeStates;
+            nodeStates = new NodeState[n];
+            for (int i = 0; i < n; i++) {
+                nodeStates[i] = (oldStates != null && i < oldStates.length) ? oldStates[i] : new NodeState();
+            }
         }
     }
+
+    private NodeState getNodeState(int index) {
+        if (nodeStates == null || index < 0 || index >= nodeStates.length) {
+            allocNodes();
+        }
+        return nodeStates[index];
+    }
+
+
 
     public void setDescription(String description) {
         if (description != null) {
@@ -485,7 +511,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // handle reset button
     public void reset() {
         for (int i = 0; i < getPostCount() + getInternalNodeCount(); i++) {
-            volts[i] = 0;
+            getNodeState(i).voltage = 0;
         }
         curcount = 0;
     }
@@ -529,13 +555,28 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // get voltage of x'th node
     public double getPostVoltage(int x) {
-        return volts[x];
+        return getNodeState(x).voltage;
+    }
+
+    // clearer alias; backed by NodeState (not legacy volts[])
+    public final double getNodeVoltage(int n) {
+        return getNodeState(n).voltage;
     }
 
     // set voltage of x'th node, called by simulator logic
     public void setNodeVoltage(int n, double c) {
-        volts[n] = c;
+        getNodeState(n).voltage = c;
         calculateCurrent();
+    }
+
+    /**
+     * Sets node voltage without triggering {@link #calculateCurrent()}.
+     *
+     * Intended for UI/helpers that need consistent per-pin voltages for drawing or exporting
+     * but must not mutate simulation state.
+     */
+    public final void setNodeVoltageDirect(int n, double c) {
+        getNodeState(n).voltage = c;
     }
 
     // calculate current in response to node voltages changing
@@ -586,13 +627,13 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     void draw2Leads(Graphics g) {
-        if (volts != null && volts.length >= 2) {
+        if (nodeStates != null && nodeStates.length >= 2) {
             // draw first lead
-            setVoltageColor(g, volts[0]);
+            setVoltageColor(g, getNodeState(0).voltage);
             drawThickLine(g, point1, lead1);
 
             // draw second lead
-            setVoltageColor(g, volts[1]);
+            setVoltageColor(g, getNodeState(1).voltage);
             drawThickLine(g, lead2, point2);
         }
     }
@@ -880,7 +921,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // notify this element that its pth node is n. This value n can be passed to
     // stampMatrix()
     public void setNode(int p, int n) {
-        nodes[p] = n;
+        getNodeState(p).node = n;
     }
 
     // notify this element that its nth voltage source is v. This value v can be
@@ -896,7 +937,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // code which is commented out
 
     double getVoltageDiff() {
-        return volts[0] - volts[1];
+        return getNodeState(0).voltage - getNodeState(1).voltage;
     }
 
     public boolean nonLinear() {
@@ -909,7 +950,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // get (global) node number of nth node
     public int getNode(int n) {
-        return nodes[n];
+        return getNodeState(n).node;
     }
 
     // get position of nth node
@@ -1391,7 +1432,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // JS Interface
     double getVoltageJS(int n) {
-        return n >= volts.length ? 0 : volts[n];
+        if (nodeStates == null) {
+            return 0;
+        }
+        return (n < 0 || n >= nodeStates.length) ? 0 : getNodeState(n).voltage;
     }
     
     // JS Interface - Set property value wrapper for JSNI
@@ -1434,6 +1478,123 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }-*/;
 
     public native JavaScriptObject getJavaScriptObject() /*-{ return this; }-*/;
+
+    // ==================== Pin Model ====================
+
+    /**
+     * Represents a single external connection pin (aka post) of this element.
+     *
+     * Pin coordinates are derived from {@link #getJsonPinPosition(int)} to preserve
+     * element-specific overrides (e.g. TransformerElm).
+     */
+    public final class Pin {
+        private final int index;
+        private final String name;
+
+        private Pin(int index, String name) {
+            this.index = index;
+            this.name = name;
+        }
+
+        public int getIndex() {
+            return index;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Point getPosition() {
+            return CircuitElm.this.getJsonPinPosition(index);
+        }
+
+        public int getNode() {
+            return CircuitElm.this.getNode(index);
+        }
+
+        public double getVoltage() {
+            return CircuitElm.this.getPostVoltage(index);
+        }
+
+        public double getCurrentIntoNode() {
+            return CircuitElm.this.getCurrentIntoNode(index);
+        }
+    }
+
+    /**
+     * Returns external pins for this element.
+     *
+     * Default implementation uses {@link #getJsonPinNames()} for names and the post
+     * count for indices.
+     */
+    public Pin[] getPins() {
+        int postCount = getPostCount();
+        if (postCount <= 0) {
+            return new Pin[0];
+        }
+
+        String[] pinNames = getJsonPinNames();
+        int count = postCount;
+        if (pinNames != null) {
+            count = Math.min(count, pinNames.length);
+        }
+
+        Pin[] pins = new Pin[count];
+        for (int i = 0; i < count; i++) {
+            String name = (pinNames != null && i < pinNames.length) ? pinNames[i] : null;
+            if (name == null || name.isEmpty()) {
+                name = "pin" + (i + 1);
+            }
+            pins[i] = new Pin(i, name);
+        }
+        return pins;
+    }
+
+    public Pin getPin(int index) {
+        if (index < 0 || index >= getPostCount()) {
+            return null;
+        }
+        String[] pinNames = getJsonPinNames();
+        String name = (pinNames != null && index < pinNames.length) ? pinNames[index] : null;
+        if (name == null || name.isEmpty()) {
+            name = "pin" + (index + 1);
+        }
+        return new Pin(index, name);
+    }
+
+    public Pin getPinByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        for (Pin pin : getPins()) {
+            if (name.equals(pin.getName())) {
+                return pin;
+            }
+        }
+        return null;
+    }
+
+    // Convenience overloads to avoid passing raw pin indices.
+
+    public Point getPost(Pin pin) {
+        return pin != null ? getPost(pin.getIndex()) : null;
+    }
+
+    public int getNode(Pin pin) {
+        return pin != null ? getNode(pin.getIndex()) : 0;
+    }
+
+    public double getPostVoltage(Pin pin) {
+        return pin != null ? getPostVoltage(pin.getIndex()) : 0;
+    }
+
+    public double getCurrentIntoNode(Pin pin) {
+        return pin != null ? getCurrentIntoNode(pin.getIndex()) : 0;
+    }
+
+    public Point getJsonPinPosition(Pin pin) {
+        return pin != null ? pin.getPosition() : null;
+    }
 
     // ==================== JSON Export Methods ====================
 
@@ -1498,7 +1659,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * Default implementation returns generic names based on post count.
      * Subclasses should override to provide meaningful pin names
      * like "base", "collector", "emitter" for transistors.
+     *
+     * @deprecated Prefer {@link #getPins()} and {@link Pin#getName()}.
      */
+    @Deprecated
     public String[] getJsonPinNames() {
         int postCount = getPostCount();
         if (postCount == 2) {
@@ -1518,6 +1682,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * @param pinIndex the index of the pin (0-based)
      * @return Point with x,y coordinates, or null if invalid index
      */
+    /**
+     * @deprecated Prefer {@link #getPins()} and {@link Pin#getPosition()}.
+     */
+    @Deprecated
     public Point getJsonPinPosition(int pinIndex) {
         if (pinIndex < 0 || pinIndex >= getPostCount()) {
             return null;
@@ -1533,7 +1701,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public Point getJsonStartPoint() {
         // Default: point1 matches first pin, no need for _startpoint
         if (getPostCount() >= 1) {
-            Point firstPin = getJsonPinPosition(0);
+            Pin firstPinObj = getPin(0);
+            Point firstPin = firstPinObj != null ? firstPinObj.getPosition() : null;
             if (firstPin != null && firstPin.x == x && firstPin.y == y) {
                 return null; // point1 matches first pin
             }
@@ -1554,7 +1723,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
         // Default for 2+ terminal elements: point2 matches second pin
         if (getPostCount() >= 2) {
-            Point secondPin = getJsonPinPosition(1);
+            Pin secondPinObj = getPin(1);
+            Point secondPin = secondPinObj != null ? secondPinObj.getPosition() : null;
             if (secondPin != null && secondPin.x == x2 && secondPin.y == y2) {
                 return null; // point2 matches second pin
             }
@@ -1576,16 +1746,15 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
         
         // Add pin states with named pins
-        int postCount = getPostCount();
-        if (postCount > 0) {
-            String[] pinNames = getJsonPinNames();
+        Pin[] pinsArr = getPins();
+        if (pinsArr.length > 0) {
             java.util.Map<String, Object> pins = new java.util.LinkedHashMap<>();
-            
-            for (int i = 0; i < postCount && i < pinNames.length; i++) {
+
+            for (Pin pin : pinsArr) {
                 java.util.Map<String, Object> pinState = new java.util.LinkedHashMap<>();
-                double voltage = getPostVoltage(i);
-                double current = getCurrentIntoNode(i);
-                
+                double voltage = pin.getVoltage();
+                double current = pin.getCurrentIntoNode();
+
                 // Only add if values are valid (not NaN or Infinite)
                 if (Double.isFinite(voltage)) {
                     pinState.put("v", voltage);
@@ -1593,12 +1762,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                 if (Double.isFinite(current)) {
                     pinState.put("i", current);
                 }
-                
+
                 if (!pinState.isEmpty()) {
-                    pins.put(pinNames[i], pinState);
+                    pins.put(pin.getName(), pinState);
                 }
             }
-            
+
             if (!pins.isEmpty()) {
                 state.put("pins", pins);
             }
@@ -1623,21 +1792,22 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (pinsObj instanceof java.util.Map) {
             @SuppressWarnings("unchecked")
             java.util.Map<String, Object> pins = (java.util.Map<String, Object>) pinsObj;
-            String[] pinNames = getJsonPinNames();
-            
-            for (int i = 0; i < pinNames.length && i < getPostCount(); i++) {
-                Object pinObj = pins.get(pinNames[i]);
-                if (pinObj instanceof java.util.Map) {
-                    @SuppressWarnings("unchecked")
-                    java.util.Map<String, Object> pinState = (java.util.Map<String, Object>) pinObj;
-                    
-                    // Apply voltage
-                    Object voltageObj = pinState.get("v");
-                    if (voltageObj instanceof Number) {
-                        double voltage = ((Number) voltageObj).doubleValue();
-                        if (Double.isFinite(voltage) && i < volts.length) {
-                            volts[i] = voltage;
-                        }
+
+            for (Pin pin : getPins()) {
+                Object pinObj = pins.get(pin.getName());
+                if (!(pinObj instanceof java.util.Map)) {
+                    continue;
+                }
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> pinState = (java.util.Map<String, Object>) pinObj;
+
+                // Apply voltage
+                Object voltageObj = pinState.get("v");
+                if (voltageObj instanceof Number) {
+                    double voltage = ((Number) voltageObj).doubleValue();
+                    int i = pin.getIndex();
+                    if (Double.isFinite(voltage) && i >= 0 && nodeStates != null && i < nodeStates.length) {
+                        getNodeState(i).voltage = voltage;
                     }
                 }
             }
@@ -1708,12 +1878,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         // and we should not overwrite them from the second pin
         boolean hasEndpoint = pins.containsKey("_endpoint");
 
-        String[] pinNames = getJsonPinNames();
-        if (pinNames.length >= 2) {
+        Pin[] pinArr = getPins();
+        if (pinArr.length >= 2) {
             // Get first pin position - only if no _startpoint
             // _startpoint means point1 doesn't correspond to any pin (e.g., OpAmp)
             if (!hasStartpoint) {
-                java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
+                java.util.Map<String, Integer> pin1 = pins.get(pinArr[0].getName());
                 if (pin1 != null) {
                     Integer px = pin1.get("x");
                     Integer py = pin1.get("y");
@@ -1727,7 +1897,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             // Get second pin position - only if no _endpoint
             // _endpoint means point2 doesn't correspond to any pin (e.g., Transistor, MOSFET)
             if (!hasEndpoint) {
-                java.util.Map<String, Integer> pin2 = pins.get(pinNames[1]);
+                java.util.Map<String, Integer> pin2 = pins.get(pinArr[1].getName());
                 if (pin2 != null) {
                     Integer px = pin2.get("x");
                     Integer py = pin2.get("y");
@@ -1737,9 +1907,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                     }
                 }
             }
-        } else if (pinNames.length == 1) {
+        } else if (pinArr.length == 1) {
             // Single-terminal elements
-            java.util.Map<String, Integer> pin1 = pins.get(pinNames[0]);
+            java.util.Map<String, Integer> pin1 = pins.get(pinArr[0].getName());
             if (pin1 != null) {
                 Integer px = pin1.get("x");
                 Integer py = pin1.get("y");

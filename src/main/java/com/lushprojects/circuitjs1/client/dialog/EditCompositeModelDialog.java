@@ -248,7 +248,7 @@ public class EditCompositeModelDialog extends Dialog
         for (int i = 0; i != postCount; i++) {
             ExtListEntry pin = model.extList.get(i);
             chip.setPin(i, pin.pos, pin.side, pin.name);
-            chip.volts[i] = 0;
+            chip.setNodeVoltageDirect(i, 0);
             if (i == selectedPin)
                 chip.pins[i].selected = true;
         }

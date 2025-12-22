@@ -108,11 +108,11 @@ public abstract class Waveform {
     }
 
     public void stamp(VoltageElm elm) {
-        elm.simulator().stampVoltageSource(elm.nodes[0], elm.nodes[1], elm.voltSource);
+        elm.simulator().stampVoltageSource(elm.getNode(0), elm.getNode(1), elm.voltSource);
     }
 
     public void stampRail(RailElm elm) {
-        elm.simulator().stampVoltageSource(0, elm.nodes[0], elm.voltSource);
+        elm.simulator().stampVoltageSource(0, elm.getNode(0), elm.voltSource);
     }
 
     /**
@@ -120,7 +120,7 @@ public abstract class Waveform {
      */
     public void doStep(VoltageElm elm) {
         if (!isDC()) {
-            elm.simulator().updateVoltageSource(elm.nodes[0], elm.nodes[1], elm.voltSource, elm.getVoltage());
+            elm.simulator().updateVoltageSource(elm.getNode(0), elm.getNode(1), elm.voltSource, elm.getVoltage());
         }
     }
 

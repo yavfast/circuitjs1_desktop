@@ -83,12 +83,12 @@ public class CCCSElm extends VCCSElm {
             // voltage sources (0V) between C+ and C- so we can measure current
             for (i = 0; i != inputCount; i += 2) {
                 int vn1 = pins[i + 1].voltSource;
-                simulator().stampVoltageSource(nodes[i], nodes[i + 1], vn1, 0);
+                simulator().stampVoltageSource(getNode(i), getNode(i + 1), vn1, 0);
             }
         }
 
-        simulator().stampNonLinear(nodes[inputCount]);
-        simulator().stampNonLinear(nodes[inputCount + 1]);
+        simulator().stampNonLinear(getNode(inputCount));
+        simulator().stampNonLinear(getNode(inputCount + 1));
     }
 
     double lastCurrents[];
@@ -100,7 +100,7 @@ public class CCCSElm extends VCCSElm {
             pins[inputCount].current = 0;
             pins[inputCount + 1].current = 0;
             // avoid singular matrix errors
-            simulator().stampResistor(nodes[inputCount], nodes[inputCount + 1], 1e8);
+            simulator().stampResistor(getNode(inputCount), getNode(inputCount + 1), 1e8);
             return;
         }
 
@@ -144,7 +144,7 @@ public class CCCSElm extends VCCSElm {
                 double dx = (v - v2) / dv;
                 if (Math.abs(dx) < 1e-6)
                     dx = sign(dx, 1e-6);
-                simulator().stampCCCS(nodes[inputCount + 1], nodes[inputCount], pins[i * 2 + 1].voltSource, dx);
+                simulator().stampCCCS(getNode(inputCount + 1), getNode(inputCount), pins[i * 2 + 1].voltSource, dx);
 
                 // adjust right side
                 rs -= dx * cur;
@@ -153,7 +153,7 @@ public class CCCSElm extends VCCSElm {
                 setCurrentExprValue(i, cur);
             }
 
-            simulator().stampCurrentSource(nodes[inputCount + 1], nodes[inputCount], rs);
+            simulator().stampCurrentSource(getNode(inputCount + 1), getNode(inputCount), rs);
         }
 
         for (i = 0; i != inputPairCount; i++)
@@ -231,7 +231,7 @@ public class CCCSElm extends VCCSElm {
                 CircuitElm ce = elmList.get(j);
                 if (!(ce instanceof VoltageElm))
                     continue;
-                if (ce.getNode(0) == nodes[i] && ce.getNode(1) == nodes[i + 1])
+                if (ce.getNode(0) == getNode(i) && ce.getNode(1) == getNode(i + 1))
                     voltageSources[i / 2] = (VoltageElm) ce;
             }
         }
@@ -250,7 +250,7 @@ public class CCCSElm extends VCCSElm {
         int j;
         for (j = 0; j != inputCount; j += 2)
             arr[i++] = pins[j].text + " = " + getCurrentText(-pins[j].current);
-        arr[i++] = pins[j].text + " = " + getVoltageText(volts[j]) + "; " + pins[j + 1].text + " = " + getVoltageText(volts[j + 1]);
+        arr[i++] = pins[j].text + " = " + getVoltageText(getNodeVoltage(j)) + "; " + pins[j + 1].text + " = " + getVoltageText(getNodeVoltage(j + 1));
         arr[i++] = "I = " + getCurrentText(pins[j].current);
         arr[i++] = null;
     }

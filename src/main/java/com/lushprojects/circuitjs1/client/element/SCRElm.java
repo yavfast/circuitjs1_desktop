@@ -59,9 +59,9 @@ public class SCRElm extends CircuitElm {
         try {
             lastvac = parseDouble(st.nextToken());
             lastvag = parseDouble(st.nextToken());
-            volts[anode] = 0;
-            volts[cnode] = -lastvac;
-            volts[gnode] = -lastvag;
+            setNodeVoltageDirect(anode, 0);
+            setNodeVoltageDirect(cnode, -lastvac);
+            setNodeVoltageDirect(gnode, -lastvag);
             triggerI = parseDouble(st.nextToken());
             holdingI = parseDouble(st.nextToken());
             gresistance = parseDouble(st.nextToken());
@@ -87,7 +87,9 @@ public class SCRElm extends CircuitElm {
     }
 
     public void reset() {
-        volts[anode] = volts[cnode] = volts[gnode] = 0;
+        setNodeVoltageDirect(anode, 0);
+        setNodeVoltageDirect(cnode, 0);
+        setNodeVoltageDirect(gnode, 0);
         diode.reset();
         lastvag = lastvac = curcount_a = curcount_c = curcount_g = 0;
     }
@@ -97,8 +99,8 @@ public class SCRElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), (volts[anode] - volts[cnode]),
-                (volts[anode] - volts[gnode]), triggerI, holdingI, gresistance);
+        return dumpValues(super.dump(), (getNodeVoltage(anode) - getNodeVoltage(cnode)),
+            (getNodeVoltage(anode) - getNodeVoltage(gnode)), triggerI, holdingI, gresistance);
     }
 
     double ia, ic, ig, curcount_a, curcount_c, curcount_g;
@@ -158,8 +160,8 @@ public class SCRElm extends CircuitElm {
         setBbox(point1, point2, hs);
         adjustBbox(gate[0], gate[1]);
 
-        double v1 = volts[anode];
-        double v2 = volts[cnode];
+        double v1 = getNodeVoltage(anode);
+        double v2 = getNodeVoltage(cnode);
 
         draw2Leads(g);
 
@@ -168,7 +170,7 @@ public class SCRElm extends CircuitElm {
         setPowerColor(g, true);
         g.fillPolygon(poly);
 
-        setVoltageColor(g, volts[gnode]);
+        setVoltageColor(g, getNodeVoltage(gnode));
         drawThickLine(g, lead2, gate[0]);
         drawThickLine(g, gate[0], gate[1]);
 
@@ -220,43 +222,43 @@ public class SCRElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (volts[anode] - volts[gnode]) * ia + (volts[cnode] - volts[gnode]) * ic;
+        return (getNodeVoltage(anode) - getNodeVoltage(gnode)) * ia + (getNodeVoltage(cnode) - getNodeVoltage(gnode)) * ic;
     }
 
     double aresistance;
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[anode]);
-        simulator().stampNonLinear(nodes[cnode]);
-        simulator().stampNonLinear(nodes[gnode]);
-        simulator().stampNonLinear(nodes[inode]);
-        simulator().stampResistor(nodes[gnode], nodes[cnode], gresistance);
-        diode.stamp(nodes[inode], nodes[cnode]);
+        simulator().stampNonLinear(getNode(anode));
+        simulator().stampNonLinear(getNode(cnode));
+        simulator().stampNonLinear(getNode(gnode));
+        simulator().stampNonLinear(getNode(inode));
+        simulator().stampResistor(getNode(gnode), getNode(cnode), gresistance);
+        diode.stamp(getNode(inode), getNode(cnode));
     }
 
     public void doStep() {
-        double vac = volts[anode] - volts[cnode]; // typically negative
-        double vag = volts[anode] - volts[gnode]; // typically positive
+        double vac = getNodeVoltage(anode) - getNodeVoltage(cnode); // typically negative
+        double vag = getNodeVoltage(anode) - getNodeVoltage(gnode); // typically positive
         if (Math.abs(vac - lastvac) > .01 ||
                 Math.abs(vag - lastvag) > .01)
             simulator().converged = false;
         lastvac = vac;
         lastvag = vag;
-        diode.doStep(volts[inode] - volts[cnode]);
+        diode.doStep(getNodeVoltage(inode) - getNodeVoltage(cnode));
         double icmult = 1 / triggerI;
         double iamult = 1 / holdingI - icmult;
         //System.out.println(icmult + " " + iamult);
         aresistance = (-icmult * ic + ia * iamult > 1) ? .0105 : 10e5;
-        //System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " + ia + " " + aresistance + " " + volts[inode] + " " + volts[gnode] + " " + volts[anode]);
-        simulator().stampResistor(nodes[anode], nodes[inode], aresistance);
+        //System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " + ia + " " + aresistance + " " + getNodeVoltage(inode) + " " + getNodeVoltage(gnode) + " " + getNodeVoltage(anode));
+        simulator().stampResistor(getNode(anode), getNode(inode), aresistance);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "SCR";
-        double vac = volts[anode] - volts[cnode];
-        double vag = volts[anode] - volts[gnode];
-        double vgc = volts[gnode] - volts[cnode];
+        double vac = getNodeVoltage(anode) - getNodeVoltage(cnode);
+        double vag = getNodeVoltage(anode) - getNodeVoltage(gnode);
+        double vgc = getNodeVoltage(gnode) - getNodeVoltage(cnode);
         arr[1] = "Ia = " + getCurrentText(ia);
         arr[2] = "Ig = " + getCurrentText(ig);
         arr[3] = "Vac = " + getVoltageText(vac);
@@ -266,8 +268,8 @@ public class SCRElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        ig = (volts[gnode] - volts[cnode]) / gresistance;
-        ia = (volts[anode] - volts[inode]) / aresistance;
+        ig = (getNodeVoltage(gnode) - getNodeVoltage(cnode)) / gresistance;
+        ia = (getNodeVoltage(anode) - getNodeVoltage(inode)) / aresistance;
         ic = -ig - ia;
     }
 

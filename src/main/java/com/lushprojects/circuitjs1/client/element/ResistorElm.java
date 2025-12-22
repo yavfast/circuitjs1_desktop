@@ -70,8 +70,8 @@ public class ResistorElm extends CircuitElm {
         int ox = 0;
         //int hs = sim.euroResistorCheckItem.getState() ? 6 : 8;
         int hs = 6;
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         setBbox(point1, point2, hs);
         draw2Leads(g);
 
@@ -112,12 +112,12 @@ public class ResistorElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        current = (volts[0] - volts[1]) / resistance;
+        current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
         //System.out.print(this + " res current set to " + current + "\n");
     }
 
     public void stamp() {
-        simulator().stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(getNode(0), getNode(1), resistance);
     }
 
     public void getInfo(String arr[]) {

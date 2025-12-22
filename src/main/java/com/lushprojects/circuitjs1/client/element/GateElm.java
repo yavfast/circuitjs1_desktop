@@ -87,7 +87,7 @@ public abstract class GateElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), inputCount, volts[inputCount], highVoltage);
+        return dumpValues(super.dump(), inputCount, getNodeVoltage(inputCount), highVoltage);
     }
 
     Point inPosts[], inGates[];
@@ -134,8 +134,9 @@ public abstract class GateElm extends CircuitElm {
         int i;
         // We don't remember all the inputs, just the last output.
         // Fill inputs with something that keeps output the same.
-        for (i = 0; i != inputCount; i++)
-            volts[i] = (lastOutput ^ isInverting()) ? highVoltage : 0;
+        for (i = 0; i != inputCount; i++) {
+            setNodeVoltageDirect(i, (lastOutput ^ isInverting()) ? highVoltage : 0);
+        }
     }
 
     double getLeadAdjustment(int ix) {
@@ -164,10 +165,10 @@ public abstract class GateElm extends CircuitElm {
     public void draw(Graphics g) {
         int i;
         for (i = 0; i != inputCount; i++) {
-            setVoltageColor(g, volts[i]);
+            setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, inPosts[i], inGates[i]);
         }
-        setVoltageColor(g, volts[inputCount]);
+        setVoltageColor(g, getNodeVoltage(inputCount));
         drawThickLine(g, lead2, point2);
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         if (useEuroGates()) {
@@ -214,12 +215,12 @@ public abstract class GateElm extends CircuitElm {
 
     public void getInfo(String arr[]) {
         arr[0] = getGateName();
-        arr[1] = "Vout = " + getVoltageText(volts[inputCount]);
+        arr[1] = "Vout = " + getVoltageText(getNodeVoltage(inputCount));
         arr[2] = "Iout = " + getCurrentText(getCurrent());
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[inputCount], voltSource);
+        simulator().stampVoltageSource(0, getNode(inputCount), voltSource);
     }
 
     boolean hasSchmittInputs() {
@@ -229,8 +230,8 @@ public abstract class GateElm extends CircuitElm {
     boolean getInput(int x) {
         boolean high = !hasFlag(FLAG_INVERT_INPUTS);
         if (!hasSchmittInputs())
-            return (volts[x] > highVoltage * .5) ? high : !high;
-        boolean res = volts[x] > highVoltage * (inputStates[x] ? .35 : .55);
+            return (getNodeVoltage(x) > highVoltage * .5) ? high : !high;
+        boolean res = getNodeVoltage(x) > highVoltage * (inputStates[x] ? .35 : .55);
         inputStates[x] = res;
         return res ? high : !high;
     }
@@ -263,7 +264,7 @@ public abstract class GateElm extends CircuitElm {
         }
 
         double res = f ? highVoltage : 0;
-        simulator().updateVoltageSource(0, nodes[inputCount], voltSource, res);
+        simulator().updateVoltageSource(0, getNode(inputCount), voltSource, res);
     }
 
     public EditInfo getEditInfo(int n) {

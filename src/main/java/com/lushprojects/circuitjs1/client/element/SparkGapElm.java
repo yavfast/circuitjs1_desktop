@@ -77,14 +77,14 @@ public class SparkGapElm extends CircuitElm {
 
     public void draw(Graphics g) {
         int i;
-        double v1 = volts[0];
-        double v2 = volts[1];
+        double v1 = getNodeVoltage(0);
+        double v2 = getNodeVoltage(1);
         setBbox(point1, point2, 8);
         draw2Leads(g);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, v1);
         setPowerColor(g, true);
         g.fillPolygon(arrow1);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, v2);
         setPowerColor(g, true);
         g.fillPolygon(arrow2);
         if (state)
@@ -93,7 +93,7 @@ public class SparkGapElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        double vd = volts[0] - volts[1];
+        double vd = getNodeVoltage(0) - getNodeVoltage(1);
         current = vd / resistance;
     }
 
@@ -105,19 +105,19 @@ public class SparkGapElm extends CircuitElm {
     public void startIteration() {
         if (Math.abs(current) < holdcurrent)
             state = false;
-        double vd = volts[0] - volts[1];
+        double vd = getNodeVoltage(0) - getNodeVoltage(1);
         if (Math.abs(vd) > breakdown)
             state = true;
     }
 
     public void doStep() {
         resistance = (state) ? onresistance : offresistance;
-        simulator().stampResistor(nodes[0], nodes[1], resistance);
+        simulator().stampResistor(getNode(0), getNode(1), resistance);
     }
 
     public void stamp() {
-        simulator().stampNonLinear(nodes[0]);
-        simulator().stampNonLinear(nodes[1]);
+        simulator().stampNonLinear(getNode(0));
+        simulator().stampNonLinear(getNode(1));
     }
 
     public void getInfo(String arr[]) {

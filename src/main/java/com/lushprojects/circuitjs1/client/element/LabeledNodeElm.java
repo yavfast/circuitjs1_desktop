@@ -137,7 +137,7 @@ public class LabeledNodeElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
@@ -159,13 +159,13 @@ public class LabeledNodeElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String[] arr) {
         arr[0] = Locale.LS(text) + " (" + Locale.LS("Labeled Node") + ")";
         arr[1] = "I = " + getCurrentText(getCurrent());
-        arr[2] = "V = " + getVoltageText(volts[0]);
+        arr[2] = "V = " + getVoltageText(getNodeVoltage(0));
     }
 
     public EditInfo getEditInfo(int n) {

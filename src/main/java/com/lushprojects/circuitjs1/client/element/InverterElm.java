@@ -110,31 +110,31 @@ public class InverterElm extends CircuitElm {
     }
 
     public void stamp() {
-        simulator().stampVoltageSource(0, nodes[1], voltSource);
+        simulator().stampVoltageSource(0, getNode(1), voltSource);
     }
 
     double lastOutputVoltage;
 
     public void startIteration() {
-        lastOutputVoltage = volts[1];
+        lastOutputVoltage = getNodeVoltage(1);
     }
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        double out = volts[0] > highVoltage * .5 ? 0 : highVoltage;
+        double out = getNodeVoltage(0) > highVoltage * .5 ? 0 : highVoltage;
         double maxStep = slewRate * simulator().timeStep * 1e9;
         out = Math.max(Math.min(lastOutputVoltage + maxStep, out), lastOutputVoltage - maxStep);
-        simulator().updateVoltageSource(0, nodes[1], voltSource, out);
+        simulator().updateVoltageSource(0, getNode(1), voltSource, out);
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "inverter";
-        arr[1] = "Vi = " + getVoltageText(volts[0]);
-        arr[2] = "Vo = " + getVoltageText(volts[1]);
+        arr[1] = "Vi = " + getVoltageText(getNodeVoltage(0));
+        arr[2] = "Vo = " + getVoltageText(getNodeVoltage(1));
     }
 
     public EditInfo getEditInfo(int n) {

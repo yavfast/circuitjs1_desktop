@@ -78,7 +78,7 @@ public class MosfetElm extends CircuitElm {
         } catch (Exception e) {
         }
         globalFlags = flags & (FLAGS_GLOBAL);
-        allocNodes(); // make sure volts[] has the right number of elements when hasBodyTerminal() is true
+        allocNodes(); // make sure nodeStates has the right number of elements when hasBodyTerminal() is true
     }
 
     @Override
@@ -139,12 +139,16 @@ public class MosfetElm extends CircuitElm {
     }
 
     public void reset() {
-        lastv1 = lastv2 = volts[0] = volts[1] = volts[2] = curcount = 0;
+        lastv1 = lastv2 = 0;
+        setNodeVoltageDirect(0, 0);
+        setNodeVoltageDirect(1, 0);
+        setNodeVoltageDirect(2, 0);
+        curcount = 0;
         curcount_body1 = curcount_body2 = 0;
         diodeB1.reset();
         diodeB2.reset();
         if (doBodyDiode())
-            volts[bodyTerminal] = 0;
+            setNodeVoltageDirect(bodyTerminal, 0);
     }
 
     public String dump() {
@@ -165,9 +169,9 @@ public class MosfetElm extends CircuitElm {
         setBbox(point1, point2, hs);
 
         // draw source/drain terminals
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, src[0], src[1]);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, drn[0], drn[1]);
 
         // draw line connecting source and drain
@@ -179,7 +183,7 @@ public class MosfetElm extends CircuitElm {
         boolean enhancement = vt > 0 && showBulk();
         for (i = 0; i != segments; i++) {
             if ((i == 1 || i == 4) && enhancement) continue;
-            double v = volts[1] + (volts[2] - volts[1]) * i / segments;
+            double v = getNodeVoltage(1) + (getNodeVoltage(2) - getNodeVoltage(1)) * i / segments;
             if (!power)
                 setVoltageColor(g, v);
             interpPoint(src[1], drn[1], ps1, i * segf);
@@ -189,15 +193,15 @@ public class MosfetElm extends CircuitElm {
 
         // draw little extensions of that line
         if (!power)
-            setVoltageColor(g, volts[1]);
+            setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, src[1], src[2]);
         if (!power)
-            setVoltageColor(g, volts[2]);
+            setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, drn[1], drn[2]);
 
         // draw bulk connection
         if (showBulk()) {
-            setVoltageColor(g, volts[bodyTerminal]);
+            setVoltageColor(g, getNodeVoltage(bodyTerminal));
             if (!hasBodyTerminal())
                 drawThickLine(g, pnp == -1 ? drn[0] : src[0], body[0]);
             drawThickLine(g, body[0], body[1]);
@@ -205,7 +209,7 @@ public class MosfetElm extends CircuitElm {
 
         // draw arrow
         if (!drawDigital()) {
-            setVoltageColor(g, volts[bodyTerminal]);
+            setVoltageColor(g, getNodeVoltage(bodyTerminal));
             g.fillPolygon(arrowPoly);
         }
         if (power) {
@@ -213,7 +217,7 @@ public class MosfetElm extends CircuitElm {
         }
 
         // draw gate
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, gate[1]);
         drawThickLine(g, gate[0], gate[2]);
         if (drawDigital() && pnp == -1)
@@ -269,7 +273,7 @@ public class MosfetElm extends CircuitElm {
     }
 
     public double getPower() {
-        return ids * (volts[2] - volts[1]) - diodeCurrent1 * (volts[1] - volts[bodyTerminal]) - diodeCurrent2 * (volts[2] - volts[bodyTerminal]);
+        return ids * (getNodeVoltage(2) - getNodeVoltage(1)) - diodeCurrent1 * (getNodeVoltage(1) - getNodeVoltage(bodyTerminal)) - diodeCurrent2 * (getNodeVoltage(2) - getNodeVoltage(bodyTerminal));
     }
 
     public int getPostCount() {
@@ -340,8 +344,8 @@ public class MosfetElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[1]);
-        simulator().stampNonLinear(nodes[2]);
+        simulator().stampNonLinear(getNode(1));
+        simulator().stampNonLinear(getNode(2));
 
         if (hasBodyTerminal())
             bodyTerminal = 3;
@@ -351,12 +355,12 @@ public class MosfetElm extends CircuitElm {
         if (doBodyDiode()) {
             if (pnp == -1) {
                 // pnp: diodes conduct when S or D are higher than body
-                diodeB1.stamp(nodes[1], nodes[bodyTerminal]);
-                diodeB2.stamp(nodes[2], nodes[bodyTerminal]);
+                diodeB1.stamp(getNode(1), getNode(bodyTerminal));
+                diodeB2.stamp(getNode(2), getNode(bodyTerminal));
             } else {
                 // npn: diodes conduct when body is higher than S or D
-                diodeB1.stamp(nodes[bodyTerminal], nodes[1]);
-                diodeB2.stamp(nodes[bodyTerminal], nodes[2]);
+                diodeB1.stamp(getNode(bodyTerminal), getNode(1));
+                diodeB2.stamp(getNode(bodyTerminal), getNode(2));
             }
         }
     }
@@ -398,15 +402,12 @@ public class MosfetElm extends CircuitElm {
 
     // this is called in doStep to stamp the matrix, and also called in stepFinished() to calculate the current
     void calculate(boolean finished) {
-        double vs[];
-        if (finished)
-            vs = volts;
-        else {
+        double vs[] = new double[3];
+        vs[0] = getNodeVoltage(0);
+        vs[1] = getNodeVoltage(1);
+        vs[2] = getNodeVoltage(2);
+        if (!finished) {
             // limit voltage changes to .5V
-            vs = new double[3];
-            vs[0] = volts[0];
-            vs[1] = volts[1];
-            vs[2] = volts[2];
             if (vs[1] > lastv1 + .5)
                 vs[1] = lastv1 + .5;
             if (vs[1] < lastv1 - .5)
@@ -463,10 +464,10 @@ public class MosfetElm extends CircuitElm {
         }
 
         if (doBodyDiode()) {
-            diodeB1.doStep(pnp * (volts[bodyTerminal] - volts[1]));
-            diodeCurrent1 = diodeB1.calculateCurrent(pnp * (volts[bodyTerminal] - volts[1])) * pnp;
-            diodeB2.doStep(pnp * (volts[bodyTerminal] - volts[2]));
-            diodeCurrent2 = diodeB2.calculateCurrent(pnp * (volts[bodyTerminal] - volts[2])) * pnp;
+            diodeB1.doStep(pnp * (getNodeVoltage(bodyTerminal) - getNodeVoltage(1)));
+            diodeCurrent1 = diodeB1.calculateCurrent(pnp * (getNodeVoltage(bodyTerminal) - getNodeVoltage(1))) * pnp;
+            diodeB2.doStep(pnp * (getNodeVoltage(bodyTerminal) - getNodeVoltage(2)));
+            diodeCurrent2 = diodeB2.calculateCurrent(pnp * (getNodeVoltage(bodyTerminal) - getNodeVoltage(2))) * pnp;
         } else
             diodeCurrent1 = diodeCurrent2 = 0;
 
@@ -482,16 +483,16 @@ public class MosfetElm extends CircuitElm {
 
         double rs = -pnp * ids0 + Gds * realvds + gm * realvgs;
         CircuitSimulator simulator = simulator();
-        simulator().stampMatrix(nodes[drain], nodes[drain], Gds);
-        simulator().stampMatrix(nodes[drain], nodes[source], -Gds - gm);
-        simulator().stampMatrix(nodes[drain], nodes[gate], gm);
+        simulator().stampMatrix(getNode(drain), getNode(drain), Gds);
+        simulator().stampMatrix(getNode(drain), getNode(source), -Gds - gm);
+        simulator().stampMatrix(getNode(drain), getNode(gate), gm);
 
-        simulator().stampMatrix(nodes[source], nodes[drain], -Gds);
-        simulator().stampMatrix(nodes[source], nodes[source], Gds + gm);
-        simulator().stampMatrix(nodes[source], nodes[gate], -gm);
+        simulator().stampMatrix(getNode(source), getNode(drain), -Gds);
+        simulator().stampMatrix(getNode(source), getNode(source), Gds + gm);
+        simulator().stampMatrix(getNode(source), getNode(gate), -gm);
 
-        simulator().stampRightSide(nodes[drain], rs);
-        simulator().stampRightSide(nodes[source], -rs);
+        simulator().stampRightSide(getNode(drain), rs);
+        simulator().stampRightSide(getNode(source), -rs);
     }
 
     void getFetInfo(String arr[], String n) {
@@ -499,8 +500,8 @@ public class MosfetElm extends CircuitElm {
         arr[0] += " (Vt=" + getVoltageText(pnp * vt);
         arr[0] += ", \u03b2=" + beta + ")";
         arr[1] = ((pnp == 1) ? "Ids = " : "Isd = ") + getCurrentText(ids);
-        arr[2] = "Vgs = " + getVoltageText(volts[0] - volts[pnp == -1 ? 2 : 1]);
-        arr[3] = ((pnp == 1) ? "Vds = " : "Vsd = ") + getVoltageText(volts[2] - volts[1]);
+        arr[2] = "Vgs = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(pnp == -1 ? 2 : 1));
+        arr[3] = ((pnp == 1) ? "Vds = " : "Vsd = ") + getVoltageText(getNodeVoltage(2) - getNodeVoltage(1));
         arr[4] = Locale.LS((mode == 0) ? "off" :
                 (mode == 1) ? "linear" : "saturation");
         arr[5] = "gm = " + getUnitText(gm, "A/V");
@@ -523,7 +524,7 @@ public class MosfetElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[2] - volts[1];
+        return getNodeVoltage(2) - getNodeVoltage(1);
     }
 
     public boolean getConnection(int n1, int n2) {

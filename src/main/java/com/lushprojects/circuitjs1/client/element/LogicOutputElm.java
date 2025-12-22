@@ -84,21 +84,22 @@ public class LogicOutputElm extends CircuitElm {
         g.setFont(f);
         //g.setColor(needsHighlight() ? selectColor : lightGrayColor);
         g.setColor(elementColor());
-        String s = (volts[0] < threshold) ? "L" : "H";
+        double inputVoltage = getNodeVoltage(0);
+        String s = (inputVoltage < threshold) ? "L" : "H";
         if (isTernary()) {
             // we don't have 2 separate thresholds for ternary inputs so we do this instead
-            if (volts[0] > threshold * 1.5)   // 3.75 V
+            if (inputVoltage > threshold * 1.5)   // 3.75 V
                 s = "2";
-            else if (volts[0] > threshold * .5)  // 1.25 V
+            else if (inputVoltage > threshold * .5)  // 1.25 V
                 s = "1";
             else
                 s = "0";
         } else if (isNumeric())
-            s = (volts[0] < threshold) ? "0" : "1";
+            s = (inputVoltage < threshold) ? "0" : "1";
         value = s;
         setBbox(point1, lead1, 0);
         drawCenteredText(g, s, x2, y2, true);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, inputVoltage);
         drawThickLine(g, point1, lead1);
         drawPosts(g);
         g.restore();
@@ -106,19 +107,20 @@ public class LogicOutputElm extends CircuitElm {
 
     public void stamp() {
         if (needsPullDown())
-            simulator().stampResistor(nodes[0], 0, 1e6);
+            simulator().stampResistor(getNode(0), 0, 1e6);
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "logic output";
-        arr[1] = (volts[0] < threshold) ? "low" : "high";
+        double inputVoltage = getNodeVoltage(0);
+        arr[1] = (inputVoltage < threshold) ? "low" : "high";
         if (isNumeric())
             arr[1] = value;
-        arr[2] = "V = " + getVoltageText(volts[0]);
+        arr[2] = "V = " + getVoltageText(inputVoltage);
     }
 
     public EditInfo getEditInfo(int n) {

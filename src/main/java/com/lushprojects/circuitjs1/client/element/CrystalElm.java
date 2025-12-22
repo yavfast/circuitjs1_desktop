@@ -103,7 +103,7 @@ public class CrystalElm extends CompositeElm {
         setBbox(point1, point2, hs);
 
         // draw first lead and plate
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
@@ -112,13 +112,13 @@ public class CrystalElm extends CompositeElm {
         }
 
         // draw second lead and plate
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, point2, lead2);
         setPowerColor(g, false);
         drawThickLine(g, plate2[0], plate2[1]);
 
         int i;
-        setVoltageColor(g, .5 * (volts[0] + volts[1]));
+        setVoltageColor(g, .5 * (getNodeVoltage(0) + getNodeVoltage(1)));
         for (i = 0; i != 4; i++)
             drawThickLine(g, sandwichPoints[i], sandwichPoints[(i + 1) % 4]);
 

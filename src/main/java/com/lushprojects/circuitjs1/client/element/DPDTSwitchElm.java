@@ -102,13 +102,13 @@ public class DPDTSwitchElm extends SwitchElm {
 
         int i;
         for (i = 0; i != poleCount; i++) {
-            setVoltageColor(g, volts[i * 3]);
+            setVoltageColor(g, getNodeVoltage(i * 3));
             drawThickLine(g, polePosts[i], poleLeads[i]);
-            setVoltageColor(g, volts[i * 3 + 1]);
+            setVoltageColor(g, getNodeVoltage(i * 3 + 1));
             drawThickLine(g, throwPosts[i * 2], throwLeads[i * 4]);
             if (useIECSymbol())
                 drawThickLine(g, throwLeads[i * 4], throwLeads[i * 4 + 2]);
-            setVoltageColor(g, volts[i * 3 + 2]);
+            setVoltageColor(g, getNodeVoltage(i * 3 + 2));
             drawThickLine(g, throwPosts[i * 2 + 1], throwLeads[i * 4 + 1]);
 
             // draw line
@@ -183,7 +183,7 @@ public class DPDTSwitchElm extends SwitchElm {
     public void stamp() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != poleCount; i++)
-            simulator().stampVoltageSource(nodes[i * 3], nodes[position + 1 + i * 3], voltageSources[i], 0);
+            simulator().stampVoltageSource(getNode(i * 3), getNode(position + 1 + i * 3), voltageSources[i], 0);
     }
 
     public int getVoltageSourceCount() {

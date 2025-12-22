@@ -101,12 +101,12 @@ public class RelayContactElm extends CircuitElm {
         int i;
         for (i = 0; i != 2; i++) {
             // draw lead
-            setVoltageColor(g, volts[nSwitch0 + i]);
+            setVoltageColor(g, getNodeVoltage(nSwitch0 + i));
             drawThickLine(g, swposts[i], swpoles[i]);
         }
 
         interpPoint(swpoles[1], swpoles[2], ptSwitch, i_position);
-        //setVoltageColor(g, volts[nSwitch0]);
+        //setVoltageColor(g, getNodeVoltage(nSwitch0));
         g.setColor(Color.lightGray);
         drawThickLine(g, swpoles[0], ptSwitch);
 
@@ -215,8 +215,8 @@ public class RelayContactElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(nodes[nSwitch0]);
-        simulator().stampNonLinear(nodes[nSwitch1]);
+        simulator().stampNonLinear(getNode(nSwitch0));
+        simulator().stampNonLinear(getNode(nSwitch1));
     }
 
     // we need this to be able to change the matrix for each step
@@ -225,7 +225,7 @@ public class RelayContactElm extends CircuitElm {
     }
 
     public void doStep() {
-        simulator().stampResistor(nodes[nSwitch0], nodes[nSwitch1], i_position == 0 ? r_on : r_off);
+        simulator().stampResistor(getNode(nSwitch0), getNode(nSwitch1), i_position == 0 ? r_on : r_off);
     }
 
     void calculateCurrent() {
@@ -234,7 +234,7 @@ public class RelayContactElm extends CircuitElm {
         if (i_position == 1)
             switchCurrent = 0;
         else
-            switchCurrent = (volts[nSwitch0] - volts[nSwitch1 + i_position]) / r_on;
+            switchCurrent = (getNodeVoltage(nSwitch0) - getNodeVoltage(nSwitch1 + i_position)) / r_on;
     }
 
     public void getInfo(String arr[]) {

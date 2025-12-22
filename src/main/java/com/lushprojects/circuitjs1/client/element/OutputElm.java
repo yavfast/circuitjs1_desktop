@@ -72,7 +72,7 @@ public class OutputElm extends CircuitElm {
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
-        String s = showVoltage() ? getUnitTextWithScale(volts[0], "V", scale, isFixed()) : Locale.LS("out");
+        String s = showVoltage() ? getUnitTextWithScale(getNodeVoltage(0), "V", scale, isFixed()) : Locale.LS("out");
 //	    FontMetrics fm = g.getFontMetrics();
         if (this == circuitEditor().plotXElm)
             s = "X";
@@ -81,7 +81,7 @@ public class OutputElm extends CircuitElm {
         interpPoint(point1, point2, lead1, 1 - ((int) g.measureWidth(s) / 2.0 + 8) / dn);
         setBbox(point1, lead1, 0);
         drawCenteredText(g, s, x2, y2, true);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, point1, lead1);
@@ -90,12 +90,12 @@ public class OutputElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "output";
-        arr[1] = "V = " + getVoltageText(volts[0]);
+        arr[1] = "V = " + getVoltageText(getNodeVoltage(0));
     }
 
     public EditInfo getEditInfo(int n) {

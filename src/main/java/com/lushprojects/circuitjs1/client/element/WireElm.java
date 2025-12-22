@@ -45,7 +45,7 @@ public class WireElm extends CircuitElm {
     static final int FLAG_SHOWVOLTAGE = 2;
 
     public void draw(Graphics g) {
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, point2);
         doDots(g);
         setBbox(point1, point2, 3);
@@ -54,14 +54,13 @@ public class WireElm extends CircuitElm {
             s = getShortUnitText(Math.abs(getCurrent()), "A");
         }
         if (mustShowVoltage()) {
-            s = (!s.isEmpty() ? s + " " : "") + getShortUnitText(volts[0], "V");
+            s = (!s.isEmpty() ? s + " " : "") + getShortUnitText(getNodeVoltage(0), "V");
         }
         drawValues(g, s, 4);
         drawPosts(g);
     }
 
     public void stamp() {
-//	    sim.stampVoltageSource(nodes[0], nodes[1], voltSource, 0);
     }
 
     boolean mustShowCurrent() {
@@ -76,7 +75,7 @@ public class WireElm extends CircuitElm {
     public void getInfo(String[] arr) {
         arr[0] = "wire";
         arr[1] = "I = " + getCurrentDText(getCurrent());
-        arr[2] = "V = " + getVoltageText(volts[0]);
+        arr[2] = "V = " + getVoltageText(getNodeVoltage(0));
     }
 
     int getDumpType() {
@@ -88,7 +87,7 @@ public class WireElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public boolean isWireEquivalent() {

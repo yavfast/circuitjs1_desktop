@@ -116,7 +116,7 @@ public class AudioOutputElm extends CircuitElm {
         interpPoint(point1, point2, lead1, 1 - (textWidth / 2. + 8) / dn);
         setBbox(point1, lead1, 0);
         drawCenteredText(graphics, s, x2, y2, true);
-        setVoltageColor(graphics, volts[0]);
+        setVoltageColor(graphics, getNodeVoltage(0));
         if (selected)
             graphics.setColor(selectColor());
         drawThickLine(graphics, point1, lead1);
@@ -125,12 +125,12 @@ public class AudioOutputElm extends CircuitElm {
     }
 
     double getVoltageDiff() {
-        return volts[0];
+        return getNodeVoltage(0);
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "audio output";
-        arr[1] = "V = " + getVoltageText(volts[0]);
+        arr[1] = "V = " + getVoltageText(getNodeVoltage(0));
         int ct = (dataFull ? dataCount : dataPtr);
         double dur = sampleStep * ct;
         arr[2] = "start = " + getUnitText(dataFull ? simulator().t - duration : dataStart, "s");
@@ -143,7 +143,7 @@ public class AudioOutputElm extends CircuitElm {
     double dataSample;
 
     public void stepFinished() {
-        dataSample += volts[0];
+        dataSample += getNodeVoltage(0);
         dataSampleCount++;
         if (simulator().t >= nextDataSample) {
             nextDataSample += sampleStep;

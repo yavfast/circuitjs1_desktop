@@ -61,16 +61,16 @@ public class VCOElm extends ChipElm {
     public void stamp() {
         CircuitSimulator simulator = simulator();
         // output pin
-		simulator.stampVoltageSource(0, nodes[1], pins[1].voltSource);
+        simulator.stampVoltageSource(0, getNode(1), pins[1].voltSource);
         // attach Vi to R1 pin so its current is proportional to Vi
-		simulator.stampVoltageSource(nodes[0], nodes[4], pins[4].voltSource, 0);
+        simulator.stampVoltageSource(getNode(0), getNode(4), pins[4].voltSource, 0);
         // attach 5V to R2 pin so we get a current going
-		simulator.stampVoltageSource(0, nodes[5], pins[5].voltSource, 5);
+        simulator.stampVoltageSource(0, getNode(5), pins[5].voltSource, 5);
         // put resistor across cap pins to give current somewhere to go
         // in case cap is not connected
-		simulator.stampResistor(nodes[2], nodes[3], cResistance);
-		simulator.stampNonLinear(nodes[2]);
-		simulator.stampNonLinear(nodes[3]);
+        simulator.stampResistor(getNode(2), getNode(3), cResistance);
+        simulator.stampNonLinear(getNode(2));
+        simulator.stampNonLinear(getNode(3));
     }
 
     final double cResistance = 1e6;
@@ -78,8 +78,8 @@ public class VCOElm extends ChipElm {
     int cDir;
 
     public void doStep() {
-        double vc = volts[3] - volts[2];
-        double vo = volts[1];
+        double vc = getNodeVoltage(3) - getNodeVoltage(2);
+        double vo = getNodeVoltage(1);
         int dir = (vo < 2.5) ? 1 : -1;
         // switch direction of current through cap as we oscillate
         if (vo < 2.5 && vc > 4.5) {
@@ -93,16 +93,16 @@ public class VCOElm extends ChipElm {
 
         CircuitSimulator simulator = simulator();
         // generate output voltage
-		simulator.updateVoltageSource(0, nodes[1], pins[1].voltSource, vo);
+		simulator.updateVoltageSource(0, getNode(1), pins[1].voltSource, vo);
         // now we set the current through the cap to be equal to the
         // current through R1 and R2, so we can measure the voltage
         // across the cap
         int cur1 = simulator().nodeList.size() + pins[4].voltSource;
         int cur2 = simulator().nodeList.size() + pins[5].voltSource;
-		simulator.stampMatrix(nodes[2], cur1, dir);
-		simulator.stampMatrix(nodes[2], cur2, dir);
-		simulator.stampMatrix(nodes[3], cur1, -dir);
-		simulator.stampMatrix(nodes[3], cur2, -dir);
+        simulator.stampMatrix(getNode(2), cur1, dir);
+        simulator.stampMatrix(getNode(2), cur2, dir);
+        simulator.stampMatrix(getNode(3), cur1, -dir);
+        simulator.stampMatrix(getNode(3), cur2, -dir);
         cDir = dir;
     }
 
@@ -112,7 +112,7 @@ public class VCOElm extends ChipElm {
         if (cResistance == 0)
             return;
         double c = cDir * (pins[4].current + pins[5].current) +
-                (volts[3] - volts[2]) / cResistance;
+                (getNodeVoltage(3) - getNodeVoltage(2)) / cResistance;
         pins[2].current = -c;
         pins[3].current = c;
         pins[0].current = -pins[4].current;

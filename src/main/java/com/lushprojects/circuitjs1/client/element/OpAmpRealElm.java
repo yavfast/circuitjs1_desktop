@@ -179,15 +179,15 @@ public class OpAmpRealElm extends CompositeElm {
 
     public void draw(Graphics g) {
         setBbox(point1, point2, opheight * 2);
-        setVoltageColor(g, volts[0]);
+        setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, in1p[0], in1p[1]);
-        setVoltageColor(g, volts[1]);
+        setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, in2p[0], in2p[1]);
-        setVoltageColor(g, volts[2]);
+        setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, lead2, point2);
-        setVoltageColor(g, volts[3]);
+        setVoltageColor(g, getNodeVoltage(3));
         drawThickLine(g, rail1p[0], rail1p[1]);
-        setVoltageColor(g, volts[4]);
+        setVoltageColor(g, getNodeVoltage(4));
         drawThickLine(g, rail2p[0], rail2p[1]);
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
@@ -255,9 +255,9 @@ public class OpAmpRealElm extends CompositeElm {
     public void getInfo(String arr[]) {
         String type = (modelType == MODEL_741) ? "LM741" : "LM324";
         arr[0] = "op-amp (" + type + ")";
-        arr[1] = "V+ = " + getVoltageText(volts[1]);
-        arr[2] = "V- = " + getVoltageText(volts[0]);
-        arr[3] = "Vout = " + getVoltageText(volts[2]);
+        arr[1] = "V+ = " + getVoltageText(getNodeVoltage(1));
+        arr[2] = "V- = " + getVoltageText(getNodeVoltage(0));
+        arr[3] = "Vout = " + getVoltageText(getNodeVoltage(2));
         arr[4] = "Iout = " + getCurrentText(getCurrentIntoNode(2));
     }
 

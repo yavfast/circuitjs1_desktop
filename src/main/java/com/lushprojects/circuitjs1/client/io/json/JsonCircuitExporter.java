@@ -179,18 +179,18 @@ public class JsonCircuitExporter implements CircuitExporter {
      */
     private static class PinInfo {
         String elementId;
-        String pinName;
+        CircuitElm.Pin pin;
         int x, y;
 
-        PinInfo(String elementId, String pinName, int x, int y) {
+        PinInfo(String elementId, CircuitElm.Pin pin, int x, int y) {
             this.elementId = elementId;
-            this.pinName = pinName;
+            this.pin = pin;
             this.x = x;
             this.y = y;
         }
 
         String getReference() {
-            return elementId + "." + pinName;
+            return elementId + "." + pin.getName();
         }
     }
 
@@ -220,14 +220,13 @@ public class JsonCircuitExporter implements CircuitExporter {
     }
 
     private void collectPins(CircuitElm elm, String elementId) {
-        String[] pinNames = elm.getJsonPinNames();
-        int postCount = elm.getPostCount();
-        for (int i = 0; i < postCount && i < pinNames.length; i++) {
-            Point pos = elm.getJsonPinPosition(i);
+        CircuitElm.Pin[] pins = elm.getPins();
+        for (CircuitElm.Pin pin : pins) {
+            Point pos = pin.getPosition();
             if (pos != null) {
                 String key = pos.x + "," + pos.y;
                 pinsByLocation.computeIfAbsent(key, k -> new ArrayList<>())
-                    .add(new PinInfo(elementId, pinNames[i], pos.x, pos.y));
+                    .add(new PinInfo(elementId, pin, pos.x, pos.y));
             }
         }
     }
@@ -263,39 +262,40 @@ public class JsonCircuitExporter implements CircuitExporter {
         }
 
         // Pins with connections
-        String[] pinNames = elm.getJsonPinNames();
-        int postCount = elm.getPostCount();
+        CircuitElm.Pin[] pinArr = elm.getPins();
         JSONObject pins = new JSONObject();
         
-        if (postCount > 0) {
-            for (int i = 0; i < postCount && i < pinNames.length; i++) {
-                Point pos = elm.getJsonPinPosition(i);
-                if (pos != null) {
-                    JSONObject pin = new JSONObject();
-                    JSONObject position = new JSONObject();
-                    position.put("x", new JSONNumber(pos.x));
-                    position.put("y", new JSONNumber(pos.y));
-                    pin.put("position", position);
+        if (pinArr.length > 0) {
+            for (CircuitElm.Pin pinObj : pinArr) {
+                Point pos = pinObj.getPosition();
+                if (pos == null) {
+                    continue;
+                }
 
-                    // Find connections (other pins at same location)
-                    String key = pos.x + "," + pos.y;
-                    List<PinInfo> pinsAtLocation = pinsByLocation.get(key);
-                    if (pinsAtLocation != null && pinsAtLocation.size() > 1) {
-                        JSONArray connections = new JSONArray();
-                        int idx = 0;
-                        for (PinInfo other : pinsAtLocation) {
-                            // Skip self
-                            if (!other.elementId.equals(elementId) || !other.pinName.equals(pinNames[i])) {
-                                connections.set(idx++, new JSONString(other.getReference()));
-                            }
-                        }
-                        if (connections.size() > 0) {
-                            pin.put("connected_to", connections);
+                JSONObject pin = new JSONObject();
+                JSONObject position = new JSONObject();
+                position.put("x", new JSONNumber(pos.x));
+                position.put("y", new JSONNumber(pos.y));
+                pin.put("position", position);
+
+                // Find connections (other pins at same location)
+                String key = pos.x + "," + pos.y;
+                List<PinInfo> pinsAtLocation = pinsByLocation.get(key);
+                if (pinsAtLocation != null && pinsAtLocation.size() > 1) {
+                    JSONArray connections = new JSONArray();
+                    int idx = 0;
+                    for (PinInfo other : pinsAtLocation) {
+                        // Skip self
+                        if (!other.elementId.equals(elementId) || !other.pin.getName().equals(pinObj.getName())) {
+                            connections.set(idx++, new JSONString(other.getReference()));
                         }
                     }
-
-                    pins.put(pinNames[i], pin);
+                    if (connections.size() > 0) {
+                        pin.put("connected_to", connections);
+                    }
                 }
+
+                pins.put(pinObj.getName(), pin);
             }
         }
         

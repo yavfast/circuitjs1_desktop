@@ -72,12 +72,12 @@ public class DCWaveform extends Waveform {
 
     @Override
     public void stamp(VoltageElm elm) {
-        elm.simulator().stampVoltageSource(elm.nodes[0], elm.nodes[1], elm.voltSource, elm.getVoltage());
+        elm.simulator().stampVoltageSource(elm.getNode(0), elm.getNode(1), elm.voltSource, elm.getVoltage());
     }
 
     @Override
     public void stampRail(RailElm elm) {
-        elm.simulator().stampVoltageSource(0, elm.nodes[0], elm.voltSource, elm.getVoltage());
+        elm.simulator().stampVoltageSource(0, elm.getNode(0), elm.voltSource, elm.getVoltage());
     }
 
     @Override
