@@ -8,6 +8,12 @@ iteration).
 - `docs/circuit_manual_uk.md` — Ukrainian manual for authoring circuits in text format (practical examples).
 - `docs/elements.md` — catalog of circuit elements (menu categories, classes, short descriptions).
 
+# Active Context (MUST)
+
+- On every new chat start, ALWAYS load and follow `ai_memory/active_context.md`.
+- Keep `ai_memory/active_context.md` continuously synchronized with the current chat/task state.
+- The rules and required template for updating/syncing the active context are defined in `docs/context_update_rules.md` and MUST be followed.
+
 # AI Skills Protocol
 
 ## Mandatory usage at chat start
