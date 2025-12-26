@@ -1,0 +1,34 @@
+# Schema version for tracking format changes (see definitions.md for schema spec)
+schema_version: 1
+version: 1
+updated_at: 2025-12-26T10:20:57+02:00
+
+# This registry is the primary index of all archived contexts.
+# All paths are repo-relative.
+# Required fields per entry: task_id, title, category, tags, status, archived_at, file, summary
+contexts:
+  - task_id: ELM-GEOM-REFACTOR-CTX
+    title: "Elm geometry refactor (FORCED/HARD MODE)"
+    category: refactor
+    tags:
+      - elm-geometry
+      - hard-mode
+      - compile-fix
+      - circuitelm
+      - elmgeometry
+    status: paused
+    archived_at: 2025-12-26T10:20:57+02:00
+    file: ai_memory/context_history/ELM-GEOM-REFACTOR-CTX.md
+    related_paths:
+      - src/main/java/com/lushprojects/circuitjs1/client/element/
+      - ai_memory/elm_geom_refactor_plan.md
+      - ai_memory/elm_geom_refactor_inventory.md
+    summary: |
+      HARD MODE міграції геометрії активний. Після видалення legacy полів у CircuitElm
+      компіляція падає на CapacitorElm/ComparatorElm/CrossSwitchElm/CrystalElm.
+      Резюм: продовжувати цикл npm run buildgwt → міграція offenders на geom()/getter-и.
+    restore_recipe:
+      - "npm run buildgwt"
+      - "Відкрити файли з compile errors"
+      - "Замінити legacy поля на geom()/getter-и"
+      - "Повторити до зеленого білду"
