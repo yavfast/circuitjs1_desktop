@@ -46,14 +46,23 @@ SCOPE
 
 ## 4) Minimal active context structure (mandatory template)
 
-`ai_memory/active_context.md` **must** contain the following sections in the given order (so other AIs can parse/validate unambiguously):
+`ai_memory/active_context.md` **must** contain the following sections in the given order (so other AIs can parse/validate unambiguously).
+
+**Section classification:**
+- 🔴 **MANDATORY** (1–4): Must always be present and filled.
+- 🟡 **RECOMMENDED** (5–6): Should be present for non-trivial tasks.
+- 🟢 **OPTIONAL** (7–24): Use when relevant; skip if not applicable.
+
+---
+
+### 🔴 MANDATORY SECTIONS
 
 1) **Meta**
 	- `last_updated`: ISO-8601 datetime (UTC or with timezone)
 	- `project_root`: repository root path
 	- `language`: `uk` (default)
 	- `active_skills`: list of critical skill IDs (optional)
-	- `agent_notes`: 1–3 lines about environment specifics (optional)
+	- `agent_notes`: 1–3 lines about environment specifics (optional). If task requires a specific git branch, record it here (e.g. "Branch: feature/xyz").
 
 2) **Current Task**
 	- `task_id`: short stable identifier (e.g. `CTX-RULES-001`)
@@ -73,19 +82,27 @@ SCOPE
 	- `in_progress`: 1–4 bullets in progress
 	- `next`: 1–6 next steps (must be actionable)
 
-5) **Breadcrumbs** (optional, recommended)
+---
+
+### 🟡 RECOMMENDED SECTIONS
+
+5) **Breadcrumbs**
 	- `last_focus`: 1–2 sentences (what you were doing when you paused)
 	- `last_edit_targets`: short list of key symbols/files recently touched
 	- `next_hops`: shortlist of “where to go next” (each item should say *why*)
 	- `navigation_queries`: 5–10 search patterns/keywords/commands that quickly re-locate relevant code
 	- `resume_recipe`: 3–6 minimal steps to regain momentum in a new session
 
-6) **Guardrails** (optional, recommended)
-	- `invariants`: 3–8 “must hold” statements (optionally with how to validate)
-	- `scope_guardrails`: explicit “do not change” constraints (to prevent scope creep)
+6) **Guardrails**
+	- `invariants`: 3–8 "must hold" statements (optionally with how to validate)
+	- `scope_guardrails`: explicit "do not change" constraints (to prevent scope creep)
 	- `risk_hotspots`: areas most likely to regress + expected failure mode
 	- `temporary_allowances`: time-boxed exceptions (what, why, until when)
 	- `definition_of_done`: 2–5 crisp exit criteria
+
+---
+
+### 🟢 OPTIONAL SECTIONS
 
 7) **Decisions**
 	- short decision log: (datetime → decision → reason)
@@ -93,6 +110,20 @@ SCOPE
 8) **Open Questions / Blockers**
 	- questions that require clarification
 	- blockers with a concrete reason
+
+	Recommended structured format for each item:
+	```yaml
+	- question: "Description of question or blocker"
+	  priority: high | medium | low
+	  blocking: true | false  # true = blocks progress
+	  raised_at: ISO-8601 datetime
+	  assigned_to: user | agent | external (optional)
+	```
+
+	Priority guidelines:
+	- `high`: Blocks current task; must resolve before next step.
+	- `medium`: Important but workaround exists; resolve within 1-2 sessions.
+	- `low`: Nice to clarify; can defer indefinitely.
 
 9) **Verification** (optional)
 	- `last_green_build`: timestamp/commit of last successful build
@@ -177,6 +208,39 @@ SCOPE
 	- `medium`: moderate risks worth monitoring
 	- `low`: minor concerns for awareness
 
+24) **Related Contexts** (optional)
+	- `predecessor`: task_id of the task this one originated from
+	- `successor`: task_id of the task this one evolved into (after completion)
+	- `depends_on`: list of task_ids that must complete before this one
+	- `blocks`: list of task_ids that are waiting for this task
+	- `related`: list of task_ids with shared scope or code areas (informational)
+
+	Example:
+	```yaml
+	related_contexts:
+	  predecessor: ELM-GEOM-REFACTOR-001
+	  depends_on: [EXPORT-FORMAT-002]
+	  blocks: [UI-REFRESH-003]
+	  related: [SCOPE-TRIGGER-001]
+	```
+
+25) **Quick Resume Block** (mandatory, always at the end)
+
+	A copy-paste-ready block for instant session start without parsing the full document:
+
+	```yaml
+	# Quick Resume — <task_id>
+	goal: <one sentence>
+	focus_now: <what exactly we are doing>
+	next_action: <concrete next step>
+	key_files: [<3-5 most relevant files>]
+	verify_cmd: <command to verify current state>
+	last_result: success | failure | pending
+	```
+
+	This block MUST be updated at every context sync. It allows an agent to understand the task in 10 seconds.
+
+---
 The content must be **necessarily sufficient** to resume work:
 
 - Prefer *state* over history: record “what is true now” and “what to do next”.
@@ -242,6 +306,161 @@ Principles:
   - finish synchronizing the old task,
   - switch “Current Task” to the new one,
   - record the reason in `Decisions`.
+
+### 7.0.1. Secondary Tasks format (mandatory structure)
+
+Each secondary task MUST have the following fields:
+
+```yaml
+secondary_tasks:
+  - task_id: TASK-ID-HERE
+    goal: "One sentence describing the task"
+    status: queued | paused | blocked
+    priority: high | medium | low
+    next: "1-2 immediate next steps"
+    blocked_by: "<reason or task_id>" # only if status=blocked
+```
+
+**Rules:**
+
+- **Maximum 3 secondary tasks** allowed at any time. If more are needed:
+  - Archive the lowest-priority task to `ai_memory/context_history/`.
+  - Register it in `contexts_index.yaml` with `status: paused`.
+- **Priority definitions:**
+  - `high`: Will likely become Current Task soon; keep context fresh.
+  - `medium`: Important but not urgent; minimal context needed.
+  - `low`: Backlog item; can be archived if slots are needed.
+- **Status transitions:**
+  - `queued` → `paused`: Work started but interrupted.
+  - `queued` → `blocked`: Cannot proceed due to dependency.
+  - Any → Current Task: Requires full context switch (§7.1).
+- **Promotion to Current Task:** When a secondary task becomes the focus, execute the full switch protocol (§7.1.3).
+
+## 7.1) Switching context when category/topic changes
+
+This section defines a deterministic protocol for switching between task contexts when the new task belongs to a different category/topic than the current one.
+
+### 7.1.1. Files and artifacts
+
+- **Active context (current)**: `ai_memory/active_context.md`
+- **Archived contexts (history)**: files under `ai_memory/context_history/`
+- **Context registry (index)**: `ai_memory/context_history/contexts_index.yaml`
+
+The registry is the single discoverable list of all saved contexts. It enables fast lookup and restoration without scanning file contents.
+
+### 7.1.2. When a switch is required
+
+Switch is required when any of these signals are true:
+
+- The user explicitly says this is a new task/topic/category.
+- The agent’s new goal/scope would contradict the current `Current Task` section.
+- Work is about to move to unrelated subsystems (e.g., from element geometry refactor → export format → UI behavior) and would make the active context misleading.
+
+If unsure, default to the simplest safe behavior:
+
+- Ask one clarifying question, OR
+- Create a new context and mark the previous one as `paused`.
+
+### 7.1.3. Switch protocol (algorithm)
+
+When switching from old task `A` to new task `B`:
+
+1) **Synchronize** the current `ai_memory/active_context.md` (see §5–6).
+2) **Archive** context `A`:
+	- Copy the current `ai_memory/active_context.md` into `ai_memory/context_history/<ARCHIVE_FILE>.md`.
+	- Append an `Archive Summary` section (mandatory) to the archived copy:
+	  - what was accomplished, where to resume, what is still failing, and the minimal resume recipe.
+	- Mark the archived context status as `paused` or `completed`.
+3) **Register** the archived context in `ai_memory/context_history/contexts_index.yaml` (mandatory).
+4) **Locate prior context for `B`**:
+	- Search the registry by `task_id`, `title`, `category`, and `tags`.
+	- Prefer the most recently archived context with highest tag overlap.
+5) **Restore or bootstrap**:
+	- If a good match is found:
+		- Restore by copying that archived context into `ai_memory/active_context.md`.
+		- **Git Branch Check**: If the restored context mentions a specific git branch (in `Meta` or `Git State`), check if it exists and switch to it (`git checkout`).
+		- **Drift Check**: Verify `git status` and existence of `active_files`. If significant changes occurred since archiving (e.g., files deleted), record this in `Open Questions` or `Decisions`.
+		- Update `last_updated`, `Current Task` (if needed), and `Decisions`.
+	- If not found, bootstrap a new `ai_memory/active_context.md` using the mandatory template (§4) and reuse only stable cross-task info from relevant contexts (see next subsection).
+
+Finally, record a `Decisions` entry explaining:
+
+- why the switch happened,
+- which context was archived,
+- which one was restored/created.
+
+### 7.1.4. Archive file naming (deterministic)
+
+Archive file naming uses a **canonical** file per `task_id` to avoid stale duplicates.
+
+Canonical archive file name:
+
+- `<task_id>.md`
+
+Optional snapshot file name (only when explicitly needed):
+
+- `YYYY-MM-DD__<task_id>__<slug>.md`
+
+Rules:
+
+- By default, write/update the canonical file `ai_memory/context_history/<task_id>.md`.
+- Use a dated snapshot only if you need to preserve a historical milestone (rare; not the default).
+- If using a snapshot, use date in local repo time (ISO date).
+- `<task_id>` must match the archived context.
+- `<slug>` is optional; use only if needed to disambiguate.
+
+### 7.1.5. Context registry format (YAML)
+
+`ai_memory/context_history/contexts_index.yaml` MUST be YAML and MUST contain a list of entries with at least:
+
+- `task_id`: stable id
+- `title`: human-friendly label
+- `category`: coarse category (e.g., `refactor`, `bugfix`, `docs`, `feature`)
+- `tags`: list of keywords
+- `status`: `paused|completed|abandoned`
+- `archived_at`: ISO-8601 datetime
+- `file`: path to archived context file
+- `summary`: 3–10 lines (resume-oriented)
+
+Recommended optional fields:
+
+- `related_paths`: key folders/files
+- `restore_recipe`: 3–6 steps
+- `confidence`: `high|medium|low` for match quality (used when restoring)
+
+### 7.1.6. Bootstrapping a new context from existing ones
+
+If no matching context exists, create a new `ai_memory/active_context.md` (template §4) and optionally reuse only:
+
+- **Environment Snapshot** and stable tool commands.
+- **Project-wide Guardrails** that remain valid.
+- **Links to shared docs** (`docs/project.md`, `docs/JS_API.md`, etc.).
+
+Do NOT copy these across tasks (they are task-specific and go stale):
+
+- `Progress` lists,
+- task-specific `Breadcrumbs` (search queries, next hops),
+- detailed failure logs.
+
+Instead, derive fresh `Progress.next` and fresh `Breadcrumbs` for the new task.
+
+### 7.1.7. Updating history after restoring an existing context (no stale copies)
+
+If the active work started by restoring a context from history, avoid saving an additional outdated copy later.
+
+Protocol:
+
+- On restore, record where it came from (recommended): add a note in `Decisions` like:
+	- `Restored from ai_memory/context_history/<task_id>.md`
+- While working, keep `ai_memory/active_context.md` as the working copy.
+- When switching away from this restored task (or when you want to persist progress), **overwrite** the canonical archive file:
+	- `ai_memory/context_history/<task_id>.md`
+- Update the matching entry in `ai_memory/context_history/contexts_index.yaml`:
+	- bump `archived_at`
+	- refresh `summary` and `restore_recipe`
+	- set `status` (`paused|completed|abandoned`)
+
+Default policy: **one canonical archive per task_id** (always up to date). Use dated snapshots only when explicitly requested.
 
 ## 8) Archiving and keeping context clean
 
