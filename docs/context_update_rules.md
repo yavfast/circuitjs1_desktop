@@ -77,7 +77,9 @@ SCOPE
 	- `plan`: reference to a plan (file or “manage_todo_list”) + short status
 	- `related_docs`: list of files (if any)
 	- `related_code`: list of files/folders (if code changes exist)
-	- `session_history`: direct link(s) to session history file(s) relevant to the current task (see §12)4) **Progress**
+	- `session_history`: direct link(s) to session history file(s) relevant to the current task (see §12)
+
+4) **Progress**
 	- `done`: 2–6 bullets completed
 	- `in_progress`: 1–4 bullets in progress
 	- `next`: 1–6 next steps (must be actionable)
