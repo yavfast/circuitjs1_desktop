@@ -76,8 +76,8 @@ SCOPE
 3) **Plan & References**
 	- `plan`: reference to a plan (file or “manage_todo_list”) + short status
 	- `related_docs`: list of files (if any)
-	- `related_code`: list of files/folders (if code changes exist)	- `session_history`: direct link(s) to session history file(s) relevant to the current task (see §12)
-4) **Progress**
+	- `related_code`: list of files/folders (if code changes exist)
+	- `session_history`: direct link(s) to session history file(s) relevant to the current task (see §12)4) **Progress**
 	- `done`: 2–6 bullets completed
 	- `in_progress`: 1–4 bullets in progress
 	- `next`: 1–6 next steps (must be actionable)
@@ -368,13 +368,24 @@ When switching from old task `A` to new task `B`:
 1) **Synchronize** the current `ai_memory/active_context.md` (see §5–6).
 2) **Archive** context `A`:
 	- Copy the current `ai_memory/active_context.md` into `ai_memory/context_history/<ARCHIVE_FILE>.md`.
-	- Append an `Archive Summary` section (mandatory) to the archived copy:
-	  - what was accomplished, where to resume, what is still failing, and the minimal resume recipe.
+	- Append an `Archive Summary` section (mandatory) to the archived copy. It MUST be resume-oriented and include:
+	  - what is true now (state),
+	  - what was accomplished (high-level),
+	  - where to resume (files/symbols/search queries),
+	  - what is still failing/unknown (if any),
+	  - a minimal resume recipe.
+	- Ensure the archived copy ends with the `Quick Resume Block` (see §4.25). Since the archive is a copy of `active_context.md`, this should already be present; if not, add it.
 	- Mark the archived context status as `paused` or `completed`.
 3) **Register** the archived context in `ai_memory/context_history/contexts_index.yaml` (mandatory).
 4) **Locate prior context for `B`**:
 	- Search the registry by `task_id`, `title`, `category`, and `tags`.
-	- Prefer the most recently archived context with highest tag overlap.
+	- Prefer the most recently archived context with the highest tag overlap.
+
+Deterministic “good match” rule (to avoid guessing):
+
+- If `task_id` matches exactly → good match.
+- Else, if `category` matches AND there are at least **2** overlapping `tags` → good match.
+- Else → no match; bootstrap a new context.
 5) **Restore or bootstrap**:
 	- If a good match is found:
 		- Restore by copying that archived context into `ai_memory/active_context.md`.
@@ -413,20 +424,25 @@ Rules:
 
 `ai_memory/context_history/contexts_index.yaml` MUST be YAML and MUST contain a list of entries with at least:
 
-- `task_id`: stable id
-- `title`: human-friendly label
-- `category`: coarse category (e.g., `refactor`, `bugfix`, `docs`, `feature`)
-- `tags`: list of keywords
-- `status`: `paused|completed|abandoned`
-- `archived_at`: ISO-8601 datetime
-- `file`: path to archived context file
-- `summary`: 3–10 lines (resume-oriented)
+- `task_id` — stable id.
+- `title` — human-friendly label.
+- `category` — coarse category (e.g., `refactor`, `bugfix`, `docs`, `feature`).
+- `tags` — list of keywords.
+- `status` — `paused|completed|abandoned`.
+- `archived_at` — ISO-8601 datetime.
+- `file` — path to archived context file.
+- `summary` — 3–10 lines (resume-oriented).
 
 Recommended optional fields:
 
-- `related_paths`: key folders/files
-- `restore_recipe`: 3–6 steps
-- `confidence`: `high|medium|low` for match quality (used when restoring)
+- `related_paths` — key folders/files.
+- `restore_recipe` — 3–6 steps.
+- `confidence` — `high|medium|low` for match quality (used when restoring).
+
+Useful optional metadata (recommended when available):
+
+- `last_restored_at` — ISO-8601 datetime.
+- `repo_revision` — git commit hash if known (helps drift analysis).
 
 ### 7.1.6. Bootstrapping a new context from existing ones
 
@@ -561,20 +577,66 @@ Chronological log of changes, grouped by time or milestone.
 
 **Field descriptions:**
 
-| Field | Description |
-|-------|-------------|
-| `started` | Session start time (ISO-8601) |
-| `last_updated` | Last update time (update after each meaningful change) |
-| `task_id` | Reference to Current Task from active_context |
-| `status` | `in-progress` or `completed` |
-| `files_changed` | Count of unique files modified (for quick stats) |
-| `commits` | Count of commits made (for quick stats) |
+- `started` — session start time (ISO-8601).
+- `last_updated` — last update time (update after each meaningful change).
+- `task_id` — reference to Current Task from active_context.
+- `status` — `in-progress` or `completed`.
+- `files_changed` — count of unique files modified (for quick stats).
+- `commits` — count of commits made (for quick stats).
 
 ### 12.4. Rules for session history
 
-- **Incremental updates**: After each request that produces changes, append to `Changed Files`, `Key Actions`, or `Commits` sections.
-- **Task/milestone completion**: When finishing a task or significant milestone, update `summary` and add notes to `Notes for Next Session`.
-- **Reference in active_context**: The `Plan & References.session_history` field must contain direct link(s) to history file(s) relevant to the current task, with a brief note that these files contain the change history for this context.
-- **Retention**: Keep last 10-15 session files; older files can be archived or summarized into `ai_memory/memory.md`.
-- **Privacy**: Same rules as §10 — no secrets, tokens, or personal data.
+- **Incremental updates** — after each request that produces changes, append to `Changed Files`, `Key Actions`, or `Commits` sections.
+- **Task/milestone completion** — when finishing a task or significant milestone, update `summary` and add notes to `Notes for Next Session`.
+- **Reference in active_context** — the `Plan & References.session_history` field must contain direct link(s) to history file(s) relevant to the current task, with a brief note that these files contain the change history for this context.
+- **No deletion** — session history files and archived contexts MUST NOT be deleted or cleaned up automatically. They serve as a permanent record for future reference and learning.
+- **Privacy** — same rules as §10 — no secrets, tokens, or personal data.
+
+## 13) Staleness detection and refresh on load
+
+### 13.1. When to check for staleness
+
+The agent MUST check context freshness:
+
+- At the **start of every new chat** when loading `ai_memory/active_context.md`.
+- When **restoring** an archived context from `ai_memory/context_history/`.
+
+### 13.2. Staleness indicators
+
+A context is considered **stale** if any of the following are true:
+
+1. **`last_updated` age > 7 days**
+   - Action: Warn; verify key files still exist.
+
+2. **`last_updated` age > 30 days**
+   - Action: Require full refresh before proceeding.
+
+3. **`active_files` missing** (any file deleted/moved)
+   - Action: Update list; note in `Decisions`.
+
+4. **`current_branch` mismatch** (branch doesn't exist or differs)
+   - Action: Ask user or switch; record in `Decisions`.
+
+5. **`repo_revision` drift > 50 commits** behind current HEAD
+   - Action: Warn; check for conflicts with `Progress`.
+
+### 13.3. Refresh protocol
+
+When staleness is detected:
+
+1) **Record** the staleness in `Open Questions / Blockers` or `Decisions` (depending on severity).
+2) **Verify** existence of `active_files` and `key_files` from Quick Resume Block.
+3) **Check git state**: current branch, uncommitted changes, distance from archived revision.
+4) **Update** stale sections:
+   - Refresh `active_files` list (remove deleted, add new relevant files).
+   - Update `Git State Snapshot` if present.
+   - Clear or mark as "needs verification" any `Failure Context` older than the staleness threshold.
+   - Review `Progress.in_progress` — items may no longer be valid.
+5) **Bump** `last_updated` to current datetime.
+6) **Add** a `Decisions` entry: "Context refreshed due to staleness; verified X, updated Y."
+
+### 13.4. Lightweight vs full refresh
+
+- **Lightweight refresh** (staleness < 30 days, no missing files) — update `last_updated`, verify `active_files`, proceed.
+- **Full refresh** (staleness ≥ 30 days OR critical files missing) — re-scan related code, update `Progress`, rebuild `Breadcrumbs`, optionally ask user for confirmation before major work.
 
