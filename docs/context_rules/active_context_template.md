@@ -63,6 +63,13 @@ last_result: success | failure | pending
 
 ## Content principles
 
-- Prefer *state* over history.
-- Avoid duplication: long logs/diffs go to session history.
-- If unsure → record as an Open Question / Blocker.
+- Prefer *state* over history
+- Avoid duplication: logs/diffs → session history
+- Unsure → record as Open Question / Blocker
+
+## Key constraints
+
+- Exactly **one** Current Task at a time
+- Quick Resume block **must** be at the end
+- `last_updated` must be ISO-8601 with timezone
+

@@ -36,24 +36,22 @@ Before finishing substantial work:
 - If significant navigation/search: add a minimal search cache.
 - Git state recorded when relevant.
 
-## Cross-reference checklist (before modifying rules)
+## Cross-reference checklist
 
-When changing definitions, thresholds, or schemas, verify consistency across modules:
+When changing definitions, verify consistency:
 
-| Change type | Files to check |
-|-------------|----------------|
-| Status enum | `definitions.md`, `switching.md`, `multi_task.md`, `session_history.md` |
-| Staleness thresholds | `definitions.md`, `context_rules.md`, `staleness.md` |
-| Good match rule | `definitions.md`, `context_rules.md`, `switching.md` |
-| Registry schema | `definitions.md`, `switching.md`, `contexts_index.yaml` |
-| Active context structure | `definitions.md`, `active_context_template.md`, `sync.md` |
-| Priority values | `definitions.md`, `multi_task.md` |
-| Category values | `definitions.md`, `switching.md` |
+- **Status enum**: `multi_task.md`, `switching.md`, `session_history.md`
+- **Staleness thresholds**: `staleness.md`, `context_rules.md`
+- **Good match rule**: `switching.md`, `context_rules.md`
+- **Registry schema**: `switching.md`, `contexts_index.yaml`
+- **Active context structure**: `active_context_template.md`, `sync.md`
+- **Priority values**: `multi_task.md`
+- **Category values**: `switching.md`
 
-**Procedure:**
+Procedure:
 
-1. Make change in `definitions.md` first (single source of truth).
-2. Update `context_rules.md` if pseudocode references the changed value.
-3. Update narrative modules that duplicate or elaborate the rule.
-4. Bump `schema_version` in `contexts_index.yaml` if registry schema changed.
-5. Add a Decisions entry in `active_context.md` documenting the change.
+1. Update the module that owns the definition.
+2. Check `context_rules.md` if pseudocode references the value.
+3. Bump `schema_version` in `contexts_index.yaml` if schema changed.
+4. Add Decisions entry in `active_context.md`.
+

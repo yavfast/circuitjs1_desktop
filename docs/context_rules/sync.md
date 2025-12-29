@@ -1,45 +1,48 @@
-# Sync Flow (when/how to update active context)
+# Sync Flow
 
-This file defines when and how to synchronize `ai_memory/active_context.md`.
+When and how to update `ai_memory/active_context.md`.
 
-## When to sync
+## Sync triggers
 
-Synchronize `ai_memory/active_context.md`:
+**Always sync after:**
 
-- After any significant plan change.
-- After repository changes (create/edit/delete files) that relate to the task.
-- After discovering or resolving blockers.
-- After clarifying requirements that change goal/scope.
-- After identifying new guardrails/risk hotspots/DoD.
-- After productive navigation/search worth caching.
-- Before finishing a response if you made decisions, changed files, or gained important conclusions.
+- Creating, deleting, or renaming files
+- Batch editing (3+ files in one task)
+- Changing documentation structure
+- Significant plan/scope change
+- Resolving or discovering blockers
+- Making a decision that affects future work
+- Before finishing response if files changed or conclusions made
 
-Minimum rule: if a new chat might start “from zero”, sync now.
+**Also sync after:**
 
-## How to sync (algorithm)
+- Clarifying requirements that change goal/scope
+- Identifying new guardrails or risk hotspots
+- Productive search/navigation worth caching
+- Completing a milestone or subtask
 
-1) Update `Meta.last_updated`.
-2) Verify `Current Task.goal` matches the actual goal.
-3) Update `Plan & References`:
-   - add/remove plan and artifact references
-   - add key files touched
-   - keep session history links current
-4) Update `Progress`:
-   - move finished items to `done`
-   - reflect real current work in `in_progress`
-   - write actionable `next`
-5) Update `Breadcrumbs` (if present):
-   - keep navigation queries and resume recipe current
-6) Update `Guardrails` (if present):
-   - add invariants/constraints
-   - remove expired temporary allowances
-7) Add entries to `Decisions` if any were made.
-8) Add uncertainty to `Open Questions / Blockers`.
-9) Update optional sections when applicable (Environment Snapshot, Failure Context, Search Cache, Git State, Risk Register, etc.).
+**Rule of thumb:** if a new chat might start "from zero", sync now.
+
+## How to sync
+
+1. Update `Meta.last_updated`
+2. Verify `Current Task.goal` matches actual goal
+3. Update `Plan & References`:
+   - Add/remove artifact references
+   - Add key files touched
+4. Update `Progress`:
+   - Move finished → `done`
+   - Reflect current work in `in_progress`
+   - Write actionable `next`
+5. Update `Breadcrumbs` (if present)
+6. Update `Guardrails` (if present)
+7. Add `Decisions` entries if any made
+8. Add uncertainty to `Open Questions / Blockers`
+9. Update optional sections (Failure Context, Git State, etc.)
 
 ## Principles
 
-- Necessary sufficiency over full detail.
-- No duplication.
-- Precise wording; don’t hide uncertainty.
-- Stable `task_id`.
+- Necessary sufficiency over full detail
+- No duplication
+- Precise wording; don't hide uncertainty
+- Stable `task_id`

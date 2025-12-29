@@ -1,38 +1,40 @@
-# Multi-task Rules (Primary + Secondary Tasks)
+# Multi-task Rules
 
-`ai_memory/active_context.md` must represent **one** primary Current Task.
+`ai_memory/active_context.md` must have exactly **one** primary Current Task.
 
-> **Canonical definitions:** See `definitions.md` for status enums and priority values.
+## Status values
+
+- `not-started` — task defined but work not begun
+- `in-progress` — actively being worked on
+- `paused` — work interrupted, can resume
+- `blocked` — cannot proceed (dependency/blocker)
+- `completed` — finished successfully
+
+## Priority values
+
+- `high` — likely to become Current Task soon
+- `medium` — important but not urgent
+- `low` — backlog; archive first if needed
 
 ## Secondary tasks
 
-Additional tasks are allowed only as a short “Secondary Tasks” list.
-
-### Format (mandatory)
+Max 3 secondary tasks allowed as a short list:
 
 ```yaml
 secondary_tasks:
-  - task_id: TASK-ID-HERE
-    goal: "One sentence describing the task"
+  - task_id: TASK-ID
+    goal: "One sentence"
     status: queued | paused | blocked
     priority: high | medium | low
-    next: "1-2 immediate next steps"
-    blocked_by: "<reason or task_id>" # only if status=blocked
+    next: "Next step"
+    blocked_by: "<reason>" # if status=blocked
 ```
 
 ### Rules
 
-- Maximum 3 secondary tasks.
-  - If more are needed: archive the lowest-priority task to `ai_memory/context_history/` and register it in `contexts_index.yaml` with `status: paused`.
-- Priority values (see `definitions.md`):
-  - `high`: likely to become Current Task soon
-  - `medium`: important but not urgent
-  - `low`: backlog; can be archived first
-- Status transitions (see `definitions.md` for full enum):
-  - `queued` → `paused`: work started but interrupted
-  - `queued` → `blocked`: dependency prevents progress
-  - any → Current Task: requires full switch protocol
+- If >3 secondary tasks: archive lowest-priority to `ai_memory/context_history/`.
+- Status transitions: `queued` → `paused`/`blocked`; any → Current Task requires full switch.
 
-### Promotion to Current Task
+### Promotion
 
-When a secondary task becomes the focus, use the full switch protocol described in `switching.md`.
+To promote secondary → primary: use switch protocol from `switching.md`.

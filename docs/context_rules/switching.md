@@ -1,156 +1,90 @@
-# Switching Flow (archive/register/restore/bootstrap)
+# Switching Flow
 
-This file defines a deterministic protocol for switching between task contexts.
-
-> **Canonical definitions:** See `definitions.md` for status enums, category values, good match rule, and registry schema.
+Protocol for switching between task contexts.
 
 ## Artifacts
 
 - Active context: `ai_memory/active_context.md`
-- Archived contexts: `ai_memory/context_history/<task_id>.md`
+- Archives: `ai_memory/context_history/<task_id>.md`
 - Registry: `ai_memory/context_history/contexts_index.yaml`
 
-The registry is the discoverable list of all saved contexts.
+## Category values
 
-## When a switch is required
+- `refactor` — code restructuring
+- `feature` — new functionality
+- `bugfix` — bug fixes
+- `docs` — documentation
+- `infra` — build/CI/tooling
+- `research` — investigation
+- `test` — test coverage
+- `migration` — data/code migration
 
-Switch when:
+## Archive status values
 
-- The user explicitly starts a new task/topic/category.
-- The new goal/scope contradicts the current Current Task.
-- Work is about to move to an unrelated subsystem.
+- `paused` — suspended, can resume
+- `completed` — finished, for reference
 
-If unsure: ask one clarifying question, OR create a new context and mark the previous as `paused`.
+## Good match rule
 
-## Switch protocol (algorithm)
+When searching for context to restore:
 
-When switching from old task A to new task B:
+1. `task_id` exact match → good match
+2. `category` matches AND ≥2 overlapping `tags` → good match
+3. Otherwise → bootstrap new context
 
-1) **Synchronize** `ai_memory/active_context.md` (see `sync.md`).
-2) **Archive** context A:
-   - Copy `ai_memory/active_context.md` to `ai_memory/context_history/<task_id>.md`.
-   - Append an **Archive Summary** (resume-oriented) to the archived copy.
-   - Ensure the archive ends with the Quick Resume block.
-   - Mark status as `paused` or `completed`.
-3) **Register** the archive in `contexts_index.yaml`.
-4) **Locate prior context for B** by searching registry (`task_id`, `title`, `category`, `tags`).
+## When to switch
 
-### Deterministic “good match” rule
+- User starts new task/topic/category
+- New goal contradicts current task
+- Moving to unrelated subsystem
 
-> Canonical rule defined in `definitions.md`. Summary:
+If unsure: ask, or create new context and mark previous as `paused`.
 
-- If `task_id` matches exactly → good match.
-- Else if `category` matches AND ≥ `GOOD_MATCH_MIN_TAGS` (default: 2) overlapping `tags` → good match.
-- Else → no match; bootstrap a new context.
+## Switch protocol
 
-5) **Restore or bootstrap**:
-   - If good match found:
-     - Restore by copying archive to `ai_memory/active_context.md`.
-     - If a git branch is specified, switch to it.
-     - Do drift checks (missing files, git status) and record in Decisions/Blockers.
-     - Update `last_updated` and Decisions.
-   - If not found:
-     - Bootstrap a new `ai_memory/active_context.md` using the template.
+1. **Sync** active context (see `sync.md`)
+2. **Archive** current context:
+   - Copy to `ai_memory/context_history/<task_id>.md`
+   - Add Archive Summary and Quick Resume block
+   - Set status: `paused` or `completed`
+3. **Register** in `contexts_index.yaml`
+4. **Find match** by `task_id`, `category`, `tags`
+5. **Restore or bootstrap**:
+   - Match found: restore, switch branch, do drift checks
+   - No match: bootstrap from template
+6. **Record** in Decisions
 
-Finally: record a Decisions entry (why switch, what archived, what restored/created).
+## Registry schema
+
+Required fields:
+- `task_id`, `title`, `category`, `tags`, `status`, `archived_at`, `file`, `summary`
+
+Recommended:
+- `related_paths`, `restore_recipe`
+
+Optional:
+- `confidence`, `last_restored_at`, `repo_revision`, `git_branch`
 
 ## Archive naming
 
-Default policy: **one canonical archive per `task_id`**.
+- Canonical: `<task_id>.md` (one per task)
+- Milestone (rare): `YYYY-MM-DD__<task_id>__<slug>.md`
 
-- Canonical: `<task_id>.md`
-- Optional milestone snapshot (rare): `YYYY-MM-DD__<task_id>__<slug>.md`
+## Bootstrapping
 
-## Registry schema (summary)
-
-> Full schema with required/recommended/optional fields: see `definitions.md`.
-
-Required fields per entry: `task_id`, `title`, `category`, `tags`, `status`, `archived_at`, `file`, `summary`.
-
-## Bootstrapping rule
-
-When bootstrapping, reuse only stable cross-task info:
-
-- Environment snapshot and stable commands
+Reuse only stable info:
+- Environment snapshot
 - Project-wide guardrails
-- Links to shared docs
+- Shared doc links
 
-Do not copy task-specific progress/breadcrumbs/failure logs.
+Do NOT copy: progress, breadcrumbs, failure logs.
 
-## Updating history after restoring (no stale copies)
+## After restore
 
-If you restored from an archive:
+- Work in `ai_memory/active_context.md`
+- On switch: overwrite canonical archive
+- Update registry: `archived_at`, `summary`, `status`
 
-- Work in `ai_memory/active_context.md`.
-- When switching away or persisting progress: overwrite the canonical archive `<task_id>.md`.
-- Update the registry entry: bump `archived_at`, refresh `summary`/`restore_recipe`, set `status`.
+## Manual commands
 
-## Manual Context Commands
-
-Users can explicitly request context operations using these commands:
-
-### List available contexts
-
-**Trigger phrases:** "list contexts", "show contexts", "available tasks"
-
-**Response format:**
-
-```markdown
-## Available Contexts
-
-**Current:** `CTX-SWITCHING-RULES-001` — Context switching rules *(in-progress)*
-
-**Archived:**
-
-1. `TASK-001` — Feature X
-   - status: paused | category: feature
-   - archived: 2025-12-25
-   - summary: Short description of the task...
-
-2. `TASK-002` — Refactor Y
-   - status: completed | category: refactor
-   - archived: 2025-12-20
-   - summary: Short description of the task...
-
----
-To switch: "switch to #1" or "switch to TASK-001"
-```
-
-### Switch to specific context
-
-**Trigger phrases:** "switch to #N", "switch to <task_id>", "open context <task_id>", "restore #N"
-
-**Algorithm:**
-
-1. Parse target:
-   - If starts with `#` → resolve index to `task_id` from registry (1-based).
-   - Otherwise → use as `task_id` directly.
-2. Sync & archive current context (standard switch protocol).
-3. Find entry in `contexts_index.yaml` by resolved `task_id` (exact match required).
-4. If not found → error: "Context not found. Use 'list contexts' to see available."
-5. Restore from archive file.
-6. Apply drift checks.
-7. Report what was restored and current focus.
-
-### Create new context
-
-**Trigger phrases:** "new context <name>", "create task <name>", "start new task <name>"
-
-**Algorithm:**
-
-1. Sync & archive current context.
-2. Bootstrap new context with provided name/goal.
-3. Assign new `task_id` (auto-generated or user-provided).
-4. Report new context created.
-
-### Archive current context (without switching)
-
-**Trigger phrases:** "archive context", "save and close", "persist context"
-
-**Algorithm:**
-
-1. Sync current context.
-2. Archive to `<task_id>.md`.
-3. Register/update in `contexts_index.yaml`.
-4. Keep current context active (don't bootstrap new).
-5. Report archive path.
+See `manual_commands.md` for user-triggered context operations.

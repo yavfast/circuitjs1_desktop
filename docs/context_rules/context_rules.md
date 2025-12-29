@@ -1,9 +1,6 @@
-<!-- AI-friendly entrypoint. Core workflow. -->
-
 # Context Workflow (pseudocode)
 
 Modules:
-- `docs/context_rules/definitions.md` — enums/thresholds
 - `docs/context_rules/active_context_template.md` — active context template
 - `docs/context_rules/sync.md` — sync flow
 - `docs/context_rules/switching.md` — archive/restore/bootstrapping
