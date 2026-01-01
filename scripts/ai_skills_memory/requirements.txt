@@ -1,0 +1,5 @@
+chromadb>=0.5.0
+requests>=2.31.0
+
+# Install:
+#   python3 -m pip install -r scripts/ai_skills_memory/requirements.txt
