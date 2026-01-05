@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
-from datetime import datetime, timezone
-import sqlite3
-from typing import Any, Dict, List, Optional, Set, Tuple
-
 import chromadb
+import json
+import re
+import sqlite3
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from common import (
     CHROMA_COLLECTION_EDGES,
@@ -411,7 +411,8 @@ def main() -> int:
     if context_texts:
         # Ensure client exists for context vector search.
         if args.seed_mode == "sql":
-            # SQL-only fallback: LIKE match against context node summaries.
+            # Prefer deterministic exact match first; then prefer vector similarity (multilingual);
+            # finally fall back to SQL LIKE/token matching.
             ctx_like_ids: List[str] = []
             for t in context_texts:
                 # Prefer exact matches first so that parent-context queries (e.g. "біологія")
@@ -424,13 +425,42 @@ def main() -> int:
                     for r in exact_rows:
                         ctx_like_ids.append(r[0])
                 else:
+                    # Vector-based context resolution (preferred): works across languages/terms.
+                    vec_rows: List[str] = []
+                    if client is not None:
+                        hits = flatten_query(chroma_query(client, CHROMA_COLLECTION_NODES, t, max(1, int(args.context_top))))
+                        for item_id, _dist, meta, _doc in hits:
+                            if meta.get("kind") == "node" and meta.get("type") == "context":
+                                vec_rows.append(meta.get("id") or item_id)
+                    if vec_rows:
+                        ctx_like_ids.extend(vec_rows)
+                        continue
+
+                    # SQL LIKE fallback (human-friendly but less robust than vectors).
                     q = f"%{t}%"
                     rows = conn.execute(
                         "SELECT node_id FROM nodes WHERE node_type='context' AND (COALESCE(summary,'') LIKE ? OR COALESCE(name,'') LIKE ?) ORDER BY updated_at DESC LIMIT ?",
                         (q, q, max(1, int(args.context_top))),
                     ).fetchall()
-                    for r in rows:
-                        ctx_like_ids.append(r[0])
+                    if rows:
+                        for r in rows:
+                            ctx_like_ids.append(r[0])
+                        continue
+
+                    # Last resort (still deterministic): token-based matching.
+                    # Helps with minor format drift like:
+                    # - "repo/alpha/ui" vs "repo alpha ui"
+                    # - different separators or extra punctuation
+                    toks = [x for x in re.findall(r"\w+", t, flags=re.UNICODE) if len(x) >= 2]
+                    if len(toks) >= 2:
+                        clauses = " AND ".join(["COALESCE(summary,'') LIKE ?"] * len(toks))
+                        params = [f"%{tok}%" for tok in toks]
+                        rows2 = conn.execute(
+                            f"SELECT node_id FROM nodes WHERE node_type='context' AND {clauses} ORDER BY updated_at DESC LIMIT ?",
+                            (*params, max(1, int(args.context_top))),
+                        ).fetchall()
+                        for r in rows2:
+                            ctx_like_ids.append(r[0])
             context_node_ids = [x for x in dict.fromkeys(ctx_like_ids) if x]
         else:
             assert client is not None

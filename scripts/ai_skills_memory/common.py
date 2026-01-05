@@ -1,11 +1,10 @@
 import hashlib
 import json
+import ollama
 import os
+import requests
 import sqlite3
 from typing import Any, Dict, List, Optional
-
-import requests
-
 
 DEFAULT_DB_PATH = os.environ.get("AI_SKILLS_DB", "./ai_skills_memory.sqlite")
 DEFAULT_CHROMA_PATH = os.environ.get("AI_SKILLS_CHROMA", "./ai_skills_chroma")
@@ -16,20 +15,36 @@ CHROMA_COLLECTION_EDGES = "chroma_edges"
 CHROMA_COLLECTION_EPISODES = "chroma_episodes"
 
 
+def _get_ollama_client():
+    host = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
+    return ollama.Client(host=host)
+
+
 def ollama_embed(text: str) -> List[float]:
     model = os.environ.get("AI_EMBED_MODEL", "nomic-embed-text")
-    url = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434")
-    resp = requests.post(
-        f"{url}/api/embeddings",
-        json={"model": model, "prompt": text},
-        timeout=60,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    emb = data.get("embedding")
-    if not isinstance(emb, list) or not emb:
-        raise RuntimeError("Ollama returned empty embedding")
-    return emb
+    client = _get_ollama_client()
+    # Use the new 'embed' method if available, or fallback to 'embeddings'
+    try:
+        resp = client.embed(model=model, input=text)
+        return resp["embeddings"][0]
+    except (AttributeError, KeyError):
+        # Fallback for older API/client
+        resp = client.embeddings(model=model, prompt=text)
+        return resp["embedding"]
+
+
+def ollama_embed_batch(texts: List[str]) -> List[List[float]]:
+    if not texts:
+        return []
+    model = os.environ.get("AI_EMBED_MODEL", "nomic-embed-text")
+    client = _get_ollama_client()
+    
+    try:
+        resp = client.embed(model=model, input=texts)
+        return resp["embeddings"]
+    except (AttributeError, KeyError):
+        # Fallback: sequential
+        return [ollama_embed(t) for t in texts]
 
 
 def connect_db(db_path: str) -> sqlite3.Connection:

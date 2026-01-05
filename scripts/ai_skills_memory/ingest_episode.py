@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import chromadb
 import json
 import sys
 from typing import Any, Dict, List, Optional, Tuple
-
-import chromadb
 
 from common import (
     CHROMA_COLLECTION_EDGES,
@@ -22,7 +21,7 @@ from common import (
     normalize_id,
     normalize_path,
     now_iso,
-    ollama_embed,
+    ollama_embed_batch,
     read_json_file,
     upsert_edge,
     upsert_node,
@@ -95,13 +94,11 @@ def weight_delta_from_outcome(status: str, confidence: float) -> float:
     return 0.0
 
 
-def chroma_upsert_text(collection, *, item_id: str, text: str, meta: Dict[str, Any], embed: bool) -> None:
-    if not text.strip():
+def chroma_upsert_batch(collection, *, ids: List[str], texts: List[str], metadatas: List[Dict[str, Any]]) -> None:
+    if not ids:
         return
-    if not embed:
-        return
-    vec = ollama_embed(text)
-    collection.upsert(ids=[item_id], documents=[text], embeddings=[vec], metadatas=[meta])
+    embeddings = ollama_embed_batch(texts)
+    collection.upsert(ids=ids, documents=texts, embeddings=embeddings, metadatas=metadatas)
 
 
 def ingest_episode(conn, client, episode: Dict[str, Any], *, embed: bool) -> str:
@@ -298,42 +295,48 @@ def ingest_episode(conn, client, episode: Dict[str, Any], *, embed: bool) -> str
     col_nodes = client.get_or_create_collection(name=CHROMA_COLLECTION_NODES)
     col_edges = client.get_or_create_collection(name=CHROMA_COLLECTION_EDGES)
 
-    summary = e.get("summary") or e.get("task_text") or ""
-    chroma_upsert_text(
-        col_eps,
-        item_id=episode_id,
-        text=summary,
-        meta={"kind": "episode", "id": episode_id, "type": "episode"},
-        embed=embed,
-    )
+    if embed:
+        # 1. Episode
+        summary = e.get("summary") or e.get("task_text") or ""
+        if summary.strip():
+            chroma_upsert_batch(
+                col_eps,
+                ids=[episode_id],
+                texts=[summary],
+                metadatas=[{"kind": "episode", "id": episode_id, "type": "episode"}],
+            )
 
-    # Upsert involved nodes (episode, outcome, skills, artifacts, failure modes)
-    node_rows = conn.execute(
-        "SELECT DISTINCT n.node_id, n.node_type, n.name, n.summary FROM nodes n JOIN episode_links l ON l.node_id=n.node_id WHERE l.episode_id=?",
-        (episode_id,),
-    ).fetchall()
-    for r in node_rows:
-        text = " ".join([x for x in [r["name"], r["summary"]] if x])
-        chroma_upsert_text(
-            col_nodes,
-            item_id=r["node_id"],
-            text=text,
-            meta={"kind": "node", "id": r["node_id"], "type": r["node_type"]},
-            embed=embed,
-        )
+        # 2. Nodes
+        node_rows = conn.execute(
+            "SELECT DISTINCT n.node_id, n.node_type, n.name, n.summary FROM nodes n JOIN episode_links l ON l.node_id=n.node_id WHERE l.episode_id=?",
+            (episode_id,),
+        ).fetchall()
+        
+        n_ids, n_texts, n_metas = [], [], []
+        for r in node_rows:
+            text = " ".join([x for x in [r["name"], r["summary"]] if x])
+            if text.strip():
+                n_ids.append(r["node_id"])
+                n_texts.append(text)
+                n_metas.append({"kind": "node", "id": r["node_id"], "type": r["node_type"]})
+        
+        chroma_upsert_batch(col_nodes, ids=n_ids, texts=n_texts, metadatas=n_metas)
 
-    edge_rows = conn.execute(
-        "SELECT DISTINCT e.edge_id, e.rel_type, e.fact FROM edges e JOIN episode_links l ON l.edge_id=e.edge_id WHERE l.episode_id=?",
-        (episode_id,),
-    ).fetchall()
-    for r in edge_rows:
-        chroma_upsert_text(
-            col_edges,
-            item_id=r["edge_id"],
-            text=r["fact"] or r["rel_type"],
-            meta={"kind": "edge", "id": r["edge_id"], "type": r["rel_type"]},
-            embed=embed,
-        )
+        # 3. Edges
+        edge_rows = conn.execute(
+            "SELECT DISTINCT e.edge_id, e.rel_type, e.fact FROM edges e JOIN episode_links l ON l.edge_id=e.edge_id WHERE l.episode_id=?",
+            (episode_id,),
+        ).fetchall()
+
+        e_ids, e_texts, e_metas = [], [], []
+        for r in edge_rows:
+            text = r["fact"] or r["rel_type"]
+            if text.strip():
+                e_ids.append(r["edge_id"])
+                e_texts.append(text)
+                e_metas.append({"kind": "edge", "id": r["edge_id"], "type": r["rel_type"]})
+
+        chroma_upsert_batch(col_edges, ids=e_ids, texts=e_texts, metadatas=e_metas)
 
     conn.commit()
     return episode_id
