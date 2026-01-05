@@ -20,6 +20,11 @@ STALENESS_WARN_DAYS = 7;  STALENESS_FULL_REFRESH = 30;  GOOD_MATCH_MIN_TAGS = 2
 assert ACTIVE_CONTEXT_FILE exists
 assert active_context.current_task is exactly one task
 
+# ══ CONTENT PRINCIPLES (for ACTIVE_CONTEXT_FILE) ══
+# - No hard numeric limits (bullets/lines). Write as much as needed to resume work without guessing.
+# - Avoid redundancy: prefer state over chat history; move logs/diffs to session history.
+# - Keep next steps actionable and concrete.
+
 # ══ HELPER FUNCTIONS ══
 function IS_STALE(ctx):
    age = DAYS_SINCE(ctx.meta.last_updated)
@@ -107,6 +112,8 @@ procedure BEFORE_FINISHING_RESPONSE(ctx):
    assert ctx.progress.next is actionable
    assert ctx.quick_resume.next_action is concrete
    assert ACTIVE_CONTEXT_CONTAINS_NO_SECRETS(ctx)
+   # Quality check: sufficient detail to resume, without redundant bulk.
+   assert ACTIVE_CONTEXT_IS_RESUMABLE(ctx)
 
 # ══ MANUAL COMMANDS (see manual_commands.md for full pseudocode) ══
 # LIST_CONTEXTS()      → "list contexts", "show contexts"
