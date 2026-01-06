@@ -1,0 +1,22 @@
+[
+  "ADC",
+  "PhaseComp",
+  "VCO",
+  "Multiplexer",
+  "DeMultiplexer",
+  "SipoShift",
+  "PisoShift",
+  "SeqGen",
+  "SRAM",
+  "HalfAdder",
+  "FullAdder",
+  "Monostable",
+  "SevenSeg",
+  "SevenSegDecoder",
+  "DecimalDisplay",
+  "Timer",
+  "CustomLogic",
+  "CustomComposite",
+  "Probe",
+  "Output"
+]

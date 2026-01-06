@@ -93,7 +93,9 @@ def cmd_skill_put(args: argparse.Namespace) -> int:
     ensure_schema(conn)
 
     payload: Dict[str, Any]
-    if args.json:
+    if getattr(args, "stdin", False):
+        payload = json.load(sys.stdin)
+    elif args.json:
         with open(args.json, "r", encoding="utf-8") as f:
             payload = json.load(f)
     else:
@@ -193,7 +195,9 @@ def main() -> int:
 
     sp_skill_put = skill_sub.add_parser("put", help="Upsert a skill definition")
     sp_skill_put.add_argument("--db", default=DEFAULT_DB_PATH)
-    sp_skill_put.add_argument("--json", help="Path to skill definition JSON")
+    g = sp_skill_put.add_mutually_exclusive_group(required=False)
+    g.add_argument("--json", help="Path to skill definition JSON")
+    g.add_argument("--stdin", action="store_true", help="Read skill definition JSON from stdin")
     sp_skill_put.add_argument("--id", help="Skill id (if not using --json)")
     sp_skill_put.add_argument("--title", default=None)
     sp_skill_put.add_argument("--description", default=None)

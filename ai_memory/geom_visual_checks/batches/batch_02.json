@@ -1,0 +1,22 @@
+[
+  "VoltageSourceVar",
+  "VariableRail",
+  "ExternalVoltage",
+  "Antenna",
+  "Sweep",
+  "Noise",
+  "AM",
+  "FM",
+  "Current",
+  "Diode",
+  "Zener",
+  "LED",
+  "LEDArray",
+  "Varactor",
+  "TunnelDiode",
+  "TransistorNPN",
+  "TransistorPNP",
+  "DarlingtonNPN",
+  "DarlingtonPNP",
+  "MosfetN"
+]

@@ -1,12 +1,62 @@
 # Schema version for tracking format changes (see definitions.md for schema spec)
 schema_version: 1
-version: 1
-updated_at: 2025-12-26T10:20:57+02:00
+version: 5
+updated_at: 2026-01-06T00:00:00+02:00
 
 # This registry is the primary index of all archived contexts.
 # All paths are repo-relative.
 # Required fields per entry: task_id, title, category, tags, status, archived_at, file, summary
 contexts:
+  - task_id: DIALOGS-POSITION-RESIZE-COLLAPSE
+    title: "Dialogs: position restore on refresh/resize + collapse"
+    category: ui
+    tags:
+      - dialogs
+      - positioning
+      - resize
+      - clamp
+      - collapse
+    status: paused
+    archived_at: 2026-01-06T00:00:00+02:00
+    file: ai_memory/context_history/DIALOGS-POSITION-RESIZE-COLLAPSE.md
+    related_paths:
+      - src/main/java/com/lushprojects/circuitjs1/client/dialog/Dialog.java
+      - src/main/java/com/lushprojects/circuitjs1/client/CirSim.java
+      - src/main/java/com/lushprojects/circuitjs1/client/dialog/
+    summary: |
+      Implemented dialog positioning rules in base Dialog: center fallback when no position is available,
+      clamp into viewport on show/drag, preserve nearest-edge anchoring on resize, and added a minimal
+      collapse/expand toggle in caption. Pending manual DevMode UX verification.
+    restore_recipe:
+      - "Run ./scripts/run_dev_web.sh"
+      - "Open Sliders/Help/Mod dialogs, refresh page, resize window"
+      - "Verify dialogs stay visible and keep relative positioning"
+
+  - task_id: VARRAIL-SLIDERS-DEDUP
+    title: "VarRail sliders dedupe (refresh-safe)"
+    category: ui
+    tags:
+      - sliders
+      - adjustable
+      - varrail
+      - refresh
+      - dedupe
+    status: archived
+    archived_at: 2026-01-05T19:15:00+02:00
+    file: ai_memory/context_history/VARRAIL-SLIDERS-DEDUP.md
+    related_paths:
+      - src/main/java/com/lushprojects/circuitjs1/client/AdjustableManager.java
+      - src/main/java/com/lushprojects/circuitjs1/client/Adjustable.java
+      - src/main/java/com/lushprojects/circuitjs1/client/element/VarRailElm.java
+      - src/main/java/com/lushprojects/circuitjs1/client/dialog/SlidersDialog.java
+    summary: |
+      Removed duplicate slider rows in Sliders dialog by making slider creation idempotent,
+      deduping AdjustableManager.adjustables after refresh, and deferring VarRail auto-adjustable
+      creation until slider creation time.
+    restore_recipe:
+      - "Open Sliders dialog and refresh page"
+      - "Verify no duplicate sliders appear"
+
   - task_id: ELM-GEOM-REFACTOR-CTX
     title: "Elm geometry refactor (FORCED/HARD MODE)"
     category: refactor
@@ -16,8 +66,9 @@ contexts:
       - compile-fix
       - circuitelm
       - elmgeometry
-    status: paused
-    archived_at: 2025-12-26T10:20:57+02:00
+    status: active
+    archived_at: 2025-12-29T11:09:51+02:00
+    restored_at: 2026-01-05T12:00:00+02:00
     file: ai_memory/context_history/ELM-GEOM-REFACTOR-CTX.md
     related_paths:
       - src/main/java/com/lushprojects/circuitjs1/client/element/
@@ -29,6 +80,49 @@ contexts:
       Резюм: продовжувати цикл npm run buildgwt → міграція offenders на geom()/getter-и.
     restore_recipe:
       - "npm run buildgwt"
-      - "Відкрити файли з compile errors"
+      - "Відкрити файли зі списку compile errors"
       - "Замінити legacy поля на geom()/getter-и"
       - "Повторити до зеленого білду"
+
+  - task_id: CTX-SWITCHING-RULES-001
+    title: "Context switching rules system"
+    category: docs
+    tags:
+      - context-management
+      - documentation
+      - rules
+      - ai-workflow
+    status: paused
+    archived_at: 2025-12-29T15:45:00+02:00
+    restored_at: 2025-12-29T11:09:51+02:00
+    file: ai_memory/context_history/CTX-SWITCHING-RULES-001.md
+    related_paths:
+      - docs/context_rules/
+      - ai_memory/context_history/
+    summary: |
+      Формалізовано систему переключення контекстів: створено протокол, реєстр, модульні правила.
+      Видалено definitions.md для зменшення зв'язності.
+      Залишилося уточнити тригери синхронізації.
+    restore_recipe:
+      - "Відкрити docs/context_rules/context_rules.md"
+      - "Перевірити switching.md + contexts_index.yaml"
+      - "За потреби оновити experience у skill-context"
+
+  - task_id: CONTEXT-RULES-SYNC-001
+    title: "Context rules sync and template update"
+    category: docs
+    tags:
+      - context-management
+      - template-update
+      - sync
+    status: archived
+    archived_at: 2026-01-05T12:00:00+02:00
+    file: ai_memory/context_history/CONTEXT-RULES-SYNC-001.md
+    related_paths:
+      - docs/context_rules/
+      - ai_memory/active_context.md
+    summary: |
+      Updated active context template to include global context and long-term memory candidates without hard size limits.
+    restore_recipe:
+      - "Open docs/context_rules/active_context_template.md"
+      - "Sync ai_memory/active_context.md"

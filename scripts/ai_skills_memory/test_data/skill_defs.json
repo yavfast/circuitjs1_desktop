@@ -1,0 +1,79 @@
+[
+  {
+    "skill_id": "python-cli",
+    "title": "Python CLI tooling",
+    "description": "Argparse-based CLI design, stable entrypoints, wrappers for local workflows.",
+    "tags": ["python", "cli", "argparse"]
+  },
+  {
+    "skill_id": "sqlite-graph",
+    "title": "SQLite graph modeling",
+    "description": "Graph-like schemas in SQLite, upserts, temporal edges, evidence linking.",
+    "tags": ["sqlite", "graph", "temporal"]
+  },
+  {
+    "skill_id": "chromadb",
+    "title": "ChromaDB vector memory",
+    "description": "Chroma persistent collections, vector seeding for hybrid retrieval.",
+    "tags": ["vector", "retrieval", "chroma"]
+  },
+  {
+    "skill_id": "ollama-embeddings",
+    "title": "Ollama embeddings",
+    "description": "Local embeddings via Ollama HTTP API, model selection, health checks.",
+    "tags": ["ollama", "embeddings", "local"]
+  },
+  {
+    "skill_id": "gwt-build",
+    "title": "GWT build debugging",
+    "description": "Investigate Maven/GWT build failures, classpath issues, incremental rebuild.",
+    "tags": ["java", "gwt", "maven"]
+  },
+  {
+    "skill_id": "nwjs-packaging",
+    "title": "NW.js packaging",
+    "description": "Package desktop app artifacts, manage runtime flags and assets.",
+    "tags": ["nwjs", "desktop", "packaging"]
+  },
+  {
+    "skill_id": "test-harness",
+    "title": "Test harness design",
+    "description": "Create deterministic functional tests for memory ingestion and retrieval.",
+    "tags": ["testing", "automation"]
+  },
+  {
+    "skill_id": "domain-nature",
+    "title": "Nature domain reasoning",
+    "description": "Handle nature/biology observation notes, terminology, and context-specific meaning.",
+    "tags": ["domain", "nature"],
+    "contexts": ["природа"]
+  },
+  {
+    "skill_id": "domain-politics",
+    "title": "Politics domain reasoning",
+    "description": "Handle politics terminology, policy analysis, and context-scoped claims.",
+    "tags": ["domain", "politics"],
+    "contexts": ["політика"]
+  },
+  {
+    "skill_id": "domain-society",
+    "title": "Society/social domain reasoning",
+    "description": "Handle social context, communication patterns, and ambiguous everyday language.",
+    "tags": ["domain", "society"],
+    "contexts": ["соціум"]
+  },
+  {
+    "skill_id": "domain-biology",
+    "title": "Biology domain reasoning",
+    "description": "Handle biological terminology (e.g., viruses) with scientific meaning.",
+    "tags": ["domain", "biology"],
+    "contexts": ["біологія"]
+  },
+  {
+    "skill_id": "domain-cyber",
+    "title": "Cybersecurity domain reasoning",
+    "description": "Handle security terminology (e.g., computer viruses) in technical context.",
+    "tags": ["domain", "cyber", "security"],
+    "contexts": ["кібербезпека"]
+  }
+]

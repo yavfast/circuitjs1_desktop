@@ -1,0 +1,22 @@
+[
+  "Ammeter",
+  "OhmMeter",
+  "Wattmeter",
+  "TestPoint",
+  "DataRecorder",
+  "StopTrigger",
+  "Scope",
+  "AudioOutput",
+  "AudioInput",
+  "DataInput",
+  "ExtVoltage",
+  "Lamp",
+  "Fuse",
+  "SparkGap",
+  "Memristor",
+  "Crystal",
+  "LDR",
+  "ThermistorNTC",
+  "Optocoupler",
+  "DCMotor"
+]

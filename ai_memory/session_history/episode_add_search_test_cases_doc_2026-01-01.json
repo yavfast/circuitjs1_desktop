@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-01-01T20:41:00+02:00",
+  "task_text": "Provide real-world oriented guidance: keep --seed-mode sql useful for deterministic test/analysis; add a separate file with concrete search test cases on the seeded corpus (multilingual / cross-domain / ambiguous terms) for AI agents.",
+  "summary": "Softened rules wording to avoid over-prescribing chroma, added docs/skills_rules/search_test_cases.md with copy-paste search scenarios targeting the seeded test DB, and verified a deterministic example run against the test corpus.",
+  "used_skills": [
+    "skill-docs",
+    "skill-testing",
+    "skill-context",
+    "python-cli"
+  ],
+  "touched_artifacts": [
+    "docs/skills_rules/skills_rules.md",
+    "docs/skills_rules/search_test_cases.md",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "ai-skills-memory/docs/testing"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Test-case doc now uses AI_SKILLS_DB/AI_SKILLS_CHROMA to ensure commands run against the seed test corpus."
+  },
+  "errors": [],
+  "tests": [
+    "python3 scripts/ai_skills_memory/seed_test_db.py --reset --no-embed (OK)",
+    "./ai_mem.sh search (seed-mode sql) on seeded test DB (OK)"
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  "CCCS",
+  "CC2",
+  "CC2Neg",
+  "Switch",
+  "PushSwitch",
+  "Switch2",
+  "MBBSwitch",
+  "DPDTSwitch",
+  "CrossSwitch",
+  "AnalogSwitch",
+  "AnalogSwitch2",
+  "TriState",
+  "Relay",
+  "RelayCoil",
+  "RelayContact",
+  "TimeDelayRelay",
+  "Transformer",
+  "TappedTransformer",
+  "CustomTransformer",
+  "TransLine"
+]

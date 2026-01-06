@@ -1,0 +1,22 @@
+[
+  "MosfetP",
+  "NMosfet",
+  "PMosfet",
+  "JfetN",
+  "JfetP",
+  "NJFET",
+  "PJFET",
+  "SCR",
+  "Diac",
+  "Triac",
+  "Triode",
+  "Unijunction",
+  "OpAmp",
+  "OpAmpSwap",
+  "OpAmpReal",
+  "Comparator",
+  "OTA",
+  "VCVS",
+  "VCCS",
+  "CCVS"
+]

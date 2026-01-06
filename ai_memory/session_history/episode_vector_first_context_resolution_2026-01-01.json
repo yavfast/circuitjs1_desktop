@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-01-01T20:33:00+02:00",
+  "task_text": "Adjust AI Skills Memory to prefer vector DB (Chroma/Ollama) for similar/multilingual context term matching; avoid SQLite for text search; keep deterministic SQL as fallback/test-only.",
+  "summary": "Made context resolution vector-first (exact SQL match → Chroma similarity → SQL LIKE/token fallback), updated docs to recommend --seed-mode chroma for real agent use, and confirmed functional tests still pass.",
+  "used_skills": [
+    "skill-context",
+    "skill-docs",
+    "skill-testing",
+    "python-cli",
+    "chromadb"
+  ],
+  "touched_artifacts": [
+    "scripts/ai_skills_memory/search.py",
+    "docs/skills_rules/skills_rules.md",
+    "docs/skills_rules/cli.md",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "ai-skills-memory/context/retrieval"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Vector similarity is now preferred for context matching even in SQL seed mode; SQL LIKE/token matching remains as fallback."
+  },
+  "errors": [],
+  "tests": [
+    "python3 scripts/ai_skills_memory/run_functional_tests.py (OK)"
+  ]
+}

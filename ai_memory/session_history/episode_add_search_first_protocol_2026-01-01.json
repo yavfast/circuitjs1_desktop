@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-01-01T20:49:00+02:00",
+  "task_text": "Add explicit instructions to docs/skills_rules/skills_rules.md: recommend Search-first protocol, including during the context-forming stage, with query templates and seed-mode guidance.",
+  "summary": "Added a concise Search-first protocol section recommending two early retrieval queries (broad then scoped) and explicitly calling out running searches while forming ctx_path.",
+  "used_skills": ["skill-docs", "skill-context"],
+  "touched_artifacts": [
+    "docs/skills_rules/skills_rules.md",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": ["ai-skills-memory/protocol/docs"],
+  "outcome": {"status": "success"},
+  "errors": [],
+  "tests": []
+}

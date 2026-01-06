@@ -14,25 +14,13 @@ iteration).
 - Keep `ai_memory/active_context.md` continuously synchronized with the current chat/task state.
 - The rules and required template for updating/syncing the active context are defined in `docs/context_rules/context_rules.md` and MUST be followed.
 
-# AI Skills Protocol
+# AI Skills Memory (MUST)
 
-## Mandatory usage at chat start
+Use the local AI Skills Memory system (`./ai_mem.sh`) to accumulate and retrieve knowledge:
 
-The following project-wide instructions are mandatory. They apply at the beginning of every new AI chat session in this repository.
+1. **On task start**: Run `./ai_mem.sh search --query "task description" --context-text "domain/subdomain/topic" --context-strict` to find relevant prior knowledge (context-aware).
+2. **On task end**: Save Episode via `./ai_mem.sh ingest --json episode.json` (MANDATORY).
+3. **Detect new skills**: If a novel reusable pattern is discovered, save it via `./ai_mem.sh skill put`.
+4. **Justify selections**: Every skill choice must reference evidence (episodes/metrics) or state "no prior data".
 
-- The assistant MUST initialize and use the "AI Skills Protocol" as the primary operating mode before planning or executing any non-trivial task.
-- The specification of record is `ai_skills/skills_agent.md`. Treat it as authoritative for discovery, selection, composition, execution, evaluation, and improvement of skills.
-
-### Startup checklist (MUST)
-
-1) Protocol reference: Load and adhere to `ai_skills/skills_agent.md`.
-2) Project docs onboarding: At the start of every new chat, quickly review the project documentation (see list below) before making plans or code changes.
-2) Skills root path: Set the skills search root to `${WORKSPACE_ROOT}/ai_skills/skills`.
-3) Recursively discover `skill.yaml` files.
-4) Base flow before execution: For any non-trivial request, run the base sequence
-	`skill-search → skill-analysis → skill-compose (if beneficial) → skill-apply`.
-5) Evaluation and learning: After execution, perform `skill-evaluate` and append an entry to the corresponding `experience.yaml`; propose safe, non-breaking improvements via `skill-improve` when warranted.
-
-### Progress cadence (SHOULD)
-
-- After parallel, read-only discovery/analysis steps, provide a concise progress update and the next action.
+Full protocol and pseudocode: `docs/skills_rules/skills_rules.md`

@@ -1,0 +1,22 @@
+[
+  "Inverter",
+  "AndGate",
+  "NandGate",
+  "OrGate",
+  "NorGate",
+  "XorGate",
+  "Schmitt",
+  "InvertingSchmitt",
+  "DelayBuffer",
+  "DFlipFlop",
+  "JKFlipFlop",
+  "TFlipFlop",
+  "Latch",
+  "Counter",
+  "Counter2",
+  "RingCounter",
+  "LogicInput",
+  "LogicOutput",
+  "Clock",
+  "DAC"
+]

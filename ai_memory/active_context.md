@@ -1,91 +1,74 @@
 ## Meta
-- last_updated: 2025-12-26T12:22:10+02:00
+- last_updated: 2026-01-06T00:00:00+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
-- active_skills: [skill-context, skill-docs]
- agent_notes: Linux workspace; цей чат присвячений процесам/документації керування контекстом задач (не змінам коду симулятора).
-- recent_activity: Оновлено канонічні правила керування контекстом у `docs/context_rules/context_rules.md` (entrypoint + посилання на модулі). Підтримується реєстр архівів у `ai_memory/context_history/contexts_index.yaml`.
+- active_skills: [python-cli]
+	agent_notes: Документаційна правка правил AI Skills Memory; без змін продакшен-коду.
 
 ## Current Task
 
-- task_id: CTX-SWITCHING-RULES-001
-	goal: Розробити й формалізувати систему переключення контексту задачі при зміні категорії/теми: архівація попереднього контексту, індексація, пошук/відновлення або bootstrap нового контексту.
-	current_focus: Описати/підтримувати правила в `docs/context_rules/context_rules.md` та підтримувати реєстр `ai_memory/context_history/contexts_index.yaml`.
-	active_files: [docs/context_rules/context_rules.md, ai_memory/context_history/contexts_index.yaml]
-	status: in-progress
-	scope_in: Правила (алгоритм) архівації/відновлення/bootstrapping контекстів; визначення формату реєстру; мінімальні вимоги до summary та naming.
-	scope_out: Автоматизація у вигляді скриптів/CLI; зміни в симуляторі; зміни формату експорту схем.
+
+- task_id: SKILLS-RULES-REORG-SEARCH-SAVE
+	goal: Винести детальні правила пошуку та збереження (ingest/store) в окремі файли; залишити у skills_rules.md переважно загальний протокол/псевдокод. Додати stdin як альтернативу для STORE_SKILL та INGEST_EPISODE для зручного ревʼю у чаті.
+	global_context: Памʼять DB-first; файли епізодів — лише тимчасові артефакти. Потрібні правила, що зменшують бюрократію і збільшують LTM корисність.
+	current_focus: Рефакторинг docs/skills_rules/* (overview vs detailed search/save) + stdin support для skill put.
+	active_files: [docs/skills_rules/skills_rules.md, docs/skills_rules/search.md, docs/skills_rules/save.md, docs/skills_rules/cli.md, scripts/ai_skills_memory/mem.py]
+	status: completed
+	scope_in: Лише документація правил + приклади CLI.
+	scope_out: Зміни реалізації mem.py/ai_mem.sh (якщо вже є підтримка stdin).
 
 ## Plan & References
-plan: manage_todo_list (Define artifacts → Update rules → Create registry/archive → Switch active_context → Record skill experience)
-- related_docs:
-	- docs/context_rules/context_rules.md
-	- docs/context_rules/switching.md
-	- docs/context_rules/sync.md
-	- docs/project.md
-	- ai_skills/skills_agent.md
-	- ai_memory/memory.md
-- related_code: []
+	plan: manage_todo_list (rules update + context sync)
+	related_docs:
+		- docs/skills_rules/skills_rules.md
+		- docs/skills_rules/cli.md
+		- docs/context_rules/context_rules.md
+	related_code:
+		- ai_mem.sh
+		- scripts/ai_skills_memory/mem.py
 
 ## Progress
-- done:
-		- Додано/узгоджено протокол переключення контекстів у `docs/context_rules/switching.md`.
-	- Створено реєстр `ai_memory/context_history/contexts_index.yaml`.
-	- Заархівовано попередній контекст у `ai_memory/context_history/ELM-GEOM-REFACTOR-CTX.md` та оновлено запис у реєстр.
-	- Звірено модульні правила `docs/context_rules/*` (sync/switching/staleness/multi_task/hygiene) з основним документом.
-- in_progress:
-		- Уточнити правила/узгодженість: уникати дублювання та розсинхрону між `docs/context_rules/context_rules.md` і модулями `docs/context_rules/*`.
-- next:
-		- Визначити, що “entrypoint” для агентів — `docs/context_rules/context_rules.md` (канон), а модулями є `docs/context_rules/*.md`.
-	- Додати мінімальні формальні інваріанти/валідацію формату `ai_memory/active_context.md` (хоч би lint-правила/чекліст).
-	- Уточнити “good match” правило (поріг тегів/категорій) та де воно визначене єдиним джерелом.
+	done:
+		- Split detailed search guidance into docs/skills_rules/search.md; detailed save/ingest guidance into docs/skills_rules/save.md.
+		- Kept docs/skills_rules/skills_rules.md as mostly protocol overview + pseudocode + links.
+		- Added `./ai_mem.sh skill put --stdin` support in scripts/ai_skills_memory/mem.py and documented it.
+		- Clarified pseudocode by adding explicit RUN_STDIN/RUN_JSON_FILE helpers for review-friendly stdin vs file-based flows.
+
+	in_progress:
+		- None.
+
+	next:
+		- If needed: follow up by aligning other docs that reference old paths.
+		- Optional: remove the test skill `docs-skill-stdin-test` from DB if you don’t want it.
 
 ## Breadcrumbs
- last_focus: "Формалізація протоколу переключення контекстів + створення реєстру контекстів."
-- last_edit_targets: ["docs/context_rules/context_rules.md", "ai_memory/context_history/contexts_index.yaml"]
- next_hops: "1) Перевірити, що rules entrypoint посилається на всі модулі 2) Перевірити switching.md (archive/register/restore/bootstrap) 3) Додати experience entry."
- navigation_queries: ["Switching Flow", "contexts_index.yaml", "context_history", "Archive Summary", "Bootstrapping rule"]
- resume_recipe: "1) Відкрити docs/context_rules/context_rules.md 2) Перевірити switching.md + contexts_index.yaml 3) За потреби оновити experience у skill-context"
+	last_focus: "Update skills rules: episode storage + stdin ingest + softer accumulation"
+	last_edit_targets: ["docs/skills_rules/skills_rules.md", "docs/skills_rules/cli.md"]
+	resume_recipe: "Finalize by ingesting an episode via stdin; verify docs examples stay consistent."
 
 ## Guardrails
-- invariants:
-	- `ai_memory/active_context.md` завжди описує тільки ОДНУ поточну задачу (решта — або Secondary Tasks, або архів).
-	- Перед переключенням завжди робити sync активного контексту (щоб архів був коректним).
-	- Реєстр `ai_memory/context_history/contexts_index.yaml` є єдиним списком усіх архівів (не покладатися на “пам’ять” або випадкове сканування файлів).
-	- Не переносити між задачами застаріваючі секції (Progress/Breadcrumbs/Failure Context) — тільки стабільні частини.
-- scope_guardrails:
-	- Не додавати зайві “nice-to-have” механізми (CLI, UI, додаткові формати), поки не буде потреби.
-
-- temporary_allowances:
-	- "Дозволено довільно змінювати вміст каталогу ai_skills без додаткового підтвердження користувача."
-
-## User Preferences
-
-- ai_skills_change_policy: "free-to-edit-without-confirmation"
-
-## Decisions
-- 2025-12-26T10:12:27+02:00 → Попередній контекст (`ELM-GEOM-REFACTOR-CTX`) заархівовано в `ai_memory/context_history/` і зареєстровано в `contexts_index.yaml`, бо поточна тема чату змінилась на правила керування контекстами.
-- 2025-12-26T10:20:57+02:00 → Архіви переведені на канонічні імена за `task_id` (один актуальний snapshot на задачу) для уникнення зберігання неактуальних копій.
-- 2025-12-26T12:08:30+02:00 → Створено модульні правила у `docs/context_rules/` (індекс + окремі flow-файли) та визначено entrypoint.
-- 2025-12-26T12:22:10+02:00 → Проведено ревʼю узгодженості між `docs/context_rules/*` та фактичним `ai_memory/context_history/contexts_index.yaml`; зафіксовано наступні кроки для уникнення розсинхрону.
-
-## Open Questions / Blockers
-- Чи потрібен окремий “human-readable” index (Markdown) на додачу до YAML, чи достатньо YAML?
-- Чи вводимо явний список `category` значень (enum) або дозволяємо довільні?
-- Який мінімальний поріг “гарного збігу” для auto-restore (наприклад: ≥2 спільних теги + найсвіжіший)?
-- Чи треба формалізувати формат активного контексту (наприклад, YAML-frontmatter) для машинної перевірки та зменшення “вільного” форматування?
+	invariants:
+		- DB є source-of-truth; файли епізодів — опційні та тимчасові.
+		- Якщо створюється episode JSON файл → тільки у `ai_memory/session_history/` або `/tmp/ai_memory/`.
+		- Не форсити епізоди для дрібних задач без LTM цінності.
 
 ## Verification
-- Перевірка узгодженості: `docs/context_rules/context_rules.md` є entrypoint і посилається на `switching.md`/`sync.md`; `ai_memory/context_history/contexts_index.yaml` має хоча б один валідний запис.
+	- Verified implementation supports stdin ingest: `scripts/ai_skills_memory/mem.py ingest --stdin`.
 
-## Quick Resume — CTX-SWITCHING-RULES-001
+## Long-term Memory Candidates
+	facts_to_save:
+		- `./ai_mem.sh ingest` підтримує `--stdin` (без файлів).
+		- Episode JSON файли не повинні зʼявлятися у корені репозиторію; рекомендовані каталоги: `ai_memory/session_history/` або `/tmp/ai_memory/`.
+	episodes_to_ingest:
+		- Ingested: ep_df3acd09c7f844139f47e2eef0896358
+		- Ingested: ep_057535d8eb6e44e9ba97f4a944a53d0f
 
+## Quick Resume — SKILLS-RULES-EPISODES-STDIN
 ```yaml
-# Quick Resume — CTX-SWITCHING-RULES-001
-goal: "Розробити й формалізувати систему переключення контексту задачі при зміні категорії/теми: архівація попереднього контексту, індексація, пошук/відновлення або bootstrap нового контексту."
-focus_now: "Ревʼю та покращення docs/context_rules/context_rules.md; звірка з active_context + registry."
-next_action: "Внести точкові покращення в docs/context_rules/context_rules.md / switching.md (детермінізація ‘good match’, поля registry, дрібні фікси форматування) і за потреби оновити записи experience."
-key_files: ["docs/context_rules/context_rules.md", "docs/context_rules/switching.md", "ai_memory/active_context.md", "ai_memory/context_history/contexts_index.yaml", "ai_skills/skills/base-skills/skill-context/experience.yaml"]
-verify_cmd: "(no build)"
-last_result: pending
+# Quick Resume — SKILLS-RULES-EPISODES-STDIN
+goal: "Rules: episode files in dedicated dirs; add stdin ingest; soften forced accumulation"
+focus_now: "Ingest a doc-change episode via stdin"
+next_action: "cat <<'JSON' | ./ai_mem.sh ingest --stdin"
+key_files: [docs/skills_rules/skills_rules.md, docs/skills_rules/cli.md]
+last_result: in_progress
 ```

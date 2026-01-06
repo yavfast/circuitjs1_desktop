@@ -1,0 +1,22 @@
+[
+  "Wire",
+  "Ground",
+  "Resistor",
+  "Capacitor",
+  "PolarCapacitor",
+  "Inductor",
+  "Potentiometer",
+  "DCVoltage",
+  "ACVoltage",
+  "Rail",
+  "ACRail",
+  "SquareRail",
+  "VarRail",
+  "VoltageSourceDC",
+  "VoltageSourceAC",
+  "VoltageSourceSquare",
+  "VoltageSourceTriangle",
+  "VoltageSourceSawtooth",
+  "VoltageSourcePulse",
+  "VoltageSourceNoise"
+]
