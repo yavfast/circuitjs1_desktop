@@ -365,8 +365,8 @@ public class MosfetElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(1));
-        simulator().stampNonLinear(getNode(2));
+        simulator.stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(2));
 
         if (hasBodyTerminal())
             bodyTerminal = 3;
@@ -507,16 +507,16 @@ public class MosfetElm extends CircuitElm {
 
         double rs = -pnp * ids0 + Gds * realvds + gm * realvgs;
         CircuitSimulator simulator = simulator();
-        simulator().stampMatrix(getNode(drain), getNode(drain), Gds);
-        simulator().stampMatrix(getNode(drain), getNode(source), -Gds - gm);
-        simulator().stampMatrix(getNode(drain), getNode(gate), gm);
+        simulator.stampMatrix(getNode(drain), getNode(drain), Gds);
+        simulator.stampMatrix(getNode(drain), getNode(source), -Gds - gm);
+        simulator.stampMatrix(getNode(drain), getNode(gate), gm);
 
-        simulator().stampMatrix(getNode(source), getNode(drain), -Gds);
-        simulator().stampMatrix(getNode(source), getNode(source), Gds + gm);
-        simulator().stampMatrix(getNode(source), getNode(gate), -gm);
+        simulator.stampMatrix(getNode(source), getNode(drain), -Gds);
+        simulator.stampMatrix(getNode(source), getNode(source), Gds + gm);
+        simulator.stampMatrix(getNode(source), getNode(gate), -gm);
 
-        simulator().stampRightSide(getNode(drain), rs);
-        simulator().stampRightSide(getNode(source), -rs);
+        simulator.stampRightSide(getNode(drain), rs);
+        simulator.stampRightSide(getNode(source), -rs);
     }
 
     void getFetInfo(String arr[], String n) {

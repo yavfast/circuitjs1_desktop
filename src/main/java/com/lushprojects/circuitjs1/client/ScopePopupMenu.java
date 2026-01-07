@@ -23,9 +23,9 @@ import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
+@SuppressWarnings("unused")
 public class ScopePopupMenu {
 
-    private final BaseCirSim cirSim;
     private MenuBar m;
     private MenuItem removeScopeItem;
     private CheckboxMenuItem maxScaleItem;
@@ -39,7 +39,6 @@ public class ScopePopupMenu {
     private MenuItem undockItem;
 
     ScopePopupMenu(BaseCirSim cirSim) {
-        this.cirSim = cirSim;
         m = new MenuBar(true);
         m.addItem(removeScopeItem = new CheckboxAlignedMenuItem(Locale.LS("Remove Scope"), new MyCommand("scopepop", "remove")));
         m.addItem(dockItem = new CheckboxAlignedMenuItem(Locale.LS("Dock Scope"), new MyCommand("scopepop", "dock")));

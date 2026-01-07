@@ -188,7 +188,6 @@ public class ActionManager extends BaseCirSimDelegate {
     public void menuPerformed(String menu, String item) {
         MenuManager menuManager = menuManager();
         DialogManager dialogManager = dialogManager();
-        CircuitEditor circuitEditor = circuitEditor();
         ScopeManager scopeManager = scopeManager();
         CirSim cirSim = (CirSim) this.cirSim;
 
@@ -572,7 +571,6 @@ public class ActionManager extends BaseCirSimDelegate {
         CirSim cirSim = (CirSim) this.cirSim;
         MenuManager menuManager = menuManager();
         CircuitSimulator simulator = simulator();
-        CircuitDocument document = getActiveDocument();
 
         // Build flags bitmask
         int flags = 0;

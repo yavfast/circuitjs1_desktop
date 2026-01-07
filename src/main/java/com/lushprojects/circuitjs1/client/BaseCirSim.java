@@ -207,7 +207,6 @@ public class BaseCirSim {
 
     // For debugging
     void dumpNodelist() {
-        CircuitNode nd;
         CircuitElm e;
         int i, j;
         String s;

@@ -43,7 +43,7 @@ public class MonostableElm extends ChipElm {
     public MonostableElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                          StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
-        retriggerable = new Boolean(st.nextToken()).booleanValue();
+        retriggerable = Boolean.parseBoolean(st.nextToken());
         delay = parseDouble(st.nextToken());
         reset();
     }
@@ -82,13 +82,13 @@ public class MonostableElm extends ChipElm {
     void execute() {
         CircuitSimulator simulator = simulator();
         if (pins[0].value && prevInputValue != pins[0].value && (retriggerable || !triggered)) {
-            lastRisingEdge = simulator().t;
+            lastRisingEdge = simulator.t;
             pins[1].value = true;
             pins[2].value = false;
             triggered = true;
         }
 
-        if (triggered && simulator().t > lastRisingEdge + delay) {
+        if (triggered && simulator.t > lastRisingEdge + delay) {
             pins[1].value = false;
             pins[2].value = true;
             triggered = false;

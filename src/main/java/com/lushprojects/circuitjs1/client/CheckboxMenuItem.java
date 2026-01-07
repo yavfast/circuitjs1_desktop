@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.MenuItem;
-import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 public class CheckboxMenuItem extends MenuItem implements Command {
 	private final BaseCirSim cirSim;

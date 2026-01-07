@@ -131,8 +131,8 @@ public class MemristorElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(0));
-        simulator().stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(0));
+        simulator.stampNonLinear(getNode(1));
     }
 
     public void doStep() {

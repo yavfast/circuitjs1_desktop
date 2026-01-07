@@ -27,7 +27,7 @@ public class SquareRailElm extends RailElm {
         super(circuitDocument, xx, yy, Waveform.WF_SQUARE);
     }
 
-    public Class getDumpClass() {
+    public Class<RailElm> getDumpClass() {
         return RailElm.class;
     }
 

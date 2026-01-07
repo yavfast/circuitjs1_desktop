@@ -23,7 +23,6 @@ import com.google.gwt.json.client.*;
 import com.lushprojects.circuitjs1.client.Adjustable;
 import com.lushprojects.circuitjs1.client.AdjustableManager;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
-import com.lushprojects.circuitjs1.client.CircuitRenderer;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.ColorSettings;

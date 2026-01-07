@@ -26,7 +26,7 @@ public class NMosfetElm extends MosfetElm {
         super(circuitDocument, xx, yy, false);
     }
 
-    public Class getDumpClass() {
+    public Class<MosfetElm> getDumpClass() {
         return MosfetElm.class;
     }
 

@@ -129,10 +129,10 @@ public class CustomLogicElm extends ChipElm {
         for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator().stampVoltageSource(0, getNode(i + add), p.voltSource);
+                simulator.stampVoltageSource(0, getNode(i + add), p.voltSource);
                 if (hasTriState()) {
-                    simulator().stampNonLinear(getNode(i + add));
-                    simulator().stampNonLinear(getNode(i));
+                    simulator.stampNonLinear(getNode(i + add));
+                    simulator.stampNonLinear(getNode(i));
                 }
             }
         }
@@ -152,11 +152,11 @@ public class CustomLogicElm extends ChipElm {
             Pin p = pins[i];
             if (p.output) {
                 // connect output voltage source (to internal node if tri-state, otherwise connect directly to output)
-                simulator().updateVoltageSource(0, getNode(i + add), p.voltSource, p.value ? highVoltage : 0);
+                simulator.updateVoltageSource(0, getNode(i + add), p.voltSource, p.value ? highVoltage : 0);
 
                 // add resistor for tri-state if necessary
                 if (hasTriState())
-                    simulator().stampResistor(getNode(i + add), getNode(i), highImpedance[i] ? 1e8 : 1e-3);
+                    simulator.stampResistor(getNode(i + add), getNode(i), highImpedance[i] ? 1e8 : 1e-3);
             }
         }
     }

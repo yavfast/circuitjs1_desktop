@@ -149,7 +149,6 @@ public class JsonCircuitImporter implements CircuitImporter {
      * Reset circuit state before import (similar to TextCircuitImporter).
      */
     private void resetCircuitState(CircuitDocument document) {
-        CirSim cirSim = document.getCirSim();
         CircuitSimulator simulator = document.simulator;
         CircuitEditor circuitEditor = document.circuitEditor;
         ScopeManager scopeManager = document.scopeManager;

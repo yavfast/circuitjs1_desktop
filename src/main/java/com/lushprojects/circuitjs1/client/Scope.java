@@ -107,7 +107,6 @@ public class Scope extends BaseCirSimDelegate {
     private double wheelDeltaY;
     int selectedPlot;
     private ScopePropertiesDialog properties;
-    private String curColor, voltColor;
     private double gridStepX, gridStepY;
     private double maxValue, minValue;
     public int manDivisions; // Number of vertical divisions when in manual mode
@@ -1584,7 +1583,6 @@ public class Scope extends BaseCirSimDelegate {
         if (ColorSettings.get().isPrintable()) {
             minorDiv = "#D0D0D0";
             majorDiv = "#808080";
-            curColor = "#A0A000";
         }
         if (allSelected) {
             majorDiv = ColorSettings.get().getSelectColor().getHexValue();
@@ -2239,7 +2237,7 @@ public class Scope extends BaseCirSimDelegate {
             return null;
         }
         int flags = getFlags();
-        int eno = simulator().locateElm(elm);
+        int eno = simulator.locateElm(elm);
         if (eno < 0) {
             return null;
         }
@@ -2257,7 +2255,7 @@ public class Scope extends BaseCirSimDelegate {
                 x += " " + Integer.toHexString(p.getPlotFlags()); // NB always export in Hex (no prefix)
             }
             if (i > 0) {
-                x += " " + simulator().locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
+                x += " " + simulator.locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
             }
             // dump scale if units are not V or A
             if (p.units > UNITS_A) {
@@ -2681,7 +2679,7 @@ public class Scope extends BaseCirSimDelegate {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != plots.size(); i++) {
             ScopePlot plot = plots.get(i);
-            if (simulator().locateElm(plot.elm) < 0) {
+            if (simulator.locateElm(plot.elm) < 0) {
                 plots.remove(i--);
                 removed = true;
             } else {

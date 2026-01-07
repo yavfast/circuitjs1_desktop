@@ -27,7 +27,7 @@ public class OpAmpSwapElm extends OpAmpElm {
         flags |= FLAG_SWAP;
     }
 
-    public Class getDumpClass() {
+    public Class<OpAmpElm> getDumpClass() {
         return OpAmpElm.class;
     }
 

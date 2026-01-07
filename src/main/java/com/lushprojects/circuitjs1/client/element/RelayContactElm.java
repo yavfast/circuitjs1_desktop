@@ -172,8 +172,7 @@ public class RelayContactElm extends CircuitElm {
         calcLeads(32);
         swposts = new Point[3];
         swpoles = new Point[3];
-        int i, j;
-        for (j = 0; j != 3; j++) {
+        for (int j = 0; j != 3; j++) {
             swposts[j] = new Point();
             swpoles[j] = new Point();
         }
@@ -222,8 +221,8 @@ public class RelayContactElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(nSwitch0));
-        simulator().stampNonLinear(getNode(nSwitch1));
+        simulator.stampNonLinear(getNode(nSwitch0));
+        simulator.stampNonLinear(getNode(nSwitch1));
     }
 
     // we need this to be able to change the matrix for each step
@@ -250,7 +249,6 @@ public class RelayContactElm extends CircuitElm {
             arr[0] += " (" + Locale.LS("off") + ")";
         else if (i_position == 1)
             arr[0] += " (" + Locale.LS("on") + ")";
-        int i;
         int ln = 1;
         arr[ln++] = "I = " + getCurrentDText(switchCurrent);
     }

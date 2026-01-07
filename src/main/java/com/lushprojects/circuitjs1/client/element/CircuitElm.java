@@ -327,7 +327,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     // leftover from java, doesn't do anything anymore.
-    public Class getDumpClass() {
+    public Class<? extends CircuitElm> getDumpClass() {
         return getClass();
     }
 

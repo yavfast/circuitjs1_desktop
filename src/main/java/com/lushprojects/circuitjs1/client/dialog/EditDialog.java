@@ -311,7 +311,7 @@ public class EditDialog extends Dialog {
         cframe.needAnalyze();
     }
 
-    public void itemStateChanged(GwtEvent e) {
+    public void itemStateChanged(GwtEvent<?> e) {
         Object src = e.getSource();
         int i;
         boolean changed = false;

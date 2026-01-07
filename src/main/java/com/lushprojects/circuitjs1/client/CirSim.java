@@ -61,10 +61,10 @@ import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
-import com.lushprojects.circuitjs1.client.io.json.CircuitElementFactory;
 import com.lushprojects.circuitjs1.client.ui.tabs.TabBarPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
+@SuppressWarnings("deprecation")
 public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     public static int MENU_BAR_HEIGHT = 30;
@@ -170,8 +170,6 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     void modSetDefault() {
         double MOD_UIScale = OptionsManager.getDoubleOptionFromStorage("MOD_UIScale", getDefaultScale());
         String MOD_TopMenuBar = OptionsManager.getOptionFromStorage("MOD_TopMenuBar", "standart");
-        boolean MOD_setPauseWhenWinUnfocused = OptionsManager.getBoolOptionFromStorage("MOD_setPauseWhenWinUnfocused",
-                false);
 
         executeJS("document.body.style.zoom = " + MOD_UIScale + ";");
 
@@ -626,7 +624,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface
     static void electronOpenFileCallback(String text, String name) {
-        theSim.loadFileInput.doLoadCallback(text, name);
+        LoadFile.doLoadCallback(text, name);
         theSim.allowSave(true);
     }
 
@@ -702,6 +700,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         // file twice
         // doesn't work unless you destroy the original input element and replace it
         // with a new one
+        @SuppressWarnings("unused")
         int idx = controlsDialog.panel.getWidgetIndex(loadFileInput);
 
         super.createNewLoadFile();

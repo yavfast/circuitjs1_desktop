@@ -192,7 +192,7 @@ public class SliderDialog extends Dialog {
         }
     }
 
-    public void itemStateChanged(GwtEvent e) {
+    public void itemStateChanged(GwtEvent<?> e) {
         Object src = e.getSource();
         int i;
         boolean changed = false;

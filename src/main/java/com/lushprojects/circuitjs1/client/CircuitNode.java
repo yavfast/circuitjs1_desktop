@@ -20,7 +20,6 @@
 package com.lushprojects.circuitjs1.client;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 public class CircuitNode {
     public ArrayList<CircuitNodeLink> links;

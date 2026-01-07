@@ -7,7 +7,7 @@ public class CC2NegElm extends CC2Elm {
         super(circuitDocument, xx, yy, -1);
     }
 
-    public Class getDumpClass() {
+    public Class<CC2Elm> getDumpClass() {
         return CC2Elm.class;
     }
 }

@@ -84,8 +84,8 @@ public class DiacElm extends CircuitElm {
         super.setPoints();
         calcLeads(16);
 
-        Point p1 = geom().getPoint1();
-        Point p2 = geom().getPoint2();
+        // Point p1 = geom().getPoint1();
+        // Point p2 = geom().getPoint2();
         Point l1 = geom().getLead1();
         Point l2 = geom().getLead2();
 

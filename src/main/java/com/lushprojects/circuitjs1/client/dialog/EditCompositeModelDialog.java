@@ -36,7 +36,6 @@ import com.google.gwt.event.dom.client.MouseUpHandler;
 import com.google.gwt.event.logical.shared.ValueChangeEvent;
 import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.user.client.Window;
-import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -57,7 +56,6 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.HashSet;
 
 public class EditCompositeModelDialog extends Dialog
@@ -135,13 +133,11 @@ public class EditCompositeModelDialog extends Dialog
 
     public void createDialog() {
         Button okButton;
-        Anchor a;
         vp = new VerticalPanel();
         setWidget(vp);
         setText(Locale.LS("Edit Subcircuit Pin Layout"));
         vp.add(new Label(Locale.LS("Drag the pins to the desired position")));
-        Date date = new Date();
-
+        
         Canvas canvas = Canvas.createIfSupported();
         canvas.setWidth("400 px");
         canvas.setHeight("400 px");

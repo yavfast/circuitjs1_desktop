@@ -107,18 +107,18 @@ public class TransistorModel implements Editable, Comparable<TransistorModel>, S
     public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, TransistorModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, TransistorModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, TransistorModel> pair = it.next();
             pair.getValue().dumped = false;
         }
     }
 
     public static Vector<TransistorModel> getModelList() {
         Vector<TransistorModel> vector = new Vector<TransistorModel>();
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, TransistorModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, TransistorModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, TransistorModel> pair = it.next();
             TransistorModel tm = pair.getValue();
             if (tm.internal)
                 continue;

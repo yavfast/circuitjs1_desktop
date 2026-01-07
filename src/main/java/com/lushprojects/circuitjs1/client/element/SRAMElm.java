@@ -234,9 +234,9 @@ public class SRAMElm extends ChipElm {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator().stampVoltageSource(0, getNode(internalNodes + i), p.voltSource);
-            simulator().stampNonLinear(getNode(internalNodes + i));
-            simulator().stampNonLinear(getNode(dataNodes + i));
+            simulator.stampVoltageSource(0, getNode(internalNodes + i), p.voltSource);
+            simulator.stampNonLinear(getNode(internalNodes + i));
+            simulator.stampNonLinear(getNode(dataNodes + i));
         }
     }
 
@@ -256,11 +256,11 @@ public class SRAMElm extends ChipElm {
         CircuitSimulator simulator = simulator();
         for (i = 0; i != dataBits; i++) {
             Pin p = pins[i + dataNodes];
-            simulator().updateVoltageSource(0, getNode(internalNodes + i), p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
+            simulator.updateVoltageSource(0, getNode(internalNodes + i), p.voltSource, (data & (1 << (dataBits - 1 - i))) == 0 ? 0 : 5);
 
             // stamp resistor from internal voltage source to data pin.
             // if output enabled, make it a small resistor.  otherwise large.
-            simulator().stampResistor(getNode(internalNodes + i), getNode(dataNodes + i), outputEnabled ? 1 : 1e8);
+            simulator.stampResistor(getNode(internalNodes + i), getNode(dataNodes + i), outputEnabled ? 1 : 1e8);
         }
     }
 

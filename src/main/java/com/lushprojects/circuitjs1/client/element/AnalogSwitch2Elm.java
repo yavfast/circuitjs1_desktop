@@ -105,12 +105,12 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(0));
-        simulator().stampNonLinear(getNode(1));
-        simulator().stampNonLinear(getNode(2));
+        simulator.stampNonLinear(getNode(0));
+        simulator.stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(2));
         if (needsPulldown()) {
-            simulator().stampResistor(getNode(1), 0, r_off);
-            simulator().stampResistor(getNode(2), 0, r_off);
+            simulator.stampResistor(getNode(1), 0, r_off);
+            simulator.stampResistor(getNode(2), 0, r_off);
         }
     }
 
@@ -120,13 +120,13 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
         if (hasFlag(FLAG_INVERT))
             open = !open;
         if (open) {
-            simulator().stampResistor(getNode(0), getNode(2), r_on);
+            simulator.stampResistor(getNode(0), getNode(2), r_on);
             if (!needsPulldown())
-                simulator().stampResistor(getNode(0), getNode(1), r_off);
+                simulator.stampResistor(getNode(0), getNode(1), r_off);
         } else {
-            simulator().stampResistor(getNode(0), getNode(1), r_on);
+            simulator.stampResistor(getNode(0), getNode(1), r_on);
             if (!needsPulldown())
-                simulator().stampResistor(getNode(0), getNode(2), r_off);
+                simulator.stampResistor(getNode(0), getNode(2), r_off);
         }
     }
 

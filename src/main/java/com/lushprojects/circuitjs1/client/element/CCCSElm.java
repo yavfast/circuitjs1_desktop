@@ -83,12 +83,12 @@ public class CCCSElm extends VCCSElm {
             // voltage sources (0V) between C+ and C- so we can measure current
             for (i = 0; i != inputCount; i += 2) {
                 int vn1 = pins[i + 1].voltSource;
-                simulator().stampVoltageSource(getNode(i), getNode(i + 1), vn1, 0);
+                simulator.stampVoltageSource(getNode(i), getNode(i + 1), vn1, 0);
             }
         }
 
-        simulator().stampNonLinear(getNode(inputCount));
-        simulator().stampNonLinear(getNode(inputCount + 1));
+        simulator.stampNonLinear(getNode(inputCount));
+        simulator.stampNonLinear(getNode(inputCount + 1));
     }
 
     double lastCurrents[];
@@ -100,7 +100,7 @@ public class CCCSElm extends VCCSElm {
             pins[inputCount].current = 0;
             pins[inputCount + 1].current = 0;
             // avoid singular matrix errors
-            simulator().stampResistor(getNode(inputCount), getNode(inputCount + 1), 1e8);
+            simulator.stampResistor(getNode(inputCount), getNode(inputCount + 1), 1e8);
             return;
         }
 
@@ -117,15 +117,15 @@ public class CCCSElm extends VCCSElm {
         for (i = 0; i != inputPairCount; i++) {
             double cur = pins[i * 2 + 1].current;
             if (Math.abs(cur - lastCurrents[i]) > convergeLimit)
-                simulator().converged = false;
+                simulator.converged = false;
         }
 
         if (expr != null) {
             // calculate output
             for (i = 0; i != inputPairCount; i++)
                 setCurrentExprValue(i, pins[i * 2 + 1].current);
-            exprState.t = simulator().t;
-            exprState.timeStep = simulator().timeStep;
+            exprState.t = simulator.t;
+            exprState.timeStep = simulator.timeStep;
             double v0 = expr.eval(exprState);
             double rs = v0;
 
@@ -153,7 +153,7 @@ public class CCCSElm extends VCCSElm {
                 setCurrentExprValue(i, cur);
             }
 
-            simulator().stampCurrentSource(getNode(inputCount + 1), getNode(inputCount), rs);
+            simulator.stampCurrentSource(getNode(inputCount + 1), getNode(inputCount), rs);
         }
 
         for (i = 0; i != inputPairCount; i++)

@@ -7,7 +7,7 @@ public class PJfetElm extends JfetElm {
         super(circuitDocument, xx, yy, true);
     }
 
-    public Class getDumpClass() {
+    public Class<JfetElm> getDumpClass() {
         return JfetElm.class;
     }
 }

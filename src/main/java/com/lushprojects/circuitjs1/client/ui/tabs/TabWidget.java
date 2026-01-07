@@ -5,7 +5,6 @@ import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.PushButton;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 public class TabWidget extends Composite {
@@ -89,6 +88,10 @@ public class TabWidget extends Composite {
         } else {
             panel.removeStyleName("activeTab");
         }
+    }
+
+    public boolean isActive() {
+        return isActive;
     }
 
     public CircuitDocument getDocument() {

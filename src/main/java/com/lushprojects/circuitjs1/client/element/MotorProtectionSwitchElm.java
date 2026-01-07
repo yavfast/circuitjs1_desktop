@@ -60,7 +60,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
-        blown = new Boolean(st.nextToken()).booleanValue();
+        blown = Boolean.parseBoolean(st.nextToken());
         label = "";
         try {
             label = CustomLogicModel.unescape(st.nextToken());
@@ -218,7 +218,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     public void stamp() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != 6; i++)
-            simulator().stampNonLinear(getNode(i));
+            simulator.stampNonLinear(getNode(i));
     }
 
     public boolean nonLinear() {
@@ -237,10 +237,10 @@ public class MotorProtectionSwitchElm extends CircuitElm {
 
             // accumulate heat
             double heat = heats[j];
-            heat += i * i * simulator().timeStep;
+            heat += i * i * simulator.timeStep;
 
             // dissipate heat. we assume the fuse can dissipate its entire i2t in 3 seconds
-            heat -= simulator().timeStep * i2t / 3;
+            heat -= simulator.timeStep * i2t / 3;
 
             if (heat < 0)
                 heat = 0;
@@ -256,8 +256,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     void setSwitchPositions() {
         CircuitSimulator simulator = simulator();
         int switchPosition = (blown) ? 0 : 1;
-        for (int i = 0; i != simulator().elmList.size(); i++) {
-            Object o = simulator().elmList.get(i);
+        for (int i = 0; i != simulator.elmList.size(); i++) {
+            Object o = simulator.elmList.get(i);
             if (o instanceof RelayContactElm) {
                 RelayContactElm s2 = (RelayContactElm) o;
                 if (s2.label.equals(label))
@@ -269,7 +269,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != 3; i++)
-            simulator().stampResistor(getNode(i * 2), getNode(i * 2 + 1), blown ? blownResistance : resistance);
+            simulator.stampResistor(getNode(i * 2), getNode(i * 2 + 1), blown ? blownResistance : resistance);
     }
 
     public void getInfo(String arr[]) {

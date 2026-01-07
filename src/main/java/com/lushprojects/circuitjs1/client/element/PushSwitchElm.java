@@ -26,7 +26,7 @@ public class PushSwitchElm extends SwitchElm {
         super(circuitDocument, xx, yy, true);
     }
 
-    public Class getDumpClass() {
+    public Class<SwitchElm> getDumpClass() {
         return SwitchElm.class;
     }
 

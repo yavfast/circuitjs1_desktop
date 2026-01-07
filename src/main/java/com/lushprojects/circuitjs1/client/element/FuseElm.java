@@ -50,7 +50,7 @@ public class FuseElm extends CircuitElm {
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
         heat = parseDouble(st.nextToken());
-        blown = new Boolean(st.nextToken()).booleanValue();
+        blown = Boolean.parseBoolean(st.nextToken());
     }
 
     public String dump() {
@@ -147,8 +147,8 @@ public class FuseElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(0));
-        simulator().stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(0));
+        simulator.stampNonLinear(getNode(1));
     }
 
     public boolean nonLinear() {
@@ -160,10 +160,10 @@ public class FuseElm extends CircuitElm {
         double i = getCurrent();
 
         // accumulate heat
-        heat += i * i * simulator().timeStep;
+        heat += i * i * simulator.timeStep;
 
         // dissipate heat. we assume the fuse can dissipate its entire i2t in 3 seconds
-        heat -= simulator().timeStep * i2t / 3;
+        heat -= simulator.timeStep * i2t / 3;
 
         if (heat < 0)
             heat = 0;

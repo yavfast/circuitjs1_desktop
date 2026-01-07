@@ -262,7 +262,7 @@ public abstract class GateElm extends CircuitElm {
             f = !f;
 
         CircuitSimulator simulator = simulator();
-        if (lastTime != simulator().t) {
+        if (lastTime != simulator.t) {
             // detect oscillation (using same strategy as Atanua)
             if (lastOutput == !f) {
                 if (oscillationCount++ > 50) {
@@ -275,11 +275,11 @@ public abstract class GateElm extends CircuitElm {
                 oscillationCount = 0;
 
             lastOutput = f;
-            lastTime = simulator().t;
+            lastTime = simulator.t;
         }
 
         double res = f ? highVoltage : 0;
-        simulator().updateVoltageSource(0, getNode(inputCount), voltSource, res);
+        simulator.updateVoltageSource(0, getNode(inputCount), voltSource, res);
     }
 
     public EditInfo getEditInfo(int n) {

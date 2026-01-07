@@ -56,9 +56,9 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
     public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, CustomLogicModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, CustomLogicModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, CustomLogicModel> pair = it.next();
             pair.getValue().dumped = false;
         }
     }

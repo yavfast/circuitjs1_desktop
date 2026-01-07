@@ -8,7 +8,7 @@ public class PDarlingtonElm extends DarlingtonElm {
         super(circuitDocument, xx, yy, true);
     }
 
-    public Class getDumpClass() {
+    public Class<DarlingtonElm> getDumpClass() {
         return DarlingtonElm.class;
     }
 }

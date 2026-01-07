@@ -31,7 +31,7 @@ public class NoiseWaveform extends Waveform {
 
     @Override
     public void draw(Graphics g, Point center, VoltageElm elm) {
-        g.setColor(elm.needsHighlight() ? elm.selectColor() : CircuitElm.foregroundColor());
+        g.setColor(elm.needsHighlight() ? VoltageElm.selectColor() : CircuitElm.foregroundColor());
         elm.setPowerColor(g, false);
 
         // Static pseudo-noise icon inside the circle.
@@ -91,9 +91,9 @@ public class NoiseWaveform extends Waveform {
 
     @Override
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", elm.getUnitText(maxVoltage, "V"));
+        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
         if (bias != 0) {
-            props.put("dc_offset", elm.getUnitText(bias, "V"));
+            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
         }
     }
 

@@ -10,7 +10,7 @@ public class NDarlingtonElm extends DarlingtonElm {
     }
 
 
-    public Class getDumpClass() {
+    public Class<DarlingtonElm> getDumpClass() {
         return DarlingtonElm.class;
     }
 }

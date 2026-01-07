@@ -161,9 +161,9 @@ public class MBBSwitchElm extends SwitchElm {
         CircuitSimulator simulator = simulator();
         int vs = 0;
         if (both || position == 0)
-            simulator().stampVoltageSource(getNode(0), getNode(1), voltSources[vs++], 0);
+            simulator.stampVoltageSource(getNode(0), getNode(1), voltSources[vs++], 0);
         if (both || position == 2)
-            simulator().stampVoltageSource(getNode(0), getNode(2), voltSources[vs++], 0);
+            simulator.stampVoltageSource(getNode(0), getNode(2), voltSources[vs++], 0);
     }
 
     // connection is implemented by voltage source with voltage = 0.
@@ -177,8 +177,8 @@ public class MBBSwitchElm extends SwitchElm {
         super.toggle();
         if (link != 0) {
             CircuitSimulator simulator = simulator();
-            for (int i = 0; i != simulator().elmList.size(); i++) {
-                Object o = simulator().elmList.get(i);
+            for (int i = 0; i != simulator.elmList.size(); i++) {
+                Object o = simulator.elmList.get(i);
                 if (o instanceof MBBSwitchElm) {
                     MBBSwitchElm s2 = (MBBSwitchElm) o;
                     if (s2.link == link)

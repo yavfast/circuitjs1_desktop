@@ -133,9 +133,9 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
         final double emcoef = 2;
 
         // look for existing model with same parameters
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, DiodeModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, DiodeModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, DiodeModel> pair = it.next();
             DiodeModel dm = pair.getValue();
             if (Math.abs(dm.fwdrop - fwdrop) < 1e-8 && dm.seriesResistance == 0 && Math.abs(dm.breakdownVoltage - zvoltage) < 1e-8 && dm.emissionCoefficient == emcoef)
                 return dm;
@@ -173,18 +173,18 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
     public static void clearDumpedFlags() {
         if (modelMap == null)
             return;
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, DiodeModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, DiodeModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, DiodeModel> pair = it.next();
             pair.getValue().dumped = false;
         }
     }
 
     public static Vector<DiodeModel> getModelList(boolean zener) {
         Vector<DiodeModel> vector = new Vector<DiodeModel>();
-        Iterator it = modelMap.entrySet().iterator();
+        Iterator<Map.Entry<String, DiodeModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<String, DiodeModel> pair = (Map.Entry) it.next();
+            Map.Entry<String, DiodeModel> pair = it.next();
             DiodeModel dm = pair.getValue();
             if (dm.internal)
                 continue;

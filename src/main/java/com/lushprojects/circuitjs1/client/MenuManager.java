@@ -356,7 +356,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 new MyCommand("options", "other")));
         m.addItem(modItem = new CheckboxAlignedMenuItem("Modification Setup...", new MyCommand("options", "modsetup")));
         modItem.addStyleName("modItem");
-        if (cirSim.isElectron())
+        if (CirSim.isElectron())
             m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options", "devtools")));
     }
 

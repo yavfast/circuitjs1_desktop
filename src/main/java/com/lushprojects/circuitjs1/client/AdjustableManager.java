@@ -128,7 +128,6 @@ public class AdjustableManager extends BaseCirSimDelegate {
         for (i = adjustables.size() - 1; i >= 0; i--) {
             Adjustable adj = adjustables.get(i);
             if (adj.elm == elm) {
-                CirSim cirSim = (CirSim) this.cirSim;
                 adj.deleteSlider();
                 adjustables.remove(i);
             }

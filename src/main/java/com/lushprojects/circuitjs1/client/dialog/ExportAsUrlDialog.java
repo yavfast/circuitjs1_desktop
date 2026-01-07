@@ -97,7 +97,7 @@ public class ExportAsUrlDialog extends Dialog {
         requrl = URL.encodeQueryString(query);
         Button okButton, copyButton;
 
-        Label la1, la2;
+        Label la1;
         vp = new VerticalPanel();
         setWidget(vp);
         setText(Locale.LS("Export as URL"));

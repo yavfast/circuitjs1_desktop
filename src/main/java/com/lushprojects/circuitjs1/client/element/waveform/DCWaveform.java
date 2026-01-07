@@ -2,7 +2,6 @@ package com.lushprojects.circuitjs1.client.element.waveform;
 
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
-import com.lushprojects.circuitjs1.client.element.VarRailElm;
 
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -35,14 +34,14 @@ public class DCWaveform extends Waveform {
 
     @Override
     public void drawRail(Graphics g, RailElm elm) {
-        g.setColor(elm.needsHighlight() ? elm.selectColor() : elm.foregroundColor());
+        g.setColor(elm.needsHighlight() ? RailElm.selectColor() : RailElm.foregroundColor());
         elm.setPowerColor(g, false);
         double v = elm.getVoltage();
         String s;
         if (Math.abs(v) < 1)
-            s = elm.showFormat(v) + " V";
+            s = RailElm.showFormat(v) + " V";
         else
-            s = elm.getShortUnitText(v, "V");
+            s = RailElm.getShortUnitText(v, "V");
         if (v > 0)
             s = "+" + s;
 
@@ -55,7 +54,7 @@ public class DCWaveform extends Waveform {
     public void getInfo(VoltageElm elm, String[] arr, int i) {
         arr[0] = "voltage source";
         if (elm.current != 0 && elm.circuitDocument.circuitInfo.showResistanceInVoltageSources) {
-            arr[i] = "(R = " + elm.getUnitText(maxVoltage / elm.current, Locale.ohmString) + ")";
+            arr[i] = "(R = " + VoltageElm.getUnitText(maxVoltage / elm.current, Locale.ohmString) + ")";
         }
     }
 
@@ -92,9 +91,9 @@ public class DCWaveform extends Waveform {
 
     @Override
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", elm.getUnitText(maxVoltage, "V"));
+        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
         if (bias != 0) {
-            props.put("dc_offset", elm.getUnitText(bias, "V"));
+            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
         }
     }
 

@@ -18,7 +18,6 @@ public class Toolbar extends HorizontalPanel {
 
     private final CirSim cirSim;
 
-    private Label modeLabel;
     private HashMap<String, Label> highlightableButtons = new HashMap<>();
     private Label activeButton;  // Currently active button
     private String SEPARATOR = "<div style=\"height:30px;width:0;border-left:2px solid grey;\"></div>";

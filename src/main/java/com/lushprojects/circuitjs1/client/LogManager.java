@@ -401,7 +401,7 @@ public class LogManager extends BaseCirSimDelegate {
     }
 
     public void updateLogCount() {
-        int count = logEntries.size();
+        // int count = logEntries.size();
     }
 
     public void saveLogsToFile() {

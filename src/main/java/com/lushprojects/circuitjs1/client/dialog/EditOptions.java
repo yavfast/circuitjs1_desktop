@@ -27,7 +27,6 @@ import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.OptionsManager;
-import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class EditOptions implements Editable {

@@ -321,7 +321,7 @@ public abstract class ChipElm extends CircuitElm {
         for (int i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output) {
-                simulator().stampVoltageSource(0, getNode(i), p.voltSource);
+                simulator.stampVoltageSource(0, getNode(i), p.voltSource);
                 vsc++;
             }
         }
@@ -344,7 +344,7 @@ public abstract class ChipElm extends CircuitElm {
         for (i = 0; i != getPostCount(); i++) {
             Pin p = pins[i];
             if (p.output)
-                simulator().updateVoltageSource(0, getNode(i), p.voltSource,
+                simulator.updateVoltageSource(0, getNode(i), p.voltSource,
                         p.value ? highVoltage : 0);
         }
     }

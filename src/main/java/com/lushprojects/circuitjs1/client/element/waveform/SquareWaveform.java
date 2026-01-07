@@ -2,7 +2,6 @@ package com.lushprojects.circuitjs1.client.element.waveform;
 
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
-import com.lushprojects.circuitjs1.client.element.VarRailElm;
 
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -48,10 +47,10 @@ public class SquareWaveform extends Waveform {
     @Override
     public void getInfo(VoltageElm elm, String[] arr, int i) {
         arr[0] = "square wave gen";
-        arr[i++] = "f = " + elm.getUnitText(frequency, "Hz");
-        arr[i++] = "Vmax = " + elm.getVoltageText(maxVoltage);
+        arr[i++] = "f = " + VoltageElm.getUnitText(frequency, "Hz");
+        arr[i++] = "Vmax = " + VoltageElm.getVoltageText(maxVoltage);
         if (bias != 0) {
-            arr[i++] = "Voff = " + elm.getVoltageText(bias);
+            arr[i++] = "Voff = " + VoltageElm.getVoltageText(bias);
         }
     }
 

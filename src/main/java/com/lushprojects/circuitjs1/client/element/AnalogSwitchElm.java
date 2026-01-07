@@ -167,12 +167,12 @@ public class AnalogSwitchElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(0));
-        simulator().stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(0));
+        simulator.stampNonLinear(getNode(1));
         if (needsPulldown()) {
             // pulldown resistor on each side
-            simulator().stampResistor(getNode(0), 0, r_off);
-            simulator().stampResistor(getNode(1), 0, r_off);
+            simulator.stampResistor(getNode(0), 0, r_off);
+            simulator.stampResistor(getNode(1), 0, r_off);
         }
     }
 

@@ -26,7 +26,7 @@ public class NJfetElm extends JfetElm {
         super(circuitDocument, xx, yy, false);
     }
 
-    public Class getDumpClass() {
+    public Class<JfetElm> getDumpClass() {
         return JfetElm.class;
     }
 }

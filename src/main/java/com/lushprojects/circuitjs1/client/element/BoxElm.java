@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.StringTokenizer;

@@ -55,10 +55,10 @@ public class PhaseCompElm extends ChipElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        int vn = simulator().nodeList.size() + pins[2].voltSource;
-        simulator().stampNonLinear(vn);
-        simulator().stampNonLinear(0);
-        simulator().stampNonLinear(getNode(2));
+        int vn = simulator.nodeList.size() + pins[2].voltSource;
+        simulator.stampNonLinear(vn);
+        simulator.stampNonLinear(0);
+        simulator.stampNonLinear(getNode(2));
     }
 
     boolean ff1, ff2;
@@ -76,11 +76,11 @@ public class PhaseCompElm extends ChipElm {
         //System.out.println(out + " " + v1 + " " + v2);
         CircuitSimulator simulator = simulator();
         if (out != -1)
-            simulator().stampVoltageSource(0, getNode(2), pins[2].voltSource, out);
+            simulator.stampVoltageSource(0, getNode(2), pins[2].voltSource, out);
         else {
             // tie current through output pin to 0
-            int vn = simulator().nodeList.size() + pins[2].voltSource;
-            simulator().stampMatrix(vn, vn, 1);
+            int vn = simulator.nodeList.size() + pins[2].voltSource;
+            simulator.stampMatrix(vn, vn, 1);
         }
         pins[0].value = v1;
         pins[1].value = v2;

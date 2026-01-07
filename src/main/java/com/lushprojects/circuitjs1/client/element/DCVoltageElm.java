@@ -28,7 +28,7 @@ public class DCVoltageElm extends VoltageElm {
         super(circuitDocument, xx, yy, Waveform.WF_DC);
     }
 
-    public Class getDumpClass() {
+    public Class<VoltageElm> getDumpClass() {
         return VoltageElm.class;
     }
 

@@ -27,7 +27,7 @@ public class ACRailElm extends RailElm {
         super(circuitDocument, xx, yy, Waveform.WF_AC);
     }
 
-    public Class getDumpClass() {
+    public Class<RailElm> getDumpClass() {
         return RailElm.class;
     }
 

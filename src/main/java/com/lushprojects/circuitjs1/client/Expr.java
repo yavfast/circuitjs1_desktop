@@ -20,13 +20,15 @@ public class Expr {
         type = v;
     }
 
+    @SuppressWarnings("null")
     public double eval(ExprState es) {
         Expr left = null;
         Expr right = null;
         if (children != null && !children.isEmpty()) {
             left = children.firstElement();
-            if (children.size() == 2)
+            if (children.size() == 2) {
                 right = children.lastElement();
+            }
         }
         switch (type) {
             case E_ADD:

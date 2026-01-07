@@ -26,7 +26,7 @@ public class NTransistorElm extends TransistorElm {
         super(circuitDocument, xx, yy, false);
     }
 
-    public Class getDumpClass() {
+    public Class<TransistorElm> getDumpClass() {
         return TransistorElm.class;
     }
 
