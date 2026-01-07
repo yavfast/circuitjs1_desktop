@@ -2,8 +2,10 @@ package com.lushprojects.circuitjs1.client;
 
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.VarRailElm;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class AdjustableManager extends BaseCirSimDelegate {
 
@@ -46,10 +48,55 @@ public class AdjustableManager extends BaseCirSimDelegate {
     }
 
     public void createSliders() {
+        dedupeAdjustables();
+        addMissingVarRailVoltageAdjustables();
+        dedupeAdjustables();
         for (int i = 0; i < adjustables.size(); i++) {
             if (!adjustables.get(i).createSlider()) {
                 adjustables.remove(i--);
             }
+        }
+    }
+
+    private void dedupeAdjustables() {
+        HashSet<String> seen = new HashSet<>();
+        for (int i = 0; i < adjustables.size(); i++) {
+            Adjustable adj = adjustables.get(i);
+            CircuitElm elm = adj.getElm();
+            if (elm == null) {
+                adjustables.remove(i--);
+                continue;
+            }
+
+            int elmIndex = simulator().locateElm(elm);
+            if (elmIndex < 0) {
+                adjustables.remove(i--);
+                continue;
+            }
+
+            int sharedIndex = adj.sharedSlider == null ? -1 : adjustables.indexOf(adj.sharedSlider);
+            String key = elmIndex + ":" + adj.getEditItem() + ":" + sharedIndex;
+            if (!seen.add(key)) {
+                adjustables.remove(i--);
+            }
+        }
+    }
+
+    private void addMissingVarRailVoltageAdjustables() {
+        CirSim cirSim = (CirSim) this.cirSim;
+        for (CircuitElm ce : simulator().elmList) {
+            if (!(ce instanceof VarRailElm)) {
+                continue;
+            }
+            VarRailElm vr = (VarRailElm) ce;
+            if (findAdjustable(vr, VarRailElm.EDIT_VOLTAGE) != null) {
+                continue;
+            }
+            Adjustable adj = new Adjustable(cirSim, vr, VarRailElm.EDIT_VOLTAGE);
+            adj.sliderText = vr.sliderText;
+            adj.minValue = vr.waveformInstance.bias;
+            adj.maxValue = vr.waveformInstance.maxVoltage;
+            adjustables.add(adj);
         }
     }
 

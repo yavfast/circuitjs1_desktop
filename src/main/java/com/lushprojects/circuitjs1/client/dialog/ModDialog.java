@@ -27,7 +27,6 @@ import com.google.gwt.event.dom.client.KeyPressEvent;
 import com.google.gwt.event.dom.client.KeyPressHandler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
-import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
@@ -40,7 +39,7 @@ import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.OptionsManager;
 
-public class ModDialog extends DialogBox {
+public class ModDialog extends Dialog {
 
     final CirSim cirSim;
     VerticalPanel vp;
@@ -371,10 +370,10 @@ public class ModDialog extends DialogBox {
                 HasHorizontalAlignment.ALIGN_CENTER);
 
         center();
-        show();
     }
 
-    protected void closeDialog() {
+    @Override
+    public void closeDialog() {
         hide();
     }
 

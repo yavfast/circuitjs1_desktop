@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client.dialog;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.DialogBox;
 import com.google.gwt.user.client.ui.HTML;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
@@ -30,7 +29,7 @@ import com.google.gwt.user.client.ui.TabPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-public class HelpDialog extends DialogBox {
+public class HelpDialog extends Dialog {
 
     HorizontalPanel hp;
     VerticalPanel vp;
@@ -95,10 +94,10 @@ public class HelpDialog extends DialogBox {
             }
         });
         center();
-        show();
     }
 
-    protected void closeDialog() {
+    @Override
+    public void closeDialog() {
         hide();
     }
 }

@@ -52,9 +52,9 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         elm = ce;
         editItem = item;
         EditInfo ei = ce.getEditInfo(editItem);
-        if (ei != null && ei.maxVal > 0) {
-            minValue = ei.minVal;
-            maxValue = ei.maxVal;
+        if (ei != null && ei.maxVal != ei.minVal && !Double.isNaN(ei.minVal) && !Double.isNaN(ei.maxVal)) {
+            minValue = Math.min(ei.minVal, ei.maxVal);
+            maxValue = Math.max(ei.minVal, ei.maxVal);
         }
     }
 
@@ -97,6 +97,11 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             return false;
         if (sharedSlider != null)
             return true;
+
+        // Avoid duplicate sliders if createSliders() is called multiple times.
+        // (This can happen on imports, edits, or UI refreshes.)
+        deleteSlider();
+
         if (sliderText.isEmpty())
             return false;
         double value = ei.value;
@@ -211,6 +216,14 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             return;
         }
         removeSliderFromDialog(row);
+
+        // Clear references so future createSlider() calls rebuild cleanly.
+        row = null;
+        slider = null;
+        label = null;
+        valueLabel = null;
+        editAdjustableButton = null;
+        editElementButton = null;
     }
 
     void setMouseElm(CircuitElm e) {

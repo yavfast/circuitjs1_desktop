@@ -48,6 +48,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.ExtListEntry;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.element.ChipElm.Pin;
 import com.lushprojects.circuitjs1.client.element.CustomCompositeChipElm;
@@ -151,8 +152,7 @@ public class EditCompositeModelDialog extends Dialog
         context = canvas.getContext2d();
 
         chip = new CustomCompositeChipElm(cirSim.getActiveDocument(), 50, 50);
-        chip.x2 = 200;
-        chip.y2 = 50;
+        chip.setEndpoints(50, 50, 200, 50);
         selectedPin = -1;
         createPinsFromModel();
 
@@ -274,8 +274,9 @@ public class EditCompositeModelDialog extends Dialog
 
     void drawChip() {
         Graphics g = new Graphics(context);
-        double scalew = context.getCanvas().getWidth() / (double) (chip.boundingBox.width + chip.boundingBox.x * 2);
-        double scaleh = context.getCanvas().getHeight() / (double) (chip.boundingBox.height + chip.boundingBox.y * 2);
+        Rectangle bbox = chip.getBoundingBox();
+        double scalew = context.getCanvas().getWidth() / (double) (bbox.width + bbox.x * 2);
+        double scaleh = context.getCanvas().getHeight() / (double) (bbox.height + bbox.y * 2);
         scale = 1 / Math.min(scalew, scaleh);
         context.setFillStyle(cirSim.getBackgroundColor().getHexValue());
         context.setTransform(1, 0, 0, 1, 0, 0);
