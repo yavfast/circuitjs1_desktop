@@ -37,7 +37,7 @@ public class ResistorElm extends CircuitElm {
     }
 
     public ResistorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
     }
@@ -60,26 +60,31 @@ public class ResistorElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        ps3 = new Point();
-        ps4 = new Point();
+        if (ps3 == null) {
+            ps3 = new Point();
+        }
+        if (ps4 == null) {
+            ps4 = new Point();
+        }
     }
 
     public void draw(Graphics g) {
-        int segments = 16;
         int i;
-        int ox = 0;
-        //int hs = sim.euroResistorCheckItem.getState() ? 6 : 8;
+        // int hs = sim.euroResistorCheckItem.getState() ? 6 : 8;
         int hs = 6;
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         draw2Leads(g);
 
-        //   double segf = 1./segments;
-        double len = distance(lead1, lead2);
+        // double segf = 1./segments;
+        double len = distance(geom().getLead1(), geom().getLead2());
         g.save();
         g.setLineWidth(3.0);
-        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.transform(((double) (geom().getLead2().x - geom().getLead1().x)) / len,
+                ((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                -((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                ((double) (geom().getLead2().x - geom().getLead1().x)) / len, geom().getLead1().x, geom().getLead1().y);
         if (displaySettings().showVoltage()) {
             CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
             grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
@@ -87,6 +92,7 @@ public class ResistorElm extends CircuitElm {
             g.setStrokeStyle(grad);
         } else
             setPowerColor(g, true);
+        double dn = getDn();
         if (dn < 30)
             hs = 2;
         if (!displaySettings().euroResistors()) {
@@ -113,7 +119,7 @@ public class ResistorElm extends CircuitElm {
 
     void calculateCurrent() {
         current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
-        //System.out.print(this + " res current set to " + current + "\n");
+        // System.out.print(this + " res current set to " + current + "\n");
     }
 
     public void stamp() {

@@ -53,7 +53,7 @@ public class OpAmpElm extends CircuitElm {
     }
 
     public OpAmpElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                    StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         maxOut = 15;
         minOut = -15;
@@ -98,13 +98,13 @@ public class OpAmpElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, opheight * 2);
+        setBbox(geom().getPoint1(), geom().getPoint2(), opheight * 2);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, in1p[0], in1p[1]);
         setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, in2p[0], in2p[1]);
         setVoltageColor(g, getNodeVoltage(2));
-        drawThickLine(g, lead2, point2);
+        drawThickLine(g, geom().getLead2(), geom().getPoint2());
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
         drawThickPolygon(g, triangle);
@@ -112,7 +112,7 @@ public class OpAmpElm extends CircuitElm {
         drawCenteredText(g, "-", textp[0].x, textp[0].y - 2, true);
         drawCenteredText(g, "+", textp[1].x, textp[1].y, true);
         curcount = updateDotCount(current, curcount);
-        drawDots(g, point2, lead2, curcount);
+        drawDots(g, geom().getPoint2(), geom().getLead2(), curcount);
         drawPosts(g);
     }
 
@@ -123,6 +123,7 @@ public class OpAmpElm extends CircuitElm {
     Point in1p[], in2p[], textp[];
     Polygon triangle;
     Font plusFont;
+    private Point[] op_tris;
 
     void setSize(int s) {
         opsize = s;
@@ -133,6 +134,8 @@ public class OpAmpElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
         if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
         int ww = opwidth;
@@ -142,15 +145,19 @@ public class OpAmpElm extends CircuitElm {
         int hs = opheight * dsign;
         if ((flags & FLAG_SWAP) != 0)
             hs = -hs;
-        in1p = newPointArray(2);
-        in2p = newPointArray(2);
-        textp = newPointArray(2);
-        interpPoint2(point1, point2, in1p[0], in2p[0], 0, hs);
-        interpPoint2(lead1, lead2, in1p[1], in2p[1], 0, hs);
-        interpPoint2(lead1, lead2, textp[0], textp[1], .2, hs);
-        Point tris[] = newPointArray(2);
-        interpPoint2(lead1, lead2, tris[0], tris[1], 0, hs * 2);
-        triangle = createPolygon(tris[0], tris[1], lead2);
+        if (in1p == null)
+            in1p = newPointArray(2);
+        if (in2p == null)
+            in2p = newPointArray(2);
+        if (textp == null)
+            textp = newPointArray(2);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), in1p[0], in2p[0], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), in1p[1], in2p[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), textp[0], textp[1], .2, hs);
+        if (op_tris == null)
+            op_tris = newPointArray(2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), op_tris[0], op_tris[1], 0, hs * 2);
+        triangle = createPolygon(op_tris[0], op_tris[1], geom().getLead2());
         plusFont = new Font("SansSerif", 0, opsize == 2 ? 14 : 10);
     }
 
@@ -159,7 +166,7 @@ public class OpAmpElm extends CircuitElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? in1p[0] : (n == 1) ? in2p[0] : point2;
+        return (n == 0) ? in1p[0] : (n == 1) ? in2p[0] : geom().getPoint2();
     }
 
     public int getVoltageSourceCount() {
@@ -171,7 +178,7 @@ public class OpAmpElm extends CircuitElm {
         arr[1] = "V+ = " + getVoltageText(getNodeVoltage(1));
         arr[2] = "V- = " + getVoltageText(getNodeVoltage(0));
         // sometimes the voltage goes slightly outside range, to make
-        // convergence easier.  so we hide that here.
+        // convergence easier. so we hide that here.
         double vo = Math.max(Math.min(getNodeVoltage(2), maxOut), minOut);
         arr[3] = "Vout = " + getVoltageText(vo);
         arr[4] = "Iout = " + getCurrentText(-current);
@@ -183,9 +190,9 @@ public class OpAmpElm extends CircuitElm {
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        int vn = simulator().nodeList.size() + voltSource;
-        simulator().stampNonLinear(vn);
-        simulator().stampMatrix(getNode(2), vn, 1);
+        int vn = simulator.nodeList.size() + voltSource;
+        simulator.stampNonLinear(vn);
+        simulator.stampMatrix(getNode(2), vn, 1);
     }
 
     public void doStep() {
@@ -193,9 +200,9 @@ public class OpAmpElm extends CircuitElm {
         double vd = getNodeVoltage(1) - getNodeVoltage(0);
         double midpoint = (maxOut + minOut) * .5;
         if (Math.abs(lastvd - vd) > .1)
-            simulator().converged = false;
+            simulator.converged = false;
         else if (getNodeVoltage(2) > maxOut + .1 || getNodeVoltage(2) < minOut - .1)
-            simulator().converged = false;
+            simulator.converged = false;
         double x = 0;
         int vn = simulator().nodeList.size() + voltSource;
         double dx = 0;
@@ -211,7 +218,8 @@ public class OpAmpElm extends CircuitElm {
             dx = gain;
             x = midpoint;
         }
-        //System.out.println("opamp " + vd + " " + getNodeVoltage(2) + " " + dx + " "  + x + " " + lastvd + " " + sim.converged);
+        // System.out.println("opamp " + vd + " " + getNodeVoltage(2) + " " + dx + " " +
+        // x + " " + lastvd + " " + sim.converged);
 
         // newton-raphson
         simulator().stampMatrix(vn, getNode(0), dx);
@@ -220,8 +228,11 @@ public class OpAmpElm extends CircuitElm {
         simulator().stampRightSide(vn, x);
 
         lastvd = vd;
-	    /*if (sim.converged)
-          System.out.println((getNodeVoltage(1)-getNodeVoltage(0)) + " " + getNodeVoltage(2) + " " + initvd);*/
+        /*
+         * if (sim.converged)
+         * System.out.println((getNodeVoltage(1)-getNodeVoltage(0)) + " " +
+         * getNodeVoltage(2) + " " + initvd);
+         */
     }
 
     // there is no current path through the op-amp inputs, but there
@@ -273,13 +284,15 @@ public class OpAmpElm extends CircuitElm {
     }
 
     public void flipX(int c2, int count) {
-        if (dx == 0)
+        int dx0 = getDx();
+        if (dx0 == 0)
             flags ^= FLAG_SWAP;
         super.flipX(c2, count);
     }
 
     public void flipY(int c2, int count) {
-        if (dy == 0)
+        int dy0 = getDy();
+        if (dy0 == 0)
             flags ^= FLAG_SWAP;
         super.flipY(c2, count);
     }
@@ -321,36 +334,36 @@ public class OpAmpElm extends CircuitElm {
     public Point getJsonStartPoint() {
         // For OpAmp, point1 is not at any pin - it's a reference point
         // for calculating in+/in- positions
-        return new Point(x, y);
+        return new Point(getX(), getY());
     }
 
     @Override
     public Point getJsonEndPoint() {
         // For OpAmp, point2 = out position, but out is not the second pin
         // (second pin is in+), so we need to export it
-        return new Point(x2, y2);
+        return new Point(getX2(), getY2());
     }
 
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse gain
         gain = getJsonDouble(props, "gain", 100000);
         flags |= FLAG_GAIN;
-        
+
         // Parse max/min output
         maxOut = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "max_output", "15 V"));
+                getJsonString(props, "max_output", "15 V"));
         minOut = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "min_output", "-15 V"));
-        
+                getJsonString(props, "min_output", "-15 V"));
+
         // Parse GBW if present
         if (props.containsKey("gbw")) {
             gbw = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-                getJsonString(props, "gbw", "1 MHz"));
+                    getJsonString(props, "gbw", "1 MHz"));
         }
-        
+
         // Parse swap inputs
         if (getJsonBoolean(props, "swap_inputs", false)) {
             flags |= FLAG_SWAP;

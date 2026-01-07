@@ -39,7 +39,7 @@ public class WattmeterElm extends CircuitElm {
     }
 
     public WattmeterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         width = Integer.parseInt(st.nextToken());
         setup();
@@ -70,56 +70,83 @@ public class WattmeterElm extends CircuitElm {
     public void drag(int xx, int yy) {
         xx = circuitEditor().snapGrid(xx);
         yy = circuitEditor().snapGrid(yy);
-        int w1 = max(circuitEditor().gridSize, abs(yy - y));
-        int w2 = max(circuitEditor().gridSize, abs(xx - x));
+        int w1 = max(circuitEditor().gridSize, abs(yy - getY()));
+        int w2 = max(circuitEditor().gridSize, abs(xx - getX()));
         if (w1 > w2) {
-            xx = x;
+            xx = getX();
             width = w2;
         } else {
-            yy = y;
+            yy = getY();
             width = w1;
         }
-        x2 = xx;
-        y2 = yy;
+        setEndpoints(getX(), getY(), xx, yy);
         setPoints();
     }
 
     Point posts[];
     Point inner[];
     int maxTextLen;
+    private Point ptemp1, ptemp2, ptemp3, ptemp4;
+    private Point ptempR1, ptempR2, ptempR3, ptempR4;
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+
+        // This element seems to use raw coord diffs for orientation.
+        // We can get them via geom() or getters.
+        int dx = getDx();
+        int dy = getDy();
         int ds = (dy == 0) ? sign(dx) : -sign(dy);
 
         // get 2 more terminals
-        Point p3 = interpPoint(point1, point2, 0, -width * ds);
-        Point p4 = interpPoint(point1, point2, 1, -width * ds);
+        if (ptemp1 == null)
+            ptemp1 = new Point();
+        if (ptemp2 == null)
+            ptemp2 = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp1, 0, -width * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp2, 1, -width * ds);
 
         // get stubs
         int sep = circuitEditor().gridSize;
-        Point p5 = interpPoint(point1, point2, sep / dn);
-        Point p6 = interpPoint(point1, point2, 1 - sep / dn);
-        Point p7 = interpPoint(p3, p4, sep / dn);
-        Point p8 = interpPoint(p3, p4, 1 - sep / dn);
+        if (ptemp3 == null)
+            ptemp3 = new Point();
+        if (ptemp4 == null)
+            ptemp4 = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp3, sep / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp4, 1 - sep / dn);
+        Point p5 = ptemp3;
+        Point p6 = ptemp4;
+        Point p7 = new Point();
+        Point p8 = new Point();
+        interpPoint(ptemp1, ptemp2, p7, sep / dn);
+        interpPoint(ptemp1, ptemp2, p8, 1 - sep / dn);
 
         // we number the posts like this because we want the lower-numbered
         // points to be on the bottom, so that if some of them are unconnected
         // (which is often true) then the bottom ones will get automatically
         // attached to ground.
-        posts = new Point[]{p3, p4, point1, point2};
-        inner = new Point[]{p7, p8, p5, p6};
+        posts = new Point[] { ptemp1, ptemp2, geom().getPoint1(), geom().getPoint2() };
+        inner = new Point[] { p7, p8, p5, p6 };
 
         // get rectangle
-        Point r1 = interpPoint(point1, point2, sep / dn, ds * sep);
-        Point r2 = interpPoint(point1, point2, 1 - sep / dn, ds * sep);
-        Point r3 = interpPoint(point1, point2, sep / dn, -ds * (sep + width));
-        Point r4 = interpPoint(point1, point2, 1 - sep / dn, -ds * (sep + width));
-        rectPointsX = new int[]{r1.x, r2.x, r4.x, r3.x};
-        rectPointsY = new int[]{r1.y, r2.y, r4.y, r3.y};
+        if (ptempR1 == null)
+            ptempR1 = new Point();
+        if (ptempR2 == null)
+            ptempR2 = new Point();
+        if (ptempR3 == null)
+            ptempR3 = new Point();
+        if (ptempR4 == null)
+            ptempR4 = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptempR1, sep / dn, ds * sep);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptempR2, 1 - sep / dn, ds * sep);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptempR3, sep / dn, -ds * (sep + width));
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptempR4, 1 - sep / dn, -ds * (sep + width));
+        rectPointsX = new int[] { ptempR1.x, ptempR2.x, ptempR4.x, ptempR3.x };
+        rectPointsY = new int[] { ptempR1.y, ptempR2.y, ptempR4.y, ptempR3.y };
 
-        center = interpPoint(r1, r4, .5);
-        maxTextLen = max(abs(r1.x - r4.x) - 5, 5);
+        center = interpPoint(ptempR1, ptempR4, .5);
+        maxTextLen = max(abs(ptempR1.x - ptempR4.x) - 5, 5);
     }
 
     int rectPointsX[], rectPointsY[];
@@ -238,6 +265,6 @@ public class WattmeterElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"I1+", "I1-", "V+", "V-"};
+        return new String[] { "I1+", "I1-", "V+", "V-" };
     }
 }

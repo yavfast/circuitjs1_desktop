@@ -23,6 +23,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
@@ -66,31 +67,39 @@ public class SweepElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - circleSize / dn);
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        Point lead1 = geom().getLead1();
+        if (lead1 == p1) {
+            lead1 = new Point();
+            geom().setLead1(lead1);
+        }
+        double dn = getDn();
+        if (dn != 0) {
+            interpPoint(p1, p2, lead1, 1 - circleSize / dn);
+        } else {
+            lead1.x = p1.x;
+            lead1.y = p1.y;
+        }
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, circleSize);
+        setBbox(geom().getPoint1(), geom().getPoint2(), circleSize);
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
-        int xc = point2.x;
-        int yc = point2.y;
+        int xc = geom().getX2();
+        int yc = geom().getY2();
         drawThickCircle(g, xc, yc, circleSize);
         int wl = 8;
         adjustBbox(xc - circleSize, yc - circleSize,
                 xc + circleSize, yc + circleSize);
         int i;
         int xl = 10;
-        long tm = System.currentTimeMillis();
-        //double w = (this == mouseElm ? 3 : 2);
-        tm %= 2000;
-        if (tm > 1000)
-            tm = 2000 - tm;
-        double w = 1 + tm * .002;
-        if (circuitDocument.isRunning())
-            w = 1 + 2 * (frequency - minF) / (maxF - minF);
+
+        // Keep generator icon static (no time-based animation).
+        double w = 2;
 
         g.beginPath();
         g.setLineWidth(3.0);
@@ -106,14 +115,16 @@ public class SweepElm extends CircuitElm {
 
         if (displaySettings().showValues()) {
             String s = getShortUnitText(frequency, "Hz");
-            if (dx == 0 || dy == 0)
+            int dx0 = getDx();
+            int dy0 = getDy();
+            if (dx0 == 0 || dy0 == 0)
                 drawValues(g, s, circleSize);
         }
 
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
         if (circuitEditor().dragElm != this)
-            drawDots(g, point1, lead1, curcount);
+            drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
     }
 
     public void stamp() {

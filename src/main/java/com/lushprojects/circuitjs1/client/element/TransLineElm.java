@@ -44,7 +44,7 @@ public class TransLineElm extends CircuitElm {
     }
 
     public TransLineElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         delay = parseDouble(st.nextToken());
         imped = parseDouble(st.nextToken());
@@ -74,21 +74,21 @@ public class TransLineElm extends CircuitElm {
     public void drag(int xx, int yy) {
         xx = circuitEditor().snapGrid(xx);
         yy = circuitEditor().snapGrid(yy);
-        int w1 = max(circuitEditor().gridSize, abs(yy - y));
-        int w2 = max(circuitEditor().gridSize, abs(xx - x));
+        int w1 = max(circuitEditor().gridSize, abs(yy - getY()));
+        int w2 = max(circuitEditor().gridSize, abs(xx - getX()));
         if (w1 > w2) {
-            xx = x;
+            xx = getX();
             width = w2;
         } else {
-            yy = y;
+            yy = getY();
             width = w1;
         }
-        x2 = xx;
-        y2 = yy;
+        setEndpoints(getX(), getY(), xx, yy);
         setPoints();
     }
 
     Point posts[], inner[];
+    private Point p3tmp, p4tmp, p5tmp, p6tmp, p7tmp, p8tmp;
 
     public void reset() {
         if (simulator().maxTimeStep == 0)
@@ -108,24 +108,49 @@ public class TransLineElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        int dx = getDx();
+        int dy = getDy();
         int ds = (dy == 0) ? sign(dx) : -sign(dy);
-        Point p3 = interpPoint(point1, point2, 0, -width * ds);
-        Point p4 = interpPoint(point1, point2, 1, -width * ds);
+        if (p3tmp == null)
+            p3tmp = new Point();
+        if (p4tmp == null)
+            p4tmp = new Point();
+        if (p5tmp == null)
+            p5tmp = new Point();
+        if (p6tmp == null)
+            p6tmp = new Point();
+        if (p7tmp == null)
+            p7tmp = new Point();
+        if (p8tmp == null)
+            p8tmp = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p3tmp, 0, -width * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p4tmp, 1, -width * ds);
         int sep = circuitEditor().gridSize / 2;
-        Point p5 = interpPoint(point1, point2, 0, -(width / 2 - sep) * ds);
-        Point p6 = interpPoint(point1, point2, 1, -(width / 2 - sep) * ds);
-        Point p7 = interpPoint(point1, point2, 0, -(width / 2 + sep) * ds);
-        Point p8 = interpPoint(point1, point2, 1, -(width / 2 + sep) * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p5tmp, 0, -(width / 2 - sep) * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p6tmp, 1, -(width / 2 - sep) * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p7tmp, 0, -(width / 2 + sep) * ds);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), p8tmp, 1, -(width / 2 + sep) * ds);
 
         // we number the posts like this because we want the lower-numbered
         // points to be on the bottom, so that if some of them are unconnected
         // (which is often true) then the bottom ones will get automatically
         // attached to ground.
-        posts = new Point[]{p3, p4, point1, point2};
-        inner = new Point[]{p7, p8, p5, p6};
+        if (posts == null)
+            posts = new Point[4];
+        if (inner == null)
+            inner = new Point[4];
+        posts[0] = p3tmp;
+        posts[1] = p4tmp;
+        posts[2] = geom().getPoint1();
+        posts[3] = geom().getPoint2();
+        inner[0] = p7tmp;
+        inner[1] = p8tmp;
+        inner[2] = p5tmp;
+        inner[3] = p6tmp;
     }
 
     public void draw(Graphics g) {
+        double dn = getDn();
         setBbox(posts[0], posts[3], 0);
         int segments = (int) (dn / 2);
         int ix0 = ptr - 1 + lenSteps;
@@ -204,10 +229,13 @@ public class TransLineElm extends CircuitElm {
         double v5 = getNodeVoltage(5);
         voltageL[ptr] = v2 - v0 + v2 - v4;
         voltageR[ptr] = v3 - v1 + v3 - v5;
-        //System.out.println(v2 + " " + v0 + " " + (v2-v0) + " " + (imped*current1) + " " + voltageL[ptr]);
-	/*System.out.println("sending fwd  " + currentL[ptr] + " " + current1);
-	  System.out.println("sending back " + currentR[ptr] + " " + current2);*/
-        //System.out.println("sending back " + voltageR[ptr]);
+        // System.out.println(v2 + " " + v0 + " " + (v2-v0) + " " + (imped*current1) + "
+        // " + voltageL[ptr]);
+        /*
+         * System.out.println("sending fwd  " + currentL[ptr] + " " + current1);
+         * System.out.println("sending back " + currentR[ptr] + " " + current2);
+         */
+        // System.out.println("sending back " + voltageR[ptr]);
     }
 
     public void doStep() {
@@ -218,7 +246,7 @@ public class TransLineElm extends CircuitElm {
         int nextPtr = (ptr + 1) % lenSteps;
         CircuitSimulator simulator = simulator();
         simulator.updateVoltageSource(getNode(4), getNode(0), voltSource1, -voltageR[nextPtr]);
-		simulator.updateVoltageSource(getNode(5), getNode(1), voltSource2, -voltageL[nextPtr]);
+        simulator.updateVoltageSource(getNode(5), getNode(1), voltSource2, -voltageL[nextPtr]);
         if (Math.abs(getNodeVoltage(0)) > 1e-5 || Math.abs(getNodeVoltage(1)) > 1e-5) {
             simulator().stop("Need to ground transmission line!", this);
             return;
@@ -236,7 +264,7 @@ public class TransLineElm extends CircuitElm {
         return posts[n];
     }
 
-    //double getVoltageDiff() { return getNodeVoltage(0); }
+    // double getVoltageDiff() { return getNodeVoltage(0); }
     public int getVoltageSourceCount() {
         return 2;
     }
@@ -247,11 +275,13 @@ public class TransLineElm extends CircuitElm {
 
     public boolean getConnection(int n1, int n2) {
         return false;
-	/*if (comparePair(n1, n2, 0, 1))
-	  return true;
-	  if (comparePair(n1, n2, 2, 3))
-	  return true;
-	  return false;*/
+        /*
+         * if (comparePair(n1, n2, 0, 1))
+         * return true;
+         * if (comparePair(n1, n2, 2, 3))
+         * return true;
+         * return false;
+         */
     }
 
     public void getInfo(String arr[]) {
@@ -292,11 +322,13 @@ public class TransLineElm extends CircuitElm {
     }
 
     public boolean canFlipX() {
-        return dy == 0;
+        int _dy = getDy();
+        return _dy == 0;
     }
 
     public boolean canFlipY() {
-        return dx == 0;
+        int _dx = getDx();
+        return _dx == 0;
     }
 
     @Override
@@ -370,4 +402,3 @@ public class TransLineElm extends CircuitElm {
         }
     }
 }
-

@@ -26,12 +26,14 @@ import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class OrGateElm extends GateElm {
+    private Point[] triPoints;
+
     public OrGateElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
     }
 
     public OrGateElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                     StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
@@ -91,28 +93,35 @@ public class OrGateElm extends GateElm {
             linePoints = null;
         } else {
             // 0 - top left, 1 - start of top curve, 2 - control point for top curve
-            // 3 - right, 4 - control point for bottom curve, 5 - start of bottom curve, 6 - bottom right, 7 - control point for left curve
-//		if (this instanceof XorGateElm)
-//		    linePoints = new Point[5];
+            // 3 - right, 4 - control point for bottom curve, 5 - start of bottom curve, 6 -
+            // bottom right, 7 - control point for left curve
+            // if (this instanceof XorGateElm)
+            // linePoints = new Point[5];
 
-            Point triPoints[] = newPointArray(11);
-            interpPoint2(lead1, lead2, triPoints[0], triPoints[6], -.05, hs2);
-            interpPoint2(lead1, lead2, triPoints[1], triPoints[5], .3, hs2);
-            triPoints[3] = lead2;
-            interpPoint2(lead1, lead2, triPoints[2], triPoints[4], .7, hs2 * .81);
-            interpPoint(lead1, lead2, triPoints[7], .08); // was .15
+            if (triPoints == null)
+                triPoints = newPointArray(11);
+            interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[0], triPoints[6], -.05, hs2);
+            interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[1], triPoints[5], .3, hs2);
+            triPoints[3] = geom().getLead2();
+            interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[2], triPoints[4], .7, hs2 * .81);
+            interpPoint(geom().getLead1(), geom().getLead2(), triPoints[7], .08); // was .15
 
             if (this instanceof XorGateElm) {
-                double ww2 = (ww == 0) ? dn * 2 : ww * 2;
-                interpPoint2(lead1, lead2, triPoints[8], triPoints[9], -.05 - 5 / ww2, hs2);
-                interpPoint(lead1, lead2, triPoints[10], .08 - 5 / ww2);
+                double ww2 = (ww == 0) ? getDn() * 2 : ww * 2;
+                interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[8], triPoints[9], -.05 - 5 / ww2, hs2);
+                interpPoint(geom().getLead1(), geom().getLead2(), triPoints[10], .08 - 5 / ww2);
             }
 
             gatePoly = createPolygon(triPoints);
         }
         if (isInverting()) {
-            pcircle = interpPoint(point1, point2, .5 + (ww + 4) / dn);
-            lead2 = interpPoint(point1, point2, .5 + (ww + 8) / dn);
+            double dn = getDn();
+            if (pcircle == null)
+                pcircle = new Point();
+            // lead2 handled by geom, usually
+            // here we calculate specific points for inverting circle
+            interpPoint(geom().getPoint1(), geom().getPoint2(), pcircle, .5 + (ww + 4) / dn);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), .5 + (ww + 8) / dn);
         }
     }
 

@@ -49,7 +49,7 @@ public class RelayContactElm extends CircuitElm {
     int type;
 
     // fractional position, between 0 and 1 inclusive
-//    double d_position;
+    // double d_position;
 
     // integer position, can be 0 (off), 1 (on), 2 (in between)
     int i_position;
@@ -71,7 +71,7 @@ public class RelayContactElm extends CircuitElm {
     }
 
     public RelayContactElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                           StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         label = CustomLogicModel.unescape(st.nextToken());
         r_on = parseDouble(st.nextToken());
@@ -106,34 +106,39 @@ public class RelayContactElm extends CircuitElm {
         }
 
         interpPoint(swpoles[1], swpoles[2], ptSwitch, i_position);
-        //setVoltageColor(g, getNodeVoltage(nSwitch0));
+        // setVoltageColor(g, getNodeVoltage(nSwitch0));
         g.setColor(Color.lightGray);
         drawThickLine(g, swpoles[0], ptSwitch);
 
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-        if (x == x2)
-            g.drawString(label, x + 10, swpoles[y < y2 ? 0 : 1].y - 5);
+        if (getX() == getX2())
+            g.drawString(label, getX() + 10, swpoles[getY() < getY2() ? 0 : 1].y - 5);
         else {
             g.save();
             g.setTextAlign(Context2d.TextAlign.CENTER);
-            g.drawString(label, (x + x2) / 2, y + 15);
+            g.drawString(label, (getX() + getX2()) / 2, getY() + 15);
             g.restore();
         }
 
         if (useIECSymbol() && (type == RelayCoilElm.TYPE_ON_DELAY || type == RelayCoilElm.TYPE_OFF_DELAY)) {
             g.setColor(Color.lightGray);
-            interpPoint(lead1, lead2, extraPoints[0], .5 - 2 / 32., i_position == 1 ? openhs / 2 : 0);
-            interpPoint(lead1, lead2, extraPoints[1], .5 + 2 / 32., i_position == 1 ? openhs / 2 : 0);
+            interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[0], .5 - 2 / 32.,
+                    i_position == 1 ? openhs / 2 : 0);
+            interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[1], .5 + 2 / 32.,
+                    i_position == 1 ? openhs / 2 : 0);
             g.drawLine(extraPoints[0], extraPoints[2]);
             g.drawLine(extraPoints[1], extraPoints[3]);
             g.beginPath();
+            int dx = getDx();
+            int dy = getDy();
+            int dsign = getDsign();
             double ang = -Math.atan2(-dy * dsign, dx * dsign);
             int ds = 22 * dsign;
             if (type == RelayCoilElm.TYPE_OFF_DELAY) {
                 ang += Math.PI;
-                interpPoint(lead1, lead2, extraPoints[4], .5, ds + 6 * dsign);
+                interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[4], .5, ds + 6 * dsign);
             } else {
-                interpPoint(lead1, lead2, extraPoints[4], .5, ds - 5 * dsign);
+                interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[4], .5, ds - 5 * dsign);
             }
             g.arc(extraPoints[4].x, extraPoints[4].y, 6, -Math.PI / 8 + ang, Math.PI * 9 / 8 + ang, true);
             g.stroke();
@@ -145,8 +150,8 @@ public class RelayContactElm extends CircuitElm {
         if (i_position == 0)
             drawDots(g, swpoles[i_position + 1], swposts[i_position + 1], switchCurCount);
 
-        drawPosts(g);
-        setBbox(point1, point2, openhs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 6);
+        draw2Leads(g);
     }
 
     public double getCurrentIntoNode(int n) {
@@ -159,6 +164,7 @@ public class RelayContactElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        int dsign = getDsign();
         allocNodes();
         openhs = dsign * 16;
 
@@ -171,19 +177,19 @@ public class RelayContactElm extends CircuitElm {
             swposts[j] = new Point();
             swpoles[j] = new Point();
         }
-        interpPoint(lead1, lead2, swpoles[0], 0, 0);
-        interpPoint(lead1, lead2, swpoles[1], 1, 0);
-        interpPoint(lead1, lead2, swpoles[2], 1, openhs);
-        interpPoint(point1, point2, swposts[0], 0, 0);
-        interpPoint(point1, point2, swposts[1], 1, 0);
-        interpPoint(point1, point2, swposts[2], 1, openhs);
+        interpPoint(geom().getLead1(), geom().getLead2(), swpoles[0], 0, 0);
+        interpPoint(geom().getLead1(), geom().getLead2(), swpoles[1], 1, 0);
+        interpPoint(geom().getLead1(), geom().getLead2(), swpoles[2], 1, openhs);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), swposts[0], 0, 0);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), swposts[1], 1, 0);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), swposts[2], 1, openhs);
         ptSwitch = new Point();
 
         if (useIECSymbol()) {
             extraPoints = newPointArray(5);
             int ds = 22 * dsign;
-            interpPoint(lead1, lead2, extraPoints[2], .5 - 2 / 32., ds);
-            interpPoint(lead1, lead2, extraPoints[3], .5 + 2 / 32., ds);
+            interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[2], .5 - 2 / 32., ds);
+            interpPoint(geom().getLead1(), geom().getLead2(), extraPoints[3], .5 + 2 / 32., ds);
         }
     }
 
@@ -209,7 +215,8 @@ public class RelayContactElm extends CircuitElm {
         switchCurrent = switchCurCount = 0;
         i_position = 0;
 
-        // preserve onState because if we don't, Relay Flip-Flop gets left in a weird state on reset.
+        // preserve onState because if we don't, Relay Flip-Flop gets left in a weird
+        // state on reset.
         // onState = false;
     }
 
@@ -282,7 +289,9 @@ public class RelayContactElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "RelayContact"; }
+    public String getJsonTypeName() {
+        return "RelayContact";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -298,16 +307,16 @@ public class RelayContactElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         if (props.containsKey("label")) {
             label = String.valueOf(props.get("label"));
         }
-        
+
         r_on = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "on_resistance", "0.05 Ohm"));
+                getJsonString(props, "on_resistance", "0.05 Ohm"));
         r_off = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "off_resistance", "1 MOhm"));
-        
+                getJsonString(props, "off_resistance", "1 MOhm"));
+
         if (props.containsKey("normally_closed")) {
             Object val = props.get("normally_closed");
             if (val instanceof Boolean && (Boolean) val) {
@@ -328,7 +337,7 @@ public class RelayContactElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"common", "no"};
+        return new String[] { "common", "no" };
     }
 
     @Override

@@ -82,10 +82,21 @@ public class AnalogSwitchElm extends CircuitElm {
         super.setPoints();
         calcLeads(32);
         adjustLeadsToGrid(isFlippedX(), isFlippedY());
-        ps = new Point();
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        if (ps == null) {
+            ps = new Point();
+        }
         openhs = (isFlippedX() != isFlippedY()) != isFlipped() ? -16 : 16;
-        point3 = interpPoint(lead1, lead2, .5, -openhs);
-        lead3 = interpPoint(lead1, lead2, .5, -openhs / 2);
+        if (point3 == null) {
+            point3 = new Point();
+        }
+        if (lead3 == null) {
+            lead3 = new Point();
+        }
+        interpPoint(lead1, lead2, point3, .5, -openhs);
+        interpPoint(lead1, lead2, lead3, .5, -openhs / 2);
     }
 
     boolean isFlippedX() {
@@ -117,6 +128,11 @@ public class AnalogSwitchElm extends CircuitElm {
 
     public void draw(Graphics g) {
         int hs = (open) ? openhs : 0;
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         setBbox(point1, point2, openhs);
 
         draw2Leads(g);
@@ -178,7 +194,8 @@ public class AnalogSwitchElm extends CircuitElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : point3;
+        ElmGeometry geom = geom();
+        return (n == 0) ? geom.getPoint1() : (n == 1) ? geom.getPoint2() : point3;
     }
 
     public void getInfo(String arr[]) {

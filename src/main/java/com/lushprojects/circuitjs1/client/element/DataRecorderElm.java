@@ -25,7 +25,7 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     public DataRecorderElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                           StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         setDataCount(Integer.parseInt(st.nextToken()));
     }
@@ -50,7 +50,8 @@ public class DataRecorderElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - 8 / dn);
+        double dn = getDn();
+        geom().setLead1(interpPoint(geom().getPoint1(), geom().getPoint2(), 1 - 8 / dn));
     }
 
     public void draw(Graphics g) {
@@ -59,13 +60,13 @@ public class DataRecorderElm extends CircuitElm {
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
-        setBbox(point1, lead1, 0);
+        setBbox(geom().getPoint1(), geom().getLead1(), 0);
         String s = Locale.LS("export");
-        drawLabeledNode(g, s, point1, lead1);
+        drawLabeledNode(g, s, geom().getPoint1(), geom().getLead1());
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         drawPosts(g);
         g.restore();
     }
@@ -82,10 +83,10 @@ public class DataRecorderElm extends CircuitElm {
 
     public void stepFinished() {
         CircuitSimulator simulator = simulator();
-        if (lastTimeStepCount == simulator().timeStepCount)
+        if (lastTimeStepCount == simulator.timeStepCount)
             return;
         data[dataPtr++] = getNodeVoltage(0);
-        lastTimeStepCount = simulator().timeStepCount;
+        lastTimeStepCount = simulator.timeStepCount;
         if (dataPtr >= dataCount) {
             dataPtr = 0;
             dataFull = true;
@@ -100,18 +101,18 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     static public final native String getBlobUrl(String data)
-        /*-{
-                var datain=[""];
-                datain[0]=data;
-		var oldblob = $doc.recorderBlob;
-		// remove old blob if any.  We should do this when dialog is dismissed, but this is easier
-		if (oldblob)
-		    URL.revokeObjectURL(oldblob);
-                var blob=new Blob(datain, {type: 'text/plain' } );
-                var url = URL.createObjectURL(blob);
-                $doc.recorderBlob = url;
-                return url;
-        }-*/;
+    /*-{
+            var datain=[""];
+            datain[0]=data;
+    var oldblob = $doc.recorderBlob;
+    // remove old blob if any.  We should do this when dialog is dismissed, but this is easier
+    if (oldblob)
+        URL.revokeObjectURL(oldblob);
+            var blob=new Blob(datain, {type: 'text/plain' } );
+            var url = URL.createObjectURL(blob);
+            $doc.recorderBlob = url;
+            return url;
+    }-*/;
 
     public EditInfo getEditInfo(int n) {
         if (n == 0) {
@@ -163,6 +164,6 @@ public class DataRecorderElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"input"};
+        return new String[] { "input" };
     }
 }

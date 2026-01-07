@@ -43,7 +43,7 @@ public class LEDElm extends DiodeElm {
     }
 
     public LEDElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                  StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         if ((f & (FLAG_MODEL | FLAG_FWDROP)) == 0) {
             final double fwdrop = 2.1024259;
@@ -75,10 +75,11 @@ public class LEDElm extends DiodeElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int cr = 12;
-        ledLead1 = interpPoint(point1, point2, .5 - cr / dn);
-        ledLead2 = interpPoint(point1, point2, .5 + cr / dn);
-        ledCenter = interpPoint(point1, point2, .5);
+        ledLead1 = interpPoint(geom().getPoint1(), geom().getPoint2(), .5 - cr / dn);
+        ledLead2 = interpPoint(geom().getPoint1(), geom().getPoint2(), .5 + cr / dn);
+        ledCenter = interpPoint(geom().getPoint1(), geom().getPoint2(), .5);
     }
 
     public void draw(Graphics g) {
@@ -87,9 +88,9 @@ public class LEDElm extends DiodeElm {
             return;
         }
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, ledLead1);
+        drawThickLine(g, geom().getPoint1(), ledLead1);
         setVoltageColor(g, getNodeVoltage(1));
-        drawThickLine(g, ledLead2, point2);
+        drawThickLine(g, ledLead2, geom().getPoint2());
 
         g.setColor(neutralColor());
         int cr = 12;
@@ -105,10 +106,10 @@ public class LEDElm extends DiodeElm {
         Color cc = new Color((int) (colorR * w), (int) (colorG * w), (int) (colorB * w));
         g.setColor(cc);
         g.fillOval(ledCenter.x - cr, ledCenter.y - cr, cr * 2, cr * 2);
-        setBbox(point1, point2, cr);
+        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         updateDotCount();
-        drawDots(g, point1, ledLead1, curcount);
-        drawDots(g, point2, ledLead2, -curcount);
+        drawDots(g, geom().getPoint1(), ledLead1, curcount);
+        drawDots(g, geom().getPoint2(), ledLead2, -curcount);
         drawPosts(g);
     }
 
@@ -122,14 +123,11 @@ public class LEDElm extends DiodeElm {
 
     public EditInfo getEditInfo(int n) {
         if (n == 0)
-            return new EditInfo("Red Value (0-1)", colorR, 0, 1).
-                    setDimensionless();
+            return new EditInfo("Red Value (0-1)", colorR, 0, 1).setDimensionless();
         if (n == 1)
-            return new EditInfo("Green Value (0-1)", colorG, 0, 1).
-                    setDimensionless();
+            return new EditInfo("Green Value (0-1)", colorG, 0, 1).setDimensionless();
         if (n == 2)
-            return new EditInfo("Blue Value (0-1)", colorB, 0, 1).
-                    setDimensionless();
+            return new EditInfo("Blue Value (0-1)", colorB, 0, 1).setDimensionless();
         if (n == 3)
             return new EditInfo("Max Brightness Current (A)", maxBrightnessCurrent, 0, .1);
         return super.getEditInfo(n - 4);

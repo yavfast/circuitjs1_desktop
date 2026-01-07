@@ -84,6 +84,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         getActiveDocument().stop(message, ce);
     }
 
+    /**
+     * Clears any active stop/error state (message + element) without changing circuit contents.
+     * Useful when loading a new circuit so a previous stop does not block starting.
+     */
+    public void clearStopState() {
+        stopMessage = null;
+        stopElm = null;
+    }
+
     int locateElm(CircuitElm elm) {
         return elmList.indexOf(elm);
     }
@@ -237,7 +246,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 boolean notReady = (ce.isRemovableWire() && !ce.hasWireInfo);
 
                 // which post does this element connect to, if any?
-                if (pt.x == wire.x && pt.y == wire.y) {
+                if (pt.x == wire.getX() && pt.y == wire.getY()) {
                     neighbors0.add(ce);
                     if (notReady) {
                         isReady0 = false;
@@ -298,10 +307,18 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (ce instanceof GroundElm) {
                 gotGround = true;
 
-                // set ground node to 0
-                NodeMapEntry nme = nodeMap.get(ce.getPost(0));
-                nme.node = 0;
-                break;
+                // Set ALL ground symbols to node 0.
+                // Normally GroundElm instances are merged via wire-closure, but mapping all
+                // grounds here makes the solver robust for circuits that contain multiple
+                // disconnected subcircuits, each with its own ground symbol.
+                Point pt = ce.getPost(0);
+                NodeMapEntry nme = nodeMap.get(pt);
+                if (nme != null) {
+                    nme.node = 0;
+                } else {
+                    nodeMap.put(pt, new NodeMapEntry(0));
+                }
+                continue;
             }
             if (ce instanceof RailElm) {
                 gotRail = true;
@@ -595,6 +612,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         connectUnconnectedNodes();
 
+        if (singularStabilizersActive) {
+            stampSingularMatrixStabilizers();
+        }
+
         // stamp linear circuit elements
         for (CircuitElm ce : elmList) {
             ce.setParentList(elmList);
@@ -738,6 +759,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         int newMatrixSize = newSizeCounter;
         if (newMatrixSize == matrixSize) {
             // No simplification was possible, no need to rebuild the matrix.
+            // Still need to snapshot the base matrix/right side for nonlinear sub-iterations.
+            System.arraycopy(this.circuitRightSide, 0, this.origRightSide, 0, matrixSize);
+            for (i = 0; i < matrixSize; i++) {
+                System.arraycopy(this.circuitMatrix[i], 0, this.origMatrix[i], 0, matrixSize);
+            }
             return true;
         }
 
@@ -812,7 +838,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         continue;
                     }
                     // does this post intersect elm's bounding box?
-                    if (!ce.boundingBox.contains(cn.x, cn.y)) {
+                    if (!ce.getBoundingBox().contains(cn.x, cn.y)) {
                         continue;
                     }
                     int k;
@@ -849,12 +875,19 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     boolean needsStamp;
 
+    // If we detect a singular matrix during simulation, enable minimal
+    // stabilization stamps (gmin + tiny voltage source series conductance)
+    // and re-stamp the circuit. This avoids repeated LU failures during
+    // nonlinear sub-iterations for idealized circuits.
+    boolean singularStabilizersActive;
+
     // analyze the circuit when something changes, so it can be simulated.
     // Most of this has been moved to preStampCircuit() so it can be avoided if the
     // simulation is stopped.
     void analyzeCircuit() {
         stopMessage = null;
         stopElm = null;
+        singularStabilizersActive = false;
         if (elmList.isEmpty()) {
             postDrawList.clear();
             badConnectionList.clear();
@@ -1122,13 +1155,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
 
                 int side = ChipElm.SIDE_W;
-                if (Math.abs(ce.dx) >= Math.abs(ce.dy) && ce.dx > 0) {
+                int _dx = ce.getDx();
+                int _dy = ce.getDy();
+                if (Math.abs(_dx) >= Math.abs(_dy) && _dx > 0) {
                     side = ChipElm.SIDE_E;
                 }
-                if (Math.abs(ce.dx) <= Math.abs(ce.dy) && ce.dy < 0) {
+                if (Math.abs(_dx) <= Math.abs(_dy) && _dy < 0) {
                     side = ChipElm.SIDE_N;
                 }
-                if (Math.abs(ce.dx) <= Math.abs(ce.dy) && ce.dy > 0) {
+                if (Math.abs(_dx) <= Math.abs(_dy) && _dy > 0) {
                     side = ChipElm.SIDE_S;
                 }
 
@@ -1142,10 +1177,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
 
-        sideLabels[ChipElm.SIDE_W].sort((a, b) -> Integer.signum(a.y - b.y));
-        sideLabels[ChipElm.SIDE_E].sort((a, b) -> Integer.signum(a.y - b.y));
-        sideLabels[ChipElm.SIDE_N].sort((a, b) -> Integer.signum(a.x - b.x));
-        sideLabels[ChipElm.SIDE_S].sort((a, b) -> Integer.signum(a.x - b.x));
+        sideLabels[ChipElm.SIDE_W].sort((a, b) -> Integer.signum(a.getY() - b.getY()));
+        sideLabels[ChipElm.SIDE_E].sort((a, b) -> Integer.signum(a.getY() - b.getY()));
+        sideLabels[ChipElm.SIDE_N].sort((a, b) -> Integer.signum(a.getX() - b.getX()));
+        sideLabels[ChipElm.SIDE_S].sort((a, b) -> Integer.signum(a.getX() - b.getX()));
 
         for (int side = 0; side < sideLabels.length; side++) {
             for (int pos = 0; pos < sideLabels[side].size(); pos++) {
@@ -1180,24 +1215,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 nodeDumpBuilder.append(" ").append(n);
             }
 
-            // save positions
-            int x1 = ce.x;
-            int y1 = ce.y;
-            int x2 = ce.x2;
-            int y2 = ce.y2;
-
-            // set them to 0 so they're easy to remove
-            ce.x = ce.y = ce.x2 = ce.y2 = 0;
-
             String tstring = ce.dump();
-            tstring = tstring.replaceFirst("[A-Za-z0-9]+ 0 0 0 0 ", ""); // remove unused tint_x1 y1 x2 y2 coords for
-                                                                         // internal components
-
-            // restore positions
-            ce.x = x1;
-            ce.y = y1;
-            ce.x2 = x2;
-            ce.y2 = y2;
+            // remove unused type + x1 y1 x2 y2 coords for internal components
+            tstring = tstring.replaceFirst("[A-Za-z0-9]+ -?\\d+ -?\\d+ -?\\d+ -?\\d+ ", "");
             if (!dumpBuilder.toString().isEmpty()) {
                 dumpBuilder.append(" ");
             }
@@ -1285,7 +1305,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         int frameTimeLimit = (int) (1000 / minFrameRate);
 
-        for (int iter = 1;; iter++) {
+        for (;;) {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
                 // things are going well, double the time step
                 timeStep = Math.min(timeStep * 2, maxTimeStep);
@@ -1344,8 +1364,48 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         break;
                     }
                     if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                        stop("Singular matrix!", null);
-                        return;
+                        // If LU factorization fails, enable persistent stabilizers and re-stamp.
+                        // This handles idealized/legacy configurations that are structurally singular.
+                        if (!singularStabilizersActive) {
+                            singularStabilizersActive = true;
+                            console("Enabling singular-matrix stabilizers and re-stamping circuit");
+                            stampCircuit();
+                            return;
+                        }
+
+                        int failColPre = CircuitMath.getLastLuFailColumn();
+                        int failRowPre = CircuitMath.getLastLuFailRow();
+                        double failPivotPre = CircuitMath.getLastLuFailPivotAbs();
+                        if (circuitMatrixSize > 0 && circuitMatrixSize <= 12) {
+                            console("lu_factor failed (pre-stabilize): matrixSize=" + circuitMatrixSize +
+                                    ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
+                            dumpCircuitMatrix();
+                        }
+                        // Some imported/legacy circuits can end up singular due to missing parasitics.
+                        // Try a minimal stabilization by adding a tiny conductance to ground for each
+                        // external node and refactoring once.
+                        stampSingularMatrixStabilizers();
+                        if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
+                            int failColPost = CircuitMath.getLastLuFailColumn();
+                            int failRowPost = CircuitMath.getLastLuFailRow();
+                            double failPivotPost = CircuitMath.getLastLuFailPivotAbs();
+
+                            // Log a human-friendly hint about which variable is causing the singularity.
+                            // Columns/rows map to node voltages first, then voltage-source currents.
+                            String preVar = describeMatrixVariable(failColPre);
+                            String postVar = describeMatrixVariable(failColPost);
+                            console("Singular matrix: pre-stabilize pivot failed at col=" + failColPre +
+                                    " row=" + failRowPre + " abs=" + failPivotPre + " var=" + preVar);
+                            console("Singular matrix: post-stabilize pivot failed at col=" + failColPost +
+                                    " row=" + failRowPost + " abs=" + failPivotPost + " var=" + postVar);
+                            if (circuitMatrixSize > 0 && circuitMatrixSize <= 12) {
+                                console("lu_factor failed (post-stabilize): matrixSize=" + circuitMatrixSize +
+                                        ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
+                                dumpCircuitMatrix();
+                            }
+                            stop("Singular matrix!", null);
+                            return;
+                        }
                     }
                 }
 
@@ -1433,6 +1493,54 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             calcWireCurrents();
         }
         // System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
+    }
+
+    /**
+     * Stamp very large resistors from each non-internal node to ground.
+     * This adds a tiny conductance (gmin-like) to help avoid singular matrices.
+     *
+     * Also adds a tiny series resistance to each voltage source by stamping a small
+     * diagonal term on the corresponding current-variable row/column. This helps in
+     * idealized configurations where the matrix becomes structurally singular due to
+     * unconstrained voltage-source currents.
+     */
+    private void stampSingularMatrixStabilizers() {
+        // 1e12 ohm gives 1e-12 S conductance, small enough to not affect most circuits.
+        final double rStabilize = 1e12;
+        final double gStabilize = 1.0 / rStabilize;
+        for (int n = 1; n < nodeList.size(); n++) {
+            if (getCircuitNode(n).internal) {
+                continue;
+            }
+            stampResistor(0, n, rStabilize);
+        }
+
+        // Add a tiny diagonal for each voltage-source current variable.
+        // Voltage-source current variables use the pseudo-node numbering:
+        // vn = nodeList.size() + vsIndex
+        for (int vs = 0; vs < voltageSourceCount; vs++) {
+            int vn = nodeList.size() + vs;
+            stampMatrix(vn, vn, gStabilize);
+        }
+    }
+
+    private String describeMatrixVariable(int matrixCol) {
+        if (matrixCol < 0) {
+            return "(unknown)";
+        }
+        int nodeVarCount = nodeList.size() - 1;
+        if (matrixCol < nodeVarCount) {
+            int nodeIndex = matrixCol + 1;
+            return "nodeVoltage(node=" + nodeIndex + ")";
+        }
+        int vsIndex = matrixCol - nodeVarCount;
+        if (vsIndex >= 0 && vsIndex < voltageSourceCount) {
+            CircuitElm src = voltageSources[vsIndex];
+            String name = (src != null) ? src.getClass().getSimpleName() : "null";
+            String id = (src != null) ? src.getElementId() : "";
+            return "voltageSourceCurrent(vs=" + vsIndex + ", elm=" + name + ", id=" + id + ")";
+        }
+        return "(out-of-range col=" + matrixCol + ")";
     }
 
     String dumpSelectedItems() {

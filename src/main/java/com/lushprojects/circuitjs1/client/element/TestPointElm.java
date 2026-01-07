@@ -44,7 +44,7 @@ public class TestPointElm extends CircuitElm {
     final int TP_FRQ = 6;
     final int TP_PER = 7;
     final int TP_PWI = 8;
-    final int TP_DUT = 9; //mark to space ratio
+    final int TP_DUT = 9; // mark to space ratio
     final int FLAG_LABEL = 1;
     int zerocount = 0;
     double rmsV = 0, total, count;
@@ -52,7 +52,7 @@ public class TestPointElm extends CircuitElm {
     double minV = 0, lastMinV;
     double frequency = 0;
     double period = 0;
-    double binaryLevel = 0;//0 or 1 - double because we only pass doubles back to the web page
+    double binaryLevel = 0;// 0 or 1 - double because we only pass doubles back to the web page
     double pulseWidth = 0;
     double dutyCycle = 0;
     double selectedValue = 0;
@@ -60,7 +60,7 @@ public class TestPointElm extends CircuitElm {
 
     double voltages[];
     boolean increasingV = true, decreasingV = true;
-    long periodStart, periodLength, pulseStart;//time between consecutive max values
+    long periodStart, periodLength, pulseStart;// time between consecutive max values
     String label;
 
     public TestPointElm(CircuitDocument circuitDocument, int xx, int yy) {
@@ -70,9 +70,9 @@ public class TestPointElm extends CircuitElm {
     }
 
     public TestPointElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        meter = parseInt(st.nextToken()); //get meter type from saved dump
+        meter = parseInt(st.nextToken()); // get meter type from saved dump
         if ((flags & FLAG_LABEL) != 0)
             label = CustomLogicModel.unescape(st.nextToken());
         else
@@ -89,7 +89,7 @@ public class TestPointElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = new Point();
+        // lead1 handled by geom
     }
 
     public String dump() {
@@ -154,24 +154,26 @@ public class TestPointElm extends CircuitElm {
         g.restore();
     }
 
-
     public void draw(Graphics g) {
         g.save();
         boolean selected = needsHighlight();
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
-        //depending upon flags show voltage or TP
+        // depending upon flags show voltage or TP
 
         String s = label;
-        interpPoint(point1, point2, lead1, 1 - ((int) g.measureWidth("TP") / 2.0 + 8) / dn);
-        setBbox(point1, lead1, 0);
+        double dn = getDn();
+        // Recalculate lead1 in draw where we have Graphics g to measure text
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(),
+                1 - ((int) g.measureWidth("TP") / 2.0 + 8) / dn);
+        setBbox(geom().getPoint1(), geom().getLead1(), 0);
 
-        //draw selected value
+        // draw selected value
         double v0 = getNodeVoltage(0);
         switch (meter) {
             case TP_VOL:
-            s = getUnitText(v0, "V");
+                s = getUnitText(v0, "V");
                 break;
             case TP_RMS:
                 s = getUnitText(rmsV, "V(rms)");
@@ -192,7 +194,8 @@ public class TestPointElm extends CircuitElm {
                 s = getUnitText(frequency, "Hz");
                 break;
             case TP_PER:
-//                s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " + sim.getIterCount();
+                // s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " +
+                // sim.getIterCount();
                 break;
             case TP_PWI:
                 s = getUnitText(pulseWidth, "S");
@@ -201,50 +204,48 @@ public class TestPointElm extends CircuitElm {
                 s = showFormat(dutyCycle);
                 break;
         }
-        drawText(g, label, s, point1, lead1);
+        drawText(g, label, s, geom().getPoint1(), geom().getLead1());
 
         setVoltageColor(g, v0);
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         drawPosts(g);
         g.restore();
     }
-
 
     public void stepFinished() {
         if (simulator().timeStepCount == lastStepCount)
             return;
         lastStepCount = simulator().timeStepCount;
         double v0 = getNodeVoltage(0);
-        count++;//how many counts are in a cycle    
-        total += v0 * v0; //sum of squares
+        count++;// how many counts are in a cycle
+        total += v0 * v0; // sum of squares
 
         if (v0 < 2.5)
             binaryLevel = 0;
         else
             binaryLevel = 1;
 
-
-        //V going up, track maximum value with 
+        // V going up, track maximum value with
         if (v0 > maxV && increasingV) {
             maxV = v0;
             increasingV = true;
             decreasingV = false;
         }
-        if (v0 < maxV && increasingV) {//change of direction V now going down - at start of waveform
-            lastMaxV = maxV; //capture last maximum
-            //capture time between
+        if (v0 < maxV && increasingV) {// change of direction V now going down - at start of waveform
+            lastMaxV = maxV; // capture last maximum
+            // capture time between
             periodLength = System.currentTimeMillis() - periodStart;
             periodStart = System.currentTimeMillis();
             period = periodLength;
             pulseWidth = System.currentTimeMillis() - pulseStart;
             dutyCycle = pulseWidth / periodLength;
-            minV = v0; //track minimum value with V
+            minV = v0; // track minimum value with V
             increasingV = false;
             decreasingV = true;
 
-            //rms data
+            // rms data
             total = total / count;
             rmsV = Math.sqrt(total);
             if (Double.isNaN(rmsV))
@@ -253,20 +254,20 @@ public class TestPointElm extends CircuitElm {
             total = 0;
 
         }
-        if (v0 < minV && decreasingV) { //V going down, track minimum value with V
+        if (v0 < minV && decreasingV) { // V going down, track minimum value with V
             minV = v0;
             increasingV = false;
             decreasingV = true;
         }
 
-        if (v0 > minV && decreasingV) { //change of direction V now going up
-            lastMinV = minV; //capture last minimum
+        if (v0 > minV && decreasingV) { // change of direction V now going up
+            lastMinV = minV; // capture last minimum
             pulseStart = System.currentTimeMillis();
             maxV = v0;
             increasingV = true;
             decreasingV = false;
 
-            //rms data
+            // rms data
             total = total / count;
             rmsV = Math.sqrt(total);
             if (Double.isNaN(rmsV))
@@ -274,9 +275,8 @@ public class TestPointElm extends CircuitElm {
             count = 0;
             total = 0;
 
-
         }
-        //need to zero the rms value if it stays at 0 for a while
+        // need to zero the rms value if it stays at 0 for a while
         if (v0 == 0) {
             zerocount++;
             if (zerocount > 5) {
@@ -323,7 +323,7 @@ public class TestPointElm extends CircuitElm {
 
     }
 
-    //alert the user
+    // alert the user
     public static native void alert(String msg) /*-{
       $wnd.alert(msg);
     }-*/;
@@ -364,7 +364,8 @@ public class TestPointElm extends CircuitElm {
                 arr[1] = "Period = " + getUnitText(period * simulator().maxTimeStep / cirSim().getIterCount(), "S");
                 break;
             case TP_PWI:
-                arr[1] = "Pulse width = " + getUnitText(pulseWidth * simulator().maxTimeStep * cirSim().getIterCount(), "S");
+                arr[1] = "Pulse width = "
+                        + getUnitText(pulseWidth * simulator().maxTimeStep * cirSim().getIterCount(), "S");
                 break;
             case TP_DUT:
                 arr[1] = "Duty cycle = " + showFormat(dutyCycle);
@@ -372,10 +373,10 @@ public class TestPointElm extends CircuitElm {
         }
     }
 
-//    void drawHandles(Graphics g, Color c) {
-//        g.setColor(c);
-//        g.fillRect(x-3, y-3, 7, 7);
-//    }
+    // void drawHandles(Graphics g, Color c) {
+    // g.setColor(c);
+    // g.fillRect(x-3, y-3, 7, 7);
+    // }
 
     public EditInfo getEditInfo(int n) {
         if (n == 0) {
@@ -387,10 +388,10 @@ public class TestPointElm extends CircuitElm {
             ei.choice.add("Min Voltage");
             ei.choice.add("P2P Voltage");
             ei.choice.add("Binary Value");
-            //ei.choice.add("Frequency");
-            //ei.choice.add("Period");
-            //ei.choice.add("Pulse Width");
-            //ei.choice.add("Duty Cycle");
+            // ei.choice.add("Frequency");
+            // ei.choice.add("Period");
+            // ei.choice.add("Pulse Width");
+            // ei.choice.add("Duty Cycle");
             ei.choice.select(meter);
             return ei;
         }
@@ -419,7 +420,8 @@ public class TestPointElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        String[] modes = {"voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width", "duty_cycle"};
+        String[] modes = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width",
+                "duty_cycle" };
         props.put("mode", modes[meter]);
         props.put("label", label);
         return props;
@@ -427,7 +429,6 @@ public class TestPointElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"probe"};
+        return new String[] { "probe" };
     }
 }
-

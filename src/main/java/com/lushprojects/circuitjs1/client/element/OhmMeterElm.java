@@ -13,7 +13,7 @@ public class OhmMeterElm extends CurrentElm {
     }
 
     public OhmMeterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
@@ -35,10 +35,12 @@ public class OhmMeterElm extends CurrentElm {
         drawThickCircle(g, center.x, center.y, cr);
         drawCenteredText(g, Locale.ohmString, center.x, center.y, true);
 
-        setBbox(point1, point2, cr);
+        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         doDots(g);
         if (displaySettings().showValues() && current != 0) {
             String s = getShortUnitText(getVoltageDiff() / current, Locale.ohmString);
+            int dx = getDx();
+            int dy = getDy();
             if (dx == 0 || dy == 0)
                 drawValues(g, s, cr);
         }
@@ -58,15 +60,15 @@ public class OhmMeterElm extends CurrentElm {
     }
 
     /*
-    public EditInfo getEditInfo(int n) {
-        if (n == 0)
-        return new EditInfo("Current (A)", currentValue, 0, .1);
-        return null;
-    }
-    public void setEditValue(int n, EditInfo ei) {
-        currentValue = ei.value;
-    }
-    */
+     * public EditInfo getEditInfo(int n) {
+     * if (n == 0)
+     * return new EditInfo("Current (A)", currentValue, 0, .1);
+     * return null;
+     * }
+     * public void setEditValue(int n, EditInfo ei) {
+     * currentValue = ei.value;
+     * }
+     */
     public void getInfo(String arr[]) {
         arr[0] = "ohmmeter";
         if (current == 0)
@@ -82,6 +84,6 @@ public class OhmMeterElm extends CurrentElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"probe+", "probe-"};
+        return new String[] { "probe+", "probe-" };
     }
 }

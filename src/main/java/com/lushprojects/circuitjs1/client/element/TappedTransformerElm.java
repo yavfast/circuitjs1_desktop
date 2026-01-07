@@ -58,13 +58,12 @@ public class TappedTransformerElm extends CircuitElm {
         int nominalSpacing = 16;
         spacing = nominalSpacing;
         tapPos = nominalSpacing;
-        x2 = x + nominalLen;
-        y2 = y;
+        setEndpoints(getX(), getY(), getX() + nominalLen, getY());
         setPoints();
     }
 
     public TappedTransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                                StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         inductance = parseDouble(st.nextToken());
         ratio = parseDouble(st.nextToken());
@@ -125,20 +124,21 @@ public class TappedTransformerElm extends CircuitElm {
         if (ptEnds == null) {
             return super.getHandlePoint(n);
         }
-        // Rectangle defined by point1->point2 axis and the full secondary offset (2*spacing).
+        // Rectangle defined by point1->point2 axis and the full secondary offset
+        // (2*spacing).
         int hs = spacing * flip;
         int outerOff = -hs * 2;
         if (n == 0) {
-            return new Point(point1.x, point1.y);
+            return new Point(geom().getPoint1().x, geom().getPoint1().y);
         }
         if (n == 1) {
-            return new Point(point2.x, point2.y);
+            return new Point(geom().getPoint2().x, geom().getPoint2().y);
         }
         if (n == 2) {
-            return interpPoint(point1, point2, 1, outerOff);
+            return interpPoint(geom().getPoint1(), geom().getPoint2(), 1, outerOff);
         }
         if (n == 3) {
-            return interpPoint(point1, point2, 0, outerOff);
+            return interpPoint(geom().getPoint1(), geom().getPoint2(), 0, outerOff);
         }
         if (n == 4) {
             // Tap post
@@ -157,7 +157,7 @@ public class TappedTransformerElm extends CircuitElm {
 
         if (n == 4) {
             // Slide tap along the secondary winding direction.
-            boolean vertical = (point1.x == point2.x);
+            boolean vertical = (geom().getPoint1().x == geom().getPoint2().x);
             int newTap = vertical ? (tapPos - dx * flip) : (tapPos + dy * flip);
             int segMin = minTapSeg();
             int maxTap = max(segMin, 2 * spacing - segMin);
@@ -200,7 +200,12 @@ public class TappedTransformerElm extends CircuitElm {
         int fx = fixed.x;
         int fy = fixed.y;
 
-        boolean vertical = (point1.x == point2.x);
+        int newX = getX();
+        int newY = getY();
+        int newX2 = getX2();
+        int newY2 = getY2();
+
+        boolean vertical = (geom().getPoint1().x == geom().getPoint2().x);
 
         if (!vertical) {
             // Horizontal element
@@ -212,44 +217,44 @@ public class TappedTransformerElm extends CircuitElm {
                     mx = fx - minLen;
                 if ((fy - my) * flip < fullMin)
                     my = fy - flip * fullMin;
-                x = mx;
-                y = my;
-                x2 = fx;
-                y2 = y;
-                spacing = max(minSpacing, abs(fy - y) / 2);
+                newX = mx;
+                newY = my;
+                newX2 = fx;
+                newY2 = my;
+                spacing = max(minSpacing, abs(fy - my) / 2);
             } else if (n == 2) {
                 // outer end moved, inner start fixed
                 if (mx - fx < minLen)
                     mx = fx + minLen;
                 if ((my - fy) * flip < fullMin)
                     my = fy + flip * fullMin;
-                x = fx;
-                y = fy;
-                x2 = mx;
-                y2 = y;
-                spacing = max(minSpacing, abs(my - y) / 2);
+                newX = fx;
+                newY = fy;
+                newX2 = mx;
+                newY2 = fy;
+                spacing = max(minSpacing, abs(my - fy) / 2);
             } else if (n == 1) {
                 // inner end moved, outer start fixed
                 if (mx - fx < minLen)
                     mx = fx + minLen;
                 if ((fy - my) * flip < fullMin)
                     my = fy - flip * fullMin;
-                x = fx;
-                y = my;
-                x2 = mx;
-                y2 = y;
-                spacing = max(minSpacing, abs(fy - y) / 2);
+                newX = fx;
+                newY = my;
+                newX2 = mx;
+                newY2 = my;
+                spacing = max(minSpacing, abs(fy - my) / 2);
             } else if (n == 3) {
                 // outer start moved, inner end fixed
                 if (fx - mx < minLen)
                     mx = fx - minLen;
                 if ((my - fy) * flip < fullMin)
                     my = fy + flip * fullMin;
-                x = mx;
-                y = fy;
-                x2 = fx;
-                y2 = y;
-                spacing = max(minSpacing, abs(my - y) / 2);
+                newX = mx;
+                newY = fy;
+                newX2 = fx;
+                newY2 = fy;
+                spacing = max(minSpacing, abs(my - fy) / 2);
             }
         } else {
             // Vertical element
@@ -261,10 +266,10 @@ public class TappedTransformerElm extends CircuitElm {
                     my = fy - minLen;
                 if ((mx - fx) * flip < fullMin)
                     mx = fx + flip * fullMin;
-                x = mx;
-                y = my;
-                x2 = x;
-                y2 = fy;
+                newX = mx;
+                newY = my;
+                newX2 = mx;
+                newY2 = fy;
                 spacing = max(minSpacing, abs(mx - fx) / 2);
             } else if (n == 2) {
                 // outer bottom moved, inner top fixed
@@ -272,10 +277,10 @@ public class TappedTransformerElm extends CircuitElm {
                     my = fy + minLen;
                 if ((fx - mx) * flip < fullMin)
                     mx = fx - flip * fullMin;
-                x = fx;
-                y = fy;
-                x2 = x;
-                y2 = my;
+                newX = fx;
+                newY = fy;
+                newX2 = fx;
+                newY2 = my;
                 spacing = max(minSpacing, abs(fx - mx) / 2);
             } else if (n == 1) {
                 // inner bottom moved, outer top fixed
@@ -283,10 +288,10 @@ public class TappedTransformerElm extends CircuitElm {
                     my = fy + minLen;
                 if ((mx - fx) * flip < fullMin)
                     mx = fx + flip * fullMin;
-                x = mx;
-                y = fy;
-                x2 = x;
-                y2 = my;
+                newX = mx;
+                newY = fy;
+                newX2 = mx;
+                newY2 = my;
                 spacing = max(minSpacing, abs(mx - fx) / 2);
             } else if (n == 3) {
                 // outer top moved, inner bottom fixed
@@ -294,10 +299,10 @@ public class TappedTransformerElm extends CircuitElm {
                     my = fy - minLen;
                 if ((fx - mx) * flip < fullMin)
                     mx = fx - flip * fullMin;
-                x = fx;
-                y = my;
-                x2 = x;
-                y2 = fy;
+                newX = fx;
+                newY = my;
+                newX2 = fx;
+                newY2 = fy;
                 spacing = max(minSpacing, abs(fx - mx) / 2);
             }
         }
@@ -305,6 +310,9 @@ public class TappedTransformerElm extends CircuitElm {
         // Keep tap inside valid range.
         int segMin = minTapSeg();
         tapPos = max(segMin, min(max(segMin, 2 * spacing - segMin), tapPos));
+        // Consolidate explicit endpoint updates through ElmGeometry to ensure derived
+        // fields are recalculated.
+        setEndpoints(newX, newY, newX2, newY2);
         setPoints();
     }
 
@@ -404,23 +412,26 @@ public class TappedTransformerElm extends CircuitElm {
         int segMin = minTapSeg();
         tapPos = max(segMin, min(max(segMin, 2 * spacing - segMin), tapPos));
         int tapOff = -tapPos * flip;
-        ptEnds = newPointArray(5);
-        ptCoil = newPointArray(5);
-        ptCore = newPointArray(4);
-        ptEnds[0] = point1;
-        ptEnds[2] = point2;
-        interpPoint(point1, point2, ptEnds[1], 0, -hs * 2);
-        interpPoint(point1, point2, ptEnds[3], 1, tapOff);
-        interpPoint(point1, point2, ptEnds[4], 1, -hs * 2);
+        if (ptEnds == null || ptEnds.length != 5)
+            ptEnds = newPointArray(5);
+        if (ptCoil == null || ptCoil.length != 5)
+            ptCoil = newPointArray(5);
+        if (ptCore == null)
+            ptCore = newPointArray(4);
+        ptEnds[0] = geom().getPoint1();
+        ptEnds[2] = geom().getPoint2();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[1], 0, -hs * 2);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[3], 1, tapOff);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[4], 1, -hs * 2);
+        double dn = getDn();
         double ce = .5 - 12 / dn;
         double cd = .5 - 2 / dn;
-        int i;
         interpPoint(ptEnds[0], ptEnds[2], ptCoil[0], ce);
         interpPoint(ptEnds[0], ptEnds[2], ptCoil[1], ce, -hs * 2);
         interpPoint(ptEnds[0], ptEnds[2], ptCoil[2], 1 - ce);
         interpPoint(ptEnds[0], ptEnds[2], ptCoil[3], 1 - ce, tapOff);
         interpPoint(ptEnds[0], ptEnds[2], ptCoil[4], 1 - ce, -hs * 2);
-        for (i = 0; i != 2; i++) {
+        for (int i = 0; i != 2; i++) {
             int b = -hs * i * 2;
             interpPoint(ptEnds[0], ptEnds[2], ptCore[i], cd, b);
             interpPoint(ptEnds[0], ptEnds[2], ptCore[i + 2], 1 - cd, b);
@@ -443,8 +454,10 @@ public class TappedTransformerElm extends CircuitElm {
         setNodeVoltageDirect(3, 0);
         setNodeVoltageDirect(4, 0);
         curcount[0] = curcount[1] = curcount[2] = 0;
-        // need to set current-source values here in case one of the nodes is node 0.  In that case
-        // calculateCurrent() may get called (from setNodeVoltage()) when analyzing circuit, before
+        // need to set current-source values here in case one of the nodes is node 0. In
+        // that case
+        // calculateCurrent() may get called (from setNodeVoltage()) when analyzing
+        // circuit, before
         // startIteration() gets called
         curSourceValue[0] = curSourceValue[1] = curSourceValue[2] = 0;
     }
@@ -453,23 +466,23 @@ public class TappedTransformerElm extends CircuitElm {
 
     public void stamp() {
         // equations for transformer:
-        //   v1 = L1 di1/dt + M1 di2/dt + M1 di3/dt
-        //   v2 = M1 di1/dt + L2 di2/dt + M2 di3/dt
-        //   v3 = M1 di1/dt + M2 di2/dt + L2 di3/dt
+        // v1 = L1 di1/dt + M1 di2/dt + M1 di3/dt
+        // v2 = M1 di1/dt + L2 di2/dt + M2 di3/dt
+        // v3 = M1 di1/dt + M2 di2/dt + L2 di3/dt
         // we invert that to get:
-        //   di1/dt = a1 v1 + a2 v2 + a3 v3
-        //   di2/dt = a4 v1 + a5 v2 + a6 v3
-        //   di3/dt = a7 v1 + a8 v2 + a9 v3
+        // di1/dt = a1 v1 + a2 v2 + a3 v3
+        // di2/dt = a4 v1 + a5 v2 + a6 v3
+        // di3/dt = a7 v1 + a8 v2 + a9 v3
         // integrate di1/dt using trapezoidal approx and we get:
-        //   i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
-        //          = i1(t1) + a1 dt/2 v1(t1)+a2 dt/2 v2(t1)+a3 dt/2 v3(t1) +
-        //                     a1 dt/2 v1(t2)+a2 dt/2 v2(t2)+a3 dt/2 v3(t2)
+        // i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
+        // = i1(t1) + a1 dt/2 v1(t1)+a2 dt/2 v2(t1)+a3 dt/2 v3(t1) +
+        // a1 dt/2 v1(t2)+a2 dt/2 v2(t2)+a3 dt/2 v3(t2)
         // the norton equivalent of this for i1 is:
-        //  a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1)
-        //                                + a3 dt/2 v3(t1)
-        //  b. resistor, G = a1 dt/2
-        //  c. current source controlled by voltage v2, G = a2 dt/2
-        //  d. current source controlled by voltage v3, G = a3 dt/2
+        // a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1)
+        // + a3 dt/2 v3(t1)
+        // b. resistor, G = a1 dt/2
+        // c. current source controlled by voltage v2, G = a2 dt/2
+        // d. current source controlled by voltage v3, G = a3 dt/2
         // and similarly for i2, i3
         //
         // first winding goes from node 0 to 1, second is from 2 to 3 to 4
@@ -550,9 +563,9 @@ public class TappedTransformerElm extends CircuitElm {
         arr[0] = "transformer";
         arr[1] = "L = " + getUnitText(inductance, "H");
         arr[2] = "Ratio = 1:" + ratio;
-        //arr[3] = "I1 = " + getCurrentText(current1);
+        // arr[3] = "I1 = " + getCurrentText(current1);
         arr[3] = "Vd1 = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(2));
-        //arr[5] = "I2 = " + getCurrentText(current2);
+        // arr[5] = "I2 = " + getCurrentText(current2);
         arr[4] = "Vd2 = " + getVoltageText(getNodeVoltage(1) - getNodeVoltage(3));
     }
 
@@ -644,7 +657,7 @@ public class TappedTransformerElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"pri1", "pri2", "sec1", "tap", "sec2"};
+        return new String[] { "pri1", "pri2", "sec1", "tap", "sec2" };
     }
 
     @Override

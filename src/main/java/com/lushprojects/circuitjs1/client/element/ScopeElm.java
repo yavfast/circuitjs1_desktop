@@ -33,8 +33,8 @@ public class ScopeElm extends CircuitElm {
     public ScopeElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         noDiagonal = false;
-        x2 = x + 128;
-        y2 = y + 64;
+        // use ElmGeometry to set default size so derived geometry stays consistent
+        geom().setEndpoints(xx, yy, xx + 128, yy + 64);
         elmScope = new Scope(cirSim(), null);
         setPoints();
     }
@@ -66,10 +66,10 @@ public class ScopeElm extends CircuitElm {
     }
 
     public void setScopeRect() {
-        int i1 = cirSim().renderer.transformX(min(x, x2));
-        int i2 = cirSim().renderer.transformX(max(x, x2));
-        int j1 = cirSim().renderer.transformY(min(y, y2));
-        int j2 = cirSim().renderer.transformY(max(y, y2));
+        int i1 = cirSim().renderer.transformX(Math.min(getX(), getX2()));
+        int i2 = cirSim().renderer.transformX(Math.max(getX(), getX2()));
+        int j1 = cirSim().renderer.transformY(Math.min(getY(), getY2()));
+        int j2 = cirSim().renderer.transformY(Math.max(getY(), getY2()));
         Rectangle r = new Rectangle(i1, j1, i2 - i1, j2 - j1);
         if (!r.equals(elmScope.rect))
             elmScope.setRect(r);
@@ -128,7 +128,8 @@ public class ScopeElm extends CircuitElm {
         elmScope.position = -1;
         elmScope.draw(g);
         g.restore();
-        setBbox(point1, point2, 0);
+        ElmGeometry geom = geom();
+        setBbox(geom.getPoint1(), geom.getPoint2(), 0);
         drawPosts(g);
 
     }

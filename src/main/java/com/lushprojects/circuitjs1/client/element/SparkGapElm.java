@@ -42,7 +42,7 @@ public class SparkGapElm extends CircuitElm {
     }
 
     public SparkGapElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         onresistance = parseDouble(st.nextToken());
         offresistance = parseDouble(st.nextToken());
@@ -63,23 +63,26 @@ public class SparkGapElm extends CircuitElm {
     }
 
     Polygon arrow1, arrow2;
+    private Point tmpP;
 
     public void setPoints() {
         super.setPoints();
         int dist = 16;
         int alen = 8;
         calcLeads(dist + alen);
-        Point p1 = interpPoint(point1, point2, (dn - alen) / (2 * dn));
-        arrow1 = calcArrow(point1, p1, alen, alen);
-        p1 = interpPoint(point1, point2, (dn + alen) / (2 * dn));
-        arrow2 = calcArrow(point2, p1, alen, alen);
+        if (tmpP == null)
+            tmpP = new Point();
+        double dn = getDn();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), tmpP, (dn - alen) / (2 * dn));
+        arrow1 = calcArrow(geom().getPoint1(), tmpP, alen, alen);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), tmpP, (dn + alen) / (2 * dn));
+        arrow2 = calcArrow(geom().getPoint2(), tmpP, alen, alen);
     }
 
     public void draw(Graphics g) {
-        int i;
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, 8);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 8);
         draw2Leads(g);
         setVoltageColor(g, v1);
         setPowerColor(g, true);
@@ -190,4 +193,3 @@ public class SparkGapElm extends CircuitElm {
             resistance = ((Number) state.get("resistance")).doubleValue();
     }
 }
-

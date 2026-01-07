@@ -24,6 +24,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -40,7 +41,7 @@ public class StopTriggerElm extends CircuitElm {
     }
 
     public StopTriggerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         triggerVoltage = Double.parseDouble(st.nextToken());
         type = Integer.parseInt(st.nextToken());
@@ -65,7 +66,9 @@ public class StopTriggerElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - 8 / dn);
+        // geom() initializes leads
+        double dn = getDn();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - 8 / dn);
     }
 
     public void draw(Graphics g) {
@@ -74,13 +77,13 @@ public class StopTriggerElm extends CircuitElm {
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
-        setBbox(point1, lead1, 0);
+        setBbox(geom().getPoint1(), geom().getLead1(), 0);
         String s = Locale.LS("trigger");
-        drawLabeledNode(g, s, point1, lead1);
+        drawLabeledNode(g, s, geom().getPoint1(), geom().getLead1());
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         drawPosts(g);
         g.restore();
     }
@@ -107,7 +110,8 @@ public class StopTriggerElm extends CircuitElm {
         arr[0] = "stop trigger";
         arr[1] = "V = " + getVoltageText(getNodeVoltage(0));
         arr[2] = "Vtrigger = " + getVoltageText(triggerVoltage);
-        arr[3] = (triggered) ? ("stopping in " + getUnitText(triggerTime + delay - simulator().t, "s")) : (stopped) ? "stopped" : "waiting";
+        arr[3] = (triggered) ? ("stopping in " + getUnitText(triggerTime + delay - simulator().t, "s"))
+                : (stopped) ? "stopped" : "waiting";
     }
 
     public EditInfo getEditInfo(int n) {
@@ -140,7 +144,9 @@ public class StopTriggerElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "StopTrigger"; }
+    public String getJsonTypeName() {
+        return "StopTrigger";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -153,6 +159,6 @@ public class StopTriggerElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"in"};
+        return new String[] { "in" };
     }
 }

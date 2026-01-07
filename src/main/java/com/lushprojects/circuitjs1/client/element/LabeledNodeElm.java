@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
-import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -41,7 +40,7 @@ public class LabeledNodeElm extends CircuitElm {
     }
 
     public LabeledNodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         text = st.nextToken();
         if ((flags & FLAG_ESCAPE) == 0) {
@@ -74,8 +73,8 @@ public class LabeledNodeElm extends CircuitElm {
 
     public static native void console(String text)
     /*-{
-	    console.log(text);
-	}-*/;
+        console.log(text);
+    }-*/;
 
     public static void resetNodeList() {
         labelList.clear();
@@ -85,7 +84,15 @@ public class LabeledNodeElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - circleSize / dn);
+        // lead1 was a protected field in CircuitElm, now in ElmGeometry.
+        // We need to use setters/getters. But LabeledNodeElm seems to want to modify
+        // it?
+        // "if (lead1 == null ... lead1 = new Point())"
+        // geom() should handle initialization.
+        // Let's use getLead1() and see if it's null.
+        // Actually, ElmGeometry initializes lead1.
+        double dn = getDn();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
     }
 
     // get post we're connected to
@@ -94,11 +101,13 @@ public class LabeledNodeElm extends CircuitElm {
         if (le != null)
             return le.point;
 
-        // this is the first time calcWireClosure() encountered this label.  so save point1 and
-        // return null for now, but return point1 the next time we see this label so that all nodes
+        // this is the first time calcWireClosure() encountered this label. so save
+        // point1 and
+        // return null for now, but return point1 the next time we see this label so
+        // that all nodes
         // with the same label are connected
         le = new LabelEntry();
-        le.point = point1;
+        le.point = geom().getPoint1();
         labelList.put(text, le);
         return null;
     }
@@ -138,15 +147,17 @@ public class LabeledNodeElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        interpPoint(point1, point2, ps2, 1 + 11. / dn);
-        setBbox(point1, ps2, circleSize);
-        drawLabeledNode(g, text, point1, lead1);
+        double dn = getDn();
+        Point ps2 = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ps2, 1 + 11. / dn);
+        setBbox(geom().getPoint1(), ps2, circleSize);
+        drawLabeledNode(g, text, geom().getPoint1(), geom().getLead1());
 
         curcount = updateDotCount(current, curcount);
-        drawDots(g, point1, lead1, curcount);
+        drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
         drawPosts(g);
     }
 
@@ -213,6 +224,6 @@ public class LabeledNodeElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"node"};
+        return new String[] { "node" };
     }
 }

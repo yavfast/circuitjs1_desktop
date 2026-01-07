@@ -28,7 +28,6 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 // 3, 1 = diode
 // 2, 1 = 50 ohm resistor
 
-import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -53,7 +52,7 @@ public class SCRElm extends CircuitElm {
     }
 
     public SCRElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                  StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         setDefaults();
         try {
@@ -100,7 +99,7 @@ public class SCRElm extends CircuitElm {
 
     public String dump() {
         return dumpValues(super.dump(), (getNodeVoltage(anode) - getNodeVoltage(cnode)),
-            (getNodeVoltage(anode) - getNodeVoltage(gnode)), triggerI, holdingI, gresistance);
+                (getNodeVoltage(anode) - getNodeVoltage(gnode)), triggerI, holdingI, gresistance);
     }
 
     double ia, ic, ig, curcount_a, curcount_c, curcount_g;
@@ -118,46 +117,52 @@ public class SCRElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         dir = 0;
+        int dx = getDx();
+        int dy = getDy();
         if (abs(dx) > abs(dy)) {
             dir = -sign(dx) * sign(dy);
 
-            // correct dn (length) or else calcLeads() may get confused, and also gate may be drawn weirdly.  Can't do this with old circuits or it may
-            // break them
-            if (applyGateFix())
-                dn = abs(dx);
-            point2.y = point1.y;
+            // If gate-fix is enabled, align endpoints via ElmGeometry (updates dn/derived).
+            // Otherwise, keep light-touch behavior
+            if (applyGateFix()) {
+                geom().setEndpoints(getX(), getY(), getX2(), getY());
+            } else {
+                geom().getPoint2().y = geom().getPoint1().y;
+            }
         } else {
             dir = sign(dy) * sign(dx);
-            if (applyGateFix())
-                dn = abs(dy);
-            point2.x = point1.x;
+            if (applyGateFix()) {
+                geom().setEndpoints(getX(), getY(), getX(), getY2());
+            } else {
+                geom().getPoint2().x = geom().getPoint1().x;
+            }
         }
         if (dir == 0)
             dir = 1;
         calcLeads(16);
         cathode = newPointArray(2);
         Point pa[] = newPointArray(2);
-        interpPoint2(lead1, lead2, pa[0], pa[1], 0, hs);
-        interpPoint2(lead1, lead2, cathode[0], cathode[1], 1, hs);
-        poly = createPolygon(pa[0], pa[1], lead2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), pa[0], pa[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), cathode[0], cathode[1], 1, hs);
+        poly = createPolygon(pa[0], pa[1], geom().getLead2());
 
         gate = newPointArray(2);
-        double leadlen = (dn - 16) / 2;
+        double leadlen = (getDn() - 16) / 2;
         int gatelen = circuitEditor().gridSize;
         gatelen += leadlen % circuitEditor().gridSize;
         if (leadlen < gatelen) {
-            x2 = x;
-            y2 = y;
+            geom().setEndpoints(getX(), getY(), getX(), getY());
             return;
         }
-        interpPoint(lead2, point2, gate[0], gatelen / leadlen, gatelen * dir);
-        interpPoint(lead2, point2, gate[1], gatelen / leadlen, circuitEditor().gridSize * 2 * dir);
+        interpPoint(geom().getLead2(), geom().getPoint2(), gate[0], gatelen / leadlen, gatelen * dir);
+        interpPoint(geom().getLead2(), geom().getPoint2(), gate[1], gatelen / leadlen,
+                circuitEditor().gridSize * 2 * dir);
         gate[1].x = circuitEditor().snapGrid(gate[1].x);
         gate[1].y = circuitEditor().snapGrid(gate[1].y);
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         adjustBbox(gate[0], gate[1]);
 
         double v1 = getNodeVoltage(anode);
@@ -171,7 +176,7 @@ public class SCRElm extends CircuitElm {
         g.fillPolygon(poly);
 
         setVoltageColor(g, getNodeVoltage(gnode));
-        drawThickLine(g, lead2, gate[0]);
+        drawThickLine(g, geom().getLead2(), gate[0]);
         drawThickLine(g, gate[0], gate[1]);
 
         // draw thing arrow is pointing to
@@ -183,17 +188,19 @@ public class SCRElm extends CircuitElm {
         curcount_c = updateDotCount(ic, curcount_c);
         curcount_g = updateDotCount(ig, curcount_g);
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, lead2, curcount_a);
-            drawDots(g, point2, lead2, curcount_c);
+            drawDots(g, geom().getPoint1(), geom().getLead2(), curcount_a);
+            drawDots(g, geom().getPoint2(), geom().getLead2(), curcount_c);
             drawDots(g, gate[1], gate[0], curcount_g);
-            drawDots(g, gate[0], lead2, curcount_g + distance(gate[1], gate[0]));
+            drawDots(g, gate[0], geom().getLead2(), curcount_g + distance(gate[1], gate[0]));
         }
 
-        if ((needsHighlight() || circuitEditor().dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
+        int _dx = getDx();
+        if ((needsHighlight() || circuitEditor().dragElm == this) && geom().getPoint1().x == geom().getPoint2().x
+                && geom().getPoint2().y > geom().getPoint1().y) {
             g.setColor(foregroundColor());
-            int ds = sign(dx);
-            g.drawString("C", lead2.x + ((ds < 0) ? 5 : -15), lead2.y + 12);
-            g.drawString("A", lead1.x + 5, lead1.y - 4); // x+6 if ds=1, -12 if -1
+            int ds = sign(_dx);
+            g.drawString("C", geom().getLead2().x + ((ds < 0) ? 5 : -15), geom().getLead2().y + 12);
+            g.drawString("A", geom().getLead1().x + 5, geom().getLead1().y - 4); // x+6 if ds=1, -12 if -1
             g.drawString("G", gate[0].x, gate[0].y + 12);
         }
 
@@ -208,10 +215,13 @@ public class SCRElm extends CircuitElm {
         return -ig;
     }
 
-
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : gate[1];
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? geom().getPoint2() : gate[1];
     }
+
+    // ...
+    // if point1 and point2 are in line, then we don't know which way the gate
+    // is pointed and flip won't work. fix this
 
     public int getPostCount() {
         return 3;
@@ -222,13 +232,13 @@ public class SCRElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (getNodeVoltage(anode) - getNodeVoltage(gnode)) * ia + (getNodeVoltage(cnode) - getNodeVoltage(gnode)) * ic;
+        return (getNodeVoltage(anode) - getNodeVoltage(gnode)) * ia
+                + (getNodeVoltage(cnode) - getNodeVoltage(gnode)) * ic;
     }
 
     double aresistance;
 
     public void stamp() {
-        CircuitSimulator simulator = simulator();
         simulator().stampNonLinear(getNode(anode));
         simulator().stampNonLinear(getNode(cnode));
         simulator().stampNonLinear(getNode(gnode));
@@ -248,9 +258,11 @@ public class SCRElm extends CircuitElm {
         diode.doStep(getNodeVoltage(inode) - getNodeVoltage(cnode));
         double icmult = 1 / triggerI;
         double iamult = 1 / holdingI - icmult;
-        //System.out.println(icmult + " " + iamult);
+        // System.out.println(icmult + " " + iamult);
         aresistance = (-icmult * ic + ia * iamult > 1) ? .0105 : 10e5;
-        //System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " + ia + " " + aresistance + " " + getNodeVoltage(inode) + " " + getNodeVoltage(gnode) + " " + getNodeVoltage(anode));
+        // System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " +
+        // ia + " " + aresistance + " " + getNodeVoltage(inode) + " " +
+        // getNodeVoltage(gnode) + " " + getNodeVoltage(anode));
         simulator().stampResistor(getNode(anode), getNode(inode), aresistance);
     }
 
@@ -293,12 +305,11 @@ public class SCRElm extends CircuitElm {
     }
 
     // if point1 and point2 are in line, then we don't know which way the gate
-    // is pointed and flip won't work.  fix this
+    // is pointed and flip won't work. fix this
     void fixEnds() {
         Point pt = new Point();
-        interpPoint(point1, point2, pt, 1, circuitEditor().gridSize * dir);
-        x2 = pt.x;
-        y2 = pt.y;
+        interpPoint(geom().getPoint1(), geom().getPoint2(), pt, 1, circuitEditor().gridSize * dir);
+        setEndpoints(getX(), getY(), pt.x, pt.y);
     }
 
     public void flipX(int c2, int count) {
@@ -370,4 +381,3 @@ public class SCRElm extends CircuitElm {
         }
     }
 }
-

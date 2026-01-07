@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -41,7 +40,7 @@ public class TriodeElm extends CircuitElm {
     }
 
     public TriodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                     StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         mu = parseDouble(st.nextToken());
         kg1 = parseDouble(st.nextToken());
@@ -76,38 +75,39 @@ public class TriodeElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         plate = newPointArray(4);
         grid = newPointArray(8);
         cath = newPointArray(4);
-        grid[0] = point1;
+        grid[0] = geom().getPoint1();
         int nearw = 8;
-        interpPoint(point1, point2, plate[1], 1, nearw);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), plate[1], 1, nearw);
         int farw = 32;
-        interpPoint(point1, point2, plate[0], 1, farw);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), plate[0], 1, farw);
         int platew = 18;
-        interpPoint2(point2, plate[1], plate[2], plate[3], 1, platew);
+        interpPoint2(geom().getPoint2(), plate[1], plate[2], plate[3], 1, platew);
 
         circler = 24;
-        interpPoint(point1, point2, grid[1], (dn - circler) / dn, 0);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), grid[1], (dn - circler) / dn, 0);
         int i;
         for (i = 0; i != 3; i++) {
-            interpPoint(grid[1], point2, grid[2 + i * 2], (i * 3 + 1) / 4.5, 0);
-            interpPoint(grid[1], point2, grid[3 + i * 2], (i * 3 + 2) / 4.5, 0);
+            interpPoint(grid[1], geom().getPoint2(), grid[2 + i * 2], (i * 3 + 1) / 4.5, 0);
+            interpPoint(grid[1], geom().getPoint2(), grid[3 + i * 2], (i * 3 + 2) / 4.5, 0);
         }
-        midgrid = point2;
+        midgrid = geom().getPoint2();
 
         int cathw = 16;
-        midcath = interpPoint(point1, point2, 1, -nearw);
-        interpPoint2(point2, plate[1], cath[1], cath[2], -1, cathw);
-        interpPoint(point2, plate[1], cath[3], -1.2, -cathw);
-        interpPoint(point2, plate[1], cath[0], -farw / (double) nearw, cathw);
+        midcath = interpPoint(geom().getPoint1(), geom().getPoint2(), 1, -nearw);
+        interpPoint2(geom().getPoint2(), plate[1], cath[1], cath[2], -1, cathw);
+        interpPoint(geom().getPoint2(), plate[1], cath[3], -1.2, -cathw);
+        interpPoint(geom().getPoint2(), plate[1], cath[0], -farw / (double) nearw, cathw);
     }
 
     public void draw(Graphics g) {
         g.setColor(neutralColor());
-        drawThickCircle(g, point2.x, point2.y, circler);
-        setBbox(point1, plate[0], 16);
-        adjustBbox(cath[0].x, cath[1].y, point2.x + circler, point2.y + circler);
+        drawThickCircle(g, geom().getPoint2().x, geom().getPoint2().y, circler);
+        setBbox(geom().getPoint1(), plate[0], 16);
+        adjustBbox(cath[0].x, cath[1].y, geom().getPoint2().x + circler, geom().getPoint2().y + circler);
         // draw plate
         setVoltageColor(g, getNodeVoltage(0));
         setPowerColor(g, currentp * (getNodeVoltage(0) - getNodeVoltage(2)));
@@ -115,7 +115,7 @@ public class TriodeElm extends CircuitElm {
         drawThickLine(g, plate[2], plate[3]);
         // draw grid
         setVoltageColor(g, getNodeVoltage(1));
-        setPowerColor(g, currentg * (getNodeVoltage(1) - getNodeVoltage(2)) );
+        setPowerColor(g, currentg * (getNodeVoltage(1) - getNodeVoltage(2)));
         int i;
         for (i = 0; i != 8; i += 2)
             drawThickLine(g, grid[i], grid[i + 1]);
@@ -133,7 +133,7 @@ public class TriodeElm extends CircuitElm {
             drawDots(g, midgrid, midcath, curcountc);
             drawDots(g, midcath, cath[1], addCurCount(curcountc, 8));
             drawDots(g, cath[1], cath[0], addCurCount(curcountc, 8));
-            drawDots(g, point1, midgrid, curcountg);
+            drawDots(g, geom().getPoint1(), midgrid, curcountg);
         }
         drawPosts(g);
     }
@@ -155,7 +155,8 @@ public class TriodeElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (getNodeVoltage(0) - getNodeVoltage(2)) * currentc + (getNodeVoltage(gridN) - getNodeVoltage(cathN)) * currentg;
+        return (getNodeVoltage(0) - getNodeVoltage(2)) * currentc
+                + (getNodeVoltage(gridN) - getNodeVoltage(cathN)) * currentg;
     }
 
     public double getCurrent() {
@@ -187,7 +188,7 @@ public class TriodeElm extends CircuitElm {
         if (Math.abs(lastv0 - vs[0]) > .01 ||
                 Math.abs(lastv1 - vs[1]) > .01 ||
                 Math.abs(lastv2 - vs[2]) > .01)
-			simulator.converged = false;
+            simulator.converged = false;
         lastv0 = vs[0];
         lastv1 = vs[1];
         lastv2 = vs[2];
@@ -197,10 +198,10 @@ public class TriodeElm extends CircuitElm {
         double ival = vgk + vpk / mu;
         currentg = 0;
         if (vgk > .01) {
-		simulator.stampResistor(getNode(gridN), getNode(cathN), gridCurrentR);
+            simulator.stampResistor(getNode(gridN), getNode(cathN), gridCurrentR);
             currentg = vgk / gridCurrentR;
         } else
-		simulator.stampResistor(getNode(gridN), getNode(cathN), 1e8); // avoid singular matrix
+            simulator.stampResistor(getNode(gridN), getNode(cathN), 1e8); // avoid singular matrix
         if (ival < 0) {
             // should be all zero, but that causes a singular matrix,
             // so instead we treat it as a large resistor
@@ -217,23 +218,23 @@ public class TriodeElm extends CircuitElm {
         currentp = ids;
         currentc = ids + currentg;
         double rs = -ids + Gds * vpk + gm * vgk;
-		simulator.stampMatrix(getNode(plateN), getNode(plateN), Gds);
-		simulator.stampMatrix(getNode(plateN), getNode(cathN), -Gds - gm);
-		simulator.stampMatrix(getNode(plateN), getNode(gridN), gm);
+        simulator.stampMatrix(getNode(plateN), getNode(plateN), Gds);
+        simulator.stampMatrix(getNode(plateN), getNode(cathN), -Gds - gm);
+        simulator.stampMatrix(getNode(plateN), getNode(gridN), gm);
 
-		simulator.stampMatrix(getNode(cathN), getNode(plateN), -Gds);
-		simulator.stampMatrix(getNode(cathN), getNode(cathN), Gds + gm);
-		simulator.stampMatrix(getNode(cathN), getNode(gridN), -gm);
+        simulator.stampMatrix(getNode(cathN), getNode(plateN), -Gds);
+        simulator.stampMatrix(getNode(cathN), getNode(cathN), Gds + gm);
+        simulator.stampMatrix(getNode(cathN), getNode(gridN), -gm);
 
-		simulator.stampRightSide(getNode(plateN), rs);
-		simulator.stampRightSide(getNode(cathN), -rs);
+        simulator.stampRightSide(getNode(plateN), rs);
+        simulator.stampRightSide(getNode(cathN), -rs);
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
         simulator.stampNonLinear(getNode(0));
-		simulator.stampNonLinear(getNode(1));
-		simulator.stampNonLinear(getNode(2));
+        simulator.stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(2));
     }
 
     public void getInfo(String arr[]) {

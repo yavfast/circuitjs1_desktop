@@ -78,32 +78,42 @@ public class DiacElm extends CircuitElm {
 
     Polygon arrows[];
     Point plate1[], plate2[];
+    private Point ptemp1, ptemp2, ptemp3;
 
     public void setPoints() {
         super.setPoints();
         calcLeads(16);
 
-        plate1 = newPointArray(2);
-        plate2 = newPointArray(2);
-        interpPoint2(lead1, lead2, plate1[0], plate1[1], 0, 16);
-        interpPoint2(lead1, lead2, plate2[0], plate2[1], 1, 16);
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        Point l1 = geom().getLead1();
+        Point l2 = geom().getLead2();
 
-        arrows = new Polygon[2];
+        if (plate1 == null) plate1 = newPointArray(2);
+        if (plate2 == null) plate2 = newPointArray(2);
+        interpPoint2(l1, l2, plate1[0], plate1[1], 0, 16);
+        interpPoint2(l1, l2, plate2[0], plate2[1], 1, 16);
 
-        int i;
-        for (i = 0; i != 2; i++) {
+        if (arrows == null) arrows = new Polygon[2];
+        if (ptemp1 == null) ptemp1 = new Point();
+        if (ptemp2 == null) ptemp2 = new Point();
+        if (ptemp3 == null) ptemp3 = new Point();
+
+        for (int i = 0; i != 2; i++) {
             int sgn = -1 + i * 2;
-            Point p1 = interpPoint(lead1, lead2, i, 8 * sgn);
-            Point p2 = interpPoint(lead1, lead2, 1 - i, 16 * sgn);
-            Point p3 = interpPoint(lead1, lead2, 1 - i, 0 * sgn);
-            arrows[i] = createPolygon(p1, p2, p3);
+            interpPoint(l1, l2, ptemp1, i);
+            interpPoint(l1, l2, ptemp2, 1 - i, 16 * sgn);
+            interpPoint(l1, l2, ptemp3, 1 - i, 0 * sgn);
+            arrows[i] = createPolygon(ptemp1, ptemp2, ptemp3);
         }
     }
 
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, 6);
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        setBbox(p1, p2, 6);
         draw2Leads(g);
         setVoltageColor(g, v1);
         setPowerColor(g, true);
@@ -134,16 +144,16 @@ public class DiacElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         double r = (state) ? onresistance : offresistance;
-        simulator().stampResistor(getNode(0), getNode(2), r);
-        simulator().stampResistor(getNode(0), getNode(3), r);
+        simulator.stampResistor(getNode(0), getNode(2), r);
+        simulator.stampResistor(getNode(0), getNode(3), r);
         diode1.doStep(getNodeVoltage(2) - getNodeVoltage(1));
         diode2.doStep(getNodeVoltage(1) - getNodeVoltage(3));
     }
 
     public void stamp() {
         CircuitSimulator simulator = simulator();
-        simulator().stampNonLinear(getNode(0));
-        simulator().stampNonLinear(getNode(1));
+        simulator.stampNonLinear(getNode(0));
+        simulator.stampNonLinear(getNode(1));
         diode1.stamp(getNode(2), getNode(1));
         diode2.stamp(getNode(1), getNode(3));
     }

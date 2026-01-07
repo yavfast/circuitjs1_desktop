@@ -80,6 +80,9 @@ public class AmmeterElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         mid = interpPoint(point1, point2, 0.6);
         center = interpPoint(point1, point2, 0.5);
         arrowPoly = calcArrow(point1, mid, 14, 7);
@@ -160,9 +163,13 @@ public class AmmeterElm extends CircuitElm {
     }
 
     Polygon arrowPoly;
+    private Point plusPoint;
 
     public void draw(Graphics graphics) {
         super.draw(graphics);//BC required for highlighting
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         setVoltageColor(graphics, getNodeVoltage(0));
         double width = 4;
         if (!drawAsCircle()) {
@@ -174,6 +181,8 @@ public class AmmeterElm extends CircuitElm {
             drawCenteredText(graphics, "A", center.x, center.y, true);
 
             calcLeads(circleSize * 2);
+            Point lead1 = geom().getLead1();
+            Point lead2 = geom().getLead2();
             setVoltageColor(graphics, getNodeVoltage(0));
             drawThickLine(graphics, point1, lead1);
             drawThickLine(graphics, lead2, point2);
@@ -181,10 +190,13 @@ public class AmmeterElm extends CircuitElm {
             graphics.setColor(foregroundColor());
             graphics.setFont(unitsFont());
             double len = circleSize * 2;
-            Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
-            if (y2 > y)
+            if (plusPoint == null) plusPoint = new Point();
+            double dn = getDn();
+            int dsign = getDsign();
+            interpPoint(point1, point2, plusPoint, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
+            if (getY2() > getY())
                 plusPoint.y += 4;
-            if (y > y2)
+            if (getY() > getY2())
                 plusPoint.y += 3;
             int w = (int) graphics.measureWidth("+");
             graphics.drawString("+", plusPoint.x - w / 2, plusPoint.y);

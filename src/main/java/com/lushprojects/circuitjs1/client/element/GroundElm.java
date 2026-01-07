@@ -30,6 +30,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class GroundElm extends CircuitElm {
     static int lastSymbolType = 0;
     int symbolType;
+    private Point ptemp;
 
     // this is needed for old subcircuits which have GroundElm dumped
     final int FLAG_OLD_STYLE = 1;
@@ -69,37 +70,42 @@ public class GroundElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setVoltageColor(g, 0);
-        drawThickLine(g, point1, point2);
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        drawThickLine(g, p1, p2);
         if (symbolType == 0) {
             int i;
             for (i = 0; i != 3; i++) {
                 int a = 10 - i * 4;
                 int b = i * 5; // -10;
-                interpPoint2(point1, point2, ps1, ps2, 1 + b / dn, a);
+                interpPoint2(p1, p2, ps1, ps2, 1 + b / getDn(), a);
                 drawThickLine(g, ps1, ps2);
             }
         } else if (symbolType == 1) {
-            interpPoint2(point1, point2, ps1, ps2, 1, 10);
+            interpPoint2(p1, p2, ps1, ps2, 1, 10);
             drawThickLine(g, ps1, ps2);
             int i;
             for (i = 0; i <= 2; i++) {
-                Point p = interpPoint(ps1, ps2, i / 2.);
-                drawThickLine(g, p.x, p.y, (int) (p.x - 5 * dpx1 + 8 * dx / dn), (int) (p.y + 8 * dy / dn - 5 * dpy1));
+                if (ptemp == null) ptemp = new Point();
+                interpPoint(ps1, ps2, ptemp, i / 2.);
+                drawThickLine(g, ptemp.x, ptemp.y,
+                        (int) (ptemp.x - 5 * getDpx1() + 8 * getDx() / getDn()),
+                        (int) (ptemp.y + 8 * getDy() / getDn() - 5 * getDpy1()));
             }
         } else if (symbolType == 2) {
-            interpPoint2(point1, point2, ps1, ps2, 1, 10);
+            interpPoint2(p1, p2, ps1, ps2, 1, 10);
             drawThickLine(g, ps1, ps2);
-            int ps3x = (int) (point2.x + 10 * dx / dn);
-            int ps3y = (int) (point2.y + 10 * dy / dn);
+            int ps3x = (int) (p2.x + 10 * getDx() / getDn());
+            int ps3y = (int) (p2.y + 10 * getDy() / getDn());
             drawThickLine(g, ps1.x, ps1.y, ps3x, ps3y);
             drawThickLine(g, ps2.x, ps2.y, ps3x, ps3y);
         } else {
-            interpPoint2(point1, point2, ps1, ps2, 1, 10);
+            interpPoint2(p1, p2, ps1, ps2, 1, 10);
             drawThickLine(g, ps1, ps2);
         }
-        interpPoint(point1, point2, ps2, 1 + 11. / dn);
+        interpPoint(p1, p2, ps2, 1 + 11. / getDn());
         doDots(g);
-        setBbox(point1, ps2, 11);
+        setBbox(p1, ps2, 11);
         drawPosts(g);
     }
 
@@ -141,7 +147,7 @@ public class GroundElm extends CircuitElm {
     public Point getConnectedPost() {
         if (firstGround != null)
             return firstGround;
-        firstGround = point1;
+        firstGround = geom().getPoint1();
         return null;
     }
 

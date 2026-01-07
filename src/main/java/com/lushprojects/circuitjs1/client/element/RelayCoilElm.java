@@ -95,7 +95,7 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     public RelayCoilElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         label = CustomLogicModel.unescape(st.nextToken());
         inductance = parseDouble(st.nextToken());
@@ -130,7 +130,7 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        int i, p;
+        int i;
         for (i = 0; i != 2; i++) {
             setVoltageColor(g, getNodeVoltage(nCoil1 + i));
             drawThickLine(g, coilLeads[i], coilPosts[i]);
@@ -152,16 +152,17 @@ public class RelayCoilElm extends CircuitElm {
             drawThickLine(g, extraPoints[0], extraPoints[2]);
             drawThickLine(g, extraPoints[1], extraPoints[3]);
         } else if (type == TYPE_OFF_DELAY) {
-            g.fillRect(extraPoints[0].x, extraPoints[0].y, extraPoints[2].x - extraPoints[0].x, extraPoints[2].y - extraPoints[0].y);
+            g.fillRect(extraPoints[0].x, extraPoints[0].y, extraPoints[2].x - extraPoints[0].x,
+                    extraPoints[2].y - extraPoints[0].y);
         }
 
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-        if (x == x2)
-            g.drawString(label, outline[2].x + 10, (y + y2) / 2 + 4);
+        if (getX() == getX2())
+            g.drawString(label, outline[2].x + 10, (getY() + getY2()) / 2 + 4);
         else {
             g.save();
             g.setTextAlign(Context2d.TextAlign.CENTER);
-            g.drawString(label, (x + x2) / 2, outline[1].y + 15);
+            g.drawString(label, (getX() + getX2()) / 2, outline[1].y + 15);
             g.restore();
         }
 
@@ -169,7 +170,8 @@ public class RelayCoilElm extends CircuitElm {
 
         if (coilCurCount != 0) {
             drawDots(g, coilPosts[0], coilLeads[0], coilCurCount);
-            //drawDots(g, coilLeads[0], coilLeads[1], addCurCount(coilCurCount, currentOffset1));
+            // drawDots(g, coilLeads[0], coilLeads[1], addCurCount(coilCurCount,
+            // currentOffset1));
             drawDots(g, coilLeads[1], coilPosts[1], addCurCount(coilCurCount, currentOffset2));
         }
 
@@ -178,7 +180,7 @@ public class RelayCoilElm extends CircuitElm {
         adjustBbox(coilPosts[0], coilPosts[1]);
 
         // this never gets called for subcircuits
-        //setSwitchPositions();
+        // setSwitchPositions();
     }
 
     public double getCurrentIntoNode(int n) {
@@ -189,32 +191,37 @@ public class RelayCoilElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
         setupPoles();
         allocNodes();
         openhs = -dsign * 16;
 
         // coil
-        coilPosts = newPointArray(2);
-        coilLeads = newPointArray(2);
+        if (coilPosts == null)
+            coilPosts = newPointArray(2);
+        if (coilLeads == null)
+            coilLeads = newPointArray(2);
 
         int boxSize;
-        coilPosts[0] = point1;
-        coilPosts[1] = point2;
+        coilPosts[0] = geom().getPoint1();
+        coilPosts[1] = geom().getPoint2();
         boxSize = 32;
 
         // outline
         double boxWScale = Math.min(0.4, 12.0 / dn);
-        interpPoint(point1, point2, coilLeads[0], 0.5 - boxWScale);
-        interpPoint(point1, point2, coilLeads[1], 0.5 + boxWScale);
-        interpPoint(point1, point2, outline[0], 0.5 - boxWScale, -boxSize * dsign);
-        interpPoint(point1, point2, outline[1], 0.5 + boxWScale, -boxSize * dsign);
-        interpPoint(point1, point2, outline[3], 0.5 - boxWScale, +boxSize * dsign);
-        interpPoint(point1, point2, outline[2], 0.5 + boxWScale, +boxSize * dsign);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), coilLeads[0], 0.5 - boxWScale);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), coilLeads[1], 0.5 + boxWScale);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), outline[0], 0.5 - boxWScale, -boxSize * dsign);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), outline[1], 0.5 + boxWScale, -boxSize * dsign);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), outline[3], 0.5 - boxWScale, +boxSize * dsign);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), outline[2], 0.5 + boxWScale, +boxSize * dsign);
 
         currentOffset1 = distance(coilPosts[0], coilLeads[0]);
         currentOffset2 = currentOffset1 + distance(coilLeads[0], coilLeads[1]);
 
-        extraPoints = newPointArray(4);
+        if (extraPoints == null)
+            extraPoints = newPointArray(4);
 
         if (type == TYPE_LATCHING) {
             interpPoint(coilLeads[0], coilLeads[1], extraPoints[0], .3, 8);
@@ -224,10 +231,10 @@ public class RelayCoilElm extends CircuitElm {
         } else {
             extraPoints[0] = outline[0];
             extraPoints[3] = outline[1];
-//	    interpPoint(coilLeads[0], coilLeads[1], extraPoints[0], 0, -boxSize);
+            // interpPoint(coilLeads[0], coilLeads[1], extraPoints[0], 0, -boxSize);
             interpPoint(coilLeads[0], coilLeads[1], extraPoints[1], 0, -boxSize + 12);
             interpPoint(coilLeads[0], coilLeads[1], extraPoints[2], 1, -boxSize + 12);
-//	    interpPoint(coilLeads[0], coilLeads[1], extraPoints[3], 1, -boxSize);
+            // interpPoint(coilLeads[0], coilLeads[1], extraPoints[3], 1, -boxSize);
         }
     }
 
@@ -250,7 +257,8 @@ public class RelayCoilElm extends CircuitElm {
         d_position = i_position = 0;
         avgCurrent = 0;
 
-        // preserve onState because if we don't, Relay Flip-Flop gets left in a weird state on reset.
+        // preserve onState because if we don't, Relay Flip-Flop gets left in a weird
+        // state on reset.
         // onState = false;
     }
 
@@ -350,7 +358,6 @@ public class RelayCoilElm extends CircuitElm {
             arr[0] += " (" + Locale.LS("off") + ")";
         else if (i_position == 1)
             arr[0] += " (" + Locale.LS("on") + ")";
-        int i;
         int ln = 1;
         arr[ln++] = Locale.LS("coil I") + " = " + getCurrentDText(coilCurrent);
         arr[ln++] = Locale.LS("coil Vd") + " = " +
@@ -415,7 +422,9 @@ public class RelayCoilElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "RelayCoil"; }
+    public String getJsonTypeName() {
+        return "RelayCoil";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -426,7 +435,7 @@ public class RelayCoilElm extends CircuitElm {
         props.put("off_current", getUnitText(offCurrent, "A"));
         props.put("coil_resistance", getUnitText(coilR, "Ohm"));
         props.put("switching_time", getUnitText(switchingTime, "s"));
-        String[] typeNames = {"normal", "on_delay", "off_delay", "latching"};
+        String[] typeNames = { "normal", "on_delay", "off_delay", "latching" };
         props.put("type", typeNames[type]);
         return props;
     }
@@ -434,38 +443,42 @@ public class RelayCoilElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         if (props.containsKey("label")) {
             label = String.valueOf(props.get("label"));
         }
-        
+
         inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "inductance", "200 mH"));
+                getJsonString(props, "inductance", "200 mH"));
         ind.setup(inductance, coilCurrent, Inductor.FLAG_BACK_EULER);
-        
+
         onCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "on_current", "20 mA"));
+                getJsonString(props, "on_current", "20 mA"));
         offCurrent = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "off_current", "15 mA"));
+                getJsonString(props, "off_current", "15 mA"));
         coilR = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "coil_resistance", "20 Ohm"));
+                getJsonString(props, "coil_resistance", "20 Ohm"));
         switchingTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "switching_time", "5 ms"));
-        
+                getJsonString(props, "switching_time", "5 ms"));
+
         if (props.containsKey("type")) {
             String typeStr = String.valueOf(props.get("type"));
-            if ("normal".equals(typeStr)) type = TYPE_NORMAL;
-            else if ("on_delay".equals(typeStr)) type = TYPE_ON_DELAY;
-            else if ("off_delay".equals(typeStr)) type = TYPE_OFF_DELAY;
-            else if ("latching".equals(typeStr)) type = TYPE_LATCHING;
+            if ("normal".equals(typeStr))
+                type = TYPE_NORMAL;
+            else if ("on_delay".equals(typeStr))
+                type = TYPE_ON_DELAY;
+            else if ("off_delay".equals(typeStr))
+                type = TYPE_OFF_DELAY;
+            else if ("latching".equals(typeStr))
+                type = TYPE_LATCHING;
         }
-        
+
         setupPoles();
     }
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"coil+", "coil-"};
+        return new String[] { "coil+", "coil-" };
     }
 
     @Override
@@ -491,4 +504,3 @@ public class RelayCoilElm extends CircuitElm {
             avgCurrent = ((Number) state.get("avgCurrent")).doubleValue();
     }
 }
-

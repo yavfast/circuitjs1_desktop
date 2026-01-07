@@ -53,13 +53,13 @@ public class TransformerElm extends CircuitElm {
         int nominalWidth = 32;
         flags &= ~FLAG_VERTICAL;
         width = nominalWidth;
-        x2 = x + nominalLen;
-        y2 = y + nominalWidth;
+        setEndpoints(xx, yy, xx + nominalLen, yy + nominalWidth);
         setPoints();
     }
 
+    // ... constructor 2 ...
     public TransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         if (hasFlag(FLAG_VERTICAL))
             width = -max(32, abs(xb - xa));
@@ -69,11 +69,11 @@ public class TransformerElm extends CircuitElm {
         // If the saved endpoints are axis-aligned (no diagonal), synthesize the
         // diagonal corner used by resize handles from the spacing.
         if (hasFlag(FLAG_VERTICAL)) {
-            if (x2 == x)
-                x2 = x + abs(width);
+            if (getX2() == getX())
+                setEndpoints(getX(), getY(), getX() + abs(width), getY2());
         } else {
-            if (y2 == y)
-                y2 = y + abs(width);
+            if (getY2() == getY())
+                setEndpoints(getX(), getY(), getX2(), getY() + abs(width));
         }
 
         inductance = parseDouble(st.nextToken());
@@ -102,6 +102,7 @@ public class TransformerElm extends CircuitElm {
         return 4;
     }
 
+    // ... handle points ...
     @Override
     public Point getHandlePoint(int n) {
         // Handles are the 4 rectangle corners. The underlying data for this element
@@ -109,13 +110,13 @@ public class TransformerElm extends CircuitElm {
         if (hasFlag(FLAG_VERTICAL)) {
             switch (n) {
                 case 0:
-                    return new Point(x, y);
+                    return new Point(getX(), getY());
                 case 1:
-                    return new Point(x, y2);
+                    return new Point(getX(), getY2());
                 case 2:
-                    return new Point(x2, y2);
+                    return new Point(getX2(), getY2());
                 case 3:
-                    return new Point(x2, y);
+                    return new Point(getX2(), getY());
                 default:
                     return super.getHandlePoint(n);
             }
@@ -123,13 +124,13 @@ public class TransformerElm extends CircuitElm {
 
         switch (n) {
             case 0:
-                return new Point(x, y);
+                return new Point(getX(), getY());
             case 1:
-                return new Point(x2, y);
+                return new Point(getX2(), getY());
             case 2:
-                return new Point(x2, y2);
+                return new Point(getX2(), getY2());
             case 3:
-                return new Point(x, y2);
+                return new Point(getX(), getY2());
             default:
                 return super.getHandlePoint(n);
         }
@@ -142,19 +143,18 @@ public class TransformerElm extends CircuitElm {
         // Keep the end point diagonal:
         // - major axis chooses orientation
         // - minor axis controls winding spacing (width)
-        if (abs(sx - x) > abs(sy - y)) {
+        if (abs(sx - getX()) > abs(sy - getY())) {
             flags &= ~FLAG_VERTICAL;
         } else {
             flags |= FLAG_VERTICAL;
         }
 
         if (hasFlag(FLAG_VERTICAL))
-            width = -max(32, abs(sx - x));
+            width = -max(32, abs(sx - getX()));
         else
-            width = max(32, abs(sy - y));
+            width = max(32, abs(sy - getY()));
 
-        x2 = sx;
-        y2 = sy;
+        setEndpoints(getX(), getY(), sx, sy);
         setPoints();
     }
 
@@ -220,12 +220,8 @@ public class TransformerElm extends CircuitElm {
             int ny1 = (n == 0 || n == 3) ? my : fy;
             int ny2 = (n == 0 || n == 3) ? fy : my;
 
-            x = nx1;
-            y = ny1;
-            x2 = nx2;
-            y2 = ny2;
-
-            width = -max(minWidth, abs(x2 - x));
+            width = -max(minWidth, abs(nx2 - nx1));
+            setEndpoints(nx1, ny1, nx2, ny2);
         } else {
             // Horizontal
             if (n == 0 || n == 3) {
@@ -248,12 +244,8 @@ public class TransformerElm extends CircuitElm {
             int ny1 = (n == 0 || n == 1) ? my : fy;
             int ny2 = (n == 0 || n == 1) ? fy : my;
 
-            x = nx1;
-            y = ny1;
-            x2 = nx2;
-            y2 = ny2;
-
-            width = max(minWidth, abs(y2 - y));
+            width = max(minWidth, abs(ny2 - ny1));
+            setEndpoints(nx1, ny1, nx2, ny2);
         }
 
         setPoints();
@@ -273,6 +265,7 @@ public class TransformerElm extends CircuitElm {
 
     public void draw(Graphics g) {
         int i;
+        int dsign = getDsign();
         for (i = 0; i != 4; i++) {
             setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, ptEnds[i], ptCoil[i]);
@@ -296,7 +289,7 @@ public class TransformerElm extends CircuitElm {
         }
         coreCx /= 4;
         coreCy /= 4;
-        String[] turnsLabels = new String[] {"1T", shortFormat(Math.abs(ratio)) + "T"};
+        String[] turnsLabels = new String[] { "1T", shortFormat(Math.abs(ratio)) + "T" };
         for (i = 0; i != 2; i++) {
             Point a = ptCoil[i];
             Point b = ptCoil[i + 2];
@@ -344,36 +337,35 @@ public class TransformerElm extends CircuitElm {
 
         drawPosts(g);
         setBbox(ptEnds[0], ptEnds[polarity == 1 ? 3 : 1], 0);
-        adjustBbox(new Point(x, y), new Point(x2, y2));
+        adjustBbox(new Point(getX(), getY()), new Point(getX2(), getY2()));
     }
 
     public void setPoints() {
         super.setPoints();
         // Keep the resize handle diagonal (x2/y2) but constrain the rendered axis.
         if (hasFlag(FLAG_VERTICAL))
-            point2.x = point1.x;
+            setEndpoints(getX(), getY(), getX(), getY2());
         else
-            point2.y = point1.y;
-        dx = point2.x - point1.x;
-        dy = point2.y - point1.y;
-        dn = Math.sqrt(dx * dx + dy * dy);
-        if (dn < 1)
-            dn = 1;
-        dpx1 = dy / dn;
-        dpy1 = -dx / dn;
-        dsign = (dy == 0) ? sign(dx) : sign(dy);
-        ptEnds = newPointArray(4);
-        ptCoil = newPointArray(4);
-        ptCore = newPointArray(4);
-        ptEnds[0] = point1;
-        ptEnds[1] = point2;
+            setEndpoints(getX(), getY(), getX2(), getY());
+
+        // Use getters so we rely on ElmGeometry (and possible subclass tweaks via
+        // adjustDerivedGeometry)
+        double dn = getDn();
+        int dsign = getDsign();
+        if (ptEnds == null)
+            ptEnds = newPointArray(4);
+        if (ptCoil == null)
+            ptCoil = newPointArray(4);
+        if (ptCore == null)
+            ptCore = newPointArray(4);
+        ptEnds[0] = geom().getPoint1();
+        ptEnds[1] = geom().getPoint2();
         flip = hasFlag(FLAG_FLIP) ? -1 : 1;
-        interpPoint(point1, point2, ptEnds[2], 0, -dsign * width * flip);
-        interpPoint(point1, point2, ptEnds[3], 1, -dsign * width * flip);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[2], 0, -dsign * width * flip);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[3], 1, -dsign * width * flip);
         double ce = .5 - 12 / dn;
         double cd = .5 - 2 / dn;
-        int i;
-        for (i = 0; i != 4; i += 2) {
+        for (int i = 0; i != 4; i += 2) {
             interpPoint(ptEnds[i], ptEnds[i + 1], ptCoil[i], ce);
             interpPoint(ptEnds[i], ptEnds[i + 1], ptCoil[i + 1], 1 - ce);
             interpPoint(ptEnds[i], ptEnds[i + 1], ptCore[i], cd);
@@ -381,10 +373,11 @@ public class TransformerElm extends CircuitElm {
         }
         if (polarity == -1) {
             int vsign = (hasFlag(FLAG_VERTICAL)) ? -1 : 1;
-            dots = new Point[2];
             double dotp = Math.abs(7. / width);
-            dots[0] = interpPoint(ptCoil[0], ptCoil[2], dotp, -7 * dsign * vsign * flip);
-            dots[1] = interpPoint(ptCoil[3], ptCoil[1], dotp, -7 * dsign * vsign * flip);
+            if (dots == null || dots.length != 2)
+                dots = newPointArray(2);
+            interpPoint(ptCoil[0], ptCoil[2], dots[0], dotp, -7 * dsign * vsign * flip);
+            interpPoint(ptCoil[3], ptCoil[1], dots[1], dotp, -7 * dsign * vsign * flip);
             Point x = ptEnds[1];
             ptEnds[1] = ptEnds[3];
             ptEnds[3] = x;
@@ -393,6 +386,13 @@ public class TransformerElm extends CircuitElm {
             ptCoil[3] = x;
         } else
             dots = null;
+    }
+
+    @Override
+    protected void adjustDerivedGeometry(ElmGeometry geom) {
+        // For transformer, rely on ElmGeometry helper to recompute derived geometry
+        // and enforce a minimum dn of 1.
+        geom.recomputeDerivedWithMinDn(1);
     }
 
     public Point getPost(int n) {
@@ -404,8 +404,10 @@ public class TransformerElm extends CircuitElm {
     }
 
     public void reset() {
-        // need to set current-source values here in case one of the nodes is node 0.  In that case
-        // calculateCurrent() may get called (from setNodeVoltage()) when analyzing circuit, before
+        // need to set current-source values here in case one of the nodes is node 0. In
+        // that case
+        // calculateCurrent() may get called (from setNodeVoltage()) when analyzing
+        // circuit, before
         // startIteration() gets called
         current[0] = current[1] = 0;
         setNodeVoltageDirect(0, 0);
@@ -420,27 +422,27 @@ public class TransformerElm extends CircuitElm {
 
     public void stamp() {
         // equations for transformer:
-        //   v1 = L1 di1/dt + M  di2/dt
-        //   v2 = M  di1/dt + L2 di2/dt
+        // v1 = L1 di1/dt + M di2/dt
+        // v2 = M di1/dt + L2 di2/dt
         // we invert that to get:
-        //   di1/dt = a1 v1 + a2 v2
-        //   di2/dt = a3 v1 + a4 v2
+        // di1/dt = a1 v1 + a2 v2
+        // di2/dt = a3 v1 + a4 v2
         // integrate di1/dt using trapezoidal approx and we get:
-        //   i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
-        //          = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) +
-        //                     a1 dt/2 v1(t2) + a2 dt/2 v2(t2)
+        // i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
+        // = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) +
+        // a1 dt/2 v1(t2) + a2 dt/2 v2(t2)
         // the norton equivalent of this for i1 is:
-        //  a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1)
-        //  b. resistor, G = a1 dt/2
-        //  c. current source controlled by voltage v2, G = a2 dt/2
+        // a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1)
+        // b. resistor, G = a1 dt/2
+        // c. current source controlled by voltage v2, G = a2 dt/2
         // and for i2:
-        //  a. current source, I = i2(t1) + a3 dt/2 v1(t1) + a4 dt/2 v2(t1)
-        //  b. resistor, G = a3 dt/2
-        //  c. current source controlled by voltage v2, G = a4 dt/2
+        // a. current source, I = i2(t1) + a3 dt/2 v1(t1) + a4 dt/2 v2(t1)
+        // b. resistor, G = a3 dt/2
+        // c. current source controlled by voltage v2, G = a4 dt/2
         //
         // For backward euler,
         //
-        //   i1(t2) = i1(t1) + a1 dt v1(t2) + a2 dt v2(t2)
+        // i1(t2) = i1(t1) + a1 dt v1(t2) + a2 dt v2(t2)
         //
         // So the current source value is just i1(t1) and we use
         // dt instead of dt/2 for the resistor and VCCS.
@@ -459,13 +461,13 @@ public class TransformerElm extends CircuitElm {
 
         CircuitSimulator simulator = simulator();
         simulator.stampConductance(getNode(0), getNode(2), a1);
-		simulator.stampVCCurrentSource(getNode(0), getNode(2), getNode(1), getNode(3), a2);
-		simulator.stampVCCurrentSource(getNode(1), getNode(3), getNode(0), getNode(2), a3);
-		simulator.stampConductance(getNode(1), getNode(3), a4);
-		simulator.stampRightSide(getNode(0));
-		simulator.stampRightSide(getNode(1));
-		simulator.stampRightSide(getNode(2));
-		simulator.stampRightSide(getNode(3));
+        simulator.stampVCCurrentSource(getNode(0), getNode(2), getNode(1), getNode(3), a2);
+        simulator.stampVCCurrentSource(getNode(1), getNode(3), getNode(0), getNode(2), a3);
+        simulator.stampConductance(getNode(1), getNode(3), a4);
+        simulator.stampRightSide(getNode(0));
+        simulator.stampRightSide(getNode(1));
+        simulator.stampRightSide(getNode(2));
+        simulator.stampRightSide(getNode(3));
     }
 
     public void startIteration() {
@@ -485,7 +487,7 @@ public class TransformerElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         simulator.stampCurrentSource(getNode(0), getNode(2), curSourceValue1);
-		simulator.stampCurrentSource(getNode(1), getNode(3), curSourceValue2);
+        simulator.stampCurrentSource(getNode(1), getNode(3), curSourceValue2);
     }
 
     void calculateCurrent() {
@@ -526,8 +528,7 @@ public class TransformerElm extends CircuitElm {
         if (n == 1)
             return new EditInfo("Ratio (N1/N2)", 1 / ratio, 1, 10).setDimensionless();
         if (n == 2)
-            return new EditInfo("Coupling Coefficient", couplingCoef, 0, 1).
-                    setDimensionless();
+            return new EditInfo("Coupling Coefficient", couplingCoef, 0, 1).setDimensionless();
         if (n == 3) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Trapezoidal Approximation",
@@ -643,18 +644,19 @@ public class TransformerElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse inductance
         inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "inductance", "4 H"));
-        
+                getJsonString(props, "inductance", "4 H"));
+
         // Parse ratio
         ratio = getJsonDouble(props, "ratio", 1);
-        
+
         // Parse coupling coefficient
         couplingCoef = getJsonDouble(props, "coupling", 0.999);
-        if (couplingCoef <= 0 || couplingCoef >= 1) couplingCoef = 0.999;
-        
+        if (couplingCoef <= 0 || couplingCoef >= 1)
+            couplingCoef = 0.999;
+
         // Parse polarity
         if (getJsonBoolean(props, "reverse_polarity", false)) {
             polarity = -1;
@@ -662,7 +664,7 @@ public class TransformerElm extends CircuitElm {
         } else {
             polarity = 1;
         }
-        
+
         // Note: orientation flags (FLAG_VERTICAL, FLAG_FLIP) and width
         // are set by applyJsonPinPositions() based on actual pin coordinates
     }

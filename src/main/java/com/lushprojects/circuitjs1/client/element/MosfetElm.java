@@ -23,7 +23,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
-import com.lushprojects.circuitjs1.client.Color;
+
 import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -65,7 +65,7 @@ public class MosfetElm extends CircuitElm {
     }
 
     public MosfetElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                     StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         pnp = ((f & FLAG_PNP) != 0) ? -1 : 1;
         noDiagonal = true;
@@ -78,7 +78,8 @@ public class MosfetElm extends CircuitElm {
         } catch (Exception e) {
         }
         globalFlags = flags & (FLAGS_GLOBAL);
-        allocNodes(); // make sure nodeStates has the right number of elements when hasBodyTerminal() is true
+        allocNodes(); // make sure nodeStates has the right number of elements when hasBodyTerminal()
+                      // is true
     }
 
     @Override
@@ -112,8 +113,10 @@ public class MosfetElm extends CircuitElm {
         return lastBeta == 0 ? getBackwardCompatibilityBeta() : lastBeta;
     }
 
-    // default for elements in old files with no configurable beta.  JfetElm overrides this.
-    // Not sure where this value came from, but the ZVP3306A has a beta of about .027.  Power MOSFETs have much higher betas (like 80 or more)
+    // default for elements in old files with no configurable beta. JfetElm
+    // overrides this.
+    // Not sure where this value came from, but the ZVP3306A has a beta of about
+    // .027. Power MOSFETs have much higher betas (like 80 or more)
     double getBackwardCompatibilityBeta() {
         return .02;
     }
@@ -166,7 +169,7 @@ public class MosfetElm extends CircuitElm {
         if ((flags & FLAGS_GLOBAL) != globalFlags)
             setPoints();
 
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
 
         // draw source/drain terminals
         setVoltageColor(g, getNodeVoltage(1));
@@ -182,7 +185,8 @@ public class MosfetElm extends CircuitElm {
         double segf = 1. / segments;
         boolean enhancement = vt > 0 && showBulk();
         for (i = 0; i != segments; i++) {
-            if ((i == 1 || i == 4) && enhancement) continue;
+            if ((i == 1 || i == 4) && enhancement)
+                continue;
             double v = getNodeVoltage(1) + (getNodeVoltage(2) - getNodeVoltage(1)) * i / segments;
             if (!power)
                 setVoltageColor(g, v);
@@ -218,7 +222,7 @@ public class MosfetElm extends CircuitElm {
 
         // draw gate
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, gate[1]);
+        drawThickLine(g, geom().getPoint1(), gate[1]);
         drawThickLine(g, gate[0], gate[2]);
         if (drawDigital() && pnp == -1)
             drawThickCircle(g, pcircle.x, pcircle.y, pcircler);
@@ -227,7 +231,7 @@ public class MosfetElm extends CircuitElm {
             String s = "" + (vt * pnp);
             g.setColor(foregroundColor());
             g.setFont(unitsFont());
-            drawCenteredText(g, s, x2 + 2, y2, false);
+            drawCenteredText(g, s, geom().getX2() + 2, geom().getY2(), false);
         }
         curcount = updateDotCount(-ids, curcount);
         drawDots(g, src[0], src[1], curcount);
@@ -243,12 +247,14 @@ public class MosfetElm extends CircuitElm {
 
         // label pins when highlighted
         if (needsHighlight() || circuitEditor().dragElm == this) {
+            int dx = getDx();
+            int dy = getDy();
+
             g.setColor(foregroundColor());
             g.setFont(unitsFont());
 
             // make fiddly adjustments to pin label locations depending on orientation
             int dsx = sign(dx);
-            int dsy = sign(dy);
             int dsyn = dy == 0 ? 0 : 1;
 
             g.drawString("G", gate[1].x - (dx < 0 ? -2 : 12), gate[1].y + ((dy > 0) ? -5 : 12));
@@ -264,8 +270,7 @@ public class MosfetElm extends CircuitElm {
     // post 0 = gate, 1 = source for NPN, 2 = drain for NPN, 3 = body (if present)
     // for PNP, 1 is drain, 2 is source
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? src[0] :
-                (n == 2) ? drn[0] : body[0];
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? src[0] : (n == 2) ? drn[0] : body[0];
     }
 
     public double getCurrent() {
@@ -273,7 +278,9 @@ public class MosfetElm extends CircuitElm {
     }
 
     public double getPower() {
-        return ids * (getNodeVoltage(2) - getNodeVoltage(1)) - diodeCurrent1 * (getNodeVoltage(1) - getNodeVoltage(bodyTerminal)) - diodeCurrent2 * (getNodeVoltage(2) - getNodeVoltage(bodyTerminal));
+        return ids * (getNodeVoltage(2) - getNodeVoltage(1))
+                - diodeCurrent1 * (getNodeVoltage(1) - getNodeVoltage(bodyTerminal))
+                - diodeCurrent2 * (getNodeVoltage(2) - getNodeVoltage(bodyTerminal));
     }
 
     public int getPostCount() {
@@ -291,6 +298,8 @@ public class MosfetElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
 
         // these two flags apply to all mosfets
         flags &= ~FLAGS_GLOBAL;
@@ -303,12 +312,12 @@ public class MosfetElm extends CircuitElm {
             hs2 = -hs2;
         src = newPointArray(3);
         drn = newPointArray(3);
-        interpPoint2(point1, point2, src[0], drn[0], 1, -hs2);
-        interpPoint2(point1, point2, src[1], drn[1], 1 - 22 / dn, -hs2);
-        interpPoint2(point1, point2, src[2], drn[2], 1 - 22 / dn, -hs2 * 4 / 3);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[0], drn[0], 1, -hs2);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[1], drn[1], 1 - 22 / dn, -hs2);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[2], drn[2], 1 - 22 / dn, -hs2 * 4 / 3);
 
         gate = newPointArray(3);
-        interpPoint2(point1, point2, gate[0], gate[2], 1 - 28 / dn, hs2 / 2); // was 1-20/dn
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), gate[0], gate[2], 1 - 28 / dn, hs2 / 2); // was 1-20/dn
         interpPoint(gate[0], gate[2], gate[1], .5);
 
         if (showBulk()) {
@@ -330,11 +339,23 @@ public class MosfetElm extends CircuitElm {
                     arrowPoly = calcArrow(body[1], body[0], 12, 5);
             }
         } else if (pnp == -1) {
-            interpPoint(point1, point2, gate[1], 1 - 36 / dn);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), gate[1], 1 - 36 / dn);
             int dist = (dsign < 0) ? 32 : 31;
-            pcircle = interpPoint(point1, point2, 1 - dist / dn);
+            pcircle = interpPoint(geom().getPoint1(), geom().getPoint2(), 1 - dist / dn);
             pcircler = 3;
         }
+    }
+
+    /**
+     * Hook for MOSFETs to allow element-specific derived geometry tweaks if
+     * required.
+     * Prefer adjusting derived values here instead of mutating fields in
+     * `setPoints()`.
+     */
+    @Override
+    protected void adjustDerivedGeometry(ElmGeometry geom) {
+        // No-op for now — placeholder for future transistor/mosfet visual/layout
+        // tweaks.
     }
 
     double lastv1, lastv2;
@@ -368,7 +389,8 @@ public class MosfetElm extends CircuitElm {
     boolean nonConvergence(double last, double now) {
         double diff = Math.abs(last - now);
 
-        // high beta MOSFETs are more sensitive to small differences, so we are more strict about convergence testing
+        // high beta MOSFETs are more sensitive to small differences, so we are more
+        // strict about convergence testing
         if (beta > 1)
             diff *= 100;
 
@@ -400,7 +422,8 @@ public class MosfetElm extends CircuitElm {
 
     double lastv0;
 
-    // this is called in doStep to stamp the matrix, and also called in stepFinished() to calculate the current
+    // this is called in doStep to stamp the matrix, and also called in
+    // stepFinished() to calculate the current
     void calculate(boolean finished) {
         double vs[] = new double[3];
         vs[0] = getNodeVoltage(0);
@@ -430,7 +453,8 @@ public class MosfetElm extends CircuitElm {
         int gate = 0;
         double vgs = vs[gate] - vs[source];
         double vds = vs[drain] - vs[source];
-        if (!finished && (nonConvergence(lastv1, vs[1]) || nonConvergence(lastv2, vs[2]) || nonConvergence(lastv0, vs[0])))
+        if (!finished
+                && (nonConvergence(lastv1, vs[1]) || nonConvergence(lastv2, vs[2]) || nonConvergence(lastv0, vs[0])))
             simulator().converged = false;
         lastv0 = vs[0];
         lastv1 = vs[1];
@@ -502,12 +526,12 @@ public class MosfetElm extends CircuitElm {
         arr[1] = ((pnp == 1) ? "Ids = " : "Isd = ") + getCurrentText(ids);
         arr[2] = "Vgs = " + getVoltageText(getNodeVoltage(0) - getNodeVoltage(pnp == -1 ? 2 : 1));
         arr[3] = ((pnp == 1) ? "Vds = " : "Vsd = ") + getVoltageText(getNodeVoltage(2) - getNodeVoltage(1));
-        arr[4] = Locale.LS((mode == 0) ? "off" :
-                (mode == 1) ? "linear" : "saturation");
+        arr[4] = Locale.LS((mode == 0) ? "off" : (mode == 1) ? "linear" : "saturation");
         arr[5] = "gm = " + getUnitText(gm, "A/V");
         arr[6] = "P = " + getUnitText(getPower(), "W");
         if (showBulk())
-            arr[7] = "Ib = " + getUnitText(bodyTerminal == 1 ? -diodeCurrent1 : bodyTerminal == 2 ? diodeCurrent2 : -pnp * (diodeCurrent1 + diodeCurrent2), "A");
+            arr[7] = "Ib = " + getUnitText(bodyTerminal == 1 ? -diodeCurrent1
+                    : bodyTerminal == 2 ? diodeCurrent2 : -pnp * (diodeCurrent1 + diodeCurrent2), "A");
     }
 
     public void getInfo(String arr[]) {
@@ -571,20 +595,18 @@ public class MosfetElm extends CircuitElm {
         if (n == 1 && ei.value > 0)
             beta = lastBeta = ei.value;
         if (n == 2) {
-            globalFlags = (!ei.checkbox.getState()) ? (globalFlags | FLAG_HIDE_BULK) :
-                    (globalFlags & ~(FLAG_HIDE_BULK | FLAG_DIGITAL));
-//		    setPoints();
+            globalFlags = (!ei.checkbox.getState()) ? (globalFlags | FLAG_HIDE_BULK)
+                    : (globalFlags & ~(FLAG_HIDE_BULK | FLAG_DIGITAL));
+            // setPoints();
             ei.newDialog = true;
         }
         if (n == 3) {
-            flags = (ei.checkbox.getState()) ? (flags | FLAG_FLIP) :
-                    (flags & ~FLAG_FLIP);
-//			setPoints();
+            flags = (ei.checkbox.getState()) ? (flags | FLAG_FLIP) : (flags & ~FLAG_FLIP);
+            // setPoints();
         }
         if (n == 4 && !showBulk()) {
-            globalFlags = (ei.checkbox.getState()) ? (globalFlags | FLAG_DIGITAL) :
-                    (globalFlags & ~FLAG_DIGITAL);
-//		    setPoints();
+            globalFlags = (ei.checkbox.getState()) ? (globalFlags | FLAG_DIGITAL) : (globalFlags & ~FLAG_DIGITAL);
+            // setPoints();
         }
         if (n == 4 && showBulk()) {
             flags = ei.changeFlag(flags, FLAG_BODY_DIODE);
@@ -594,7 +616,8 @@ public class MosfetElm extends CircuitElm {
             flags = ei.changeFlag(flags, FLAG_BODY_TERMINAL);
         }
 
-        // lots of different cases where the body terminal might have gotten removed/added so just do this all the time
+        // lots of different cases where the body terminal might have gotten
+        // removed/added so just do this all the time
         allocNodes();
         setPoints();
     }
@@ -610,13 +633,13 @@ public class MosfetElm extends CircuitElm {
     }
 
     public void flipX(int c2, int count) {
-        if (x == x2)
+        if (getX() == getX2())
             flags ^= FLAG_FLIP;
         super.flipX(c2, count);
     }
 
     public void flipY(int c2, int count) {
-        if (y == y2)
+        if (getY() == getY2())
             flags ^= FLAG_FLIP;
         super.flipY(c2, count);
     }
@@ -660,7 +683,7 @@ public class MosfetElm extends CircuitElm {
     public Point getJsonEndPoint() {
         // For MOSFET, point2 is not at any pin - it's a reference point
         // for calculating source and drain positions
-        return new Point(x2, y2);
+        return new Point(getX2(), getY2());
     }
 
     @Override

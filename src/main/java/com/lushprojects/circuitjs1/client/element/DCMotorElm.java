@@ -12,17 +12,15 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 // based on https://ctms.engin.umich.edu/CTMS/index.php?example=MotorPosition&section=SystemModeling
 
-
 public class DCMotorElm extends CircuitElm {
 
     Inductor ind, indInertia;
     // Electrical parameters
     double resistance, inductance;
     // Electro-mechanical parameters
-    double K, Kb, J, b, gearRatio, tau; //tau reserved for static friction parameterization  
+    double K, Kb, J, b, gearRatio, tau; // tau reserved for static friction parameterization
     public double angle;
     public double speed;
-
 
     double coilCurrent;
     double inertiaCurrent;
@@ -48,11 +46,11 @@ public class DCMotorElm extends CircuitElm {
     }
 
     public DCMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                      StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         angle = PI / 2;
         speed = 0;
-        //read:
+        // read:
         // inductance; resistance, K, Kb, J, b, gearRatio, tau
         inductance = parseDouble(st.nextToken());
         resistance = parseDouble(st.nextToken());
@@ -87,7 +85,9 @@ public class DCMotorElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(36);
-        motorCenter = interpPoint(point1, point2, .5);
+        if (motorCenter == null)
+            motorCenter = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), motorCenter, .5);
         allocNodes();
     }
 
@@ -116,28 +116,29 @@ public class DCMotorElm extends CircuitElm {
     }
 
     public void stamp() {
-        // stamp a bunch of internal parts to help us simulate the motor.  It would be better to simulate this mini-circuit in code to reduce
+        // stamp a bunch of internal parts to help us simulate the motor. It would be
+        // better to simulate this mini-circuit in code to reduce
         // the size of the matrix.
 
         // getNode(0), getNode(1) are the external nodes
-        //Electrical part:
+        // Electrical part:
         // inductor from motor getNode(0) to internal node 2
         ind.stamp(getNode(0), getNode(2));
         CircuitSimulator simulator = simulator();
         // resistor from internal node 2 to internal node 3 // motor post 2
-        simulator().stampResistor(getNode(2), getNode(3), resistance);
+        simulator.stampResistor(getNode(2), getNode(3), resistance);
         // Back emf voltage source from internal node 3 to external node 1
-        simulator().stampVoltageSource(getNode(3), getNode(1), voltSources[0]); //
+        simulator.stampVoltageSource(getNode(3), getNode(1), voltSources[0]); //
 
-        //Mechanical part:
+        // Mechanical part:
         // inertia inductor from internal node 4 to internal node 5
         indInertia.stamp(getNode(4), getNode(5));
-        // resistor from  internal node 5 to  ground
+        // resistor from internal node 5 to ground
         simulator().stampResistor(getNode(5), 0, b);
-        // Voltage Source from  internal node 4 to ground
-        //System.out.println("doing stamp voltage");
+        // Voltage Source from internal node 4 to ground
+        // System.out.println("doing stamp voltage");
         simulator().stampVoltageSource(getNode(4), 0, voltSources[1]);
-        //System.out.println("doing stamp voltage "+voltSource);
+        // System.out.println("doing stamp voltage "+voltSource);
     }
 
     public void startIteration() {
@@ -147,23 +148,24 @@ public class DCMotorElm extends CircuitElm {
         angle = angle + speed * simulator().timeStep;
     }
 
-    /*  boolean hasGroundConnection(int n1) {
-	if (n1==4|n1==5) return true;
-	else return false;
-    }
-    boolean getConnection(int n1, int n2) { 
-	if((n1==0&n2==2)|(n1==2&n2==3)|(n1==1&n2==3)|(n1==4&n2==5))
-	    return true;
-	else
-	    return false;
-    }
+    /*
+     * boolean hasGroundConnection(int n1) {
+     * if (n1==4|n1==5) return true;
+     * else return false;
+     * }
+     * boolean getConnection(int n1, int n2) {
+     * if((n1==0&n2==2)|(n1==2&n2==3)|(n1==1&n2==3)|(n1==4&n2==5))
+     * return true;
+     * else
+     * return false;
+     * }
      */
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        simulator().updateVoltageSource(getNode(4), 0, voltSources[1],
+        simulator.updateVoltageSource(getNode(4), 0, voltSources[1],
                 coilCurrent * K);
-        simulator().updateVoltageSource(getNode(3), getNode(1), voltSources[0],
+        simulator.updateVoltageSource(getNode(3), getNode(1), voltSources[0],
                 inertiaCurrent * Kb);
         ind.doStep(getNodeVoltage(0) - getNodeVoltage(2));
         indInertia.doStep(getNodeVoltage(4) - getNodeVoltage(5));
@@ -172,10 +174,11 @@ public class DCMotorElm extends CircuitElm {
     void calculateCurrent() {
         coilCurrent = ind.calculateCurrent(getNodeVoltage(0) - getNodeVoltage(2));
         inertiaCurrent = indInertia.calculateCurrent(getNodeVoltage(4) - getNodeVoltage(5));
-//	current = (getNodeVoltage(2)-getNodeVoltage(3))/resistance;
+        // current = (getNodeVoltage(2)-getNodeVoltage(3))/resistance;
         speed = inertiaCurrent;
     }
-//    public double getCurrent() { current = (getNodeVoltage(2)-getNodeVoltage(3))/resistance; return current; }
+    // public double getCurrent() { current =
+    // (getNodeVoltage(2)-getNodeVoltage(3))/resistance; return current; }
 
     public void setCurrent(int vn, double c) {
         if (vn == voltSources[0])
@@ -185,10 +188,9 @@ public class DCMotorElm extends CircuitElm {
     public void draw(Graphics g) {
 
         int cr = 18;
-        int hs = 8;
-        setBbox(point1, point2, cr);
+        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         draw2Leads(g);
-        //getCurrent();
+        // getCurrent();
         doDots(g);
         setPowerColor(g, true);
         Color cc = new Color((int) (165), (int) (165), (int) (165));
@@ -198,20 +200,27 @@ public class DCMotorElm extends CircuitElm {
 
         g.setColor(cc);
         double angleAux = Math.round(angle * 300.0) / 300.0;
-        g.fillOval(motorCenter.x - (int) (cr / 2.2), motorCenter.y - (int) (cr / 2.2), (int) (2 * cr / 2.2), (int) (2 * cr / 2.2));
+        g.fillOval(motorCenter.x - (int) (cr / 2.2), motorCenter.y - (int) (cr / 2.2), (int) (2 * cr / 2.2),
+                (int) (2 * cr / 2.2));
 
         g.setColor(cc);
-        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio), .28 * Math.sin(angleAux * gearRatio));
-        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio), -.28 * Math.sin(angleAux * gearRatio));
+        Point l1 = geom().getLead1();
+        Point l2 = geom().getLead2();
+        interpPointFix(l1, l2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio), .28 * Math.sin(angleAux * gearRatio));
+        interpPointFix(l1, l2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio), -.28 * Math.sin(angleAux * gearRatio));
 
         drawThickerLine(g, ps1, ps2);
-        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + PI / 3), .28 * Math.sin(angleAux * gearRatio + PI / 3));
-        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + PI / 3), -.28 * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(l1, l2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + PI / 3),
+                .28 * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(l1, l2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + PI / 3),
+                -.28 * Math.sin(angleAux * gearRatio + PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
-        interpPointFix(lead1, lead2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3), .28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
-        interpPointFix(lead1, lead2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3), -.28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(l1, l2, ps1, 0.5 + .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3),
+                .28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(l1, l2, ps2, 0.5 - .28 * Math.cos(angleAux * gearRatio + 2 * PI / 3),
+                -.28 * Math.sin(angleAux * gearRatio + 2 * PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
@@ -230,7 +239,6 @@ public class DCMotorElm extends CircuitElm {
         c.x = (int) Math.round(a.x * (1 - f) + b.x * f + g * gx);
         c.y = (int) Math.round(a.y * (1 - f) + b.y * f + g * gy);
     }
-
 
     public void getInfo(String arr[]) {
         arr[0] = "DC Motor";
@@ -282,7 +290,7 @@ public class DCMotorElm extends CircuitElm {
             gearRatio = ei.value;
     }
 
-        @Override
+    @Override
     public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
         super.setCircuitDocument(circuitDocument);
         ind.setSimulator(circuitDocument.simulator);
@@ -290,7 +298,9 @@ public class DCMotorElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "DCMotor"; }
+    public String getJsonTypeName() {
+        return "DCMotor";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -307,7 +317,7 @@ public class DCMotorElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"a", "b"};
+        return new String[] { "a", "b" };
     }
 
     @Override

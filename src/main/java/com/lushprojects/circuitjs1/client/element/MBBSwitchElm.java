@@ -48,7 +48,7 @@ public class MBBSwitchElm extends SwitchElm {
     }
 
     public MBBSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         link = parseInt(st.nextToken());
         setup();
@@ -68,15 +68,19 @@ public class MBBSwitchElm extends SwitchElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        swposts = newPointArray(2);
-        swpoles = newPointArray(2 + 2);
+        if (swposts == null || swposts.length != 2) {
+            swposts = newPointArray(2);
+        }
+        if (swpoles == null || swpoles.length != 4) {
+            swpoles = newPointArray(4);
+        }
         int i;
         for (i = 0; i != 2; i++) {
             int hs = -openhs * (i - (2 - 1) / 2);
             if (i == 0)
                 hs = openhs;
-            interpPoint(lead1, lead2, swpoles[i], 1, hs);
-            interpPoint(point1, point2, swposts[i], 1, hs);
+            interpPoint(geom().getLead1(), geom().getLead2(), swpoles[i], 1, hs);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), swposts[i], 1, hs);
         }
 
         // 4 positions (pole 1, both, pole 2, both)
@@ -85,12 +89,12 @@ public class MBBSwitchElm extends SwitchElm {
 
     public void draw(Graphics g) {
 
-        setBbox(point1, point2, openhs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), openhs);
         adjustBbox(swposts[0], swposts[1]);
 
         // draw first lead
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
 
         // draw other leads
         int i;
@@ -103,9 +107,9 @@ public class MBBSwitchElm extends SwitchElm {
         if (!needsHighlight())
             g.setColor(foregroundColor());
         if (both || position == 0)
-            drawThickLine(g, lead1, swpoles[0]);
+            drawThickLine(g, geom().getLead1(), swpoles[0]);
         if (both || position == 2)
-            drawThickLine(g, lead1, swpoles[1]);
+            drawThickLine(g, geom().getLead1(), swpoles[1]);
 
         // draw current
         for (i = 0; i != 2; i++) {
@@ -113,7 +117,7 @@ public class MBBSwitchElm extends SwitchElm {
             drawDots(g, swpoles[i], swposts[i], curcounts[i]);
         }
         curcounts[2] = updateDotCount(currents[0] + currents[1], curcounts[2]);
-        drawDots(g, point1, lead1, curcounts[2]);
+        drawDots(g, geom().getPoint1(), geom().getLead1(), curcounts[2]);
         drawPosts(g);
     }
 
@@ -124,11 +128,11 @@ public class MBBSwitchElm extends SwitchElm {
     }
 
     public Rectangle getSwitchRect() {
-        return new Rectangle(lead1).union(new Rectangle(swpoles[0])).union(new Rectangle(swpoles[1]));
+        return new Rectangle(geom().getLead1()).union(new Rectangle(swpoles[0])).union(new Rectangle(swpoles[1]));
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : swposts[n - 1];
+        return (n == 0) ? geom().getPoint1() : swposts[n - 1];
     }
 
     public int getPostCount() {
@@ -190,7 +194,8 @@ public class MBBSwitchElm extends SwitchElm {
         return comparePair(n1, n2, 0, 1 + position / 2);
     }
 
-    // do not optimize out, even though isWireEquivalent() is true (because it may have 3 nodes to merge
+    // do not optimize out, even though isWireEquivalent() is true (because it may
+    // have 3 nodes to merge
     // and calcWireClosure() doesn't handle that case)
     public boolean isRemovableWire() {
         return false;

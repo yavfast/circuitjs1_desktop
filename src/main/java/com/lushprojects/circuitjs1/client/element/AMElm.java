@@ -32,6 +32,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class AMElm extends CircuitElm {
     static final int FLAG_COS = 2;
     double carrierfreq, signalfreq, maxVoltage, freqTimeZero;
+    private final Point lead1 = new Point();
 
     public AMElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
@@ -90,6 +91,9 @@ public class AMElm extends CircuitElm {
     final int circleSize = 17;
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         setBbox(point1, point2, circleSize);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
@@ -98,9 +102,8 @@ public class AMElm extends CircuitElm {
         g.setFont(f);
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        double v = getVoltage();
         String s = "AM";
-        drawCenteredText(g, s, x2, y2, true);
+        drawCenteredText(g, s, getX2(), getY2(), true);
         drawWaveform(g, point2);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
@@ -114,7 +117,6 @@ public class AMElm extends CircuitElm {
         int xc = center.x;
         int yc = center.y;
         drawThickCircle(g, xc, yc, circleSize);
-        int wl = 8;
         adjustBbox(xc - circleSize, yc - circleSize,
                 xc + circleSize, yc + circleSize);
     }
@@ -122,7 +124,11 @@ public class AMElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - circleSize / dn);
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        double dn = getDn();
+        interpPoint(point1, point2, lead1, 1 - circleSize / dn);
     }
 
     double getVoltageDiff() {

@@ -24,6 +24,8 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.Point;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
@@ -40,7 +42,7 @@ public class LogicOutputElm extends CircuitElm {
     }
 
     public LogicOutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         try {
             threshold = parseDouble(st.nextToken());
@@ -75,32 +77,47 @@ public class LogicOutputElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - 12 / dn);
+        // lead1 handled by geom
+        double dn = getDn();
+
+        Point p1 = geom().getPoint1();
+        Point lead1 = geom().getLead1();
+        if (lead1 == p1) {
+            lead1 = new Point();
+            geom().setLead1(lead1);
+        }
+
+        if (dn != 0) {
+            interpPoint(p1, geom().getPoint2(), lead1, 1 - 12 / dn);
+        } else {
+            lead1.x = p1.x;
+            lead1.y = p1.y;
+        }
     }
 
     public void draw(Graphics g) {
         g.save();
         Font f = new Font("SansSerif", Font.BOLD, 20);
         g.setFont(f);
-        //g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        // g.setColor(needsHighlight() ? selectColor : lightGrayColor);
         g.setColor(elementColor());
         double inputVoltage = getNodeVoltage(0);
         String s = (inputVoltage < threshold) ? "L" : "H";
         if (isTernary()) {
             // we don't have 2 separate thresholds for ternary inputs so we do this instead
-            if (inputVoltage > threshold * 1.5)   // 3.75 V
+            if (inputVoltage > threshold * 1.5) // 3.75 V
                 s = "2";
-            else if (inputVoltage > threshold * .5)  // 1.25 V
+            else if (inputVoltage > threshold * .5) // 1.25 V
                 s = "1";
             else
                 s = "0";
         } else if (isNumeric())
             s = (inputVoltage < threshold) ? "0" : "1";
         value = s;
-        setBbox(point1, lead1, 0);
-        drawCenteredText(g, s, x2, y2, true);
+        setBbox(geom().getPoint1(), geom().getLead1(), 0);
+        drawCenteredText(g, s, geom().getX2(), geom().getY2(), true);
         setVoltageColor(g, inputVoltage);
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         drawPosts(g);
         g.restore();
     }
@@ -171,10 +188,10 @@ public class LogicOutputElm extends CircuitElm {
         return 'o';
     }
 
-//    void drawHandles(Graphics g, Color c) {
-//    	g.setColor(c);
-//		g.fillRect(x-3, y-3, 7, 7);
-//    }
+    // void drawHandles(Graphics g, Color c) {
+    // g.setColor(c);
+    // g.fillRect(x-3, y-3, 7, 7);
+    // }
 
     @Override
     public String getJsonTypeName() {

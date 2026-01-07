@@ -20,11 +20,12 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.Point;
 
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
-import com.lushprojects.circuitjs1.client.Point;
+
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -40,7 +41,7 @@ public class OutputElm extends CircuitElm {
     }
 
     public OutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                     StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         scale = SCALE_AUTO;
         try {
@@ -63,7 +64,7 @@ public class OutputElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = new Point();
+        // lead1 handled by geom
     }
 
     public void draw(Graphics g) {
@@ -73,18 +74,33 @@ public class OutputElm extends CircuitElm {
         g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
         String s = showVoltage() ? getUnitTextWithScale(getNodeVoltage(0), "V", scale, isFixed()) : Locale.LS("out");
-//	    FontMetrics fm = g.getFontMetrics();
+        // FontMetrics fm = g.getFontMetrics();
         if (this == circuitEditor().plotXElm)
             s = "X";
         if (this == circuitEditor().plotYElm)
             s = "Y";
-        interpPoint(point1, point2, lead1, 1 - ((int) g.measureWidth(s) / 2.0 + 8) / dn);
-        setBbox(point1, lead1, 0);
-        drawCenteredText(g, s, x2, y2, true);
+        double dn = getDn();
+
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        Point lead1 = geom().getLead1();
+        if (lead1 == p1) {
+            lead1 = new Point();
+            geom().setLead1(lead1);
+        }
+
+        if (dn != 0) {
+            interpPoint(p1, p2, lead1, 1 - ((int) g.measureWidth(s) / 2.0 + 8) / dn);
+        } else {
+            lead1.x = p1.x;
+            lead1.y = p1.y;
+        }
+        setBbox(p1, lead1, 0);
+        drawCenteredText(g, s, geom().getX2(), geom().getY2(), true);
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, p1, lead1);
         drawPosts(g);
         g.restore();
     }
@@ -158,7 +174,7 @@ public class OutputElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
-        
+
         if (properties.containsKey("show_voltage")) {
             Object val = properties.get("show_voltage");
             if (val instanceof Boolean && (Boolean) val) {
@@ -194,12 +210,12 @@ public class OutputElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"output"};
+        return new String[] { "output" };
     }
 
-//    void drawHandles(Graphics g, Color c) {
-//    	g.setColor(c);
-//		g.fillRect(x-3, y-3, 7, 7);
-//    }
+    // void drawHandles(Graphics g, Color c) {
+    // g.setColor(c);
+    // g.fillRect(x-3, y-3, 7, 7);
+    // }
 
 }

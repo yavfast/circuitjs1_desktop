@@ -15,7 +15,8 @@ public class PolarCapacitorElm extends CapacitorElm {
         maxNegativeVoltage = 1;
     }
 
-    public PolarCapacitorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+    public PolarCapacitorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         maxNegativeVoltage = parseDouble(st.nextToken());
     }
@@ -32,6 +33,8 @@ public class PolarCapacitorElm extends CapacitorElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
         double f = (dn / 2 - 4) / dn;
         int i;
         platePoints = newPointArray(14);
@@ -41,10 +44,10 @@ public class PolarCapacitorElm extends CapacitorElm {
             double q = (i - midI) * .9 / midI;
             platePoints[i] = interpPoint(plate2[0], plate2[1], i / (double) maxI, 5 * (1 - Math.sqrt(1 - q * q)));
         }
-        plusPoint = interpPoint(point1, point2, f - 8 / dn, -10 * dsign);
-        if (y2 > y)
+        plusPoint = interpPoint(geom().getPoint1(), geom().getPoint2(), f - 8 / dn, -10 * dsign);
+        if (getY2() > getY())
             plusPoint.y += 4;
-        if (y > y2)
+        if (getY() > getY2())
             plusPoint.y += 3;
     }
 

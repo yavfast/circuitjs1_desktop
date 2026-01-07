@@ -24,6 +24,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -41,7 +42,7 @@ public class LogicInputElm extends SwitchElm {
     }
 
     public LogicInputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                         StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         try {
             hiV = parseDouble(st.nextToken());
@@ -76,7 +77,12 @@ public class LogicInputElm extends SwitchElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - 12 / dn);
+        if (geom().getLead1() == null || geom().getLead1() == geom().getPoint1()
+                || geom().getLead1() == geom().getPoint2()) {
+            geom().setLead1(new Point());
+        }
+        double dn = getDn();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - 12 / dn);
     }
 
     public void draw(Graphics g) {
@@ -87,18 +93,18 @@ public class LogicInputElm extends SwitchElm {
         String s = position == 0 ? "L" : "H";
         if (isNumeric())
             s = "" + position;
-        setBbox(point1, lead1, 0);
-        drawCenteredText(g, s, x2, y2, true);
+        setBbox(geom().getPoint1(), geom().getLead1(), 0);
+        drawCenteredText(g, s, getX2(), getY2(), true);
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         updateDotCount();
-        drawDots(g, point1, lead1, -curcount);
+        drawDots(g, geom().getPoint1(), geom().getLead1(), -curcount);
         drawPosts(g);
         g.restore();
     }
 
     public Rectangle getSwitchRect() {
-        return new Rectangle(x2 - 10, y2 - 10, 20, 20);
+        return new Rectangle(getX2() - 10, getY2() - 10, 20, 20);
     }
 
     public void setCurrent(int vs, double c) {

@@ -105,7 +105,8 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     private int stackGapCount(int stackNodes, int stackCoils) {
-        // The max offset comes from the offset used *at* node positions, so the gap after the last
+        // The max offset comes from the offset used *at* node positions, so the gap
+        // after the last
         // node is not included.
         return max(0, stackNodes - stackCoils - 1);
     }
@@ -156,9 +157,12 @@ public class CustomTransformerElm extends CircuitElm {
             reqSecondary = (avail + secondaryCoilsLocal - 1) / secondaryCoilsLocal;
         }
 
-        // Overall rendered thickness is max(primaryThickness(width), secondaryThickness(width)).
-        // For a given target thickness, the controlling side is the one that reaches the target
-        // with the *smaller* per-coil width (usually the side with more coils/gaps). Using max()
+        // Overall rendered thickness is max(primaryThickness(width),
+        // secondaryThickness(width)).
+        // For a given target thickness, the controlling side is the one that reaches
+        // the target
+        // with the *smaller* per-coil width (usually the side with more coils/gaps).
+        // Using max()
         // here would overshoot badly when one side has fewer coils.
         if (reqPrimary > 0 && reqSecondary > 0)
             return min(reqPrimary, reqSecondary);
@@ -178,15 +182,15 @@ public class CustomTransformerElm extends CircuitElm {
         int nominalLen = 32;
         int nominalCoilWidth = 32;
         width = nominalCoilWidth;
-        x2 = x + nominalLen;
-        y2 = y;
+        geom().setEndpoints(getX(), getY(), getX() + nominalLen, getY());
         setPoints();
     }
 
     public CustomTransformerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                                StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        // Start with a default coil width; we'll reconcile with saved height after parsing.
+        // Start with a default coil width; we'll reconcile with saved height after
+        // parsing.
         width = 32;
         // Saved y-span represents the overall rendered thickness (max stack offset).
         int savedThickness = abs(yb - ya);
@@ -243,10 +247,10 @@ public class CustomTransformerElm extends CircuitElm {
 
     @Override
     public Point getHandlePoint(int n) {
-        int x1 = Math.min(x, x2);
-        int x3 = Math.max(x, x2);
-        int y1 = Math.min(y, y2);
-        int y3 = Math.max(y, y2);
+        int x1 = Math.min(getX(), getX2());
+        int x3 = Math.max(getX(), getX2());
+        int y1 = Math.min(getY(), getY2());
+        int y3 = Math.max(getY(), getY2());
         if (n == 0)
             return new Point(x1, y1);
         if (n == 1)
@@ -268,9 +272,8 @@ public class CustomTransformerElm extends CircuitElm {
         int sy = circuitEditor().snapGrid(yy);
 
         // Horizontal only: x-axis sets length, y deviation sets coil spacing.
-        width = max(minCoilWidth(), abs(sy - y));
-        x2 = sx;
-        y2 = sy;
+        width = max(minCoilWidth(), abs(sy - getY()));
+        setEndpoints(getX(), getY(), sx, sy);
         setPoints();
     }
 
@@ -283,7 +286,7 @@ public class CustomTransformerElm extends CircuitElm {
         if (DEBUG_RESIZE_HANDLES && n < HANDLE_CORNER_COUNT) {
             console("[CustomTransformerElm] movePoint begin n=" + n +
                     " dx=" + dx + " dy=" + dy +
-                    " x=" + x + " y=" + y + " x2=" + x2 + " y2=" + y2 +
+                    " x=" + getX() + " y=" + getY() + " x2=" + getX2() + " y2=" + getY2() +
                     " flip=" + flip + " width=" + width);
         }
 
@@ -299,10 +302,10 @@ public class CustomTransformerElm extends CircuitElm {
         // Resize by moving the relevant rectangle edges. This avoids relying on
         // opposite-corner selection, which can behave unexpectedly when y/y2 are
         // interpreted as baseline+thickness.
-        int x1 = Math.min(x, x2);
-        int x3 = Math.max(x, x2);
-        int y1 = Math.min(y, y2);
-        int y3 = Math.max(y, y2);
+        int x1 = Math.min(getX(), getX2());
+        int x3 = Math.max(getX(), getX2());
+        int y1 = Math.min(getY(), getY2());
+        int y3 = Math.max(getY(), getY2());
 
         boolean moveLeft = (n == 0 || n == 3);
         boolean moveRight = (n == 1 || n == 2);
@@ -339,8 +342,8 @@ public class CustomTransformerElm extends CircuitElm {
                 ny2 = ny1 + minThickness;
         }
 
-        x = nx1;
-        x2 = nx2;
+        int newX = nx1;
+        int newX2 = nx2;
 
         int targetThickness = abs(ny2 - ny1);
         width = max(minCoilWidth, requiredCoilWidthForThickness(targetThickness));
@@ -348,13 +351,16 @@ public class CustomTransformerElm extends CircuitElm {
         // Baseline is on the "inner" edge; which edge that is depends on flip.
         // flip=1 draws outward towards negative y (so baseline is bottom edge).
         // flip=-1 draws outward towards positive y (so baseline is top edge).
-        y = (flip == 1) ? ny2 : ny1;
+        int newY = (flip == 1) ? ny2 : ny1;
+        int newY2 = (flip == 1) ? ny1 : ny2;
+
+        setEndpoints(newX, newY, newX2, newY2);
         setPoints();
 
         if (DEBUG_RESIZE_HANDLES && n < HANDLE_CORNER_COUNT) {
             console("[CustomTransformerElm] movePoint end n=" + n +
                     " nx1=" + nx1 + " nx2=" + nx2 + " ny1=" + ny1 + " ny2=" + ny2 +
-                    " => x=" + x + " y=" + y + " x2=" + x2 + " y2=" + y2 +
+                    " => x=" + getX() + " y=" + getY() + " x2=" + getX2() + " y2=" + getY2() +
                     " flip=" + flip + " width=" + width);
         }
     }
@@ -371,10 +377,11 @@ public class CustomTransformerElm extends CircuitElm {
         if (node == null)
             return false;
 
-        // For this element, point2.y is constrained to point1.y, so the stack direction is vertical.
+        // For this element, point2.y is constrained to point1.y, so the stack direction
+        // is vertical.
         // Convert desired screen Y to internal offset.
         int desiredY = circuitEditor().snapGrid(node.point.y + dy);
-        int baseY = point1.y;
+        int baseY = geom().getPoint1().y;
         double desiredHoff = baseY - desiredY;
         double denom = (flip != 0) ? flip : 1;
         int desiredOff = (int) Math.round(desiredHoff / denom);
@@ -566,11 +573,10 @@ public class CustomTransformerElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        int i;
 
         // Core center used to orient winding curvature inward.
         double coreCx = 0, coreCy = 0;
-        for (i = 0; i != 4; i++) {
+        for (int i = 0; i != 4; i++) {
             coreCx += ptCore[i].x;
             coreCy += ptCore[i].y;
         }
@@ -578,18 +584,19 @@ public class CustomTransformerElm extends CircuitElm {
         coreCy /= 4;
 
         // draw taps
-        for (i = 0; i != getPostCount(); i++) {
+        for (int i = 0; i != getPostCount(); i++) {
             setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, nodeData[i].point, nodeData[i].tap);
         }
 
         // draw coils
-        for (i = 0; i != coilCount; i++) {
+        for (int i = 0; i != coilCount; i++) {
             int n = windings[i].startNode;
             setVoltageColor(g, getNodeVoltage(n));
             setPowerColor(g, windings[i].current * (getNodeVoltage(n) - getNodeVoltage(n + 1)));
 
-            // Make the coil "bulge" face the core (inward), independent of winding order/flip.
+            // Make the coil "bulge" face the core (inward), independent of winding
+            // order/flip.
             Point a = nodeData[n].tap;
             Point b = nodeData[n + 1].tap;
             double mx = (a.x + b.x) / 2.0;
@@ -608,8 +615,10 @@ public class CustomTransformerElm extends CircuitElm {
             double py = dxl / len;
             double toCoreX = coreCx - mx;
             double toCoreY = coreCy - my;
-            // In CircuitElm.drawCoil(), positive hs maps to one side of the local +Y axis after
-            // internal coordinate transforms. Empirically, the inward-facing direction is the
+            // In CircuitElm.drawCoil(), positive hs maps to one side of the local +Y axis
+            // after
+            // internal coordinate transforms. Empirically, the inward-facing direction is
+            // the
             // opposite of the geometric (px,py) dot-product test.
             int hs = (px * toCoreX + py * toCoreY >= 0) ? -6 : 6;
 
@@ -624,7 +633,7 @@ public class CustomTransformerElm extends CircuitElm {
         g.save();
         g.setFont(unitsFont());
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-        for (i = 0; i != coilCount; i++) {
+        for (int i = 0; i != coilCount; i++) {
             int n = windings[i].startNode;
             String label = shortFormat(windings[i].turns) + "T";
             Point a = nodeData[n].tap;
@@ -661,19 +670,19 @@ public class CustomTransformerElm extends CircuitElm {
         g.setColor(needsHighlight() ? selectColor() : elementColor());
 
         // draw core
-        for (i = 0; i != 2; i++) {
+        for (int i = 0; i != 2; i++) {
             drawThickLine(g, ptCore[i], ptCore[i + 2]);
         }
 
         // draw coil currents
-        for (i = 0; i != coilCount; i++) {
+        for (int i = 0; i != coilCount; i++) {
             windings[i].currentCount = updateDotCount(windings[i].current, windings[i].currentCount);
             int ni = windings[i].startNode;
             drawDots(g, nodeData[ni].tap, nodeData[ni + 1].tap, windings[i].currentCount);
         }
 
         // draw tap currents
-        for (i = 0; i != nodeCount; i++) {
+        for (int i = 0; i != nodeCount; i++) {
             nodeData[i].currentCount = updateDotCount(nodeData[i].current, nodeData[i].currentCount);
             drawDots(g, nodeData[i].point, nodeData[i].tap, nodeData[i].currentCount);
         }
@@ -681,36 +690,28 @@ public class CustomTransformerElm extends CircuitElm {
         drawPosts(g);
         setBbox(nodeData[0].point, nodeData[nodeCount - 1].point, 0);
         adjustBbox(ptCore[0], ptCore[3]);
-        adjustBbox(new Point(x, y), new Point(x2, y2));
+        adjustBbox(new Point(getX(), getY()), new Point(getX2(), getY2()));
     }
 
     public void setPoints() {
         super.setPoints();
         // Keep the resize handle diagonal (y2) but constrain the rendered axis.
-        point2.y = point1.y;
-        dx = point2.x - point1.x;
-        dy = point2.y - point1.y;
-        dn = Math.sqrt(dx * dx + dy * dy);
-        if (dn < 1)
-            dn = 1;
-        dpx1 = dy / dn;
-        dpy1 = -dx / dn;
-        dsign = (dy == 0) ? sign(dx) : sign(dy);
+        // Use ElmGeometry to apply endpoint changes and compute derived values.
+        geom().getPoint2().y = geom().getPoint1().y;
+        geom().setEndpoints(getX(), getY(), getX2(), getY());
         flip = hasFlag(FLAG_FLIP) ? -1 : 1;
-        int i;
         int primaryNodes = getPrimaryNodes();
-        dn = Math.abs(point1.x - point2.x);
-        if (dn < 1)
-            dn = 1;
+        double dn = getDn();
         double ce = .5 - 12 / dn;
         double cd = .5 - 2 / dn;
         double maxWidth = 0;
+        int dsign = getDsign();
 
         // Pass 1: compute default offsets (from inner edge) for each node.
         {
             int c = 0;
             double offset = 0;
-            for (i = 0; i != nodeCount; i++) {
+            for (int i = 0; i != nodeCount; i++) {
                 if (i == primaryNodes)
                     offset = 0;
                 nodeData[i].offsetComputed = offset;
@@ -736,7 +737,7 @@ public class CustomTransformerElm extends CircuitElm {
         // Primary stack
         if (primaryNodes > 0) {
             // Forward pass
-            for (i = 0; i < primaryNodes; i++) {
+            for (int i = 0; i < primaryNodes; i++) {
                 boolean movable = nodeData[i].tapNode;
                 if (!movable && i >= primaryInternalStart && i < primaryInternalEnd)
                     movable = true;
@@ -745,36 +746,40 @@ public class CustomTransformerElm extends CircuitElm {
                     nodeData[i].offsetComputed = nodeData[i].offsetOverride;
 
                 if (i > 0 && movable)
-                    nodeData[i].offsetComputed = Math.max(nodeData[i].offsetComputed, nodeData[i - 1].offsetComputed + segMin);
+                    nodeData[i].offsetComputed = Math.max(nodeData[i].offsetComputed,
+                            nodeData[i - 1].offsetComputed + segMin);
             }
             // Backward pass
-            for (i = primaryNodes - 2; i >= 0; i--) {
+            for (int i = primaryNodes - 2; i >= 0; i--) {
                 boolean movable = nodeData[i].tapNode;
                 if (!movable && i >= primaryInternalStart && i < primaryInternalEnd)
                     movable = true;
                 if (movable)
-                    nodeData[i].offsetComputed = Math.min(nodeData[i].offsetComputed, nodeData[i + 1].offsetComputed - segMin);
+                    nodeData[i].offsetComputed = Math.min(nodeData[i].offsetComputed,
+                            nodeData[i + 1].offsetComputed - segMin);
             }
         }
 
         // Secondary stack
         if (primaryNodes < nodeCount) {
-            for (i = primaryNodes; i < nodeCount; i++) {
+            for (int i = primaryNodes; i < nodeCount; i++) {
                 boolean movable = nodeData[i].tapNode;
                 if (movable && nodeData[i].offsetOverride >= 0)
                     nodeData[i].offsetComputed = nodeData[i].offsetOverride;
                 if (i > primaryNodes && movable)
-                    nodeData[i].offsetComputed = Math.max(nodeData[i].offsetComputed, nodeData[i - 1].offsetComputed + segMin);
+                    nodeData[i].offsetComputed = Math.max(nodeData[i].offsetComputed,
+                            nodeData[i - 1].offsetComputed + segMin);
             }
-            for (i = nodeCount - 2; i >= primaryNodes; i--) {
+            for (int i = nodeCount - 2; i >= primaryNodes; i--) {
                 boolean movable = nodeData[i].tapNode;
                 if (movable)
-                    nodeData[i].offsetComputed = Math.min(nodeData[i].offsetComputed, nodeData[i + 1].offsetComputed - segMin);
+                    nodeData[i].offsetComputed = Math.min(nodeData[i].offsetComputed,
+                            nodeData[i + 1].offsetComputed - segMin);
             }
         }
 
         // Pass 2: generate points using the final offsets.
-        for (i = 0; i != nodeCount; i++) {
+        for (int i = 0; i != nodeCount; i++) {
             double offset = nodeData[i].offsetComputed;
             if (i == primaryNodes - 1 || i == nodeCount - 1)
                 offset = maxWidth;
@@ -786,33 +791,44 @@ public class CustomTransformerElm extends CircuitElm {
             // Make the perpendicular direction independent of whether the element was drawn
             // left-to-right or right-to-left (dsign captures that).
             double hoff = offset * flip * dsign;
-            interpPoint(point1, point2, nodeData[i].point, i < primaryNodes ? 0 : 1, hoff);
-            interpPoint(point1, point2, nodeData[i].tap, i < primaryNodes ? ce : 1 - ce, hoff);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), nodeData[i].point, i < primaryNodes ? 0 : 1, hoff);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), nodeData[i].tap, i < primaryNodes ? ce : 1 - ce, hoff);
         }
 
-        // Keep the persisted handle rectangle in sync with the actually rendered thickness.
+        // Keep the persisted handle rectangle in sync with the actually rendered
+        // thickness.
         // The element is drawn from baseline y outward by maxWidth*flip.
         int thick = (int) Math.round(maxWidth);
         if (thick < 1)
             thick = 1;
-        y2 = y - thick * flip;
+        geom().setEndpoints(getX(), getY(), getX2(), getY() - thick * flip);
 
-        ptCore = newPointArray(4);
-        for (i = 0; i != 4; i += 2) {
+        if (ptCore == null)
+            ptCore = newPointArray(4);
+        for (int i = 0; i != 4; i += 2) {
             double h = (i == 2) ? maxWidth * flip * dsign : 0;
-            interpPoint(point1, point2, ptCore[i], cd, h);
-            interpPoint(point1, point2, ptCore[i + 1], 1 - cd, h);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), ptCore[i], cd, h);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), ptCore[i + 1], 1 - cd, h);
         }
 
         if (needDots) {
-            dots = new Point[coilCount];
+            if (dots == null || dots.length != coilCount)
+                dots = newPointArray(coilCount);
             double dotp = Math.abs(7. / width);
-            for (i = 0; i != coilCount; i++) {
+            for (int i = 0; i != coilCount; i++) {
                 int n = windings[i].startNode;
-                dots[i] = interpPoint(nodeData[n].tap, nodeData[n + 1].tap, windings[i].polarity > 0 ? dotp : 1 - dotp, i < primaryCoils ? -7 : 7);
+                interpPoint(nodeData[n].tap, nodeData[n + 1].tap, dots[i],
+                        windings[i].polarity > 0 ? dotp : 1 - dotp, i < primaryCoils ? -7 : 7);
             }
         } else
             dots = null;
+    }
+
+    @Override
+    protected void adjustDerivedGeometry(ElmGeometry geom) {
+        // For custom transformer, prefer axis-aligned rendered length and enforce min
+        // dn=1
+        geom.recomputeDerivedAxisAlignedWithMinDn(1);
     }
 
     public Point getPost(int n) {
@@ -840,24 +856,24 @@ public class CustomTransformerElm extends CircuitElm {
 
     public void stamp() {
         // equations for transformer:
-        //   v1 = L1  di1/dt + M12  di2/dt + M13 di3/dt + ...
-        //   v2 = M21 di1/dt + L2 di2/dt   + M23 di3/dt + ...
-        //   v3 = ... (one row for each coil)
+        // v1 = L1 di1/dt + M12 di2/dt + M13 di3/dt + ...
+        // v2 = M21 di1/dt + L2 di2/dt + M23 di3/dt + ...
+        // v3 = ... (one row for each coil)
         // we invert that to get:
-        //   di1/dt = a1 v1 + a2 v2 + ...
-        //   di2/dt = a3 v1 + a4 v2 + ...
+        // di1/dt = a1 v1 + a2 v2 + ...
+        // di2/dt = a3 v1 + a4 v2 + ...
         // integrate di1/dt using trapezoidal approx and we get:
-        //   i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
-        //          = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) + ... +
-        //                     a1 dt/2 v1(t2) + a2 dt/2 v2(t2) + ...
+        // i1(t2) = i1(t1) + dt/2 (i1(t1) + i1(t2))
+        // = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) + ... +
+        // a1 dt/2 v1(t2) + a2 dt/2 v2(t2) + ...
         // the norton equivalent of this for i1 is:
-        //  a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) + ...
-        //  b. resistor, G = a1 dt/2
-        //  c. current source controlled by voltage v2, G = a2 dt/2
+        // a. current source, I = i1(t1) + a1 dt/2 v1(t1) + a2 dt/2 v2(t1) + ...
+        // b. resistor, G = a1 dt/2
+        // c. current source controlled by voltage v2, G = a2 dt/2
         // and for i2:
-        //  a. current source, I = i2(t1) + a3 dt/2 v1(t1) + a4 dt/2 v2(t1) + ...
-        //  b. resistor, G = a3 dt/2
-        //  c. current source controlled by voltage v2, G = a4 dt/2
+        // a. current source, I = i2(t1) + a3 dt/2 v1(t1) + a4 dt/2 v2(t1) + ...
+        // b. resistor, G = a3 dt/2
+        // c. current source controlled by voltage v2, G = a4 dt/2
         //
         // For backward euler, the current source value is just i1(t1) and we use
         // dt instead of dt/2 for the resistor and VCCS.
@@ -870,7 +886,9 @@ public class CustomTransformerElm extends CircuitElm {
         // fill off-diagonal
         for (i = 0; i != coilCount; i++)
             for (j = 0; j != i; j++)
-                xformMatrix[i][j] = xformMatrix[j][i] = couplingCoef * Math.sqrt(windings[i].inductance * windings[j].inductance) * windings[i].polarity * windings[j].polarity;
+                xformMatrix[i][j] = xformMatrix[j][i] = couplingCoef
+                        * Math.sqrt(windings[i].inductance * windings[j].inductance) * windings[i].polarity
+                        * windings[j].polarity;
 
         CircuitMath.invertMatrix(xformMatrix, coilCount);
 
@@ -885,7 +903,8 @@ public class CustomTransformerElm extends CircuitElm {
                 if (i == j)
                     simulator.stampConductance(getNode(ni), getNode(ni + 1), xformMatrix[i][i]);
                 else
-                    simulator.stampVCCurrentSource(getNode(ni), getNode(ni + 1), getNode(nj), getNode(nj + 1), xformMatrix[i][j]);
+                    simulator.stampVCCurrentSource(getNode(ni), getNode(ni + 1), getNode(nj), getNode(nj + 1),
+                            xformMatrix[i][j]);
             }
         for (i = 0; i != nodeCount; i++)
             simulator.stampRightSide(getNode(i));
@@ -972,8 +991,7 @@ public class CustomTransformerElm extends CircuitElm {
             return ei;
         }
         if (n == 2)
-            return new EditInfo("Coupling Coefficient", couplingCoef, 0, 1).
-                    setDimensionless();
+            return new EditInfo("Coupling Coefficient", couplingCoef, 0, 1).setDimensionless();
         if (n == 3) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Trapezoidal Approximation",
@@ -1053,7 +1071,8 @@ public class CustomTransformerElm extends CircuitElm {
         props.put("coupling_coefficient", couplingCoef);
         props.put("description", description);
 
-        // Persist any dragged tap offsets (both '+' taps and independent primary-side taps).
+        // Persist any dragged tap offsets (both '+' taps and independent primary-side
+        // taps).
         if (nodeData != null) {
             java.util.List<java.util.Map<String, Object>> tapOffsets = new java.util.ArrayList<>();
             for (int i = 0; i < nodeData.length; i++) {

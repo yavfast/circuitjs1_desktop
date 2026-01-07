@@ -26,7 +26,6 @@ import com.google.gwt.user.client.ui.Button;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CircuitMath;
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -68,15 +67,31 @@ public class TransistorElm extends CircuitElm {
         super(circuitDocument, xa, ya, xb, yb, f);
         pnp = parseInt(st.nextToken());
         beta = 100;
-        try {
-            lastvbe = parseDouble(st.nextToken());
+
+        // Text-format circuits may contain saved operating-point hints (Vbc, Vbe) and optional model name.
+        // These values are not required for correctness and can be stale across versions.
+        // Parse them defensively and avoid forcing node voltages from them.
+        if (st.hasMoreTokens()) {
+            // dump() writes (Vbase - Vcollector) then (Vbase - Vemitter)
             lastvbc = parseDouble(st.nextToken());
-            setNodeVoltageDirect(0, 0);
-            setNodeVoltageDirect(1, -lastvbe);
-            setNodeVoltageDirect(2, -lastvbc);
-            beta = parseDouble(st.nextToken());
-            modelName = CustomLogicModel.unescape(st.nextToken());
-        } catch (Exception e) {
+        }
+        if (st.hasMoreTokens()) {
+            lastvbe = parseDouble(st.nextToken());
+        }
+        if (st.hasMoreTokens()) {
+            try {
+                beta = parseDouble(st.nextToken());
+            } catch (Exception e) {
+                beta = 100;
+            }
+        }
+        if (st.hasMoreTokens()) {
+            try {
+                modelName = CustomLogicModel.unescape(st.nextToken());
+            } catch (Exception e) {
+                modelName = "default";
+            }
+        } else {
             modelName = "default";
         }
         globalFlags = flags & (FLAGS_GLOBAL);
@@ -135,6 +150,9 @@ public class TransistorElm extends CircuitElm {
         if ((flags & FLAGS_GLOBAL) != globalFlags)
             setPoints();
 
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         setBbox(point1, point2, 16);
         if (hasCircle()) {
             g.setColor(neutralColor());
@@ -168,6 +186,8 @@ public class TransistorElm extends CircuitElm {
         setPowerColor(g, true);
         g.fillPolygon(rectPoly);
 
+        int dy = getDy();
+        int dx = getDx();
         if ((needsHighlight() || circuitEditor().dragElm == this) && dy == 0) {
             g.setColor(foregroundColor());
 // IES
@@ -181,7 +201,7 @@ public class TransistorElm extends CircuitElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? coll[0] : emit[0];
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? coll[0] : emit[0];
     }
 
     public int getPostCount() {
@@ -200,10 +220,15 @@ public class TransistorElm extends CircuitElm {
         flags |= globalFlags;
 
         super.setPoints();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         int hs = 16;
+        int dsignLocal = getDsign();
         if ((flags & FLAG_FLIP) != 0)
-            dsign = -dsign;
-        int hs2 = hs * dsign * pnp;
+            dsignLocal = -dsignLocal;
+        int hs2 = hs * dsignLocal * pnp;
+        double dn = getDn();
         // calc collector, emitter posts
         coll = newPointArray(2);
         emit = newPointArray(2);
@@ -213,7 +238,7 @@ public class TransistorElm extends CircuitElm {
         interpPoint2(point1, point2, rect[0], rect[1], 1 - 16 / dn, hs);
         interpPoint2(point1, point2, rect[2], rect[3], 1 - 13 / dn, hs);
         // calc points where collector/emitter leads contact rectangle
-        interpPoint2(point1, point2, coll[1], emit[1], 1 - 13 / dn, 6 * dsign * pnp);
+        interpPoint2(point1, point2, coll[1], emit[1], 1 - 13 / dn, 6 * dsignLocal * pnp);
         // calc point where base lead contacts rectangle
         base = new Point();
         interpPoint(point1, point2, base, 1 - 16 / dn);
@@ -229,7 +254,20 @@ public class TransistorElm extends CircuitElm {
             arrowPoly = calcArrow(emit[0], emit[1], 8, 4);
         }
 
-        circleCenter = interpPoint(base, point2, .5);
+        if (circleCenter == null)
+            circleCenter = new Point();
+        interpPoint(base, point2, circleCenter, .5);
+    }
+
+    /**
+     * Hook to allow transistor-specific derived geometry tweaks in a centralized place.
+     * If transistors need to adjust `dn`/`dsign` for visual/layout reasons, do it here
+     * rather than directly in `setPoints()`; this aids future encapsulation into `ElmGeometry`.
+     */
+    @Override
+    protected void adjustDerivedGeometry(ElmGeometry geom) {
+        // Ensure a minimum length for visual stability (avoids negative interpolants in setPoints).
+        geom.recomputeDerivedWithMinDn(16);
     }
 
     static final double leakage = 1e-13; // 1e-6;
@@ -240,7 +278,6 @@ public class TransistorElm extends CircuitElm {
 
     double limitStep(double vnew, double vold) {
         double arg;
-        double oo = vnew;
 
         if (vnew > vcrit && Math.abs(vnew - vold) > (vt + vt)) {
             if (vold > 0) {
@@ -365,6 +402,18 @@ public class TransistorElm extends CircuitElm {
             dqbdvc = q1 * (qb * model.invEarlyVoltF + oikr * gbc / sqarg);
         }
 
+        // Numerical safety: protect against stale parameters or extreme operating points
+        // causing NaNs/Infs which would corrupt the circuit matrix.
+        if (Double.isNaN(qb) || Double.isInfinite(qb) || Math.abs(qb) < 1e-30) {
+            qb = 1;
+        }
+        if (Double.isNaN(dqbdve) || Double.isInfinite(dqbdve)) {
+            dqbdve = 0;
+        }
+        if (Double.isNaN(dqbdvc) || Double.isInfinite(dqbdvc)) {
+            dqbdvc = 0;
+        }
+
         double cc = 0;
         double cex = cbe;
         double gex = gbe;
@@ -392,8 +441,28 @@ public class TransistorElm extends CircuitElm {
         double go = (gbc + (cex - cbc) * dqbdvc / qb) / qb;
         double gm = (gex - (cex - cbc) * dqbdve / qb) / qb - go;
 
+        if (Double.isNaN(gpi) || Double.isInfinite(gpi)) {
+            gpi = 0;
+        }
+        if (Double.isNaN(gmu) || Double.isInfinite(gmu)) {
+            gmu = 0;
+        }
+        if (Double.isNaN(go) || Double.isInfinite(go)) {
+            go = 0;
+        }
+        if (Double.isNaN(gm) || Double.isInfinite(gm)) {
+            gm = 0;
+        }
+
         double ceqbe = pnp * (cc + cb - vbe * (gm + go + gpi) + vbc * go);
         double ceqbc = pnp * (-cc + vbe * (gm + go) - vbc * (gmu + go));
+
+        if (Double.isNaN(ceqbe) || Double.isInfinite(ceqbe)) {
+            ceqbe = 0;
+        }
+        if (Double.isNaN(ceqbc) || Double.isInfinite(ceqbc)) {
+            ceqbc = 0;
+        }
 
         if (Double.isInfinite(ib) || Double.isNaN(ic))
             simulator().stop("infinite transistor current", this);
@@ -607,13 +676,13 @@ public class TransistorElm extends CircuitElm {
     }
 
     public void flipX(int c2, int count) {
-        if (x == x2)
+        if (getX() == getX2())
             flags ^= FLAG_FLIP;
         super.flipX(c2, count);
     }
 
     public void flipY(int c2, int count) {
-        if (y == y2)
+        if (getY() == getY2())
             flags ^= FLAG_FLIP;
         super.flipY(c2, count);
     }
@@ -654,7 +723,7 @@ public class TransistorElm extends CircuitElm {
     public Point getJsonEndPoint() {
         // For transistor, point2 is not at any pin - it's a reference point
         // for calculating collector and emitter positions
-        return new Point(x2, y2);
+        return new Point(getX2(), getY2());
     }
 
     @Override

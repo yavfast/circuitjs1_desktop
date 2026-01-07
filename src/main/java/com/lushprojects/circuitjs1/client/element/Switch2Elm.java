@@ -72,27 +72,32 @@ public class Switch2Elm extends SwitchElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        swposts = newPointArray(throwCount);
-        swpoles = newPointArray(2 + throwCount);
+        if (swposts == null || swposts.length != throwCount) {
+            swposts = newPointArray(throwCount);
+        }
+        int poleCount = 2 + throwCount;
+        if (swpoles == null || swpoles.length != poleCount) {
+            swpoles = newPointArray(poleCount);
+        }
         int i;
         for (i = 0; i != throwCount; i++) {
             int hs = -openhs * (i - (throwCount - 1) / 2);
             if (throwCount == 2 && i == 0)
                 hs = openhs;
-            interpPoint(lead1, lead2, swpoles[i], 1, hs);
-            interpPoint(point1, point2, swposts[i], 1, hs);
+            interpPoint(geom().getLead1(), geom().getLead2(), swpoles[i], 1, hs);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), swposts[i], 1, hs);
         }
-        swpoles[i] = lead2; // for center off
+        swpoles[i] = geom().getLead2(); // for center off
         posCount = hasCenterOff() ? 3 : throwCount;
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, openhs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), openhs);
         adjustBbox(swposts[0], swposts[throwCount - 1]);
 
         // draw first lead
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
 
         // draw other leads
         int i;
@@ -104,10 +109,10 @@ public class Switch2Elm extends SwitchElm {
         // draw switch
         if (!needsHighlight())
             g.setColor(foregroundColor());
-        drawThickLine(g, lead1, swpoles[position]);
+        drawThickLine(g, geom().getLead1(), swpoles[position]);
 
         updateDotCount();
-        drawDots(g, point1, lead1, curcount);
+        drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
         if (!(position == 2 && hasCenterOff()))
             drawDots(g, swpoles[position], swposts[position], curcount);
         drawPosts(g);
@@ -122,11 +127,12 @@ public class Switch2Elm extends SwitchElm {
     }
 
     public Rectangle getSwitchRect() {
-        return new Rectangle(lead1).union(new Rectangle(swpoles[0])).union(new Rectangle(swpoles[throwCount - 1]));
+        return new Rectangle(geom().getLead1()).union(new Rectangle(swpoles[0]))
+                .union(new Rectangle(swpoles[throwCount - 1]));
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : swposts[n - 1];
+        return (n == 0) ? geom().getPoint1() : swposts[n - 1];
     }
 
     public int getPostCount() {

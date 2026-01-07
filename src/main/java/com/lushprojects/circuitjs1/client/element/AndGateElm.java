@@ -40,12 +40,15 @@ public class AndGateElm extends GateElm {
     }
 
     void drawGatePolygon(Graphics g) {
+        int dx = getDx();
+        int dy = getDy();
+        int sdx = sign(dx);
         g.setLineWidth(3.0);
         g.beginPath();
         g.moveTo(gatePoly.xpoints[0], gatePoly.ypoints[0]);
 
-        double ang1 = -Math.PI / 2 * sign(dx);
-        double ang2 = Math.PI / 2 * sign(dx);
+        double ang1 = -Math.PI / 2 * sdx;
+        double ang2 = Math.PI / 2 * sdx;
         boolean ccw = false;
         double rx = ww;
         double ry = hs2;
@@ -62,23 +65,39 @@ public class AndGateElm extends GateElm {
         g.setLineWidth(1.0);
     }
 
+    private Point[] triPoints;
+
     public void setPoints() {
         super.setPoints();
+
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
 
         if (useEuroGates()) {
             createEuroGatePolygon();
         } else {
             // 0=topleft, 1 = top of curve, 2 = center, 3=bottom of curve,
             // 4 = bottom left
-            Point triPoints[] = newPointArray(5);
+            if (triPoints == null)
+                triPoints = newPointArray(5);
             interpPoint2(lead1, lead2, triPoints[0], triPoints[4], 0, hs2);
             interpPoint2(lead1, lead2, triPoints[1], triPoints[3], .5, hs2);
             interpPoint(lead1, lead2, triPoints[2], .5);
             gatePoly = createPolygon(triPoints);
         }
         if (isInverting()) {
-            pcircle = interpPoint(point1, point2, .5 + (ww + 4) / dn);
-            lead2 = interpPoint(point1, point2, .5 + (ww + 8) / dn);
+            double dn = getDn();
+            if (pcircle == null)
+                pcircle = new Point();
+            if (lead2 == null || lead2 == point1 || lead2 == point2) {
+                lead2 = new Point();
+                geom.setLead2(lead2);
+            }
+            interpPoint(point1, point2, pcircle, .5 + (ww + 4) / dn);
+            interpPoint(point1, point2, lead2, .5 + (ww + 8) / dn);
         }
     }
 

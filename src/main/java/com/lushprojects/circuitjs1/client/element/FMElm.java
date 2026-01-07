@@ -22,8 +22,6 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 // contributed by Edward Calver
-
-import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -46,7 +44,7 @@ public class FMElm extends CircuitElm {
     }
 
     public FMElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                 StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         carrierfreq = parseDouble(st.nextToken());
         signalfreq = parseDouble(st.nextToken());
@@ -84,7 +82,6 @@ public class FMElm extends CircuitElm {
     }
 
     double getVoltage() {
-        CircuitSimulator simulator = simulator();
         double deltaT = simulator().t - lasttime;
         lasttime = simulator().t;
         double signalamplitude = Math.sin((2 * PI * (simulator().t - freqTimeZero)) * signalfreq);
@@ -96,22 +93,21 @@ public class FMElm extends CircuitElm {
     final int circleSize = 17;
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, circleSize);
+        setBbox(geom().getPoint1(), geom().getPoint2(), circleSize);
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
 
         Font f = new Font("SansSerif", 0, 12);
         g.setFont(f);
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        double v = getVoltage();
         String s = "FM";
-        drawCenteredText(g, s, x2, y2, true);
-        drawWaveform(g, point2);
+        drawCenteredText(g, s, getX2(), getY2(), true);
+        drawWaveform(g, geom().getPoint2());
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
         if (circuitEditor().dragElm != this)
-            drawDots(g, point1, lead1, curcount);
+            drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
     }
 
     void drawWaveform(Graphics g, Point center) {
@@ -120,15 +116,15 @@ public class FMElm extends CircuitElm {
         int xc = center.x;
         int yc = center.y;
         drawThickCircle(g, xc, yc, circleSize);
-        int wl = 8;
         adjustBbox(xc - circleSize, yc - circleSize,
                 xc + circleSize, yc + circleSize);
     }
 
-
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - circleSize / dn);
+        // lead1 is initialized by super.setPoints() via calcLeads
+        double dn = getDn();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
     }
 
     double getVoltageDiff() {

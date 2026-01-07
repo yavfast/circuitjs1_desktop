@@ -40,7 +40,7 @@ public class DelayBufferElm extends CircuitElm {
     }
 
     public DelayBufferElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = true;
         delay = Double.parseDouble(st.nextToken());
@@ -71,34 +71,46 @@ public class DelayBufferElm extends CircuitElm {
         if (displaySettings().euroGates())
             drawCenteredText(g, "1", center.x, center.y - 6, true);
         curcount = updateDotCount(current, curcount);
-        drawDots(g, lead2, point2, curcount);
+        drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
     }
 
     Polygon gatePoly;
 
+    private Point l2;
+    private Point[] euroGatePoints;
+    private Point[] triPoints;
+
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int hs = 16;
         int ww = 16 - 2;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
-        lead1 = interpPoint(point1, point2, .5 - ww / dn);
-        lead2 = interpPoint(point1, point2, .5 + ww / dn);
+
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), .5 - ww / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), .5 + ww / dn);
 
         if (displaySettings().euroGates()) {
-            Point pts[] = newPointArray(4);
-            Point l2 = interpPoint(point1, point2, .5 + (ww - 5) / dn);
-            interpPoint2(lead1, l2, pts[0], pts[1], 0, hs);
-            interpPoint2(lead1, l2, pts[3], pts[2], 1, hs);
-            gatePoly = createPolygon(pts);
-            center = interpPoint(lead1, l2, .5);
+            if (euroGatePoints == null)
+                euroGatePoints = newPointArray(4);
+            if (l2 == null)
+                l2 = new Point();
+            interpPoint(geom().getPoint1(), geom().getPoint2(), l2, .5 + (ww - 5) / dn);
+            interpPoint2(geom().getLead1(), l2, euroGatePoints[0], euroGatePoints[1], 0, hs);
+            interpPoint2(geom().getLead1(), l2, euroGatePoints[3], euroGatePoints[2], 1, hs);
+            gatePoly = createPolygon(euroGatePoints);
+            if (center == null)
+                center = new Point();
+            interpPoint(geom().getLead1(), l2, center, .5);
         } else {
-            Point triPoints[] = newPointArray(3);
-            interpPoint2(lead1, lead2, triPoints[0], triPoints[1], 0, hs);
-            triPoints[2] = interpPoint(point1, point2, .5 + ww / dn);
+            if (triPoints == null)
+                triPoints = newPointArray(3);
+            interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[0], triPoints[1], 0, hs);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), triPoints[2], .5 + ww / dn);
             gatePoly = createPolygon(triPoints);
         }
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
     }
 
     public int getVoltageSourceCount() {
@@ -116,11 +128,11 @@ public class DelayBufferElm extends CircuitElm {
         boolean inState = getNodeVoltage(0) > threshold;
         boolean outState = getNodeVoltage(1) > threshold;
         if (inState != outState) {
-            if (simulator().t >= delayEndTime)
+            if (simulator.t >= delayEndTime)
                 outState = inState;
         } else
-            delayEndTime = simulator().t + delay;
-        simulator().updateVoltageSource(0, getNode(1), voltSource, outState ? highVoltage : 0);
+            delayEndTime = simulator.t + delay;
+        simulator.updateVoltageSource(0, getNode(1), voltSource, outState ? highVoltage : 0);
     }
 
     double getVoltageDiff() {
@@ -171,7 +183,9 @@ public class DelayBufferElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "DelayBuffer"; }
+    public String getJsonTypeName() {
+        return "DelayBuffer";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -184,6 +198,6 @@ public class DelayBufferElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"in", "out"};
+        return new String[] { "in", "out" };
     }
 }

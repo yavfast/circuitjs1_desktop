@@ -72,32 +72,42 @@ public class DPDTSwitchElm extends SwitchElm {
         super.setPoints();
         calcLeads(32);
         voltageSources = new int[poleCount];
-        throwPosts = newPointArray(2 * poleCount);
-        throwLeads = newPointArray(4 * poleCount);
-        poleLeads = newPointArray(poleCount);
-        polePosts = newPointArray(poleCount);
-        linePoints = newPointArray(2);
-        currents = new double[poleCount];
-        curcounts = new double[poleCount];
-        int i;
-        for (i = 0; i != poleCount; i++) {
+        if (throwPosts == null || throwPosts.length != 2 * poleCount)
+            throwPosts = newPointArray(2 * poleCount);
+        if (throwLeads == null || throwLeads.length != 4 * poleCount)
+            throwLeads = newPointArray(4 * poleCount);
+        if (poleLeads == null || poleLeads.length != poleCount)
+            poleLeads = newPointArray(poleCount);
+        if (polePosts == null || polePosts.length != poleCount)
+            polePosts = newPointArray(poleCount);
+        if (linePoints == null)
+            linePoints = newPointArray(2);
+        if (currents == null || currents.length != poleCount)
+            currents = new double[poleCount];
+        if (curcounts == null || curcounts.length != poleCount)
+            curcounts = new double[poleCount];
+        Point p1 = geom().getPoint1();
+        Point p2 = geom().getPoint2();
+        Point l1 = geom().getLead1();
+        Point l2 = geom().getLead2();
+        for (int i = 0; i != poleCount; i++) {
             int offset = -i * openhs * 3;
-            interpPoint(point1, point2, polePosts[i], 0, offset);
-            interpPoint(lead1, lead2, poleLeads[i], 0, offset);
-            interpPoint(point1, point2, throwPosts[i * 2], 1, offset - openhs);
-            interpPoint(lead1, lead2, throwLeads[i * 4], 1, offset - openhs);
-            interpPoint(point1, point2, throwPosts[i * 2 + 1], 1, offset + openhs);
-            interpPoint(lead1, lead2, throwLeads[i * 4 + 1], 1, offset + openhs);
-            interpPoint(lead1, lead2, throwLeads[i * 4 + 2], 1, offset + openhs * .33);
+            interpPoint(p1, p2, polePosts[i], 0, offset);
+            interpPoint(l1, l2, poleLeads[i], 0, offset);
+            interpPoint(p1, p2, throwPosts[i * 2], 1, offset - openhs);
+            interpPoint(l1, l2, throwLeads[i * 4], 1, offset - openhs);
+            interpPoint(p1, p2, throwPosts[i * 2 + 1], 1, offset + openhs);
+            interpPoint(l1, l2, throwLeads[i * 4 + 1], 1, offset + openhs);
+            interpPoint(l1, l2, throwLeads[i * 4 + 2], 1, offset + openhs * .33);
             if (useIECSymbol())
-                interpPoint(lead1, lead2, throwLeads[i * 4 + 3], 1.2, offset - openhs * .33);
+                interpPoint(l1, l2, throwLeads[i * 4 + 3], 1.2, offset - openhs * .33);
             else
-                interpPoint(lead1, lead2, throwLeads[i * 4 + 3], 1, offset - openhs);
+                interpPoint(l1, l2, throwLeads[i * 4 + 3], 1, offset - openhs);
         }
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, 1);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 1);
         adjustBbox(throwPosts[1], throwPosts[poleCount * 2 - 2]);
 
         int i;
@@ -117,8 +127,9 @@ public class DPDTSwitchElm extends SwitchElm {
 
             if (i < poleCount - 1) {
                 int offset = -i * openhs * 3;
-                interpPoint(point1, point2, linePoints[0], .5, offset - openhs * (.5 - position) - 4 * position); // top
-                interpPoint(point1, point2, linePoints[1], .5,
+                interpPoint(geom().getPoint1(), geom().getPoint2(), linePoints[0], .5,
+                        offset - openhs * (.5 - position) - 4 * position); // top
+                interpPoint(geom().getPoint1(), geom().getPoint2(), linePoints[1], .5,
                         offset - openhs * 3 - openhs * (.5 - position) + 3 + 8 * (1 - position));
                 g.setLineDash(4, 4);
                 g.drawLine(linePoints[0], linePoints[1]);
@@ -183,7 +194,7 @@ public class DPDTSwitchElm extends SwitchElm {
     public void stamp() {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != poleCount; i++)
-            simulator().stampVoltageSource(getNode(i * 3), getNode(position + 1 + i * 3), voltageSources[i], 0);
+            simulator.stampVoltageSource(getNode(i * 3), getNode(position + 1 + i * 3), voltageSources[i], 0);
     }
 
     public int getVoltageSourceCount() {
@@ -235,10 +246,14 @@ public class DPDTSwitchElm extends SwitchElm {
     }
 
     void flip() {
+        int dx = getDx();
+        int dy = getDy();
         if (dx == 0)
-            x = x2 = x - (int) (dpx1 * openhs * 3);
+            setEndpoints(getX() - (int) (getDpx1() * openhs * 3), getY(), getX() - (int) (getDpx1() * openhs * 3),
+                    getY2());
         if (dy == 0)
-            y = y2 = y - (int) (dpy1 * openhs * 3);
+            setEndpoints(getX(), getY() - (int) (getDpy1() * openhs * 3), getX2(),
+                    getY() - (int) (getDpy1() * openhs * 3));
         position = 1 - position;
     }
 

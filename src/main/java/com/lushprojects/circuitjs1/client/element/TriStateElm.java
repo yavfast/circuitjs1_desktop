@@ -17,7 +17,6 @@
     along with CircuitJS1.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
@@ -80,33 +79,46 @@ public class TriStateElm extends CircuitElm {
 
     Point ps, point3, lead3;
 
+    Point gatePoints[];
+
     Polygon gatePoly;
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int len = 32;
         calcLeads(len);
         adjustLeadsToGrid((flags & FLAG_FLIP_X) != 0, (flags & FLAG_FLIP_Y) != 0);
 
-        ps = new Point();
+        if (ps == null) {
+            ps = new Point();
+        }
         int hs = 16;
 
         int ww = 16;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
-        Point triPoints[] = newPointArray(3);
-        interpPoint2(lead1, lead2, triPoints[0], triPoints[1], 0, hs + 2);
-        triPoints[2] = interpPoint(lead1, lead2, .5 + (ww - 2) / (double) len);
-        gatePoly = createPolygon(triPoints);
+        if (gatePoints == null || gatePoints.length != 3) {
+            gatePoints = newPointArray(3);
+        }
+        interpPoint2(geom().getLead1(), geom().getLead2(), gatePoints[0], gatePoints[1], 0, hs + 2);
+        interpPoint(geom().getLead1(), geom().getLead2(), gatePoints[2], .5 + (ww - 2) / (double) len);
+        gatePoly = createPolygon(gatePoints);
 
         int sign = ((flags & FLAG_FLIP) == 0) ? -1 : 1;
-        point3 = interpPoint(lead1, lead2, .5, sign * hs);
-        lead3 = interpPoint(lead1, lead2, .5, sign * hs / 2);
+        if (point3 == null) {
+            point3 = new Point();
+        }
+        if (lead3 == null) {
+            lead3 = new Point();
+        }
+        interpPoint(geom().getLead1(), geom().getLead2(), point3, .5, sign * hs);
+        interpPoint(geom().getLead1(), geom().getLead2(), lead3, .5, sign * hs / 2);
     }
 
     public void draw(Graphics g) {
         int hs = 16;
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
 
         draw2Leads(g);
 
@@ -115,7 +127,7 @@ public class TriStateElm extends CircuitElm {
         setVoltageColor(g, getNodeVoltage(2));
         drawThickLine(g, point3, lead3);
         curcount = updateDotCount(current, curcount);
-        drawDots(g, lead2, point2, curcount);
+        drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
         drawPosts(g);
     }
 
@@ -145,7 +157,8 @@ public class TriStateElm extends CircuitElm {
     // node 1: output
     // node 2: control input
     // node 3: internal node
-    // there is a voltage source connected to node 3, and a resistor (r_off or r_on) from node 3 to 1.
+    // there is a voltage source connected to node 3, and a resistor (r_off or r_on)
+    // from node 3 to 1.
     // then there is a pulldown resistor from node 1 to ground.
     public void stamp() {
         simulator().stampVoltageSource(0, getNode(3), voltSource);
@@ -158,28 +171,31 @@ public class TriStateElm extends CircuitElm {
         resistance = (open) ? r_off : r_on;
         simulator().stampResistor(getNode(3), getNode(1), resistance);
 
-        // Add pulldown resistor for output, so that disabled tristate has output near ground if nothing
-        // else is driving the output.  Otherwise people get confused.
+        // Add pulldown resistor for output, so that disabled tristate has output near
+        // ground if nothing
+        // else is driving the output. Otherwise people get confused.
         if (r_off_ground > 0)
             simulator().stampResistor(getNode(1), 0, r_off_ground);
 
-        simulator().updateVoltageSource(0, getNode(3), voltSource, getNodeVoltage(0) > highVoltage * .5 ? highVoltage : 0);
+        simulator().updateVoltageSource(0, getNode(3), voltSource,
+                getNodeVoltage(0) > highVoltage * .5 ? highVoltage : 0);
     }
 
     public void drag(int xx, int yy) {
         // use mouse to select which side the buffer enable should be on
-        boolean flip = (xx < x) == (yy < y);
+        boolean flip = (xx < getX()) == (yy < getY());
 
         xx = circuitEditor().snapGrid(xx);
         yy = circuitEditor().snapGrid(yy);
-        if (abs(x - xx) < abs(y - yy))
-            xx = x;
+        if (abs(getX() - xx) < abs(getY() - yy))
+            xx = getX();
         else {
             flip = !flip;
-            yy = y;
+            yy = getY();
         }
         flags = flip ? (flags | FLAG_FLIP) : (flags & ~FLAG_FLIP);
-        super.drag(xx, yy);
+        setEndpoints(getX(), getY(), xx, yy);
+        setPoints();
     }
 
     public int getPostCount() {
@@ -195,7 +211,7 @@ public class TriStateElm extends CircuitElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : point3;
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? geom().getPoint2() : point3;
     }
 
     public void getInfo(String arr[]) {
@@ -256,7 +272,9 @@ public class TriStateElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "TriStateBuffer"; }
+    public String getJsonTypeName() {
+        return "TriStateBuffer";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -270,7 +288,6 @@ public class TriStateElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"in", "out", "enable"};
+        return new String[] { "in", "out", "enable" };
     }
 }
-

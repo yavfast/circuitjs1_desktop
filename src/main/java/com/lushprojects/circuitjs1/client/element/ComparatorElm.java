@@ -52,6 +52,10 @@ public class ComparatorElm extends CompositeElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead2 = geom.getLead2();
         setBbox(point1, point2, opheight * 2);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, in1p[0], in1p[1]);
@@ -73,12 +77,19 @@ public class ComparatorElm extends CompositeElm {
 
     public void setPoints() {
         super.setPoints();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        double dn = getDn();
+        int dsign = getDsign();
         if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
         int ww = opwidth;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
         calcLeads(ww * 2);
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         int hs = opheight * dsign;
 //	    if ((flags & FLAG_SWAP) != 0)
 //		hs = -hs;
@@ -106,13 +117,13 @@ public class ComparatorElm extends CompositeElm {
     }
 
     public void flipX(int c2, int count) {
-        if (dx == 0)
+        if (getDx() == 0)
             flags ^= FLAG_SWAP;
         super.flipX(c2, count);
     }
 
     public void flipY(int c2, int count) {
-        if (dy == 0)
+        if (getDy() == 0)
             flags ^= FLAG_SWAP;
         super.flipY(c2, count);
     }

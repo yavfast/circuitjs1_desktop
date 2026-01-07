@@ -34,6 +34,8 @@ public class AudioOutputElm extends CircuitElm {
     static int lastSamplingRate = 8000;
     public static boolean okToChangeTimeStep;
 
+    private final Point lead1 = new Point();
+
     public AudioOutputElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         duration = 1;
@@ -66,10 +68,10 @@ public class AudioOutputElm extends CircuitElm {
         int i;
         int num = 1;
         CircuitSimulator simulator = simulator();
-        if (simulator().elmList == null)
+        if (simulator.elmList == null)
             return 0;
-        for (i = 0; i != simulator().elmList.size(); i++) {
-            CircuitElm ce = simulator().elmList.get(i);
+        for (i = 0; i != simulator.elmList.size(); i++) {
+            CircuitElm ce = simulator.elmList.get(i);
             if (!(ce instanceof AudioOutputElm))
                 continue;
             int ln = ((AudioOutputElm) ce).labelNum;
@@ -97,11 +99,13 @@ public class AudioOutputElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = new Point();
     }
 
     public void draw(Graphics graphics) {
         graphics.save();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         boolean selected = (needsHighlight());
         Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
         String s = "Audio Out";
@@ -111,11 +115,12 @@ public class AudioOutputElm extends CircuitElm {
         int textWidth = (int) graphics.measureWidth(s);
         graphics.setColor(Color.darkGray);
         int pct = (dataFull) ? textWidth : textWidth * dataPtr / dataCount;
-        graphics.fillRect(x2 - textWidth / 2, y2 - 10, pct, 20);
+        graphics.fillRect(getX2() - textWidth / 2, getY2() - 10, pct, 20);
         graphics.setColor(selected ? selectColor() : foregroundColor());
+        double dn = getDn();
         interpPoint(point1, point2, lead1, 1 - (textWidth / 2. + 8) / dn);
         setBbox(point1, lead1, 0);
-        drawCenteredText(graphics, s, x2, y2, true);
+        drawCenteredText(graphics, s, getX2(), getY2(), true);
         setVoltageColor(graphics, getNodeVoltage(0));
         if (selected)
             graphics.setColor(selectColor());
@@ -161,11 +166,11 @@ public class AudioOutputElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         dataCount = (int) (samplingRate * duration);
         data = new double[dataCount];
-        dataStart = simulator().t;
+        dataStart = simulator.t;
         dataPtr = 0;
         dataFull = false;
         sampleStep = 1. / samplingRate;
-        nextDataSample = simulator().t + sampleStep;
+        nextDataSample = simulator.t + sampleStep;
     }
 
     int samplingRateChoices[] = {8000, 11025, 16000, 22050, 44100, 48000};
@@ -256,9 +261,9 @@ public class AudioOutputElm extends CircuitElm {
 //	    int frac = (int)Math.round(Math.max(sampleStep*33000, 1));
         double target = sampleStep / 8;
         CircuitSimulator simulator = simulator();
-        if (simulator().maxTimeStep != target) {
+        if (simulator.maxTimeStep != target) {
             if (okToChangeTimeStep || Window.confirm(Locale.LS("Adjust timestep for best audio quality and performance?"))) {
-                simulator().maxTimeStep = target;
+                simulator.maxTimeStep = target;
                 okToChangeTimeStep = true;
             }
         }

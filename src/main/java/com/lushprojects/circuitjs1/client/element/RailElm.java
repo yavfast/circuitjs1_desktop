@@ -21,12 +21,15 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.CircuitSimulator;
+
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
+import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.element.waveform.*;
 
 public class RailElm extends VoltageElm {
+    private final Point railLead = new Point();
+
     public RailElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy, Waveform.WF_DC);
 
@@ -54,7 +57,12 @@ public class RailElm extends VoltageElm {
 
     public void setPoints() {
         super.setPoints();
-        lead1 = interpPoint(point1, point2, 1 - CIRCLE_SIZE / dn);
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        double dn = getDn();
+        double w = (waveformInstance != null && waveformInstance.hasCircle()) ? CIRCLE_SIZE : 0;
+        interpPoint(point1, point2, railLead, 1 - w / dn);
     }
 
     String getRailText() {
@@ -62,19 +70,28 @@ public class RailElm extends VoltageElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         String rt = getRailText();
-        double w = rt == null ? CIRCLE_SIZE : g.measureWidth(rt) / 2;
+        double w;
+        if (rt != null) {
+            w = g.measureWidth(rt) / 2;
+        } else {
+            w = (waveformInstance != null && waveformInstance.hasCircle()) ? CIRCLE_SIZE : 0;
+        }
+        double dn = getDn();
         if (w > dn * .8)
             w = dn * .8;
-        lead1 = interpPoint(point1, point2, 1 - w / dn);
+        interpPoint(point1, point2, railLead, 1 - w / dn);
         setBbox(point1, point2, CIRCLE_SIZE);
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, point1, railLead);
         drawRail(g);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
         if (circuitEditor().dragElm != this)
-            drawDots(g, point1, lead1, curcount);
+            drawDots(g, point1, railLead, curcount);
     }
 
     void drawRail(Graphics g) {
@@ -84,7 +101,8 @@ public class RailElm extends VoltageElm {
     public void drawRailText(Graphics g, String s) {
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        drawLabeledNode(g, s, point1, lead1);
+        ElmGeometry geom = geom();
+        drawLabeledNode(g, s, geom.getPoint1(), railLead);
     }
 
     double getVoltageDiff() {

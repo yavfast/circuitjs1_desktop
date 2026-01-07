@@ -96,6 +96,10 @@ public abstract class GateElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         inputStates = new boolean[inputCount];
         if (dn > 150 && this == circuitEditor().dragElm)
             setSize(2);
@@ -107,6 +111,8 @@ public abstract class GateElm extends CircuitElm {
         if (isInverting() && ww + 8 > dn / 2)
             ww = (int) (dn / 2 - 8);
         calcLeads(ww * 2);
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         inPosts = new Point[inputCount];
         inGates = new Point[inputCount];
         int i0 = -inputCount / 2;
@@ -144,6 +150,9 @@ public abstract class GateElm extends CircuitElm {
     }
 
     void createEuroGatePolygon() {
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         Point pts[] = newPointArray(4);
         interpPoint2(lead1, lead2, pts[0], pts[1], 0, hs2);
         interpPoint2(lead1, lead2, pts[3], pts[2], 1, hs2);
@@ -163,6 +172,10 @@ public abstract class GateElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead2 = geom.getLead2();
         int i;
         for (i = 0; i != inputCount; i++) {
             setVoltageColor(g, getNodeVoltage(i));
@@ -173,8 +186,9 @@ public abstract class GateElm extends CircuitElm {
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         if (useEuroGates()) {
             drawThickPolygon(g, gatePoly);
-            Point center = interpPoint(point1, point2, .5);
-            drawCenteredText(g, getGateText(), center.x, center.y - 6 * gsize, true);
+            if (centerTemp == null) centerTemp = new Point();
+            interpPoint(point1, point2, centerTemp, .5);
+            drawCenteredText(g, getGateText(), centerTemp.x, centerTemp.y - 6 * gsize, true);
         } else
             drawGatePolygon(g);
         g.setLineWidth(2);
@@ -195,6 +209,7 @@ public abstract class GateElm extends CircuitElm {
     }
 
     Polygon gatePoly, schmittPoly;
+    private Point centerTemp;
     Point pcircle, linePoints[], icircles[];
 
     public int getPostCount() {
@@ -203,7 +218,7 @@ public abstract class GateElm extends CircuitElm {
 
     public Point getPost(int n) {
         if (n == inputCount)
-            return point2;
+            return geom().getPoint2();
         return inPosts[n];
     }
 

@@ -93,11 +93,20 @@ public class SwitchElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        ps = new Point();
-        ps2 = new Point();
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        if (ps == null) {
+            ps = new Point();
+        }
+        if (ps2 == null) {
+            ps2 = new Point();
+        }
 
         if (useIECSymbol()) {
-            extraPoints = newPointArray(7);
+            if (extraPoints == null || extraPoints.length != 7) {
+                extraPoints = newPointArray(7);
+            }
             interpPoint(lead1, lead2, extraPoints[0], .5, openhs / 2);
             interpPoint(lead1, lead2, extraPoints[1], .5, 24);
             interpPoint(lead1, lead2, extraPoints[2], .5 - .1, 24);
@@ -111,6 +120,16 @@ public class SwitchElm extends CircuitElm {
     final int openhs = 16;
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        int x = getX();
+        int y = getY();
+        int x2 = getX2();
+        int y2 = getY2();
+
         int hs1 = (position == 1) ? 0 : 2;
         int hs2 = (position == 1) ? openhs : 2;
         setBbox(point1, point2, openhs);
@@ -129,6 +148,8 @@ public class SwitchElm extends CircuitElm {
 
         if (label != null) {
             g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+            int dx = getDx();
+            int dy = getDy();
             if (Math.abs(dy) > Math.abs(dx))
                 g.drawString(label, x + 10, (y < y2 ? lead1 : lead2).y - 5);
             else {
@@ -160,6 +181,9 @@ public class SwitchElm extends CircuitElm {
     }
 
     public Rectangle getSwitchRect() {
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         interpPoint(lead1, lead2, ps, 0, openhs);
         return new Rectangle(lead1).union(new Rectangle(lead2)).union(new Rectangle(ps));
     }

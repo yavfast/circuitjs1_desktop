@@ -46,7 +46,7 @@ public class LampElm extends CircuitElm {
     }
 
     public LampElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         temp = parseDouble(st.nextToken());
         if (Double.isNaN(temp))
@@ -82,15 +82,19 @@ public class LampElm extends CircuitElm {
         super.setPoints();
         int llen = 16;
         calcLeads(llen);
-        bulbLead = newPointArray(2);
-        filament = newPointArray(2);
+        if (bulbLead == null)
+            bulbLead = newPointArray(2);
+        if (filament == null)
+            filament = newPointArray(2);
         bulbR = 20;
-        filament[0] = interpPoint(lead1, lead2, 0, filament_len);
-        filament[1] = interpPoint(lead1, lead2, 1, filament_len);
+        interpPoint(geom().getLead1(), geom().getLead2(), filament[0], 0, filament_len);
+        interpPoint(geom().getLead1(), geom().getLead2(), filament[1], 1, filament_len);
         double br = filament_len - Math.sqrt(bulbR * bulbR - llen * llen);
-        bulbLead[0] = interpPoint(lead1, lead2, 0, br);
-        bulbLead[1] = interpPoint(lead1, lead2, 1, br);
-        bulb = interpPoint(filament[0], filament[1], .5);
+        interpPoint(geom().getLead1(), geom().getLead2(), bulbLead[0], 0, br);
+        interpPoint(geom().getLead1(), geom().getLead2(), bulbLead[1], 1, br);
+        if (bulb == null)
+            bulb = new Point();
+        interpPoint(filament[0], filament[1], bulb, .5);
     }
 
     Color getTempColor() {
@@ -118,7 +122,7 @@ public class LampElm extends CircuitElm {
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, 4);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 4);
         adjustBbox(bulb.x - bulbR, bulb.y - bulbR,
                 bulb.x + bulbR, bulb.y + bulbR);
         // adjustbbox
@@ -129,22 +133,23 @@ public class LampElm extends CircuitElm {
         g.setColor(foregroundColor());
         drawThickCircle(g, bulb.x, bulb.y, bulbR);
         setVoltageColor(g, v1);
-        drawThickLine(g, lead1, filament[0]);
+        drawThickLine(g, geom().getLead1(), filament[0]);
         setVoltageColor(g, v2);
-        drawThickLine(g, lead2, filament[1]);
+        drawThickLine(g, geom().getLead2(), filament[1]);
         setVoltageColor(g, (v1 + v2) * .5);
         drawThickLine(g, filament[0], filament[1]);
         updateDotCount();
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, lead1, curcount);
+            drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
+            double dn = getDn();
             double cc = addCurCount(curcount, (dn - 16) / 2);
-            drawDots(g, lead1, filament[0], cc);
+            drawDots(g, geom().getLead1(), filament[0], cc);
             cc = addCurCount(cc, filament_len);
             drawDots(g, filament[0], filament[1], cc);
             cc = addCurCount(cc, 16);
-            drawDots(g, filament[1], lead2, cc);
+            drawDots(g, filament[1], geom().getLead2(), cc);
             cc = addCurCount(cc, filament_len);
-            drawDots(g, lead2, point2, curcount);
+            drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
         }
         drawPosts(g);
     }
@@ -153,11 +158,10 @@ public class LampElm extends CircuitElm {
         current = (getNodeVoltage(0) - getNodeVoltage(1)) / resistance;
         if (resistance == 0)
             current = 0;
-//	    sim.console("lampcc " + current + " " + resistance);
+        // sim.console("lampcc " + current + " " + resistance);
     }
 
     public void stamp() {
-        CircuitSimulator simulator = simulator();
         simulator().stampNonLinear(getNode(0));
         simulator().stampNonLinear(getNode(1));
     }
@@ -177,12 +181,12 @@ public class LampElm extends CircuitElm {
         double cap = 1.57e-4 * nom_pow;
         double capw = cap * warmTime / .4;
         double capc = cap * coolTime / .4;
-        //System.out.println(nom_r + " " + (resistance/nom_r));
+        // System.out.println(nom_r + " " + (resistance/nom_r));
         CircuitSimulator simulator = simulator();
-        temp += getPower() * simulator().timeStep / capw;
+        temp += getPower() * simulator.timeStep / capw;
         double cr = 2600 / nom_pow;
-        temp -= simulator().timeStep * (temp - roomTemp) / (capc * cr);
-//	    sim.console("lampsi " + temp + " " + capc + " " + nom_pow);
+        temp -= simulator.timeStep * (temp - roomTemp) / (capc * cr);
+        // sim.console("lampsi " + temp + " " + capc + " " + nom_pow);
     }
 
     public void doStep() {
@@ -256,22 +260,22 @@ public class LampElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse nominal power
         nom_pow = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "nominal_power", "100 W"));
-        
+                getJsonString(props, "nominal_power", "100 W"));
+
         // Parse nominal voltage
         nom_v = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "nominal_voltage", "120 V"));
-        
+                getJsonString(props, "nominal_voltage", "120 V"));
+
         // Parse warmup time
         warmTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "warmup_time", "0.4 s"));
-        
+                getJsonString(props, "warmup_time", "0.4 s"));
+
         // Parse cooldown time
         coolTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "cooldown_time", "0.4 s"));
+                getJsonString(props, "cooldown_time", "0.4 s"));
     }
 
     @Override

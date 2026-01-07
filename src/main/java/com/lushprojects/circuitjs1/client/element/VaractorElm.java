@@ -2,7 +2,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -17,7 +16,7 @@ public class VaractorElm extends DiodeElm {
     }
 
     public VaractorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         capvoltdiff = parseDouble(st.nextToken());
         baseCapacitance = parseDouble(st.nextToken());
@@ -58,21 +57,28 @@ public class VaractorElm extends DiodeElm {
         return dumpValues(super.dump(), capvoltdiff, baseCapacitance);
     }
 
+    private Point[] pa;
+    private Point arrowPoint;
+
     public void setPoints() {
         super.setPoints();
         double platef = .6;
-        Point pa[] = newPointArray(2);
-        interpPoint2(lead1, lead2, pa[0], pa[1], 0, hs);
-        interpPoint2(lead1, lead2, cathode[0], cathode[1], platef, hs);
-        Point arrowPoint = interpPoint(lead1, lead2, platef);
+        if (pa == null)
+            pa = newPointArray(2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), pa[0], pa[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), cathode[0], cathode[1], platef, hs);
+        if (arrowPoint == null)
+            arrowPoint = new Point();
+        interpPoint(geom().getLead1(), geom().getLead2(), arrowPoint, platef);
         poly = createPolygon(pa[0], pa[1], arrowPoint);
         // calc plates
-        plate1 = newPointArray(2);
-        plate2 = newPointArray(2);
-        interpPoint2(lead1, lead2, plate1[0], plate1[1], platef, hs);
-        interpPoint2(lead1, lead2, plate2[0], plate2[1], 1, hs);
+        if (plate1 == null)
+            plate1 = newPointArray(2);
+        if (plate2 == null)
+            plate2 = newPointArray(2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), plate1[0], plate1[1], platef, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), plate2[0], plate2[1], 1, hs);
     }
-
 
     public void draw(Graphics g) {
         // draw leads and diode arrow

@@ -48,11 +48,115 @@ import java.util.ArrayList;
 
 // circuit element class
 public abstract class CircuitElm extends BaseCircuitElm implements Editable {
-    
+
+    // Centralized geometry/transform helper (HARD MODE source of truth).
+    private transient final ElmGeometry geom = new ElmGeometry(this);
+
+    public ElmGeometry geom() {
+        return geom;
+    }
+
+    /**
+     * Hook for elements that need to tweak derived geometry after the basic
+     * computation in {@link ElmGeometry#updatePointsFromEndpoints()}.
+     * Default does nothing; override in subclasses as needed.
+     */
+    protected void adjustDerivedGeometry(ElmGeometry geom) {
+        // no-op
+    }
+
+    /**
+     * Ensures derived geometry (dx/dy/dn/...) and point1/point2 match the current endpoints.
+     *
+     * Use this before reading geometry fields if there is a chance endpoints were updated
+     * via legacy direct writes.
+     */
+    protected final void ensureGeometryUpdated() {
+        // HARD MODE: endpoints are mutated only via geom(), so geometry is always up to date.
+        // Keep this method as a compatibility shim for older refactor steps.
+        geom();
+    }
+
+    public final int getDx() {
+        return geom().getDx();
+    }
+
+    public final int getDy() {
+        return geom().getDy();
+    }
+
+    public final int getDsign() {
+        return geom().getDsign();
+    }
+
+    public final double getDn() {
+        return geom().getDn();
+    }
+
+    public final double getDpx1() {
+        return geom().getDpx1();
+    }
+
+    public final double getDpy1() {
+        return geom().getDpy1();
+    }
+
+    // Endpoint accessors (HARD MODE: no direct geometry fields)
+    public final int getX() {
+        return geom().getX1();
+    }
+
+    public final int getY() {
+        return geom().getY1();
+    }
+
+    public final int getX2() {
+        return geom().getX2();
+    }
+
+    public final int getY2() {
+        return geom().getY2();
+    }
+
+
     // Unique identifier for this element (e.g., "R1", "C2", "Q3")
     private String elementId;
 
     public CircuitDocument circuitDocument;
+
+    public int flags;
+
+    public int voltSource;
+
+    private String description;
+
+    int lastHandleGrabbed = -1;
+
+
+    /**
+     * Canonical per-index state for nodes (posts + internal nodes).
+     *
+     * Indexing matches the legacy {@link #nodes}/{@link #volts} arrays:
+     * [0..getPostCount()) are external posts, followed by internal nodes.
+     */
+    static final class NodeState {
+        int node;
+        double voltage;
+    }
+    private transient NodeState[] nodeStates;
+
+    public double current, curcount;
+
+    // if subclasses set this to true, element will be horizontal or vertical only
+    public boolean noDiagonal;
+
+    public boolean selected = false;
+
+    public boolean hasWireInfo; // used in calcWireInfo()
+
+    // scratch points for convenience
+    protected final Point ps1 = new Point();
+    protected final Point ps2 = new Point();
 
     /**
      * Set the circuit document for this element.
@@ -212,66 +316,6 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             : typeName.toUpperCase();
     }
     
-    // initial point where user created element. For simple two-terminal elements,
-    // this is the first node/post.
-    public int x, y;
-
-    // point to which user dragged out element. For simple two-terminal elements,
-    // this is the second node/post
-    public int x2, y2;
-
-    public int flags;
-    // Legacy node-number array removed; use NodeState via getNode()/setNode() instead.
-    public int voltSource;
-
-    private String description;
-
-    // length along x and y axes, and sign of difference
-    public int dx, dy, dsign;
-
-    int lastHandleGrabbed = -1;
-
-    // length of element
-    double dn;
-
-    double dpx1, dpy1;
-
-    // (x,y) and (x2,y2) as Point objects
-    public Point point1, point2;
-
-    // lead points (ends of wire stubs for simple two-terminal elements)
-    public Point lead1, lead2;
-
-    // voltages at each node
-    // Legacy node-voltage array removed; use NodeState via getNodeVoltage()/setNodeVoltageDirect() instead.
-
-    /**
-     * Canonical per-index state for nodes (posts + internal nodes).
-     *
-     * Indexing matches the legacy {@link #nodes}/{@link #volts} arrays:
-     * [0..getPostCount()) are external posts, followed by internal nodes.
-     */
-    private transient NodeState[] nodeStates;
-
-    public double current, curcount;
-    public Rectangle boundingBox;
-
-    static final class NodeState {
-        int node;
-        double voltage;
-    }
-
-    // if subclasses set this to true, element will be horizontal or vertical only
-    public boolean noDiagonal;
-
-    public boolean selected = false;
-
-    public boolean hasWireInfo; // used in calcWireInfo()
-
-    // scratch points for convenience
-    protected final Point ps1 = new Point();
-    protected final Point ps2 = new Point();
-
     // abstract int getDumpType();
     int getDumpType() {
 
@@ -306,9 +350,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // create new element with one post at xx,yy, to be dragged out by user
     public CircuitElm(CircuitDocument circuitDocument, int xx, int yy) {
         this.circuitDocument = circuitDocument;
-        x = x2 = xx;
-        y = y2 = yy;
         flags = getDefaultFlags();
+        geom.setEndpoints(xx, yy, xx, yy);
         allocNodes();
         initBoundingBox();
     }
@@ -316,19 +359,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // create element between xa,ya and xb,yb from undump (legacy text format)
     public CircuitElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f) {
         this.circuitDocument = circuitDocument;
-        x = xa;
-        y = ya;
-        x2 = xb;
-        y2 = yb;
         flags = f;
+        geom.setEndpoints(xa, ya, xb, yb);
         allocNodes();
         initBoundingBox();
     }
 
     void initBoundingBox() {
-        boundingBox = new Rectangle();
-        boundingBox.setBounds(min(x, x2), min(y, y2),
-                abs(x2 - x) + 1, abs(y2 - y) + 1);
+        geom().initBoundingBox();
     }
 
     // allocate nodes/volts arrays we need
@@ -381,7 +419,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public String dump() {
         int t = getDumpType();
         String type = (t < 127 ? String.valueOf((char) t) : String.valueOf(t));
-        return dumpValues(type, x, y, x2, y2, flags);
+        ElmGeometry g = geom();
+        return dumpValues(type, g.getX1(), g.getY1(), g.getX2(), g.getY2(), flags);
     }
 
     public static String dumpValues(Object... values) {
@@ -586,14 +625,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // calculate post locations and other convenience values used for drawing.
     // Called when element is moved
     public void setPoints() {
-        dx = x2 - x;
-        dy = y2 - y;
-        dn = Math.sqrt(dx * dx + dy * dy);
-        dpx1 = dy / dn;
-        dpy1 = -dx / dn;
-        dsign = (dy == 0) ? sign(dx) : sign(dy);
-        point1 = new Point(x, y);
-        point2 = new Point(x2, y2);
+        geom().updatePointsFromEndpoints();
     }
 
     // calculate lead points for an element of length len. Handy for simple
@@ -601,40 +633,25 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // Posts are where the user connects wires; leads are ends of wire stubs drawn
     // inside the element.
     void calcLeads(int len) {
-        if (dn < len || len == 0) {
-            lead1 = point1;
-            lead2 = point2;
-            return;
-        }
-        lead1 = interpPoint(point1, point2, (dn - len) / (2 * dn));
-        lead2 = interpPoint(point1, point2, (dn + len) / (2 * dn));
+        geom().calcLeads(len);
     }
 
     // adjust leads so that the point exactly between them is a grid point (so we
     // can place a terminal there)
     void adjustLeadsToGrid(boolean flipX, boolean flipY) {
-        int cx = (point1.x + point2.x) / 2;
-        int cy = (point1.y + point2.y) / 2;
-
-        // when flipping, it changes the rounding direction. need to adjust for this
-        int roundx = (flipX) ? 1 : -1;
-        int roundy = (flipY) ? 1 : -1;
-
-        int adjx = circuitEditor().snapGrid(cx + roundx) - cx;
-        int adjy = circuitEditor().snapGrid(cy + roundy) - cy;
-        lead1.move(adjx, adjy);
-        lead2.move(adjx, adjy);
+        geom().adjustLeadsToGrid(flipX, flipY);
     }
 
     void draw2Leads(Graphics g) {
         if (nodeStates != null && nodeStates.length >= 2) {
+            ElmGeometry geom = geom();
             // draw first lead
             setVoltageColor(g, getNodeState(0).voltage);
-            drawThickLine(g, point1, lead1);
+            drawThickLine(g, geom.getPoint1(), geom.getLead1());
 
             // draw second lead
             setVoltageColor(g, getNodeState(1).voltage);
-            drawThickLine(g, lead2, point2);
+            drawThickLine(g, geom.getLead2(), geom.getPoint2());
         }
     }
 
@@ -670,57 +687,46 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // draw second point to xx, yy
     public void drag(int xx, int yy) {
-        xx = circuitEditor().snapGrid(xx);
-        yy = circuitEditor().snapGrid(yy);
-        if (noDiagonal) {
-            if (Math.abs(x - xx) < Math.abs(y - yy)) {
-                xx = x;
-            } else {
-                yy = y;
-            }
-        }
-        x2 = xx;
-        y2 = yy;
-        setPoints();
+        geom().dragTo(xx, yy);
     }
 
     public void move(int dx, int dy) {
-        x += dx;
-        y += dy;
-        x2 += dx;
-        y2 += dy;
-        boundingBox.translate(dx, dy);
-        setPoints();
+        geom().translate(dx, dy);
     }
 
     // called when an element is done being dragged out; returns true if it's zero
     // size and should be deleted
     public boolean creationFailed() {
-        return (x == x2 && y == y2);
+        return geom().isZeroSize();
     }
 
     // this is used to set the position of an internal element so we can draw it
     // inside the parent
     void setPosition(int x_, int y_, int x2_, int y2_) {
-        x = x_;
-        y = y_;
-        x2 = x2_;
-        y2 = y2_;
-        setPoints();
+        geom().setEndpoints(x_, y_, x2_, y2_);
+    }
+
+    /**
+     * Canonical endpoint mutation API. Prefer this over writing directly to x/y/x2/y2.
+     */
+    public final void setEndpoints(int x1, int y1, int x2, int y2) {
+        geom().setEndpoints(x1, y1, x2, y2);
     }
 
     // determine if moving this element by (dx,dy) will put it on top of another
     // element
     public boolean allowMove(int dx, int dy) {
-        int nx = x + dx;
-        int ny = y + dy;
-        int nx2 = x2 + dx;
-        int ny2 = y2 + dy;
+        ElmGeometry g = geom();
+        int nx = g.getX1() + dx;
+        int ny = g.getY1() + dy;
+        int nx2 = g.getX2() + dx;
+        int ny2 = g.getY2() + dy;
         for (CircuitElm ce : simulator().elmList) {
-            if (ce.x == nx && ce.y == ny && ce.x2 == nx2 && ce.y2 == ny) {
+            ElmGeometry cg = ce.geom();
+            if (cg.getX1() == nx && cg.getY1() == ny && cg.getX2() == nx2 && cg.getY2() == ny) {
                 return false;
             }
-            if (ce.x == nx2 && ce.y == ny2 && ce.x2 == nx && ce.y2 == ny) {
+            if (cg.getX1() == nx2 && cg.getY1() == ny2 && cg.getX2() == nx && cg.getY2() == ny) {
                 return false;
             }
         }
@@ -728,71 +734,23 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public void movePoint(int n, int dx, int dy) {
-        // modified by IES to prevent the user dragging points to create zero sized
-        // nodes
-        // that then render improperly
-        int oldx = x;
-        int oldy = y;
-        int oldx2 = x2;
-        int oldy2 = y2;
-        if (noDiagonal) {
-            if (x == x2) {
-                dx = 0;
-            } else {
-                dy = 0;
-            }
-        }
-        if (n == 0) {
-            x += dx;
-            y += dy;
-        } else {
-            x2 += dx;
-            y2 += dy;
-        }
-        if (x == x2 && y == y2) {
-            x = oldx;
-            y = oldy;
-            x2 = oldx2;
-            y2 = oldy2;
-        }
-        setPoints();
+        geom().movePoint(n, dx, dy);
     }
 
     public void flipX(int center2, int count) {
-        x = center2 - x;
-        x2 = center2 - x2;
-        initBoundingBox();
-        setPoints();
+        geom().flipX(center2);
     }
 
     public void flipY(int center2, int count) {
-        y = center2 - y;
-        y2 = center2 - y2;
-        initBoundingBox();
-        setPoints();
+        geom().flipY(center2);
     }
 
     public void flipXY(int xmy, int count) {
-        int nx = y + xmy;
-        int ny = x - xmy;
-        int nx2 = y2 + xmy;
-        int ny2 = x2 - xmy;
-        x = nx;
-        y = ny;
-        x2 = nx2;
-        y2 = ny2;
-        initBoundingBox();
-        setPoints();
+        geom().flipXY(xmy);
     }
 
     public void flipPosts() {
-        int oldx = x;
-        int oldy = y;
-        x = x2;
-        y = y2;
-        x2 = oldx;
-        y2 = oldy;
-        setPoints();
+        geom().flipPosts();
     }
 
     public void drawPosts(Graphics g) {
@@ -832,13 +790,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * Handle location for the given handle index.
      */
     public Point getHandlePoint(int n) {
-        if (n == 0) {
-            return new Point(x, y);
-        }
-        if (n == 1) {
-            return new Point(x2, y2);
-        }
-        return new Point(x2, y2);
+        return geom().getHandlePoint(n);
     }
 
     /**
@@ -854,13 +806,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * Default behavior is to translate the element so its first point follows the cursor.
      */
     public void dragFixedSize(int gridX, int gridY) {
-        int deltaX = gridX - x;
-        int deltaY = gridY - y;
-        x += deltaX;
-        y += deltaY;
-        x2 += deltaX;
-        y2 += deltaY;
-        setPoints();
+        geom().dragFixedSize(gridX, gridY);
     }
 
     public void drawHandles(Graphics g, Color c) {
@@ -955,13 +901,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // get position of nth node
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : null;
+        ElmGeometry geom = geom();
+        return (n == 0) ? geom.getPoint1() : (n == 1) ? geom.getPoint2() : null;
     }
 
     // return post we're connected to (for wires, so we can optimize them out in
     // calculateWireClosure())
     public Point getConnectedPost() {
-        return point2;
+        return geom().getPoint2();
     }
 
     public int getNodeAtPoint(int xp, int yp) {
@@ -982,48 +929,21 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // set/adjust bounding box used for selecting elements. getCircuitBounds() does
     // not use this!
     void setBbox(int x1, int y1, int x2, int y2) {
-        if (x1 > x2) {
-            int q = x1;
-            x1 = x2;
-            x2 = q;
-        }
-        if (y1 > y2) {
-            int q = y1;
-            y1 = y2;
-            y2 = q;
-        }
-        boundingBox.setBounds(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+        geom().setBbox(x1, y1, x2, y2);
     }
 
     // set bounding box for an element from p1 to p2 with width w
     public void setBbox(Point p1, Point p2, double w) {
-        setBbox(p1.x, p1.y, p2.x, p2.y);
-        int dpx = (int) (dpx1 * w);
-        int dpy = (int) (dpy1 * w);
-        adjustBbox(p1.x + dpx, p1.y + dpy, p1.x - dpx, p1.y - dpy);
+        geom().setBbox(p1, p2, w);
     }
 
     // enlarge bbox to contain an additional rectangle
     void adjustBbox(int x1, int y1, int x2, int y2) {
-        if (x1 > x2) {
-            int q = x1;
-            x1 = x2;
-            x2 = q;
-        }
-        if (y1 > y2) {
-            int q = y1;
-            y1 = y2;
-            y2 = q;
-        }
-        x1 = min(boundingBox.x, x1);
-        y1 = min(boundingBox.y, y1);
-        x2 = max(boundingBox.x + boundingBox.width, x2);
-        y2 = max(boundingBox.y + boundingBox.height, y2);
-        boundingBox.setBounds(x1, y1, x2 - x1, y2 - y1);
+        geom().adjustBbox(x1, y1, x2, y2);
     }
 
     void adjustBbox(Point p1, Point p2) {
-        adjustBbox(p1.x, p1.y, p2.x, p2.y);
+        geom().adjustBbox(p1, p2);
     }
 
     // needed for calculating circuit bounds (need to special-case centered text
@@ -1055,6 +975,11 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         if (s == null || s.isEmpty()) {
             return;
         }
+        ElmGeometry geom = geom();
+        int x1 = geom.getX1();
+        int y1 = geom.getY1();
+        int x2 = geom.getX2();
+        int y2 = geom.getY2();
         g.setFont(unitsFont());
         // FontMetrics fm = g.getFontMetrics();
         int w = (int) g.measureWidth(s);
@@ -1065,16 +990,16 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             xc = x2;
             yc = y2;
         } else {
-            xc = (x2 + x) / 2;
-            yc = (y2 + y) / 2;
+            xc = (x2 + x1) / 2;
+            yc = (y2 + y1) / 2;
         }
-        int dpx = (int) (dpx1 * hs);
-        int dpy = (int) (dpy1 * hs);
+        int dpx = (int) (getDpx1() * hs);
+        int dpy = (int) (getDpy1() * hs);
         if (dpx == 0) {
             g.drawString(s, xc - w / 2, yc - abs(dpy) - 2);
         } else {
             int xx = xc + abs(dpx) + 2;
-            if (this instanceof VoltageElm || (x < x2 && y > y2)) {
+            if (this instanceof VoltageElm || (x1 < x2 && y1 > y2)) {
                 xx = xc - (w + abs(dpx) + 2);
             }
             g.drawString(s, xx, yc + dpy + ya);
@@ -1148,13 +1073,16 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         float hs = 3 * gsize;
         float h1 = 3 * gsize;
         float h2 = h1 * 2;
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         double len = distance(lead1, lead2);
-        pts[0] = interpPoint(lead1, lead2, ctr - h2 / len, hs);
-        pts[1] = interpPoint(lead1, lead2, ctr + h1 / len, hs);
-        pts[2] = interpPoint(lead1, lead2, ctr + h1 / len, -hs);
-        pts[3] = interpPoint(lead1, lead2, ctr + h2 / len, -hs);
-        pts[4] = interpPoint(lead1, lead2, ctr - h1 / len, -hs);
-        pts[5] = interpPoint(lead1, lead2, ctr - h1 / len, hs);
+        interpPoint(lead1, lead2, pts[0], ctr - h2 / len, hs);
+        interpPoint(lead1, lead2, pts[1], ctr + h1 / len, hs);
+        interpPoint(lead1, lead2, pts[2], ctr + h1 / len, -hs);
+        interpPoint(lead1, lead2, pts[3], ctr + h2 / len, -hs);
+        interpPoint(lead1, lead2, pts[4], ctr - h1 / len, -hs);
+        interpPoint(lead1, lead2, pts[5], ctr - h1 / len, hs);
         return createPolygon(pts);
     }
 
@@ -1185,7 +1113,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     void doDots(Graphics g) {
         updateDotCount();
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, point2, curcount);
+            ElmGeometry geom = geom();
+            drawDots(g, geom.getPoint1(), geom.getPoint2(), curcount);
         }
     }
 
@@ -1349,7 +1278,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public void selectRect(Rectangle r, boolean add) {
-        if (r.intersects(boundingBox)) {
+        if (r.intersects(geom().getBoundingBox())) {
             selected = true;
         } else if (!add) {
             selected = false;
@@ -1357,7 +1286,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public Rectangle getBoundingBox() {
-        return boundingBox;
+        return geom().getBoundingBox();
     }
 
     public boolean needsShortcut() {
@@ -1380,10 +1309,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     public int getMouseDistance(int gx, int gy) {
-        if (getPostCount() == 0) {
-            return Graphics.distanceSq(gx, gy, (x2 + x) / 2, (y2 + y) / 2);
-        }
-        return lineDistanceSq(x, y, x2, y2, gx, gy);
+        return geom().getMouseDistanceSq(gx, gy);
     }
 
     public String dumpModel() {
@@ -1468,10 +1394,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         });
         
         // Position
-        this.getX = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x; };
-        this.getY = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y; };
-        this.getX2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x2; };
-        this.getY2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y2; };
+        this.getX = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getX()(); };
+        this.getY = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getY()(); };
+        this.getX2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getX2()(); };
+        this.getY2 = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getY2()(); };
         
         // Selection
         this.isSelected = function() { return that.@com.lushprojects.circuitjs1.client.element.CircuitElm::selected; };
@@ -1699,16 +1625,17 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * @return Point for _startpoint export, or null if point1 matches first pin
      */
     public Point getJsonStartPoint() {
+        ElmGeometry geom = geom();
         // Default: point1 matches first pin, no need for _startpoint
         if (getPostCount() >= 1) {
             Pin firstPinObj = getPin(0);
             Point firstPin = firstPinObj != null ? firstPinObj.getPosition() : null;
-            if (firstPin != null && firstPin.x == x && firstPin.y == y) {
+            if (firstPin != null && firstPin.x == geom.getX1() && firstPin.y == geom.getY1()) {
                 return null; // point1 matches first pin
             }
         }
         // point1 doesn't match first pin, export it
-        return new Point(x, y);
+        return new Point(geom.getX1(), geom.getY1());
     }
 
     /**
@@ -1717,20 +1644,21 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * @return Point for _endpoint export, or null if point2 matches second pin
      */
     public Point getJsonEndPoint() {
+        ElmGeometry geom = geom();
         // Default for single-terminal elements: always export endpoint
         if (getPostCount() == 1) {
-            return new Point(x2, y2);
+            return new Point(geom.getX2(), geom.getY2());
         }
         // Default for 2+ terminal elements: point2 matches second pin
         if (getPostCount() >= 2) {
             Pin secondPinObj = getPin(1);
             Point secondPin = secondPinObj != null ? secondPinObj.getPosition() : null;
-            if (secondPin != null && secondPin.x == x2 && secondPin.y == y2) {
+            if (secondPin != null && secondPin.x == geom.getX2() && secondPin.y == geom.getY2()) {
                 return null; // point2 matches second pin
             }
         }
         // point2 doesn't match second pin, export it
-        return new Point(x2, y2);
+        return new Point(geom.getX2(), geom.getY2());
     }
 
     // ==================== JSON State Export/Import Methods ====================
@@ -1820,11 +1748,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * for the bounding rectangle.
      */
     public java.util.Map<String, Integer> getJsonBounds() {
+        Rectangle bbox = geom().getBoundingBox();
         java.util.Map<String, Integer> bounds = new java.util.LinkedHashMap<>();
-        bounds.put("left", boundingBox.x);
-        bounds.put("top", boundingBox.y);
-        bounds.put("right", boundingBox.x + boundingBox.width);
-        bounds.put("bottom", boundingBox.y + boundingBox.height);
+        bounds.put("left", bbox.x);
+        bounds.put("top", bbox.y);
+        bounds.put("right", bbox.x + bbox.width);
+        bounds.put("bottom", bbox.y + bbox.height);
         return bounds;
     }
 
@@ -1870,6 +1799,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             return;
         }
 
+        ElmGeometry geom = geom();
+
         // Check if _startpoint is present - if so, x/y are already set from it
         // and we should not overwrite them from the first pin
         boolean hasStartpoint = pins.containsKey("_startpoint");
@@ -1877,6 +1808,11 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         // Check if _endpoint is present - if so, x2/y2 are already set from it
         // and we should not overwrite them from the second pin
         boolean hasEndpoint = pins.containsKey("_endpoint");
+
+        int x1 = geom.getX1();
+        int y1 = geom.getY1();
+        int x3 = geom.getX2();
+        int y3 = geom.getY2();
 
         Pin[] pinArr = getPins();
         if (pinArr.length >= 2) {
@@ -1888,8 +1824,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                     Integer px = pin1.get("x");
                     Integer py = pin1.get("y");
                     if (px != null && py != null) {
-                        x = px;
-                        y = py;
+                        x1 = px;
+                        y1 = py;
                     }
                 }
             }
@@ -1902,11 +1838,13 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                     Integer px = pin2.get("x");
                     Integer py = pin2.get("y");
                     if (px != null && py != null) {
-                        x2 = px;
-                        y2 = py;
+                        x3 = px;
+                        y3 = py;
                     }
                 }
             }
+
+            setEndpoints(x1, y1, x3, y3);
         } else if (pinArr.length == 1) {
             // Single-terminal elements
             java.util.Map<String, Integer> pin1 = pins.get(pinArr[0].getName());
@@ -1914,10 +1852,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                 Integer px = pin1.get("x");
                 Integer py = pin1.get("y");
                 if (px != null && py != null) {
-                    x = px;
-                    y = py;
-                    x2 = px;
-                    y2 = py;
+                    setEndpoints(px, py, px, py);
                 }
             }
         }
@@ -1938,6 +1873,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * Default implementation calls setPoints().
      */
     public void finalizeJsonImport() {
+        initBoundingBox();
         setPoints();
     }
 

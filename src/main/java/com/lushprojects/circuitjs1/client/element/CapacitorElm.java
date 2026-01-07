@@ -45,6 +45,10 @@ public class CapacitorElm extends CircuitElm {
     Point[] plate1;
     Point[] plate2;
 
+    // Capacitor-specific lead points (were previously inherited from CircuitElm).
+    protected Point lead1;
+    protected Point lead2;
+
     public CapacitorElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         CirSim.console("CapacitorElm constructor called with (" + xx + ", " + yy + ")");
@@ -99,10 +103,16 @@ public class CapacitorElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        double dn = getDn();
         double f = (dn / 2 - 4) / dn;
         // calc leads
-        lead1 = interpPoint(point1, point2, f);
-        lead2 = interpPoint(point1, point2, 1 - f);
+        if (lead1 == null) lead1 = new Point();
+        if (lead2 == null) lead2 = new Point();
+        interpPoint(point1, point2, lead1, f);
+        interpPoint(point1, point2, lead2, 1 - f);
         // calc plates
         plate1 = newPointArray(2);
         plate2 = newPointArray(2);
@@ -111,6 +121,9 @@ public class CapacitorElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         int hs = 12;
         setBbox(point1, point2, hs);
 

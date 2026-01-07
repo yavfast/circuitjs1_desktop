@@ -50,7 +50,7 @@ public class InvertingSchmittElm extends CircuitElm {
     }
 
     public InvertingSchmittElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                               StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = true;
         slewRate = .5;
@@ -74,7 +74,7 @@ public class InvertingSchmittElm extends CircuitElm {
 
     int getDumpType() {
         return 183;
-    }//Trying to find unused type
+    }// Trying to find unused type
 
     public void draw(Graphics g) {
         drawPosts(g);
@@ -87,29 +87,36 @@ public class InvertingSchmittElm extends CircuitElm {
         ;
         drawThickCircle(g, pcircle.x, pcircle.y, 3);
         curcount = updateDotCount(current, curcount);
-        drawDots(g, lead2, point2, curcount);
+        drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
     }
 
     Polygon gatePoly;
     Polygon symbolPoly;
     Point pcircle;
 
+    private Point[] triPoints;
+
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int hs = 16;
         int ww = 16;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
-        lead1 = interpPoint(point1, point2, .5 - ww / dn);
-        lead2 = interpPoint(point1, point2, .5 + (ww + 2) / dn);
-        pcircle = interpPoint(point1, point2, .5 + (ww - 2) / dn);
-        Point triPoints[] = newPointArray(3);
-        interpPoint2(lead1, lead2, triPoints[0], triPoints[1], 0, hs);
-        triPoints[2] = interpPoint(point1, point2, .5 + (ww - 5) / dn);
+
+        if (pcircle == null)
+            pcircle = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), .5 - ww / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), .5 + (ww + 2) / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), pcircle, .5 + (ww - 2) / dn);
+        if (triPoints == null)
+            triPoints = newPointArray(3);
+        interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[0], triPoints[1], 0, hs);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), triPoints[2], .5 + (ww - 5) / dn);
 
         gatePoly = createPolygon(triPoints);
         symbolPoly = getSchmittPolygon(1, .3f);
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
     }
 
     public int getVoltageSourceCount() {
@@ -123,16 +130,16 @@ public class InvertingSchmittElm extends CircuitElm {
     public void doStep() {
         double v0 = getNodeVoltage(1);
         double out;
-        if (state) {//Output is high
-            if (getNodeVoltage(0) > upperTrigger)//Input voltage high enough to set output low
+        if (state) {// Output is high
+            if (getNodeVoltage(0) > upperTrigger)// Input voltage high enough to set output low
             {
                 state = false;
                 out = logicOffLevel;
             } else {
                 out = logicOnLevel;
             }
-        } else {//Output is low
-            if (getNodeVoltage(0) < lowerTrigger)//Input voltage low enough to set output high
+        } else {// Output is low
+            if (getNodeVoltage(0) < lowerTrigger)// Input voltage low enough to set output high
             {
                 state = true;
                 out = logicOnLevel;
@@ -142,9 +149,9 @@ public class InvertingSchmittElm extends CircuitElm {
         }
 
         CircuitSimulator simulator = simulator();
-        double maxStep = slewRate * simulator().timeStep * 1e9;
+        double maxStep = slewRate * simulator.timeStep * 1e9;
         out = Math.max(Math.min(v0 + maxStep, out), v0 - maxStep);
-        simulator().updateVoltageSource(0, getNode(1), voltSource, out);
+        simulator.updateVoltageSource(0, getNode(1), voltSource, out);
     }
 
     double getVoltageDiff() {
@@ -191,7 +198,6 @@ public class InvertingSchmittElm extends CircuitElm {
         if (n == 4)
             logicOffLevel = ei.value;
 
-
         if (dlt > dut) {
             upperTrigger = dlt;
             lowerTrigger = dut;
@@ -220,7 +226,9 @@ public class InvertingSchmittElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "InvertingSchmitt"; }
+    public String getJsonTypeName() {
+        return "InvertingSchmitt";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -235,6 +243,6 @@ public class InvertingSchmittElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"in", "out"};
+        return new String[] { "in", "out" };
     }
 }

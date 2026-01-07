@@ -42,7 +42,7 @@ public class InverterElm extends CircuitElm {
     }
 
     public InverterElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         noDiagonal = true;
         slewRate = .5;
@@ -73,36 +73,50 @@ public class InverterElm extends CircuitElm {
             drawCenteredText(g, "1", center.x, center.y - 6, true);
         drawThickCircle(g, pcircle.x, pcircle.y, 3);
         curcount = updateDotCount(current, curcount);
-        drawDots(g, lead2, point2, curcount);
+        drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
     }
 
     Polygon gatePoly;
     Point pcircle;
 
+    private Point l2;
+    private Point[] euroGatePoints;
+    private Point[] triPoints;
+
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int hs = 16;
         int ww = 16;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
-        lead1 = interpPoint(point1, point2, .5 - ww / dn);
-        lead2 = interpPoint(point1, point2, .5 + (ww + 2) / dn);
-        pcircle = interpPoint(point1, point2, .5 + (ww - 2) / dn);
+
+        if (pcircle == null)
+            pcircle = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), .5 - ww / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), .5 + (ww + 2) / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), pcircle, .5 + (ww - 2) / dn);
 
         if (displaySettings().euroGates()) {
-            Point pts[] = newPointArray(4);
-            Point l2 = interpPoint(point1, point2, .5 + (ww - 5) / dn);   // make room for circle
-            interpPoint2(lead1, l2, pts[0], pts[1], 0, hs);
-            interpPoint2(lead1, l2, pts[3], pts[2], 1, hs);
-            gatePoly = createPolygon(pts);
-            center = interpPoint(lead1, l2, .5);
+            if (euroGatePoints == null)
+                euroGatePoints = newPointArray(4);
+            if (l2 == null)
+                l2 = new Point();
+            interpPoint(geom().getPoint1(), geom().getPoint2(), l2, .5 + (ww - 5) / dn); // make room for circle
+            interpPoint2(geom().getLead1(), l2, euroGatePoints[0], euroGatePoints[1], 0, hs);
+            interpPoint2(geom().getLead1(), l2, euroGatePoints[3], euroGatePoints[2], 1, hs);
+            gatePoly = createPolygon(euroGatePoints);
+            if (center == null)
+                center = new Point();
+            interpPoint(geom().getLead1(), l2, center, .5);
         } else {
-            Point triPoints[] = newPointArray(3);
-            interpPoint2(lead1, lead2, triPoints[0], triPoints[1], 0, hs);
-            triPoints[2] = interpPoint(point1, point2, .5 + (ww - 5) / dn);
+            if (triPoints == null)
+                triPoints = newPointArray(3);
+            interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[0], triPoints[1], 0, hs);
+            interpPoint(geom().getPoint1(), geom().getPoint2(), triPoints[2], .5 + (ww - 5) / dn);
             gatePoly = createPolygon(triPoints);
         }
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
     }
 
     public int getVoltageSourceCount() {
@@ -122,9 +136,9 @@ public class InverterElm extends CircuitElm {
     public void doStep() {
         CircuitSimulator simulator = simulator();
         double out = getNodeVoltage(0) > highVoltage * .5 ? 0 : highVoltage;
-        double maxStep = slewRate * simulator().timeStep * 1e9;
+        double maxStep = slewRate * simulator.timeStep * 1e9;
         out = Math.max(Math.min(lastOutputVoltage + maxStep, out), lastOutputVoltage - maxStep);
-        simulator().updateVoltageSource(0, getNode(1), voltSource, out);
+        simulator.updateVoltageSource(0, getNode(1), voltSource, out);
     }
 
     double getVoltageDiff() {

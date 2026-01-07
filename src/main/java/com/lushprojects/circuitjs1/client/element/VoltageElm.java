@@ -33,6 +33,7 @@ import java.util.Map;
 public class VoltageElm extends CircuitElm {
     public int waveform;
     public Waveform waveformInstance;
+    private Point plusPoint;
 
     static final double defaultPulseDuty = 1 / PI_2;
 
@@ -92,7 +93,7 @@ public class VoltageElm extends CircuitElm {
             flags &= ~Waveform.FLAG_PULSE_DUTY;
         }
 
-        return dumpValues(getDumpType(), x, y, x2, y2, flags, waveform, waveformInstance.frequency, waveformInstance.maxVoltage, waveformInstance.bias, waveformInstance.phaseShift, waveformInstance.dutyCycle);
+        return dumpValues(getDumpType(), getX(), getY(), getX2(), getY2(), flags, waveform, waveformInstance.frequency, waveformInstance.maxVoltage, waveformInstance.bias, waveformInstance.phaseShift, waveformInstance.dutyCycle);
         // VarRailElm adds text at the end
     }
 
@@ -137,7 +138,12 @@ public class VoltageElm extends CircuitElm {
     }
 
     public void draw(Graphics g) {
-        setBbox(x, y, x2, y2);
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        setBbox(getX(), getY(), getX2(), getY2());
         draw2Leads(g);
         if (waveformInstance.isDC()) {
             setVoltageColor(g, getNodeVoltage(0));
@@ -166,7 +172,10 @@ public class VoltageElm extends CircuitElm {
             }
             g.setColor(foregroundColor());
             g.setFont(unitsFont());
-            Point plusPoint = interpPoint(point1, point2, (dn / 2 + CIRCLE_SIZE + 4) / dn, 10 * dsign);
+            if (plusPoint == null) plusPoint = new Point();
+            double dn = getDn();
+            int dsign = getDsign();
+            interpPoint(point1, point2, plusPoint, (dn / 2 + CIRCLE_SIZE + 4) / dn, 10 * dsign);
             plusPoint.y += 4;
             int w = (int) g.measureWidth(inds);
             g.drawString(inds, plusPoint.x - w / 2, plusPoint.y);
@@ -195,7 +204,9 @@ public class VoltageElm extends CircuitElm {
         waveformInstance.draw(g, center, this);
         if (displaySettings().showValues() && waveformInstance.showFrequency()) {
             String s = getShortUnitText(waveformInstance.frequency, "Hz");
-            if (dx == 0 || dy == 0) {
+            int _dx = getDx();
+            int _dy = getDy();
+            if (_dx == 0 || _dy == 0) {
                 drawValues(g, s, CIRCLE_SIZE);
             }
         }
@@ -234,6 +245,7 @@ public class VoltageElm extends CircuitElm {
             ei.choice.add("Sawtooth");
             ei.choice.add("Pulse");
             ei.choice.add("Noise");
+            ei.choice.add("Variable");
             ei.choice.select(waveform);
             return ei;
         }

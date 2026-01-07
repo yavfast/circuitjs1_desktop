@@ -29,12 +29,14 @@ import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 
 public class SchmittElm extends InvertingSchmittElm {
+    private Point[] triPoints;
+
     public SchmittElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
     }
 
     public SchmittElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                      StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
     }
 
@@ -50,16 +52,16 @@ public class SchmittElm extends InvertingSchmittElm {
 
     public void doStep() {
         double out;
-        if (state) {//Output is high
-            if (getNodeVoltage(0) > upperTrigger)//Input voltage high enough to set output high
+        if (state) {// Output is high
+            if (getNodeVoltage(0) > upperTrigger)// Input voltage high enough to set output high
             {
                 state = false;
                 out = logicOnLevel;
             } else {
                 out = logicOffLevel;
             }
-        } else {//Output is low
-            if (getNodeVoltage(0) < lowerTrigger)//Input voltage low enough to set output low
+        } else {// Output is low
+            if (getNodeVoltage(0) < lowerTrigger)// Input voltage low enough to set output low
             {
                 state = true;
                 out = logicOffLevel;
@@ -84,20 +86,23 @@ public class SchmittElm extends InvertingSchmittElm {
         g.setLineWidth(1);
         ;
         curcount = updateDotCount(current, curcount);
-        drawDots(g, lead2, point2, curcount);
+        drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);
     }
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         int hs = 16;
         int ww = 16;
         if (ww > dn / 2)
             ww = (int) (dn / 2);
-        lead1 = interpPoint(point1, point2, .5 - ww / dn);
-        lead2 = interpPoint(point1, point2, .5 + (ww - 3) / dn);
-        Point triPoints[] = newPointArray(3);
-        interpPoint2(lead1, lead2, triPoints[0], triPoints[1], 0, hs);
-        triPoints[2] = interpPoint(point1, point2, .5 + (ww - 5) / dn);
+        // geom() initializes leads
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), .5 - ww / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), .5 + (ww - 3) / dn);
+        if (triPoints == null)
+            triPoints = newPointArray(3);
+        interpPoint2(geom().getLead1(), geom().getLead2(), triPoints[0], triPoints[1], 0, hs);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), triPoints[2], .5 + (ww - 5) / dn);
         gatePoly = createPolygon(triPoints);
     }
 
@@ -113,5 +118,7 @@ public class SchmittElm extends InvertingSchmittElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "Schmitt"; }
+    public String getJsonTypeName() {
+        return "Schmitt";
+    }
 }

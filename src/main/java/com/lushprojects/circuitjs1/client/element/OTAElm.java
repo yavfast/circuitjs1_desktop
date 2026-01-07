@@ -12,7 +12,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 public class OTAElm extends CompositeElm {
 
     private static String modelString = "RailElm 4\rRailElm 10\rNTransistorElm 1 2 3\rNTransistorElm 3 1 4\rNTransistorElm 3 3 4\rNTransistorElm 5 6 2\rNTransistorElm 7 8 2\rPTransistorElm 9 6 10\rPTransistorElm 9 9 10\rPTransistorElm 6 12 9\rPTransistorElm 11 8 10\rPTransistorElm 11 11 10\rPTransistorElm 8 13 11\rNTransistorElm 14 14 4\rNTransistorElm 14 12 4\rNTransistorElm 12 13 14\rNTransistorElm 15 15 5\rNTransistorElm 15 15 7";
-    private static int[] modelExternalNodes = {7, 5, 15, 1, 13};
+    private static int[] modelExternalNodes = { 7, 5, 15, 1, 13 };
     // private static String modelString="NTransistorElm 1 1 2\rNTransistorElm 1
     // 2 3\rNTransistorElm 1 3 4\rNTransistorElm 1 4 5";
     // private static int[] modelExternalNodes = { 1, 2, 3 , 4, 5};
@@ -63,7 +63,7 @@ public class OTAElm extends CompositeElm {
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, 3 * opheight / 2);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 3 * opheight / 2);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, in1p[0], in1p[1]);
         setVoltageColor(g, getNodeVoltage(1));
@@ -99,17 +99,19 @@ public class OTAElm extends CompositeElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
         int ww = opwidth;
         int wtot = ww * 2 + 2 * circDiam - circOverlap;
 
         if (dn > wtot) {
-            lead1 = interpPoint(point1, point2, 1.0 - wtot / dn, 0);
-            lead2 = point2;
-            point2bis = point2;
+            geom().setLead1(interpPoint(geom().getPoint1(), geom().getPoint2(), 1.0 - wtot / dn, 0));
+            geom().setLead2(geom().getPoint2());
+            point2bis = geom().getPoint2();
         } else {
-            lead1 = point1;
-            lead2 = interpPoint(point1, point2, wtot / dn, 0);
-            point2bis = lead2;
+            geom().setLead1(geom().getPoint1());
+            geom().setLead2(interpPoint(geom().getPoint1(), geom().getPoint2(), wtot / dn, 0));
+            point2bis = geom().getLead2();
         }
         int hs = opheight * dsign;
         // if ((flags & FLAG_SWAP) != 0)
@@ -122,21 +124,22 @@ public class OTAElm extends CompositeElm {
         bar1 = newPointArray(2);
         bar2 = newPointArray(2);
         circCent = newPointArray(2);
-        interpPoint2(point1, point2bis, in1p[0], in2p[0], 0, hs);
-        interpPoint2(lead1, lead2, in1p[1], in2p[1], 0, hs);
-        interpPoint2(lead1, lead2, textp[0], textp[1], .1, hs);
-        in3p[0] = point1;
-        in3p[1] = lead1;
-        in4p[0] = interpPoint(lead1, lead2, 1.0 - (16.0 / wtot), 32);
-        in4p[1] = interpPoint(lead1, lead2, 1.0 - (16.0 / wtot), 8);
+        interpPoint2(geom().getPoint1(), point2bis, in1p[0], in2p[0], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), in1p[1], in2p[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), textp[0], textp[1], .1, hs);
+        in3p[0] = geom().getPoint1();
+        in3p[1] = geom().getLead1();
+        in4p[0] = interpPoint(geom().getLead1(), geom().getLead2(), 1.0 - (16.0 / wtot), 32);
+        in4p[1] = interpPoint(geom().getLead1(), geom().getLead2(), 1.0 - (16.0 / wtot), 8);
         // in4p[0].x=sim.snapGrid(in4p[0].x);
         // in4p[0].y=sim.snapGrid(in4p[0].y);
         Point tris[] = newPointArray(3);
-        interpPoint2(lead1, lead2, tris[0], tris[1], 0, 3 * hs / 2);
-        tris[2] = interpPoint(lead1, lead2, (2.0 * ww) / wtot);
+        interpPoint2(geom().getLead1(), geom().getLead2(), tris[0], tris[1], 0, 3 * hs / 2);
+        tris[2] = interpPoint(geom().getLead1(), geom().getLead2(), (2.0 * ww) / wtot);
         triangle = createPolygon(tris[0], tris[1], tris[2]);
-        circCent[0] = interpPoint(lead1, lead2, 1.0 - (circDiam / (2.0 * wtot)), 0);
-        circCent[1] = interpPoint(lead1, lead2, 1.0 - (3 * circDiam / 2.0 - circOverlap) / wtot, 0);
+        circCent[0] = interpPoint(geom().getLead1(), geom().getLead2(), 1.0 - (circDiam / (2.0 * wtot)), 0);
+        circCent[1] = interpPoint(geom().getLead1(), geom().getLead2(), 1.0 - (3 * circDiam / 2.0 - circOverlap) / wtot,
+                0);
         Point d1, d2;
         d1 = interpPoint(in3p[1], in1p[1], 0.3333);
         d2 = interpPoint(in3p[1], in1p[1], 0.6666);
@@ -204,6 +207,6 @@ public class OTAElm extends CompositeElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"in+", "in-", "iabc", "ibias", "out"};
+        return new String[] { "in+", "in-", "iabc", "ibias", "out" };
     }
 }

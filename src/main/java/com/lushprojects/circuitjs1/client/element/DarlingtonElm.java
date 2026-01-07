@@ -2,7 +2,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -13,17 +12,16 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 // Iain Sharp, Feb 2017
 
-
 public class DarlingtonElm extends CompositeElm {
 
     private Polygon rectPoly, arrowPoly;
     private Point rect[], coll[], emit[], base, coll2[];
-
+    private Point ptemp;
 
     private int pnp; // +1 for NPN, -1 for PNP;
     private double curcount_c, curcount_e, curcount_b;
     private static String modelString = "NTransistorElm 1 2 4\rNTransistorElm 4 2 3";
-    private static int[] modelExternalNodes = {1, 2, 3};
+    private static int[] modelExternalNodes = { 1, 2, 3 };
 
     DarlingtonElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
         super(circuitDocument, xx, yy, modelString, modelExternalNodes);
@@ -33,7 +31,6 @@ public class DarlingtonElm extends CompositeElm {
         noDiagonal = true;
 
     }
-
 
     public DarlingtonElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
@@ -54,9 +51,8 @@ public class DarlingtonElm extends CompositeElm {
         return dumpValues(super.dump(), pnp);
     }
 
-
     public void draw(Graphics g) {
-        setBbox(point1, point2, 16);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 16);
         setPowerColor(g, true);
         // draw collector
         setVoltageColor(g, getNodeVoltage(1));
@@ -74,10 +70,10 @@ public class DarlingtonElm extends CompositeElm {
         if (displaySettings().showPower()) {
             g.setColor(neutralColor());
         }
-        drawThickLine(g, point1, base);
+        drawThickLine(g, geom().getPoint1(), base);
         // draw dots
         curcount_b = updateDotCount(getCurrentIntoNode(0), curcount_b);
-        drawDots(g, base, point1, curcount_b);
+        drawDots(g, base, geom().getPoint1(), curcount_b);
         curcount_c = updateDotCount(getCurrentIntoNode(1), curcount_c);
         drawDots(g, coll[1], coll[0], curcount_c);
         curcount_e = updateDotCount(getCurrentIntoNode(2), curcount_e);
@@ -87,11 +83,13 @@ public class DarlingtonElm extends CompositeElm {
         setPowerColor(g, true);
         g.fillPolygon(rectPoly);
 
-        if ((needsHighlight() || circuitEditor().dragElm == this) && dy == 0) {
+        int _dy = getDy();
+        int _dx = getDx();
+        if ((needsHighlight() || circuitEditor().dragElm == this) && _dy == 0) {
             g.setColor(foregroundColor());
             // IES
             // g.setFont(unitsFont);
-            int ds = sign(dx);
+            int ds = sign(_dx);
             g.drawString("B", base.x - 10 * ds, base.y - 5);
             g.drawString("C", coll[0].x - 3 + 9 * ds, coll[0].y + 4); // x+6 if
             // ds=1,
@@ -101,7 +99,6 @@ public class DarlingtonElm extends CompositeElm {
         }
         drawPosts(g);
     }
-
 
     public void getInfo(String arr[]) {
         arr[0] = Locale.LS("darlington pair") + " (" + ((pnp == -1) ? "PNP)" : "NPN)");
@@ -117,34 +114,38 @@ public class DarlingtonElm extends CompositeElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
+        int dsign = getDsign();
         int hs = 16;
         int hs2 = hs * dsign * pnp;
         // calc collector, emitter posts
         coll = newPointArray(2);
         coll2 = newPointArray(2);
         emit = newPointArray(2);
-        interpPoint2(point1, point2, coll[0], emit[0], 1, hs2);
-        coll2[0] = interpPoint(point1, point2, 1, hs2 - 5 * dsign * pnp);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), coll[0], emit[0], 1, hs2);
+        coll2[0] = interpPoint(geom().getPoint1(), geom().getPoint2(), 1, hs2 - 5 * dsign * pnp);
         // calc rectangle edges
         rect = newPointArray(4);
-        interpPoint2(point1, point2, rect[0], rect[1], 1 - 16 / dn, hs);
-        interpPoint2(point1, point2, rect[2], rect[3], 1 - 13 / dn, hs);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), rect[0], rect[1], 1 - 16 / dn, hs);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), rect[2], rect[3], 1 - 13 / dn, hs);
         // calc points where collector/emitter leads contact rectangle
-        interpPoint2(point1, point2, coll[1], emit[1], 1 - 13 / dn, 6 * dsign * pnp);
-        coll2[1] = interpPoint(point1, point2, 1 - 13 / dn, dsign * pnp);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), coll[1], emit[1], 1 - 13 / dn, 6 * dsign * pnp);
+        coll2[1] = interpPoint(geom().getPoint1(), geom().getPoint2(), 1 - 13 / dn, dsign * pnp);
         // calc point where base lead contacts rectangle
         base = new Point();
-        interpPoint(point1, point2, base, 1 - 16 / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), base, 1 - 16 / dn);
         // rectangle
         rectPoly = createPolygon(rect[0], rect[2], rect[3], rect[1]);
         // arrow
         if (pnp == 1)
             arrowPoly = calcArrow(emit[1], emit[0], 8, 4);
         else {
-            Point pt = interpPoint(point1, point2, 1 - 11 / dn, -5 * dsign * pnp);
-            arrowPoly = calcArrow(emit[0], pt, 8, 4);
+            if (ptemp == null)
+                ptemp = new Point();
+            interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp, 1 - 11 / dn, -5 * dsign * pnp);
+            arrowPoly = calcArrow(emit[0], ptemp, 8, 4);
         }
-        setPost(0, point1);
+        setPost(0, geom().getPoint1());
         setPost(1, coll[0]);
         setPost(2, emit[0]);
 
@@ -155,7 +156,9 @@ public class DarlingtonElm extends CompositeElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "Darlington"; }
+    public String getJsonTypeName() {
+        return "Darlington";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -166,6 +169,6 @@ public class DarlingtonElm extends CompositeElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"base", "collector", "emitter"};
+        return new String[] { "base", "collector", "emitter" };
     }
 }

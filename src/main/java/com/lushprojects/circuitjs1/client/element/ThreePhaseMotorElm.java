@@ -14,7 +14,6 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 // based on https://ctms.engin.umich.edu/CTMS/index.php?example=MotorPosition&section=SystemModeling
 
-
 public class ThreePhaseMotorElm extends CircuitElm {
 
     double Rs, Rr, Ls, Lr, Lm;
@@ -44,7 +43,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
         coilCurrents = new double[coilCount];
     }
 
-    public ThreePhaseMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
+    public ThreePhaseMotorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         angle = PI / 2;
         filteredSpeed = speed = 0;
@@ -81,17 +81,23 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        posts = newPointArray(6);
-        leads = newPointArray(6);
+        if (posts == null)
+            posts = newPointArray(6);
+        if (leads == null)
+            leads = newPointArray(6);
         int i;
-        int q = (Math.abs(dy) > Math.abs(dx)) ? -1 : 1;
+        int dx0 = getDx();
+        int dy0 = getDy();
+        int q = (Math.abs(dy0) > Math.abs(dx0)) ? -1 : 1;
         for (i = 0; i != 3; i++) {
-            interpPoint(point1, point2, posts[i * 2], 0, -q * 32 * (i - 1));
-            interpPoint(point1, point2, leads[i * 2], .45, -q * 32 * (i - 1));
-            interpPoint(point1, point2, posts[i * 2 + 1], 1, q * 32 * (i - 1));
-            interpPoint(point1, point2, leads[i * 2 + 1], .55, q * 32 * (i - 1));
+            interpPoint(geom().getPoint1(), geom().getPoint2(), posts[i * 2], 0, -q * 32 * (i - 1));
+            interpPoint(geom().getPoint1(), geom().getPoint2(), leads[i * 2], .45, -q * 32 * (i - 1));
+            interpPoint(geom().getPoint1(), geom().getPoint2(), posts[i * 2 + 1], 1, q * 32 * (i - 1));
+            interpPoint(geom().getPoint1(), geom().getPoint2(), leads[i * 2 + 1], .55, q * 32 * (i - 1));
         }
-        motorCenter = interpPoint(point1, point2, .5);
+        if (motorCenter == null)
+            motorCenter = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), motorCenter, .5);
         allocNodes();
     }
 
@@ -130,7 +136,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     final int coilCount = 5;
 
-    // based on https://forum.kicad.info/t/ac-motors-simulation-1-phase-3-phase/14188/3
+    // based on
+    // https://forum.kicad.info/t/ac-motors-simulation-1-phase-3-phase/14188/3
 
     public void stamp() {
         int i;
@@ -150,7 +157,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
         simulator().stampResistor(n007, 0, 1.5 * Rr);
 
         double Lr2 = Lr * 1.5;
-        double coilInductances[] = {Ls, Ls, Ls, Lr2, Lr2};
+        double coilInductances[] = { Ls, Ls, Ls, Lr2, Lr2 };
         double couplingCoefs[][] = new double[coilCount][coilCount];
         xformMatrix = new double[coilCount][coilCount];
 
@@ -171,7 +178,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
         // fill off-diagonal
         for (i = 0; i != coilCount; i++)
             for (j = 0; j != i; j++)
-                xformMatrix[i][j] = xformMatrix[j][i] = couplingCoefs[i][j] * Math.sqrt(coilInductances[i] * coilInductances[j]);
+                xformMatrix[i][j] = xformMatrix[j][i] = couplingCoefs[i][j]
+                        * Math.sqrt(coilInductances[i] * coilInductances[j]);
 
         CircuitMath.invertMatrix(xformMatrix, coilCount);
 
@@ -187,7 +195,8 @@ public class ThreePhaseMotorElm extends CircuitElm {
                 if (i == j)
                     simulator().stampConductance(getNode(ni1), getNode(ni2), xformMatrix[i][i]);
                 else
-                    simulator().stampVCCurrentSource(getNode(ni1), getNode(ni2), getNode(nj1), getNode(nj2), xformMatrix[i][j]);
+                    simulator().stampVCCurrentSource(getNode(ni1), getNode(ni2), getNode(nj1), getNode(nj2),
+                            xformMatrix[i][j]);
             }
         for (i = 0; i != 10; i++)
             simulator().stampRightSide(getNode(coilNodes[i]));
@@ -202,7 +211,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
         nodeCurrents = new double[nodeCount];
     }
 
-    int coilNodes[] = {n001_ind, 1, n003_ind, 3, n005_ind, 5, n002_ind, n004_ind, n006_ind, n007_ind};
+    int coilNodes[] = { n001_ind, 1, n003_ind, 3, n005_ind, 5, n002_ind, n004_ind, n006_ind, n007_ind };
     double coilCurrents[];
     double coilCurSourceValues[];
     double xformMatrix[][];
@@ -222,11 +231,13 @@ public class ThreePhaseMotorElm extends CircuitElm {
             coilCurSourceValues[i] = val;
         }
 
-        double torque = Zp * Math.sqrt(3) / 2 * Lm * ((coilCurrents[1] - coilCurrents[2]) * coilCurrents[3] - Math.sqrt(3) * coilCurrents[0] * coilCurrents[4]);
+        double torque = Zp * Math.sqrt(3) / 2 * Lm * ((coilCurrents[1] - coilCurrents[2]) * coilCurrents[3]
+                - Math.sqrt(3) * coilCurrents[0] * coilCurrents[4]);
         speed += simulator().timeStep * (torque - b * speed) / J;
         angle = angle + speed * simulator().timeStep;
 
-        vs1value = -Zp * speed * (Lm * Math.sqrt(3) / 2 * (coilCurrents[1] - coilCurrents[2]) + 1.5 * Lr * coilCurrents[4]);
+        vs1value = -Zp * speed
+                * (Lm * Math.sqrt(3) / 2 * (coilCurrents[1] - coilCurrents[2]) + 1.5 * Lr * coilCurrents[4]);
         vs2value = Zp * speed * (3 / 2. * Lm * coilCurrents[0] + 1.5 * Lr * coilCurrents[3]);
     }
 
@@ -245,10 +256,10 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     void calculateCurrent() {
         int i;
-        int nodeCount = getPostCount() + getInternalNodeCount();
+        // int nodeCount = getPostCount() + getInternalNodeCount();
         if (nodeCurrents == null)
             return;
-        for (i = 0; i != nodeCount; i++)
+        for (i = 0; i != nodeCurrents.length; i++)
             nodeCurrents[i] = 0;
         for (i = 0; i != coilCount; i++) {
             double val = coilCurSourceValues[i];
@@ -281,8 +292,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     public void draw(Graphics g) {
 
-        int hs = 8;
-        setBbox(point1, point2, cr);
+        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
 
         int i;
         for (i = 0; i != 6; i++) {
@@ -295,7 +305,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
             drawDots(g, leads[i * 2 + 1], posts[i * 2 + 1], curcounts[i]);
         }
 
-        //getCurrent();
+        // getCurrent();
         setPowerColor(g, true);
         Color cc = new Color((int) (165), (int) (165), (int) (165));
         g.setColor(cc);
@@ -304,22 +314,30 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         g.setColor(cc);
         double angleAux = Math.round(angle * 300.0) / 300.0;
-        g.fillOval(motorCenter.x - (int) (cr / 2.2), motorCenter.y - (int) (cr / 2.2), (int) (2 * cr / 2.2), (int) (2 * cr / 2.2));
+        g.fillOval(motorCenter.x - (int) (cr / 2.2), motorCenter.y - (int) (cr / 2.2), (int) (2 * cr / 2.2),
+                (int) (2 * cr / 2.2));
 
         g.setColor(cc);
+        double dn = getDn();
         double q = .28 * 1.7 * 36 / dn * 37 / 27;
         final int gearRatio = 1;
-        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio), q * Math.sin(angleAux * gearRatio));
-        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio), -q * Math.sin(angleAux * gearRatio));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps1, .5 + q * Math.cos(angleAux * gearRatio),
+                q * Math.sin(angleAux * gearRatio));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps2, .5 - q * Math.cos(angleAux * gearRatio),
+                -q * Math.sin(angleAux * gearRatio));
 
         drawThickerLine(g, ps1, ps2);
-        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + PI / 3), q * Math.sin(angleAux * gearRatio + PI / 3));
-        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + PI / 3), -q * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps1, .5 + q * Math.cos(angleAux * gearRatio + PI / 3),
+                q * Math.sin(angleAux * gearRatio + PI / 3));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps2, .5 - q * Math.cos(angleAux * gearRatio + PI / 3),
+                -q * Math.sin(angleAux * gearRatio + PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
-        interpPointFix(point1, point2, ps1, .5 + q * Math.cos(angleAux * gearRatio + 2 * PI / 3), q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
-        interpPointFix(point1, point2, ps2, .5 - q * Math.cos(angleAux * gearRatio + 2 * PI / 3), -q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps1,
+                .5 + q * Math.cos(angleAux * gearRatio + 2 * PI / 3), q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
+        interpPointFix(geom().getPoint1(), geom().getPoint2(), ps2,
+                .5 - q * Math.cos(angleAux * gearRatio + 2 * PI / 3), -q * Math.sin(angleAux * gearRatio + 2 * PI / 3));
 
         drawThickerLine(g, ps1, ps2);
 
@@ -327,7 +345,9 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         g.save();
-        if (Math.abs(dy) > Math.abs(dx)) {
+        int dx0 = getDx();
+        int dy0 = getDy();
+        if (Math.abs(dy0) > Math.abs(dx0)) {
             for (i = 0; i != 3; i++) {
                 int d1 = 5;
                 g.drawString("UVW".substring(i, i + 1) + "1", posts[i * 2].x + d1, posts[i * 2].y + 8);
@@ -359,11 +379,11 @@ public class ThreePhaseMotorElm extends CircuitElm {
         c.y = (int) Math.round(a.y * (1 - f) + b.y * f + g * gy);
     }
 
-
     public void getInfo(String arr[]) {
         arr[0] = "3-Phase Motor";
         getBasicInfo(arr);
-        arr[3] = Locale.LS("speed") + " = " + getUnitTextRPM(60 * Math.abs(filteredSpeed) / (2 * Math.PI), Locale.LS("RPM"));
+        arr[3] = Locale.LS("speed") + " = "
+                + getUnitTextRPM(60 * Math.abs(filteredSpeed) / (2 * Math.PI), Locale.LS("RPM"));
     }
 
     private static String getUnitTextRPM(double v, String u) {
@@ -444,7 +464,9 @@ public class ThreePhaseMotorElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "ThreePhaseMotor"; }
+    public String getJsonTypeName() {
+        return "ThreePhaseMotor";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -461,7 +483,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"U1", "U2", "V1", "V2", "W1", "W2"};
+        return new String[] { "U1", "U2", "V1", "V2", "W1", "W2" };
     }
 
     @Override

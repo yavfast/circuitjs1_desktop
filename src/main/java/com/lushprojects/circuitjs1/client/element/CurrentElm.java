@@ -37,7 +37,7 @@ public class CurrentElm extends CircuitElm {
     }
 
     public CurrentElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                      StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         try {
             currentValue = parseDouble(st.nextToken());
@@ -61,15 +61,24 @@ public class CurrentElm extends CircuitElm {
 
     Polygon arrow;
     Point ashaft1, ashaft2, center;
+    private Point ptemp;
 
     public void setPoints() {
         super.setPoints();
         calcLeads(26);
-        ashaft1 = interpPoint(lead1, lead2, .25);
-        ashaft2 = interpPoint(lead1, lead2, .6);
-        center = interpPoint(lead1, lead2, .5);
-        Point p2 = interpPoint(lead1, lead2, .75);
-        arrow = calcArrow(center, p2, 4, 4);
+        if (ashaft1 == null)
+            ashaft1 = new Point();
+        if (ashaft2 == null)
+            ashaft2 = new Point();
+        if (center == null)
+            center = new Point();
+        if (ptemp == null)
+            ptemp = new Point();
+        interpPoint(geom().getLead1(), geom().getLead2(), ashaft1, .25);
+        interpPoint(geom().getLead1(), geom().getLead2(), ashaft2, .6);
+        interpPoint(geom().getLead1(), geom().getLead2(), center, .5);
+        interpPoint(geom().getLead1(), geom().getLead2(), ptemp, .75);
+        arrow = calcArrow(center, ptemp, 4, 4);
     }
 
     public void draw(Graphics g) {
@@ -82,10 +91,12 @@ public class CurrentElm extends CircuitElm {
         drawThickLine(g, ashaft1, ashaft2);
 
         g.fillPolygon(arrow);
-        setBbox(point1, point2, cr);
+        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         doDots(g);
         if (displaySettings().showValues() && current != 0) {
             String s = getShortUnitText(current, "A");
+            int dx = getDx();
+            int dy = getDy();
             if (dx == 0 || dy == 0)
                 drawValues(g, s, cr);
         }
@@ -97,7 +108,8 @@ public class CurrentElm extends CircuitElm {
         broken = b;
     }
 
-    // we defer stamping current sources until we can tell if they have a current path or not
+    // we defer stamping current sources until we can tell if they have a current
+    // path or not
     public void stamp() {
         if (broken) {
             // no current path; stamping a current source would cause a matrix error.
@@ -154,9 +166,9 @@ public class CurrentElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse current value
         currentValue = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "current", "10 mA"));
+                getJsonString(props, "current", "10 mA"));
     }
 }

@@ -26,7 +26,6 @@ import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.Checkbox;
-import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Scrollbar;
@@ -57,7 +56,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public PotElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                  StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         maxResistance = parseDouble(st.nextToken());
         position = parseDouble(st.nextToken());
@@ -79,7 +78,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : post3;
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? geom().getPoint2() : post3;
     }
 
     public String dump() {
@@ -90,9 +89,10 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
         label.addStyleName("topSpace");
         int value = (int) Math.round((position - .005) / .0099);
-        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
-        // 	sim.verticalPanel.validate();
-        // 	slider.addAdjustmentListener(this);
+        cirSim().addWidgetToVerticalPanel(
+                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+        // sim.verticalPanel.validate();
+        // slider.addAdjustmentListener(this);
     }
 
     public void execute() {
@@ -115,39 +115,65 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         int offset = 0;
         int myLen = 0;
         int gridSize = circuitEditor().gridSize;
+        int dx = getDx();
+        int dy = getDy();
+        int newX2 = getX2();
+        int newY2 = getY2();
         if (abs(dx) > abs(dy) != hasFlag(FLAG_FLIP)) {
             myLen = 2 * gridSize * Integer.signum(dx) * ((((int) Math.abs(dx)) + 2 * gridSize - 1) / (2 * gridSize));
-            point2.x = point1.x + myLen;
+            newX2 = geom().getPoint1().x + myLen;
             offset = (dx < 0) ? dy : -dy;
-            point2.y = point1.y;
+            newY2 = geom().getPoint1().y;
         } else {
             myLen = 2 * gridSize * Integer.signum(dy) * ((((int) Math.abs(dy)) + 2 * gridSize - 1) / (2 * gridSize));
             if (dy != 0) {
-                point2.y = point1.y + myLen;
+                newY2 = geom().getPoint1().y + myLen;
                 offset = (dy > 0) ? dx : -dx;
-                point2.x = point1.x;
+                newX2 = geom().getPoint1().x;
             }
         }
         if (offset == 0)
             offset = (hasFlag(FLAG_FLIP_OFFSET)) ? -gridSize : gridSize;
-        dn = distance(point1, point2);
+        // Consolidate endpoint mutation through ElmGeometry so derived fields (dn,
+        // leads) are consistent
+        geom().setEndpoints(getX(), getY(), newX2, newY2);
+        double dn = getDn();
         int bodyLen = 32;
         calcLeads(bodyLen);
         position = slider.getValue() * .0099 + .005;
         int soff = (int) ((position - .5) * bodyLen);
         // int offset2 = offset - sign(offset)*4;
-        post3 = interpPoint(point1, point2, .5, offset);
-        corner2 = interpPoint(point1, point2, soff / dn + .5, offset);
-        arrowPoint = interpPoint(point1, point2, soff / dn + .5, 8 * sign(offset));
-        midpoint = interpPoint(point1, point2, soff / dn + .5);
-        arrow1 = new Point();
-        arrow2 = new Point();
+        if (post3 == null) {
+            post3 = new Point();
+        }
+        if (corner2 == null) {
+            corner2 = new Point();
+        }
+        if (arrowPoint == null) {
+            arrowPoint = new Point();
+        }
+        if (midpoint == null) {
+            midpoint = new Point();
+        }
+        if (arrow1 == null) {
+            arrow1 = new Point();
+        }
+        if (arrow2 == null) {
+            arrow2 = new Point();
+        }
+        interpPoint(geom().getPoint1(), geom().getPoint2(), post3, .5, offset);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), corner2, soff / dn + .5, offset);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), arrowPoint, soff / dn + .5, 8 * sign(offset));
+        interpPoint(geom().getPoint1(), geom().getPoint2(), midpoint, soff / dn + .5);
         double clen = abs(offset) - 8;
         interpPoint2(corner2, arrowPoint, arrow1, arrow2, (clen - 8) / clen, 8);
-        ps3 = new Point();
-        ps4 = new Point();
+        if (ps3 == null) {
+            ps3 = new Point();
+        }
+        if (ps4 == null) {
+            ps4 = new Point();
+        }
     }
-
 
     public void draw(Graphics g) {
         int segments = 16;
@@ -157,7 +183,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
         double v3 = getNodeVoltage(2);
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         adjustBbox(post3, post3);
         draw2Leads(g);
         setPowerColor(g, true);
@@ -182,27 +208,27 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
                 if (i >= divide)
                     v = v3 + (v2 - v3) * (i - divide) / (segments - divide);
                 setVoltageColor(g, v);
-                interpPoint(lead1, lead2, ps1, i * segf, hs * ox);
-                interpPoint(lead1, lead2, ps2, (i + 1) * segf, hs * nx);
+                interpPoint(geom().getLead1(), geom().getLead2(), ps1, i * segf, hs * ox);
+                interpPoint(geom().getLead1(), geom().getLead2(), ps2, (i + 1) * segf, hs * nx);
                 drawThickLine(g, ps1, ps2);
                 ox = nx;
             }
         } else {
             // draw rectangle
             setVoltageColor(g, v1);
-            interpPoint2(lead1, lead2, ps1, ps2, 0, hs);
+            interpPoint2(geom().getLead1(), geom().getLead2(), ps1, ps2, 0, hs);
             drawThickLine(g, ps1, ps2);
             for (i = 0; i != segments; i++) {
                 double v = v1 + (v3 - v1) * i / divide;
                 if (i >= divide)
                     v = v3 + (v2 - v3) * (i - divide) / (segments - divide);
                 setVoltageColor(g, v);
-                interpPoint2(lead1, lead2, ps1, ps2, i * segf, hs);
-                interpPoint2(lead1, lead2, ps3, ps4, (i + 1) * segf, hs);
+                interpPoint2(geom().getLead1(), geom().getLead2(), ps1, ps2, i * segf, hs);
+                interpPoint2(geom().getLead1(), geom().getLead2(), ps3, ps4, (i + 1) * segf, hs);
                 drawThickLine(g, ps1, ps3);
                 drawThickLine(g, ps2, ps4);
             }
-            interpPoint2(lead1, lead2, ps1, ps2, 1, hs);
+            interpPoint2(geom().getLead1(), geom().getLead2(), ps1, ps2, 1, hs);
             drawThickLine(g, ps1, ps2);
         }
         setVoltageColor(g, v3);
@@ -214,8 +240,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         curcount2 = updateDotCount(current2, curcount2);
         curcount3 = updateDotCount(current3, curcount3);
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, midpoint, curcount1);
-            drawDots(g, point2, midpoint, curcount2);
+            drawDots(g, geom().getPoint1(), midpoint, curcount1);
+            drawDots(g, geom().getPoint2(), midpoint, curcount2);
             drawDots(g, post3, corner2, curcount3);
             drawDots(g, corner2, midpoint, addCurCount(curcount3, distance(post3, corner2)));
         }
@@ -223,11 +249,13 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
 
         if (displaySettings().showValues() && resistance1 > 0 && (flags & FLAG_SHOW_VALUES) != 0) {
             // check for vertical pot with 3rd terminal on left
-            boolean reverseY = (post3.x < lead1.x && lead1.x == lead2.x);
+            boolean reverseY = (post3.x < geom().getLead1().x && geom().getLead1().x == geom().getLead2().x);
             // check for horizontal pot with 3rd terminal on top
-            boolean reverseX = (post3.y < lead1.y && lead1.x != lead2.x);
-            // check if we need to swap texts (if leads are reversed, e.g. drawn right to left)
-            boolean rev = (lead1.x == lead2.x && lead1.y < lead2.y) || (lead1.y == lead2.y && lead1.x > lead2.x);
+            boolean reverseX = (post3.y < geom().getLead1().y && geom().getLead1().x != geom().getLead2().x);
+            // check if we need to swap texts (if leads are reversed, e.g. drawn right to
+            // left)
+            boolean rev = (geom().getLead1().x == geom().getLead2().x && geom().getLead1().y < geom().getLead2().y)
+                    || (geom().getLead1().y == geom().getLead2().y && geom().getLead1().x > geom().getLead2().x);
 
             // draw units
             String s1 = getShortUnitText(rev ? resistance2 : resistance1, "");
@@ -239,25 +267,28 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             w = (int) g.measureWidth(s1);
 
             // vertical?
-            if (lead1.x == lead2.x)
-                g.drawString(s1, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w, Math.max(arrow1.y, arrow2.y) + 5 + ya);
+            if (geom().getLead1().x == geom().getLead2().x)
+                g.drawString(s1, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w,
+                        Math.max(arrow1.y, arrow2.y) + 5 + ya);
             else
-                g.drawString(s1, Math.min(arrow1.x, arrow2.x) - 2 - w, !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
+                g.drawString(s1, Math.min(arrow1.x, arrow2.x) - 2 - w,
+                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
 
             w = (int) g.measureWidth(s2);
-            if (lead1.x == lead2.x)
+            if (geom().getLead1().x == geom().getLead2().x)
                 g.drawString(s2, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w, Math.min(arrow1.y, arrow2.y) - 3);
             else
-                g.drawString(s2, Math.max(arrow1.x, arrow2.x) + 2, !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
+                g.drawString(s2, Math.max(arrow1.x, arrow2.x) + 2,
+                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
         }
     }
 
-    // draw component values (number of resistor ohms, etc).  hs = offset
+    // draw component values (number of resistor ohms, etc). hs = offset
     void drawValues(Graphics g, String s, Point pt, int hs) {
         if (s == null)
             return;
         g.setFont(unitsFont());
-        //FontMetrics fm = g.getFontMetrics();
+        // FontMetrics fm = g.getFontMetrics();
         int w = (int) g.measureWidth(s);
         g.setColor(foregroundColor());
         int ya = (int) g.getFontSize() / 2;
@@ -265,7 +296,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         int yc = pt.y;
         int dpx = hs;
         int dpy = 0;
-        if (lead1.x != lead2.x) {
+        if (geom().getLead1().x != geom().getLead2().x) {
             dpx = 0;
             dpy = -hs;
         }
@@ -302,7 +333,6 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     public void stamp() {
         resistance1 = maxResistance * position;
         resistance2 = maxResistance * (1 - position);
-        CircuitSimulator simulator = simulator();
         simulator().stampResistor(getNode(0), getNode(2), resistance1);
         simulator().stampResistor(getNode(2), getNode(1), resistance2);
     }
@@ -357,7 +387,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public void flipX(int c2, int count) {
-        // this is only needed / only has an effect if point1 and point2 are on same grid line
+        // this is only needed / only has an effect if point1 and point2 are on same
+        // grid line
         flags ^= FLAG_FLIP_OFFSET;
         super.flipX(c2, count);
     }
@@ -368,6 +399,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     }
 
     public void flipXY(int xmy, int count) {
+        int dx = getDx();
+        int dy = getDy();
         if (abs(dx) == abs(dy))
             flags ^= FLAG_FLIP;
         flags ^= FLAG_FLIP_OFFSET;
@@ -396,22 +429,24 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse max resistance
         maxResistance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
-            getJsonString(props, "max_resistance", "1 kOhm"));
-        
+                getJsonString(props, "max_resistance", "1 kOhm"));
+
         // Parse position (0.0 to 1.0)
         position = getJsonDouble(props, "position", 0.5);
-        if (position < 0) position = 0;
-        if (position > 1) position = 1;
-        
+        if (position < 0)
+            position = 0;
+        if (position > 1)
+            position = 1;
+
         // Parse slider text
         sliderText = getJsonString(props, "slider_text", "Resistance");
         if (label != null) {
             label.setText(sliderText);
         }
-        
+
         // Update slider value
         if (slider != null) {
             int value = (int) Math.round((position - .005) / .0099);
@@ -419,4 +454,3 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         }
     }
 }
-

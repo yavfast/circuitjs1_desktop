@@ -48,7 +48,7 @@ public class ProbeElm extends CircuitElm {
     final int TP_FRQ = 6;
     final int TP_PER = 7;
     final int TP_PWI = 8;
-    final int TP_DUT = 9; //mark to space ratio
+    final int TP_DUT = 9; // mark to space ratio
 
     public ProbeElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
@@ -61,7 +61,7 @@ public class ProbeElm extends CircuitElm {
     }
 
     public ProbeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                    StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         meter = TP_VOL;
         scale = SCALE_AUTO;
@@ -109,7 +109,7 @@ public class ProbeElm extends CircuitElm {
     }
 
     double rmsV = 0, total, count;
-    double binaryLevel = 0;//0 or 1 - double because we only pass doubles back to the web page
+    double binaryLevel = 0;// 0 or 1 - double because we only pass doubles back to the web page
     int zerocount = 0;
     double maxV = 0, lastMaxV;
     double minV = 0, lastMinV;
@@ -120,33 +120,33 @@ public class ProbeElm extends CircuitElm {
     double selectedValue = 0;
 
     boolean increasingV = true, decreasingV = true;
-    long periodStart, periodLength, pulseStart;//time between consecutive max values
+    long periodStart, periodLength, pulseStart;// time between consecutive max values
 
     Point center;
+    private Point plusPoint;
 
     public void setPoints() {
         super.setPoints();
-        center = interpPoint(point1, point2, .5);
+        center = interpPoint(geom().getPoint1(), geom().getPoint2(), .5);
     }
-
 
     public void draw(Graphics g) {
         g.save();
         int hs = (drawAsCircle()) ? circleSize : 8;
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         boolean selected = needsHighlight();
-        double len = (selected || circuitEditor().dragElm == this || mustShowVoltage()) ? 16 : dn - 32;
+        double len = (selected || circuitEditor().dragElm == this || mustShowVoltage()) ? 16 : (getDn() - 32);
         if (drawAsCircle())
             len = circleSize * 2;
         calcLeads((int) len);
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         setVoltageColor(g, getNodeVoltage(1));
         if (selected)
             g.setColor(selectColor());
-        drawThickLine(g, lead2, point2);
+        drawThickLine(g, geom().getLead2(), geom().getPoint2());
         Font f = new Font("SansSerif", Font.BOLD, 14);
         g.setFont(f);
         if (this == circuitEditor().plotXElm)
@@ -178,7 +178,8 @@ public class ProbeElm extends CircuitElm {
                     s = getUnitText(frequency, "Hz");
                     break;
                 case TP_PER:
-//	                s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " + sim.getIterCount();
+                    // s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " +
+                    // sim.getIterCount();
                     break;
                 case TP_PWI:
                     s = getUnitText(pulseWidth, "S");
@@ -191,10 +192,14 @@ public class ProbeElm extends CircuitElm {
         }
         g.setColor(foregroundColor());
         g.setFont(unitsFont());
-        Point plusPoint = interpPoint(point1, point2, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
-        if (y2 > y)
+        if (plusPoint == null)
+            plusPoint = new Point();
+        double dn = getDn();
+        int dsign = getDsign();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), plusPoint, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
+        if (geom().getY2() > geom().getY1())
             plusPoint.y += 4;
-        if (y > y2)
+        if (geom().getY1() > geom().getY2())
             plusPoint.y += 3;
         int w = (int) g.measureWidth("+");
         g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
@@ -218,35 +223,34 @@ public class ProbeElm extends CircuitElm {
     }
 
     public void stepFinished() {
-        count++;//how many counts are in a cycle
+        count++;// how many counts are in a cycle
         double v = getVoltageDiff();
-        total += v * v; //sum of squares
+        total += v * v; // sum of squares
 
         if (v < 2.5)
             binaryLevel = 0;
         else
             binaryLevel = 1;
 
-
-        //V going up, track maximum value with 
+        // V going up, track maximum value with
         if (v > maxV && increasingV) {
             maxV = v;
             increasingV = true;
             decreasingV = false;
         }
-        if (v < maxV && increasingV) {//change of direction V now going down - at start of waveform
-            lastMaxV = maxV; //capture last maximum
-            //capture time between
+        if (v < maxV && increasingV) {// change of direction V now going down - at start of waveform
+            lastMaxV = maxV; // capture last maximum
+            // capture time between
             periodLength = System.currentTimeMillis() - periodStart;
             periodStart = System.currentTimeMillis();
             period = periodLength;
             pulseWidth = System.currentTimeMillis() - pulseStart;
             dutyCycle = pulseWidth / periodLength;
-            minV = v; //track minimum value with V
+            minV = v; // track minimum value with V
             increasingV = false;
             decreasingV = true;
 
-            //rms data
+            // rms data
             total = total / count;
             rmsV = Math.sqrt(total);
             if (Double.isNaN(rmsV))
@@ -255,20 +259,20 @@ public class ProbeElm extends CircuitElm {
             total = 0;
 
         }
-        if (v < minV && decreasingV) { //V going down, track minimum value with V
+        if (v < minV && decreasingV) { // V going down, track minimum value with V
             minV = v;
             increasingV = false;
             decreasingV = true;
         }
 
-        if (v > minV && decreasingV) { //change of direction V now going up
-            lastMinV = minV; //capture last minimum
+        if (v > minV && decreasingV) { // change of direction V now going up
+            lastMinV = minV; // capture last minimum
             pulseStart = System.currentTimeMillis();
             maxV = v;
             increasingV = true;
             decreasingV = false;
 
-            //rms data
+            // rms data
             total = total / count;
             rmsV = Math.sqrt(total);
             if (Double.isNaN(rmsV))
@@ -276,9 +280,8 @@ public class ProbeElm extends CircuitElm {
             count = 0;
             total = 0;
 
-
         }
-        //need to zero the rms value if it stays at 0 for a while
+        // need to zero the rms value if it stays at 0 for a while
         if (v == 0) {
             zerocount++;
             if (zerocount > 5) {
@@ -325,10 +328,10 @@ public class ProbeElm extends CircuitElm {
             ei.choice.add("Min Voltage");
             ei.choice.add("P2P Voltage");
             ei.choice.add("Binary Value");
-            //ei.choice.add("Frequency");
-            //ei.choice.add("Period");
-            //ei.choice.add("Pulse Width");
-            //ei.choice.add("Duty Cycle");
+            // ei.choice.add("Frequency");
+            // ei.choice.add("Period");
+            // ei.choice.add("Pulse Width");
+            // ei.choice.add("Duty Cycle");
             ei.choice.select(meter);
             return ei;
         }
@@ -378,7 +381,8 @@ public class ProbeElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        String[] modes = {"voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width", "duty_cycle"};
+        String[] modes = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width",
+                "duty_cycle" };
         props.put("mode", modes[meter]);
         props.put("scale", scale == SCALE_AUTO ? "auto" : scale == 1 ? "V" : scale == 2 ? "mV" : "uV");
         props.put("show_voltage", mustShowVoltage());
@@ -390,6 +394,6 @@ public class ProbeElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"+", "-"};
+        return new String[] { "+", "-" };
     }
 }

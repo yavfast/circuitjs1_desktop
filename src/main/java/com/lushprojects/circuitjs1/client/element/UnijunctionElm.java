@@ -44,7 +44,7 @@ public class UnijunctionElm extends CompositeElm {
     }
 
     private static String ujtModelString = "DiodeElm 1 4\rVoltageElm 4 5\rCCVSElm 4 5 6 0\rResistorElm 0 6\rVCCSElm 5 7 5 7 6 7 5\rCapacitorElm 5 7\rResistorElm 7 2\rResistorElm 3 5";
-    private static int ujtExternalNodes[] = {1, 2, 3};
+    private static int ujtExternalNodes[] = { 1, 2, 3 };
     private static String ujtModelDump = "2 x2n2646-emitter/0 0 0 0 0 0 0/2 2 1000*a/0 1000000/0 5 0.00028*(a-b)\\p0.00575*(c-d)*e/2 3.5e-11 0 0/0 38.15/0 2518";
 
     void setup() {
@@ -56,7 +56,8 @@ public class UnijunctionElm extends CompositeElm {
     }
 
     public String dump() {
-        // don't want model details dumped, takes up space and will make it hard to change
+        // don't want model details dumped, takes up space and will make it hard to
+        // change
         return super.dumpWithMask(0);
     }
 
@@ -72,6 +73,7 @@ public class UnijunctionElm extends CompositeElm {
     Point b1[], b2[];
     Polygon emitterPoly;
     Point emitter[];
+    private Point ptemp1, ptemp2;
     double curcountb1, curcountb2, curcounte;
 
     Polygon rectPoly, arrowPoly;
@@ -79,7 +81,7 @@ public class UnijunctionElm extends CompositeElm {
     final int hs = 16;
 
     public void draw(Graphics g) {
-        setBbox(point1, b1[0], 0);
+        setBbox(geom().getPoint1(), b1[0], 0);
         setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, b1[0], b1[1]);
         drawThickLine(g, b1[1], b1[2]);
@@ -111,29 +113,35 @@ public class UnijunctionElm extends CompositeElm {
     public void setPoints() {
         super.setPoints();
 
+        int dsign = getDsign();
+        double dn = getDn();
+
         // find the coordinates of the various points we need to draw it
         int flip = hasFlag(FLAG_FLIP) ? -1 : 1;
         int hs2 = hs * dsign * flip;
         b1 = newPointArray(3);
         b2 = newPointArray(3);
         emitter = newPointArray(3);
-        Point p1 = interpPoint(point1, point2, 0, -hs2);
-        Point p2 = interpPoint(point1, point2, 1, -hs2);
-        interpPoint2(p1, p2, b1[0], b2[0], 1, -hs2);
-        interpPoint2(p1, p2, b1[1], b2[1], 1, -hs2 / 2);
-        interpPoint2(p1, p2, b1[2], b2[2], 1 - 10 / dn, -hs2 / 2);
+        if (ptemp1 == null)
+            ptemp1 = new Point();
+        if (ptemp2 == null)
+            ptemp2 = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp1, 0, -hs2);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), ptemp2, 1, -hs2);
+        interpPoint2(ptemp1, ptemp2, b1[0], b2[0], 1, -hs2);
+        interpPoint2(ptemp1, ptemp2, b1[1], b2[1], 1, -hs2 / 2);
+        interpPoint2(ptemp1, ptemp2, b1[2], b2[2], 1 - 10 / dn, -hs2 / 2);
 
-        interpPoint(p1, p2, emitter[0], 0, hs2);
-        interpPoint(p1, p2, emitter[1], 1 - 28 / dn, hs2);
-        emitter[2] = interpPoint(p1, p2, 1 - 14 / dn);
+        interpPoint(ptemp1, ptemp2, emitter[0], 0, hs2);
+        interpPoint(ptemp1, ptemp2, emitter[1], 1 - 28 / dn, hs2);
+        interpPoint(ptemp1, ptemp2, emitter[2], 1 - 14 / dn);
 
         Point ra[] = newPointArray(4);
-        interpPoint2(p1, p2, ra[0], ra[1], 1 - 13 / dn, hs);
-        interpPoint2(p1, p2, ra[2], ra[3], 1 - 10 / dn, hs);
+        interpPoint2(ptemp1, ptemp2, ra[0], ra[1], 1 - 13 / dn, hs);
+        interpPoint2(ptemp1, ptemp2, ra[2], ra[3], 1 - 10 / dn, hs);
         emitterPoly = createPolygon(ra[0], ra[1], ra[3], ra[2]);
         arrowPoly = calcArrow(emitter[1], emitter[2], 8, 3);
     }
-
 
     public Point getPost(int n) {
         return (n == 0) ? emitter[0] : (n == 1) ? b1[0] : b2[0];
@@ -153,13 +161,13 @@ public class UnijunctionElm extends CompositeElm {
     }
 
     public void flipX(int c2, int count) {
-        if (dx == 0)
+        if (getDx() == 0)
             flags ^= FLAG_FLIP;
         super.flipX(c2, count);
     }
 
     public void flipY(int c2, int count) {
-        if (dy == 0)
+        if (getDy() == 0)
             flags ^= FLAG_FLIP;
         super.flipY(c2, count);
     }

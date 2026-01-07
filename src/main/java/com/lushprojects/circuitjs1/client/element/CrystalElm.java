@@ -20,8 +20,6 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
-
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -33,7 +31,7 @@ public class CrystalElm extends CompositeElm {
     double inductance, resistance;
     Point plate1[], plate2[];
     private static String modelString = "CapacitorElm 1 2\rCapacitorElm 1 3\rInductorElm 3 4\rResistorElm 4 2";
-    private static int[] modelExternalNodes = {1, 2};
+    private static int[] modelExternalNodes = { 1, 2 };
 
     public CrystalElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy, modelString, modelExternalNodes);
@@ -45,7 +43,7 @@ public class CrystalElm extends CompositeElm {
     }
 
     public CrystalElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                      StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st, modelString, modelExternalNodes);
         CapacitorElm c1 = (CapacitorElm) compElmList.get(0);
         parallelCapacitance = c1.getCapacitance();
@@ -69,7 +67,6 @@ public class CrystalElm extends CompositeElm {
         r1.setResistance(resistance);
     }
 
-
     int getDumpType() {
         return 412;
     }
@@ -78,33 +75,34 @@ public class CrystalElm extends CompositeElm {
 
     public void setPoints() {
         super.setPoints();
+        double dn = getDn();
         double f = (dn / 2 - 10) / dn;
         // calc leads
-        lead1 = interpPoint(point1, point2, f);
-        lead2 = interpPoint(point1, point2, 1 - f);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), f);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead2(), 1 - f);
         // calc plates
         plate1 = newPointArray(2);
         plate2 = newPointArray(2);
-        interpPoint2(point1, point2, plate1[0], plate1[1], f, 8);
-        interpPoint2(point1, point2, plate2[0], plate2[1], 1 - f, 8);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), plate1[0], plate1[1], f, 8);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), plate2[0], plate2[1], 1 - f, 8);
 
         sandwichPoints = newPointArray(4);
         double f2 = (dn / 2 - 5) / dn;
-        interpPoint2(point1, point2, sandwichPoints[0], sandwichPoints[1], f2, 10);
-        interpPoint2(point1, point2, sandwichPoints[3], sandwichPoints[2], 1 - f2, 10);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), sandwichPoints[0], sandwichPoints[1], f2, 10);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), sandwichPoints[3], sandwichPoints[2], 1 - f2, 10);
 
         // need to do this explicitly for CompositeElms
-        setPost(0, point1);
-        setPost(1, point2);
+        setPost(0, geom().getPoint1());
+        setPost(1, geom().getPoint2());
     }
 
     public void draw(Graphics g) {
         int hs = 12;
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
 
         // draw first lead and plate
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, lead1);
+        drawThickLine(g, geom().getPoint1(), geom().getLead1());
         setPowerColor(g, false);
         drawThickLine(g, plate1[0], plate1[1]);
         if (displaySettings().showPower()) {
@@ -113,7 +111,7 @@ public class CrystalElm extends CompositeElm {
 
         // draw second lead and plate
         setVoltageColor(g, getNodeVoltage(1));
-        drawThickLine(g, point2, lead2);
+        drawThickLine(g, geom().getPoint2(), geom().getLead2());
         setPowerColor(g, false);
         drawThickLine(g, plate2[0], plate2[1]);
 
@@ -124,8 +122,8 @@ public class CrystalElm extends CompositeElm {
 
         updateDotCount();
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, lead1, curcount);
-            drawDots(g, point2, lead2, -curcount);
+            drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);
+            drawDots(g, geom().getPoint2(), geom().getLead2(), -curcount);
         }
         drawPosts(g);
     }
@@ -139,10 +137,10 @@ public class CrystalElm extends CompositeElm {
         arr[0] = "crystal";
         getBasicInfo(arr);
         arr[3] = "fs = " + getUnitText(1 / (Math.sqrt(inductance * seriesCapacitance) * Math.PI * 2), "Hz");
-//	    arr[3] = "C = " + getUnitText(capacitance, "F");
-//	    arr[4] = "P = " + getUnitText(getPower(), "W");
-        //double v = getVoltageDiff();
-        //arr[4] = "U = " + getUnitText(.5*capacitance*v*v, "J");
+        // arr[3] = "C = " + getUnitText(capacitance, "F");
+        // arr[4] = "P = " + getUnitText(getPower(), "W");
+        // double v = getVoltageDiff();
+        // arr[4] = "U = " + getUnitText(.5*capacitance*v*v, "J");
     }
 
     public boolean canViewInScope() {

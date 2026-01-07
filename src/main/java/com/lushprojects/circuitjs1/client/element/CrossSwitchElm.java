@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -61,16 +60,22 @@ public class CrossSwitchElm extends SwitchElm {
 
     public void setPoints() {
         super.setPoints();
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         calcLeads(32);
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        double dn = getDn();
         voltageSources = new int[poleCount];
-        throwPosts = newPointArray(2 * poleCount);
-        throwLeads = newPointArray(4 * poleCount);
-        poleLeads = newPointArray(poleCount);
-        polePosts = newPointArray(poleCount);
-        linePoints = newPointArray(2);
-        crossPoints = newPointArray(6);
-        currents = new double[poleCount];
-        curcounts = new double[poleCount];
+        if (throwPosts == null || throwPosts.length != 2 * poleCount) throwPosts = newPointArray(2 * poleCount);
+        if (throwLeads == null || throwLeads.length != 4 * poleCount) throwLeads = newPointArray(4 * poleCount);
+        if (poleLeads == null || poleLeads.length != poleCount) poleLeads = newPointArray(poleCount);
+        if (polePosts == null || polePosts.length != poleCount) polePosts = newPointArray(poleCount);
+        if (linePoints == null) linePoints = newPointArray(2);
+        if (crossPoints == null || crossPoints.length != 6) crossPoints = newPointArray(6);
+        if (currents == null || currents.length != poleCount) currents = new double[poleCount];
+        if (curcounts == null || curcounts.length != poleCount) curcounts = new double[poleCount];
         int i;
         for (i = 0; i != poleCount; i++) {
             int offset = -i * openhs * 3;
@@ -96,6 +101,9 @@ public class CrossSwitchElm extends SwitchElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         setBbox(point1, point2, 1);
         adjustBbox(crossPoints[2], crossPoints[5]);
 
@@ -205,7 +213,6 @@ public class CrossSwitchElm extends SwitchElm {
 
     public void stamp() {
         int i;
-        CircuitSimulator simulator = simulator();
         if (position == 0) {
             for (i = 0; i != poleCount; i++)
                 simulator().stampVoltageSource(getNode(i * 2), getNode(i * 2 + 1), voltageSources[i], 0);

@@ -66,8 +66,11 @@ public class JfetElm extends MosfetElm {
     Point gatePt;
     double curcountgs, curcountgd, curcounts, curcountd;
 
+    private Point[] j_src, j_drn, raPoints;
+    private Point tmpArrowPoint;
+
     public void draw(Graphics g) {
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         setVoltageColor(g, getNodeVoltage(1));
         drawThickLine(g, src[0], src[1]);
         drawThickLine(g, src[1], src[2]);
@@ -75,7 +78,7 @@ public class JfetElm extends MosfetElm {
         drawThickLine(g, drn[0], drn[1]);
         drawThickLine(g, drn[1], drn[2]);
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, gatePt);
+        drawThickLine(g, geom().getPoint1(), gatePt);
         g.fillPolygon(arrowPoly);
         setPowerColor(g, true);
         g.fillPolygon(gatePoly);
@@ -92,7 +95,7 @@ public class JfetElm extends MosfetElm {
             drawDots(g, src[1], src[2], addCurCount(curcounts, 8));
             drawDots(g, drn[0], drn[1], -curcountd);
             drawDots(g, drn[1], drn[2], -addCurCount(curcountd, 8));
-            drawDots(g, point1, gatePt, curcountgs + curcountgd);
+            drawDots(g, geom().getPoint1(), gatePt, curcountgs + curcountgd);
         }
         drawPosts(g);
     }
@@ -109,26 +112,38 @@ public class JfetElm extends MosfetElm {
     public void setPoints() {
         super.setPoints();
 
+        double dn = getDn();
+        int dsign = getDsign();
+
         // find the coordinates of the various points we need to draw
         // the JFET.
         int hs2 = hs * dsign;
-        src = newPointArray(3);
-        drn = newPointArray(3);
-        interpPoint2(point1, point2, src[0], drn[0], 1, -hs2);
-        interpPoint2(point1, point2, src[1], drn[1], 1, -hs2 / 2);
-        interpPoint2(point1, point2, src[2], drn[2], 1 - 10 / dn, -hs2 / 2);
+        if (j_src == null)
+            j_src = newPointArray(3);
+        if (j_drn == null)
+            j_drn = newPointArray(3);
+        src = j_src;
+        drn = j_drn;
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[0], drn[0], 1, -hs2);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[1], drn[1], 1, -hs2 / 2);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), src[2], drn[2], 1 - 10 / dn, -hs2 / 2);
 
-        gatePt = interpPoint(point1, point2, 1 - 14 / dn);
+        if (gatePt == null)
+            gatePt = new Point();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), gatePt, 1 - 14 / dn);
 
-        Point ra[] = newPointArray(4);
-        interpPoint2(point1, point2, ra[0], ra[1], 1 - 13 / dn, hs);
-        interpPoint2(point1, point2, ra[2], ra[3], 1 - 10 / dn, hs);
-        gatePoly = createPolygon(ra[0], ra[1], ra[3], ra[2]);
+        if (raPoints == null)
+            raPoints = newPointArray(4);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), raPoints[0], raPoints[1], 1 - 13 / dn, hs);
+        interpPoint2(geom().getPoint1(), geom().getPoint2(), raPoints[2], raPoints[3], 1 - 10 / dn, hs);
+        gatePoly = createPolygon(raPoints[0], raPoints[1], raPoints[3], raPoints[2]);
         if (pnp == -1) {
-            Point x = interpPoint(gatePt, point1, 18 / dn);
-            arrowPoly = calcArrow(gatePt, x, 8, 3);
+            if (tmpArrowPoint == null)
+                tmpArrowPoint = new Point();
+            interpPoint(gatePt, geom().getPoint1(), tmpArrowPoint, 18 / dn);
+            arrowPoly = calcArrow(gatePt, tmpArrowPoint, 8, 3);
         } else
-            arrowPoly = calcArrow(point1, gatePt, 8, 3);
+            arrowPoly = calcArrow(geom().getPoint1(), gatePt, 8, 3);
     }
 
     public void stamp() {
@@ -250,7 +265,7 @@ public class JfetElm extends MosfetElm {
     public Point getJsonEndPoint() {
         // For JFET, point2 is not at any pin - it's a reference point
         // for calculating source and drain positions
-        return new Point(x2, y2);
+        return new Point(getX2(), getY2());
     }
 
     @Override

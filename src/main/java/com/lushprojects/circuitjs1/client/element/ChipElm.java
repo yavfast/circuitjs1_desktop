@@ -189,13 +189,15 @@ public abstract class ChipElm extends CircuitElm {
     boolean lastClock;
 
     public void drag(int xx, int yy) {
+        int x = getX();
+        int y = getY();
         yy = circuitEditor().snapGrid(yy);
         if (xx < x) {
             xx = x;
             yy = y;
         } else {
-            y = y2 = yy;
-            x2 = circuitEditor().snapGrid(xx);
+            int xx2 = circuitEditor().snapGrid(xx);
+            setEndpoints(x, yy, xx2, yy);
         }
         setPoints();
     }
@@ -206,6 +208,9 @@ public abstract class ChipElm extends CircuitElm {
     int labelX, labelY;
 
     public void setPoints() {
+        int x = getX();
+        int y = getY();
+        int x2 = getX2();
         if (x2 - x > sizeX * cspc2 && this == circuitEditor().dragElm)
             setSize(2);
         int x0 = x + cspc2;
@@ -250,6 +255,8 @@ public abstract class ChipElm extends CircuitElm {
 
     // see if we can move pin to position xp, yp, and return the new position
     public boolean getPinPos(int xp, int yp, int pin, int pos[]) {
+        int x = getX();
+        int y = getY();
         int x0 = x + cspc2;
         int y0 = y;
         int xr = x0 - cspc;
@@ -522,8 +529,13 @@ public abstract class ChipElm extends CircuitElm {
         flags ^= FLAG_FLIP_X;
         if (count != 1) {
             int xs = (flippedSizeX + 1) * cspc2;
-            x = center2 - x - xs;
-            x2 = center2 - x2;
+            int x1 = getX();
+            int y1 = getY();
+            int x2 = getX2();
+            int y2 = getY2();
+            int newX1 = center2 - x1 - xs;
+            int newX2 = center2 - x2;
+            setEndpoints(newX1, y1, newX2, y2);
         }
         setPoints();
     }
@@ -532,8 +544,13 @@ public abstract class ChipElm extends CircuitElm {
         flags ^= FLAG_FLIP_Y;
         if (count != 1) {
             int ys = (flippedSizeY - 1) * cspc2;
-            y = center2 - y - ys;
-            y2 = center2 - y2;
+            int x1 = getX();
+            int y1 = getY();
+            int x2 = getX2();
+            int y2 = getY2();
+            int newY1 = center2 - y1 - ys;
+            int newY2 = center2 - y2;
+            setEndpoints(x1, newY1, x2, newY2);
         }
         setPoints();
     }
@@ -546,9 +563,9 @@ public abstract class ChipElm extends CircuitElm {
             flags ^= FLAG_FLIP_X | FLAG_FLIP_Y;
 
         if (count != 1) {
-            x += cspc2;
+            move(cspc2, 0);
             super.flipXY(xmy, count);
-            x -= cspc2;
+            move(-cspc2, 0);
         }
         setPoints();
     }

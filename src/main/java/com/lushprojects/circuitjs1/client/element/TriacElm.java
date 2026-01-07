@@ -52,7 +52,7 @@ public class TriacElm extends CircuitElm {
     }
 
     public TriacElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                    StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         setDefaults();
         triggerI = Double.parseDouble(st.nextToken());
@@ -105,58 +105,69 @@ public class TriacElm extends CircuitElm {
 
     Polygon arrows[];
     Point plate1[], plate2[];
+    private Point ptemp1, ptemp2, ptemp3;
 
     public void setPoints() {
         super.setPoints();
         int dir = 0;
+        int dx = getDx();
+        int dy = getDy();
         if (abs(dx) > abs(dy)) {
             dir = -sign(dx) * sign(dy);
-            dn = abs(dx);
-            point2.y = point1.y;
+            // align point2.y to point1.y via ElmGeometry (updates dn/derived)
+            geom().setEndpoints(getX(), getY(), getX2(), getY());
         } else {
             dir = sign(dy) * sign(dx);
-            dn = abs(dy);
-            point2.x = point1.x;
+            // align point2.x to point1.x via ElmGeometry
+            geom().setEndpoints(getX(), getY(), getX(), getY2());
         }
         if (dir == 0)
             dir = 1;
 
         calcLeads(16);
 
-        plate1 = newPointArray(2);
-        plate2 = newPointArray(2);
-        gate = newPointArray(2);
-        interpPoint2(lead1, lead2, plate1[0], plate1[1], 0, 16);
-        interpPoint2(lead1, lead2, plate2[0], plate2[1], 1, 16);
+        if (plate1 == null)
+            plate1 = newPointArray(2);
+        if (plate2 == null)
+            plate2 = newPointArray(2);
+        if (gate == null)
+            gate = newPointArray(2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), plate1[0], plate1[1], 0, 16);
+        interpPoint2(geom().getLead1(), geom().getLead2(), plate2[0], plate2[1], 1, 16);
 
         arrows = new Polygon[2];
-
+        if (ptemp1 == null)
+            ptemp1 = new Point();
+        if (ptemp2 == null)
+            ptemp2 = new Point();
+        if (ptemp3 == null)
+            ptemp3 = new Point();
         int i;
         for (i = 0; i != 2; i++) {
             int sgn = -1 + i * 2;
-            Point p1 = interpPoint(lead1, lead2, i, 8 * sgn);
-            Point p2 = interpPoint(lead1, lead2, 1 - i, 16 * sgn);
-            Point p3 = interpPoint(lead1, lead2, 1 - i, 0 * sgn);
-            arrows[i] = createPolygon(p1, p2, p3);
+            interpPoint(geom().getLead1(), geom().getLead2(), ptemp1, i);
+            interpPoint(geom().getLead1(), geom().getLead2(), ptemp2, 1 - i, 16 * sgn);
+            interpPoint(geom().getLead1(), geom().getLead2(), ptemp3, 1 - i, 0 * sgn);
+            arrows[i] = createPolygon(ptemp1, ptemp2, ptemp3);
         }
 
         int gatelen = circuitEditor().gridSize;
-        double leadlen = (dn - 16) / 2;
+        double leadlen = (getDn() - 16) / 2;
         gatelen += leadlen % circuitEditor().gridSize;
         if (leadlen < gatelen) {
-            x2 = x;
-            y2 = y;
+            geom().setEndpoints(getX(), getY(), getX(), getY());
             return;
         }
-        interpPoint(lead2, point2, gate[0], gatelen / leadlen, gatelen * dir);
-        interpPoint(lead2, point2, gate[1], gatelen / leadlen, circuitEditor().gridSize * 2 * dir);
+        interpPoint(geom().getLead2(), geom().getPoint2(), gate[0], gatelen / leadlen, gatelen * dir);
+        interpPoint(geom().getLead2(), geom().getPoint2(), gate[1], gatelen / leadlen,
+                circuitEditor().gridSize * 2 * dir);
 
     }
 
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, 6);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 6);
         adjustBbox(gate[0], gate[1]);
 
         draw2Leads(g);
@@ -172,24 +183,26 @@ public class TriacElm extends CircuitElm {
         g.fillPolygon(arrows[1]);
         setVoltageColor(g, getNodeVoltage(gnode));
 
-        drawThickLine(g, lead2, gate[0]);
+        drawThickLine(g, geom().getLead2(), gate[0]);
         drawThickLine(g, gate[0], gate[1]);
 
         curcount_1 = updateDotCount(i1, curcount_1);
         curcount_2 = updateDotCount(i2, curcount_2);
         curcount_g = updateDotCount(ig, curcount_g);
         if (circuitEditor().dragElm != this) {
-            drawDots(g, point1, lead2, curcount_2);
-            drawDots(g, point2, lead2, curcount_1);
+            drawDots(g, geom().getPoint1(), geom().getLead2(), curcount_2);
+            drawDots(g, geom().getPoint2(), geom().getLead2(), curcount_1);
             drawDots(g, gate[1], gate[0], curcount_g);
-            drawDots(g, gate[0], lead2, curcount_g + distance(gate[1], gate[0]));
+            drawDots(g, gate[0], geom().getLead2(), curcount_g + distance(gate[1], gate[0]));
         }
 
-        if ((needsHighlight() || circuitEditor().dragElm == this) && point1.x == point2.x && point2.y > point1.y) {
+        int _dx = getDx();
+        if ((needsHighlight() || circuitEditor().dragElm == this) && geom().getPoint1().x == geom().getPoint2().x
+                && geom().getPoint2().y > geom().getPoint1().y) {
             g.setColor(foregroundColor());
-            int ds = sign(dx);
-            g.drawString("MT1", lead2.x + ((ds < 0) ? 5 : -30), lead2.y + 12);
-            g.drawString("MT2", lead1.x + 5, lead1.y - 4); // x+6 if ds=1, -12 if -1
+            int ds = sign(_dx);
+            g.drawString("MT1", geom().getLead2().x + ((ds < 0) ? 5 : -30), geom().getLead2().y + 12);
+            g.drawString("MT2", geom().getLead1().x + 5, geom().getLead1().y - 4); // x+6 if ds=1, -12 if -1
             g.drawString("G", gate[0].x, gate[0].y + 12);
         }
 
@@ -197,7 +210,7 @@ public class TriacElm extends CircuitElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 1) ? point2 : gate[1];
+        return (n == 0) ? geom().getPoint1() : (n == 1) ? geom().getPoint2() : gate[1];
     }
 
     @Override
@@ -264,7 +277,8 @@ public class TriacElm extends CircuitElm {
     }
 
     public double getPower() {
-        return (getNodeVoltage(mt2node) - getNodeVoltage(mt1node)) * i2 + (getNodeVoltage(gnode) - getNodeVoltage(mt1node)) * ig;
+        return (getNodeVoltage(mt2node) - getNodeVoltage(mt1node)) * i2
+                + (getNodeVoltage(gnode) - getNodeVoltage(mt1node)) * ig;
     }
 
     public EditInfo getEditInfo(int n) {
@@ -347,4 +361,3 @@ public class TriacElm extends CircuitElm {
         }
     }
 }
-
