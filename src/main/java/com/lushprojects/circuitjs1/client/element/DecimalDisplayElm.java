@@ -37,7 +37,7 @@ public class DecimalDisplayElm extends ChipElm {
     }
 
     public DecimalDisplayElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                             StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         bitCount = 4;
         try {
@@ -53,8 +53,8 @@ public class DecimalDisplayElm extends ChipElm {
 
     public void draw(Graphics g) {
         drawChip(g);
-        int xl = x + cspc + flippedSizeX * cspc;
-        int yl = y - cspc + flippedSizeY * cspc;
+        int xl = getX() + cspc + flippedSizeX * cspc;
+        int yl = getY() - cspc + flippedSizeY * cspc;
         if (isFlippedXY())
             yl += ((flags & FLAG_FLIP_Y) != 0) ? -cspc / 2 : cspc / 2;
         g.save();
@@ -102,8 +102,7 @@ public class DecimalDisplayElm extends ChipElm {
 
     public EditInfo getChipEditInfo(int n) {
         if (n == 0)
-            return new EditInfo("# of Bits", bitCount, 1, 8).
-                    setDimensionless();
+            return new EditInfo("# of Bits", bitCount, 1, 8).setDimensionless();
         return super.getChipEditInfo(n);
     }
 

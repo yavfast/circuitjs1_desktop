@@ -38,13 +38,14 @@ public class FuseElm extends CircuitElm {
 
     public FuseElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        // from https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
+        // from
+        // https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
         i2t = 6.73;
         resistance = .0613;
     }
 
     public FuseElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
@@ -84,7 +85,8 @@ public class FuseElm extends CircuitElm {
             int x = (int) (255 * val);
             if (x < 0)
                 x = 0;
-            return new Color(x + (255 - x) * c.getRed() / 255, (255 - x) * c.getGreen() / 255, (255 - x) * c.getBlue() / 255);
+            return new Color(x + (255 - x) * c.getRed() / 255, (255 - x) * c.getGreen() / 255,
+                    (255 - x) * c.getBlue() / 255);
         }
         if (temp < .6667) {
             int x = (int) ((temp - .3333) * 3 * 255);
@@ -105,14 +107,17 @@ public class FuseElm extends CircuitElm {
         int segments = 16;
         int i;
         int hs = 6;
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         draw2Leads(g);
 
-        //   double segf = 1./segments;
-        double len = distance(lead1, lead2);
+        // double segf = 1./segments;
+        double len = distance(geom().getLead1(), geom().getLead2());
         g.save();
         g.setLineWidth(3.0);
-        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.transform(((double) (geom().getLead2().x - geom().getLead1().x)) / len,
+                ((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                -((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                ((double) (geom().getLead2().x - geom().getLead1().x)) / len, geom().getLead1().x, geom().getLead1().y);
         g.setStrokeStyle(getTempColor(g).getHexValue());
         if (!isIECSymbol()) {
             if (!blown) {
@@ -157,7 +162,7 @@ public class FuseElm extends CircuitElm {
         // accumulate heat
         heat += i * i * simulator().timeStep;
 
-        // dissipate heat.  we assume the fuse can dissipate its entire i2t in 3 seconds
+        // dissipate heat. we assume the fuse can dissipate its entire i2t in 3 seconds
         heat -= simulator().timeStep * i2t / 3;
 
         if (heat < 0)

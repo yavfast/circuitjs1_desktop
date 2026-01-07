@@ -3,7 +3,6 @@ package com.lushprojects.circuitjs1.client;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.PotElm;
-import com.lushprojects.circuitjs1.client.element.VarRailElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
 
 public class CircuitUtils {
@@ -12,7 +11,7 @@ public class CircuitUtils {
         if (!(ce instanceof WireElm))
             return false;
         WireElm we = (WireElm) ce;
-        if (we.x == we.x2 || we.y == we.y2)
+        if (we.getX() == we.getX2() || we.getY() == we.getY2())
             return true;
         return false;
     }
@@ -22,7 +21,7 @@ public class CircuitUtils {
         int i;
 
         // prevent confusion
-        if (elm instanceof VarRailElm || elm instanceof PotElm)
+        if (elm instanceof PotElm)
             return false;
 
         for (i = 0; ; i++) {

@@ -9,16 +9,16 @@ import com.google.gwt.http.client.Response;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
-import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
-import com.lushprojects.circuitjs1.client.element.AudioInputElm;
-import com.lushprojects.circuitjs1.client.element.CircuitElm;
-import com.lushprojects.circuitjs1.client.element.DataInputElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
+
+    // Title of the last requested setup circuit (from setuplist menu).
+    // Used to set the document/window title after async load completes.
+    private String pendingSetupTitle;
 
     protected CircuitLoader(BaseCirSim cirSim, CircuitDocument circuitDocument) {
         super(cirSim, circuitDocument);
@@ -166,11 +166,12 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         System.out.println(str);
         // don't avoid caching here, it's unnecessary and makes offline PWA's not work
         String url = GWT.getModuleBaseURL() + "circuits/" + str; // +"?v="+random.nextInt();
+        pendingSetupTitle = title;
         loadFileFromURL(url);
         CirSim cirSim = (CirSim) this.cirSim;
         cirSim.setSlidersDialogHeight();
         circuitInfo().filePath = null;
-        circuitInfo().fileName = null;
+        circuitInfo().fileName = title;
         cirSim.setUnsavedChanges(false);
     }
 
@@ -191,7 +192,7 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
                         CirSim cirSim = (CirSim) CircuitLoader.this.cirSim;
                         cirSim.allowSave(false);
                         circuitInfo().filePath = null;
-                        circuitInfo().fileName = null;
+                        circuitInfo().fileName = pendingSetupTitle;
                         cirSim.setUnsavedChanges(false);
                     } else {
                         Window.alert(Locale.LS("Can't load circuit!"));

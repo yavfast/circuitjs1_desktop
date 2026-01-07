@@ -19,8 +19,8 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 /*Bill Collis - June 2015 */
 
 public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
-    double position; //of the slider 0.005 to 0.995
-    double resistance; //based upon slider position
+    double position; // of the slider 0.005 to 0.995
+    double resistance; // based upon slider position
     double minLux, maxLux;
     double lux;
 
@@ -28,11 +28,11 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
     Label label;
     String sliderText;
 
-    //constructor - when initially created
+    // constructor - when initially created
     public LDRElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        //setup();
-        minLux = 0.1; //dark
+        // setup();
+        minLux = 0.1; // dark
         maxLux = 10000; // sunlight
         position = .34;
 
@@ -42,21 +42,21 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         createSlider();
     }
 
-    //constructor - when read in from file
+    // constructor - when read in from file
     public LDRElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                  StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        minLux = 0.1; //dark
+        minLux = 0.1; // dark
         maxLux = 10000; // sunlight
         position = parseDouble(st.nextToken());
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
         sliderText = CustomLogicModel.unescape(st.nextToken());
-        createSlider(); //uses position to set the slider
+        createSlider(); // uses position to set the slider
     }
 
-    //void setup() {
-    //}
+    // void setup() {
+    // }
 
     public int getPostCount() {
         return 2;
@@ -64,9 +64,10 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     int getDumpType() {
         return 374;
-    } //LDR
+    } // LDR
 
-    //data for file saving - make sure it matches order of items in file input constructor
+    // data for file saving - make sure it matches order of items in file input
+    // constructor
     public String dump() {
         return dumpValues(super.dump(), position, CustomLogicModel.escape(sliderText));
     }
@@ -75,7 +76,8 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
         label.addStyleName("topSpace");
         int value = (int) (position * 100);
-        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+        cirSim().addWidgetToVerticalPanel(
+                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
     }
 
     public void execute() {
@@ -90,7 +92,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     Point ps3, ps4;
 
-    //called straight after constructor when txt file is loaded
+    // called straight after constructor when txt file is loaded
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
@@ -103,20 +105,24 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     Polygon arrowPoly;
 
-    public void draw(Graphics g) { //used Resistor draw
-        //int segments = 16;
+    public void draw(Graphics g) { // used Resistor draw
+        // int segments = 16;
         int i;
-        //int ox = 0;
-        int hs = 6; //width
+        // int ox = 0;
+        int hs = 6; // width
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, hs); //the two points that are there when the device is being created
-        draw2Leads(g); //from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs); // the two points that are there when the device is being
+                                                             // created
+        draw2Leads(g); // from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
         setPowerColor(g, true);
-        double len = distance(lead1, lead2);
+        double len = distance(geom().getLead1(), geom().getLead2());
         g.save();
         g.setLineWidth(3.0);
-        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.transform(((double) (geom().getLead2().x - geom().getLead1().x)) / len,
+                ((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                -((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                ((double) (geom().getLead2().x - geom().getLead1().x)) / len, geom().getLead1().x, geom().getLead1().y);
         CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
         grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
         grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
@@ -132,24 +138,24 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
             g.stroke();
 
         } else {
-            g.strokeRect(0, -hs, len, 2.0 * hs); //draw the box for the euro resistor
+            g.strokeRect(0, -hs, len, 2.0 * hs); // draw the box for the euro resistor
         }
 
-        g.beginPath(); //thermistor symbol lines 0 is in the middle of the left handside of the resistor box
-        //upper arrow
-        g.moveTo(-8, 26);   //arrow1 start   (y,x coordinates from center?)
-        g.lineTo(8, 12);        //arrow end point
-        g.moveTo(2, 12);    //arrow 1 head
-        g.lineTo(8, 12);        //arrow end point
+        g.beginPath(); // thermistor symbol lines 0 is in the middle of the left handside of the
+                       // resistor box
+        // upper arrow
+        g.moveTo(-8, 26); // arrow1 start (y,x coordinates from center?)
+        g.lineTo(8, 12); // arrow end point
+        g.moveTo(2, 12); // arrow 1 head
+        g.lineTo(8, 12); // arrow end point
         g.lineTo(8, 18);
-        g.moveTo(12, 26);   //arrow2 start   (y,x coordinates from center?)
-        g.lineTo(26, 12);        //arrow end point
-        g.moveTo(20, 12);    //arrow 1 head
-        g.lineTo(26, 12);        //arrow end point
+        g.moveTo(12, 26); // arrow2 start (y,x coordinates from center?)
+        g.lineTo(26, 12); // arrow end point
+        g.moveTo(20, 12); // arrow 1 head
+        g.lineTo(26, 12); // arrow end point
         g.lineTo(26, 18);
 
         g.stroke();
-
 
         g.restore();
         if (displaySettings().showValues()) {
@@ -174,7 +180,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     public void getInfo(String arr[]) {
         arr[0] = "photoresistor";
-        arr[1] = "I = " + getCurrentDText(current); //getBasicInfo(arr);
+        arr[1] = "I = " + getCurrentDText(current); // getBasicInfo(arr);
         arr[2] = "Vd = " + getVoltageDText(getVoltageDiff());
         arr[3] = "R = " + getUnitText(resistance, Locale.ohmString);
         arr[4] = "P = " + getUnitText(getPower(), "W");
@@ -189,7 +195,7 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         return null;
     }
 
-    //component edited
+    // component edited
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0) {
             sliderText = ei.textf.getText();
@@ -211,27 +217,29 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
             slider.onMouseWheel(e);
     }
 
-    double calcResistance(double lux) //knowing the lux
+    double calcResistance(double lux) // knowing the lux
     {
-        //double loglux = Math.log10(lux);
-        //double slope = -1.4;
-        //double intercept = 7.1;
-        //double logR = 	(loglux-intercept)/slope;
+        // double loglux = Math.log10(lux);
+        // double slope = -1.4;
+        // double intercept = 7.1;
+        // double logR = (loglux-intercept)/slope;
 
-        //return Math.round(Math.pow(10, logR));
+        // return Math.round(Math.pow(10, logR));
         double r = (maxLux - lux + 1) * 10;
 
         r = Math.round(r);
         return r;
     }
 
-    double LuxFromSliderPos() //knowing slider position etc
+    double LuxFromSliderPos() // knowing slider position etc
     {
         return maxLux * position + minLux;
     }
 
     @Override
-    public String getJsonTypeName() { return "LDR"; }
+    public String getJsonTypeName() {
+        return "LDR";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -247,7 +255,6 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"a", "b"};
+        return new String[] { "a", "b" };
     }
 }
-

@@ -45,7 +45,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
 
     public MotorProtectionSwitchElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        // from https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
+        // from
+        // https://m.littelfuse.com/~/media/electronics/datasheets/fuses/littelfuse_fuse_218_datasheet.pdf.pdf
         i2t = 6.73;
         resistance = .0613;
         heats = new double[3];
@@ -55,7 +56,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public MotorProtectionSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                                    StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
@@ -92,10 +93,10 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         leads = new Point[6];
         int i;
         for (i = 0; i != 3; i++) {
-            posts[i * 2] = new Point(x + i * 48, y);
-            posts[i * 2 + 1] = new Point(x + i * 48, y + 192);
-            leads[i * 2] = new Point(x + i * 48, y + 80);
-            leads[i * 2 + 1] = new Point(x + i * 48, y + 176);
+            posts[i * 2] = new Point(getX() + i * 48, getY());
+            posts[i * 2 + 1] = new Point(getX() + i * 48, getY() + 192);
+            leads[i * 2] = new Point(getX() + i * 48, getY() + 80);
+            leads[i * 2 + 1] = new Point(getX() + i * 48, getY() + 176);
         }
     }
 
@@ -115,7 +116,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
             int x = (int) (255 * val);
             if (x < 0)
                 x = 0;
-            return new Color(x + (255 - x) * c.getRed() / 255, (255 - x) * c.getGreen() / 255, (255 - x) * c.getBlue() / 255);
+            return new Color(x + (255 - x) * c.getRed() / 255, (255 - x) * c.getGreen() / 255,
+                    (255 - x) * c.getBlue() / 255);
         }
         if (temp < .6667) {
             int x = (int) ((temp - .3333) * 3 * 255);
@@ -137,7 +139,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         int hs = 6;
         setBbox(posts[0], posts[5], hs);
         g.save();
-        g.translate(x, y);
+        g.translate(getX(), getY());
         int spx = 48;
         g.setLineDash(4, 4);
         int squareX = -spx - 12;
@@ -237,7 +239,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
             double heat = heats[j];
             heat += i * i * simulator().timeStep;
 
-            // dissipate heat.  we assume the fuse can dissipate its entire i2t in 3 seconds
+            // dissipate heat. we assume the fuse can dissipate its entire i2t in 3 seconds
             heat -= simulator().timeStep * i2t / 3;
 
             if (heat < 0)
@@ -311,7 +313,9 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     @Override
-    public String getJsonTypeName() { return "MotorProtectionSwitch"; }
+    public String getJsonTypeName() {
+        return "MotorProtectionSwitch";
+    }
 
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
@@ -325,7 +329,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
 
     @Override
     public String[] getJsonPinNames() {
-        return new String[] {"L1+", "L1-", "L2+", "L2-", "L3+", "L3-"};
+        return new String[] { "L1+", "L1-", "L2+", "L2-", "L3+", "L3-" };
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.CirSim;
 
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -14,7 +15,7 @@ public class OptocouplerElm extends CompositeElm {
     double curCounts[];
 
     private static String modelString = "DiodeElm 6 1\rCCCSElm 1 2 3 4\rNTransistorElm 3 4 5";
-    private static int[] modelExternalNodes = {6, 2, 4, 5};
+    private static int[] modelExternalNodes = { 6, 2, 4, 5 };
 
     DiodeElm diode;
     TransistorElm transistor;
@@ -44,7 +45,8 @@ public class OptocouplerElm extends CompositeElm {
         CCCSElm cccs = (CCCSElm) compElmList.get(1);
 
         // from http://www.cel.com/pdf/appnotes/an3017.pdf
-        cccs.setExpr("max(0,min(.0001, select(i-.003, (-80000000000*(i)^5+800000000*(i)^4-3000000*(i)^3+5177.2*(i)^2+.2453*(i)-.00005)*1.04/700, (9000000*(i)^5-998113*(i)^4+42174*(i)^3-861.32*(i)^2+9.0836*(i)-.0078)*.945/700)))");
+        cccs.setExpr(
+                "max(0,min(.0001, select(i-.003, (-80000000000*(i)^5+800000000*(i)^4-3000000*(i)^3+5177.2*(i)^2+.2453*(i)-.00005)*1.04/700, (9000000*(i)^5-998113*(i)^4+42174*(i)^3-861.32*(i)^2+9.0836*(i)-.0078)*.945/700)))");
 
         transistor = (TransistorElm) compElmList.get(2);
         transistor.setBeta(700);
@@ -98,40 +100,52 @@ public class OptocouplerElm extends CompositeElm {
     Point stubs[];
 
     public void setPoints() {
-        super.setPoints();
+        int step = 0;
+        try {
+            super.setPoints();
+            calcLeads(32); // adapted from ChipElm
+            step = 1;
 
-        // adapted from ChipElm
-        int hs = cspc;
-        int x0 = x + cspc2;
-        int y0 = y;
-        int xr = x0 - cspc;
-        int yr = y0 - cspc / 2;
-        int sizeX = 2;
-        int sizeY = 2;
-        int xs = sizeX * cspc2;
-        int ys = sizeY * cspc2 - cspc;
-        rectPointsX = new int[]{xr, xr + xs, xr + xs, xr};
-        rectPointsY = new int[]{yr, yr, yr + ys, yr + ys};
-        setBbox(xr, yr, rectPointsX[2], rectPointsY[2]);
-        stubs = new Point[4];
-//        setPin(0, x0, y0, 1, 0, 0, -1, 0, 0);
-//        setPin(1, x0, y0, 1, 0, 0,  1, 0, ys-cspc2);
-//        setPin(2, x0, y0, 1, 0, 0, -1, 0, 0);
-//        setPin(3, x0, y0, 1, 0, 0,  1, 0, ys-cspc2);
-        setPin(0, x0, y0, 0, 1, -1, 0, 0, 0);
-        setPin(1, x0, y0, 0, 1, -1, 0, 0, 0);
-        setPin(2, x0, y0, 0, 1, 1, 0, xs - cspc2, 0);
-        setPin(3, x0, y0, 0, 1, 1, 0, xs - cspc2, 0);
-        int dx = isFlippedX() ? -1 : 1;
-        diode.setPosition(posts[0].x + 32 * dx, posts[0].y, posts[1].x + 32 * dx, posts[1].y);
-        stubs[0] = diode.getPost(0);
-        stubs[1] = diode.getPost(1);
+            int x0 = getX() + cspc2;
+            int y0 = getY();
+            int xr = x0 - cspc;
+            int yr = y0 - cspc / 2;
+            int sizeX = 2;
+            int sizeY = 2;
+            int xs = sizeX * cspc2;
+            int ys = sizeY * cspc2 - cspc;
+            rectPointsX = new int[] { xr, xr + xs, xr + xs, xr };
+            rectPointsY = new int[] { yr, yr, yr + ys, yr + ys };
+            setBbox(xr, yr, rectPointsX[2], rectPointsY[2]);
+            stubs = new Point[4];
+            step = 2;
+            // setPin(0, x0, y0, 1, 0, 0, -1, 0, 0);
+            // setPin(1, x0, y0, 1, 0, 0, 1, 0, ys-cspc2);
+            // setPin(2, x0, y0, 1, 0, 0, -1, 0, 0);
+            // setPin(3, x0, y0, 1, 0, 0, 1, 0, ys-cspc2);
+            setPin(0, x0, y0, 0, 1, -1, 0, 0, 0);
+            setPin(1, x0, y0, 0, 1, -1, 0, 0, 0);
+            setPin(2, x0, y0, 0, 1, 1, 0, xs - cspc2, 0);
+            setPin(3, x0, y0, 0, 1, 1, 0, xs - cspc2, 0);
+            step = 3;
 
-        int midp = (posts[2].y + posts[3].y) / 2;
-        transistor.setFlipped(isFlippedY());
-        transistor.setPosition(posts[2].x - 40 * dx, midp, posts[2].x - 24 * dx, midp);
-        stubs[2] = transistor.getPost(1);
-        stubs[3] = transistor.getPost(2);
+            int dx = isFlippedX() ? -1 : 1;
+            diode.setPosition(posts[0].x + 32 * dx, posts[0].y, posts[1].x + 32 * dx, posts[1].y);
+            stubs[0] = diode.getPost(0);
+            stubs[1] = diode.getPost(1);
+            step = 4;
+
+            int midp = (posts[2].y + posts[3].y) / 2;
+            transistor.setFlipped(isFlippedY());
+            transistor.setPosition(posts[2].x - 40 * dx, midp, posts[2].x - 24 * dx, midp);
+            stubs[2] = transistor.getPost(1);
+            stubs[3] = transistor.getPost(2);
+            step = 5;
+        } catch (Exception e) {
+            CirSim.console("OptocouplerElm.setPoints failed at step " + step + ": " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     boolean isFlippedX() {
@@ -150,8 +164,9 @@ public class OptocouplerElm extends CompositeElm {
         flags ^= ChipElm.FLAG_FLIP_X;
         if (count != 1) {
             int xs = 3 * cspc2;
-            x = center2 - x - xs;
-            x2 = center2 - x2;
+            int newX = center2 - getX() - xs;
+            int newX2 = center2 - getX2();
+            setEndpoints(newX, getY(), newX2, getY2());
         }
         setPoints();
     }
@@ -160,8 +175,9 @@ public class OptocouplerElm extends CompositeElm {
         flags ^= ChipElm.FLAG_FLIP_Y;
         if (count != 1) {
             int ys = 1 * cspc2;
-            y = center2 - y - ys;
-            y2 = center2 - y2;
+            int newY = center2 - getY() - ys;
+            int newY2 = center2 - getY2();
+            setEndpoints(getX(), newY, getX2(), newY2);
         }
         setPoints();
     }

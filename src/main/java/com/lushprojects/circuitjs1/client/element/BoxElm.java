@@ -31,17 +31,15 @@ public class BoxElm extends GraphicElm {
 
     public BoxElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        x2 = xx;
-        y2 = yy;
-        setBbox(x, y, x2, y2);
+        setEndpoints(xx, yy, xx, yy);
+        setBbox(getX(), getY(), getX2(), getY2());
     }
 
     public BoxElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                   StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        x2 = xb;
-        y2 = yb;
-        setBbox(x, y, x2, y2);
+        setEndpoints(xa, ya, xb, yb);
+        setBbox(getX(), getY(), getX2(), getY2());
     }
 
     public String dump() {
@@ -53,16 +51,19 @@ public class BoxElm extends GraphicElm {
     }
 
     public void drag(int xx, int yy) {
-        x2 = xx;
-        y2 = yy;
+        setEndpoints(getX(), getY(), xx, yy);
     }
 
     public boolean creationFailed() {
-        return Math.abs(x2 - x) < 32 || Math.abs(y2 - y) < 32;
+        return Math.abs(getX2() - getX()) < 32 || Math.abs(getY2() - getY()) < 32;
     }
 
     public void draw(Graphics g) {
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
+        int x = getX();
+        int y = getY();
+        int x2 = getX2();
+        int y2 = getY2();
         setBbox(x, y, x2, y2);
         g.setLineDash(16, 6);
         if (x < x2 && y < y2)
@@ -93,6 +94,10 @@ public class BoxElm extends GraphicElm {
 
     public int getMouseDistance(int gx, int gy) {
         int thresh = 10;
+        int x = getX();
+        int y = getY();
+        int x2 = getX2();
+        int y2 = getY2();
         int dx1 = Math.abs(gx - x);
         int dy1 = Math.abs(gy - y);
         int dx2 = Math.abs(gx - x2);
@@ -109,7 +114,7 @@ public class BoxElm extends GraphicElm {
     }
 
     public void selectRect(Rectangle r, boolean add) {
-        if (r.contains(boundingBox))
+        if (r.contains(getBoundingBox()))
             selected = true;
         else if (!add)
             selected = false;
@@ -123,10 +128,10 @@ public class BoxElm extends GraphicElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("x", x);
-        props.put("y", y);
-        props.put("x2", x2);
-        props.put("y2", y2);
+        props.put("x", getX());
+        props.put("y", getY());
+        props.put("x2", getX2());
+        props.put("y2", getY2());
         return props;
     }
 }

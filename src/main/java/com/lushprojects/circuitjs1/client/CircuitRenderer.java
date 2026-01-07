@@ -316,7 +316,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             if (cirSim.menuManager.powerCheckItem.getState()) {
                 graphics.setColor(Color.gray);
             }
+            boolean isStopErrorElm = simulator.stopMessage != null && simulator.stopElm == ce;
+            if (isStopErrorElm) {
+                graphics.pushForcedColor(Color.red);
+            }
             ce.draw(graphics);
+            if (isStopErrorElm) {
+                graphics.popForcedColor();
+            }
         }
         perfmon.stopContext();
 
@@ -346,8 +353,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             for (CircuitElm ce : simulator.elmList) {
                 if (ce != circuitEditor.mouseElm || circuitEditor.tempMouseMode != MouseMode.DRAG_POST) {
                     graphics.setColor(Color.gray);
-                    graphics.fillOval(ce.x - 3, ce.y - 3, 7, 7);
-                    graphics.fillOval(ce.x2 - 3, ce.y2 - 3, 7, 7);
+                    graphics.fillOval(ce.getX() - 3, ce.getY() - 3, 7, 7);
+                    graphics.fillOval(ce.getX2() - 3, ce.getY2() - 3, 7, 7);
                 } else {
                     ce.drawHandles(graphics, ColorSettings.get().getSelectColor());
                 }
@@ -361,8 +368,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             circuitEditor.mouseElm.drawHandles(graphics, ColorSettings.get().getSelectColor());
         }
 
-        if (circuitEditor.dragElm != null && (circuitEditor.dragElm.x != circuitEditor.dragElm.x2
-                || circuitEditor.dragElm.y != circuitEditor.dragElm.y2)) {
+        if (circuitEditor.dragElm != null && (circuitEditor.dragElm.getX() != circuitEditor.dragElm.getX2()
+            || circuitEditor.dragElm.getY() != circuitEditor.dragElm.getY2())) {
             circuitEditor.dragElm.draw(graphics);
             circuitEditor.dragElm.drawHandles(graphics, ColorSettings.get().getSelectColor());
         }
@@ -468,6 +475,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         g.setColor(ColorSettings.get().getBackgroundColor());
 
         if (simulator.stopMessage != null) {
+            g.setColor(Color.red);
             g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
         } else if (!circuitInfo().hideInfoBox) {
             drawInfoBox(g, infoBoxStartX, currentScopeCount);
@@ -650,11 +658,11 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             // Centered text causes problems when trying to center the circuit, so we
             // special-case it here
             if (!ce.isCenteredText()) {
-                minx = Math.min(ce.x, Math.min(ce.x2, minx));
-                maxx = Math.max(ce.x, Math.max(ce.x2, maxx));
+                minx = Math.min(ce.getX(), Math.min(ce.getX2(), minx));
+                maxx = Math.max(ce.getX(), Math.max(ce.getX2(), maxx));
             }
-            miny = Math.min(ce.y, Math.min(ce.y2, miny));
-            maxy = Math.max(ce.y, Math.max(ce.y2, maxy));
+            miny = Math.min(ce.getY(), Math.min(ce.getY2(), miny));
+            maxy = Math.max(ce.getY(), Math.max(ce.getY2(), maxy));
         }
 
         if (minx > maxx) // No elements found with bounds

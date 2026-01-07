@@ -42,6 +42,11 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
         super.setPoints();
         calcLeads(32);
         adjustLeadsToGrid(isFlippedX(), isFlippedY());
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
         swposts = newPointArray(2);
         swpoles = newPointArray(2);
         interpPoint2(lead1, lead2, swpoles[0], swpoles[1], 1, openhs);
@@ -54,6 +59,10 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
     }
 
     public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        Point lead1 = geom.getLead1();
         setBbox(point1, point2, openhs);
 
         // draw first lead
@@ -80,7 +89,7 @@ public class AnalogSwitch2Elm extends AnalogSwitchElm {
     }
 
     public Point getPost(int n) {
-        return (n == 0) ? point1 : (n == 3) ? ctlPoint : swposts[n - 1];
+        return (n == 0) ? geom().getPoint1() : (n == 3) ? ctlPoint : swposts[n - 1];
     }
 
     int getDumpType() {

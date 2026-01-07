@@ -40,7 +40,7 @@ public class ZenerElm extends DiodeElm {
     }
 
     public ZenerElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                    StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         if ((f & FLAG_MODEL) == 0) {
             double zvoltage = parseDouble(st.nextToken());
@@ -71,15 +71,15 @@ public class ZenerElm extends DiodeElm {
         cathode = newPointArray(2);
         wing = newPointArray(2);
         Point pa[] = newPointArray(2);
-        interpPoint2(lead1, lead2, pa[0], pa[1], 0, hs);
-        interpPoint2(lead1, lead2, cathode[0], cathode[1], 1, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), pa[0], pa[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), cathode[0], cathode[1], 1, hs);
         interpPoint(cathode[0], cathode[1], wing[0], -0.2, -hs);
         interpPoint(cathode[1], cathode[0], wing[1], -0.2, -hs);
-        poly = createPolygon(pa[0], pa[1], lead2);
+        poly = createPolygon(pa[0], pa[1], geom().getLead2());
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
 
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);

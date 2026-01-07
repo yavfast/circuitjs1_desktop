@@ -48,8 +48,9 @@ public class VarWaveform extends Waveform {
         if (elm instanceof VarRailElm) {
             VarRailElm vrelm = (VarRailElm) elm;
             if (n == 0) return new EditInfo("Min Voltage", bias, -20, 20);
-            if (n == 1) return new EditInfo("Max Voltage", maxVoltage, -20, 20);
-            if (n == 2) {
+            // n == 1 is reserved for VoltageElm's waveform chooser
+            if (n == 2) return new EditInfo("Max Voltage", maxVoltage, -20, 20);
+            if (n == 3) {
                 EditInfo ei = new EditInfo("Slider Text", 0, -1, -1);
                 ei.text = vrelm.sliderText;
                 return ei;
@@ -63,8 +64,8 @@ public class VarWaveform extends Waveform {
         if (elm instanceof VarRailElm) {
             VarRailElm vrelm = (VarRailElm) elm;
             if (n == 0) bias = ei.value;
-            if (n == 1) maxVoltage = ei.value;
-            if (n == 2) {
+            if (n == 2) maxVoltage = ei.value;
+            if (n == 3) {
                 vrelm.sliderText = ei.textf.getText();
                 vrelm.label.setText(com.lushprojects.circuitjs1.client.util.Locale.LS(vrelm.sliderText));
                 vrelm.cirSim().setSlidersDialogHeight();

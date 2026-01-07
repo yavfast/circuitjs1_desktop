@@ -35,7 +35,7 @@ public class TextElm extends GraphicElm {
     String text;
     Vector<String> lines;
     int size;
-    //    final int FLAG_CENTER = 1;
+    // final int FLAG_CENTER = 1;
     final int FLAG_BAR = 2;
     final int FLAG_ESCAPE = 4;
 
@@ -48,7 +48,7 @@ public class TextElm extends GraphicElm {
     }
 
     public TextElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         size = parseInt(st.nextToken());
         text = st.nextToken();
@@ -87,7 +87,7 @@ public class TextElm extends GraphicElm {
     public String dump() {
         flags |= FLAG_ESCAPE;
         return dumpValues(super.dump(), size, CustomLogicModel.escape(text));
-        //return super.dump() + " " + size + " " + text;
+        // return super.dump() + " " + size + " " + text;
     }
 
     int getDumpType() {
@@ -95,46 +95,43 @@ public class TextElm extends GraphicElm {
     }
 
     public void drag(int xx, int yy) {
-        x = xx;
-        y = yy;
-        x2 = xx + 16;
-        y2 = yy;
+        setEndpoints(xx, yy, xx + 16, yy);
     }
 
     public void draw(Graphics g) {
-        //Graphics2D g2 = (Graphics2D)g;
-        //g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-        //	RenderingHints.VALUE_ANTIALIAS_ON);
+        // Graphics2D g2 = (Graphics2D)g;
+        // g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+        // RenderingHints.VALUE_ANTIALIAS_ON);
         g.save();
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         Font f = new Font("SansSerif", 0, size);
         g.setFont(f);
-//	FontMetrics fm = g.getFontMetrics();
+        // FontMetrics fm = g.getFontMetrics();
         int i;
         int maxw = -1;
         for (i = 0; i != lines.size(); i++) {
-//	    int w = fm.stringWidth((String) (lines.elementAt(i)));
+            // int w = fm.stringWidth((String) (lines.elementAt(i)));
             int w = (int) g.measureWidth(lines.elementAt(i));
             if (w > maxw)
                 maxw = w;
         }
-        int cury = y;
-        setBbox(x, y, x, y);
+        int cury = getY();
+        setBbox(getX(), getY(), getX(), getY());
         for (i = 0; i != lines.size(); i++) {
             String s = (String) (lines.elementAt(i));
             s = Locale.LS(s);
             int sw = (int) g.measureWidth(s);
-            g.drawString(s, x, cury);
+            g.drawString(s, getX(), cury);
             if ((flags & FLAG_BAR) != 0) {
                 int by = cury - g.getFontSize();
-                g.drawLine(x, by, x + sw - 1, by);
+                g.drawLine(getX(), by, getX() + sw - 1, by);
             }
-            adjustBbox(x, cury - g.getFontSize(),
-                    x + sw, cury + 3);
+            adjustBbox(getX(), cury - g.getFontSize(),
+                    getX() + sw, cury + 3);
             cury += g.getFontSize() + 3;
         }
-        x2 = boundingBox.x + boundingBox.width;
-        y2 = boundingBox.y + boundingBox.height;
+        geom().setX2(geom().getBoundingBox().x + geom().getBoundingBox().width);
+        geom().setY2(geom().getBoundingBox().y + geom().getBoundingBox().height);
         g.restore();
     }
 
@@ -148,8 +145,7 @@ public class TextElm extends GraphicElm {
             return new EditInfo("Size", size, 5, 100);
         if (n == 2) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
-            ei.checkbox =
-                    new Checkbox("Draw Bar On Top", (flags & FLAG_BAR) != 0);
+            ei.checkbox = new Checkbox("Draw Bar On Top", (flags & FLAG_BAR) != 0);
             return ei;
         }
         return null;
@@ -170,7 +166,7 @@ public class TextElm extends GraphicElm {
         }
     }
 
-    //    boolean isCenteredText() { return (flags & FLAG_CENTER) != 0; }
+    // boolean isCenteredText() { return (flags & FLAG_CENTER) != 0; }
     public void getInfo(String arr[]) {
         arr[0] = text;
     }
@@ -183,7 +179,7 @@ public class TextElm extends GraphicElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
-        
+
         if (properties.containsKey("text")) {
             text = String.valueOf(properties.get("text"));
             split();
@@ -218,4 +214,3 @@ public class TextElm extends GraphicElm {
         return props;
     }
 }
-

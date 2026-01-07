@@ -713,7 +713,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     }
 
     void updateSlidersDialogPosition() {
-        if (slidersDialog == null || !slidersDialog.isShowing() || controlsDialog.isPositionRestored())
+        if (slidersDialog == null || !slidersDialog.isShowing() || slidersDialog.isPositionRestored())
             return;
         int mainWidth = RootLayoutPanel.get().getOffsetWidth();
         int dialogWidth = slidersDialog.getOffsetWidth();
@@ -969,6 +969,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         
         // Clear the list
         simulator.elmList.clear();
+
+        // Clear node-related state so old node dots can't persist after clear
+        simulator.nodeList.clear();
+        simulator.postDrawList.clear();
+        simulator.badConnectionList.clear();
+        com.lushprojects.circuitjs1.client.element.LabeledNodeElm.resetNodeList();
+        com.lushprojects.circuitjs1.client.element.GroundElm.resetNodeList();
         
         // Reset scope count
         scopeManager.setScopeCount(0);
@@ -1039,10 +1046,10 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             voltageDiff: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getVoltageDiff()(),
             current: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getCurrent()(),
             power: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getPower()(),
-            x: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x,
-            y: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y,
-            x2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::x2,
-            y2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::y2,
+            x: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getX()(),
+            y: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getY()(),
+            x2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getX2()(),
+            y2: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::getY2()(),
             selected: that.@com.lushprojects.circuitjs1.client.element.CircuitElm::selected
         };
     }-*/;

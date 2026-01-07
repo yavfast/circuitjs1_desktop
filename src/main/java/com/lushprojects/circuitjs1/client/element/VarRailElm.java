@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.element;
 
+import com.lushprojects.circuitjs1.client.Adjustable;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.google.gwt.event.dom.client.MouseWheelEvent;
@@ -35,8 +36,13 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     public Label label;
     public String sliderText;
 
+    private static final int EDIT_MIN_VOLTAGE = 0;
+    private static final int EDIT_MAX_VOLTAGE = 1;
+    private static final int EDIT_SLIDER_TEXT = 2;
+    public static final int EDIT_VOLTAGE = 3;
+
     public VarRailElm(CircuitDocument circuitDocument, int xx, int yy) {
-        super(circuitDocument, xx, yy, Waveform.WF_VAR);
+        super(circuitDocument, xx, yy, Waveform.WF_DC);
         sliderText = "Voltage";
         waveformInstance.frequency = waveformInstance.maxVoltage;
         createSlider();
@@ -61,18 +67,142 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     }
 
     void createSlider() {
-        waveform = Waveform.WF_VAR;
-        cirSim().addWidgetToVerticalPanel(label = new Label(Locale.LS(sliderText)));
-        label.addStyleName("topSpace");
-        int value = (int) ((waveformInstance.frequency - waveformInstance.bias) * 100 / (waveformInstance.maxVoltage - waveformInstance.bias));
-        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100,
-                null, this));
+        // Variable rails are conceptually a DC source whose voltage is controlled by a UI slider.
+        // Old text-format files historically used a special waveform index for variable rails; after
+        // waveform refactors that index can be misinterpreted.
+        //
+        // Keep the legacy parameters parsed by VoltageElm (bias=min, maxVoltage=max, frequency=current)
+        // but treat the waveform itself as DC.
+        waveform = Waveform.WF_DC;
+        createWaveformInstance();
+
+        // UI for VarRail voltage is managed via the standard Sliders dialog (Adjustable).
+        // We intentionally do not create a separate vertical-panel slider here to avoid duplicates.
 //	    sim.verticalPanel.validate();
     }
 
+    public void ensureVoltageAdjustable(boolean refreshSliders) {
+        if (circuitDocument == null || circuitDocument.adjustableManager == null) {
+            return;
+        }
+
+        Adjustable adj = circuitDocument.adjustableManager.findAdjustable(this, EDIT_VOLTAGE);
+        if (adj == null) {
+            adj = new Adjustable(cirSim(), this, EDIT_VOLTAGE);
+            circuitDocument.adjustableManager.adjustables.add(adj);
+        }
+        adj.sliderText = sliderText;
+        adj.minValue = waveformInstance.bias;
+        adj.maxValue = waveformInstance.maxVoltage;
+
+        if (refreshSliders) {
+            circuitDocument.adjustableManager.updateSliders();
+        }
+    }
+
+    @Override
+    public EditInfo getEditInfo(int n) {
+        if (waveformInstance == null) {
+            return null;
+        }
+
+        // Variable rails expose min/max range + slider label. The actual voltage is controlled by the slider.
+        if (n == EDIT_MIN_VOLTAGE) {
+            return new EditInfo("Min Voltage", waveformInstance.bias, -20, 20, "V").disallowSliders();
+        }
+        if (n == EDIT_MAX_VOLTAGE) {
+            return new EditInfo("Max Voltage", waveformInstance.maxVoltage, -20, 20, "V").disallowSliders();
+        }
+        if (n == EDIT_SLIDER_TEXT) {
+            EditInfo ei = new EditInfo("Slider Text", 0, -1, -1);
+            ei.text = sliderText;
+            ei.disallowSliders();
+            return ei;
+        }
+        if (n == EDIT_VOLTAGE) {
+            // The current output voltage. This is what the Sliders dialog controls.
+            // Use the configured min/max range so the adjustable slider matches the rail limits.
+            return new EditInfo("Voltage", waveformInstance.frequency, waveformInstance.bias, waveformInstance.maxVoltage, "V");
+        }
+        return null;
+    }
+
+    @Override
+    public void setEditValue(int n, EditInfo ei) {
+        if (waveformInstance == null) {
+            return;
+        }
+
+        if (n == EDIT_MIN_VOLTAGE) {
+            waveformInstance.bias = ei.value;
+        } else if (n == EDIT_MAX_VOLTAGE) {
+            waveformInstance.maxVoltage = ei.value;
+        } else if (n == EDIT_SLIDER_TEXT) {
+            sliderText = ei.textf.getText();
+            if (label != null) {
+                label.setText(Locale.LS(sliderText));
+            }
+        } else if (n == EDIT_VOLTAGE) {
+            waveformInstance.frequency = ei.value;
+        }
+
+        // Keep range sane.
+        if (waveformInstance.maxVoltage < waveformInstance.bias) {
+            double t = waveformInstance.maxVoltage;
+            waveformInstance.maxVoltage = waveformInstance.bias;
+            waveformInstance.bias = t;
+        }
+
+        // Sync the UI slider position to the current voltage.
+        if (slider != null) {
+            double min = waveformInstance.bias;
+            double max = waveformInstance.maxVoltage;
+            int value = 0;
+            if (max != min) {
+                value = (int) ((waveformInstance.frequency - min) * 100 / (max - min));
+            }
+            slider.setValue(value);
+        }
+
+        // Keep the adjustable slider (if present) in sync with range/label changes.
+        if (n == EDIT_MIN_VOLTAGE || n == EDIT_MAX_VOLTAGE || n == EDIT_SLIDER_TEXT) {
+            ensureVoltageAdjustable(true);
+        }
+    }
+
+    @Override
+    public double getVoltage() {
+        if (waveformInstance == null) {
+            return 0;
+        }
+
+        // Preserve legacy meaning of parameters for VarRail:
+        // - bias: min voltage
+        // - maxVoltage: max voltage
+        // - frequency: current slider voltage
+        // The current output voltage is stored in waveformInstance.frequency and is controlled
+        // by the standard Adjustable/Sliders dialog.
+        return waveformInstance.frequency;
+    }
+
+    @Override
+    public void doStep() {
+        // Even though the underlying waveform is DC, the slider can change the output voltage.
+        // Ensure the voltage source is updated every simulation step.
+        simulator().updateVoltageSource(0, getNode(0), voltSource, getVoltage());
+    }
+
     public void delete() {
-        cirSim().removeWidgetFromVerticalPanel(label);
-        cirSim().removeWidgetFromVerticalPanel(slider);
+        if (label != null) {
+            cirSim().removeWidgetFromVerticalPanel(label);
+        }
+        if (slider != null) {
+            cirSim().removeWidgetFromVerticalPanel(slider);
+        }
+
+        if (circuitDocument != null && circuitDocument.adjustableManager != null) {
+            circuitDocument.adjustableManager.deleteSliders(this);
+        }
         super.delete();
     }
 
@@ -101,5 +231,14 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("slider_text", sliderText);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        sliderText = getJsonString(properties, "slider_text", sliderText);
+        if (label != null) {
+            label.setText(Locale.LS(sliderText));
+        }
     }
 }

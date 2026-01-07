@@ -9,6 +9,7 @@ import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.ExtListEntry;
 import com.lushprojects.circuitjs1.client.Graphics;
+import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -30,7 +31,8 @@ public class CustomCompositeElm extends CompositeElm {
         super(circuitDocument, xx, yy);
 
         // use last model as default when creating new element in UI.
-        // use default otherwise, to avoid infinite recursion when creating nested subcircuits.
+        // use default otherwise, to avoid infinite recursion when creating nested
+        // subcircuits.
         modelName = (xx == 0 && yy == 0) ? "default" : lastModelName;
 
         flags |= FLAG_ESCAPE;
@@ -48,7 +50,7 @@ public class CustomCompositeElm extends CompositeElm {
     }
 
     public CustomCompositeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                              StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         modelName = CustomLogicModel.unescape(st.nextToken());
         updateModels(st);
@@ -94,15 +96,15 @@ public class CustomCompositeElm extends CompositeElm {
         }
         chip.setSelected(needsHighlight());
         chip.draw(g);
-        boundingBox = chip.boundingBox;
+        Rectangle r = chip.geom().getBoundingBox();
+        geom().getBoundingBox().setBounds(r.x, r.y, r.width, r.height);
     }
 
     public void setPoints() {
-        chip = new CustomCompositeChipElm(circuitDocument, x, y);
-        chip.x2 = x2;
-        chip.y2 = y2;
+        chip = new CustomCompositeChipElm(circuitDocument, getX(), getY());
+        chip.setEndpoints(getX(), getY(), getX2(), getY2());
         chip.flags = (flags & (ChipElm.FLAG_FLIP_X | ChipElm.FLAG_FLIP_Y | ChipElm.FLAG_FLIP_XY));
-        if (x2 - x > model.sizeX * 16 && this == circuitEditor().dragElm)
+        if (getX2() - getX() > model.sizeX * 16 && this == circuitEditor().dragElm)
             flags &= ~FLAG_SMALL;
         chip.setSize((flags & FLAG_SMALL) != 0 ? 1 : 2);
         chip.setLabel((model.flags & CustomCompositeModel.FLAG_SHOW_LABEL) != 0 ? model.name : null);
@@ -129,8 +131,9 @@ public class CustomCompositeElm extends CompositeElm {
         flags ^= ChipElm.FLAG_FLIP_X;
         if (count != 1) {
             int xs = (chip.flippedSizeX + 1) * chip.cspc2;
-            x = center2 - x - xs;
-            x2 = center2 - x2;
+            int newX = center2 - getX() - xs;
+            int newX2 = center2 - getX2();
+            geom().setEndpoints(newX, getY(), newX2, getY2());
         }
         setPoints();
     }
@@ -139,8 +142,9 @@ public class CustomCompositeElm extends CompositeElm {
         flags ^= ChipElm.FLAG_FLIP_Y;
         if (count != 1) {
             int xs = (chip.flippedSizeY - 1) * chip.cspc2;
-            y = center2 - y - xs;
-            y2 = center2 - y2;
+            int newY = center2 - getY() - xs;
+            int newY2 = center2 - getY2();
+            geom().setEndpoints(getX(), newY, getX2(), newY2);
         }
         setPoints();
     }
@@ -156,14 +160,16 @@ public class CustomCompositeElm extends CompositeElm {
     public void flipXY(int xmy, int count) {
         flags ^= ChipElm.FLAG_FLIP_XY;
 
-        // FLAG_FLIP_XY is applied first.  So need to swap X and Y
+        // FLAG_FLIP_XY is applied first. So need to swap X and Y
         if (isFlippedX() != isFlippedY())
             flags ^= ChipElm.FLAG_FLIP_X | ChipElm.FLAG_FLIP_Y;
 
         if (count != 1) {
-            x += chip.cspc2;
+            geom().translate(chip.cspc2, 0);
             super.flipXY(xmy, count);
-            x -= chip.cspc2;
+            geom().translate(-chip.cspc2, 0);
+        } else {
+            super.flipXY(xmy, count);
         }
         setPoints();
     }

@@ -369,7 +369,9 @@ public class ActionManager extends BaseCirSimDelegate {
         }
 
         if (item == "viewInFloatScope" && circuitEditor().menuElm != null) {
-            ScopeElm newScope = new ScopeElm(getActiveDocument(), circuitEditor().snapGrid(circuitEditor().menuElm.x + 50), circuitEditor().snapGrid(circuitEditor().menuElm.y + 50));
+            ScopeElm newScope = new ScopeElm(getActiveDocument(),
+                    circuitEditor().snapGrid(circuitEditor().menuElm.getX() + 50),
+                    circuitEditor().snapGrid(circuitEditor().menuElm.getY() + 50));
             simulator().elmList.add(newScope);
             newScope.setScopeElm(circuitEditor().menuElm);
 
@@ -397,7 +399,9 @@ public class ActionManager extends BaseCirSimDelegate {
             }
             if (item == "undock") {
                 CircuitElm elm = s.getElm();
-                ScopeElm newScope = new ScopeElm(getActiveDocument(), circuitEditor().snapGrid(elm.x + 50), circuitEditor().snapGrid(elm.y + 50));
+                ScopeElm newScope = new ScopeElm(getActiveDocument(),
+                        circuitEditor().snapGrid(elm.getX() + 50),
+                        circuitEditor().snapGrid(elm.getY() + 50));
                 scopeManager().undockScope(newScope);
 
                 cirSim.needAnalyze();      // need to rebuild scopeElmArr

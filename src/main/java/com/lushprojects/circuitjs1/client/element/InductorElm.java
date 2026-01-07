@@ -39,7 +39,7 @@ public class InductorElm extends CircuitElm {
     }
 
     public InductorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                       StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         ind = new Inductor();
         inductance = parseDouble(st.nextToken());
@@ -71,12 +71,11 @@ public class InductorElm extends CircuitElm {
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        int i;
         int hs = 8;
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         draw2Leads(g);
         setPowerColor(g, false);
-        drawCoil(g, 8, lead1, lead2, v1, v2);
+        drawCoil(g, 8, geom().getLead1(), geom().getLead2(), v1, v2);
         if (displaySettings().showValues()) {
             String s = getShortUnitText(inductance, "H");
             drawValues(g, s, hs);

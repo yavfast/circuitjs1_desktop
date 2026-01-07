@@ -1,0 +1,33 @@
+# Project Skills Configuration
+# Tells AI agents which skills to prefer for this project
+
+version: 1
+project: circuitjs1-desktop
+
+# Default path to skills (relative to project root)
+skills_path: ./ai_skills/skills
+
+# Project-specific skill bindings (higher priority = preferred)
+project_skills:
+  - id: circuitjs1-dev-workflow
+    priority: 100
+    keywords: [build, run, test, debug, maven, npm, gwt]
+    
+  - id: multi-document-architecture
+    priority: 90
+    keywords: [tabs, documents, CircuitDocument, architecture]
+    
+  - id: ui-maintenance
+    priority: 80
+    keywords: [ui, menu, dialog, button, interface]
+    
+  - id: clipboard-maintenance
+    priority: 70
+    keywords: [clipboard, copy, paste, export, import]
+
+# Context hints for skill discovery
+context:
+  language: java
+  framework: gwt
+  build_tools: [maven, npm]
+  runtime: nwjs

@@ -95,13 +95,15 @@ public class JsonCircuitImporter implements CircuitImporter {
             // 7. Notify document that import is complete
             document.getCirSim().needAnalyze();
 
-            // 8. Re-apply explicit element bounds from JSON after analysis to preserve exact geometry
+            // 8. Re-apply explicit element bounds from JSON after analysis to preserve
+            // exact geometry
             JSONValue elementsValue = root.get("elements");
             if (elementsValue != null && elementsValue.isObject() != null) {
                 JSONObject elementsObj = elementsValue.isObject();
                 for (String elementId : elementsObj.keySet()) {
                     JSONValue elementValue = elementsObj.get(elementId);
-                    if (elementValue == null || elementValue.isObject() == null) continue;
+                    if (elementValue == null || elementValue.isObject() == null)
+                        continue;
                     JSONObject elementJson = elementValue.isObject();
                     JSONValue boundsVal = elementJson.get("bounds");
                     if (boundsVal != null && boundsVal.isObject() != null) {
@@ -118,16 +120,15 @@ public class JsonCircuitImporter implements CircuitImporter {
                                     int top = (int) tv.isNumber().doubleValue();
                                     int right = (int) rv.isNumber().doubleValue();
                                     int bottom = (int) bv.isNumber().doubleValue();
-                                    // Re-apply bounds and coords after analysis so element
-                                    // re-initialization does not revert imported geometry.
-                                    elm.x = left;
-                                    elm.y = top;
-                                    elm.x2 = right;
-                                    elm.y2 = bottom;
+                                    // Re-apply bounds and coords after analysis
+                                    elm.setEndpoints(left, top, right, bottom);
+                                        // Endpoints changed after finalizeJsonImport(); recompute derived geometry.
+                                        elm.setPoints();
                                     elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
-                                                new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                                            new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                                 } catch (Exception e) {
-                                    CirSim.console("JSON import: failed to re-apply bounds for " + elementId + ": " + e.getMessage());
+                                    CirSim.console("JSON import: failed to re-apply bounds for " + elementId + ": "
+                                            + e.getMessage());
                                 }
                             }
                         }
@@ -282,7 +283,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Create element using factory with CircuitDocument
             CirSim.console("parseElements: calling CircuitElementFactory.createFromJson for '" + jsonType + "'");
             CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson, document);
-            CirSim.console("parseElements: factory returned " + (elm != null ? elm.getClass().getSimpleName() : "null"));
+            CirSim.console(
+                    "parseElements: factory returned " + (elm != null ? elm.getClass().getSimpleName() : "null"));
             if (elm == null) {
                 CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
                 continue;
@@ -291,9 +293,37 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Set element ID from JSON (preserve original ID)
             elm.setElementId(elementId);
 
-            // Initialize element with document (important for elements that override setCircuitDocument
+            // Initialize element with document (important for elements that override
+            // setCircuitDocument
             // to initialize internal components like diodes in MosfetElm)
             elm.setCircuitDocument(document);
+
+            // Parse p1/p2 positions and set endpoints
+            JSONValue p1Val = elementJson.get("p1");
+            JSONValue p2Val = elementJson.get("p2");
+            if (p1Val != null && p1Val.isObject() != null && p2Val != null && p2Val.isObject() != null) {
+                JSONObject p1 = p1Val.isObject();
+                JSONObject p2 = p2Val.isObject();
+                JSONValue p1x = p1.get("x");
+                JSONValue p1y = p1.get("y");
+                JSONValue p2x = p2.get("x");
+                JSONValue p2y = p2.get("y");
+                if (p1x != null && p1y != null && p2x != null && p2y != null &&
+                    p1x.isNumber() != null && p1y.isNumber() != null &&
+                    p2x.isNumber() != null && p2y.isNumber() != null) {
+                    try {
+                        int x1 = (int) p1x.isNumber().doubleValue();
+                        int y1 = (int) p1y.isNumber().doubleValue();
+                        int x2 = (int) p2x.isNumber().doubleValue();
+                        int y2 = (int) p2y.isNumber().doubleValue();
+                        elm.setEndpoints(x1, y1, x2, y2);
+                        // finalizeJsonImport() already ran in the factory; endpoints update must refresh geometry.
+                        elm.setPoints();
+                    } catch (Exception e) {
+                        CirSim.console("JSON import: failed to apply p1/p2 for " + elementId + ": " + e.getMessage());
+                    }
+                }
+            }
 
             // Add to simulator
             document.simulator.elmList.add(elm);
@@ -301,7 +331,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Store for reference
             importedElements.put(elementId, elm);
 
-            // If explicit bounds were provided in JSON, apply them now (after full initialization)
+            // If explicit bounds were provided in JSON, apply them now (after full
+            // initialization)
             JSONValue boundsVal = elementJson.get("bounds");
             if (boundsVal != null && boundsVal.isObject() != null) {
                 JSONObject b = boundsVal.isObject();
@@ -315,12 +346,11 @@ public class JsonCircuitImporter implements CircuitImporter {
                         int top = (int) tv.isNumber().doubleValue();
                         int right = (int) rv.isNumber().doubleValue();
                         int bottom = (int) bv.isNumber().doubleValue();
-                        elm.x = left;
-                        elm.y = top;
-                        elm.x2 = right;
-                        elm.y2 = bottom;
+                        elm.setEndpoints(left, top, right, bottom);
+                        // Keep derived points/leads in sync with endpoints.
+                        elm.setPoints();
                         elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
-                                    new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                                new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                     } catch (Exception e) {
                         CirSim.console("JSON import: failed to apply bounds for " + elementId + ": " + e.getMessage());
                     }
@@ -449,8 +479,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                     targetY = (int) targetYVal.isNumber().doubleValue();
                 } else {
                     // No specific pin - use element's first post position
-                    targetX = targetElement.x;
-                    targetY = targetElement.y;
+                    targetX = targetElement.getX();
+                    targetY = targetElement.getY();
                 }
 
                 // Create unique connection ID to avoid duplicates
@@ -464,8 +494,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                 // Create Wire element
                 com.lushprojects.circuitjs1.client.element.WireElm wire = new com.lushprojects.circuitjs1.client.element.WireElm(
                         document, sourceX, sourceY);
-                wire.x2 = targetX;
-                wire.y2 = targetY;
+                wire.setEndpoints(sourceX, sourceY, targetX, targetY);
                 wire.setPoints();
                 wire.setCircuitDocument(document);
 
@@ -509,14 +538,16 @@ public class JsonCircuitImporter implements CircuitImporter {
                 String elementId = elementValue.isString().stringValue();
                 elm = importedElements.get(elementId);
                 if (elm == null) {
-                    CirSim.console("JSON import: scope references unknown element: " + elementId + " — attempting fallback");
+                    CirSim.console(
+                            "JSON import: scope references unknown element: " + elementId + " — attempting fallback");
                     // try to fallback to the first plot element specified in the scope
                     JSONValue plotsValueFallback = scopeJson.get("plots");
                     if (plotsValueFallback != null && plotsValueFallback.isArray() != null) {
                         JSONArray plotsArrayFallback = plotsValueFallback.isArray();
                         for (int pf = 0; pf < plotsArrayFallback.size(); pf++) {
                             JSONValue pv = plotsArrayFallback.get(pf);
-                            if (pv == null || pv.isObject() == null) continue;
+                            if (pv == null || pv.isObject() == null)
+                                continue;
                             JSONObject pj = pv.isObject();
                             JSONValue pvElmVal = pj.get("element");
                             if (pvElmVal != null && pvElmVal.isString() != null) {
@@ -532,7 +563,10 @@ public class JsonCircuitImporter implements CircuitImporter {
                     }
                     // final fallback: attach to first imported element (if any)
                     if (elm == null && !importedElements.isEmpty()) {
-                        for (CircuitElm c : importedElements.values()) { elm = c; break; }
+                        for (CircuitElm c : importedElements.values()) {
+                            elm = c;
+                            break;
+                        }
                         CirSim.console("JSON import: scope fallback attached to first imported element");
                     }
                 }
@@ -659,7 +693,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                     }
 
                     int units = plotElm.getScopeUnits(value);
-                    ScopePlot sp = ScopePlot.create(cirSim, document, plotElm, units, value, scope.getManScaleFromMaxScale(units, false));
+                    ScopePlot sp = ScopePlot.create(cirSim, document, plotElm, units, value,
+                            scope.getManScaleFromMaxScale(units, false));
 
                     // Color
                     JSONValue colorValue = plotJson.get("color");
@@ -692,7 +727,6 @@ public class JsonCircuitImporter implements CircuitImporter {
                     scope.plots = restoredPlots;
                 }
             }
-
 
             // History settings
             JSONValue historyValue = scopeJson.get("history");

@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
@@ -30,17 +29,15 @@ public class LineElm extends GraphicElm {
 
     public LineElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        x2 = xx;
-        y2 = yy;
-        setBbox(x, y, x2, y2);
+        // x2/y2 already set by super constructor to xx/yy
+        setBbox(getX(), getY(), getX2(), getY2());
     }
 
     public LineElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        x2 = xb;
-        y2 = yb;
-        setBbox(x, y, x2, y2);
+        // super constructor sets endpoints to xa,ya,xb,yb
+        setBbox(getX(), getY(), getX2(), getY2());
     }
 
     public String dump() {
@@ -52,18 +49,17 @@ public class LineElm extends GraphicElm {
     }
 
     public void drag(int xx, int yy) {
-        x2 = xx;
-        y2 = yy;
+        setEndpoints(getX(), getY(), xx, yy);
     }
 
     public boolean creationFailed() {
-        return Math.hypot(x - x2, y - y2) < 16;
+        return Math.hypot(getX() - getX2(), getY() - getY2()) < 16;
     }
 
     public void draw(Graphics g) {
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
-        setBbox(x, y, x2, y2);
-        g.drawLine(x, y, x2, y2);
+        setBbox(getX(), getY(), getX2(), getY2());
+        g.drawLine(getX(), getY(), getX2(), getY2());
     }
 
     public EditInfo getEditInfo(int n) {
@@ -83,7 +79,7 @@ public class LineElm extends GraphicElm {
 
     public int getMouseDistance(int gx, int gy) {
         int thresh = 10;
-        int d2 = lineDistanceSq(x, y, x2, y2, gx, gy);
+        int d2 = lineDistanceSq(getX(), getY(), getX2(), getY2(), gx, gy);
         if (d2 <= thresh * thresh)
             return d2;
         return -1;
@@ -97,11 +93,10 @@ public class LineElm extends GraphicElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("x", x);
-        props.put("y", y);
-        props.put("x2", x2);
-        props.put("y2", y2);
+        props.put("x", getX());
+        props.put("y", getY());
+        props.put("x2", getX2());
+        props.put("y2", getY2());
         return props;
     }
 }
-

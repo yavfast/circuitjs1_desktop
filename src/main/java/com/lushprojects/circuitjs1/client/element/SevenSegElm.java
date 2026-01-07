@@ -249,8 +249,8 @@ public class SevenSegElm extends ChipElm {
         if (sizeY <= 4 || isFlippedXY())
             spx /= 2;
         int spy = spx * 2;
-        int xl = x + cspc + flippedSizeX * cspc - spx;
-        int yl = y - cspc + flippedSizeY * cspc - spy;
+        int xl = getX() + cspc + flippedSizeX * cspc - spx;
+        int yl = getY() - cspc + flippedSizeY * cspc - spy;
         if (sizeY <= 4 && (flags & (FLAG_FLIP_Y | FLAG_FLIP_XY)) != 0)
             yl += 10;
         int i;

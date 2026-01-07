@@ -118,6 +118,10 @@ public class TextCircuitImporter implements CircuitImporter {
         ScopeManager scopeManager = document.scopeManager;
         CircuitRenderer renderer = document.getRenderer();
 
+        // Clear any previous simulation stop/error so the newly loaded circuit can run.
+        document.clearError();
+        simulator.clearStopState();
+
         // Clear existing elements
         circuitEditor.clearMouseElm();
         for (int i = 0; i < simulator.elmList.size(); i++) {

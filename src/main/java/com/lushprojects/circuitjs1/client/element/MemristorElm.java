@@ -38,12 +38,12 @@ public class MemristorElm extends CircuitElm {
         r_off = 160 * r_on;
         dopeWidth = 0;
         totalWidth = 10e-9; // meters
-        mobility = 1e-10;   // m^2/sV
+        mobility = 1e-10; // m^2/sV
         resistance = 100;
     }
 
     public MemristorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                        StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         r_on = parseDouble(st.nextToken());
         r_off = parseDouble(st.nextToken());
@@ -81,7 +81,7 @@ public class MemristorElm extends CircuitElm {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
         int hs = 2 + (int) (8 * (1 - dopeWidth / totalWidth));
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         draw2Leads(g);
         setPowerColor(g, true);
         double segf = 1. / segments;
@@ -93,12 +93,12 @@ public class MemristorElm extends CircuitElm {
                 nx = 0;
             double v = v1 + (v2 - v1) * i / segments;
             setVoltageColor(g, v);
-            interpPoint(lead1, lead2, ps1, i * segf, hs * ox);
-            interpPoint(lead1, lead2, ps2, i * segf, hs * nx);
+            interpPoint(geom().getLead1(), geom().getLead2(), ps1, i * segf, hs * ox);
+            interpPoint(geom().getLead1(), geom().getLead2(), ps2, i * segf, hs * nx);
             drawThickLine(g, ps1, ps2);
             if (i == segments)
                 break;
-            interpPoint(lead1, lead2, ps1, (i + 1) * segf, hs * nx);
+            interpPoint(geom().getLead1(), geom().getLead2(), ps1, (i + 1) * segf, hs * nx);
             drawThickLine(g, ps1, ps2);
             ox = nx;
         }

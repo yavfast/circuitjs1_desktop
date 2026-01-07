@@ -27,31 +27,31 @@ ID = 350
 add id to CirSim.constructElement and part to CirSim.createCe and to CirSimcomposeMainMenu
  */
 public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelHandler {
-    double position; //of the slider 0.005 to 0.995
-    double resistance; //based upon slider position
-    double minTempr, maxTempr; //Celsius - note min is -40, max is +150 degC
-    double temperature; //calculated from slider value (0.005 - 0.995) ratios of minTempr - maxTempr
-    double r25, r50; //the values that a user can input from a datsheet r 225 degc and r at 50degC
-    double rneg40; //maximum resistance - will be at -40 degC
+    double position; // of the slider 0.005 to 0.995
+    double resistance; // based upon slider position
+    double minTempr, maxTempr; // Celsius - note min is -40, max is +150 degC
+    double temperature; // calculated from slider value (0.005 - 0.995) ratios of minTempr - maxTempr
+    double r25, r50; // the values that a user can input from a datsheet r 225 degc and r at 50degC
+    double rneg40; // maximum resistance - will be at -40 degC
     double b25100; // constant based upon 2 values of R for 2 temperatures
     double t0 = 273.15;
     double t25 = t0 + 25;
 
-    Scrollbar slider; //from Pot
+    Scrollbar slider; // from Pot
     Label label;
     String sliderText;
 
-    //constructor - when initially created
+    // constructor - when initially created
     public ThermistorNTCElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        //setup();
-        minTempr = -40;//celsius
+        // setup();
+        minTempr = -40;// celsius
         maxTempr = 150;
-        r25 = 10000; //default 10k thermistor e.g. NTCLE100E3010 Vishay
+        r25 = 10000; // default 10k thermistor e.g. NTCLE100E3010 Vishay
         r50 = 3605;
-        position = .34; //25 degC for -40 to 150 degC
-        //thermistor calcs
-        rneg40 = calcResistance(minTempr); //for 10k ntc about 400k
+        position = .34; // 25 degC for -40 to 150 degC
+        // thermistor calcs
+        rneg40 = calcResistance(minTempr); // for 10k ntc about 400k
         b25100 = calcB25100(); //
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
@@ -59,26 +59,26 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         createSlider();
     }
 
-    //constructor - when read in from file
+    // constructor - when read in from file
     public ThermistorNTCElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                            StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         r25 = parseDouble(st.nextToken());
         r50 = parseDouble(st.nextToken());
         minTempr = parseDouble(st.nextToken());
         maxTempr = parseDouble(st.nextToken());
         position = parseDouble(st.nextToken());
-        //thermistor calcs
-        rneg40 = calcResistance(minTempr); //for 10k ntc about 400k
+        // thermistor calcs
+        rneg40 = calcResistance(minTempr); // for 10k ntc about 400k
         b25100 = calcB25100(); //
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
         sliderText = CustomLogicModel.unescape(st.nextToken());
-        createSlider(); //uses position to set the slider
+        createSlider(); // uses position to set the slider
     }
 
-    //void setup() {
-    //}
+    // void setup() {
+    // }
 
     public int getPostCount() {
         return 2;
@@ -86,9 +86,10 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
 
     int getDumpType() {
         return 350;
-    } //NTC thermistor
+    } // NTC thermistor
 
-    //data for file saving - make sure it matches order of items in file input constructor
+    // data for file saving - make sure it matches order of items in file input
+    // constructor
     public String dump() {
         return dumpValues(super.dump(), r25, r50, minTempr, maxTempr, position, CustomLogicModel.escape(sliderText));
     }
@@ -97,7 +98,8 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
         label.addStyleName("topSpace");
         int value = (int) (position * 100);
-        cirSim().addWidgetToVerticalPanel(slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+        cirSim().addWidgetToVerticalPanel(
+                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
     }
 
     public void execute() {
@@ -112,7 +114,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
 
     Point ps3, ps4;
 
-    //called straight after constructor when txt file is loaded
+    // called straight after constructor when txt file is loaded
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
@@ -123,20 +125,24 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         ps4 = new Point();
     }
 
-    public void draw(Graphics g) { //used Resistor draw
-        //int segments = 16;
+    public void draw(Graphics g) { // used Resistor draw
+        // int segments = 16;
         int i;
-        //int ox = 0;
-        int hs = 6; //is this a width
+        // int ox = 0;
+        int hs = 6; // is this a width
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
-        setBbox(point1, point2, hs); //the two points that are there when the device is being created
-        draw2Leads(g); //from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs); // the two points that are there when the device is being
+                                                             // created
+        draw2Leads(g); // from point1 to lead1 and lead1 to point2 (lead1&2 are on the body)
         setPowerColor(g, true);
-        double len = distance(lead1, lead2);
+        double len = distance(geom().getLead1(), geom().getLead2());
         g.save();
         g.setLineWidth(3.0);
-        g.transform(((double) (lead2.x - lead1.x)) / len, ((double) (lead2.y - lead1.y)) / len, -((double) (lead2.y - lead1.y)) / len, ((double) (lead2.x - lead1.x)) / len, lead1.x, lead1.y);
+        g.transform(((double) (geom().getLead2().x - geom().getLead1().x)) / len,
+                ((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                -((double) (geom().getLead2().y - geom().getLead1().y)) / len,
+                ((double) (geom().getLead2().x - geom().getLead1().x)) / len, geom().getLead1().x, geom().getLead1().y);
         CanvasGradient grad = g.createLinearGradient(0, 0, len, 0);
         grad.addColorStop(0, getVoltageColor(g, v1).getHexValue());
         grad.addColorStop(1.0, getVoltageColor(g, v2).getHexValue());
@@ -152,15 +158,15 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
             g.stroke();
 
         } else {
-            g.strokeRect(0, -hs, len, 2.0 * hs); //draw the box for the euro resistor
+            g.strokeRect(0, -hs, len, 2.0 * hs); // draw the box for the euro resistor
         }
 
-        g.beginPath(); //thermistor symbol lines 0 is in the middle of the left handside of the resistor box
+        g.beginPath(); // thermistor symbol lines 0 is in the middle of the left handside of the
+                       // resistor box
         g.moveTo(0 - hs, hs * 2);
         g.lineTo(hs, hs * 2);
         g.lineTo(len, -hs * 2);
         g.stroke();
-
 
         g.restore();
         if (displaySettings().showValues()) {
@@ -168,7 +174,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
             resistance = calcResistance(temperature);
             String s = getShortUnitText(resistance, "");
             String t = Character.toString((char) 176);
-            //drawValues(g, "-t:"+s, hs);
+            // drawValues(g, "-t:"+s, hs);
             drawValues(g, temperature + t + "C=" + s + "\u03A9", hs);
         }
         doDots(g);
@@ -180,14 +186,14 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     }
 
     public void stamp() {
-        temperature = temprFromSliderPos(); //e.g. 190 - 40 for range -40 to +150
+        temperature = temprFromSliderPos(); // e.g. 190 - 40 for range -40 to +150
         resistance = calcResistance(temperature);
-        simulator().stampResistor(getNode(0), getNode(1), resistance); //show temperature as well??
+        simulator().stampResistor(getNode(0), getNode(1), resistance); // show temperature as well??
     }
 
     public void getInfo(String arr[]) {
         arr[0] = "thermistor";
-        arr[1] = "I = " + getCurrentDText(current); //getBasicInfo(arr);
+        arr[1] = "I = " + getCurrentDText(current); // getBasicInfo(arr);
         arr[2] = "Vd = " + getVoltageDText(getVoltageDiff());
         arr[3] = "R = " + getUnitText(resistance, Locale.ohmString);
         arr[4] = "P = " + getUnitText(getPower(), "W");
@@ -197,11 +203,12 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     public EditInfo getEditInfo(int n) {
         // ohmString doesn't work here on linux
         if (n == 0)
-            return new EditInfo("R at 25\u00b0C", r25, r50 + 100, 100000); //limits: r25 must be > r50
+            return new EditInfo("R at 25\u00b0C", r25, r50 + 100, 100000); // limits: r25 must be > r50
         if (n == 1)
             return new EditInfo("R at 50\u00b0C", r50, 100, r25 - 100);
         if (n == 2)
-            return new EditInfo("Slider min temp (\u00b0C)", minTempr, -40, maxTempr); //limits: maxTempr must be > minTempr
+            return new EditInfo("Slider min temp (\u00b0C)", minTempr, -40, maxTempr); // limits: maxTempr must be >
+                                                                                       // minTempr
         if (n == 3)
             return new EditInfo("Slider max temp (\u00b0C)", maxTempr, minTempr, 150);
         if (n == 4) {
@@ -212,7 +219,7 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         return null;
     }
 
-    //component edited
+    // component edited
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0)
             r25 = ei.value;
@@ -244,18 +251,18 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
             slider.onMouseWheel(e);
     }
 
-    double calcResistance(double tempr) //knowing the temperature
+    double calcResistance(double tempr) // knowing the temperature
     {
         return Math.round(r25 * Math.exp(b25100 * ((1 / (tempr + t0)) - (1 / t25))));
     }
 
-    double temprFromSliderPos() //knowing slider position etc
+    double temprFromSliderPos() // knowing slider position etc
     {
         return Math.round(position * (maxTempr - minTempr) + minTempr);
     }
 
-    //determine constant B25100 - when knowing two R values at two temperatures
-    double calcB25100() //given R25=10000 and R50=3605  B25100 will be 3932
+    // determine constant B25100 - when knowing two R values at two temperatures
+    double calcB25100() // given R25=10000 and R50=3605 B25100 will be 3932
     {
         double kelvin1 = t0 + 25;
         double kelvin2 = t0 + 50;
@@ -279,4 +286,3 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         return props;
     }
 }
-

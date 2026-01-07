@@ -129,6 +129,9 @@ public class DiodeElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         calcLeads(16);
+        ElmGeometry geom = geom();
+        Point lead1 = geom.getLead1();
+        Point lead2 = geom.getLead2();
         cathode = newPointArray(2);
         Point pa[] = newPointArray(2);
         interpPoint2(lead1, lead2, pa[0], pa[1], 0, hs);
@@ -152,7 +155,8 @@ public class DiodeElm extends CircuitElm {
     }
 
     void drawDiode(Graphics g) {
-        setBbox(point1, point2, hs);
+        ElmGeometry geom = geom();
+        setBbox(geom.getPoint1(), geom.getPoint2(), hs);
 
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);

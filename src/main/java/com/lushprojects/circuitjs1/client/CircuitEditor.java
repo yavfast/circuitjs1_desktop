@@ -298,10 +298,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm element = simulator.elmList.get(i);
-            if (element.y == dragGridY) {
+            if (element.getY() == dragGridY) {
                 element.movePoint(0, 0, deltaY);
             }
-            if (element.y2 == dragGridY) {
+            if (element.getY2() == dragGridY) {
                 element.movePoint(1, 0, deltaY);
             }
         }
@@ -316,10 +316,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm element = simulator.elmList.get(i);
-            if (element.x == dragGridX) {
+            if (element.getX() == dragGridX) {
                 element.movePoint(0, deltaX, 0);
             }
-            if (element.x2 == dragGridX) {
+            if (element.getX2() == dragGridX) {
                 element.movePoint(1, deltaX, 0);
             }
         }
@@ -377,8 +377,8 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             draggingPost = mouseElm.getHandleGrabbedClose(dragGridX, dragGridY, POST_GRAB_SQ, MIN_POST_GRAB_SIZE);
             if (draggingPost < 0) {
                 // Fallback to legacy endpoint heuristic.
-                draggingPost = (Graphics.distanceSq(mouseElm.x, mouseElm.y, x, y) > Graphics.distanceSq(mouseElm.x2,
-                        mouseElm.y2, x, y)) ? 1 : 0;
+                draggingPost = (Graphics.distanceSq(mouseElm.getX(), mouseElm.getY(), x, y) > Graphics.distanceSq(mouseElm.getX2(),
+                        mouseElm.getY2(), x, y)) ? 1 : 0;
             }
         }
         int deltaX = x - dragGridX;
@@ -392,9 +392,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm element = simulator.elmList.get(i);
                 int postIndex = -1;
-                if (element.x == dragGridX && element.y == dragGridY) {
+                if (element.getX() == dragGridX && element.getY() == dragGridY) {
                     postIndex = 0;
-                } else if (element.x2 == dragGridX && element.y2 == dragGridY) {
+                } else if (element.getX2() == dragGridX && element.getY2() == dragGridY) {
                     postIndex = 1;
                 }
                 if (postIndex != -1) {
@@ -439,7 +439,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         CircuitSimulator simulator = simulator();
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm element = simulator.elmList.get(i);
-            if (element.x == element.x2 && element.y == element.y2) {
+            if (element.getX() == element.getX2() && element.getY() == element.getY2()) {
                 simulator.elmList.remove(i);
                 element.delete();
                 needAnalyze = true;
@@ -527,10 +527,11 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             CircuitSimulator simulator = simulator();
             for (int i = 0; i != simulator.elmList.size(); i++) {
                 CircuitElm element = simulator.elmList.get(i);
-                if (element.boundingBox.contains(gridX, gridY)) {
+                if (element.getBoundingBox().contains(gridX, gridY)) {
                     int dist = element.getMouseDistance(gridX, gridY);
                     if (dist >= 0) {
-                        int sizePenalty = (element.boundingBox.width + element.boundingBox.height) / 4;
+                        Rectangle bbox = element.getBoundingBox();
+                        int sizePenalty = (bbox.width + bbox.height) / 4;
                         int totalDist = dist + sizePenalty;
                         if (totalDist < bestDist) {
                             bestDist = totalDist;
@@ -770,6 +771,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             } else {
                 simulator().elmList.add(dragElm);
                 dragElm.draggingDone();
+
+                if (dragElm instanceof com.lushprojects.circuitjs1.client.element.VarRailElm) {
+                    ((com.lushprojects.circuitjs1.client.element.VarRailElm) dragElm).ensureVoltageAdjustable(true);
+                }
                 circuitChanged = true;
             }
             dragElm = null;
@@ -910,18 +915,18 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
         int x = snapGrid(renderer().inverseTransformX(menuX));
         int y = snapGrid(renderer().inverseTransformY(menuY));
-        if (element.x == element.x2) {
-            x = element.x;
+        if (element.getX() == element.getX2()) {
+            x = element.getX();
         } else {
-            y = element.y;
+            y = element.getY();
         }
 
-        if (x == element.x && y == element.y || x == element.x2 && y == element.y2) {
+        if (x == element.getX() && y == element.getY() || x == element.getX2() && y == element.getY2()) {
             return;
         }
 
         WireElm newWire = new WireElm(getActiveDocument(), x, y);
-        newWire.drag(element.x2, element.y2);
+        newWire.drag(element.getX2(), element.getY2());
         element.drag(x, y);
         simulator().elmList.add(newWire);
         cirSim.needAnalyze();
@@ -941,10 +946,10 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         for (int i = 0; i != simulator.elmList.size(); i++) {
             CircuitElm element = simulator.elmList.get(i);
             if (element.isSelected() || count == 0) {
-                minX = Math.min(element.x, Math.min(element.x2, minX));
-                maxX = Math.max(element.x, Math.max(element.x2, maxX));
-                minY = Math.min(element.y, Math.min(element.y2, minY));
-                maxY = Math.max(element.y, Math.max(element.y2, maxY));
+                minX = Math.min(element.getX(), Math.min(element.getX2(), minX));
+                maxX = Math.max(element.getX(), Math.max(element.getX2(), maxX));
+                minY = Math.min(element.getY(), Math.min(element.getY2(), minY));
+                maxY = Math.max(element.getY(), Math.max(element.getY2(), maxY));
             }
         }
         FlipInfo flipInfo = new FlipInfo();

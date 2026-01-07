@@ -32,7 +32,7 @@ public class WireElm extends CircuitElm {
     }
 
     public WireElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                   StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
     }
 
@@ -46,9 +46,9 @@ public class WireElm extends CircuitElm {
 
     public void draw(Graphics g) {
         setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, point1, point2);
+        drawThickLine(g, geom().getPoint1(), geom().getPoint2());
         doDots(g);
-        setBbox(point1, point2, 3);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 3);
         String s = "";
         if (mustShowCurrent()) {
             s = getShortUnitText(Math.abs(getCurrent()), "A");
@@ -71,7 +71,7 @@ public class WireElm extends CircuitElm {
         return (flags & FLAG_SHOWVOLTAGE) != 0;
     }
 
-    //	int getVoltageSourceCount() { return 1; }
+    // int getVoltageSourceCount() { return 1; }
     public void getInfo(String[] arr) {
         arr[0] = "wire";
         arr[1] = "I = " + getCurrentDText(getCurrent());
@@ -133,7 +133,7 @@ public class WireElm extends CircuitElm {
 
     public int getMouseDistance(int gx, int gy) {
         int thresh = 10;
-        int d2 = lineDistanceSq(x, y, x2, y2, gx, gy);
+        int d2 = lineDistanceSq(getX(), getY(), getX2(), getY2(), gx, gy);
         if (d2 <= thresh * thresh)
             return d2;
         return -1;
@@ -164,12 +164,12 @@ public class WireElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
-        
+
         // Parse show current flag
         if (getJsonBoolean(props, "show_current", false)) {
             flags |= FLAG_SHOWCURRENT;
         }
-        
+
         // Parse show voltage flag
         if (getJsonBoolean(props, "show_voltage", false)) {
             flags |= FLAG_SHOWVOLTAGE;

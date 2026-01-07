@@ -22,8 +22,15 @@ public class DCWaveform extends Waveform {
 
     @Override
     public void draw(Graphics g, Point center, VoltageElm elm) {
-        // DC is drawn differently in VoltageElm.draw(), but drawWaveform is called for non-DC.
+        // DC is drawn differently in VoltageElm.draw(), but drawWaveform is called for
+        // non-DC.
         // However, RailElm might call drawWaveform for DC if not handled.
+    }
+
+    @Override
+    public boolean hasCircle() {
+        // DC sources are drawn battery-style (no waveform circle).
+        return false;
     }
 
     @Override
@@ -38,7 +45,10 @@ public class DCWaveform extends Waveform {
             s = elm.getShortUnitText(v, "V");
         if (v > 0)
             s = "+" + s;
-        elm.drawLabeledNode(g, s, elm.point1, elm.lead1);
+
+        // RailElm draws from its post to a derived lead point (railLead). Using VoltageElm lead points
+        // can collapse the lead and misplace the label.
+        elm.drawRailText(g, s);
     }
 
     @Override

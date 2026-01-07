@@ -42,7 +42,7 @@ public class GraphicElm extends CircuitElm {
      */
     @Override
     public Point getJsonStartPoint() {
-        return new Point(x, y);
+        return new Point(getX(), getY());
     }
 
     /**
@@ -50,7 +50,7 @@ public class GraphicElm extends CircuitElm {
      */
     @Override
     public Point getJsonEndPoint() {
-        return new Point(x2, y2);
+        return new Point(getX2(), getY2());
     }
 }
 

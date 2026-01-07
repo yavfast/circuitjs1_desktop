@@ -33,7 +33,7 @@ public class TunnelDiodeElm extends CircuitElm {
     }
 
     public TunnelDiodeElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
-                          StringTokenizer st) {
+            StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         setup();
     }
@@ -58,14 +58,14 @@ public class TunnelDiodeElm extends CircuitElm {
         calcLeads(16);
         cathode = newPointArray(4);
         Point pa[] = newPointArray(2);
-        interpPoint2(lead1, lead2, pa[0], pa[1], 0, hs);
-        interpPoint2(lead1, lead2, cathode[0], cathode[1], 1, hs);
-        interpPoint2(lead1, lead2, cathode[2], cathode[3], .8, hs);
-        poly = createPolygon(pa[0], pa[1], lead2);
+        interpPoint2(geom().getLead1(), geom().getLead2(), pa[0], pa[1], 0, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), cathode[0], cathode[1], 1, hs);
+        interpPoint2(geom().getLead1(), geom().getLead2(), cathode[2], cathode[3], .8, hs);
+        poly = createPolygon(pa[0], pa[1], geom().getLead2());
     }
 
     public void draw(Graphics g) {
-        setBbox(point1, point2, hs);
+        setBbox(geom().getPoint1(), geom().getPoint2(), hs);
 
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
@@ -97,7 +97,8 @@ public class TunnelDiodeElm extends CircuitElm {
     double lastvoltdiff;
 
     double limitStep(double vnew, double vold) {
-        // Prevent voltage changes of more than 1V when iterating.  Wow, I thought it would be
+        // Prevent voltage changes of more than 1V when iterating. Wow, I thought it
+        // would be
         // much harder than this to prevent convergence problems.
         if (vnew > vold + 1)
             return vold + 1;
@@ -122,7 +123,8 @@ public class TunnelDiodeElm extends CircuitElm {
         double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
         if (Math.abs(voltdiff - lastvoltdiff) > .01)
             simulator().converged = false;
-        //System.out.println(voltdiff + " " + lastvoltdiff + " " + Math.abs(voltdiff-lastvoltdiff));
+        // System.out.println(voltdiff + " " + lastvoltdiff + " " +
+        // Math.abs(voltdiff-lastvoltdiff));
         voltdiff = limitStep(voltdiff, lastvoltdiff);
         lastvoltdiff = voltdiff;
 
@@ -130,7 +132,6 @@ public class TunnelDiodeElm extends CircuitElm {
         double i = pip * Math.exp(-pvpp / pvt) * (Math.exp(voltdiff / pvt) - 1) +
                 pip * (voltdiff / pvp) * Math.exp(1 - voltdiff / pvp) +
                 piv * Math.exp(voltdiff - pvv) - i0;
-
 
         double geq = pip * Math.exp(-pvpp / pvt) * Math.exp(voltdiff / pvt) / pvt +
                 pip * Math.exp(1 - voltdiff / pvp) / pvp

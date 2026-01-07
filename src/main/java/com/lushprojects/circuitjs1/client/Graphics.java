@@ -32,9 +32,73 @@ public class Graphics {
     private int currentFontSize;
     private int savedFontSize;
 
+    // Rendering override used for error highlighting (e.g., stopped element).
+    // When active, all stroke/fill colors are forced to the provided color.
+    private int forcedColorDepth = 0;
+    private String forcedColorHex = null;
+
+    // Track last styles set via this wrapper so we can restore them when
+    // forced-color highlighting is disabled.
+    private boolean lastStrokeIsObject = false;
+    private FillStrokeStyle lastStrokeStyleObject = null;
+    private String lastStrokeStyleString = "#000";
+    private String lastFillStyleString = "#000";
+
     public Graphics(Context2d context) {
         this.context = context;
         currentFontSize = 12;
+    }
+
+    private boolean isColorForced() {
+        return forcedColorDepth > 0 && forcedColorHex != null;
+    }
+
+    private void applyForcedColor() {
+        if (forcedColorHex == null) {
+            return;
+        }
+        context.setStrokeStyle(forcedColorHex);
+        context.setFillStyle(forcedColorHex);
+    }
+
+    private void restoreTrackedStyles() {
+        if (lastStrokeIsObject && lastStrokeStyleObject != null) {
+            context.setStrokeStyle(lastStrokeStyleObject);
+        } else if (lastStrokeStyleString != null) {
+            context.setStrokeStyle(lastStrokeStyleString);
+        }
+        if (lastFillStyleString != null) {
+            context.setFillStyle(lastFillStyleString);
+        }
+    }
+
+    /**
+     * Force all subsequent color/stroke style changes to use the given color.
+     * Call {@link #popForcedColor()} to restore prior styles.
+     */
+    public void pushForcedColor(Color color) {
+        if (color == null) {
+            return;
+        }
+        forcedColorDepth++;
+        forcedColorHex = color.getHexValue();
+        applyForcedColor();
+    }
+
+    /**
+     * Disable forced-color rendering (paired with {@link #pushForcedColor(Color)}).
+     */
+    public void popForcedColor() {
+        if (forcedColorDepth <= 0) {
+            forcedColorDepth = 0;
+            forcedColorHex = null;
+            return;
+        }
+        forcedColorDepth--;
+        if (forcedColorDepth == 0) {
+            forcedColorHex = null;
+            restoreTrackedStyles();
+        }
     }
 
     public Context2d getContext() {
@@ -48,6 +112,17 @@ public class Graphics {
     }
 
     public void setColor(String color) {
+        if (color == null) {
+            return;
+        }
+        lastStrokeIsObject = false;
+        lastStrokeStyleObject = null;
+        lastStrokeStyleString = color;
+        lastFillStyleString = color;
+        if (isColorForced()) {
+            applyForcedColor();
+            return;
+        }
         context.setStrokeStyle(color);
         context.setFillStyle(color);
     }
@@ -141,6 +216,11 @@ public class Graphics {
     }
 
     public void drawPolyline(int[] xPoints, int[] yPoints, int n) {
+        if (n <= 0 || xPoints == null || yPoints == null) return;
+        // guard against invalid coordinates
+        for (int i = 0; i < n; i++) {
+            if (Double.isNaN(xPoints[i]) || Double.isNaN(yPoints[i])) return;
+        }
         context.beginPath();
         for (int i = 0; i < n; i++) {
             if (i == 0) {
@@ -155,6 +235,17 @@ public class Graphics {
 
 
     public void fillPolygon(Polygon p) {
+        if (p == null || p.npoints < 3 || p.xpoints == null || p.ypoints == null) return;
+        // Check for any invalid coordinates
+        boolean allSame = true;
+        int x0 = p.xpoints[0], y0 = p.ypoints[0];
+        for (int i = 0; i < p.npoints; i++) {
+            int xi = p.xpoints[i], yi = p.ypoints[i];
+            if (Double.isNaN(xi) || Double.isNaN(yi)) return;
+            if (xi != x0 || yi != y0) allSame = false;
+        }
+        if (allSame) return;
+
         context.beginPath();
         for (int i = 0; i < p.npoints; i++) {
             if (i == 0) {
@@ -309,10 +400,26 @@ public class Graphics {
     }
 
     public void setStrokeStyle(FillStrokeStyle strokeStyle) {
+        lastStrokeIsObject = true;
+        lastStrokeStyleObject = strokeStyle;
+        if (isColorForced()) {
+            applyForcedColor();
+            return;
+        }
         context.setStrokeStyle(strokeStyle);
     }
 
     public void setStrokeStyle(String strokeStyleColor) {
+        if (strokeStyleColor == null) {
+            return;
+        }
+        lastStrokeIsObject = false;
+        lastStrokeStyleObject = null;
+        lastStrokeStyleString = strokeStyleColor;
+        if (isColorForced()) {
+            applyForcedColor();
+            return;
+        }
         context.setStrokeStyle(strokeStyleColor);
     }
 

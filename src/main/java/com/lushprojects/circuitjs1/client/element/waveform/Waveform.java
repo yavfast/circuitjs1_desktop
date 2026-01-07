@@ -1,8 +1,8 @@
 package com.lushprojects.circuitjs1.client.element.waveform;
 
-import com.lushprojects.circuitjs1.client.element.VoltageElm;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
-import com.lushprojects.circuitjs1.client.element.VarRailElm;
+import com.lushprojects.circuitjs1.client.element.VoltageElm;
 
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -38,7 +38,8 @@ public abstract class Waveform {
             case WF_SAWTOOTH: wf = new SawtoothWaveform(); break;
             case WF_PULSE: wf = new PulseWaveform(); break;
             case WF_NOISE: wf = new NoiseWaveform(); break;
-            case WF_VAR: wf = new VarWaveform(); break;
+            // WF_VAR is legacy; variable rails are implemented by VarRailElm logic and behave as DC sources.
+            case WF_VAR: wf = new DCWaveform(); break;
             default: wf = new DCWaveform(); break;
         }
         if (old != null) {
@@ -54,7 +55,7 @@ public abstract class Waveform {
     public abstract void draw(Graphics g, Point center, VoltageElm elm);
 
     public void drawRail(Graphics g, RailElm elm) {
-        elm.drawWaveform(g, elm.point2);
+        elm.drawWaveform(g, elm.geom().getPoint2());
     }
 
     public abstract void getInfo(VoltageElm elm, String[] arr, int i);
@@ -66,22 +67,22 @@ public abstract class Waveform {
     public abstract String getJsonTypeName();
 
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", elm.getUnitText(maxVoltage, "V"));
+        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
         if (bias != 0) {
-            props.put("dc_offset", elm.getUnitText(bias, "V"));
+            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
         }
-        props.put("frequency", elm.getUnitText(frequency, "Hz"));
+        props.put("frequency", VoltageElm.getUnitText(frequency, "Hz"));
         if (phaseShift != 0) {
             props.put("phase_shift", phaseShift * 180 / Math.PI);
         }
     }
 
     public void applyJsonProperties(VoltageElm elm, java.util.Map<String, Object> properties) {
-        maxVoltage = elm.getJsonDouble(properties, "max_voltage", 5);
-        bias = elm.getJsonDouble(properties, "dc_offset", 0);
-        frequency = elm.getJsonDouble(properties, "frequency", 40);
-        phaseShift = elm.getJsonDouble(properties, "phase_shift", 0) * Math.PI / 180;
-        dutyCycle = elm.getJsonDouble(properties, "duty_cycle", 0.5);
+        maxVoltage = CircuitElm.getJsonDouble(properties, "max_voltage", 5);
+        bias = CircuitElm.getJsonDouble(properties, "dc_offset", 0);
+        frequency = CircuitElm.getJsonDouble(properties, "frequency", 40);
+        phaseShift = CircuitElm.getJsonDouble(properties, "phase_shift", 0) * Math.PI / 180;
+        dutyCycle = CircuitElm.getJsonDouble(properties, "duty_cycle", 0.5);
     }
 
     public void copyFrom(Waveform other) {

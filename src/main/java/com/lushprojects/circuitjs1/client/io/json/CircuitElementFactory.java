@@ -67,7 +67,7 @@ public class CircuitElementFactory {
             return;
         }
         initialized = true;
-        
+
         // Basic passive elements
         register("Wire", WireElm::new);
         register("Ground", GroundElm::new);
@@ -85,14 +85,23 @@ public class CircuitElementFactory {
         register("SquareRail", SquareRailElm::new);
         register("VarRail", VarRailElm::new);
         // Aliases used by element JSON export (waveform-specific type names)
-        register("VoltageSourceDC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_DC));
-        register("VoltageSourceAC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_AC));
-        register("VoltageSourceSquare", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SQUARE));
-        register("VoltageSourceTriangle", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_TRIANGLE));
-        register("VoltageSourceSawtooth", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SAWTOOTH));
-        register("VoltageSourcePulse", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_PULSE));
-        register("VoltageSourceNoise", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_NOISE));
-        register("VoltageSourceVar", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y, com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_VAR));
+        register("VoltageSourceDC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_DC));
+        register("VoltageSourceAC", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_AC));
+        register("VoltageSourceSquare", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SQUARE));
+        register("VoltageSourceTriangle", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_TRIANGLE));
+        register("VoltageSourceSawtooth", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SAWTOOTH));
+        register("VoltageSourcePulse", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_PULSE));
+        register("VoltageSourceNoise", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_NOISE));
+        // Legacy alias: previously a variable waveform existed; treat it as DC.
+        register("VoltageSourceVar", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
+            com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_DC));
         // Rail aliases
         register("VariableRail", VarRailElm::new);
         register("ExternalVoltage", ExtVoltageElm::new);
@@ -122,14 +131,14 @@ public class CircuitElementFactory {
         // MOSFETs
         register("MosfetN", NMosfetElm::new);
         register("MosfetP", PMosfetElm::new);
-        register("NMosfet", NMosfetElm::new);  // Alternative name (from JSON export)
-        register("PMosfet", PMosfetElm::new);  // Alternative name (from JSON export)
+        register("NMosfet", NMosfetElm::new); // Alternative name (from JSON export)
+        register("PMosfet", PMosfetElm::new); // Alternative name (from JSON export)
 
         // JFETs
         register("JfetN", NJfetElm::new);
         register("JfetP", PJfetElm::new);
-        register("NJFET", NJfetElm::new);  // Alternative name (from JSON export)
-        register("PJFET", PJfetElm::new);  // Alternative name (from JSON export)
+        register("NJFET", NJfetElm::new); // Alternative name (from JSON export)
+        register("PJFET", PJfetElm::new); // Alternative name (from JSON export)
 
         // Thyristors
         register("SCR", SCRElm::new);
@@ -273,8 +282,9 @@ public class CircuitElementFactory {
         register("Box", BoxElm::new);
         register("Line", LineElm::new);
         register("LabeledNode", LabeledNodeElm::new);
-        
-        CirSim.console("CircuitElementFactory: initialized with " + JSON_TYPE_TO_CONSTRUCTOR.size() + " element types");
+
+        // Keep initialization quiet in production/DevMode; JSON import may call this
+        // frequently.
     }
 
     /**
@@ -296,19 +306,16 @@ public class CircuitElementFactory {
     /**
      * Creates a CircuitElm from JSON element definition.
      * 
-     * @param jsonType The JSON type name (e.g., "Resistor")
+     * @param jsonType    The JSON type name (e.g., "Resistor")
      * @param elementJson The full JSON object for the element
-     * @param document The circuit document for the new element
+     * @param document    The circuit document for the new element
      * @return The created element, or null if type is unknown
      */
     public static CircuitElm createFromJson(String jsonType, JSONObject elementJson, CircuitDocument document) {
-        CirSim.console("createFromJson: START type='" + jsonType + "'");
         ensureInitialized();
-        CirSim.console("createFromJson: factory initialized, registered types count=" + JSON_TYPE_TO_CONSTRUCTOR.size());
 
         // Get constructor from type mapping
         ElementConstructor constructor = JSON_TYPE_TO_CONSTRUCTOR.get(jsonType);
-        CirSim.console("createFromJson: constructor for '" + jsonType + "' = " + (constructor != null ? "found" : "NOT FOUND"));
         if (constructor == null) {
             CirSim.console("CircuitElementFactory: Unknown element type: " + jsonType);
             return null;
@@ -323,8 +330,9 @@ public class CircuitElementFactory {
         JSONValue pinsValue = elementJson.get("pins");
         if (pinsValue != null && pinsValue.isObject() != null) {
             JSONObject pins = pinsValue.isObject();
-            
-            // Check for _startpoint (used for elements where point1 doesn't match any pin, like OpAmp)
+
+            // Check for _startpoint (used for elements where point1 doesn't match any pin,
+            // like OpAmp)
             JSONValue startpointValue = pins.get("_startpoint");
             if (startpointValue != null && startpointValue.isObject() != null) {
                 int[] startpointPos = getPinPosition(startpointValue);
@@ -334,8 +342,9 @@ public class CircuitElementFactory {
                     hasStartpoint = true;
                 }
             }
-            
-            // Check for _endpoint (used by single-terminal elements and elements where point2 doesn't match any pin)
+
+            // Check for _endpoint (used by single-terminal elements and elements where
+            // point2 doesn't match any pin)
             JSONValue endpointValue = pins.get("_endpoint");
             if (endpointValue != null && endpointValue.isObject() != null) {
                 int[] endpointPos = getPinPosition(endpointValue);
@@ -345,13 +354,14 @@ public class CircuitElementFactory {
                     hasEndpoint = true;
                 }
             }
-            
+
             // Find first two pins (excluding _startpoint and _endpoint)
             String[] pinKeys = getObjectKeys(pins);
             int pinCount = 0;
             for (String key : pinKeys) {
-                if (key.equals("_startpoint") || key.equals("_endpoint")) continue;
-                
+                if (key.equals("_startpoint") || key.equals("_endpoint"))
+                    continue;
+
                 int[] pos = getPinPosition(pins.get(key));
                 if (pos != null) {
                     if (pinCount == 0 && !hasStartpoint) {
@@ -364,7 +374,7 @@ public class CircuitElementFactory {
                     pinCount++;
                 }
             }
-            
+
             if (pinCount == 1 && !hasEndpoint) {
                 x2 = x1;
                 y2 = y1;
@@ -384,12 +394,14 @@ public class CircuitElementFactory {
             return null;
         }
 
-        // Set second point
-        elm.x2 = x2;
-        elm.y2 = y2;
+        // Set second point (use canonical setter to keep geometry derived fields in
+        // sync)
+        elm.setEndpoints(elm.getX(), elm.getY(), x2, y2);
 
-        // For single-terminal elements without _endpoint, try to restore x2/y2 from bounds
-        // This preserves orientation/size for elements like Rail, Ground (legacy support)
+        // For single-terminal elements without _endpoint, try to restore x2/y2 from
+        // bounds
+        // This preserves orientation/size for elements like Rail, Ground (legacy
+        // support)
         if (elm.getPostCount() == 1 && !hasEndpoint) {
             JSONValue boundsValue = elementJson.get("bounds");
             if (boundsValue != null && boundsValue.isObject() != null) {
@@ -405,16 +417,18 @@ public class CircuitElementFactory {
                     int right = (int) rightVal.isNumber().doubleValue();
                     int bottom = (int) bottomVal.isNumber().doubleValue();
                     // Determine x2/y2 based on which corner x1/y1 is at
+                    int newX2, newY2;
                     if (x1 == left) {
-                        elm.x2 = right;
+                        newX2 = right;
                     } else {
-                        elm.x2 = left;
+                        newX2 = left;
                     }
                     if (y1 == top) {
-                        elm.y2 = bottom;
+                        newY2 = bottom;
                     } else {
-                        elm.y2 = top;
+                        newY2 = top;
                     }
+                    elm.setEndpoints(elm.getX(), elm.getY(), newX2, newY2);
                 }
             }
         }
@@ -428,7 +442,13 @@ public class CircuitElementFactory {
         // Apply pin positions (skip for single-terminal to preserve x2/y2)
         if (pinsValue != null && pinsValue.isObject() != null && elm.getPostCount() > 1) {
             Map<String, Map<String, Integer>> pinsMap = parsePinsMap(pinsValue.isObject());
-            elm.applyJsonPinPositions(pinsMap);
+            try {
+                elm.applyJsonPinPositions(pinsMap);
+            } catch (Exception e) {
+                CirSim.console(
+                        "CircuitElementFactory: applyJsonPinPositions failed for " + jsonType + ": " + e.getMessage());
+                return null;
+            }
         }
 
         // Apply properties - delegate to element
@@ -452,9 +472,15 @@ public class CircuitElementFactory {
         }
 
         // Finalize import
-        elm.finalizeJsonImport();
+        try {
+            elm.finalizeJsonImport();
+        } catch (Exception e) {
+            CirSim.console("CircuitElementFactory: finalizeJsonImport failed for " + jsonType + ": " + e.getMessage());
+            return null;
+        }
 
-        // Preserve explicit bounds from JSON if provided to ensure export/import idempotency
+        // Preserve explicit bounds from JSON if provided to ensure export/import
+        // idempotency
         JSONValue boundsValueFinal = elementJson.get("bounds");
         if (boundsValueFinal != null && boundsValueFinal.isObject() != null) {
             JSONObject boundsObj = boundsValueFinal.isObject();
@@ -472,14 +498,11 @@ public class CircuitElementFactory {
                 try {
                     // Set coords to match JSON bounds so any later re-computation
                     // uses the intended geometry.
-                    elm.x = left;
-                    elm.y = top;
-                    elm.x2 = right;
-                    elm.y2 = bottom;
+                    elm.setEndpoints(left, top, right, bottom);
                     // Use public setBbox(Point,Point,double) to update boundingBox
                     // (avoids calling package-private API and works across packages).
                     elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
-                                new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
+                            new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                 } catch (Exception e) {
                     CirSim.console("CircuitElementFactory: failed to apply JSON bounds: " + e.getMessage());
                 }
@@ -491,6 +514,7 @@ public class CircuitElementFactory {
 
     /**
      * Gets all registered JSON type names.
+     * 
      * @return List of all known JSON type names
      */
     public static List<String> getAllJsonTypeNames() {
@@ -530,7 +554,7 @@ public class CircuitElementFactory {
         }
         int x = (int) xVal.isNumber().doubleValue();
         int y = (int) yVal.isNumber().doubleValue();
-        return new int[] {x, y};
+        return new int[] { x, y };
     }
 
     private static Map<String, Map<String, Integer>> parsePinsMap(JSONObject pinsJson) {

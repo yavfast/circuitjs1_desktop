@@ -2,6 +2,24 @@ package com.lushprojects.circuitjs1.client;
 
 public class CircuitMath {
 
+    // Diagnostics for singular-matrix failures in lu_factor().
+    // This is only meaningful when lu_factor() returns false.
+    private static volatile int lastLuFailColumn = -1;
+    private static volatile int lastLuFailRow = -1;
+    private static volatile double lastLuFailPivotAbs = 0.0;
+
+    public static int getLastLuFailColumn() {
+        return lastLuFailColumn;
+    }
+
+    public static int getLastLuFailRow() {
+        return lastLuFailRow;
+    }
+
+    public static double getLastLuFailPivotAbs() {
+        return lastLuFailPivotAbs;
+    }
+
     public static boolean isConverged(double v1, double v2) {
         double delta = Math.abs(v2 - v1);
         double mean = Math.abs((v1 + v2) / 2.0);
@@ -52,13 +70,24 @@ public class CircuitMath {
     // matrix to be factored.  ipvt[] returns an integer vector of pivot
     // indices, used in the lu_solve() routine.
     public static boolean lu_factor(double[][] a, int n, int[] ipvt) {
+        // Reset diagnostics for this run.
+        lastLuFailColumn = -1;
+        lastLuFailRow = -1;
+        lastLuFailPivotAbs = 0.0;
+
         // Early exit for edge cases.
         // A 0x0 matrix is a valid case (everything simplified to constants).
         if (n < 0) return false;
         if (n == 0) return true;
         if (n == 1) {
             ipvt[0] = 0;
-            return a[0][0] != 0.0;
+            if (a[0][0] == 0.0) {
+                lastLuFailColumn = 0;
+                lastLuFailRow = 0;
+                lastLuFailPivotAbs = 0.0;
+                return false;
+            }
+            return true;
         }
 
         // Use Crout's method with partial pivoting
@@ -93,6 +122,9 @@ public class CircuitMath {
 
             // Check for near-zero pivot (singular matrix)
             if (largest < 1e-14) {
+                lastLuFailColumn = j;
+                lastLuFailRow = largestRow;
+                lastLuFailPivotAbs = largest;
                 return false;
             }
 
@@ -111,6 +143,9 @@ public class CircuitMath {
                 double pivot = a[j][j];
                 // Check for singularity again after pivot
                 if (Math.abs(pivot) < 1e-14) {
+                    lastLuFailColumn = j;
+                    lastLuFailRow = j;
+                    lastLuFailPivotAbs = Math.abs(pivot);
                     return false;
                 }
                 double pivotInv = 1.0 / pivot;
