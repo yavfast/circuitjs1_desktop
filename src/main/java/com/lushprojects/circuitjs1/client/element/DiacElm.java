@@ -58,8 +58,8 @@ public class DiacElm extends CircuitElm {
     }
 
     void createDiodes() {
-        diode1 = new Diode();
-        diode2 = new Diode();
+        diode1 = new Diode(simulator());
+        diode2 = new Diode(simulator());
         diode1.setupForDefaultModel();
         diode2.setupForDefaultModel();
     }

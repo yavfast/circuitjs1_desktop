@@ -39,9 +39,9 @@ public class JfetElm extends MosfetElm {
     JfetElm(CircuitDocument circuitDocument, int xx, int yy, boolean pnpflag) {
         super(circuitDocument, xx, yy, pnpflag);
         noDiagonal = true;
-        diodeGS = new Diode();
+        diodeGS = new Diode(simulator());
         diodeGS.setupForDefaultModel();
-        diodeGD = new Diode();
+        diodeGD = new Diode(simulator());
         diodeGD.setupForDefaultModel();
     }
 
@@ -49,9 +49,9 @@ public class JfetElm extends MosfetElm {
             StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         noDiagonal = true;
-        diodeGS = new Diode();
+        diodeGS = new Diode(simulator());
         diodeGS.setupForDefaultModel();
-        diodeGD = new Diode();
+        diodeGD = new Diode(simulator());
         diodeGD.setupForDefaultModel();
     }
 

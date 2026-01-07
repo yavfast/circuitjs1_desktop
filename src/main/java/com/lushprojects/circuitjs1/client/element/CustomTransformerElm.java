@@ -87,6 +87,7 @@ public class CustomTransformerElm extends CircuitElm {
     Point ptCore[];
     String description;
     double inductance, couplingCoef;
+    double windingResistance;
     boolean needDots;
 
     Point dots[];
@@ -174,7 +175,8 @@ public class CustomTransformerElm extends CircuitElm {
         inductance = 1;
         width = 32;
         noDiagonal = true;
-        couplingCoef = .999;
+        couplingCoef = .99;
+        windingResistance = 0.1;
         description = "1,1:1";
         parseDescription(description);
 
@@ -195,7 +197,10 @@ public class CustomTransformerElm extends CircuitElm {
         // Saved y-span represents the overall rendered thickness (max stack offset).
         int savedThickness = abs(yb - ya);
         inductance = parseDouble(st.nextToken());
-        couplingCoef = parseDouble(st.nextToken());
+        couplingCoef = parseDouble(st.nextToken(), 0.99);
+        if (couplingCoef <= 0 || couplingCoef >= 1)
+            couplingCoef = 0.99;
+        windingResistance = 0.1;
         String str = st.nextToken();
         description = CustomLogicModel.unescape(str);
         int savedCoilCount = parseInt(st.nextToken());
@@ -225,6 +230,13 @@ public class CustomTransformerElm extends CircuitElm {
                     }
                 }
             }
+        }
+
+        // Optional winding resistance (backward-compatible): appended after tap overrides.
+        if (st.hasMoreTokens()) {
+            windingResistance = parseDouble(st.nextToken(), windingResistance);
+            if (windingResistance < 0)
+                windingResistance = 0.1;
         }
 
         // Apply saved thickness (if any) by deriving the shared per-coil width.
@@ -399,18 +411,21 @@ public class CustomTransformerElm extends CircuitElm {
         for (int i = 0; i < windings.length; i++)
             s += dumpValue(windings[i].current) + " "; // TODO:
 
-        // Optional tap overrides (backward-compatible): only write if any are set.
+        // Optional tap overrides (backward-compatible): write count + entries.
+        // Always include the count token so we can safely append extra fields.
         int cnt = 0;
         for (int i = 0; i < nodeCount; i++)
             if (nodeData[i].offsetOverride >= 0)
                 cnt++;
+        s += dumpValue(cnt) + " ";
         if (cnt > 0) {
-            s += dumpValue(cnt) + " ";
             for (int i = 0; i < nodeCount; i++) {
                 if (nodeData[i].offsetOverride >= 0)
                     s += dumpValue(i) + " " + dumpValue(nodeData[i].offsetOverride) + " ";
             }
         }
+        // Optional winding resistance (Ohms)
+        s += dumpValue(windingResistance) + " ";
         return s;
     }
 
@@ -839,6 +854,12 @@ public class CustomTransformerElm extends CircuitElm {
         return nodeCount;
     }
 
+    @Override
+    public int getInternalNodeCount() {
+        // One internal node per winding to model series winding resistance.
+        return coilCount;
+    }
+
     public void reset() {
         for (int i = 0; i != coilCount; i++) {
             windings[i].current = 0;
@@ -849,6 +870,10 @@ public class CustomTransformerElm extends CircuitElm {
             setNodeVoltageDirect(i, 0);
             nodeData[i].current = 0;
             nodeData[i].currentCount = 0;
+        }
+
+        for (int i = 0; i != coilCount; i++) {
+            setNodeVoltageDirect(nodeCount + i, 0);
         }
     }
 
@@ -894,20 +919,38 @@ public class CustomTransformerElm extends CircuitElm {
 
         CircuitSimulator simulator = simulator();
         double ts = isTrapezoidal() ? simulator.timeStep / 2 : simulator.timeStep;
+
+        // Series winding resistance for each coil (shared value).
+        // winding i: node(start) -- R -- int(i) -- L -- node(end)
+        for (i = 0; i != coilCount; i++) {
+            int startNode = windings[i].startNode;
+            int internalIndex = nodeCount + i;
+            if (windingResistance > 0) {
+                simulator.stampResistor(getNode(startNode), getNode(internalIndex), windingResistance);
+            } else {
+                simulator.stampConductance(getNode(startNode), getNode(internalIndex), 1e8);
+            }
+        }
+
         for (i = 0; i != coilCount; i++)
             for (j = 0; j != coilCount; j++) {
                 // multiply in dt/2 (or dt for backward euler)
                 xformMatrix[i][j] *= ts;
                 int ni = windings[i].startNode;
                 int nj = windings[j].startNode;
+                int niInt = nodeCount + i;
+                int njInt = nodeCount + j;
                 if (i == j)
-                    simulator.stampConductance(getNode(ni), getNode(ni + 1), xformMatrix[i][i]);
+                    simulator.stampConductance(getNode(niInt), getNode(ni + 1), xformMatrix[i][i]);
                 else
-                    simulator.stampVCCurrentSource(getNode(ni), getNode(ni + 1), getNode(nj), getNode(nj + 1),
+                    simulator.stampVCCurrentSource(getNode(niInt), getNode(ni + 1), getNode(njInt), getNode(nj + 1),
                             xformMatrix[i][j]);
             }
         for (i = 0; i != nodeCount; i++)
             simulator.stampRightSide(getNode(i));
+
+        for (i = 0; i != coilCount; i++)
+            simulator.stampRightSide(getNode(nodeCount + i));
     }
 
     public void startIteration() {
@@ -918,7 +961,8 @@ public class CustomTransformerElm extends CircuitElm {
                 int j;
                 for (j = 0; j != coilCount; j++) {
                     int n = windings[j].startNode;
-                    double voltdiff = getNodeVoltage(n) - getNodeVoltage(n + 1);
+                    // voltage across inductor is internal node -> end node
+                    double voltdiff = getNodeVoltage(nodeCount + j) - getNodeVoltage(n + 1);
                     val += voltdiff * xformMatrix[i][j];
                 }
             }
@@ -930,7 +974,7 @@ public class CustomTransformerElm extends CircuitElm {
         CircuitSimulator simulator = simulator();
         for (int i = 0; i != coilCount; i++) {
             int n = windings[i].startNode;
-            simulator.stampCurrentSource(getNode(n), getNode(n + 1), windings[i].curSourceValue);
+            simulator.stampCurrentSource(getNode(nodeCount + i), getNode(n + 1), windings[i].curSourceValue);
         }
     }
 
@@ -944,7 +988,7 @@ public class CustomTransformerElm extends CircuitElm {
                 int j;
                 for (j = 0; j != coilCount; j++) {
                     int n = windings[j].startNode;
-                    double voltdiff = getNodeVoltage(n) - getNodeVoltage(n + 1);
+                    double voltdiff = getNodeVoltage(nodeCount + j) - getNodeVoltage(n + 1);
                     val += voltdiff * xformMatrix[i][j];
                 }
             }
@@ -998,6 +1042,8 @@ public class CustomTransformerElm extends CircuitElm {
                     isTrapezoidal());
             return ei;
         }
+        if (n == 4)
+            return new EditInfo("Winding Resistance (Ohms)", windingResistance, 0, 0);
         return null;
     }
 
@@ -1042,6 +1088,9 @@ public class CustomTransformerElm extends CircuitElm {
             restoreOffsetOverrides(saved);
             setPoints();
         }
+        if (n == 4 && ei.value >= 0) {
+            windingResistance = ei.value;
+        }
     }
 
     public void flipX(int c2, int count) {
@@ -1069,6 +1118,7 @@ public class CustomTransformerElm extends CircuitElm {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("inductance", getUnitText(inductance, "H"));
         props.put("coupling_coefficient", couplingCoef);
+        props.put("winding_resistance", windingResistance);
         props.put("description", description);
 
         // Persist any dragged tap offsets (both '+' taps and independent primary-side
@@ -1098,9 +1148,13 @@ public class CustomTransformerElm extends CircuitElm {
         inductance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
                 getJsonString(props, "inductance", "4 H"));
 
-        couplingCoef = getJsonDouble(props, "coupling_coefficient", 0.999);
+        couplingCoef = getJsonDouble(props, "coupling_coefficient", 0.99);
         if (couplingCoef <= 0 || couplingCoef >= 1)
-            couplingCoef = 0.999;
+            couplingCoef = 0.99;
+
+        windingResistance = getJsonDouble(props, "winding_resistance", windingResistance);
+        if (windingResistance < 0)
+            windingResistance = 0.1;
 
         String oldDescription = description;
         description = getJsonString(props, "description", description);

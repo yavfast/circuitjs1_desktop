@@ -1,12 +1,61 @@
 # Schema version for tracking format changes (see definitions.md for schema spec)
 schema_version: 1
-version: 6
-updated_at: 2026-01-07T12:18:19+02:00
+version: 8
+updated_at: 2026-01-07T16:07:30+02:00
 
 # This registry is the primary index of all archived contexts.
 # All paths are repo-relative.
 # Required fields per entry: task_id, title, category, tags, status, archived_at, file, summary
 contexts:
+  - task_id: UI-DRAG-ELEMENT-MOVE-GEOM
+    title: "UI: drag/move whole element (ElmGeometry)"
+    category: ui
+    tags:
+      - drag
+      - geometry
+      - elmgeometry
+      - circuitelm
+      - transformer
+      - regression
+    status: archived
+    archived_at: 2026-01-07T16:07:30+02:00
+    file: ai_memory/context_history/UI-DRAG-ELEMENT-MOVE-GEOM.md
+    related_paths:
+      - src/main/java/com/lushprojects/circuitjs1/client/element/ElmGeometry.java
+      - src/main/java/com/lushprojects/circuitjs1/client/element/CircuitElm.java
+      - src/main/java/com/lushprojects/circuitjs1/client/element/TransformerElm.java
+    summary: |
+      Ensured whole-element movement by triggering CircuitElm#setPoints() after
+      ElmGeometry endpoint mutations for drag/move operations, while avoiding
+      recursion by not calling setPoints() from setEndpoints/setX2/setY2.
+    restore_recipe:
+      - "Open DevMode and drag a resistor/opamp/transformer"
+      - "Verify body + posts move together"
+
+  - task_id: SIM-SINGULAR-MATRIX-ISLANDS
+    title: "Solver: fix singular matrix on multi-island circuit"
+    category: simulation
+    tags:
+      - solver
+      - singular-matrix
+      - nonlinear
+      - ground
+      - islands
+    status: archived
+    archived_at: 2026-01-07T14:30:30+02:00
+    file: ai_memory/context_history/SIM-SINGULAR-MATRIX-ISLANDS.md
+    related_paths:
+      - src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java
+      - src/main/java/com/lushprojects/circuitjs1/client/CircuitMath.java
+      - src/main/java/com/lushprojects/circuitjs1/client/element/GroundElm.java
+    summary: |
+      Root cause: origMatrix/origRightSide were not snapshotted when simplifyMatrix() no-opped,
+      causing nonlinear sub-iterations to restore a zero matrix and repeatedly fail LU.
+      Forward fix: always populate origMatrix/origRightSide; added robust ground mapping and LU diagnostics.
+    restore_recipe:
+      - "Open DevMode and load the multi-island circuit"
+      - "Use CircuitJS1.stepSimulation() and verify time advances without stopMessage"
+
   - task_id: SKILLS-RULES-REORG-SEARCH-SAVE
     title: "Skills rules reorg: search/save + stdin"
     category: docs

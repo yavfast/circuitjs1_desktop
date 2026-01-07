@@ -69,9 +69,9 @@ public class TriacElm extends CircuitElm {
     }
 
     void setup() {
-        diode03 = new Diode();
+        diode03 = new Diode(simulator());
         diode03.setupForDefaultModel();
-        diode30 = new Diode();
+        diode30 = new Diode(simulator());
         diode30.setupForDefaultModel();
     }
 

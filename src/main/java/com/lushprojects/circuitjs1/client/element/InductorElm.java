@@ -33,7 +33,7 @@ public class InductorElm extends CircuitElm {
 
     public InductorElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        ind = new Inductor();
+        ind = new Inductor(simulator());
         inductance = 1;
         ind.setup(inductance, current, flags);
     }
@@ -41,7 +41,7 @@ public class InductorElm extends CircuitElm {
     public InductorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
             StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
-        ind = new Inductor();
+        ind = new Inductor(simulator());
         inductance = parseDouble(st.nextToken());
         current = parseDouble(st.nextToken());
         if (st.hasMoreTokens()) {

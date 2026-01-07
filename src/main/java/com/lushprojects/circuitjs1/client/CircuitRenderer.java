@@ -429,6 +429,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             graphics.setColor(Color.white);
         graphics.drawString(Locale.LS("Mode: ") + cirSim.menuManager.classToLabelMap.get(circuitEditor().mouseModeStr),
                 10, 29);
+
+        CircuitSimulator simulator = simulator();
+        if (simulator.stopMessage != null && !simulator.stopMessage.isEmpty()) {
+            // Show stop/error message near top-left where users expect it.
+            // Use the existing select color (theme-consistent) to distinguish it from the mode label.
+            graphics.setColor(ColorSettings.get().getSelectColor());
+            graphics.drawString(simulator.stopMessage, 10, 44);
+        }
     }
 
     void drawBottomArea(Graphics g) {
@@ -454,7 +462,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 canvasHeight - circuitArea.height + infoBoxHeight);
         g.setFont(getUnitsFont());
 
-        int currentScopeCount = (simulator.stopMessage != null) ? 0 : scopeManager.scopeCount;
+        // Keep scopes visible even when the simulator is stopped (e.g. convergence failure).
+        int currentScopeCount = scopeManager.scopeCount;
 
         Scope.clearCursorInfo();
         for (int i = 0; i < currentScopeCount; i++)
@@ -474,10 +483,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
         g.setColor(ColorSettings.get().getBackgroundColor());
 
-        if (simulator.stopMessage != null) {
-            g.setColor(Color.red);
-            g.drawString(simulator.stopMessage, 10, canvasHeight - 10);
-        } else if (!circuitInfo().hideInfoBox) {
+        if (!circuitInfo().hideInfoBox) {
             drawInfoBox(g, infoBoxStartX, currentScopeCount);
         }
     }

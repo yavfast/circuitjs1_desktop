@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-01-07T16:20:30+02:00",
+  "task_text": "Fix non-starting simulation on a specific circuit where getSimInfo() reported 'Exception in L1.stamp(): ... timeStep ...' due to embedded Inductor helper lacking a simulator reference; also keep simulation error text UX improvements intact.",
+  "summary": "Hardened elements that embed Inductor helper objects to assign the current CircuitSimulator in constructors via ind.setSimulator(simulator()). This prevents runtime TypeError during stamp()/iteration when simulator.timeStep is accessed through an uninitialized simulator reference. Verified via JS API that importing tests/tmp_current_failing_circuit.txt now advances time with no stopMessage/errorMessage.",
+  "used_skills": [
+    "circuitjs1-dev-workflow"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/element/RelayCoilElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/element/DCMotorElm.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/simulation/embedded-inductor",
+    "circuitjs1/ui/sim-error-visibility"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "DevMode JS API: import tests/tmp_current_failing_circuit.txt; after several stepSimulation() calls time increases and stopMessage/errorMessage are empty. Maven build/test passes."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q test",
+      "result": "pass"
+    }
+  ]
+}

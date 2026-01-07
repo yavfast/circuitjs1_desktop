@@ -80,8 +80,7 @@ public class LEDArrayElm extends ChipElm {
         int i;
         DiodeModel model = DiodeModel.getModelWithName("default-led");
         for (i = 0; i != diodes.length; i++) {
-            diodes[i] = new Diode();
-            diodes[i].setSimulator(simulator());
+            diodes[i] = new Diode(simulator());
             diodes[i].setup(model);
             diodes[i].stamp(getNode(sizeX + (i / sizeX)), getNode(i % sizeX));
         }

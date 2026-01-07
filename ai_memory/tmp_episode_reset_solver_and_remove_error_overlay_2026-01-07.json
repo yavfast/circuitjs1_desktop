@@ -1,0 +1,47 @@
+{
+  "episode_id": "reset_solver_and_remove_error_overlay_2026-01-07",
+  "date": "2026-01-07",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": ["simulation", "ui"],
+    "symptoms": [
+      "resetSimulation didn't fully reset element/solver state",
+      "on-canvas error/stop text covered oscilloscope scopes"
+    ],
+    "user_requirements": [
+      "resetSimulation must reset state of all elements",
+      "remove error text drawn bottom-left/under Mode; keep error accessible without covering scopes"
+    ]
+  },
+  "changes": {
+    "code": [
+      {
+        "file": "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java",
+        "what": "Enhanced resetSimulation to clear stop+error state, reset time counters, call reset() on all CircuitElm instances, reset solver state, then needAnalyze()."
+      },
+      {
+        "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+        "what": "Added/used resetSolverState() to clear node voltages/matrices and force clean restart after reset." 
+      },
+      {
+        "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java",
+        "what": "Removed drawing of stop/error message text on canvas (under Mode and bottom-left) to avoid covering scopes." 
+      }
+    ],
+    "behavior": [
+      "Reset now returns simulation time to 0 and restores element state baselines (verified on a transistor vdiff).",
+      "Errors remain visible via existing tab error indicator/tooltip without overlaying scopes."
+    ]
+  },
+  "verification": {
+    "build": "mvn test -> BUILD SUCCESS",
+    "devmode": [
+      "Captured screenshot confirming no overlay covers scopes (tmp_nwtest/no_error_overlay_scopes.png)",
+      "JS API check: run sim, observe element state changes, call resetSimulation, confirm time==0 and state restored"
+    ]
+  },
+  "notes": {
+    "risk": "If users relied on in-canvas error text, they must use tooltip/tab indicator instead.",
+    "open_question": "Need a reliable repro circuit for convergence failure to visually confirm 'Element: <id>' text appears when it triggers."
+  }
+}

@@ -28,8 +28,8 @@ public class DCMotorElm extends CircuitElm {
 
     public DCMotorElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        ind = new Inductor();
-        indInertia = new Inductor();
+        ind = new Inductor(simulator());
+        indInertia = new Inductor(simulator());
         inductance = .5;
         resistance = 1;
         angle = PI / 2;
@@ -61,8 +61,8 @@ public class DCMotorElm extends CircuitElm {
         gearRatio = parseDouble(st.nextToken());
         tau = parseDouble(st.nextToken());
 
-        ind = new Inductor();
-        indInertia = new Inductor();
+        ind = new Inductor(simulator());
+        indInertia = new Inductor(simulator());
         ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
         indInertia.setup(J, 0, Inductor.FLAG_BACK_EULER);
     }

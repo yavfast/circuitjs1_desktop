@@ -77,7 +77,7 @@ public class RelayElm extends CircuitElm {
 
     public RelayElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        ind = new Inductor();
+        ind = new Inductor(simulator());
         inductance = .2;
         ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
         noDiagonal = true;
@@ -117,7 +117,7 @@ public class RelayElm extends CircuitElm {
         if (i_position == 2)
             d_position = .5;
         noDiagonal = true;
-        ind = new Inductor();
+        ind = new Inductor(simulator());
         ind.setup(inductance, coilCurrent, Inductor.FLAG_BACK_EULER);
         setupPoles();
         allocNodes();
@@ -570,7 +570,7 @@ public class RelayElm extends CircuitElm {
     }
 
     @Override
-    public void setCircuitDocument(com.lushprojects.circuitjs1.client.CircuitDocument circuitDocument) {
+    public void setCircuitDocument(CircuitDocument circuitDocument) {
         super.setCircuitDocument(circuitDocument);
         ind.setSimulator(circuitDocument.simulator);
     }

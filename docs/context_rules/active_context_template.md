@@ -25,6 +25,28 @@ This file defines the required structure of `ai_memory/active_context.md`.
    - `scope_in`: what is included
    - `scope_out`: what is excluded
 
+2b) **Other Tasks (This Chat)** (optional)
+
+If the current chat contains multiple tasks that you may switch between, add this section.
+Keep it concise, but structure each task similarly to “Current Task”.
+
+Recommended structured list:
+
+```yaml
+other_tasks:
+   - task_id: TASK-ID
+      goal: "One sentence"
+      status: not-started | in-progress | paused | blocked | completed
+      priority: high | medium | low
+      current_focus: "What you were doing last" # optional
+      active_files: [path1, path2]               # optional
+      next: "Next step"                         # optional
+      blocked_by: "<reason>" # if status=blocked
+```
+
+If this section exists, group other sections by `task_id` where practical (Plan/Progress/etc.),
+so different tasks don’t get mixed together.
+
 3) **Plan & References**
    - `plan`: reference to plan (file or `manage_todo_list`) + short status
    - `related_docs`: relevant docs files
@@ -67,6 +89,9 @@ verify_cmd: <command to verify current state>
 last_result: success | failure | pending
 ```
 
+If multiple tasks exist in the active context, you may include multiple Quick Resume blocks,
+one per `task_id`, as long as they are all kept at the end of the file.
+
 ## Content principles
 
 - Prefer *state* over history
@@ -76,6 +101,7 @@ last_result: success | failure | pending
 ## Key constraints
 
 - Exactly **one** Current Task at a time
+- `Current Task.task_id` is **stable** during normal sync. If it needs to change, use the switching protocol in `switching.md` (archive + registry + restore/bootstrap).
 - Quick Resume block **must** be at the end
 - `last_updated` must be ISO-8601 with timezone
 

@@ -49,7 +49,7 @@ public class DiodeElm extends CircuitElm {
     public DiodeElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         modelName = lastModelName;
-        diode = new Diode();
+        diode = new Diode(simulator());
         setup();
     }
 
@@ -57,7 +57,7 @@ public class DiodeElm extends CircuitElm {
                     StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f);
         final double defaultdrop = .805904783;
-        diode = new Diode();
+        diode = new Diode(simulator());
         double fwdrop = defaultdrop;
         double zvoltage = 0;
         if ((f & FLAG_MODEL) != 0) {

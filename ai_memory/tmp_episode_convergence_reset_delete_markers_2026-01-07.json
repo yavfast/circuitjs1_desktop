@@ -1,0 +1,26 @@
+{
+  "task_id": "SIM-CONVERGENCE-RESET-NODE-MARKERS",
+  "timestamp": "2026-01-07T17:11:00+02:00",
+  "status": "success",
+  "summary": "Improved solver UX and recovery: convergence failure now names the first element that triggers non-convergence during doStep(); JS API resetSimulation now clears stop/error state reliably; and needAnalyze() runs a lightweight analyze when stopped so post/node markers (postDrawList) don't linger after delete/edits.",
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "what": "Track firstNonConvergedElm per nonlinear sub-iteration (first CircuitElm after which converged becomes false) and include its element ID in the 'Convergence failed!' stop message; also set stopElm for highlighting."
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java",
+      "what": "Harden resetSimulation(): stop sim, clear CircuitDocument error, clear simulator stop state, reset time, reset all elements, and trigger re-analyze."
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/BaseCirSim.java",
+      "what": "When simulation is stopped, run simulator.analyzeCircuit() immediately inside needAnalyze() so analyze-derived draw state (postDrawList/badConnectionList) stays in sync after delete/edits."
+    }
+  ],
+  "verification": [
+    "mvn test (BUILD SUCCESS; no tests present)"
+  ],
+  "open_issues": [
+    "DevMode manual verification recommended: trigger convergence failure, confirm overlay/tooltip shows element ID; delete element while stopped, confirm post markers disappear."
+  ]
+}

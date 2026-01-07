@@ -62,10 +62,12 @@ public class TabWidget extends Composite {
         titleLabel.setTitle(title); // Tooltip
     }
 
-    public void setStatus(boolean isRunning, boolean hasError) {
+    public void setStatus(boolean isRunning, String errorMessage) {
+        boolean hasError = errorMessage != null && !errorMessage.isEmpty();
+
         if (hasError) {
             statusLabel.setText("⚠");  // Warning triangle
-            statusLabel.setTitle("Error");
+            statusLabel.setTitle(errorMessage);
             statusLabel.setStyleName("tabStatus error");
             statusLabel.setVisible(true);
         } else if (isRunning) {

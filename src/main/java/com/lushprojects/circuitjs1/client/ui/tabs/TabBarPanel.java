@@ -90,14 +90,14 @@ public class TabBarPanel extends Composite implements DocumentManager.DocumentMa
     public void onDocumentAdded(CircuitDocument document) {
         TabWidget tab = new TabWidget(document, this);
         tab.setTitle(documentManager.getTabTitle(document));
-        tab.setStatus(document.isRunning(), document.getErrorMessage() != null);
+        tab.setStatus(document.isRunning(), document.getErrorMessage());
         tabsContainer.add(tab);
         tabMap.put(document, tab);
 
         document.addStateListener(new CircuitDocument.SimulationStateListener() {
             @Override
             public void onSimulationStateChanged(boolean isRunning, String errorMessage) {
-                tab.setStatus(isRunning, errorMessage != null);
+                tab.setStatus(isRunning, errorMessage);
             }
         });
     }

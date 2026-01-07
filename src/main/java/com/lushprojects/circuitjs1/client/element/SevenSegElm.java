@@ -212,8 +212,7 @@ public class SevenSegElm extends ChipElm {
         int i;
         DiodeModel model = DiodeModel.getModelWithName("default-led");
         for (i = 0; i != segmentCount; i++) {
-            diodes[i] = new Diode();
-            diodes[i].setSimulator(simulator());
+            diodes[i] = new Diode(simulator());
             diodes[i].setup(model);
             if (diodeDirection == 1)
                 diodes[i].stamp(getNode(i), getNode(commonPin));

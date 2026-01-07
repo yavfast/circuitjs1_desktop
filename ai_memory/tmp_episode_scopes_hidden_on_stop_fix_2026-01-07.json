@@ -1,0 +1,38 @@
+{
+  "id": "tmp_episode_scopes_hidden_on_stop_fix_2026-01-07",
+  "status": "success",
+  "timestamp": "2026-01-07T00:00:00+02:00",
+  "summary": "Fix regression where all oscilloscope scopes disappeared when simulation stopped (e.g., convergence failure) and restore visible stop/error text near top-left.",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": "UI/rendering",
+    "symptoms": [
+      "Error text not shown in top-left",
+      "All oscilloscopes/scopes vanish after error/stop",
+      "Tab shows only warning icon with tooltip"
+    ]
+  },
+  "root_cause": {
+    "description": "CircuitRenderer.drawBottomArea() forced currentScopeCount=0 when simulator.stopMessage!=null, so scope drawing was suppressed during stopped/error state.",
+    "evidence": [
+      "DevTools simInfo showed stopMessage='Convergence failed! Element: TRA1' and running=false",
+      "DOM had no scope nodes; renderer code gated scope draw on stopMessage"
+    ]
+  },
+  "fix": {
+    "changes": [
+      "Always draw scopes regardless of stopMessage (use scopeManager.scopeCount)",
+      "Render stopMessage below Mode label in CircuitRenderer.drawMouseMode()"
+    ],
+    "files": [
+      "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java"
+    ]
+  },
+  "verification": {
+    "method": [
+      "Recompile GWT in DevMode",
+      "Reload circuitjs.html?test=1",
+      "Confirm scopes visible in bottom area and stop message appears top-left on convergence failure"
+    ]
+  }
+}

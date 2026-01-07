@@ -76,7 +76,7 @@ public class SCRElm extends CircuitElm {
     }
 
     void setup() {
-        diode = new Diode();
+        diode = new Diode(simulator());
         diode.setupForDefaultModel();
         aresistance = 1; // to avoid divide by zero
     }

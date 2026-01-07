@@ -1,0 +1,32 @@
+{
+  "timestamp": "2026-01-07T18:12:00+02:00",
+  "task_text": "Add internal winding resistances to transformer models (standard, tapped, custom), reduce default coupling to 0.99, and enable auto-adjust timestep by default.",
+  "summary": "Implemented per-winding series resistances using internal nodes for TransformerElm and TappedTransformerElm, and completed the same approach for CustomTransformerElm (internal nodes used consistently in stamp/startIteration/doStep/calculateCurrent). Updated defaults (coupling=0.99), ensured backward-compatible text dump parsing/writing, added JSON persistence for new parameters, and set CircuitSimulator.adjustTimeStep=true by default so timestep backoff is enabled out-of-the-box.",
+  "used_skills": [
+    "circuitjs1-dev-workflow"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/element/TransformerElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/element/TappedTransformerElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/element/CustomTransformerElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/simulation/convergence",
+    "circuitjs1/elements/transformer",
+    "circuitjs1/simulation/timestep"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Java compile verified via Maven; transformer elements now have editable winding resistance parameters and coupling defaults to 0.99; auto timestep adjust is default-on for new simulator instances."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests=true test",
+      "result": "pass"
+    }
+  ]
+}

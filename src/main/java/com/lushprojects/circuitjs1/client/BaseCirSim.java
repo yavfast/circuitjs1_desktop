@@ -98,6 +98,14 @@ public class BaseCirSim {
 
     public void needAnalyze() {
         activeDocument.circuitInfo.dcAnalysisFlag = true; // Trigger analysis in next update
+
+        // When simulation is stopped, the SimulationLoop doesn't run, so analysis-derived
+        // draw state (like post/node markers) can get stale after edits/deletes.
+        // Rebuild it immediately so the canvas reflects the current circuit.
+        if (!activeDocument.isRunning()) {
+            activeDocument.simulator.analyzeCircuit();
+            activeDocument.circuitInfo.dcAnalysisFlag = false;
+        }
         repaint();
         enableDisableMenuItems();
     }

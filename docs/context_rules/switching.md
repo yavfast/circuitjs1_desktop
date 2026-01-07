@@ -40,11 +40,32 @@ When searching for context to restore:
 
 If unsure: ask, or create new context and mark previous as `paused`.
 
+## Strict rule: archive before replacing the task
+
+It is **FORBIDDEN** to replace `Current Task` (or change `Current Task.task_id`) in `ai_memory/active_context.md` as part of a normal sync.
+
+If the task changes materially, you MUST:
+1) Sync the current active context (`sync.md`)
+2) Archive it into `ai_memory/context_history/<task_id>.md`
+3) Update the registry `ai_memory/context_history/contexts_index.yaml`
+4) Only then restore/bootstrap the new task context
+
+This prevents accidental loss of the previous task state and ensures history stays coherent.
+
+## Multi-task active contexts (same chat)
+
+If `ai_memory/active_context.md` contains multiple tasks (Current Task + Other Tasks from the same chat):
+
+- Switching focus **within the same chat** can be done by promoting an “Other Task” into “Current Task” (see `multi_task.md`).
+- Switching to a **new unrelated task** (typically at the start of a new chat) MUST archive **each task separately by task_id**.
+   Do not collapse multiple tasks into one archive file.
+
 ## Switch protocol
 
 1. **Sync** active context (see `sync.md`)
 2. **Archive** current context:
-   - Copy to `ai_memory/context_history/<task_id>.md`
+   - If only one task exists: copy to `ai_memory/context_history/<task_id>.md`
+   - If multiple tasks exist: create/update one archive per task: `ai_memory/context_history/<task_id>.md`
    - Add Archive Summary and Quick Resume block
    - Set status: `paused` or `completed`
 3. **Register** in `contexts_index.yaml`

@@ -220,6 +220,7 @@ public final class ElmGeometry {
         y2 += dy;
         boundingBox.translate(dx, dy);
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void dragTo(int xx, int yy) {
@@ -235,6 +236,7 @@ public final class ElmGeometry {
         x2 = xx;
         y2 = yy;
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void movePoint(int n, int dx, int dy) {
@@ -266,6 +268,7 @@ public final class ElmGeometry {
             y2 = oldy2;
         }
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void flipX(int center2) {
@@ -273,6 +276,7 @@ public final class ElmGeometry {
         x2 = center2 - x2;
         initBoundingBox();
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void flipY(int center2) {
@@ -280,6 +284,7 @@ public final class ElmGeometry {
         y2 = center2 - y2;
         initBoundingBox();
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void flipXY(int xmy) {
@@ -295,6 +300,7 @@ public final class ElmGeometry {
 
         initBoundingBox();
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void flipPosts() {
@@ -305,6 +311,7 @@ public final class ElmGeometry {
         x2 = oldx;
         y2 = oldy;
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void dragFixedSize(int gridX, int gridY) {
@@ -315,6 +322,7 @@ public final class ElmGeometry {
         x2 += deltaX;
         y2 += deltaY;
         updatePointsFromEndpoints();
+        owner.setPoints();
     }
 
     public void calcLeads(int len) {

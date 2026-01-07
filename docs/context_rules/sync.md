@@ -46,3 +46,24 @@ When and how to update `ai_memory/active_context.md`.
 - No duplication
 - Precise wording; don't hide uncertainty
 - Stable `task_id`
+
+## Hard rules (strict)
+
+### Active context is incremental
+
+Edits to `ai_memory/active_context.md` are **incremental**: the file is only **supplemented** with new facts/progress or **corrected** for accuracy/clarity within the *same* task.
+
+Allowed during sync:
+- Update `Meta.last_updated`
+- Clarify/adjust `goal` wording without changing task intent
+- Add/adjust `current_focus`, `active_files`, `scratchpad`
+- Move items between `done` / `in_progress` / `next`
+
+Forbidden during sync:
+- Replacing `Current Task` with an unrelated task
+- Changing `Current Task.task_id`
+- “Resetting” the file to a new template while losing prior task state
+
+### Significant task change requires switching
+
+If the intended task changes materially (new topic/subsystem, new goal/category, or you need a different `task_id`), you MUST follow the switching protocol in `switching.md` (sync → archive → registry → restore/bootstrap). Do **not** overwrite the active context directly.

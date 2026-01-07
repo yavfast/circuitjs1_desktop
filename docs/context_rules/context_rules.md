@@ -18,7 +18,8 @@ STALENESS_WARN_DAYS = 7;  STALENESS_FULL_REFRESH = 30;  GOOD_MATCH_MIN_TAGS = 2
 
 # ══ CORE INVARIANTS ══
 assert ACTIVE_CONTEXT_FILE exists
-assert active_context.current_task is exactly one task
+assert active_context.current_task is exactly one task  # primary task
+# active_context may also include other tasks from the same chat (see multi_task.md)
 
 # ══ CONTENT PRINCIPLES (for ACTIVE_CONTEXT_FILE) ══
 # - No hard numeric limits (bullets/lines). Write as much as needed to resume work without guessing.
@@ -40,8 +41,13 @@ function IS_GOOD_MATCH(candidate, intent):
 
 function CHOOSE_FLOW(ctx, intent):
    if INTENT_CONTRADICTS_CURRENT_TASK(ctx, intent): return "SWITCHING"
+   # Multi-task means: keep multiple tasks inside the same active_context
+   # (only when they belong to this same chat and it's useful to switch between them).
    if intent.wants_parallel_tasks: return "MULTI_TASK"
    return "SYNC"
+
+# INTENT_CONTRADICTS_CURRENT_TASK MUST return true if intent implies a different task_id
+# or a materially different goal/topic. Task switches are handled only via DO_SWITCHING.
 
 # ══ MAIN ENTRY POINT ══
 procedure START_NEW_CHAT(user_message):
@@ -73,6 +79,11 @@ procedure AFTER_EACH_USER_REQUEST(ctx, result):
 
 function SYNC_CONTEXT(ctx, result):
    ctx.meta.last_updated = NOW_ISO8601()
+
+   # Strict invariant: sync must not change the task identity.
+   # If you need a different task_id, you MUST run DO_SWITCHING (archive+registry).
+   assert ctx.current_task.task_id is unchanged
+
    ctx.current_task.goal = NORMALIZE_GOAL(ctx.current_task.goal, result.user_intent)
    ctx.plan_and_references = UPDATE_REFERENCES(ctx.plan_and_references, result)
    ctx.progress = UPDATE_PROGRESS(ctx.progress, result)
@@ -83,15 +94,17 @@ function SYNC_CONTEXT(ctx, result):
 
 # ══ SWITCHING ══
 procedure DO_SWITCHING(ctx, intent):
-   # A) Sync & archive current
+   # A) Sync & archive current context.
+   # If active_context contains multiple tasks (current + other tasks),
+   # you MUST archive them separately by task_id so none of them are lost.
    ctx = SYNC_CONTEXT(ctx, { decision_made: true, reason: "pre-switch" })
    WRITE_CONTEXT(ACTIVE_CONTEXT_FILE, ctx)
-   archive_file = ARCHIVE_DIR + ctx.current_task.task_id + ".md"
-   WRITE_CONTEXT(archive_file, ENSURE_ARCHIVE_SUMMARY(ctx))
+
+   archives = ARCHIVE_ALL_TASKS_SEPARATELY(ctx)  # writes ARCHIVE_DIR/<task_id>.md
    
    # B) Update registry
    registry = READ_YAML(CONTEXT_REGISTRY_FILE)
-   registry = UPSERT_REGISTRY_ENTRY(registry, ctx, archive_file)
+   registry = UPSERT_REGISTRY_ENTRIES(registry, ctx, archives)
    WRITE_YAML(CONTEXT_REGISTRY_FILE, registry)
 
    # C) Find match or bootstrap

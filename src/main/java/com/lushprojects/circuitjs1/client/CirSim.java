@@ -1193,15 +1193,31 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface - Reset simulation
     void resetSimulation() {
-        CircuitSimulator simulator = getActiveDocument().simulator;
-        // Reset time but keep circuit intact
+        CircuitDocument doc = getActiveDocument();
+        CircuitSimulator simulator = doc.simulator;
+
+        // Ensure simulation is stopped.
+        setSimRunning(false);
+
+        // Clear any prior error/stop state so the user can restart.
+        doc.clearError();
+        simulator.clearStopState();
+
+        // Reset time but keep circuit intact.
         simulator.t = simulator.timeStepAccum = 0;
+        simulator.timeStepCount = 0;
         simulator.lastIterTime = 0;
-        // Reset elements
+
+        // Reset elements.
         for (int i = 0; i < simulator.elmList.size(); i++) {
             CircuitElm ce = simulator.elmList.get(i);
             ce.reset();
         }
+
+        // Clear any transient solver state so the next run is a clean start.
+        simulator.resetSolverState();
+
+        // Rebuild analysis-derived state (including node markers).
         needAnalyze();
     }
 

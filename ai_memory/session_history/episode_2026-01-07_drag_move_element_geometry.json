@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-01-07T14:30:00+02:00",
+  "task_text": "When dragging/moving any element with the mouse, only pin endpoints move while the element body stays in place. Fix so the whole element moves as a unit.",
+  "summary": "Fixed geometry update pipeline so endpoint mutations in ElmGeometry also trigger element-specific recomputation via CircuitElm#setPoints(), restoring correct whole-element movement during drag.",
+  "used_skills": [
+    "circuitjs1-dev-workflow"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/element/ElmGeometry.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/ui/drag",
+    "circuitjs1/geometry/elmgeometry"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Build (including GWT compile) succeeds. Manual verification recommended: drag a few elements and confirm the entire symbol translates, not just posts."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -DskipTests package",
+      "result": "pass"
+    }
+  ]
+}

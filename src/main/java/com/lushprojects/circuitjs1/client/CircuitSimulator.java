@@ -73,6 +73,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public CircuitSimulator(BaseCirSim cirSim, CircuitDocument circuitDocument) {
         super(cirSim, circuitDocument);
+        adjustTimeStep = true;
     }
 
     public void stop(String message, CircuitElm ce) {
@@ -91,6 +92,34 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public void clearStopState() {
         stopMessage = null;
         stopElm = null;
+    }
+
+    /**
+     * Clears solver/analysis transient state so the next start performs a clean analyze+stamp.
+     * Intended for use by resetSimulation().
+     */
+    public void resetSolverState() {
+        clearStopState();
+        singularStabilizersActive = false;
+
+        // Force full re-stamp on next run.
+        needsStamp = true;
+
+        // Drop any existing matrix/voltage state so nothing "leaks" across resets.
+        circuitMatrix = null;
+        origMatrix = null;
+        circuitRightSide = null;
+        origRightSide = null;
+        nodeVoltages = null;
+        lastNodeVoltages = null;
+        circuitRowInfo = null;
+        circuitPermute = null;
+
+        circuitNonLinear = false;
+        voltageSourceCount = 0;
+        circuitMatrixSize = 0;
+        circuitMatrixFullSize = 0;
+        circuitNeedsMap = false;
     }
 
     int locateElm(CircuitElm elm) {
@@ -619,7 +648,14 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // stamp linear circuit elements
         for (CircuitElm ce : elmList) {
             ce.setParentList(elmList);
-            ce.stamp();
+            try {
+                ce.stamp();
+            } catch (Exception e) {
+                String id = ce.getElementId();
+                String label = (id != null && !id.isEmpty()) ? id : ce.getClass().getSimpleName();
+                stop("Exception in " + label + ".stamp(): " + e.getMessage(), ce);
+                return;
+            }
         }
 
         if (!simplifyMatrix(matrixSize)) {
@@ -1324,6 +1360,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             int subIterCount = (adjustTimeStep && timeStep / 2 > minTimeStep) ? 100 : 5000;
             int subIter = 0;
 
+            CircuitElm firstNonConvergedElm = null;
+
             int circuitMatrixSize = this.circuitMatrixSize;
             double[][] circuitMatrix = this.circuitMatrix;
             double[] circuitRightSide = this.circuitRightSide;
@@ -1334,6 +1372,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             for (subIter = 0; subIter < subIterCount; subIter++) {
                 converged = true;
                 subIterations = subIter;
+                firstNonConvergedElm = null;
 
                 if (circuitMatrixSize >= 0) {
                     System.arraycopy(origRightSide, 0, circuitRightSide, 0, circuitMatrixSize);
@@ -1347,6 +1386,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
                 for (CircuitElm circuitElm : elmArr) {
                     circuitElm.doStep();
+                    if (!converged && firstNonConvergedElm == null) {
+                        firstNonConvergedElm = circuitElm;
+                    }
                 }
 
                 if (stopMessage != null) {
@@ -1427,7 +1469,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
                 if (timeStep < minTimeStep || !adjustTimeStep) {
                     console("convergence failed after " + subIter + " iterations");
-                    stop("Convergence failed!", null);
+                    if (firstNonConvergedElm != null) {
+                        String id = firstNonConvergedElm.getElementId();
+                        stop("Convergence failed! Element: " + id, firstNonConvergedElm);
+                    } else {
+                        stop("Convergence failed!", null);
+                    }
                     break;
                 }
                 // we reduced the timestep. reset circuit state to the way it was at start of

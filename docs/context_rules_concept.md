@@ -44,6 +44,11 @@ SCOPE
 	- reconstruct context from artifacts (if known),
 	- and update `ai_memory/active_context.md` to the current state.
 
+3) If `ai_memory/active_context.md` contains multiple tasks from a previous chat/session:
+	- If the new chat intent matches **any** `task_id` described in the active context (Current Task or Other Tasks), reuse the existing active context and sync under the matching task.
+	- If the new chat intent does **not** match any described task, the agent must perform a context switch (see `docs/context_rules/switching.md`).
+	  In that switch, tasks in the previous active context must be archived **separately by task_id** so none of them are lost.
+
 ## 4) Minimal active context structure (mandatory template)
 
 `ai_memory/active_context.md` **must** contain the following sections in the given order (so other AIs can parse/validate unambiguously).
@@ -72,6 +77,13 @@ SCOPE
 	- `scratchpad`: last immediate thought or intermediate state (optional)
 	- `scope_in`: what is included
 	- `scope_out`: what is explicitly excluded
+
+2b) **Other Tasks (This Chat)** (optional)
+
+If the current conversation branches into multiple tasks that are all part of the same chat, the active context may contain a short “Other Tasks” section.
+Each task entry should be structured similarly to “Current Task” (task_id/goal/scope/next), but kept concise.
+
+If “Other Tasks” exists, information in subsequent sections should be grouped by `task_id` when practical (Plan/Progress/Breadcrumbs/Guardrails/Memory Candidates) to avoid mixing unrelated state.
 
 3) **Plan & References**
 	- `plan`: reference to a plan (file or “manage_todo_list”) + short status
@@ -241,6 +253,9 @@ SCOPE
 	```
 
 	This block MUST be updated at every context sync. It allows an agent to understand the task in 10 seconds.
+
+	If multiple tasks exist in the active context, it is allowed (and recommended) to include multiple Quick Resume blocks,
+	one per task, as long as they are all kept at the end of the file.
 
 ---
 The content must be **necessarily sufficient** to resume work:

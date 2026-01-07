@@ -30,6 +30,7 @@ import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
 public class TransformerElm extends CircuitElm {
     double inductance, ratio, couplingCoef;
+    double primaryResistance, secondaryResistance;
     Point ptEnds[], ptCoil[], ptCore[];
     double current[], curcount[];
     Point dots[];
@@ -44,17 +45,11 @@ public class TransformerElm extends CircuitElm {
         ratio = polarity = 1;
         width = 32;
         noDiagonal = true;
-        couplingCoef = .999;
+        couplingCoef = .99;
+        primaryResistance = 0.1;
+        secondaryResistance = 0.1;
         current = new double[2];
         curcount = new double[2];
-
-        // Fixed nominal size on creation (no resize while adding).
-        int nominalLen = 32;
-        int nominalWidth = 32;
-        flags &= ~FLAG_VERTICAL;
-        width = nominalWidth;
-        setEndpoints(xx, yy, xx + nominalLen, yy + nominalWidth);
-        setPoints();
     }
 
     // ... constructor 2 ...
@@ -82,9 +77,23 @@ public class TransformerElm extends CircuitElm {
         curcount = new double[2];
         current[0] = parseDouble(st.nextToken());
         current[1] = parseDouble(st.nextToken());
-        couplingCoef = parseDouble(st.nextToken(), .999);
+        couplingCoef = parseDouble(st.nextToken(), .99);
+        primaryResistance = 0.1;
+        secondaryResistance = 0.1;
+        if (st.hasMoreTokens()) {
+            primaryResistance = parseDouble(st.nextToken(), primaryResistance);
+        }
+        if (st.hasMoreTokens()) {
+            secondaryResistance = parseDouble(st.nextToken(), secondaryResistance);
+        }
         noDiagonal = true;
         polarity = (hasFlag(FLAG_REVERSE)) ? -1 : 1;
+    }
+
+    @Override
+    public int getInternalNodeCount() {
+        // One internal node per winding to model series winding resistance.
+        return 2;
     }
 
     @Override
@@ -94,7 +103,7 @@ public class TransformerElm extends CircuitElm {
 
     @Override
     public boolean isFixedSizeOnCreate() {
-        return true;
+        return false;
     }
 
     @Override
@@ -256,7 +265,8 @@ public class TransformerElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), inductance, ratio, current[0], current[1], couplingCoef);
+        return dumpValues(super.dump(), inductance, ratio, current[0], current[1], couplingCoef,
+                primaryResistance, secondaryResistance);
     }
 
     boolean isTrapezoidal() {
@@ -342,27 +352,43 @@ public class TransformerElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        // Keep the resize handle diagonal (x2/y2) but constrain the rendered axis.
-        if (hasFlag(FLAG_VERTICAL))
-            setEndpoints(getX(), getY(), getX(), getY2());
-        else
-            setEndpoints(getX(), getY(), getX2(), getY());
 
-        // Use getters so we rely on ElmGeometry (and possible subclass tweaks via
-        // adjustDerivedGeometry)
-        double dn = getDn();
-        int dsign = getDsign();
+        // Transformer uses (x,y)-(x2,y2) as a diagonal corner pair for resizing handles,
+        // but the rendered/stamped winding axis must be axis-aligned.
+        final boolean vertical = hasFlag(FLAG_VERTICAL);
+        final int ax1 = getX();
+        final int ay1 = getY();
+        final int ax2 = vertical ? getX() : getX2();
+        final int ay2 = vertical ? getY2() : getY();
+        final Point axisP1 = new Point(ax1, ay1);
+        final Point axisP2 = new Point(ax2, ay2);
+
+        int adx = ax2 - ax1;
+        int ady = ay2 - ay1;
+        double dn = Math.sqrt((double) adx * (double) adx + (double) ady * (double) ady);
+        if (dn < 1) {
+            dn = 1;
+        }
+        int dsign = (ady == 0) ? sign(adx) : sign(ady);
+
         if (ptEnds == null)
             ptEnds = newPointArray(4);
         if (ptCoil == null)
             ptCoil = newPointArray(4);
         if (ptCore == null)
             ptCore = newPointArray(4);
-        ptEnds[0] = geom().getPoint1();
-        ptEnds[1] = geom().getPoint2();
+
+        // Primary winding endpoints (axis-aligned)
+        ptEnds[0].x = axisP1.x;
+        ptEnds[0].y = axisP1.y;
+        ptEnds[1].x = axisP2.x;
+        ptEnds[1].y = axisP2.y;
+
         flip = hasFlag(FLAG_FLIP) ? -1 : 1;
-        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[2], 0, -dsign * width * flip);
-        interpPoint(geom().getPoint1(), geom().getPoint2(), ptEnds[3], 1, -dsign * width * flip);
+
+        // Secondary winding endpoints (offset from the primary axis by winding spacing)
+        interpPoint(axisP1, axisP2, ptEnds[2], 0, -dsign * width * flip);
+        interpPoint(axisP1, axisP2, ptEnds[3], 1, -dsign * width * flip);
         double ce = .5 - 12 / dn;
         double cd = .5 - 2 / dn;
         for (int i = 0; i != 4; i += 2) {
@@ -372,7 +398,7 @@ public class TransformerElm extends CircuitElm {
             interpPoint(ptEnds[i], ptEnds[i + 1], ptCore[i + 1], 1 - cd);
         }
         if (polarity == -1) {
-            int vsign = (hasFlag(FLAG_VERTICAL)) ? -1 : 1;
+            int vsign = vertical ? -1 : 1;
             double dotp = Math.abs(7. / width);
             if (dots == null || dots.length != 2)
                 dots = newPointArray(2);
@@ -414,6 +440,8 @@ public class TransformerElm extends CircuitElm {
         setNodeVoltageDirect(1, 0);
         setNodeVoltageDirect(2, 0);
         setNodeVoltageDirect(3, 0);
+        setNodeVoltageDirect(4, 0);
+        setNodeVoltageDirect(5, 0);
         curcount[0] = curcount[1] = 0;
         curSourceValue1 = curSourceValue2 = 0;
     }
@@ -447,7 +475,24 @@ public class TransformerElm extends CircuitElm {
         // So the current source value is just i1(t1) and we use
         // dt instead of dt/2 for the resistor and VCCS.
         //
-        // first winding goes from node 0 to 2, second is from 1 to 3
+        // Model winding resistance as a series resistor placed on one end of each winding.
+        // first winding: node 0 -- Rp -- int0 -- L -- node 2
+        // second winding: node 1 -- Rs -- int1 -- L -- node 3
+        int priInt = getNode(4);
+        int secInt = getNode(5);
+
+        CircuitSimulator simulator = simulator();
+        if (primaryResistance > 0) {
+            simulator.stampResistor(getNode(0), priInt, primaryResistance);
+        } else {
+            simulator.stampConductance(getNode(0), priInt, 1e8);
+        }
+        if (secondaryResistance > 0) {
+            simulator.stampResistor(getNode(1), secInt, secondaryResistance);
+        } else {
+            simulator.stampConductance(getNode(1), secInt, 1e8);
+        }
+
         double l1 = inductance;
         double l2 = inductance * ratio * ratio;
         double m = couplingCoef * Math.sqrt(l1 * l2);
@@ -459,20 +504,21 @@ public class TransformerElm extends CircuitElm {
         a3 = -m * deti * ts;
         a4 = l1 * deti * ts;
 
-        CircuitSimulator simulator = simulator();
-        simulator.stampConductance(getNode(0), getNode(2), a1);
-        simulator.stampVCCurrentSource(getNode(0), getNode(2), getNode(1), getNode(3), a2);
-        simulator.stampVCCurrentSource(getNode(1), getNode(3), getNode(0), getNode(2), a3);
-        simulator.stampConductance(getNode(1), getNode(3), a4);
+        simulator.stampConductance(priInt, getNode(2), a1);
+        simulator.stampVCCurrentSource(priInt, getNode(2), secInt, getNode(3), a2);
+        simulator.stampVCCurrentSource(secInt, getNode(3), priInt, getNode(2), a3);
+        simulator.stampConductance(secInt, getNode(3), a4);
         simulator.stampRightSide(getNode(0));
         simulator.stampRightSide(getNode(1));
         simulator.stampRightSide(getNode(2));
         simulator.stampRightSide(getNode(3));
+        simulator.stampRightSide(priInt);
+        simulator.stampRightSide(secInt);
     }
 
     public void startIteration() {
-        double voltdiff1 = getNodeVoltage(0) - getNodeVoltage(2);
-        double voltdiff2 = getNodeVoltage(1) - getNodeVoltage(3);
+        double voltdiff1 = getNodeVoltage(4) - getNodeVoltage(2);
+        double voltdiff2 = getNodeVoltage(5) - getNodeVoltage(3);
         if (isTrapezoidal()) {
             curSourceValue1 = voltdiff1 * a1 + voltdiff2 * a2 + current[0];
             curSourceValue2 = voltdiff1 * a3 + voltdiff2 * a4 + current[1];
@@ -486,13 +532,13 @@ public class TransformerElm extends CircuitElm {
 
     public void doStep() {
         CircuitSimulator simulator = simulator();
-        simulator.stampCurrentSource(getNode(0), getNode(2), curSourceValue1);
-        simulator.stampCurrentSource(getNode(1), getNode(3), curSourceValue2);
+        simulator.stampCurrentSource(getNode(4), getNode(2), curSourceValue1);
+        simulator.stampCurrentSource(getNode(5), getNode(3), curSourceValue2);
     }
 
     void calculateCurrent() {
-        double voltdiff1 = getNodeVoltage(0) - getNodeVoltage(2);
-        double voltdiff2 = getNodeVoltage(1) - getNodeVoltage(3);
+        double voltdiff1 = getNodeVoltage(4) - getNodeVoltage(2);
+        double voltdiff2 = getNodeVoltage(5) - getNodeVoltage(3);
         current[0] = voltdiff1 * a1 + voltdiff2 * a2 + curSourceValue1;
         current[1] = voltdiff1 * a3 + voltdiff2 * a4 + curSourceValue2;
     }
@@ -529,13 +575,17 @@ public class TransformerElm extends CircuitElm {
             return new EditInfo("Ratio (N1/N2)", 1 / ratio, 1, 10).setDimensionless();
         if (n == 2)
             return new EditInfo("Coupling Coefficient", couplingCoef, 0, 1).setDimensionless();
-        if (n == 3) {
+        if (n == 3)
+            return new EditInfo("Primary Resistance (Ohms)", primaryResistance, 0, 0);
+        if (n == 4)
+            return new EditInfo("Secondary Resistance (Ohms)", secondaryResistance, 0, 0);
+        if (n == 5) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Trapezoidal Approximation",
                     isTrapezoidal());
             return ei;
         }
-        if (n == 4) {
+        if (n == 6) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Swap Secondary Polarity",
                     polarity == -1);
@@ -551,19 +601,54 @@ public class TransformerElm extends CircuitElm {
             ratio = 1 / ei.value;
         if (n == 2 && ei.value > 0 && ei.value < 1)
             couplingCoef = ei.value;
-        if (n == 3) {
+        if (n == 3 && ei.value >= 0)
+            primaryResistance = ei.value;
+        if (n == 4 && ei.value >= 0)
+            secondaryResistance = ei.value;
+        if (n == 5) {
             if (ei.checkbox.getState())
                 flags &= ~Inductor.FLAG_BACK_EULER;
             else
                 flags |= Inductor.FLAG_BACK_EULER;
         }
-        if (n == 4) {
+        if (n == 6) {
             polarity = (ei.checkbox.getState()) ? -1 : 1;
             if (ei.checkbox.getState())
                 flags |= FLAG_REVERSE;
             else
                 flags &= ~FLAG_REVERSE;
             setPoints();
+        }
+    }
+
+    @Override
+    public boolean setPropertyValue(String property, double value) {
+        if (property == null) {
+            return false;
+        }
+        switch (property) {
+            case "primary_resistance":
+                if (value < 0) return false;
+                primaryResistance = value;
+                return true;
+            case "secondary_resistance":
+                if (value < 0) return false;
+                secondaryResistance = value;
+                return true;
+            case "coupling":
+                if (value <= 0 || value >= 1) return false;
+                couplingCoef = value;
+                return true;
+            case "ratio":
+                if (value <= 0) return false;
+                ratio = value;
+                return true;
+            case "inductance":
+                if (value <= 0) return false;
+                inductance = value;
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -600,6 +685,8 @@ public class TransformerElm extends CircuitElm {
         props.put("inductance", getUnitText(inductance, "H"));
         props.put("ratio", ratio);
         props.put("coupling", couplingCoef);
+        props.put("primary_resistance", getUnitText(primaryResistance, "Ohm"));
+        props.put("secondary_resistance", getUnitText(secondaryResistance, "Ohm"));
         if (polarity == -1) {
             props.put("reverse_polarity", true);
         }
@@ -653,9 +740,14 @@ public class TransformerElm extends CircuitElm {
         ratio = getJsonDouble(props, "ratio", 1);
 
         // Parse coupling coefficient
-        couplingCoef = getJsonDouble(props, "coupling", 0.999);
+        couplingCoef = getJsonDouble(props, "coupling", 0.99);
         if (couplingCoef <= 0 || couplingCoef >= 1)
-            couplingCoef = 0.999;
+            couplingCoef = 0.99;
+
+        primaryResistance = getJsonDouble(props, "primary_resistance", 0.1);
+        secondaryResistance = getJsonDouble(props, "secondary_resistance", 0.1);
+        if (primaryResistance < 0) primaryResistance = 0.1;
+        if (secondaryResistance < 0) secondaryResistance = 0.1;
 
         // Parse polarity
         if (getJsonBoolean(props, "reverse_polarity", false)) {
@@ -693,4 +785,5 @@ public class TransformerElm extends CircuitElm {
             current[1] = getJsonDouble(state, "current_secondary", 0);
         }
     }
+
 }

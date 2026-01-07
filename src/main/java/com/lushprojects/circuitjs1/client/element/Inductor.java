@@ -23,15 +23,18 @@ import com.lushprojects.circuitjs1.client.CircuitSimulator;
 
 public class Inductor {
     public static final int FLAG_BACK_EULER = 2;
+
+    private CircuitSimulator simulator;
+
     int n0, n1;
     int flags;
-    CircuitSimulator simulator;
 
     double inductance;
     double compResistance, current;
     double curSourceValue;
 
-    public Inductor() {
+    public Inductor(CircuitSimulator s) {
+        simulator = s;
     }
 
     public void setSimulator(CircuitSimulator s) {
