@@ -1,74 +1,71 @@
 ## Meta
-- last_updated: 2026-01-06T00:00:00+02:00
+- last_updated: 2026-01-07T12:15:00+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
-- active_skills: [python-cli]
-	agent_notes: Документаційна правка правил AI Skills Memory; без змін продакшен-коду.
+- active_skills: [circuitjs1-dev-workflow]
+	agent_notes: GWT DevMode у браузері (http://127.0.0.1:8888/circuitjs.html). Дебаг/фікс симулятора для схеми з двома ізольованими "островами".
 
 ## Current Task
-
-
-- task_id: SKILLS-RULES-REORG-SEARCH-SAVE
-	goal: Винести детальні правила пошуку та збереження (ingest/store) в окремі файли; залишити у skills_rules.md переважно загальний протокол/псевдокод. Додати stdin як альтернативу для STORE_SKILL та INGEST_EPISODE для зручного ревʼю у чаті.
-	global_context: Памʼять DB-first; файли епізодів — лише тимчасові артефакти. Потрібні правила, що зменшують бюрократію і збільшують LTM корисність.
-	current_focus: Рефакторинг docs/skills_rules/* (overview vs detailed search/save) + stdin support для skill put.
-	active_files: [docs/skills_rules/skills_rules.md, docs/skills_rules/search.md, docs/skills_rules/save.md, docs/skills_rules/cli.md, scripts/ai_skills_memory/mem.py]
-	status: completed
-	scope_in: Лише документація правил + приклади CLI.
-	scope_out: Зміни реалізації mem.py/ai_mem.sh (якщо вже є підтримка stdin).
+- task_id: SIM-SINGULAR-MATRIX-ISLANDS
+	goal: Виправити збій запуску симуляції ("Сингулярна матриця!") на схемі з двома ізольованими електричними контурами ("помножувач ємності"), без rollback.
+	global_context: Потрібен forward-fix в solver/analyze/stamping, щоб такі схеми симулювалися стабільно.
+	current_focus: Відновлення базової матриці для нелінійних підітерацій (origMatrix/origRightSide) + обробка кількох GroundElm.
+	active_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitMath.java]
+	scratchpad: Коренева причина знайдена: origMatrix/origRightSide не заповнювались, якщо simplifyMatrix() НЕ робив спрощення → у нелінійних схемах кожна Newton-підітерація відновлювала нульову матрицю, що викликало повторні LU fail та "Convergence failed"/"Singular matrix".
+	scope_in: Solver/analyze/stamping, обробка ground/ізольованих контурів, LU-діагностика.
+	scope_out: UI, формат схем, rollback.
 
 ## Plan & References
-	plan: manage_todo_list (rules update + context sync)
+	plan: (ad-hoc) — зробити origMatrix snapshot завжди; перевірити на реальному дампі через JS API.
 	related_docs:
-		- docs/skills_rules/skills_rules.md
-		- docs/skills_rules/cli.md
+		- docs/JS_API.md
 		- docs/context_rules/context_rules.md
+		- docs/skills_rules/skills_rules.md
 	related_code:
-		- ai_mem.sh
-		- scripts/ai_skills_memory/mem.py
+		- src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java
+		- src/main/java/com/lushprojects/circuitjs1/client/CircuitMath.java
+		- src/main/java/com/lushprojects/circuitjs1/client/element/GroundElm.java
+	session_history: []
 
 ## Progress
 	done:
-		- Split detailed search guidance into docs/skills_rules/search.md; detailed save/ingest guidance into docs/skills_rules/save.md.
-		- Kept docs/skills_rules/skills_rules.md as mostly protocol overview + pseudocode + links.
-		- Added `./ai_mem.sh skill put --stdin` support in scripts/ai_skills_memory/mem.py and documented it.
-		- Clarified pseudocode by adding explicit RUN_STDIN/RUN_JSON_FILE helpers for review-friendly stdin vs file-based flows.
+		- Відтворено реальну проблемну схему у браузері (elementCount=21; два GroundElm; два ізольовані острови).
+		- Додано діагностику LU-провалу (col/row/pivotAbs + мапінг змінної) та розширено стабілізацію (діагональ для voltage-source current змінних).
+		- Зроблено robust ground mapping: усі GroundElm мапляться в node=0 у CircuitSimulator.setGroundNode().
+		- Знайдено та виправлено ключовий баг: у CircuitSimulator.simplifyMatrix() origMatrix/origRightSide не копіювались коли спрощення не відбулось.
+		- Перевірено в DevMode після `mvn -DskipTests package`: схема тепер робить кроки (час росте), stopMessage/errorMessage порожні.
 
 	in_progress:
-		- None.
+		- Прибирання/зменшення зайвого debug-логування (опційно; тільки якщо заважає).
 
 	next:
-		- If needed: follow up by aligning other docs that reference old paths.
-		- Optional: remove the test skill `docs-skill-stdin-test` from DB if you don’t want it.
+		- Прогнати ще кілька нетипових нелінійних схем (opamp/діоди), щоб переконатися що regressions нема.
+		- (Опційно) прибрати надто шумні матричні дампи або заховати за debug-флагом.
 
 ## Breadcrumbs
-	last_focus: "Update skills rules: episode storage + stdin ingest + softer accumulation"
-	last_edit_targets: ["docs/skills_rules/skills_rules.md", "docs/skills_rules/cli.md"]
-	resume_recipe: "Finalize by ingesting an episode via stdin; verify docs examples stay consistent."
+	last_focus: "origMatrix snapshot is missing when simplifyMatrix makes no reduction"
+	last_edit_targets: ["src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java"]
+	resume_recipe: "В DevMode викликати CircuitJS1.resetSimulation(); кілька разів CircuitJS1.stepSimulation(); перевірити CircuitJS1.getSimInfo() що time>0 і errorMessage порожній."
 
 ## Guardrails
 	invariants:
-		- DB є source-of-truth; файли епізодів — опційні та тимчасові.
-		- Якщо створюється episode JSON файл → тільки у `ai_memory/session_history/` або `/tmp/ai_memory/`.
-		- Не форсити епізоди для дрібних задач без LTM цінності.
-
-## Verification
-	- Verified implementation supports stdin ingest: `scripts/ai_skills_memory/mem.py ingest --stdin`.
+		- Не робити rollback.
+		- Не ламати existing linear solve: зміна повинна лише гарантувати snapshot origMatrix/origRightSide для nonlinear sub-iterations.
+	definition_of_done:
+		- Проблемна схема з 2 островами стартує і робить кроки без "Singular matrix"/"Convergence failed".
 
 ## Long-term Memory Candidates
 	facts_to_save:
-		- `./ai_mem.sh ingest` підтримує `--stdin` (без файлів).
-		- Episode JSON файли не повинні зʼявлятися у корені репозиторію; рекомендовані каталоги: `ai_memory/session_history/` або `/tmp/ai_memory/`.
+		- У CircuitSimulator нелінійний цикл кожної підітерації відновлює circuitMatrix з origMatrix → origMatrix має бути завжди заповнений, навіть якщо simplifyMatrix нічого не спростив.
 	episodes_to_ingest:
-		- Ingested: ep_df3acd09c7f844139f47e2eef0896358
-		- Ingested: ep_057535d8eb6e44e9ba97f4a944a53d0f
+		- Episode: Fix origMatrix snapshot when simplifyMatrix no-ops (SIM-SINGULAR-MATRIX-ISLANDS)
 
-## Quick Resume — SKILLS-RULES-EPISODES-STDIN
 ```yaml
-# Quick Resume — SKILLS-RULES-EPISODES-STDIN
-goal: "Rules: episode files in dedicated dirs; add stdin ingest; soften forced accumulation"
-focus_now: "Ingest a doc-change episode via stdin"
-next_action: "cat <<'JSON' | ./ai_mem.sh ingest --stdin"
-key_files: [docs/skills_rules/skills_rules.md, docs/skills_rules/cli.md]
-last_result: in_progress
+# Quick Resume — SIM-SINGULAR-MATRIX-ISLANDS
+goal: Fix "Singular matrix" on multi-island capacitance multiplier circuit
+focus_now: Ensure origMatrix/origRightSide snapshot is always populated for nonlinear sub-iterations
+next_action: Re-test a few nonlinear example circuits in DevMode via CircuitJS1.stepSimulation()
+key_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitMath.java]
+verify_cmd: mvn -DskipTests package
+last_result: success
 ```

@@ -1,0 +1,30 @@
+{
+  "task_id": "VOLTSRC-WAVEFORM-REFRACTOR-DC-RAIL-ADJUST",
+  "timestamp": "2026-01-05T14:05:00+02:00",
+  "context": {
+    "domain": "circuitjs1",
+    "subdomain": "waveform/rail/rendering",
+    "goal": "Restore DC Rail rendering and label adjustments after Waveform refactor (DC should not look like waveform-circle rail; label should anchor correctly)."
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/waveform/DCWaveform.java",
+      "summary": [
+        "Fix DC rail label placement by using RailElm.drawRailText() (anchors to railLead).",
+        "Override hasCircle() to return false for DC (battery-style, no circle spacing)."
+      ]
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/RailElm.java",
+      "summary": [
+        "Compute railLead spacing based on waveformInstance.hasCircle() so DC rails don't reserve CIRCLE_SIZE."
+      ]
+    }
+  ],
+  "validation": {
+    "compile": "mvn -q -DskipTests compile",
+    "devmode": "Verified visually in DevMode: DC source renders battery-style; DC rail label/lead no longer looks detached."
+  },
+  "outcome": "DC rail adjustments restored; waveform refactor keeps edit-index collision avoided (n==1 reserved for chooser).",
+  "notes": "This specifically addresses the missing 'adjustments' for voltage rails post-refactor (geometry/label anchor + circle spacing)."
+}

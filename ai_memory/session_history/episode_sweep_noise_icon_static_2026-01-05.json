@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-01-05T12:20:00+02:00",
+  "task_text": "SWE1 (Sweep generator) has no connecting lead line and its sine icon changes on redraw/mouse move; Noise generator should show a static pseudo-noise graph inside a circle icon.",
+  "summary": "Fixed SweepElm geometry so lead1 is not aliased to point1 (prevents lead collapsing to a dot), and removed time-based animation from the sweep icon so it stays static. Updated NoiseWaveform to render a deterministic pseudo-noise polyline inside the circle icon (hasCircle=true), so generator icons are static and noise is visually represented in-circle.",
+  "used_skills": ["circuitjs1-dev-workflow", "circuitjs1-ui-maintenance"],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/element/SweepElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/element/waveform/NoiseWaveform.java",
+    "ai_memory/geom_visual_checks/swe1_noise_icon_issue.png",
+    "ai_memory/geom_visual_checks/swe1_noise_icon_fixed.png"
+  ],
+  "contexts": ["circuitjs1/render/geometry/generators"],
+  "outcome": {"status": "success", "notes": "SWE1 now draws a proper lead line and the circle icon no longer animates on redraw; Noise source now renders a static pseudo-noise polyline inside the circle."},
+  "errors": [],
+  "tests": [{"type": "build", "cmd": "mvn -q -DskipTests compile", "result": "pass"}]
+}

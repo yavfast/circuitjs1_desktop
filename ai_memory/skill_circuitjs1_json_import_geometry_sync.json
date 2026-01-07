@@ -1,0 +1,15 @@
+{
+  "skill_id": "circuitjs1-json-import-geometry-sync",
+  "title": "CircuitJS1 JSON import geometry sync",
+  "description": "When JSON import mutates an element's endpoints (x/y/x2/y2) after factory creation/finalizeJsonImport(), always recompute derived geometry (leads/points) by calling setPoints(); otherwise draw() can use stale geometry (e.g., DCVoltage symbol rendering as short bars).",
+  "tags": ["circuitjs1", "java", "json", "import", "geometry"],
+  "contexts": ["circuitjs1/devmode/js-api/visual-regression", "circuitjs1/io/json-import"],
+  "io_schema": null,
+  "examples": [
+    {
+      "title": "JsonCircuitImporter: apply p1/p2",
+      "text": "After creating CircuitElm via CircuitElementFactory, if JSON has p1/p2 or explicit bounds: call elm.setEndpoints(x1,y1,x2,y2); then immediately call elm.setPoints();"
+    }
+  ],
+  "permissions": null
+}

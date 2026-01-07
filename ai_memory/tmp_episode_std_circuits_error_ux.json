@@ -1,0 +1,35 @@
+{
+  "task_id": "STD-CIRCUITS-ERROR-UX",
+  "timestamp": "2026-01-05T15:20:00+02:00",
+  "status": "partial",
+  "summary": "Standard-circuit loads now apply the menu title as the document/window title, stop messages render in red, and the stop-causing element is forced-red during draw. Also clears prior error state on text import. Investigated NPN/PNP standard circuits; they currently stop with 'Singular matrix!' (stopElm is null), so deeper solver/topology debugging remains.",
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitLoader.java",
+      "what": "Persist menu-provided setup title and set CircuitInfo.fileName (window title) when loading standard circuits asynchronously."
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java",
+      "what": "Render simulator.stopMessage in red; render stopElm in forced red when stopMessage is present."
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/Graphics.java",
+      "what": "Add pushForcedColor/popForcedColor with tracked style restore so a specific element can be drawn entirely in red." 
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "what": "Add public clearStopState() so importers can reset stop message/element safely." 
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/io/text/TextCircuitImporter.java",
+      "what": "Clear CircuitDocument error state and simulator stop state when resetting circuit during text import." 
+    }
+  ],
+  "verification": [
+    "mvn -q -DskipTests compile",
+    "Browser JS API reproduction: loading /circuitjs1/circuits/npn.txt and running -> stopMessage 'Singular matrix!'"
+  ],
+  "open_issues": [
+    "npn.txt/pnp.txt stop with 'Singular matrix!' when running; stopElm is null so only message is highlightable. Need to trace solver/topology cause or adjust standard circuit files."
+  ]
+}

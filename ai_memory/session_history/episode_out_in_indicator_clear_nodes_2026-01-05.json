@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-01-05T12:00:00+02:00",
+  "task_text": "OUT/IN/indicator elements render incorrectly; also lingering node-dot artifacts remain after clearCircuit() in the browser.",
+  "summary": "Reproduced lingering node-dot artifacts after CircuitJS1.clearCircuit(); fixed by clearing simulator node-related state and resetting static node caches in CirSim.clearCircuit(). Verified OUT/IN/indicator rendering with fresh screenshots.",
+  "used_skills": [
+    "circuitjs1-dev-workflow",
+    "circuitjs1-ui-maintenance",
+    "circuitjs1-json-import-geometry-sync"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java",
+    "ai_memory/active_context.md",
+    "ai_memory/geom_visual_checks/elm_out_in_indicators_after_clear_fix.png",
+    "ai_memory/geom_visual_checks/clear_circuit_artifacts_fixed.png"
+  ],
+  "contexts": [
+    "circuitjs1/devmode/js-api/visual-regression"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "After clearCircuit(), node dots no longer linger; OUT/IN/SevenSeg/DecimalDisplay render check captured. If OUT still looks wrong in a specific user circuit, we’ll need that circuit to reproduce (export/import) since basic element rendering is OK."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests compile",
+      "result": "pass"
+    }
+  ]
+}

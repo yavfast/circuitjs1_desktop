@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-01-05T16:20:00+02:00",
+  "task_text": "Fix legacy import of standard circuit npn.txt: voltage source waveform type is misdetected as WF_VAR instead of WF_DC after voltage/waveform refactor.",
+  "summary": "Updated VarRailElm to use DC semantics (WF_DC) while keeping slider-controlled output voltage via VarRailElm.getVoltage() and VarRailElm.doStep(). This fixes old-format imports (dump type 172) where variable rails were forced to WF_VAR.",
+  "used_skills": [
+    "circuitjs1-dev-workflow",
+    "circuitjs1-ui-maintenance"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/element/VarRailElm.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/import/text/legacy-varrail",
+    "circuitjs1/voltage/waveform-refactor"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Build passes. Dev server started for manual validation; next manual check: load /circuitjs1/circuits/npn.txt and confirm Base/Collector rails behave as DC-type while remaining slider-controlled."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests compile",
+      "result": "pass"
+    }
+  ]
+}

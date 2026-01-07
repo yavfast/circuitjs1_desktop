@@ -1,12 +1,35 @@
 # Schema version for tracking format changes (see definitions.md for schema spec)
 schema_version: 1
-version: 5
-updated_at: 2026-01-06T00:00:00+02:00
+version: 6
+updated_at: 2026-01-07T12:18:19+02:00
 
 # This registry is the primary index of all archived contexts.
 # All paths are repo-relative.
 # Required fields per entry: task_id, title, category, tags, status, archived_at, file, summary
 contexts:
+  - task_id: SKILLS-RULES-REORG-SEARCH-SAVE
+    title: "Skills rules reorg: search/save + stdin"
+    category: docs
+    tags:
+      - ai-workflow
+      - skills-memory
+      - documentation
+      - stdin
+      - ingest
+    status: archived
+    archived_at: 2026-01-07T12:18:19+02:00
+    file: ai_memory/context_history/SKILLS-RULES-REORG-SEARCH-SAVE.md
+    related_paths:
+      - docs/skills_rules/
+      - ai_mem.sh
+      - scripts/ai_skills_memory/mem.py
+    summary: |
+      Refactored skills rules into separate detailed docs for search/save, kept overview protocol in
+      skills_rules.md, and documented stdin flows for review-friendly ingest/store.
+    restore_recipe:
+      - "Open docs/skills_rules/skills_rules.md and docs/skills_rules/save.md"
+      - "Use ./ai_mem.sh ingest --stdin for episode ingest"
+
   - task_id: DIALOGS-POSITION-RESIZE-COLLAPSE
     title: "Dialogs: position restore on refresh/resize + collapse"
     category: ui

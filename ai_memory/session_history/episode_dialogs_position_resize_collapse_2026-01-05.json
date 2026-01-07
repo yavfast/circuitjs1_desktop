@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-01-05T19:15:00+02:00",
+  "task_text": "Dialogs lose position after refresh/resize; add clamping, relative anchoring, and collapse-to-header.",
+  "summary": "Implemented robust dialog positioning in base Dialog: center fallback when no position is available, clamp dialogs into viewport on show/drag, and preserve relative position to nearest window edges on browser resize. Added a minimal collapse/expand toggle in the dialog caption (hides content, keeps draggable header). Fixed SlidersDialog refresh placement bug in CirSim by checking the correct isPositionRestored(). Migrated HelpDialog/LicenseDialog/ModDialog to extend Dialog so the behavior applies broadly.",
+  "used_skills": [
+    "circuitjs1-dev-workflow",
+    "circuitjs1-ui-maintenance"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/dialog/Dialog.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/dialog/HelpDialog.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/dialog/LicenseDialog.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/dialog/ModDialog.java"
+  ],
+  "contexts": [
+    "circuitjs1/ui/dialogs/positioning",
+    "circuitjs1/ui/dialogs/resize",
+    "circuitjs1/ui/dialogs/collapse"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Dialogs no longer default to top-left when position cannot be restored; they stay visible, remain anchored on resize, and can be collapsed to header. Build passes (including GWT)."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests package",
+      "result": "pass"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-01-05T18:20:00+02:00",
+  "task_text": "On page refresh, sliders still duplicate; fix by preventing duplicate Adjustables and avoiding auto-add during import.",
+  "summary": "Fixed slider duplication after refresh by deduping AdjustableManager.adjustables (keyed by element index + editItem + sharedSlider) before creating sliders, and by auto-adding missing VarRail voltage adjustables only at slider-creation time (after dumped adjustables have been parsed). Also removed VarRail's custom vertical-panel slider to avoid two separate slider UIs.",
+  "used_skills": [
+    "circuitjs1-dev-workflow",
+    "circuitjs1-ui-maintenance"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/AdjustableManager.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/element/VarRailElm.java",
+    "src/main/java/com/lushprojects/circuitjs1/client/CircuitEditor.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/ui/sliders/adjustable",
+    "circuitjs1/import/legacy-text"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Refresh/import no longer produces duplicate slider rows because the adjustable list is deduped and VarRail auto-adjustable is added only after import parsing." 
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests compile",
+      "result": "pass"
+    }
+  ]
+}

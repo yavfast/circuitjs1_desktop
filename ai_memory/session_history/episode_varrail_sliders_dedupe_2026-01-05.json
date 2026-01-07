@@ -1,0 +1,28 @@
+{
+  "timestamp": "2026-01-05T18:05:00+02:00",
+  "task_text": "Sliders dialog creates duplicate slider rows for the same element/adjustable; add a duplicate check when adding sliders.",
+  "summary": "Made Adjustable slider creation idempotent by deleting any existing slider row before creating a new one, and clearing UI references after deletion. This prevents duplicate slider rows when createSliders()/updateSliders() are invoked multiple times (imports/edits/UI refresh).",
+  "used_skills": [
+    "circuitjs1-dev-workflow",
+    "circuitjs1-ui-maintenance"
+  ],
+  "touched_artifacts": [
+    "src/main/java/com/lushprojects/circuitjs1/client/Adjustable.java",
+    "ai_memory/active_context.md"
+  ],
+  "contexts": [
+    "circuitjs1/ui/sliders/adjustable"
+  ],
+  "outcome": {
+    "status": "success",
+    "notes": "Repeated slider rebuilds no longer duplicate UI rows; slider creation is safe to call multiple times."
+  },
+  "errors": [],
+  "tests": [
+    {
+      "type": "build",
+      "cmd": "mvn -q -DskipTests compile",
+      "result": "pass"
+    }
+  ]
+}
