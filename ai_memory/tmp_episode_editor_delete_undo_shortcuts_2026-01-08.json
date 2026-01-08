@@ -1,0 +1,45 @@
+{
+  "id": "tmp_episode_editor_delete_undo_shortcuts_2026-01-08",
+  "status": "success",
+  "timestamp": "2026-01-08T13:45:00+02:00",
+  "summary": "Fix editor regressions: delete could remove an extra hovered element, undo after delete could restore an empty pre-load circuit, and keyboard element shortcuts didn't work immediately after opening/switching documents.",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": "editor/delete/undo/shortcuts",
+    "symptoms": [
+      "Deleting a selected element could also delete another unrelated element (often previously interacted/hovered)",
+      "Undo after deleting an element could clear the whole circuit",
+      "Right after opening a circuit, element-add keyboard shortcuts did not work until clicking"
+    ]
+  },
+  "root_cause": {
+    "description": "Delete logic treated hovered (mouse) element as deletable alongside selection; undo history for file-open was seeded with a pre-load placeholder (often empty) state; canvas focus was not restored after open/tab switch so keypress events weren't delivered.",
+    "evidence": [
+      "CircuitEditor.doDelete() used element.isMouseElm() in willDelete(), causing hover-based deletion in addition to selected/menu target",
+      "LoadFile.doLoad() pushed undo before loading the circuit, so Ctrl+Z could revert to the pre-load empty state",
+      "Canvas focus was set only on mouse down, so keyboard shortcuts were unreliable immediately after opening/switching"
+    ]
+  },
+  "fix": {
+    "changes": [
+      "CircuitEditor.doDelete(): if any selection exists, delete only selected; otherwise delete at most one element (menuElm else mouseElm)",
+      "UndoManager: add resetAndSeedFromCurrentCircuit() to clear undo/redo and seed with current circuit state",
+      "LoadFile.doLoad(): after readCircuit(), reset+seed undo and focus canvas",
+      "DocumentManager: after restore closed tab reset+seed undo; after active tab switch focus canvas (Timer)"
+    ],
+    "files": [
+      "src/main/java/com/lushprojects/circuitjs1/client/CircuitEditor.java",
+      "src/main/java/com/lushprojects/circuitjs1/client/UndoManager.java",
+      "src/main/java/com/lushprojects/circuitjs1/client/LoadFile.java",
+      "src/main/java/com/lushprojects/circuitjs1/client/DocumentManager.java"
+    ]
+  },
+  "verification": {
+    "method": [
+      "mvn -q -DskipTests=true test",
+      "DevMode smoke: open circuit -> press element shortcut (e.g. 'r') without clicking -> should enter add mode",
+      "DevMode smoke: select element A, hover element B, press Delete -> only A removed",
+      "DevMode smoke: delete element -> Ctrl+Z restores it (does not clear circuit)"
+    ]
+  }
+}

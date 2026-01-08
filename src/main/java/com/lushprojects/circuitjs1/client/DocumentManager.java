@@ -98,6 +98,8 @@ public class DocumentManager {
         CircuitDocument newDoc = createDocument();
         setActiveDocument(newDoc);
         newDoc.circuitLoader.readCircuit(dump);
+        newDoc.undoManager.resetAndSeedFromCurrentCircuit();
+        cirSim.enableUndoRedo();
     }
 
     public boolean hasClosedTabs() {
@@ -140,6 +142,17 @@ public class DocumentManager {
             ((CirSim)cirSim).setUnsavedChanges(document.circuitInfo.unsavedChanges);
             ((CirSim)cirSim).needAnalyze(); // Re-analyze/repaint
         }
+
+        // Make keyboard shortcuts work immediately after switching tabs.
+        // (Without explicit focus, keypress events may not reach the app until the user clicks.)
+        new Timer() {
+            @Override
+            public void run() {
+                if (cirSim.renderer.getCanvas() != null) {
+                    cirSim.renderer.getCanvas().setFocus(true);
+                }
+            }
+        }.schedule(1);
     }
 
     public CircuitDocument getActiveDocument() {

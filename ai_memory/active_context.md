@@ -1,19 +1,23 @@
 ## Meta
-- last_updated: 2026-01-07T18:12:00+02:00
+- last_updated: 2026-01-08T13:45:00+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
 - active_skills: [circuitjs1-dev-workflow]
 	agent_notes: GWT DevMode у браузері (http://127.0.0.1:8888/circuitjs.html). Сим-стан: CircuitDocument.errorMessage + CircuitSimulator.stopMessage.
 
 ## Current Task
-- task_id: TRANSFORMER-WINDING-R-AUTOTIMESTEP
-	goal: Додати внутрішні опори обмоток у трансформатори (звичайний/з відводом/custom), зменшити дефолтний coupling до 0.99, та увімкнути авто-зменшення timestep за замовчуванням.
-	global_context: На деяких схемах була детермінована зупинка через non-convergence; ідеальні трансформатори (k≈1, R=0) підсилюють проблеми збіжності. Авто-backoff timestep вже існує, але має бути default-on.
-	current_focus: Серійні R через internal nodes для всіх transformer-елементів + JSON/legacy dump backward-compat; увімкнути CircuitSimulator.adjustTimeStep по замовчуванню.
-	active_files: [src/main/java/com/lushprojects/circuitjs1/client/element/TransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/element/TappedTransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/element/CustomTransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java]
-	scratchpad: Авто backoff в CircuitSimulator при adjustTimeStep=true (halving dt до minTimeStep). Для R обмоток: node(start) -- R -- nodeInt -- L/M -- node(end).
-	scope_in: Мінімальні зміни моделей трансформатора + дефолти; без зміни solver-алгоритмів.
-	scope_out: Перебудова convergence-алгоритму або UI-редизайн.
+
+- task_id: EDITOR-DELETE-UNDO-SHORTCUTS
+	goal: Виправити 3 баги редактора: (1) видалення інколи прибирає “зайвий” елемент, (2) undo після delete може очищати всю схему, (3) після відкриття схеми одразу не працюють швидкі команди додавання елементів.
+	global_context: Є мульти-таб архітектура з делегуванням подій на active document; delete/undo/shortcuts прив’язані до selection/mouse hover, undo snapshots, та фокуса canvas.
+	current_focus: Зробити delete детермінованим (лише selected або один явний target), привести undo history у консистентний стан після open/load, та повернути фокус на canvas після open/tab switch.
+	active_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitEditor.java, src/main/java/com/lushprojects/circuitjs1/client/UndoManager.java, src/main/java/com/lushprojects/circuitjs1/client/LoadFile.java, src/main/java/com/lushprojects/circuitjs1/client/DocumentManager.java]
+	scratchpad:
+		- Root-cause (1): `doDelete()` видаляв також `isMouseElm()` (hover) → при delete selected могла зникати ще одна (hovered) деталь.
+		- Root-cause (2): undo stack міг містити pre-load “порожній” стан; Ctrl+Z міг повертати схему до empty. Рішення: reset+seed undo після open/load/restore.
+		- Root-cause (3): keypress shortcuts не доходили без фокуса в canvas (особливо після open/tab switch). Рішення: setFocus(true) після load та при зміні active document.
+	scope_in: Мінімальні зміни в delete/undo/focus; без редизайну UI.
+	scope_out: Переробка всієї системи undo або повний рефактор input handling.
 
 ## Other Tasks (This Chat)
 
@@ -52,18 +56,16 @@
 			- ai_memory/tmp_episode_std_circuits_error_ux.json
 
 ## Progress
-	TRANSFORMER-WINDING-R-AUTOTIMESTEP:
+	EDITOR-DELETE-UNDO-SHORTCUTS:
 		done:
-			- Додано серійні опори обмоток (editable) для TransformerElm/TappedTransformerElm/CustomTransformerElm.
-			- Для всіх трансформаторів дефолтний coupling зменшено до 0.99 (замість ~0.999).
-			- CustomTransformerElm: stamping/iteration переведено на internal nodes, щоб R реально впливала на розв’язок.
-			- CustomTransformerElm: dump/JSON оновлено для збереження winding resistance (dump з backward-compat через явний tapOverrideCount=0).
-			- CircuitSimulator: adjustTimeStep увімкнено за замовчуванням для нових документів/сесій.
-			- `mvn test -DskipTests=true` — BUILD SUCCESS.
+			- `CircuitEditor.doDelete()`: тепер при наявності selection видаляє лише selected; якщо selection нема — видаляє максимум один елемент (menuElm або mouseElm).
+			- `UndoManager`: додано `resetAndSeedFromCurrentCircuit()` для скидання undo/redo та seed поточним станом.
+			- `LoadFile.doLoad()`: після open/load робить reset+seed undo і ставить фокус на canvas.
+			- `DocumentManager`: після restore closed tab робить reset+seed undo; після tab switch ставить фокус на canvas (Timer).
+			- `mvn -q -DskipTests=true test` — OK.
 		in_progress: []
 		next:
-			- У DevMode/браузері: відкрити проблемну схему та перевірити, що stop через non-convergence відтворюється рідше/зникає завдяки R та k=0.99.
-			- Перевірити опції симуляції: "Auto-Adjust Timestep" має бути увімкнено по замовчуванню.
+			- Ручний smoke: відкрити схему → без кліку натиснути shortcut (напр. `r`) → має перейти в Add mode; Delete selected не має чіпати hovered; Ctrl+Z після delete відновлює елемент (без очищення схеми).
 
 	SIM-CONVERGENCE-RESET-NODE-MARKERS:
 		done:
@@ -110,8 +112,10 @@
 		facts_to_save:
 			- Для стабільності збіжності трансформаторів: додавати серійні опори обмоток через internal nodes (node(start)--R--nodeInt--L/M--node(end)).
 			- Auto timestep backoff вже є в CircuitSimulator; default-on суттєво допомагає з non-convergence.
+			- Якщо симуляція виглядає “залиплою” без stop/error: перевірити tiny maxTimeStep/timeStep (наприклад 1e-8..1e-9). Підняття maxTimeStep прискорює сим-час (за умови стабільності схеми).
 		episodes_to_ingest:
 			- Episode: Transformer winding resistances + coupling default 0.99 + default-on auto timestep.
+			- Episode: DevMode root-cause: non-convergence attributed to transistor (TRA2) driven by near-ideal transformer coupling; “stuck” traced to tiny maxTimeStep; verified runtime recovery via setMaxTimeStep().
 
 	SIM-CONVERGENCE-RESET-NODE-MARKERS:
 		facts_to_save:
@@ -123,8 +127,8 @@
 ```yaml
 # Quick Resume — TRANSFORMER-WINDING-R-AUTOTIMESTEP
 goal: Add winding resistances to transformers, set default coupling=0.99, and enable auto timestep adjust by default
-focus_now: Verify DevMode behavior on a previously failing circuit; confirm options + element edits
-next_action: In DevMode open the failing circuit and run; verify "Auto-Adjust Timestep" is on and convergence is improved
+focus_now: Verify DevMode behavior on a previously failing circuit; confirm convergence root-cause and address “stuck” due to tiny maxTimeStep
+next_action: In DevMode check getSimInfo() at “stuck”; if timeStep/maxTimeStep are tiny, raise maxTimeStep (Controls or JS API setMaxTimeStep()) and re-test stability
 key_files: [src/main/java/com/lushprojects/circuitjs1/client/element/TransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/element/TappedTransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/element/CustomTransformerElm.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java]
 verify_cmd: mvn -q -DskipTests=true test
 last_result: success

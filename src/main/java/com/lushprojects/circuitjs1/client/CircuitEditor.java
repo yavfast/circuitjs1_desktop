@@ -1039,19 +1039,38 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         }
         boolean hasDeleted = false;
         CircuitSimulator simulator = simulator();
+
+        // IMPORTANT:
+        // - If there is an explicit selection, delete ONLY the selected elements.
+        // - If nothing is selected, delete at most one element: menu element if present,
+        //   otherwise the current mouse/hover element.
+        // This avoids accidentally deleting an unrelated element that happens to be hovered.
+        boolean anySelected = simulator.countSelected() > 0;
+        CircuitElm singleTarget = null;
+        if (!anySelected) {
+            if (menuElm != null) {
+                singleTarget = menuElm;
+            } else if (mouseElm != null) {
+                singleTarget = mouseElm;
+            }
+        }
+
         for (int i = simulator.elmList.size() - 1; i >= 0; i--) {
             CircuitElm element = simulator.elmList.get(i);
-            if (willDelete(element)) {
-                if (element.isMouseElm()) {
-                    setMouseElm(null);
-                }
-                if (element == menuElm) {
-                    menuElm = null;
-                }
-                element.delete();
-                simulator.elmList.remove(i);
-                hasDeleted = true;
+            boolean deleteThis = element.isSelected() || (!anySelected && element == singleTarget);
+            if (!deleteThis) {
+                continue;
             }
+
+            if (element == mouseElm) {
+                setMouseElm(null);
+            }
+            if (element == menuElm) {
+                menuElm = null;
+            }
+            element.delete();
+            simulator.elmList.remove(i);
+            hasDeleted = true;
         }
         if (hasDeleted) {
             simulator.deleteUnusedScopeElms();
@@ -1059,10 +1078,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             undoManager().writeRecoveryToStorage();
             cirSim.setUnsavedChanges(true);
         }
-    }
-
-    boolean willDelete(CircuitElm element) {
-        return element.isSelected() || element.isMouseElm() || element == menuElm;
     }
 
     String copyOfSelectedElms() {

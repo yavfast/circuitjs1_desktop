@@ -1,0 +1,50 @@
+{
+  "episode_id": "ep_timestep_stuck_and_convergence_rootcause_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T00:00:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/timestep/convergence",
+    "environment": "GWT DevMode browser (CircuitJS1 JS API)"
+  },
+  "problem": {
+    "symptoms": [
+      "Deterministic stop: 'Convergence failed! Element: TRA2'",
+      "After reducing transformer coupling, simulation may appear 'stuck' (very slow time advance)"
+    ],
+    "observations": [
+      "Element id 'TRA2' was a TransistorNPN (TransistorElm), not the transformer (transformer was 'T1')",
+      "Near-ideal transformer coupling (0.999) drove transistor into strong saturation leading to convergence failure",
+      "When coupling was reduced to 0.99, stop/error disappeared in observed runs",
+      "The apparent 'stuck' behavior correlated with tiny timeStep=maxTimeStep (e.g. 2e-8), so sim-time advanced extremely slowly"
+    ]
+  },
+  "actions": [
+    {
+      "type": "runtime_mitigation",
+      "action": "Lower transformer coupling",
+      "details": "Set T1 coupling from 0.999 -> 0.99; reset and run; convergence failure stopped occurring in short/medium runs"
+    },
+    {
+      "type": "runtime_mitigation",
+      "action": "Raise maxTimeStep to recover speed",
+      "details": "Using JS API: setMaxTimeStep(1e-6), resetSimulation(), setSimRunning(true). Verified stable run and faster time advance."
+    }
+  ],
+  "results": {
+    "verified": true,
+    "notes": [
+      "With maxTimeStep=timeStep=1e-6 and coupling=0.99, sim ran ~2s without stopMessage/errorMessage and advanced ~5.859ms simulated time.",
+      "Conclusion: 'stuck' is typically tiny maxTimeStep/timeStep, not a hung solver, when running=true and stop/error are empty."
+    ]
+  },
+  "artifacts": {
+    "related_code": [
+      "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java"
+    ],
+    "related_docs": [
+      "docs/JS_API.md"
+    ]
+  }
+}

@@ -51,8 +51,18 @@ public class LoadFile extends FileUpload implements ChangeHandler {
             sim.documentManager.setActiveDocument(newDoc);
         }
 
-        sim.getActiveDocument().circuitEditor.pushUndo();
         sim.getActiveDocument().circuitLoader.readCircuit(s);
+
+        // After opening a file, undo history should apply to edits within the loaded circuit,
+        // not revert back to any pre-load placeholder (often an empty circuit).
+        sim.getActiveDocument().undoManager.resetAndSeedFromCurrentCircuit();
+        sim.enableUndoRedo();
+
+        // Ensure keyboard shortcuts (element add shortcuts, delete, etc.) work immediately.
+        if (sim.renderer.getCanvas() != null) {
+            sim.renderer.getCanvas().setFocus(true);
+        }
+
         sim.createNewLoadFile();
         sim.setCircuitTitle(t);
         sim.setLastFileName(t);

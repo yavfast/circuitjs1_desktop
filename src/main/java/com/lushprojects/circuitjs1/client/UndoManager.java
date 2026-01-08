@@ -30,6 +30,21 @@ public class UndoManager extends BaseCirSimDelegate {
         redoStack = new Vector<>();
     }
 
+    void clearStacks() {
+        undoStack.removeAllElements();
+        redoStack.removeAllElements();
+    }
+
+    /**
+     * Reset undo/redo history for the current document and seed it with the current circuit.
+     * Intended for use after opening/loading a circuit so Undo applies to edits within the
+     * loaded circuit (and doesn't jump back to a previous/empty pre-load state).
+     */
+    void resetAndSeedFromCurrentCircuit() {
+        clearStacks();
+        pushUndo();
+    }
+
     boolean hasUndoStack() {
         return !undoStack.isEmpty();
     }
