@@ -140,6 +140,15 @@ public class BaseCirSim {
         renderer.needsAnalysis();
 
         CircuitSimulator simulator = activeDocument.simulator;
+        
+        // If we got here after a convergence/singularity stop, clear the stop/error state
+        // so the user can reset and restart using the UI.
+        activeDocument.clearError();
+        simulator.clearStopState();
+
+        // Drop any transient solver state to avoid leaking matrix/voltages across resets.
+        simulator.resetSolverState();
+
         simulator.t = simulator.timeStepAccum = 0;
         simulator.timeStepCount = 0;
         for (int i = 0; i != simulator.elmList.size(); i++)
@@ -149,7 +158,8 @@ public class BaseCirSim {
         for (int i = 0; i != scopeManager.scopeCount; i++)
             scopeManager.scopes[i].resetGraph(true);
 
-        repaint();
+        // Rebuild analysis-derived state (important when stopped after an error).
+        needAnalyze();
     }
 
     public void allowSave(boolean b) {
