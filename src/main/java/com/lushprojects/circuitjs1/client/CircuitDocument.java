@@ -178,7 +178,12 @@ public class CircuitDocument {
                     // 2. Stamp if needed
                     if (simulator.needsStamp) {
                         try {
-                            simulator.preStampAndStampCircuit();
+                            boolean stamped = simulator.preStampAndStampCircuit();
+                            if (!stamped) {
+                                // Stamp did not complete; keep loop running and try again next tick.
+                                notifyUpdateListeners();
+                                return;
+                            }
                         } catch (Exception e) {
                             logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
                             CircuitDocument.this.stop("Exception in stampCircuit(): " + e.getMessage(), null);

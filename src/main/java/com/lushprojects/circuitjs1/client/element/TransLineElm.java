@@ -35,6 +35,8 @@ public class TransLineElm extends CircuitElm {
     int lenSteps, ptr, width;
     int lastStepCount;
 
+    private static final int MAX_DELAY_STEPS = 100000;
+
     public TransLineElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         delay = 1000 * simulator().maxTimeStep;
@@ -94,13 +96,19 @@ public class TransLineElm extends CircuitElm {
         if (simulator().maxTimeStep == 0)
             return;
         lenSteps = (int) (delay / simulator().maxTimeStep);
-        System.out.println(lenSteps + " steps");
-        if (lenSteps > 100000)
-            voltageL = voltageR = null;
-        else {
-            voltageL = new double[lenSteps];
-            voltageR = new double[lenSteps];
+        if (lenSteps < 1)
+            lenSteps = 1;
+
+        // Avoid hard-stopping the simulation due to excessive delay.
+        // Clamp to a reasonable buffer size and approximate the delay.
+        if (lenSteps > MAX_DELAY_STEPS) {
+            lenSteps = MAX_DELAY_STEPS;
+            delay = lenSteps * simulator().maxTimeStep;
+            simulator().converged = false;
         }
+
+        voltageL = new double[lenSteps];
+        voltageR = new double[lenSteps];
         ptr = 0;
         super.reset();
         lastStepCount = 0;
@@ -217,10 +225,8 @@ public class TransLineElm extends CircuitElm {
 
     public void startIteration() {
         // calculate voltages, currents sent over wire
-        if (voltageL == null) {
-            simulator().stop("Transmission line delay too large!", this);
+        if (voltageL == null)
             return;
-        }
         double v0 = getNodeVoltage(0);
         double v1 = getNodeVoltage(1);
         double v2 = getNodeVoltage(2);
@@ -239,17 +245,16 @@ public class TransLineElm extends CircuitElm {
     }
 
     public void doStep() {
-        if (voltageL == null) {
-            simulator().stop("Transmission line delay too large!", this);
+        if (voltageL == null)
             return;
-        }
         int nextPtr = (ptr + 1) % lenSteps;
         CircuitSimulator simulator = simulator();
         simulator.updateVoltageSource(getNode(4), getNode(0), voltSource1, -voltageR[nextPtr]);
         simulator.updateVoltageSource(getNode(5), getNode(1), voltSource2, -voltageL[nextPtr]);
         if (Math.abs(getNodeVoltage(0)) > 1e-5 || Math.abs(getNodeVoltage(1)) > 1e-5) {
-            simulator().stop("Need to ground transmission line!", this);
-            return;
+            // Historically this was a hard stop, but for robustness we avoid stopping.
+            // Mark as non-converged so solver recovery can damp/step back if needed.
+            simulator().converged = false;
         }
     }
 

@@ -279,7 +279,12 @@ public class TransistorElm extends CircuitElm {
     double limitStep(double vnew, double vold) {
         double arg;
 
-        if (vnew > vcrit && Math.abs(vnew - vold) > (vt + vt)) {
+        // In stiff/idealized circuits, strict limiting can prevent convergence entirely.
+        // When the simulator is in a recovery/panic mode, relax the limiter threshold
+        // to keep the simulation running (educational UX > spike accuracy).
+        double maxDelta = (simulator().getConvergencePanicLevel() > 0) ? (20 * vt) : (2 * vt);
+
+        if (vnew > vcrit && Math.abs(vnew - vold) > maxDelta) {
             if (vold > 0) {
                 arg = 1 + (vnew - vold) / vt;
                 if (arg > 0) {
@@ -315,7 +320,17 @@ public class TransistorElm extends CircuitElm {
 //	    gmin = leakage * 0.01;
         gmin = 1e-12;
 
-        if (simulator().subIterations > 100 && badIters < 5) {
+        // Simulator may request extra junction conductance during recovery.
+        double extraGmin = simulator().getExtraConvergenceGmin();
+        if (extraGmin > gmin) {
+            gmin = extraGmin;
+        }
+
+        int panicLevel = simulator().getConvergencePanicLevel();
+        int gminStartIters = (panicLevel > 0) ? 20 : 100;
+        int badIterLimit = (panicLevel > 0) ? 1000000 : 200;
+
+        if (simulator().subIterations > gminStartIters && badIters < badIterLimit) {
             // if we have trouble converging, put a conductance in parallel with all P-N junctions.
             // Gradually increase the conductance value for each iteration.
             gmin = Math.exp(-9 * Math.log(10) * (1 - simulator().subIterations / 300.));
@@ -348,14 +363,14 @@ public class TransistorElm extends CircuitElm {
         double evbe, cbe, gbe, cben, gben, evben, evbc, cbc, gbc, cbcn, gbcn, evbcn;
         double qb, dqbdve, dqbdvc, q2, sqarg, arg;
         if (vbe > -5 * vtn) {
-            evbe = Math.exp(vbe / vtn);
+            evbe = Math.exp(Math.max(-700, Math.min(700, vbe / vtn)));
             cbe = csat * (evbe - 1) + gmin * vbe;
             gbe = csat * evbe / vtn + gmin;
             if (c2 == 0) {
                 cben = 0;
                 gben = 0;
             } else {
-                evben = Math.exp(vbe / vte);
+                evben = Math.exp(Math.max(-700, Math.min(700, vbe / vte)));
                 cben = c2 * (evben - 1);
                 gben = c2 * evben / vte;
             }
@@ -367,14 +382,14 @@ public class TransistorElm extends CircuitElm {
         }
         vtn = vt * model.emissionCoeffR;
         if (vbc > -5 * vtn) {
-            evbc = Math.exp(vbc / vtn);
+            evbc = Math.exp(Math.max(-700, Math.min(700, vbc / vtn)));
             cbc = csat * (evbc - 1) + gmin * vbc;
             gbc = csat * evbc / vtn + gmin;
             if (c4 == 0) {
                 cbcn = 0;
                 gbcn = 0;
             } else {
-                evbcn = Math.exp(vbc / vtc);
+                evbcn = Math.exp(Math.max(-700, Math.min(700, vbc / vtc)));
                 cbcn = c4 * (evbcn - 1);
                 gbcn = c4 * evbcn / vtc;
             }
@@ -464,8 +479,13 @@ public class TransistorElm extends CircuitElm {
             ceqbc = 0;
         }
 
-        if (Double.isInfinite(ib) || Double.isNaN(ic))
-            simulator().stop("infinite transistor current", this);
+        if (!Double.isFinite(ib) || !Double.isFinite(ic) || !Double.isFinite(ie)) {
+            // Don't hard-stop; mark non-convergence and clamp.
+            simulator().converged = false;
+            ib = 0;
+            ic = 0;
+            ie = 0;
+        }
 
         // stamp matrix.
         // Node 0 is the base, node 1 the collector, node 2 the emitter.
@@ -663,13 +683,20 @@ public class TransistorElm extends CircuitElm {
     }
 
     public void stepFinished() {
-        // stop for huge currents that make simulator act weird
-        if (Math.abs(ic) > 1e12 || Math.abs(ib) > 1e12)
-            simulator().stop("max current exceeded", this);
+        // Huge currents can happen in idealized circuits; don't hard-stop.
+        // Clamp and let the simulator's recovery mode add damping.
+        if (Math.abs(ic) > 1e12 || Math.abs(ib) > 1e12 || Math.abs(ie) > 1e12) {
+            simulator().converged = false;
+            ic = Math.max(-1e12, Math.min(1e12, ic));
+            ib = Math.max(-1e12, Math.min(1e12, ib));
+            ie = Math.max(-1e12, Math.min(1e12, ie));
+        }
 
         // if we needed to add a conductance to all junctions, this was a bad iteration.
         // If we have 5 of those in a row, give up
-        if (simulator().subIterations > 100)
+        int panicLevel = simulator().getConvergencePanicLevel();
+        int badIterThresh = (panicLevel > 0) ? 20 : 100;
+        if (simulator().subIterations > badIterThresh)
             badIters++;
         else
             badIters = 0;

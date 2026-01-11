@@ -253,7 +253,12 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
 
     double calcResistance(double tempr) // knowing the temperature
     {
-        return Math.round(r25 * Math.exp(b25100 * ((1 / (tempr + t0)) - (1 / t25))));
+        double arg = b25100 * ((1 / (tempr + t0)) - (1 / t25));
+        arg = Math.max(-700, Math.min(700, arg));
+        double r = r25 * Math.exp(arg);
+        if (!Double.isFinite(r))
+            r = Double.MAX_VALUE;
+        return Math.round(r);
     }
 
     double temprFromSliderPos() // knowing slider position etc

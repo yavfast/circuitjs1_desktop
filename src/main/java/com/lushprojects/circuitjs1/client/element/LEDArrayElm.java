@@ -142,9 +142,16 @@ public class LEDArrayElm extends ChipElm {
 
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
-        for (int i = 0; i != currents.length; i++)
-            if (Math.abs(currents[i]) > 1e12)
-                simulator().stop("max current exceeded", this);
+        for (int i = 0; i != currents.length; i++) {
+            double c = currents[i];
+            if (!Double.isFinite(c) || Math.abs(c) > 1e12) {
+                simulator().converged = false;
+                if (!Double.isFinite(c))
+                    currents[i] = 0;
+                else
+                    currents[i] = (c < 0) ? -1e12 : 1e12;
+            }
+        }
     }
 
     void setColor(Graphics g, int p) {

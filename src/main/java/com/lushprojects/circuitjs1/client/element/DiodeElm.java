@@ -286,8 +286,13 @@ public class DiodeElm extends CircuitElm {
 
     public void stepFinished() {
         // stop for huge currents that make simulator act weird
-        if (Math.abs(current) > 1e12)
-            simulator().stop("max current exceeded", this);
+        if (!Double.isFinite(current) || Math.abs(current) > 1e12) {
+            simulator().converged = false;
+            if (!Double.isFinite(current))
+                current = 0;
+            else
+                current = (current < 0) ? -1e12 : 1e12;
+        }
     }
 
     @Override

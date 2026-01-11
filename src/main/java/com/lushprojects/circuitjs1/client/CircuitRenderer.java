@@ -436,6 +436,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             // Use the existing select color (theme-consistent) to distinguish it from the mode label.
             graphics.setColor(ColorSettings.get().getSelectColor());
             graphics.drawString(simulator.stopMessage, 10, 44);
+        } else if (simulator.warningMessage != null && !simulator.warningMessage.isEmpty()) {
+            graphics.setColor(ColorSettings.get().getSelectColor());
+            graphics.drawString(simulator.warningMessage, 10, 44);
         }
     }
 

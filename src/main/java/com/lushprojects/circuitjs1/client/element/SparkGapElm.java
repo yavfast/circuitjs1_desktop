@@ -97,7 +97,13 @@ public class SparkGapElm extends CircuitElm {
 
     void calculateCurrent() {
         double vd = getNodeVoltage(0) - getNodeVoltage(1);
-        current = vd / resistance;
+        double r = resistance;
+        if (!Double.isFinite(r) || r == 0) {
+            simulator().converged = false;
+            current = 0;
+            return;
+        }
+        current = vd / r;
     }
 
     public void reset() {
@@ -115,6 +121,10 @@ public class SparkGapElm extends CircuitElm {
 
     public void doStep() {
         resistance = (state) ? onresistance : offresistance;
+        if (!Double.isFinite(resistance) || resistance == 0) {
+            simulator().converged = false;
+            resistance = 1e-12;
+        }
         simulator().stampResistor(getNode(0), getNode(1), resistance);
     }
 

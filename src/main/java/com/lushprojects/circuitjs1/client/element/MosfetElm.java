@@ -430,15 +430,16 @@ public class MosfetElm extends CircuitElm {
         vs[1] = getNodeVoltage(1);
         vs[2] = getNodeVoltage(2);
         if (!finished) {
-            // limit voltage changes to .5V
-            if (vs[1] > lastv1 + .5)
-                vs[1] = lastv1 + .5;
-            if (vs[1] < lastv1 - .5)
-                vs[1] = lastv1 - .5;
-            if (vs[2] > lastv2 + .5)
-                vs[2] = lastv2 + .5;
-            if (vs[2] < lastv2 - .5)
-                vs[2] = lastv2 - .5;
+            double maxDelta = (simulator().getConvergencePanicLevel() > 0) ? 5.0 : 0.5;
+            // limit voltage changes per iteration
+            if (vs[1] > lastv1 + maxDelta)
+                vs[1] = lastv1 + maxDelta;
+            if (vs[1] < lastv1 - maxDelta)
+                vs[1] = lastv1 - maxDelta;
+            if (vs[2] > lastv2 + maxDelta)
+                vs[2] = lastv2 + maxDelta;
+            if (vs[2] < lastv2 - maxDelta)
+                vs[2] = lastv2 - maxDelta;
         }
 
         int source = 1;
@@ -466,10 +467,12 @@ public class MosfetElm extends CircuitElm {
         ids = 0;
         gm = 0;
         double Gds = 0;
+        // Use simulator-provided gmin in recovery mode to help avoid singularities/non-convergence.
+        double gmin = Math.max(1e-8, simulator().getExtraConvergenceGmin());
         if (vgs < vt) {
             // should be all zero, but that causes a singular matrix,
             // so instead we treat it as a large resistor
-            Gds = 1e-8;
+            Gds = gmin;
             ids = vds * Gds;
             mode = 0;
         } else if (vds < vgs - vt) {
@@ -482,7 +485,7 @@ public class MosfetElm extends CircuitElm {
             // saturation; Gds = 0
             gm = beta * (vgs - vt);
             // use very small Gds to avoid nonconvergence
-            Gds = 1e-8;
+            Gds = gmin;
             ids = .5 * beta * (vgs - vt) * (vgs - vt) + (vds - (vgs - vt)) * Gds;
             mode = 2;
         }

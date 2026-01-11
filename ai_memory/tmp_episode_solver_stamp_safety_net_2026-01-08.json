@@ -1,0 +1,43 @@
+{
+  "episode_id": "ep_solver_stamp_safety_net_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T16:28:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/solver/convergence",
+    "goal": "Prevent remaining element models from destabilizing the solver via NaN/Inf stamping"
+  },
+  "problem": {
+    "symptoms": [
+      "Some element models can produce NaN/Inf (divide-by-zero, overflow, invalid params) which corrupts circuitMatrix/circuitRightSide",
+      "Even with panic-mode recovery, NaN/Inf in stamps can force matrix errors or non-convergence"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "summary": "Add stamp API sanitation (finite check + magnitude clamp) for matrix/right-side and common stamp helpers; handle r=0 in stampResistor"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/SCRElm.java",
+      "summary": "Guard trigger/holding currents and resistances against 0/NaN to avoid divide-by-zero producing Inf multipliers/currents"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/DiacElm.java",
+      "summary": "Guard current calculation against 0/NaN resistance"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/SparkGapElm.java",
+      "summary": "Guard resistance/current against 0/NaN and mark converged=false on invalid parameters"
+    }
+  ],
+  "verification": {
+    "build": "mvn -q -DskipTests=true test"
+  },
+  "notes": {
+    "tradeoffs": [
+      "Clamping stamp magnitudes sacrifices physical accuracy during extreme spikes but prevents matrix corruption",
+      "Marking converged=false allows panic-mode recovery and timestep backoff to engage"
+    ]
+  }
+}

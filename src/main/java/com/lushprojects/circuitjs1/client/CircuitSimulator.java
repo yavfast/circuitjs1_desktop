@@ -76,6 +76,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         adjustTimeStep = true;
     }
 
+    /**
+     * Non-fatal warning message for recoverable structural/numeric issues.
+     * Unlike stopMessage, this does not stop the simulation loop.
+     */
+    String warningMessage;
+    CircuitElm warningElm;
+
+    public void warn(String message, CircuitElm ce) {
+        String ls = Locale.LS(message);
+        if (warningMessage == null || !warningMessage.equals(ls) || warningElm != ce) {
+            warningMessage = ls;
+            warningElm = ce;
+            console(ls);
+        }
+    }
+
     public void stop(String message, CircuitElm ce) {
         stopMessage = Locale.LS(message);
         stopElm = ce;
@@ -92,6 +108,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public void clearStopState() {
         stopMessage = null;
         stopElm = null;
+        warningMessage = null;
+        warningElm = null;
     }
 
     /**
@@ -315,6 +333,16 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 wireInfoList.add(wireInfoList.remove(i--));
                 moved++;
                 if (moved > wireInfoList.size() * 2) {
+                    // Circular dependency in wire current calculation. Don't stop the sim;
+                    // pick an arbitrary post to break the loop and approximate currents.
+                    if (nonConvergenceRecoveryEnabled) {
+                        warn("wire loop detected (approximating wire currents)", wire);
+                        wi.neighbors = neighbors0;
+                        wi.post = 0;
+                        wire.hasWireInfo = true;
+                        moved = 0;
+                        continue;
+                    }
                     stop("wire loop detected", wire);
                     return false;
                 }
@@ -594,7 +622,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     // do pre-stamping and then stamp circuit
-    void preStampAndStampCircuit() {
+    boolean preStampAndStampCircuit() {
         int i;
 
         // preStampCircuit returns false if there's an error. It can return false if we
@@ -607,14 +635,20 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
         if (stopMessage != null) {
-            return;
+            return false;
         }
-        // if (i == 10) {
-        // cirSim.stop("failed to stamp circuit", null);
-        // return;
-        // }
+        if (i == 10) {
+            if (nonConvergenceRecoveryEnabled) {
+                warn("Failed to analyze circuit (retry limit)", null);
+                singularStabilizersActive = true;
+            } else {
+                stop("Failed to analyze circuit", null);
+            }
+            return false;
+        }
 
         stampCircuit();
+        return stopMessage == null && !needsStamp;
     }
 
     // stamp the matrix, meaning populate the matrix as required to simulate the
@@ -645,6 +679,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             stampSingularMatrixStabilizers();
         }
 
+        if (nonConvergenceRecoveryEnabled && nonConvergencePanicLevel > 0) {
+            stampNonConvergenceStabilizers();
+        }
+
         // stamp linear circuit elements
         for (CircuitElm ce : elmList) {
             ce.setParentList(elmList);
@@ -671,6 +709,17 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // needing to do it every frame
         if (!circuitNonLinear) {
             if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
+                // In educational mode, try enabling stabilizers rather than stopping.
+                if (nonConvergenceRecoveryEnabled && !singularStabilizersActive) {
+                    singularStabilizersActive = true;
+                    stampCircuit();
+                    return;
+                }
+                if (nonConvergenceRecoveryEnabled) {
+                    warn("Singular matrix!", null);
+                    needsStamp = true;
+                    return;
+                }
                 stop("Singular matrix!", null);
                 return;
             }
@@ -752,6 +801,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 if (pivotColumnIndex == -1) {
                     // This should not happen in a valid circuit. It might indicate a singular
                     // matrix.
+                    if (nonConvergenceRecoveryEnabled) {
+                        warn("Matrix error", null);
+                        singularStabilizersActive = true;
+                        return false;
+                    }
                     stop("Matrix error", null);
                     return false;
                 }
@@ -917,13 +971,61 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // nonlinear sub-iterations for idealized circuits.
     boolean singularStabilizersActive;
 
+    // Educational UX: try hard to keep the sim running even if the nonlinear
+    // solver struggles (high-Q/near-ideal circuits can be extremely stiff).
+    // Instead of stopping on non-convergence, progressively enable temporary
+    // stabilizers (node shunts + larger junction gmin), and as a last resort
+    // force-advance time using the last stable solution.
+    boolean nonConvergenceRecoveryEnabled = true;
+    int nonConvergencePanicLevel; // 0=off, higher=more damping
+    int nonConvergenceStreak;
+    int nonConvergenceCooldown;
+    double nonConvergenceExtraGmin; // extra conductance for PN junction models
+    double nonConvergenceNodeShuntR; // node-to-ground shunt resistor
+
+    public int getConvergencePanicLevel() {
+        return nonConvergencePanicLevel;
+    }
+
+    public double getExtraConvergenceGmin() {
+        return nonConvergenceExtraGmin;
+    }
+
+    private void setNonConvergencePanicLevel(int level) {
+        nonConvergencePanicLevel = Math.max(0, Math.min(level, 3));
+        switch (nonConvergencePanicLevel) {
+            case 0:
+                nonConvergenceExtraGmin = 0;
+                nonConvergenceNodeShuntR = Double.POSITIVE_INFINITY;
+                break;
+            case 1:
+                nonConvergenceExtraGmin = 1e-9;
+                nonConvergenceNodeShuntR = 1e9;
+                break;
+            case 2:
+                nonConvergenceExtraGmin = 1e-6;
+                nonConvergenceNodeShuntR = 1e6;
+                break;
+            default:
+                // Strong damping: can noticeably affect waveforms, but keeps the sim alive.
+                nonConvergenceExtraGmin = 1e-3;
+                nonConvergenceNodeShuntR = 1e3;
+                break;
+        }
+    }
+
     // analyze the circuit when something changes, so it can be simulated.
     // Most of this has been moved to preStampCircuit() so it can be avoided if the
     // simulation is stopped.
     void analyzeCircuit() {
         stopMessage = null;
         stopElm = null;
+        warningMessage = null;
+        warningElm = null;
         singularStabilizersActive = false;
+        nonConvergenceStreak = 0;
+        nonConvergenceCooldown = 0;
+        setNonConvergencePanicLevel(0);
         if (elmList.isEmpty()) {
             postDrawList.clear();
             badConnectionList.clear();
@@ -934,16 +1036,37 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         needsStamp = true;
     }
 
+    // Numeric safety net: keep the sim alive even if some element tries to
+    // stamp NaN/Inf or extreme values into the matrix.
+    static final double MAX_STAMP_VALUE = 1e12;
+
+    private double sanitizeStampValue(double x) {
+        if (!Double.isFinite(x)) {
+            converged = false;
+            return 0;
+        }
+        if (x > MAX_STAMP_VALUE) {
+            converged = false;
+            return MAX_STAMP_VALUE;
+        }
+        if (x < -MAX_STAMP_VALUE) {
+            converged = false;
+            return -MAX_STAMP_VALUE;
+        }
+        return x;
+    }
+
     // stamp value x in row i, column j, meaning that a voltage change
     // of dv in node j will increase the current into node i by x dv.
     // (Unless i or j is a voltage source node.)
     public void stampMatrix(int i, int j, double x) {
+        x = sanitizeStampValue(x);
         if (i > 0 && j > 0) {
             if (circuitNeedsMap) {
                 i = circuitRowInfo[i - 1].mapRow;
                 RowInfo ri = circuitRowInfo[j - 1];
                 if (ri.type == RowInfo.ROW_CONST) {
-                    circuitRightSide[i] -= x * ri.value;
+                    circuitRightSide[i] -= sanitizeStampValue(x * ri.value);
                     return;
                 }
                 j = ri.mapCol;
@@ -958,6 +1081,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // stamp value x on the right side of row i, representing an
     // independent current source flowing into node i
     public void stampRightSide(int i, double x) {
+        x = sanitizeStampValue(x);
         if (i > 0) {
             if (circuitNeedsMap) {
                 i = circuitRowInfo[i - 1].mapRow;
@@ -992,6 +1116,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // stamp independent voltage source #vs, from n1 to n2, amount v
     public void stampVoltageSource(int n1, int n2, int vs, double v) {
+        v = sanitizeStampValue(v);
         int vn = nodeList.size() + vs;
         stampMatrix(vn, n1, -1);
         stampMatrix(vn, n2, 1);
@@ -1013,15 +1138,20 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // update voltage source in doStep()
     public void updateVoltageSource(int n1, int n2, int vs, double v) {
+        v = sanitizeStampValue(v);
         int vn = nodeList.size() + vs;
         stampRightSide(vn, v);
     }
 
     public void stampResistor(int n1, int n2, double r) {
-        double r0 = 1 / r;
-        if (Double.isNaN(r0) || Double.isInfinite(r0)) {
-            System.out.print("bad resistance " + r + " " + r0 + "\n");
+        double r0;
+        if (!Double.isFinite(r) || r == 0) {
+            converged = false;
+            r0 = (r < 0) ? -MAX_STAMP_VALUE : MAX_STAMP_VALUE;
+        } else {
+            r0 = 1 / r;
         }
+        r0 = sanitizeStampValue(r0);
         stampMatrix(n1, n1, r0);
         stampMatrix(n2, n2, r0);
         stampMatrix(n1, n2, -r0);
@@ -1029,6 +1159,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     public void stampConductance(int n1, int n2, double r0) {
+        r0 = sanitizeStampValue(r0);
         stampMatrix(n1, n1, r0);
         stampMatrix(n2, n2, r0);
         stampMatrix(n1, n2, -r0);
@@ -1045,6 +1176,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     }
 
     public void stampCurrentSource(int n1, int n2, double i) {
+        i = sanitizeStampValue(i);
         stampRightSide(n1, -i);
         stampRightSide(n2, i);
     }
@@ -1357,8 +1489,17 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
             steps++;
 
-            int subIterCount = (adjustTimeStep && timeStep / 2 > minTimeStep) ? 100 : 5000;
+            int subIterCount;
+            if (nonConvergenceRecoveryEnabled && nonConvergencePanicLevel > 0) {
+                // In panic mode, don't burn thousands of Newton iterations.
+                // Try a smaller budget, then escalate stabilizers if needed.
+                subIterCount = 300;
+            } else {
+                subIterCount = (adjustTimeStep && timeStep / 2 > minTimeStep) ? 100 : 5000;
+            }
             int subIter = 0;
+
+            boolean matrixFailureThisIteration = false;
 
             CircuitElm firstNonConvergedElm = null;
 
@@ -1406,6 +1547,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         break;
                     }
                     if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
+                        matrixFailureThisIteration = true;
                         // If LU factorization fails, enable persistent stabilizers and re-stamp.
                         // This handles idealized/legacy configurations that are structurally singular.
                         if (!singularStabilizersActive) {
@@ -1445,6 +1587,18 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                                         ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
                                 dumpCircuitMatrix();
                             }
+                            if (nonConvergenceRecoveryEnabled) {
+                                // Treat as a hard numeric condition; apply strong damping and try again.
+                                if (nonConvergencePanicLevel < 3) {
+                                    setNonConvergencePanicLevel(3);
+                                }
+                                warn("Singular matrix!", null);
+                                setNodeVoltages(lastNodeVoltages);
+                                stampCircuit();
+                                // Fall back into the standard recovery path by treating this as a failed iteration.
+                                subIter = subIterCount;
+                                break;
+                            }
                             stop("Singular matrix!", null);
                             return;
                         }
@@ -1463,25 +1617,67 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (subIter == subIterCount) {
                 // convergence failed
                 goodIterations = 0;
-                if (adjustTimeStep) {
+
+                boolean canReduceTimeStep = !matrixFailureThisIteration && adjustTimeStep && (timeStep / 2 > minTimeStep);
+                if (canReduceTimeStep) {
                     timeStep /= 2;
                     console("timestep down to " + timeStep + " at " + t);
+                    // we reduced the timestep. reset circuit state to the way it was at start of iteration
+                    setNodeVoltages(lastNodeVoltages);
+                    stampCircuit();
+                    continue;
                 }
-                if (timeStep < minTimeStep || !adjustTimeStep) {
-                    console("convergence failed after " + subIter + " iterations");
-                    if (firstNonConvergedElm != null) {
-                        String id = firstNonConvergedElm.getElementId();
-                        stop("Convergence failed! Element: " + id, firstNonConvergedElm);
-                    } else {
-                        stop("Convergence failed!", null);
+
+                // We are at/near minTimeStep or cannot reduce further.
+                if (nonConvergenceRecoveryEnabled) {
+                    nonConvergenceStreak++;
+                    nonConvergenceCooldown = 0;
+
+                    // Escalate damping/stabilization.
+                    if (nonConvergencePanicLevel < 3) {
+                        setNonConvergencePanicLevel(nonConvergencePanicLevel + 1);
                     }
-                    break;
+
+                    // Clamp timestep so we don't go below minTimeStep.
+                    if (timeStep < minTimeStep) {
+                        timeStep = minTimeStep;
+                    }
+                    if (maxTimeStep < timeStep) {
+                        maxTimeStep = timeStep;
+                    }
+
+                    // If we keep failing even at max panic level, force-advance time using the
+                    // last stable solution instead of stopping. This sacrifices accuracy on the
+                    // spike, but keeps the simulation responsive and running.
+                    if (nonConvergencePanicLevel >= 3 && nonConvergenceStreak >= 3) {
+                        console("non-convergence: forcing step at t=" + t + " (" + subIter + " iters, elm="
+                                + (firstNonConvergedElm != null ? firstNonConvergedElm.getElementId() : "?") + ")");
+                        setNodeVoltages(lastNodeVoltages);
+                        this.t += timeStep;
+                        timeStepAccum += timeStep;
+                        if (timeStepAccum >= maxTimeStep) {
+                            timeStepAccum -= maxTimeStep;
+                            timeStepCount++;
+                        }
+                        // Skip element updates/scopes for this forced step; we didn't obtain a new solution.
+                        break;
+                    }
+
+                    // Try again with extra stabilizers.
+                    setNodeVoltages(lastNodeVoltages);
+                    stampCircuit();
+                    continue;
                 }
-                // we reduced the timestep. reset circuit state to the way it was at start of
-                // iteration
-                setNodeVoltages(lastNodeVoltages);
-                stampCircuit();
-                continue;
+
+                // Legacy behavior (stop) if recovery disabled.
+                console("convergence failed after " + subIter + " iterations");
+                if (firstNonConvergedElm != null) {
+                    String id = firstNonConvergedElm.getElementId();
+                    stop("Convergence failed! Element: " + id, firstNonConvergedElm);
+                } else {
+                    stop("Convergence failed!", null);
+                }
+                break;
             }
 
             if (subIter > 5 || timeStep < maxTimeStep) {
@@ -1492,6 +1688,21 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 goodIterations++;
             } else {
                 goodIterations = 0;
+            }
+
+            // Successful convergence: gradually relax panic stabilizers.
+            if (nonConvergenceRecoveryEnabled && nonConvergencePanicLevel > 0) {
+                nonConvergenceStreak = 0;
+                // Only cool down when convergence is reasonably fast.
+                if (subIter < 8) {
+                    nonConvergenceCooldown++;
+                    if (nonConvergenceCooldown >= 30) {
+                        setNonConvergencePanicLevel(nonConvergencePanicLevel - 1);
+                        nonConvergenceCooldown = 0;
+                    }
+                } else {
+                    nonConvergenceCooldown = 0;
+                }
             }
 
             this.t += timeStep;
@@ -1568,6 +1779,30 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         for (int vs = 0; vs < voltageSourceCount; vs++) {
             int vn = nodeList.size() + vs;
             stampMatrix(vn, vn, gStabilize);
+        }
+    }
+
+    /**
+     * Stamp temporary stabilizers when the nonlinear solver fails to converge.
+     * This intentionally trades accuracy on spikes for robustness.
+     */
+    private void stampNonConvergenceStabilizers() {
+        if (!Double.isFinite(nonConvergenceNodeShuntR)) {
+            return;
+        }
+
+        double r = nonConvergenceNodeShuntR;
+        for (int n = 1; n < nodeList.size(); n++) {
+            if (getCircuitNode(n).internal) {
+                continue;
+            }
+            stampResistor(0, n, r);
+        }
+
+        double g = 1.0 / r;
+        for (int vs = 0; vs < voltageSourceCount; vs++) {
+            int vn = nodeList.size() + vs;
+            stampMatrix(vn, vn, g);
         }
     }
 

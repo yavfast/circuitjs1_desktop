@@ -1,0 +1,51 @@
+{
+  "episode_id": "ep_solver_nonfatal_warnings_and_stamp_guard_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T00:00:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/solver/convergence",
+    "goal": "Prevent simulation loop from stopping on remaining solver-level structural/numeric errors"
+  },
+  "problem": {
+    "symptoms": [
+      "Simulation could still stop on 'Singular matrix!', 'Matrix error', 'wire loop detected', or FindPathInfo structural checks",
+      "If stamping failed (preStamp/stamp), the simulation loop could continue into runCircuit and crash/stop via exceptions"
+    ],
+    "root_cause": [
+      "Some solver/validation paths still used stop() for structural singularities and internal wire-current dependency loops",
+      "CircuitDocument update loop always called runCircuit() even if stamping did not complete"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "summary": "Add non-fatal warningMessage/warn(); treat Matrix error and linear singular matrix as warn+retry in recovery mode; handle wire loop detected by approximating wire currents; make preStampAndStampCircuit() return boolean success"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/FindPathInfo.java",
+      "summary": "In recovery mode, convert structural checks (voltage-source loop, rail-to-ground no-resistance) from stop() into warn() + enable singular stabilizers"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java",
+      "summary": "Skip runCircuit() when preStampAndStampCircuit() returns false to avoid exceptions and keep loop alive"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java",
+      "summary": "Update stepSimulation() to respect boolean stamp result and avoid stepping when stamp incomplete"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java",
+      "summary": "Render warningMessage under Mode when no fatal stopMessage is present"
+    }
+  ],
+  "verification": {
+    "build": "mvn -q -DskipTests=true test"
+  },
+  "notes": {
+    "tradeoffs": [
+      "Some structurally invalid circuits now continue with stabilization rather than stopping; waveforms may be non-physical",
+      "Wire current calculation in cyclic wire loops is approximated to preserve responsiveness"
+    ]
+  }
+}

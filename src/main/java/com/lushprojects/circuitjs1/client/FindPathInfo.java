@@ -159,6 +159,11 @@ public class FindPathInfo {
             if (ce instanceof VoltageElm) {
                 FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.VOLTAGE, ce, ce.getNode(1));
                 if (fpi.findPath(ce.getNode(0))) {
+                    if (simulator.nonConvergenceRecoveryEnabled) {
+                        simulator.warn("Voltage source/wire loop with no resistance!", ce);
+                        simulator.singularStabilizersActive = true;
+                        return true;
+                    }
                     simulator.stop("Voltage source/wire loop with no resistance!", ce);
                     return false;
                 }
@@ -169,6 +174,11 @@ public class FindPathInfo {
         if (ce instanceof RailElm || ce instanceof LogicInputElm) {
             FindPathInfo fpi = new FindPathInfo(simulator, FindPathInfo.VOLTAGE, ce, ce.getNode(0));
             if (fpi.findPath(0)) {
+                if (simulator.nonConvergenceRecoveryEnabled) {
+                    simulator.warn("Path to ground with no resistance!", ce);
+                    simulator.singularStabilizersActive = true;
+                    return true;
+                }
                 simulator.stop("Path to ground with no resistance!", ce);
                 return false;
             }

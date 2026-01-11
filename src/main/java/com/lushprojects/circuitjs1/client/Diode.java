@@ -85,11 +85,25 @@ public class Diode {
     double vcrit, vzcrit;
     double lastvoltdiff;
 
+    private static double clamp(double v, double lo, double hi) {
+        if (v < lo)
+            return lo;
+        if (v > hi)
+            return hi;
+        return v;
+    }
+
     double limitStep(double vnew, double vold) {
         double arg;
 
+        // In panic/non-convergence recovery mode, relax diode limiting to avoid
+        // trapping the solver in hard limiter feedback.
+        int panicLevel = simulator.getConvergencePanicLevel();
+        double maxDeltaFwd = (panicLevel > 0) ? (20 * vscale) : (2 * vscale);
+        double maxDeltaZ = (panicLevel > 0) ? (20 * vt) : (2 * vt);
+
         // check new voltage; has current changed by factor of e^2?
-        if (vnew > vcrit && Math.abs(vnew - vold) > (vscale + vscale)) {
+        if (vnew > vcrit && Math.abs(vnew - vold) > maxDeltaFwd) {
             if (vold > 0) {
                 arg = 1 + (vnew - vold) / vscale;
                 if (arg > 0) {
@@ -115,7 +129,7 @@ public class Diode {
             vnew = -vnew - zoffset;
             vold = -vold - zoffset;
 
-            if (vnew > vzcrit && Math.abs(vnew - vold) > (vt + vt)) {
+            if (vnew > vzcrit && Math.abs(vnew - vold) > maxDeltaZ) {
                 if (vold > 0) {
                     arg = 1 + (vnew - vold) / vt;
                     if (arg > 0) {
@@ -151,17 +165,29 @@ public class Diode {
         // To prevent a possible singular matrix or other numeric issues, put a tiny conductance
         // in parallel with each P-N junction.
         double gmin = leakage * 0.01;
-        if (simulator.subIterations > 100) {
+        double extraGmin = simulator.getExtraConvergenceGmin();
+        if (extraGmin > gmin) {
+            gmin = extraGmin;
+        }
+
+        int panicLevel = simulator.getConvergencePanicLevel();
+        int gminStartIter = (panicLevel > 0) ? 10 : 100;
+        double gminDenom = (panicLevel > 0) ? 300. : 3000.;
+
+        if (simulator.subIterations > gminStartIter) {
             // if we have trouble converging, put a conductance in parallel with the diode.
             // Gradually increase the conductance value for each iteration.
-            gmin = Math.exp(-9 * Math.log(10) * (1 - simulator.subIterations / 3000.));
+            gmin = Math.exp(-9 * Math.log(10) * (1 - simulator.subIterations / gminDenom));
             if (gmin > .1)
                 gmin = .1;
+            if (extraGmin > gmin) {
+                gmin = extraGmin;
+            }
         }
 
         if (voltdiff >= 0 || zvoltage == 0) {
             // regular diode or forward-biased zener
-            double eval = Math.exp(voltdiff * vdcoef);
+            double eval = Math.exp(clamp(voltdiff * vdcoef, -700, 700));
             double geq = vdcoef * leakage * eval + gmin;
             double nc = (eval - 1) * leakage - geq * voltdiff;
             simulator.stampConductance(n0, n1, geq);
@@ -180,15 +206,18 @@ public class Diode {
              * nc is I(Vd) + I'(Vd)*(-Vd)
              */
 
-            double geq = leakage * (
-                    vdcoef * Math.exp(voltdiff * vdcoef) + vzcoef * Math.exp((-voltdiff - zoffset) * vzcoef)
-            ) + gmin;
+                double evalFwd = Math.exp(clamp(voltdiff * vdcoef, -700, 700));
+                double evalZ = Math.exp(clamp((-voltdiff - zoffset) * vzcoef, -700, 700));
 
-            double nc = leakage * (
-                    Math.exp(voltdiff * vdcoef)
-                            - Math.exp((-voltdiff - zoffset) * vzcoef)
-                            - 1
-            ) + geq * (-voltdiff);
+                double geq = leakage * (
+                    vdcoef * evalFwd + vzcoef * evalZ
+                ) + gmin;
+
+                double nc = leakage * (
+                    evalFwd
+                        - evalZ
+                        - 1
+                ) + geq * (-voltdiff);
 
             simulator.stampConductance(n0, n1, geq);
             simulator.stampCurrentSource(n0, n1, nc);
@@ -197,10 +226,10 @@ public class Diode {
 
     public double calculateCurrent(double voltdiff) {
         if (voltdiff >= 0 || zvoltage == 0)
-            return leakage * (Math.exp(voltdiff * vdcoef) - 1);
+            return leakage * (Math.exp(clamp(voltdiff * vdcoef, -700, 700)) - 1);
         return leakage * (
-                Math.exp(voltdiff * vdcoef)
-                        - Math.exp((-voltdiff - zoffset) * vzcoef)
+                Math.exp(clamp(voltdiff * vdcoef, -700, 700))
+                        - Math.exp(clamp((-voltdiff - zoffset) * vzcoef, -700, 700))
                         - 1
         );
     }

@@ -132,6 +132,11 @@ public class DiacElm extends CircuitElm {
 
     void calculateCurrent() {
         double r = (state) ? onresistance : offresistance;
+        if (!Double.isFinite(r) || r == 0) {
+            simulator().converged = false;
+            current = 0;
+            return;
+        }
         current = (getNodeVoltage(0) - getNodeVoltage(2)) / r + (getNodeVoltage(0) - getNodeVoltage(3)) / r;
     }
 

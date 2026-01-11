@@ -1,0 +1,23 @@
+{
+  "episode_id": "ep_solver_nonconvergence_recovery_remaining_elements_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T16:20:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/solver/convergence",
+    "goal": "Eliminate remaining element-level hard stops and improve robustness"
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/TransLineElm.java",
+      "summary": "Clamp excessive delay to a manageable buffer and remove stop() calls; mark converged=false when grounding constraints are violated"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/PolarCapacitorElm.java",
+      "summary": "Remove stop() on reverse voltage; clamp internal capacitor state (voltDiff) and set converged=false"
+    }
+  ],
+  "verification": {
+    "build": "mvn -q -DskipTests=true test"
+  }
+}

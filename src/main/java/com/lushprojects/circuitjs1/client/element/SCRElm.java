@@ -256,8 +256,19 @@ public class SCRElm extends CircuitElm {
         lastvac = vac;
         lastvag = vag;
         diode.doStep(getNodeVoltage(inode) - getNodeVoltage(cnode));
-        double icmult = 1 / triggerI;
-        double iamult = 1 / holdingI - icmult;
+        double trig = triggerI;
+        double hold = holdingI;
+        if (!Double.isFinite(trig) || trig <= 0) {
+            simulator().converged = false;
+            trig = 1e-12;
+        }
+        if (!Double.isFinite(hold) || hold <= 0) {
+            simulator().converged = false;
+            hold = 1e-12;
+        }
+
+        double icmult = 1 / trig;
+        double iamult = 1 / hold - icmult;
         // System.out.println(icmult + " " + iamult);
         aresistance = (-icmult * ic + ia * iamult > 1) ? .0105 : 10e5;
         // System.out.println(vac + " " + vag + " " + sim.converged + " " + ic + " " +
@@ -280,8 +291,18 @@ public class SCRElm extends CircuitElm {
     }
 
     void calculateCurrent() {
-        ig = (getNodeVoltage(gnode) - getNodeVoltage(cnode)) / gresistance;
-        ia = (getNodeVoltage(anode) - getNodeVoltage(inode)) / aresistance;
+        double gr = gresistance;
+        if (!Double.isFinite(gr) || gr == 0) {
+            simulator().converged = false;
+            gr = (gr < 0) ? -1e-12 : 1e-12;
+        }
+        double ar = aresistance;
+        if (!Double.isFinite(ar) || ar == 0) {
+            simulator().converged = false;
+            ar = (ar < 0) ? -1e-12 : 1e-12;
+        }
+        ig = (getNodeVoltage(gnode) - getNodeVoltage(cnode)) / gr;
+        ia = (getNodeVoltage(anode) - getNodeVoltage(inode)) / ar;
         ic = -ig - ia;
     }
 

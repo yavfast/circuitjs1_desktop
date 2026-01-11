@@ -1,5 +1,5 @@
 ## Meta
-- last_updated: 2026-01-08T13:45:00+02:00
+- last_updated: 2026-01-08T00:00:00+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
 - active_skills: [circuitjs1-dev-workflow]
@@ -7,19 +7,23 @@
 
 ## Current Task
 
-- task_id: EDITOR-DELETE-UNDO-SHORTCUTS
-	goal: Виправити 3 баги редактора: (1) видалення інколи прибирає “зайвий” елемент, (2) undo після delete може очищати всю схему, (3) після відкриття схеми одразу не працюють швидкі команди додавання елементів.
-	global_context: Є мульти-таб архітектура з делегуванням подій на active document; delete/undo/shortcuts прив’язані до selection/mouse hover, undo snapshots, та фокуса canvas.
-	current_focus: Зробити delete детермінованим (лише selected або один явний target), привести undo history у консистентний стан після open/load, та повернути фокус на canvas після open/tab switch.
-	active_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitEditor.java, src/main/java/com/lushprojects/circuitjs1/client/UndoManager.java, src/main/java/com/lushprojects/circuitjs1/client/LoadFile.java, src/main/java/com/lushprojects/circuitjs1/client/DocumentManager.java]
-	scratchpad:
-		- Root-cause (1): `doDelete()` видаляв також `isMouseElm()` (hover) → при delete selected могла зникати ще одна (hovered) деталь.
-		- Root-cause (2): undo stack міг містити pre-load “порожній” стан; Ctrl+Z міг повертати схему до empty. Рішення: reset+seed undo після open/load/restore.
-		- Root-cause (3): keypress shortcuts не доходили без фокуса в canvas (особливо після open/tab switch). Рішення: setFocus(true) після load та при зміні active document.
-	scope_in: Мінімальні зміни в delete/undo/focus; без редизайну UI.
-	scope_out: Переробка всієї системи undo або повний рефактор input handling.
+- task_id: SOLVER-NONCONVERGENCE-RECOVERY
+	goal: Максимально уникати зупинки симуляції на чисельних збоях (non-convergence/singular matrix/structural singularities) — симуляція має залишатись “живою” (educational UX > точність на спайках).
+	global_context: Після серії змін “never stop” потрібно прибрати залишкові solver-level stop() (Singular matrix/Matrix error/wire loop/FindPathInfo checks) і не допускати фатальних винятків при невдалому stamp.
+	current_focus: Перевести solver/validation на non-fatal warnings + recovery, щоб цикл симуляції не зупинявся і не падав у exceptions.
+	active_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/FindPathInfo.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java, src/main/java/com/lushprojects/circuitjs1/client/CirSim.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java]
+	scope_in: М’яке відновлення/попередження замість stop на сингулярностях/матриці/структурних петлях; без нових UI панелей.
+	scope_out: Повна SPICE-подібна реалізація source-stepping/gear solver, або перепис математики моделей.
 
 ## Other Tasks (This Chat)
+
+- task_id: EDITOR-DELETE-UNDO-SHORTCUTS
+	goal: Виправити 3 баги редактора: delete зайвий елемент, undo після delete може очистити схему, shortcuts не працюють одразу після open/tab switch.
+	status: archived
+	global_context: Виправлення input/undo/focus в editor-частині; контекст заархівовано.
+	current_focus: Manual smoke в DevMode (shortcuts/delete/undo).
+	active_files: [ai_memory/context_history/EDITOR-DELETE-UNDO-SHORTCUTS.md]
+	next: "За потреби відновити з ai_memory/context_history/EDITOR-DELETE-UNDO-SHORTCUTS.md і зробити ручний smoke"
 
 - task_id: SIM-CONVERGENCE-RESET-NODE-MARKERS
 	goal: Додати ідентифікатор елемента до повідомлення про збіжність, зробити Reset симуляції коректним (включно зі скиданням стану елементів/solver), і прибрати “завислі” маркери вузлів/пінів після видалення елемента.
@@ -56,17 +60,6 @@
 			- ai_memory/tmp_episode_std_circuits_error_ux.json
 
 ## Progress
-	EDITOR-DELETE-UNDO-SHORTCUTS:
-		done:
-			- `CircuitEditor.doDelete()`: тепер при наявності selection видаляє лише selected; якщо selection нема — видаляє максимум один елемент (menuElm або mouseElm).
-			- `UndoManager`: додано `resetAndSeedFromCurrentCircuit()` для скидання undo/redo та seed поточним станом.
-			- `LoadFile.doLoad()`: після open/load робить reset+seed undo і ставить фокус на canvas.
-			- `DocumentManager`: після restore closed tab робить reset+seed undo; після tab switch ставить фокус на canvas (Timer).
-			- `mvn -q -DskipTests=true test` — OK.
-		in_progress: []
-		next:
-			- Ручний smoke: відкрити схему → без кліку натиснути shortcut (напр. `r`) → має перейти в Add mode; Delete selected не має чіпати hovered; Ctrl+Z після delete відновлює елемент (без очищення схеми).
-
 	SIM-CONVERGENCE-RESET-NODE-MARKERS:
 		done:
 			- Convergence stop включає елемент: "Convergence failed! Element: <ID>" і підсвічує stopElm.
@@ -76,6 +69,34 @@
 		in_progress: []
 		next:
 			- (опційно) Ручна перевірка в DevMode: спровокувати stop, перевірити атрибуцію/Reset/delete у stopped режимі.
+
+	SOLVER-NONCONVERGENCE-RECOVERY:
+		done:
+			- `CircuitSimulator`: додано panic-mode recovery, щоб не стопатись на non-convergence: тимчасові node-to-ground шунти + extra gmin для PN моделей + force-step як крайній випадок.
+			- `CircuitSimulator`: у panic-mode зменшено budget sub-iterations (щоб UI не фрізився на 5000 ітерацій).
+			- `TransistorElm`: пом’якшено limiter threshold у panic-mode; додано підтримку simulator-provided extra gmin.
+			- `TransistorElm`: додано захист від overflow у `Math.exp()` (clamp аргументів) щоб уникати NaN/Inf після релаксації limiter.
+			- `TransistorElm`: прибрано hard-stop на NaN/Inf та "max current exceeded" (замість цього: clamping + converged=false).
+			- `Diode`: panic-aware limiter (релаксація), extra gmin від simulator, adaptive gmin раніше у panic-mode, та захист від overflow у `Math.exp()`.
+			- `TunnelDiodeElm`: panic-aware limiter, extra gmin, та захист від overflow/NaN/Inf при штампуванні.
+			- `MosfetElm`: panic-aware per-iteration voltage limiting та використання simulator extra gmin як floor для малого `Gds`.
+			- `DiodeElm`/`LEDArrayElm`/`SevenSegElm`: прибрано hard-stop "max current exceeded" → clamp + `converged=false`.
+			- `ThermistorNTCElm`: захист від overflow у `Math.exp()` при обчисленні опору (щоб не отримувати Infinity/NaN).
+			- `TransLineElm`: прибрано hard-stop на "delay too large"/"need to ground"; замість цього clamp delay до буфера і `converged=false`.
+			- `PolarCapacitorElm`: прибрано hard-stop при перевищенні зворотної напруги; clamp внутрішнього `voltDiff` + `converged=false`.
+			- `CircuitSimulator`: додано глобальний safety-net для stamp API (stampMatrix/stampRightSide/stampResistor/stampConductance/stampCurrentSource/updateVoltageSource): NaN/Inf/extreme → clamp/0 + `converged=false`.
+			- `SCRElm`/`DiacElm`/`SparkGapElm`: захист від divide-by-zero/NaN параметрів у обчисленні струмів/множників (щоб не з’являлись Inf у логіці стану).
+			- DevMode: перевірено на проблемній схемі, що stopMessage більше не з’являється (симуляція може бути повільною при малому timestep, але не зупиняється з помилкою).
+			- `CircuitSimulator`: додано non-fatal `warningMessage`/`warn()`; сингулярності/матриця/внутрішні петлі тепер можуть деградувати без `stop()`.
+			- `CircuitSimulator.calcWireInfo()`: "wire loop detected" у recovery mode більше не зупиняє — ламаємо циклічну залежність і наближено рахуємо струми.
+			- `FindPathInfo.validateElement()`: structural checks (voltage-source loop / rail-to-ground no-resistance) у recovery mode → warn + enable stabilizers, без stop.
+			- `CircuitSimulator.preStampAndStampCircuit()`: тепер повертає boolean; при невдалому pre-stamp/stamp не йдемо в `runCircuit()`.
+			- `CircuitDocument`/`CirSim.stepSimulation()`: якщо stamp не завершився — пропускаємо крок замість exception/stop.
+			- `CircuitRenderer`: показує `warningMessage` під "Mode" коли немає фатального stopMessage.
+		in_progress: []
+		next:
+			- DevMode regression-smoke: схеми з (1) voltage-source loops/rail-to-ground, (2) stiff switching (SCR/DIAC/TRIAC), (3) wire-heavy nets.
+			- Перевірити, що немає errorMessage і що warningMessage не фрізить/не перешкоджає time advance.
 
 ## Breadcrumbs
 	TRANSFORMER-WINDING-R-AUTOTIMESTEP:
@@ -141,5 +162,15 @@ focus_now: Optional manual regression checks in DevMode
 next_action: Trigger a convergence failure and confirm the message includes element ID; then Reset Simulation and delete elements in stopped mode
 key_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/CirSim.java, src/main/java/com/lushprojects/circuitjs1/client/BaseCirSim.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java]
 verify_cmd: mvn -q test
+last_result: success
+
+---
+
+# Quick Resume — SOLVER-NONCONVERGENCE-RECOVERY
+goal: Keep simulation running (never stop) on singular/non-convergence/structural singularities via recovery + non-fatal warnings
+focus_now: Validate DevMode behavior for singular matrix + FindPathInfo structural loops without triggering errorMessage/stop
+next_action: Run DevMode and load a few stiff/invalid circuits; confirm time advances and only warningMessage appears (no stop)
+key_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/FindPathInfo.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java]
+verify_cmd: mvn -q -DskipTests=true test
 last_result: success
 ```

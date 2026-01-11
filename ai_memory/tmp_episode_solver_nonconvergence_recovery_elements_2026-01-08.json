@@ -1,0 +1,59 @@
+{
+  "episode_id": "ep_solver_nonconvergence_recovery_elements_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T16:12:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/solver/convergence",
+    "goal": "Extend non-convergence recovery hardening beyond BJT to other nonlinear elements"
+  },
+  "problem": {
+    "symptoms": [
+      "Convergence failures or numerical blow-ups can be driven by PN junction models (diodes/LED arrays/body diodes) and tunnel diodes",
+      "Some elements hard-stopped on 'max current exceeded', disrupting the 'never stop' goal"
+    ],
+    "root_cause": [
+      "Exponential device models can overflow or produce extreme conductances/currents during stiff operating points",
+      "Hard-stop guards in some element stepFinished() paths prevented solver recovery from taking over"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/Diode.java",
+      "summary": "Make diode limiting panic-aware, honor simulator extra gmin, ramp gmin earlier in panic mode, and clamp exp arguments to avoid overflow"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/TunnelDiodeElm.java",
+      "summary": "Relax limiter in panic mode, add extra gmin, clamp exponentials, and avoid stamping NaN/Inf"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/MosfetElm.java",
+      "summary": "Relax per-iteration voltage limiting in panic mode and use simulator extra gmin as a floor for the small Gds stabilizer"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/DiodeElm.java",
+      "summary": "Replace hard stop on huge/NaN diode current with clamp + converged=false"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/LEDArrayElm.java",
+      "summary": "Replace hard stop on huge/NaN LED currents with clamp + converged=false"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/SevenSegElm.java",
+      "summary": "Replace hard stop on huge/NaN segment current with clamp + converged=false"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/TransistorElm.java",
+      "summary": "Clamp exp arguments to avoid overflow/NaN after limiter relaxation"
+    }
+  ],
+  "verification": {
+    "build": "mvn -q -DskipTests=true test"
+  },
+  "notes": {
+    "tradeoffs": [
+      "In panic mode the diode limiter is intentionally more permissive and gmin can be much larger",
+      "Clamping exp inputs preserves finiteness but can hide extreme-physics behavior"
+    ]
+  }
+}

@@ -96,14 +96,23 @@ public class TunnelDiodeElm extends CircuitElm {
 
     double lastvoltdiff;
 
+    private static double clamp(double v, double lo, double hi) {
+        if (v < lo)
+            return lo;
+        if (v > hi)
+            return hi;
+        return v;
+    }
+
     double limitStep(double vnew, double vold) {
         // Prevent voltage changes of more than 1V when iterating. Wow, I thought it
         // would be
         // much harder than this to prevent convergence problems.
-        if (vnew > vold + 1)
-            return vold + 1;
-        if (vnew < vold - 1)
-            return vold - 1;
+        double maxDelta = (simulator().getConvergencePanicLevel() > 0) ? 5 : 1;
+        if (vnew > vold + maxDelta)
+            return vold + maxDelta;
+        if (vnew < vold - maxDelta)
+            return vold - maxDelta;
         return vnew;
     }
 
@@ -128,15 +137,36 @@ public class TunnelDiodeElm extends CircuitElm {
         voltdiff = limitStep(voltdiff, lastvoltdiff);
         lastvoltdiff = voltdiff;
 
-        double i0 = piv * Math.exp(-pvv);
-        double i = pip * Math.exp(-pvpp / pvt) * (Math.exp(voltdiff / pvt) - 1) +
-                pip * (voltdiff / pvp) * Math.exp(1 - voltdiff / pvp) +
-                piv * Math.exp(voltdiff - pvv) - i0;
+        // Prevent exp overflow/NaN during non-convergence situations.
+        double exp1 = Math.exp(clamp(-pvpp / pvt, -700, 700));
+        double exp2 = Math.exp(clamp(voltdiff / pvt, -700, 700));
+        double exp3 = Math.exp(clamp(1 - voltdiff / pvp, -700, 700));
+        double exp4 = Math.exp(clamp(voltdiff - pvv, -700, 700));
 
-        double geq = pip * Math.exp(-pvpp / pvt) * Math.exp(voltdiff / pvt) / pvt +
-                pip * Math.exp(1 - voltdiff / pvp) / pvp
-                - Math.exp(1 - voltdiff / pvp) * pip * voltdiff / (pvp * pvp) +
-                Math.exp(voltdiff - pvv) * piv;
+        double i0 = piv * Math.exp(clamp(-pvv, -700, 700));
+        double i = pip * exp1 * (exp2 - 1) +
+            pip * (voltdiff / pvp) * exp3 +
+            piv * exp4 - i0;
+
+        double geq = pip * exp1 * exp2 / pvt +
+            pip * exp3 / pvp
+            - exp3 * pip * voltdiff / (pvp * pvp) +
+            exp4 * piv;
+
+        // Add panic-mode gmin to help convergence.
+        double gmin = simulator().getExtraConvergenceGmin();
+        if (gmin > 0) {
+            geq += gmin;
+            i += gmin * voltdiff;
+        }
+
+        if (!Double.isFinite(i) || !Double.isFinite(geq)) {
+            simulator().converged = false;
+            // Fall back to a very small conductance rather than stamping NaNs.
+            geq = Math.max(1e-8, simulator().getExtraConvergenceGmin());
+            i = 0;
+        }
+
         double nc = i - geq * voltdiff;
         simulator().stampConductance(getNode(0), getNode(1), geq);
         simulator().stampCurrentSource(getNode(0), getNode(1), nc);
@@ -144,10 +174,14 @@ public class TunnelDiodeElm extends CircuitElm {
 
     void calculateCurrent() {
         double voltdiff = getNodeVoltage(0) - getNodeVoltage(1);
-        double i0 = piv * Math.exp(-pvv);
-        current = pip * Math.exp(-pvpp / pvt) * (Math.exp(voltdiff / pvt) - 1) +
-                pip * (voltdiff / pvp) * Math.exp(1 - voltdiff / pvp) +
-                piv * Math.exp(voltdiff - pvv) - i0;
+        double i0 = piv * Math.exp(clamp(-pvv, -700, 700));
+        double exp1 = Math.exp(clamp(-pvpp / pvt, -700, 700));
+        double exp2 = Math.exp(clamp(voltdiff / pvt, -700, 700));
+        double exp3 = Math.exp(clamp(1 - voltdiff / pvp, -700, 700));
+        double exp4 = Math.exp(clamp(voltdiff - pvv, -700, 700));
+        current = pip * exp1 * (exp2 - 1) +
+            pip * (voltdiff / pvp) * exp3 +
+            piv * exp4 - i0;
     }
 
     public void getInfo(String arr[]) {

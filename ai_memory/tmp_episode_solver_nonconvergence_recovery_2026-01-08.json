@@ -1,0 +1,40 @@
+{
+  "episode_id": "ep_solver_nonconvergence_recovery_2026_01_08",
+  "status": "success",
+  "when": "2026-01-08T15:48:00+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "simulation/solver/convergence",
+    "goal": "Avoid stopping the simulation on Convergence failed for educational UX"
+  },
+  "problem": {
+    "symptoms": [
+      "Users hit 'Convergence failed! Element: TRA2/TRA3' frequently on stiff/idealized circuits",
+      "Reset/Start UX is disrupted by hard stop errors"
+    ],
+    "root_cause": [
+      "Newton iterations can fail to converge on stiff, high-Q, near-ideal circuits (e.g., transformer + transistor), especially near spikes",
+      "When timeStep can no longer be reduced below minTimeStep, the legacy behavior hard-stops"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java",
+      "summary": "Add panic-mode recovery: temporary node shunts + extra junction gmin, smaller sub-iteration budget, and force-step fallback instead of stop('Convergence failed')"
+    },
+    {
+      "file": "src/main/java/com/lushprojects/circuitjs1/client/element/TransistorElm.java",
+      "summary": "Relax limiter threshold in panic mode, honor simulator-provided extra gmin, and avoid hard-stopping on NaN/Inf or huge currents (clamp + converged=false)"
+    }
+  ],
+  "verification": {
+    "build": "mvn -q -DskipTests=true test",
+    "devmode": "Stress-tested by configuring low transformer resistances + tiny timestep; simulation continued without stopMessage/errorMessage"
+  },
+  "notes": {
+    "tradeoffs": [
+      "Accuracy is intentionally sacrificed during spikes and in panic mode",
+      "Force-step skips element updates for that step to keep UI responsive"
+    ]
+  }
+}
