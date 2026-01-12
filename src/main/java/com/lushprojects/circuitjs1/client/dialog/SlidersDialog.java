@@ -1,10 +1,12 @@
 package com.lushprojects.circuitjs1.client.dialog;
 
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.HasHorizontalAlignment;
 import com.google.gwt.user.client.ui.HasVerticalAlignment;
 import com.google.gwt.user.client.ui.HorizontalPanel;
 import com.google.gwt.user.client.ui.Label;
+import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.Scrollbar;
@@ -19,6 +21,28 @@ public class SlidersDialog extends Dialog {
         setWidget(panel);
         
         getElement().getStyle().setProperty("overflowY", "auto");
+    }
+
+    @Override
+    public void show() {
+        super.show();
+        // If position wasn't restored from storage, apply fallback: position to the right below Controls
+        if (!isPositionRestored()) {
+            Scheduler.get().scheduleDeferred(() -> {
+                applyFallbackPosition();
+            });
+        }
+    }
+
+    private void applyFallbackPosition() {
+        int mainWidth = RootLayoutPanel.get().getOffsetWidth();
+        int dialogWidth = getOffsetWidth();
+        if (dialogWidth <= 0) return;
+        
+        int left = mainWidth - dialogWidth - 20;
+        int top = 50; // Below the Controls dialog (which is at top ~80-100 pixels)
+        
+        setPopupPosition(left, top);
     }
 
     @Override

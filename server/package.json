@@ -1,0 +1,18 @@
+{
+    "name": "circuitjs-remote-debug-server",
+    "version": "0.1.0",
+    "description": "Remote debug server for CircuitJS1",
+    "main": "remote-debug-server.js",
+    "scripts": {
+        "start": "node remote-debug-server.js",
+        "dev": "node --watch remote-debug-server.js"
+    },
+    "dependencies": {
+        "socket.io": "^4.7.4",
+        "express": "^4.18.2",
+        "uuid": "^9.0.1"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

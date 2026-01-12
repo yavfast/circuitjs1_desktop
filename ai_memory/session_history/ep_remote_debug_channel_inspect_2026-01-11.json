@@ -1,0 +1,29 @@
+{
+  "episode_id": "ep_remote_debug_channel_inspect_2026-01-11",
+  "date": "2026-01-11",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": ["remote-debug", "nwjs", "viewer"],
+    "goal": "Use the remote debug viewer URL provided by the user to connect to a specific channel, pull circuit export + screenshot, and identify what the schematic contains."
+  },
+  "problem": {
+    "symptom": "User provided viewer URL for channel, but needed content identification (no schematic image pasted in chat)",
+    "root_cause": "No agent was connected to the channel initially; the circuit contents were only available via remote debug export/screenshot."
+  },
+  "change": {
+    "files": [
+      "tmp_nw_remote_debug/package.json",
+      "server/tmp_remote_debug_fetch.js"
+    ],
+    "summary": "Pointed NW.js wrapper at channel cjs-1768147465784 (agent) and added a lightweight viewer script to export the current circuit JSON and save a PNG screenshot."
+  },
+  "verification": {
+    "server": "http://127.0.0.1:3030/api/channels shows hasAgent:true for cjs-1768147465784",
+    "artifacts": [
+      "server/tmp_export_cjs-1768147465784.json",
+      "server/tmp_export_cjs-1768147465784.summary.json",
+      "server/tmp_screenshot_cjs-1768147465784.png"
+    ],
+    "identified": "Series RC segment between two open terminals: R1=2.2kΩ in series with C2=10µF; scope attached to C2."
+  }
+}

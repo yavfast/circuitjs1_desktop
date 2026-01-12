@@ -1,0 +1,41 @@
+{
+  "episode_id": "ep_remote_debug_agent_docinfo_2026_01_11",
+  "status": "success",
+  "when": "2026-01-11T16:46:30+02:00",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "domain": "remote-debug/agent-server",
+    "goal": "Verify remote debug server end-to-end and fix missing document_info emission"
+  },
+  "problem": {
+    "symptoms": [
+      "Remote debug viewer never received document_info updates",
+      "Agent attempted to emit document_info before socket was connected",
+      "Agent required multi-tab API methods (getActiveDocumentName/getDocumentCount) which are not present in current CircuitJS1 JS API"
+    ]
+  },
+  "changes": [
+    {
+      "file": "src/main/webapp/scripts/remote-debug-agent.js",
+      "summary": "Send document_info after connect/registered with retry until ready; allow URL param remote-debug-server; fallback docName/tabCount when multi-tab API is missing"
+    },
+    {
+      "file": "war/scripts/remote-debug-agent.js",
+      "summary": "Keep deployed copy in sync with src version (same document_info + URL override fixes)"
+    }
+  ],
+  "verification": {
+    "build": "npm run buildgwt",
+    "runtime": [
+      "Start server: node server/remote-debug-server.js",
+      "Open viewer: http://localhost:3030/?channel=test-e2e-123",
+      "Open app (built): python3 -m http.server 8000 --directory target/site; then http://127.0.0.1:8000/circuitjs.html?remote-debug=test-e2e-123&remote-debug-server=http://localhost:3030",
+      "Validated socket events: execute(getSimInfo), screenshot(png), circuit_export(withState), telemetry_subscribe(R1/V1), element_update(R1.resistance)"
+    ]
+  },
+  "notes": {
+    "observations": [
+      "GWT DevMode (127.0.0.1:8888) can show 'failed / Try Again' in headless Chrome; compiled target/site was used for stable e2e verification"
+    ]
+  }
+}

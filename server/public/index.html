@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CircuitJS1 Remote Debug</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0f3460;
+            --accent: #e94560;
+            --text-primary: #eee;
+            --text-secondary: #aaa;
+            --success: #00d26a;
+            --warning: #ffc107;
+            --error: #e94560;
+            --border: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: var(--success);
+            color: #000;
+        }
+
+        .status-disconnected {
+            background: var(--error);
+            color: #fff;
+        }
+
+        .status-waiting {
+            background: var(--warning);
+            color: #000;
+        }
+
+        .channel-info {
+            margin-left: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Tab Navigation */
+        .tab-bar {
+            background: var(--bg-secondary);
+            display: flex;
+            gap: 2px;
+            padding: 0.5rem 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 6px 6px 0 0;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: #1a4a7d;
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .tab .badge {
+            background: var(--accent);
+            color: #fff;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .tab .close-btn {
+            opacity: 0.5;
+            font-size: 0.75rem;
+            margin-left: 0.3rem;
+        }
+
+        .tab .close-btn:hover {
+            opacity: 1;
+            color: var(--error);
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Log Output */
+        .log-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            width: 70px;
+        }
+
+        .log-type {
+            flex-shrink: 0;
+            width: 60px;
+            font-weight: 500;
+        }
+
+        .log-type.info {
+            color: #7ec8e3;
+        }
+
+        .log-type.warn {
+            color: var(--warning);
+        }
+
+        .log-type.error {
+            color: var(--error);
+        }
+
+        .log-type.cmd {
+            color: var(--accent);
+        }
+
+        .log-type.result {
+            color: var(--success);
+        }
+
+        .log-type.system {
+            color: var(--text-secondary);
+        }
+
+        .log-msg {
+            flex: 1;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        /* Console Input */
+        .console-input-area {
+            display: flex;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+        }
+
+        .console-prompt {
+            padding: 0.8rem;
+            color: var(--accent);
+            font-family: monospace;
+        }
+
+        #console-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+            padding: 0.8rem 0;
+            outline: none;
+        }
+
+        #console-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* AI Chat Tab Placeholder */
+        .ai-chat-placeholder {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .ai-chat-placeholder h2 {
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .ai-chat-placeholder p {
+            max-width: 400px;
+            line-height: 1.6;
+        }
+
+        /* Control buttons */
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn {
+            padding: 0.4rem 0.8rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #ff6b7a;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a7d;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>🔌 CircuitJS1 Remote Debug</h1>
+        <span id="connection-status" class="status-badge status-disconnected">Disconnected</span>
+        <span id="agent-status" class="status-badge status-waiting">Agent: Waiting</span>
+        <span class="channel-info">Channel: <code id="channel-id">-</code></span>
+    </header>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+        <button class="tab active" data-tab="console">💻 Console</button>
+        <button class="tab" data-tab="ai-chat">🤖 AI Chat</button>
+        <!-- Document tabs will be added dynamically -->
+    </div>
+
+    <main>
+        <!-- Console Tab -->
+        <div class="tab-content active" id="tab-console">
+            <div class="controls">
+                <button class="btn btn-secondary" id="btn-clear">Clear</button>
+                <button class="btn btn-secondary" id="btn-screenshot">📷 Screenshot</button>
+                <button class="btn btn-secondary" id="btn-export">📄 Export Circuit</button>
+            </div>
+            <div class="log-output" id="console-log"></div>
+            <div class="console-input-area">
+                <span class="console-prompt">›</span>
+                <input type="text" id="console-input" placeholder="Enter JavaScript command..." autocomplete="off">
+            </div>
+        </div>
+
+        <!-- AI Chat Tab (Planned) -->
+        <div class="tab-content" id="tab-ai-chat">
+            <div class="ai-chat-placeholder">
+                <h2>🤖 AI Chat</h2>
+                <p>AI-assisted circuit analysis and control.<br>Coming in Phase 3.</p>
+            </div>
+        </div>
+
+        <!-- Document tabs container (added dynamically) -->
+    </main>
+
+    <script src="/debug/socket.io.js"></script>
+    <script>
+        // Get channel from URL
+        const params = new URLSearchParams(window.location.search);
+        let channelId = params.get('channel');
+
+        if (!channelId) {
+            channelId = crypto.randomUUID();
+            history.replaceState(null, '', `?channel=${channelId}`);
+        }
+
+        document.getElementById('channel-id').textContent = channelId;
+
+        // Connect to server as viewer
+        const socket = io({
+            path: '/debug',
+            query: { channelId, role: 'viewer' }
+        });
+
+        // UI elements
+        const connectionStatus = document.getElementById('connection-status');
+        const agentStatus = document.getElementById('agent-status');
+        const consoleLog = document.getElementById('console-log');
+        const consoleInput = document.getElementById('console-input');
+
+        // State
+        let commandHistory = [];
+        let historyIndex = -1;
+        let documentTabs = new Map(); // docId -> { name, logElement }
+        let unreadCounts = new Map(); // tabId -> count
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.dataset.tab;
+                switchTab(tabId);
+            });
+        });
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            const tab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+            const content = document.getElementById(`tab-${tabId}`);
+
+            if (tab) tab.classList.add('active');
+            if (content) content.classList.add('active');
+
+            // Clear unread badge
+            unreadCounts.set(tabId, 0);
+            updateTabBadge(tabId);
+        }
+
+        function updateTabBadge(tabId) {
+            const tab = document.querySelector(`.tab[data-tab="${tabId}"]`);
+            if (!tab) return;
+
+            let badge = tab.querySelector('.badge');
+            const count = unreadCounts.get(tabId) || 0;
+
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge';
+                    tab.appendChild(badge);
+                }
+                badge.textContent = count > 99 ? '99+' : count;
+            } else if (badge) {
+                badge.remove();
+            }
+        }
+
+        function formatTime(date = new Date()) {
+            return date.toTimeString().slice(0, 8);
+        }
+
+        function addLog(container, type, message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+
+            const time = document.createElement('span');
+            time.className = 'log-time';
+            time.textContent = formatTime();
+
+            const typeSpan = document.createElement('span');
+            typeSpan.className = `log-type ${type}`;
+            typeSpan.textContent = type.toUpperCase();
+
+            const msg = document.createElement('span');
+            msg.className = 'log-msg';
+            msg.textContent = message;
+
+            entry.appendChild(time);
+            entry.appendChild(typeSpan);
+            entry.appendChild(msg);
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function logConsole(type, message) {
+            addLog(consoleLog, type, message);
+
+            // Update badge if not active tab
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab?.dataset.tab !== 'console') {
+                unreadCounts.set('console', (unreadCounts.get('console') || 0) + 1);
+                updateTabBadge('console');
+            }
+        }
+
+        // Connection handlers
+        socket.on('connect', () => {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'status-badge status-connected';
+            logConsole('system', 'Connected to debug server');
+        });
+
+        socket.on('disconnect', () => {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'status-badge status-disconnected';
+            logConsole('system', 'Disconnected from server');
+        });
+
+        socket.on('registered', (data) => {
+            logConsole('system', `Registered as viewer. Session: ${data.sessionId}`);
+            updateAgentStatus(data.agentConnected);
+        });
+
+        socket.on('agent_status', (data) => {
+            updateAgentStatus(data.connected);
+            logConsole('system', `Agent ${data.connected ? 'connected' : 'disconnected'}`);
+        });
+
+        function updateAgentStatus(connected) {
+            if (connected) {
+                agentStatus.textContent = 'Agent: Online';
+                agentStatus.className = 'status-badge status-connected';
+            } else {
+                agentStatus.textContent = 'Agent: Offline';
+                agentStatus.className = 'status-badge status-disconnected';
+            }
+        }
+
+        // Command execution
+        function executeCommand(cmd) {
+            if (!cmd.trim()) return;
+
+            logConsole('cmd', cmd);
+            commandHistory.unshift(cmd);
+            historyIndex = -1;
+
+            socket.emit('execute', { command: cmd });
+        }
+
+        socket.on('execute_result', (data) => {
+            if (data.success) {
+                logConsole('result', data.result);
+            } else {
+                logConsole('error', data.error || 'Execution failed');
+            }
+        });
+
+        // Console input
+        consoleInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                executeCommand(consoleInput.value);
+                consoleInput.value = '';
+            } else if (e.key === 'ArrowUp') {
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    consoleInput.value = commandHistory[historyIndex];
+                }
+                e.preventDefault();
+            } else if (e.key === 'ArrowDown') {
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    consoleInput.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = -1;
+                    consoleInput.value = '';
+                }
+                e.preventDefault();
+            }
+        });
+
+        // Control buttons
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            consoleLog.innerHTML = '';
+        });
+
+        document.getElementById('btn-screenshot').addEventListener('click', () => {
+            logConsole('system', 'Requesting screenshot...');
+            socket.emit('screenshot', { type: 'png' });
+        });
+
+        document.getElementById('btn-export').addEventListener('click', () => {
+            logConsole('system', 'Requesting circuit export...');
+            socket.emit('circuit_export', { withState: true });
+        });
+
+        socket.on('screenshot_result', (data) => {
+            if (data.success && data.image) {
+                logConsole('result', 'Screenshot captured. Opening in new tab...');
+                window.open(data.image, '_blank');
+            } else {
+                logConsole('error', `Screenshot failed: ${data.error || 'Unknown error'}`);
+            }
+        });
+
+        socket.on('circuit_export_result', (data) => {
+            if (data.success) {
+                logConsole('result', 'Circuit exported:');
+                logConsole('info', JSON.stringify(data.circuit, null, 2).slice(0, 500) + '...');
+            } else {
+                logConsole('error', `Export failed: ${data.error || 'Unknown error'}`);
+            }
+        });
+
+        // Console logs from agent (intercepted console.log/warn/error)
+        socket.on('console_log', (data) => {
+            const typeMap = {
+                'log': 'info',
+                'info': 'info',
+                'warn': 'warn',
+                'error': 'error'
+            };
+            const logType = typeMap[data.type] || 'info';
+            logConsole(logType, `[agent] ${data.message}`);
+        });
+
+        // Document info from agent
+        socket.on('document_info', (data) => {
+            logConsole('system', `Document: ${data.docName} (tabs: ${data.tabCount})`);
+        });
+
+        // Document event from agent (tab switch, circuit load)
+        socket.on('document_event', (data) => {
+            logConsole('system', `Document event: ${data.event}`);
+        });
+
+        // Document log messages from agent
+        socket.on('document_log', (data) => {
+            const { docId, docName, type, message } = data;
+
+            // Create tab if doesn't exist
+            if (!documentTabs.has(docId)) {
+                createDocumentTab(docId, docName);
+            }
+
+            const tabInfo = documentTabs.get(docId);
+            addLog(tabInfo.logElement, type, message);
+
+            // Update unread badge
+            const activeTab = document.querySelector('.tab.active');
+            if (activeTab?.dataset.tab !== `doc-${docId}`) {
+                const tabKey = `doc-${docId}`;
+                unreadCounts.set(tabKey, (unreadCounts.get(tabKey) || 0) + 1);
+                updateTabBadge(tabKey);
+            }
+        });
+
+        function createDocumentTab(docId, docName) {
+            // Create tab button
+            const tab = document.createElement('button');
+            tab.className = 'tab';
+            tab.dataset.tab = `doc-${docId}`;
+            tab.innerHTML = `📄 ${docName || 'Circuit'} <span class="close-btn">×</span>`;
+            tab.addEventListener('click', (e) => {
+                if (e.target.classList.contains('close-btn')) {
+                    removeDocumentTab(docId);
+                } else {
+                    switchTab(`doc-${docId}`);
+                }
+            });
+            document.querySelector('.tab-bar').appendChild(tab);
+
+            // Create tab content
+            const content = document.createElement('div');
+            content.className = 'tab-content';
+            content.id = `tab-doc-${docId}`;
+            content.innerHTML = `<div class="log-output"></div>`;
+            document.querySelector('main').appendChild(content);
+
+            documentTabs.set(docId, {
+                name: docName,
+                tabElement: tab,
+                contentElement: content,
+                logElement: content.querySelector('.log-output')
+            });
+        }
+
+        function removeDocumentTab(docId) {
+            const tabInfo = documentTabs.get(docId);
+            if (tabInfo) {
+                tabInfo.tabElement.remove();
+                tabInfo.contentElement.remove();
+                documentTabs.delete(docId);
+                switchTab('console');
+            }
+        }
+
+        // Initial log
+        logConsole('system', `Channel: ${channelId}`);
+        logConsole('info', 'Connect CircuitJS1 with: ?remote-debug=' + channelId);
+    </script>
+</body>
+
+</html>

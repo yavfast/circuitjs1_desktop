@@ -14,6 +14,7 @@ SCOPE
 ## 1) Definitions
 
 - **Active context** — the minimal but sufficient task state that allows another AI to resume work in a new chat without guessing.
+- **Project context** — загальний (позадачний) контекст усього репозиторію для швидкого onboarding AI агентів: архітектура, модулі, технології, ключові концепції, dev/build/debug команди та проєкт-специфічні “gotchas”.
 - **Current task** — the primary task the agent is working on in this chat right now.
 - **Task plan** — a separate artifact (a file in `ai_memory/` or `docs/`, or a plan in `manage_todo_list`) that contains execution steps.
 - **Context synchronization** — bringing `ai_memory/active_context.md` into alignment with the actual state of the current chat.
@@ -27,6 +28,14 @@ SCOPE
 - Active context is stored in `ai_memory/active_context.md`.
 - `ai_memory/active_context.md` is the **only** “startup” file that must be sufficient to resume work.
 
+### 2.1b. Where project-wide context is stored
+
+- Project context is stored in `ai_memory/project_context.md`.
+- `ai_memory/project_context.md` is an onboarding artifact: it MUST help a new agent quickly understand this repository even when there is no relevant active task to resume.
+- It MUST NOT contain task-specific progress/breadcrumbs. Those belong to `ai_memory/active_context.md` and archived task contexts.
+
+See also: `docs/context_rules/project_context_rules.md`.
+
 ### 2.2. Where plans are stored
 
 - A task plan may be stored:
@@ -39,15 +48,22 @@ SCOPE
 ## 3) New chat startup rules
 
 1) At the start of every new chat, the agent **must always** load and follow `ai_memory/active_context.md` without additional reminders.
+   Additionally, the agent SHOULD load `ai_memory/project_context.md` first (or immediately after) to refresh project-wide understanding.
 2) If `ai_memory/active_context.md` is empty or stale, the agent must:
 	- record this as a risk/blocker in the chat,
 	- reconstruct context from artifacts (if known),
 	- and update `ai_memory/active_context.md` to the current state.
 
 3) If `ai_memory/active_context.md` contains multiple tasks from a previous chat/session:
-	- If the new chat intent matches **any** `task_id` described in the active context (Current Task or Other Tasks), reuse the existing active context and sync under the matching task.
+	- Determine which task (by `task_id`) matches the intent of the NEW chat.
+	- Activate that matching task as **Current Task** in `ai_memory/active_context.md`.
+	- ALL other task descriptions present in `ai_memory/active_context.md` that do **not** belong to the NEW chat intent MUST be moved into history:
+	  - archive each unrelated task **separately by task_id** (see `docs/context_rules/switching.md`),
+	  - update `ai_memory/context_history/contexts_index.yaml`.
 	- If the new chat intent does **not** match any described task, the agent must perform a context switch (see `docs/context_rules/switching.md`).
-	  In that switch, tasks in the previous active context must be archived **separately by task_id** so none of them are lost.
+	  In that switch, tasks in the previous active context must still be archived **separately by task_id** so none of them are lost.
+
+Rationale: “Other Tasks (This Chat)” is allowed only when it’s genuinely useful *within the same chat*. On a NEW chat start, the active context must be focused and must not carry unrelated tasks forward.
 
 ## 4) Minimal active context structure (mandatory template)
 
@@ -84,6 +100,8 @@ If the current conversation branches into multiple tasks that are all part of th
 Each task entry should be structured similarly to “Current Task” (task_id/goal/scope/next), but kept concise.
 
 If “Other Tasks” exists, information in subsequent sections should be grouped by `task_id` when practical (Plan/Progress/Breadcrumbs/Guardrails/Memory Candidates) to avoid mixing unrelated state.
+
+On NEW chat start: any tasks in “Other Tasks (This Chat)” that are not required for the new intent MUST be archived to `ai_memory/context_history/` and removed from `ai_memory/active_context.md`.
 
 3) **Plan & References**
 	- `plan`: reference to a plan (file or “manage_todo_list”) + short status
@@ -166,7 +184,7 @@ If “Other Tasks” exists, information in subsequent sections should be groupe
 14) **Environment Snapshot** (optional)
 	- `os`: operating system (Linux / macOS / Windows)
 	- `shell`: bash / zsh / powershell
-	- `runtime_versions`: node, java, gwt, nwjs versions
+	- `runtime_versions`: node, java, and other key runtimes/frameworks versions
 	- `last_successful_run`: timestamp of last successful build/run
 	- `known_env_issues`: environment-specific quirks or workarounds
 
@@ -467,7 +485,7 @@ If no matching context exists, create a new `ai_memory/active_context.md` (templ
 
 - **Environment Snapshot** and stable tool commands.
 - **Project-wide Guardrails** that remain valid.
-- **Links to shared docs** (`docs/project.md`, `docs/JS_API.md`, etc.).
+- **Links to shared docs** (README, `docs/`, runbooks/ADRs, etc.).
 
 Do NOT copy these across tasks (they are task-specific and go stale):
 

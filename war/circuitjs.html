@@ -1,47 +1,53 @@
 <!DOCTYPE html>
 <html>
-    <head>
 
-        <!-- Properties can be specified to influence deferred binding -->
-        <meta name='gwt:property' content='locale=en_UK'>
+<head>
+
+    <!-- Properties can be specified to influence deferred binding -->
+    <meta name='gwt:property' content='locale=en_UK'>
 
 
-        <!-- Titles are optional, but useful -->
-        <!--<title>CircuitJS1 Desktop Mod 1.3.0</title>-->
+    <!-- Titles are optional, but useful -->
+    <!--<title>CircuitJS1 Desktop Mod 1.3.0</title>-->
 
-        <!-- Add icons for menu -->
-        <link rel="stylesheet" href="font/fontello.css">
-        <link rel="stylesheet" href="font/runstopbtn.css">
+    <!-- Add icons for menu -->
+    <link rel="stylesheet" href="font/fontello.css">
+    <link rel="stylesheet" href="font/runstopbtn.css">
 
-        <style>
+    <style>
         .disabled {
             color: lightgray;
         }
+
         .topSpace {
             margin-top: 12px;
         }
+
         .cursorPointer {
-        cursor: default;
+            cursor: default;
         }
+
         .cursorCross {
-        cursor: crosshair;
+            cursor: crosshair;
         }
 
         .cursorSplitter {
-        cursor: row-resize;
+            cursor: row-resize;
         }
 
         .gwt-MenuItem-disabled {
             color: lightgray;
         }
+
         .offScreen {
             position: absolute;
             right: 101%;
             overflow: hidden;
         }
-        .gwt-Frame{
+
+        .gwt-Frame {
             scrolling="no";
-        border: 0px !important;
+            border: 0px !important;
         }
 
         .gwt-MenuItem {
@@ -50,7 +56,7 @@
 
         .gwt-MenuBar-horizontal {
             font-size: 12px !important;
-            }
+        }
 
         .gwt-Label-selected {
             font-size: 1.3em;
@@ -58,20 +64,20 @@
             border-top: 1px solid black;
             border-bottom: 1px solid black;
         }
+
         .gwt-Label-1off {
             color: DarkGray;
         }
 
         .gwt-Label-2off {
-            font-size:0.8em;
+            font-size: 0.8em;
             color: LightGray;
         }
 
-        .gwt-Label-current {
-        }
+        .gwt-Label-current {}
 
         .gwt-Button.chbut {
-            padding:3px;
+            padding: 3px;
             margin: 3px;
         }
 
@@ -97,24 +103,24 @@
             line-height: 0;
             font-size: 13px;
             margin-right: 5px;
-            border-radius:0px;
+            border-radius: 0px;
             display: inline-block;
             text-align: center;
             width: 15px;
             height: 15px;
             padding-left: 0;
             padding-right: 0;
-            padding-bottom:1px;
-            padding-top:0;
-            margin-bottom:1px;
-            background:gray;
-            color:white;
+            padding-bottom: 1px;
+            padding-top: 0;
+            margin-bottom: 1px;
+            background: gray;
+            color: white;
         }
 
         .topButton-red {
             margin-top: 5px;
             margin-bottom: 5px;
-            margin-left:5px;
+            margin-left: 5px;
             padding: 5px 7px;
             text-decoration: none;
             color: #ffffff;
@@ -131,7 +137,7 @@
         .topButton {
             margin-top: 5px;
             margin-bottom: 5px;
-            margin-left:5px;
+            margin-left: 5px;
             padding: 5px 7px;
             text-decoration: none;
             cursor: pointer;
@@ -143,74 +149,87 @@
             border-radius: 3px;
             -moz-border-radius: 3px;
         }
-        .sabLabel{
+
+        .sabLabel {
             padding: 8px 0 0 2px;
             border-bottom: solid 3px;
             border-image: linear-gradient(180deg, #000, #fff) 10;
             font-weight: bold;
         }
-        .sidePanelElm{
+
+        .sidePanelElm {
             margin-left: 7px;
         }
-        .sidePanelvp2{
+
+        .sidePanelvp2 {
             margin-left: 2px;
         }
 
-        .modItem{
+        .modItem {
             font-style: italic;
             font-weight: bold;
         }
 
         /*Кнопки Modification Setup*/
-        .modButtons{
+        .modButtons {
             height: 20px;
             padding: 0 5px;
             border-radius: 3px;
             /*border: 1px solid #bbb;*/
         }
-        .modSetButtons{
+
+        .modSetButtons {
             background-color: lightblue;
         }
 
         /*Стиль для уменьшеного меню*/
-        .modSmallMenuBar>table>tbody>tr>td{
+        .modSmallMenuBar>table>tbody>tr>td {
             padding: 0 10px !important;
-            font-family: Arial, sans-serif; /*for windows*/
+            font-family: Arial, sans-serif;
+            /*for windows*/
         }
 
         /*Кнопки Run/Stop, Reset*/
-        .run-stop-btn, .reset-btn {
+        .run-stop-btn,
+        .reset-btn {
             width: 60px !important;
             height: 60px !important;
             z-index: 1;
             border-radius: 10px !important;
-            /*margin: 5px;*/ /*for preview*/
+            /*margin: 5px;*/
+            /*for preview*/
             cursor: pointer;
         }
 
-        .btn-top-pos{
+        .btn-top-pos {
             /*need for setAllAbsBtnsTopPos()*/
         }
-        .run-stop-btn-pos{
+
+        .run-stop-btn-pos {
             right: 50px !important;
             left: auto !important;
             /*inset: 50px 50px auto auto !important;*/
         }
-        .reset-btn-pos{
+
+        .reset-btn-pos {
             right: 120px !important;
             left: auto !important;
             /*inset: 50px 120px auto auto !important;*/
         }
-        .run-stop-btn{
+
+        .run-stop-btn {
             font-family: 'runstopbtn', serif;
             padding: 0;
             font-size: 30px !important;
         }
-        .reset-btn{
+
+        .reset-btn {
             font-size: 38px !important;
-            font-family: Arial, sans-serif; /*for windows*/
+            font-family: Arial, sans-serif;
+            /*for windows*/
         }
-        .modDefaultRunStopBtn{
+
+        .modDefaultRunStopBtn {
             color: red;
             border-color: red;
             background: none;
@@ -224,32 +243,41 @@
             border: medium solid;
         }
 
-        .modClassicButton { /*+.gwt-Button*/
+        .modClassicButton {
+            /*+.gwt-Button*/
             color: black !important;
             border-color: #bbb !important;
         }
 
-        .modPrevBtn{margin: 5px !important}
-        
+        .modPrevBtn {
+            margin: 5px !important
+        }
+
 
         @media (max-width: 1000px) {
-            .run-stop-btn, .reset-btn {
+
+            .run-stop-btn,
+            .reset-btn {
                 width: 6vw !important;
                 height: 6vw !important;
                 border-radius: 1vw !important;
             }
-            .run-stop-btn{
+
+            .run-stop-btn {
                 right: 5vw !important;
                 font-size: 3vw !important;
             }
-            .reset-btn{
+
+            .reset-btn {
                 right: 12vw !important;
                 font-size: 3.8vw !important;
             }
         }
 
         /*popups and dialogs on top*/
-        .gwt-MenuBarPopup, .gwt-PopupPanel, .gwt-DialogBox {
+        .gwt-MenuBarPopup,
+        .gwt-PopupPanel,
+        .gwt-DialogBox {
             z-index: 2;
         }
 
@@ -295,9 +323,11 @@
 
         .activeTab {
             background-color: #ffffff;
-            border-bottom: 1px solid #ffffff; /* Blend with content */
+            border-bottom: 1px solid #ffffff;
+            /* Blend with content */
             font-weight: bold;
-            height: 22px; /* Slightly taller */
+            height: 22px;
+            /* Slightly taller */
             margin-top: -2px;
         }
 
@@ -349,29 +379,46 @@
             background-color: #d0d0d0;
             border-radius: 3px;
         }
+    </style>
 
-        </style>
+    <script src="js/sys.js"></script>
 
-        <script src="js/sys.js"></script>
-    </head>
+    <!-- Remote Debug Agent - loads dynamically when ?remote-debug=<channel-id> is in URL -->
+    <script>
+        (function () {
+            var params = new URLSearchParams(window.location.search);
+            var channelId = params.get('remote-debug');
+            if (channelId) {
+                var serverUrl = params.get('remote-debug-server') || 'http://localhost:3030';
+                var script = document.createElement('script');
+                script.src = 'scripts/remote-debug-agent.js';
+                script.setAttribute('data-remote-debug-channel', channelId);
+                script.setAttribute('data-remote-debug-server', serverUrl);
+                document.head.appendChild(script);
+                console.log('[RemoteDebug] Agent loading with channel:', channelId);
+            }
+        })();
+    </script>
+</head>
 
-    <body>
+<body>
 
 
-        <!-- Include the next line to allow support for dropbox import/export. You will need your own app key. -->
-        <!--<script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_KEY"></script>-->
+    <!-- Include the next line to allow support for dropbox import/export. You will need your own app key. -->
+    <!--<script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="YOUR_KEY"></script>-->
 
-        <script language="javascript" src="lz-string.min.js"></script>
+    <script language="javascript" src="lz-string.min.js"></script>
 
-        <!-- This script tag is what actually loads the GWT module.  The -->
-        <!-- 'nocache.js' file (also called a "selection script") is     -->
-        <!-- produced by the GWT compiler in the module output directory -->
-        <!-- or generated automatically in development mode.             -->
-        <script language="javascript" src="circuitjs1/circuitjs1.nocache.js"></script>
+    <!-- This script tag is what actually loads the GWT module.  The -->
+    <!-- 'nocache.js' file (also called a "selection script") is     -->
+    <!-- produced by the GWT compiler in the module output directory -->
+    <!-- or generated automatically in development mode.             -->
+    <script language="javascript" src="circuitjs1/circuitjs1.nocache.js"></script>
 
-        <!-- Include a history iframe to enable full GWT history support -->
-        <!-- (the id must be exactly as shown)                           -->
-        <iframe src="javascript:''" id="__gwt_historyFrame" tabindex="-1" style="width:0;height:0;border:0"></iframe>
+    <!-- Include a history iframe to enable full GWT history support -->
+    <!-- (the id must be exactly as shown)                           -->
+    <iframe src="javascript:''" id="__gwt_historyFrame" tabindex="-1" style="width:0;height:0;border:0"></iframe>
 
-    </body>
+</body>
+
 </html>

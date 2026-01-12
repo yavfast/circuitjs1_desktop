@@ -1,0 +1,31 @@
+{
+  "episode_id": "ep_remote_debug_nwjs_e2e_2026-01-11",
+  "date": "2026-01-11",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": ["remote-debug", "nwjs", "e2e"],
+    "goal": "Verify Remote Debug end-to-end while CircuitJS1 runs inside NW.js (desktop runtime)."
+  },
+  "setup": {
+    "server": "server/remote-debug-server.js on http://127.0.0.1:3030 (Socket.IO path=/debug)",
+    "nw_wrapper": "tmp_nw_remote_debug/package.json main=file:///.../target/site/circuitjs.html?remote-debug=<channel>&remote-debug-server=http://127.0.0.1:3030"
+  },
+  "observations": [
+    "NW.js logs an attempted open of .../nwjs/package.nw (FILE_ERROR_NOT_FOUND) even when launched with an app folder; it appears to be benign if the app starts and agent connects.",
+    "GPU/Vulkan/Skia shader errors may appear in logs; connection tests still succeeded."
+  ],
+  "verification": {
+    "agent_connected": "curl http://127.0.0.1:3030/api/channels shows hasAgent:true for the channel",
+    "viewer_automation": [
+      "execute: CircuitJS1.getSimInfo()",
+      "circuit_export: JSON with keys schema/simulation/elements",
+      "execute: CircuitJS1.importFromJson(simple RC)",
+      "element_update: R1.resistance=2200",
+      "screenshot: PNG data URL"
+    ]
+  },
+  "docs_updated": [
+    "docs/remote_dbg.md (NW.js section + troubleshooting)",
+    "docs/project.md (NW.js notes + detached launch tip)"
+  ]
+}

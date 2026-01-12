@@ -59,6 +59,17 @@
      npm start
      ```
 
+   Notes (NW.js):
+   - `npm start` runs `node scripts/dev_n_build.js --rungwt`, which launches the NW.js binary returned by `require('nw').findpath()` against `./target/site`.
+   - If you need to launch NW.js manually (useful for debugging launch issues), the binary is typically at:
+     ```sh
+     ./node_modules/nw/nwjs/nw ./target/site
+     ```
+   - If your GPU/driver stack is problematic, try adding Chromium flags:
+     ```sh
+     ./node_modules/nw/nwjs/nw ./target/site --disable-gpu
+     ```
+
 3. **Full desktop build (packaging):**
    - Build a desktop release (currently packages Linux x64 by default):
      ```sh
@@ -86,6 +97,11 @@
 - **Shell scripts:** `scripts/run_dev_web.sh` and `scripts/run_dev_app.sh` are available for quick local workflows.
 - **Logs:** Check `debug.log` for runtime logs and errors.
 - **Maven:** Use `mvnDebug` for remote debugging with IDEs.
+
+Tip (terminal): If you want the NW.js app launcher to return immediately, run it in detached mode:
+```sh
+./scripts/run_dev_app.sh --detach
+```
 
 ## Additional Information
 

@@ -1,11 +1,20 @@
 ## Meta
-- last_updated: 2026-01-08T00:00:00+02:00
+- last_updated: 2026-01-12T15:16:08+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
 - active_skills: [circuitjs1-dev-workflow]
 	agent_notes: GWT DevMode у браузері (http://127.0.0.1:8888/circuitjs.html). Сим-стан: CircuitDocument.errorMessage + CircuitSimulator.stopMessage.
 
 ## Current Task
+
+	task_id: CTX-RULES-PROJECT-CONTEXT-001
+	goal: Оновити правила контексту так, щоб при старті нового чату активувався контекст релевантної задачі, а всі нерелевантні задачі переносились у `ai_memory/context_history/`. Додати концепцію та правила для `ai_memory/project_context.md`.
+	current_focus: Оновлення документації: правила startup/switching + додавання project_context.
+	active_files: [docs/context_rules_concept.md, docs/context_rules/context_rules.md, docs/context_rules/switching.md, docs/context_rules/project_context_rules.md, docs/context_rules/project_context_template.md, ai_memory/project_context.md]
+	scope_in: Правки інструкцій/правил; додавання project_context_rules.md; узгодження між docs/context_rules*.
+	scope_out: Рефакторинг існуючих archived contexts/registry; зміни у коді симулятора/GUI.
+
+## Other Tasks (This Chat)
 
 - task_id: SOLVER-NONCONVERGENCE-RECOVERY
 	goal: Максимально уникати зупинки симуляції на чисельних збоях (non-convergence/singular matrix/structural singularities) — симуляція має залишатись “живою” (educational UX > точність на спайках).
@@ -35,6 +44,19 @@
 	scope_out: Глибока діагностика нелінійних моделей або зміна алгоритму збіжності.
 
 ## Plan & References
+	CTX-RULES-PROJECT-CONTEXT-001:
+		plan: manage_todo_list (in-progress)
+		related_docs:
+			- docs/context_rules_concept.md
+			- docs/context_rules/context_rules.md
+			- docs/context_rules/switching.md
+			- docs/context_rules/project_context_rules.md
+		related_code:
+			- ai_memory/project_context.md
+			- ai_memory/active_context.md
+		session_history:
+			- ai_memory/session_history/session_2026-01-12_001.md
+
 	TRANSFORMER-WINDING-R-AUTOTIMESTEP:
 		plan: manage_todo_list (completed; verify in DevMode/JS API optionally)
 		related_docs:
@@ -60,6 +82,39 @@
 			- ai_memory/tmp_episode_std_circuits_error_ux.json
 
 ## Progress
+	CTX-RULES-PROJECT-CONTEXT-001:
+		done:
+			- Оновлено startup правила: на новому чаті активувати релевантну задачу, а нерелевантні переносити в історію.
+			- Додано концепцію project-wide контексту і файл `ai_memory/project_context.md`.
+			- Додано модульний документ правил для project_context.
+		in_progress:
+			- Узгодження формулювань між `docs/context_rules_concept.md` та `docs/context_rules/*`.
+		next:
+			- Додати/уточнити згадки project_context у правилах switching/sync (якщо потрібно).
+			- Оновити timestamps (`last_updated`) у `ai_memory/project_context.md` та `ai_memory/active_context.md`.
+			- Зберегти епізод у AI memory (`./ai_mem.sh ingest`).
+
+	REMOTE-DEBUG-SYSTEM:
+		done:
+			- Перевірено live підключення Viewer↔Server↔Agent через Socket.IO (path=/debug) з channel-based room routing.
+			- Smoke test через web viewer: `execute` (CircuitJS1.getSimInfo), `screenshot` (data:image/png;base64...), `circuit_export` (schema/simulation/elements), `telemetry_subscribe` (R1/V1), `element_update` (R1.resistance=2200).
+			- Виправлено agent `document_info`: раніше не надсилався (виклик до connect + залежність від неіснуючих multi-tab API методів).
+			- `remote-debug-agent.js`: додано retry/планувальник, URL override `remote-debug-server`, та fallback docName/tabCount коли multi-tab API відсутній.
+			- Зроблено `npm run buildgwt` після змін; перевірено підключення агента на зібраному `target/site`.
+			- NW.js E2E: запущено NW з wrapper app (file://.../target/site/circuitjs.html?remote-debug=...); server `/api/channels` показує `hasAgent:true`.
+			- NW.js E2E: автоматизовано viewer-перевірку через `socket.io-client`: `execute` (getSimInfo), `circuit_export` (schema/simulation/elements), `element_update` (R1.resistance=2200 після importFromJson), `screenshot` (PNG data URL).
+			- Server: додано кешування `document_info` на канал і replay до viewer при пізньому підключенні (щоб не втрачати метадані документа).
+			- Remote Debug (channel=cjs-1768147465784): запущено NW wrapper як agent; через viewer експортовано схему (JSON) і збережено PNG скріншот для ідентифікації.
+				- export: server/tmp_export_cjs-1768147465784.json
+				- summary: server/tmp_export_cjs-1768147465784.summary.json
+				- screenshot: server/tmp_screenshot_cjs-1768147465784.png
+				- зміст схеми: послідовний RC-ланцюг (R1=2.2kΩ, C2=10µF) між двома “вільними” клемами (без джерела/землі).
+		notes:
+			- DevMode (http://127.0.0.1:8888) інколи показує “failed / Try Again” у headless-браузері; для е2е тесту стабільніше піднімати `target/site` (наприклад `python3 -m http.server 8000 --directory target/site`).
+		next:
+			- (опційно) Додати в CircuitJS1 JS API мінімальні multi-tab методи (getActiveDocumentName/getDocumentCount) або синхронізувати їх з існуючим таб-механізмом.
+			- (опційно) Додати viewer UI для telemetry графіків (зараз telemetry лише по socket events).
+			- NW.js: для запуску release-версії з терміналу без блокування додано `--detach`/`--bg` у `scripts/run_release_debug.sh` і passthrough у `scripts/run_dev_app.sh`.
 	SIM-CONVERGENCE-RESET-NODE-MARKERS:
 		done:
 			- Convergence stop включає елемент: "Convergence failed! Element: <ID>" і підсвічує stopElm.
@@ -146,6 +201,16 @@
 			- Episode: Attribute convergence to element + make reset reset elements+solver + keep post markers in sync + remove canvas error overlay.
 
 ```yaml
+# Quick Resume — CTX-RULES-PROJECT-CONTEXT-001
+goal: Make new-chat startup focus active_context on the new intent (archive unrelated tasks) and add project-wide onboarding context in ai_memory/project_context.md
+focus_now: Ensure context rules docs are consistent and project_context is properly referenced
+next_action: Skim docs/context_rules_concept.md + docs/context_rules/context_rules.md + docs/context_rules/switching.md for consistency; adjust wording if needed
+key_files: [docs/context_rules_concept.md, docs/context_rules/context_rules.md, docs/context_rules/switching.md, docs/context_rules/project_context_rules.md, ai_memory/project_context.md]
+verify_cmd: git diff -- docs/context_rules_concept.md docs/context_rules/context_rules.md docs/context_rules/switching.md docs/context_rules/project_context_rules.md ai_memory/project_context.md
+last_result: success
+
+---
+
 # Quick Resume — TRANSFORMER-WINDING-R-AUTOTIMESTEP
 goal: Add winding resistances to transformers, set default coupling=0.99, and enable auto timestep adjust by default
 focus_now: Verify DevMode behavior on a previously failing circuit; confirm convergence root-cause and address “stuck” due to tiny maxTimeStep

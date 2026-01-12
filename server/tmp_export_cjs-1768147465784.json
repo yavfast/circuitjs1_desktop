@@ -1,0 +1,162 @@
+{
+  "schema": {
+    "format": "circuitjs",
+    "version": "2.0"
+  },
+  "simulation": {
+    "time_step": "5 us",
+    "min_time_step": "0 s",
+    "display": {
+      "show_dots": true,
+      "show_voltage": true,
+      "show_power": false,
+      "show_values": true,
+      "small_grid": false
+    },
+    "voltage_range": "5 V",
+    "current_speed": 50,
+    "power_brightness": 50,
+    "auto_time_step": true
+  },
+  "elements": {
+    "R1": {
+      "type": "Resistor",
+      "bounds": {
+        "left": 202,
+        "top": 112,
+        "right": 214,
+        "bottom": 273
+      },
+      "properties": {
+        "resistance": "2.2 kOhm"
+      },
+      "pins": {
+        "pin1": {
+          "position": {
+            "x": 208,
+            "y": 112
+          },
+          "connected_to": [
+            "W3.b"
+          ]
+        },
+        "pin2": {
+          "position": {
+            "x": 208,
+            "y": 272
+          },
+          "connected_to": [
+            "C2.pin1"
+          ]
+        }
+      }
+    },
+    "C2": {
+      "type": "Capacitor",
+      "bounds": {
+        "left": 208,
+        "top": 260,
+        "right": 353,
+        "bottom": 284
+      },
+      "properties": {
+        "capacitance": "10 μF"
+      },
+      "pins": {
+        "pin1": {
+          "position": {
+            "x": 208,
+            "y": 272
+          },
+          "connected_to": [
+            "R1.pin2"
+          ]
+        },
+        "pin2": {
+          "position": {
+            "x": 352,
+            "y": 272
+          }
+        }
+      },
+      "_flags": 4
+    },
+    "W3": {
+      "type": "Wire",
+      "bounds": {
+        "left": 208,
+        "top": 109,
+        "right": 353,
+        "bottom": 115
+      },
+      "pins": {
+        "a": {
+          "position": {
+            "x": 352,
+            "y": 112
+          }
+        },
+        "b": {
+          "position": {
+            "x": 208,
+            "y": 112
+          },
+          "connected_to": [
+            "R1.pin1"
+          ]
+        }
+      }
+    }
+  },
+  "scopes": [
+    {
+      "element": "C2",
+      "position": 0,
+      "speed": 64,
+      "display": {
+        "show_voltage": true,
+        "show_current": true,
+        "show_scale": false,
+        "show_max": true,
+        "show_min": false,
+        "show_frequency": false,
+        "show_fft": false,
+        "show_rms": false,
+        "show_average": false,
+        "show_duty_cycle": false,
+        "show_negative": false,
+        "show_element_info": false
+      },
+      "plot_mode": {
+        "plot_2d": false,
+        "plot_xy": false,
+        "max_scale": false,
+        "log_spectrum": false
+      },
+      "scales": {
+        "voltage": 5,
+        "current": 0.1,
+        "ohms": 5,
+        "watts": 5
+      },
+      "plots": [
+        {
+          "element": "C2",
+          "units": "V",
+          "value": 0,
+          "color": "#00ff00",
+          "scale": 1.25,
+          "v_position": 0
+        },
+        {
+          "element": "C2",
+          "units": "A",
+          "value": 3,
+          "color": "#FFFF00",
+          "scale": 0.025,
+          "v_position": 0
+        }
+      ]
+    }
+  ]
+}

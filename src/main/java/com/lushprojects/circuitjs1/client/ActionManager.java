@@ -211,8 +211,8 @@ public class ActionManager extends BaseCirSimDelegate {
             cirSim.loadFileInput.click();
         }
         if (item == "newwindow") {
-            //Window.open(Document.get().getURL(), "_blank", "");
-            //Maybe this can help with lags:
+            // Window.open(Document.get().getURL(), "_blank", "");
+            // Maybe this can help with lags:
             CirSim.executeJS("nw.Window.open('circuitjs.html', {new_instance: true, mixed_context: false});");
         }
         if (item == "newtab") {
@@ -238,17 +238,21 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "importfromtext") {
             dialogManager.showImportFromTextDialog();
         }
-    	/*if (item=="importfromdropbox") {
-    		dialogShowing = new ImportFromDropboxDialog(this);
-    	}*/
+        /*
+         * if (item=="importfromdropbox") {
+         * dialogShowing = new ImportFromDropboxDialog(this);
+         * }
+         */
         if (item == "exportasurl") {
             doExportAsUrl();
             cirSim.setUnsavedChanges(false);
         }
-    	/*if (item=="exportaslocalfile") {
-    		doExportAsLocalFile();
-    		unsavedChanges = false;
-    	}*/
+        /*
+         * if (item=="exportaslocalfile") {
+         * doExportAsLocalFile();
+         * unsavedChanges = false;
+         * }
+         */
         if (item == "exportastext") {
             doExportAsText();
             cirSim.setUnsavedChanges(false);
@@ -290,12 +294,25 @@ public class ActionManager extends BaseCirSimDelegate {
             circuitEditor().doEditOptions();
         if (item == "devtools")
             CirSim.toggleDevTools();
+        if (item == "remotedebug") {
+            // Generate channel ID from current timestamp for uniqueness
+            String channelId = "cjs-" + System.currentTimeMillis();
+            String debugUrl = "http://localhost:3030/?channel=" + channelId;
+            // Open Web Viewer Dashboard in default browser
+            CirSim.executeJS("nw.Shell.openExternal('" + debugUrl + "')");
+            // Note: CircuitJS1 needs to be opened with ?remote-debug=same-channel-id to
+            // connect
+            Window.alert(
+                    Locale.LS("Remote Debug viewer opened.\\n\\nTo connect CircuitJS1, reload with:\\n?remote-debug=")
+                            + channelId);
+        }
         if (item == "undo")
             circuitEditor().doUndo();
         if (item == "redo")
             circuitEditor().doRedo();
 
-        // if the mouse is hovering over an element, and a shortcut key is pressed, operate on that element (treat it like a context menu item selection)
+        // if the mouse is hovering over an element, and a shortcut key is pressed,
+        // operate on that element (treat it like a context menu item selection)
         if (menu == "key" && circuitEditor().mouseElm != null) {
             circuitEditor().menuElm = circuitEditor().mouseElm;
             menu = "elm";
@@ -403,18 +420,18 @@ public class ActionManager extends BaseCirSimDelegate {
                         circuitEditor().snapGrid(elm.getY() + 50));
                 scopeManager().undockScope(newScope);
 
-                cirSim.needAnalyze();      // need to rebuild scopeElmArr
+                cirSim.needAnalyze(); // need to rebuild scopeElmArr
             }
             if (item == "remove")
-                s.setElm(null);  // setupScopes() will clean this up
+                s.setElm(null); // setupScopes() will clean this up
             if (item == "removeplot")
                 s.removePlot(menuManager.menuPlot);
             if (item == "speed2")
                 s.speedUp();
             if (item == "speed1/2")
                 s.slowDown();
-//    		if (item=="scale")
-//    			scopes[menuScope].adjustScale(.5);
+            // if (item=="scale")
+            // scopes[menuScope].adjustScale(.5);
             if (item == "maxscale")
                 s.maxScale();
             if (item == "stack")
@@ -436,7 +453,7 @@ public class ActionManager extends BaseCirSimDelegate {
             // Create new tab
             CircuitDocument newDoc = cirSim.documentManager.createDocument();
             cirSim.documentManager.setActiveDocument(newDoc);
-            
+
             circuitEditor().pushUndo();
             int sp = item.indexOf(' ', 6);
             getActiveDocument().circuitLoader.readSetupFile(item.substring(6, sp), item.substring(sp + 1));
@@ -445,16 +462,16 @@ public class ActionManager extends BaseCirSimDelegate {
             // Create new tab
             CircuitDocument newDoc = cirSim.documentManager.createDocument();
             cirSim.documentManager.setActiveDocument(newDoc);
-            
+
             circuitEditor().pushUndo();
             getActiveDocument().circuitLoader.readSetupFile("blank.txt", "Blank Circuit");
         }
 
-        //	if (ac.indexOf("setup ") == 0) {
-        //	    pushUndo();
-        //	    readSetupFile(ac.substring(6),
-        //			  ((MenuItem) e.getSource()).getLabel());
-        //	}
+        // if (ac.indexOf("setup ") == 0) {
+        // pushUndo();
+        // readSetupFile(ac.substring(6),
+        // ((MenuItem) e.getSource()).getLabel());
+        // }
 
         // IES: Moved from itemStateChanged()
         if (menu == "main") {
@@ -509,9 +526,9 @@ public class ActionManager extends BaseCirSimDelegate {
     }
 
     void doExportAsLocalFile() {
-    	String dump = dumpCircuit();
-    	Dialog dialogShowing = new ExportAsLocalFileDialog(dump);
-    	dialogShowing.show();
+        String dump = dumpCircuit();
+        Dialog dialogShowing = new ExportAsLocalFileDialog(dump);
+        dialogShowing.show();
     }
 
     public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {
@@ -528,6 +545,7 @@ public class ActionManager extends BaseCirSimDelegate {
 
     /**
      * Dump circuit in specified format.
+     * 
      * @param formatId Format identifier (e.g., "text", "json")
      * @return Circuit data as string
      */
@@ -542,6 +560,7 @@ public class ActionManager extends BaseCirSimDelegate {
 
     /**
      * Dump circuit in specified format with simulation state.
+     * 
      * @param formatId Format identifier (e.g., "text", "json")
      * @return Circuit data as string with simulation state
      */
@@ -556,6 +575,7 @@ public class ActionManager extends BaseCirSimDelegate {
 
     /**
      * Dump circuit in default (text) format.
+     * 
      * @return Circuit data as string
      */
     public String dumpCircuit() {
@@ -565,6 +585,7 @@ public class ActionManager extends BaseCirSimDelegate {
     /**
      * Dump simulation options header in text format.
      * Used by CircuitEditor for copy/paste operations.
+     * 
      * @return Options line starting with '$'
      */
     public String dumpOptions() {
@@ -574,12 +595,12 @@ public class ActionManager extends BaseCirSimDelegate {
 
         // Build flags bitmask
         int flags = 0;
-        flags |= menuManager.dotsCheckItem.getState() ? 1 : 0;      // Bit 0: Show dots
+        flags |= menuManager.dotsCheckItem.getState() ? 1 : 0; // Bit 0: Show dots
         flags |= menuManager.smallGridCheckItem.getState() ? 2 : 0; // Bit 1: Small grid
-        flags |= menuManager.voltsCheckItem.getState() ? 0 : 4;     // Bit 2: Hide volts (inverted)
-        flags |= menuManager.powerCheckItem.getState() ? 8 : 0;     // Bit 3: Show power
+        flags |= menuManager.voltsCheckItem.getState() ? 0 : 4; // Bit 2: Hide volts (inverted)
+        flags |= menuManager.powerCheckItem.getState() ? 8 : 0; // Bit 3: Show power
         flags |= menuManager.showValuesCheckItem.getState() ? 0 : 16; // Bit 4: Hide values (inverted)
-        flags |= simulator.adjustTimeStep ? 64 : 0;                 // Bit 6: Auto time step
+        flags |= simulator.adjustTimeStep ? 64 : 0; // Bit 6: Auto time step
 
         return CircuitElm.dumpValues(
                 "$",
@@ -589,7 +610,6 @@ public class ActionManager extends BaseCirSimDelegate {
                 cirSim.currentBar.getValue(),
                 ColorSettings.get().getVoltageRange(),
                 cirSim.powerBar.getValue(),
-                simulator.minTimeStep
-        );
+                simulator.minTimeStep);
     }
 }

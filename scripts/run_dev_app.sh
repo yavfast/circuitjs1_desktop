@@ -3,6 +3,15 @@
 # Ensure we are in the project root
 cd "$(dirname "$0")/.."
 
+DETACH=0
+for arg in "$@"; do
+    case "$arg" in
+        --bg|--background|--detach)
+            DETACH=1
+            ;;
+    esac
+done
+
 ensure_java17() {
     if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/javac" ]; then
         if "$JAVA_HOME/bin/javac" -version 2>&1 | grep -q "^javac 17"; then
@@ -48,7 +57,11 @@ node ./scripts/dev_n_build.js --buildall
 # 3. Run if build successful
 if [ $? -eq 0 ]; then
     echo "Build successful. Starting application..."
-    ./scripts/run_release_debug.sh
+    if [ "$DETACH" -eq 1 ]; then
+        ./scripts/run_release_debug.sh --detach
+    else
+        ./scripts/run_release_debug.sh
+    fi
 else
     echo "Build failed."
     exit 1

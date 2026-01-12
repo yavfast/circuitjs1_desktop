@@ -1,0 +1,32 @@
+{
+  "episode_id": "ep_remote_debug_server_docinfo_replay_2026-01-11",
+  "date": "2026-01-11",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": ["remote-debug", "server", "nwjs"],
+    "goal": "Ensure late-joining viewers in NW.js still receive document_info, and verify full remote debug workflow end-to-end."
+  },
+  "problem": {
+    "symptom": "NW.js E2E viewer sometimes missed document_info and failed validation",
+    "root_cause": "document_info was broadcast only at send-time; viewers connecting after the event did not receive it"
+  },
+  "change": {
+    "file": "server/remote-debug-server.js",
+    "summary": "Cache latest documentInfo per channel and emit it to viewers on connect/registered; update lastActivity when document_info arrives."
+  },
+  "verification": {
+    "nwjs": "Launched NW wrapper with file:// target/site + remote-debug params; server /api/channels showed hasAgent:true",
+    "viewer_e2e": [
+      "document_info received",
+      "execute getSimInfo",
+      "circuit_export keys schema/simulation/elements/scopes",
+      "execute importFromJson + console.log capture",
+      "element_update R1.resistance",
+      "telemetry_subscribe elements=['R1'] fields=['voltage','current','power']",
+      "screenshot png + svg"
+    ]
+  },
+  "docs": [
+    "docs/remote_dbg.md updated: Document Info behavior described"
+  ]
+}

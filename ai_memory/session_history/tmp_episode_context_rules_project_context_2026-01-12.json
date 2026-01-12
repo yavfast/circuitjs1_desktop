@@ -1,0 +1,39 @@
+{
+  "id": "tmp_episode_context_rules_project_context_2026-01-12",
+  "status": "success",
+  "timestamp": "2026-01-12T14:58:04+02:00",
+  "summary": "Updated context workflow rules: on NEW chat start, activate the matching task context and archive all unrelated tasks separately; introduced project-wide onboarding context stored in ai_memory/project_context.md.",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": "docs/context_rules/project_context",
+    "problem": "Active context could carry multiple unrelated tasks into a new chat; the repo lacked a durable project-wide onboarding context for new AI chats."
+  },
+  "root_cause": {
+    "description": "Startup rules allowed reusing an active_context containing multiple tasks without forcing it to be narrowed to the new chat intent, and there was no dedicated project-wide context artifact for onboarding.",
+    "evidence": [
+      "docs/context_rules_concept.md startup rules did not require archiving non-matching tasks when the intent matched only one task",
+      "No ai_memory/project_context.md existed as a stable onboarding reference"
+    ]
+  },
+  "fix": {
+    "changes": [
+      "Require pruning on NEW chat start: keep only the task matching the new intent; archive the rest to ai_memory/context_history and update contexts_index.yaml",
+      "Add project_context concept and storage location (ai_memory/project_context.md)",
+      "Add a dedicated rules doc for project_context lifecycle and a recommended template",
+      "Update context_rules pseudocode to load project_context and include hooks for project-wide updates"
+    ],
+    "files": [
+      "docs/context_rules_concept.md",
+      "docs/context_rules/context_rules.md",
+      "docs/context_rules/switching.md",
+      "docs/context_rules/project_context_rules.md",
+      "ai_memory/project_context.md"
+    ]
+  },
+  "verification": {
+    "method": [
+      "Reviewed updated rule text for consistency across concept + switching + pseudocode",
+      "Confirmed new files exist and are referenced by the rules"
+    ]
+  }
+}

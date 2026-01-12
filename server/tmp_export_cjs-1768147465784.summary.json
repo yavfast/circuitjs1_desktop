@@ -1,0 +1,51 @@
+{
+  "schema": {
+    "format": "circuitjs",
+    "version": "2.0"
+  },
+  "simulation": {
+    "time_step": "5 us",
+    "min_time_step": "0 s",
+    "display": {
+      "show_dots": true,
+      "show_voltage": true,
+      "show_power": false,
+      "show_values": true,
+      "small_grid": false
+    },
+    "voltage_range": "5 V",
+    "current_speed": 50,
+    "power_brightness": 50,
+    "auto_time_step": true
+  },
+  "elementCount": 3,
+  "types": [
+    {
+      "type": "Resistor",
+      "count": 1,
+      "sample": [
+        "R1"
+      ]
+    },
+    {
+      "type": "Capacitor",
+      "count": 1,
+      "sample": [
+        "C2"
+      ]
+    },
+    {
+      "type": "Wire",
+      "count": 1,
+      "sample": [
+        "W3"
+      ]
+    }
+  ],
+  "documentInfo": {
+    "docId": "default",
+    "docName": "CircuitJS1",
+    "tabCount": 1,
+    "timestamp": 1768147958087
+  }
+}

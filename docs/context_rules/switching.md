@@ -60,6 +60,16 @@ If `ai_memory/active_context.md` contains multiple tasks (Current Task + Other T
 - Switching to a **new unrelated task** (typically at the start of a new chat) MUST archive **each task separately by task_id**.
    Do not collapse multiple tasks into one archive file.
 
+## New chat: activate one task, archive the rest
+
+On NEW chat start, if `ai_memory/active_context.md` contains multiple tasks from previous sessions and the new intent matches one of them:
+
+- Promote the matching one to **Current Task**.
+- Archive all non-matching tasks separately by `task_id` into `ai_memory/context_history/` and update `contexts_index.yaml`.
+- Remove the archived task descriptions from `ai_memory/active_context.md`.
+
+This keeps the active context focused on the user’s current request and prevents unrelated tasks from drifting forward.
+
 ## Switch protocol
 
 1. **Sync** active context (see `sync.md`)
@@ -74,6 +84,11 @@ If `ai_memory/active_context.md` contains multiple tasks (Current Task + Other T
    - Match found: restore, switch branch, do drift checks
    - No match: bootstrap from template
 6. **Record** in Decisions
+
+## Project-wide context (optional)
+
+If switching uncovered durable project-wide information (repo-wide architecture, new dev commands, gotchas, module boundaries), update `ai_memory/project_context.md`.
+See `docs/context_rules/project_context_rules.md`.
 
 ## Registry schema
 

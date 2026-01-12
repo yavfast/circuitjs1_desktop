@@ -2,6 +2,8 @@
 
 Modules:
 - `docs/context_rules/active_context_template.md` — active context template
+- `docs/context_rules/project_context_rules.md` — project-wide onboarding rules (one-time creation + occasional updates)
+- `docs/context_rules/project_context_template.md` — project context template
 - `docs/context_rules/sync.md` — sync flow
 - `docs/context_rules/switching.md` — archive/restore/bootstrapping
 - `docs/context_rules/multi_task.md` — parallel task rules
@@ -12,6 +14,7 @@ Modules:
 ```text
 # ══ ARTIFACTS & CONSTANTS ══
 ACTIVE_CONTEXT_FILE   = "ai_memory/active_context.md"
+PROJECT_CONTEXT_FILE  = "ai_memory/project_context.md"
 CONTEXT_REGISTRY_FILE = "ai_memory/context_history/contexts_index.yaml"
 ARCHIVE_DIR           = "ai_memory/context_history/"
 STALENESS_WARN_DAYS = 7;  STALENESS_FULL_REFRESH = 30;  GOOD_MATCH_MIN_TAGS = 2
@@ -46,11 +49,40 @@ function CHOOSE_FLOW(ctx, intent):
    if intent.wants_parallel_tasks: return "MULTI_TASK"
    return "SYNC"
 
+# On NEW chat start, the active context must be focused.
+# If the current file contains multiple tasks from previous sessions, keep only the one
+# that matches the new intent; archive all others separately by task_id.
+procedure PRUNE_UNRELATED_TASKS_ON_NEW_CHAT(ctx, intent):
+   if NOT ctx.has_multiple_tasks: return ctx
+
+   target_task_id = FIND_MATCHING_TASK_ID_IN_ACTIVE_CONTEXT(ctx, intent)  # may return null
+   if target_task_id is null:
+      return ctx  # DO_SWITCHING will handle full archive+replace when flow=SWITCHING
+
+   # 1) Sync before mutating/archiving to avoid losing latest state
+   ctx = SYNC_CONTEXT(ctx, { decision_made: true, reason: "new-chat prune unrelated tasks" })
+   WRITE_CONTEXT(ACTIVE_CONTEXT_FILE, ctx)
+
+   # 2) Archive everything except the target task
+   archives = ARCHIVE_TASKS_EXCEPT(ctx, target_task_id)  # writes ARCHIVE_DIR/<task_id>.md
+
+   # 3) Registry update for archived tasks
+   registry = READ_YAML(CONTEXT_REGISTRY_FILE)
+   registry = UPSERT_REGISTRY_ENTRIES(registry, ctx, archives)
+   WRITE_YAML(CONTEXT_REGISTRY_FILE, registry)
+
+   # 4) Keep only the target task in active_context
+   focused = KEEP_ONLY_TASK_SECTIONS(ctx, target_task_id)
+   focused.meta.last_updated = NOW_ISO8601()
+   focused.decisions.add("Pruned unrelated tasks on new chat; archived others")
+   return focused
+
 # INTENT_CONTRADICTS_CURRENT_TASK MUST return true if intent implies a different task_id
 # or a materially different goal/topic. Task switches are handled only via DO_SWITCHING.
 
 # ══ MAIN ENTRY POINT ══
 procedure START_NEW_CHAT(user_message):
+   project_ctx = READ_PROJECT_CONTEXT(PROJECT_CONTEXT_FILE)  # optional but recommended
    ctx = READ_CONTEXT(ACTIVE_CONTEXT_FILE)
 
    staleness = IS_STALE(ctx)
@@ -59,6 +91,11 @@ procedure START_NEW_CHAT(user_message):
       WRITE_CONTEXT(ACTIVE_CONTEXT_FILE, ctx)
 
    intent = INFER_USER_INTENT(user_message)
+
+   # NEW chat rule: activate matching task and archive all unrelated ones
+   ctx = PRUNE_UNRELATED_TASKS_ON_NEW_CHAT(ctx, intent)
+   WRITE_CONTEXT(ACTIVE_CONTEXT_FILE, ctx)
+
    flow = CHOOSE_FLOW(ctx, intent)
 
    if flow == "SWITCHING":
@@ -75,6 +112,12 @@ procedure AFTER_EACH_USER_REQUEST(ctx, result):
    if did_change:
       ctx = SYNC_CONTEXT(ctx, result)
       WRITE_CONTEXT(ACTIVE_CONTEXT_FILE, ctx)
+
+   # Project-wide onboarding context (optional): update only when information is durable
+   # and applies to the entire repo (not a single task).
+   if result.has_project_wide_insight:
+      project_ctx = SYNC_PROJECT_CONTEXT(READ_PROJECT_CONTEXT(PROJECT_CONTEXT_FILE), result)
+      WRITE_PROJECT_CONTEXT(PROJECT_CONTEXT_FILE, project_ctx)
    return ctx
 
 function SYNC_CONTEXT(ctx, result):
@@ -118,6 +161,11 @@ procedure DO_SWITCHING(ctx, intent):
    new_ctx = BOOTSTRAP_NEW_CONTEXT(intent)
    new_ctx.meta.last_updated = NOW_ISO8601()
    new_ctx.decisions.add("Bootstrapped new context")
+
+   # Optional: if switching uncovered project-wide learnings, persist them
+   if intent.has_project_wide_insight:
+      project_ctx = SYNC_PROJECT_CONTEXT(READ_PROJECT_CONTEXT(PROJECT_CONTEXT_FILE), intent)
+      WRITE_PROJECT_CONTEXT(PROJECT_CONTEXT_FILE, project_ctx)
    return new_ctx
 
 # ══ QUALITY GATE ══

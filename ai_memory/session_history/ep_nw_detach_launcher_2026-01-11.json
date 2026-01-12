@@ -1,0 +1,35 @@
+{
+  "episode_id": "ep_nw_detach_launcher_2026-01-11",
+  "date": "2026-01-11",
+  "context": {
+    "project": "circuitjs1_desktop",
+    "area": ["nwjs", "scripts", "dev-workflow"],
+    "goal": "Make NW.js release launcher non-blocking when run from terminal, while preserving default tailing behavior."
+  },
+  "changes": [
+    {
+      "file": "scripts/run_release_debug.sh",
+      "summary": "Added --detach/--bg/--background mode: starts CircuitSimulator, writes to debug.log, prints PID and exits without tail/wait."
+    },
+    {
+      "file": "scripts/run_dev_app.sh",
+      "summary": "Added passthrough --detach/--bg flag; after build, runs run_release_debug.sh in detached or interactive mode."
+    },
+    {
+      "file": "docs/project.md",
+      "summary": "Documented detached mode usage for terminal workflows." 
+    },
+    {
+      "file": "docs/remote_dbg.md",
+      "summary": "Added NW.js usage section and clarified troubleshooting for package.nw launcher behavior." 
+    }
+  ],
+  "verification": {
+    "bash_syntax": "bash -n scripts/run_release_debug.sh scripts/run_dev_app.sh",
+    "manual_smoke": "./scripts/run_release_debug.sh --detach prints PID and exits; background process confirmed via ps; then killed."
+  },
+  "notes": [
+    "Default behavior of run_release_debug.sh remains: tail -f debug.log and wait for process.",
+    "Detached mode is intended for terminal use to avoid blocking." 
+  ]
+}

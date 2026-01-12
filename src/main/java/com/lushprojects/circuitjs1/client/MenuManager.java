@@ -335,7 +335,8 @@ public class MenuManager extends BaseCirSimDelegate {
                         String cc = ColorSettings.get().getCurrentColor().getHexValue();
                         // change the current color if it hasn't changed from the default
                         if (cc.equals("#ffff00") || cc.equals("#00ffff"))
-                            ColorSettings.get().setCurrentColor(conventionCheckItem.getState() ? Color.yellow : Color.cyan);
+                            ColorSettings.get()
+                                    .setCurrentColor(conventionCheckItem.getState() ? Color.yellow : Color.cyan);
                     }
                 }));
         conventionCheckItem.setState(circuitInfo().convention);
@@ -356,6 +357,7 @@ public class MenuManager extends BaseCirSimDelegate {
                 new MyCommand("options", "other")));
         m.addItem(modItem = new CheckboxAlignedMenuItem("Modification Setup...", new MyCommand("options", "modsetup")));
         modItem.addStyleName("modItem");
+        m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Remote Debug..."), new MyCommand("options", "remotedebug")));
         if (CirSim.isElectron())
             m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options", "devtools")));
     }
