@@ -1,0 +1,17 @@
+{
+  "episode": {
+    "id": "project-context-yaml-2026-01-26-v2",
+    "date": "2026-01-26",
+    "context": "project context extraction",
+    "task": "Populate docs/project_context.yaml per context_extractor.yaml",
+    "actions": [
+      "Generated glossary, entities, modules, flows, events, and rules",
+      "Updated ai_memory/active_context.md with new status"
+    ],
+    "outputs": [
+      "docs/project_context.yaml",
+      "ai_memory/active_context.md"
+    ],
+    "result": "success"
+  }
+}

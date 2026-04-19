@@ -1,0 +1,19 @@
+{
+  "episode": {
+    "id": "project-context-yaml-2026-01-26-v3",
+    "date": "2026-01-26",
+    "context": "project context extraction",
+    "task": "Update context_extractor.yaml to be code-aware and regenerate project_context.yaml",
+    "actions": [
+      "Rewrote context_extractor.yaml to require codeMap and English priority",
+      "Regenerated docs/project_context.yaml with real classes, methods, and file refs",
+      "Updated ai_memory/active_context.md"
+    ],
+    "outputs": [
+      "docs/context_rules/context_extractor.yaml",
+      "docs/project_context.yaml",
+      "ai_memory/active_context.md"
+    ],
+    "result": "success"
+  }
+}

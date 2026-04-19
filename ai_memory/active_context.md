@@ -1,5 +1,5 @@
 ## Meta
-- last_updated: 2026-01-12T15:16:08+02:00
+- last_updated: 2026-01-26T10:55:00+02:00
 - project_root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
 - language: uk
 - active_skills: [circuitjs1-dev-workflow]
@@ -7,12 +7,12 @@
 
 ## Current Task
 
-	task_id: CTX-RULES-PROJECT-CONTEXT-001
-	goal: Оновити правила контексту так, щоб при старті нового чату активувався контекст релевантної задачі, а всі нерелевантні задачі переносились у `ai_memory/context_history/`. Додати концепцію та правила для `ai_memory/project_context.md`.
-	current_focus: Оновлення документації: правила startup/switching + додавання project_context.
-	active_files: [docs/context_rules_concept.md, docs/context_rules/context_rules.md, docs/context_rules/switching.md, docs/context_rules/project_context_rules.md, docs/context_rules/project_context_template.md, ai_memory/project_context.md]
-	scope_in: Правки інструкцій/правил; додавання project_context_rules.md; узгодження між docs/context_rules*.
-	scope_out: Рефакторинг існуючих archived contexts/registry; зміни у коді симулятора/GUI.
+	task_id: PROJECT-CONTEXT-YAML
+	goal: Створити узагальнений контекст проекту за правилами context_extractor.yaml та зберегти у docs/project_context.yaml.
+	current_focus: Узгодити бізнес-терміни, сутності, модулі, потоки, події й правила для CircuitJS1 Desktop.
+	active_files: [docs/project_context.yaml, docs/context_rules/context_extractor.yaml, docs/project.md, docs/JS_API.md, docs/EXPORT_CJS.md, docs/EXPORT_OLD.md, docs/elements.md, README.md]
+	scope_in: Формування компактного проектного контексту; дотримання формату та обмежень термінології.
+	scope_out: Зміни у коді симулятора/GUI або переформатування інших документів.
 
 ## Other Tasks (This Chat)
 
@@ -82,17 +82,13 @@
 			- ai_memory/tmp_episode_std_circuits_error_ux.json
 
 ## Progress
-	CTX-RULES-PROJECT-CONTEXT-001:
+	PROJECT-CONTEXT-YAML:
 		done:
-			- Оновлено startup правила: на новому чаті активувати релевантну задачу, а нерелевантні переносити в історію.
-			- Додано концепцію project-wide контексту і файл `ai_memory/project_context.md`.
-			- Додано модульний документ правил для project_context.
-		in_progress:
-			- Узгодження формулювань між `docs/context_rules_concept.md` та `docs/context_rules/*`.
+			- Оновлено інструкції context_extractor.yaml (code-aware, English-first).
+			- Перегенеровано docs/project_context.yaml з реальними класами/методами.
+		in_progress: []
 		next:
-			- Додати/уточнити згадки project_context у правилах switching/sync (якщо потрібно).
-			- Оновити timestamps (`last_updated`) у `ai_memory/project_context.md` та `ai_memory/active_context.md`.
-			- Зберегти епізод у AI memory (`./ai_mem.sh ingest`).
+			- Перевірити компактність і термінологію; уточнити формулювання за потреби.
 
 	REMOTE-DEBUG-SYSTEM:
 		done:
@@ -237,5 +233,15 @@ focus_now: Validate DevMode behavior for singular matrix + FindPathInfo structur
 next_action: Run DevMode and load a few stiff/invalid circuits; confirm time advances and only warningMessage appears (no stop)
 key_files: [src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java, src/main/java/com/lushprojects/circuitjs1/client/FindPathInfo.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java, src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java]
 verify_cmd: mvn -q -DskipTests=true test
+last_result: success
+
+---
+
+# Quick Resume — PROJECT-CONTEXT-YAML
+goal: Create project-wide context YAML for CircuitJS1 Desktop per context_extractor.yaml
+focus_now: Ensure business glossary, entities, modules, flows, events, and rules are coherent and compact
+next_action: Review docs/project_context.yaml for coverage and terminology constraints; adjust if needed
+key_files: [docs/project_context.yaml, docs/context_rules/context_extractor.yaml]
+verify_cmd: grep -n "businessGlossary" -n docs/project_context.yaml
 last_result: success
 ```

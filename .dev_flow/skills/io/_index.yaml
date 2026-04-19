@@ -1,0 +1,13 @@
+updated: 2026-04-18
+domain: io
+skills:
+  - file: text-format.md
+    skill: text-format
+    topics: [falstad, text-format, dump-type, options-line, scope-line, hint-line]
+    source: onboard
+    updated: 2026-04-18
+  - file: json-format.md
+    skill: json-format
+    topics: [json, schema-v2, circuit-element-factory, unit-parser, bounds, auto-wires]
+    source: onboard
+    updated: 2026-04-18

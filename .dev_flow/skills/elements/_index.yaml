@@ -1,0 +1,13 @@
+updated: 2026-04-18
+domain: elements
+skills:
+  - file: element-authoring.md
+    skill: element-authoring
+    topics: [circuit-elm, chip-elm, composite-elm, dump, json, factory, recipe]
+    source: onboard
+    updated: 2026-04-18
+  - file: flag-bits-and-dump-types.md
+    skill: flag-bits-and-dump-types
+    topics: [flags, dump-type, flag-small, flip, back-euler, iec]
+    source: onboard
+    updated: 2026-04-18

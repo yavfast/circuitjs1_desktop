@@ -1,0 +1,155 @@
+algoContext:
+  version: 1.0
+  metadata:
+    name: ContextExtractor
+    purpose: "Extract logical blueprint from large codebase into compact AlgoContext YAML"
+    input: "codebase (src, tests, docs, DB schema)"
+    output: "AlgoContext YAML file"
+    targetAI: ["GPT", "Claude", "Llama", "Gemini"]
+
+  inputs:
+    - name: codebase
+      type: "directory/files (Git repo, ZIP)"
+      size: ">=10k LOC"
+      includes: "[src/, tests/, README, API docs, DB schema]"
+    - name: domainHints
+      type: "optional text"
+      example: "messaging app, fitness tracker, note-taking app"
+
+  outputs:
+    - name: algoContextYAML
+      type: "YAML file"
+      validation: "Sufficiently compact while covering 90%+ domain logic"
+      language: ["English"]
+  modules:
+    - name: Preparer
+      inputs: [codebase]
+      outputs: [artifacts, scaleMetrics]
+      ops:
+        - collectArtifacts()
+        - analyzeScale()
+    - name: EntityAnalyzer
+      inputs: [codebase]
+      outputs: [entities]
+    - name: ApiExtractor
+      inputs: [codebase]
+      outputs: [apiContracts]
+    - name: ModuleDetector
+      inputs: [codebase]
+      outputs: [modules]
+    - name: FlowMapper
+      inputs: [codebase, tests]
+      outputs: [flows]
+    - name: EventDetector
+      inputs: [codebase]
+      outputs: [events]
+    - name: RuleExtractor
+      inputs: [codebase, tests]
+      outputs: [rules]
+    - name: Validator
+      inputs: [partialYAML]
+      outputs: [algoContextYAML]
+
+  flows:
+    - name: mainExtraction
+      steps:
+        - call: Preparer.collectArtifacts(codebase) -> artifacts
+        - parallel:
+            - call: EntityAnalyzer.scanModels(artifacts) -> entities
+            - call: ApiExtractor.scanEndpoints(artifacts) -> apiContracts
+            - call: ModuleDetector.groupByResponsibility(artifacts) -> modules
+        - call: FlowMapper.traceJourneys(tests, controllers) -> flows
+        - parallel:
+            - call: EventDetector.findTriggers(artifacts) -> events
+            - call: RuleExtractor.extractGuardsValidations(artifacts) -> rules
+        - call: Validator.assembleAndValidate({entities, api, modules, flows, events, rules}) -> algoContextYAML
+      out: algoContextYAML
+
+    - name: compactification
+      steps:
+        - assessCompactness(): "Ensure summary remains clear and complete"
+        - if: compactnessInsufficient
+          then:
+            - mergeSimilarEntities()
+            - shortenDescriptions()
+            - removeRedundancies()
+            - pruneNonEssentialDetails()
+        - validateCoverage(90%)
+      triggers: post-assembly
+
+  outputFormat:
+    entity:
+      requiredFields: [name, purpose, inputs, outputs, constraints]
+      guidance:
+        - "name: domain term"
+        - "purpose: one sentence"
+        - "inputs/outputs: domain-level data shapes"
+        - "constraints: domain rules only"
+    module:
+      requiredFields: [name, purpose, inputs, outputs, constraints]
+      guidance:
+        - "responsibility-focused, not technical"
+        - "inputs/outputs are domain interactions"
+    flow:
+      requiredFields: [name, purpose, preconditions, triggers, steps, alternatives, outputs, constraints]
+      guidance:
+        - "preconditions: required state"
+        - "triggers: initiating events"
+        - "alternatives: key branches with if/then"
+
+  terminology:
+    domainGlossary:
+      required: true
+      minEntries: 10
+      purpose: "Normalize domain terms while allowing technical terms for background processes"
+      format:
+        - term: "Session"
+          definition: "An active user interaction period in the app"
+          aliases: ["App session", "Usage session"]
+
+  events:
+    - name: tooManyEntities
+      condition: entities.count > 20
+      action: groupRelatedEntities()
+    - name: missingCoverage
+      condition: uncoveredUseCases > 10%
+      action: extendFlowsWithTestCases()
+    - name: overlyTechnical
+      condition: techSpecificFields > 10%
+      action: abstractToDomainTerms()
+
+  invariants:
+    - "Entities cover ALL domain models (no data loss)"
+    - "Flows represent 90%+ of user/domain journeys"
+    - "Rules preserve ALL domain constraints/validations"
+    - "Output is sufficiently compact and fully regeneratable"
+    - "No low-level implementation details (frameworks, DB types, HTTP status codes)"
+    - "Real class and Gradle module names are allowed for code navigation"
+    - "Flows include preconditions, triggers, and alternatives"
+
+  rules:
+    - "Use domain names, not technical (Order, not OrderEntity)"
+    - "API shapes: domain contracts only, ignore HTTP details"
+    - "Modules ≤ 15, merge if responsibility overlaps >50%"
+    - "Flows: concrete steps with if/then, no vague descriptions"
+    - "Abstract external deps (Stripe → payment.ext)"
+    - "Examples > descriptions for complex shapes"
+    - "Include domain glossary and reuse terms consistently"
+    - "Prefer stable schemas: required fields must be present"
+    - "Technical terms are allowed for background processes (sync, push, cache, scheduler, worker)"
+    - "Prefer English for all descriptions and labels"
+    - "Include real class and Gradle module names to help AI agents locate code"
+    - "Content must be useful for quick project understanding by AI agents"
+
+  qualityGates:
+    - regeneratability: "AI can implement same logic in new stack w/o prompts"
+    - completeness: "All CRUD + key workflows covered"
+    - abstraction: "<10% tech-specific terms"
+    - compactness: "Sufficiently compact for human review and AI regeneration"
+    - clarity: "Structure and domain logic are understandable without source"
+
+  techHints:
+    - parallelizable: Entity+API+Module analysis independent
+    - iterative: Run → Validate → Refine cycle
+    - selfHealing: Events auto-correct common issues
+    - inputFormats: Git URL, ZIP, pasted code snippets OK

@@ -1,0 +1,8 @@
+updated: 2026-04-18
+domain: editor
+skills:
+  - file: undo-snapshot-model.md
+    skill: undo-snapshot-model
+    topics: [undo, redo, snapshot, recovery, local-storage, dedup]
+    source: onboard
+    updated: 2026-04-18

@@ -1,0 +1,273 @@
+meta:
+	version: "2.0"
+	name: "CircuitJS1 Desktop"
+	purpose: "Desktop circuit simulator for building, simulating, and analyzing electronic circuits (education-focused)."
+	language: "English"
+	sources:
+		- docs/project.md
+		- README.md
+		- docs/JS_API.md
+		- docs/EXPORT_CJS.md
+		- docs/EXPORT_OLD.md
+		- docs/elements.md
+
+businessGlossary:
+	- term: "Circuit"
+		definition: "A connected set of elements representing electrical behavior."
+		aliases: ["Schematic"]
+	- term: "Element"
+		definition: "A component with parameters and pins (e.g., resistor, source, logic)."
+		aliases: ["Component"]
+	- term: "Pin"
+		definition: "A connection point on an element."
+		aliases: ["Terminal"]
+	- term: "Node"
+		definition: "A shared connection point between pins."
+		aliases: ["Junction"]
+	- term: "Simulation"
+		definition: "Time-based computation of circuit state from the model."
+		aliases: ["Sim"]
+	- term: "Scope"
+		definition: "Time-domain signal visualization of selected points."
+		aliases: ["Oscilloscope"]
+	- term: "Meter"
+		definition: "Instrument that measures voltage, current, power, frequency, etc."
+		aliases: ["Probe"]
+	- term: "Preset"
+		definition: "A saved example circuit used for learning or testing."
+		aliases: ["Example"]
+	- term: "Import"
+		definition: "Loading a circuit into the editor from a supported format."
+		aliases: ["Load"]
+	- term: "Export"
+		definition: "Saving a circuit into a supported interchange format."
+		aliases: ["Save"]
+
+entities:
+	- name: "Circuit"
+		purpose: "Holds elements, nodes, and simulation settings."
+		inputs: "Elements, nodes, simulation settings, annotations."
+		outputs: "Structure used by simulation and rendering, and export formats."
+		constraints: "Connections and settings must be internally consistent."
+	- name: "Element"
+		purpose: "Represents a circuit component with behavior and geometry."
+		inputs: "Type, parameters, pin positions."
+		outputs: "Electrical behavior and visual representation."
+		constraints: "Parameter ranges and pin count match element type."
+	- name: "Node"
+		purpose: "Represents a shared connection point among pins."
+		inputs: "Connected pins and coordinates."
+		outputs: "Connectivity and node potential."
+		constraints: "Must align with element pins."
+	- name: "Simulation Settings"
+		purpose: "Control timing, iteration, and display scales."
+		inputs: "Time step, max/min step, iteration count, display options."
+		outputs: "Configured simulation runtime behavior."
+		constraints: "Values must be within stable/allowed ranges."
+	- name: "Measurement"
+		purpose: "Captures signals for analysis and display."
+		inputs: "Connected points, measurement type, scale."
+		outputs: "Numeric values and plots."
+		constraints: "Measurement points must be valid nodes/pins."
+	- name: "Export File"
+		purpose: "Portable representation of a circuit."
+		inputs: "Circuit data and simulation settings."
+		outputs: "JSON (new) or text dump (legacy) file."
+		constraints: "Must follow the chosen format specification."
+
+apiContracts:
+	- name: "CircuitJS1 runtime control"
+		purpose: "Start/stop simulation and set timing parameters."
+		inputs: "Run flag, time step, max time step."
+		outputs: "Runtime state and timing values."
+		constraints: "Applies to the active circuit document."
+	- name: "Circuit import/export"
+		purpose: "Load and save circuits in supported formats."
+		inputs: "JSON or legacy dump text."
+		outputs: "Loaded circuit in memory or exported data."
+		constraints: "Input must match format specs."
+	- name: "State inspection"
+		purpose: "Read simulation status and basic stats."
+		inputs: "Status query."
+		outputs: "Time, element count, running state, messages."
+		constraints: "Reflects the current circuit document."
+
+codeMap:
+	packages:
+		- name: "com.lushprojects.circuitjs1.client"
+			purpose: "Core simulator, document lifecycle, and UI controller layer."
+			root: "src/main/java/com/lushprojects/circuitjs1/client"
+		- name: "com.lushprojects.circuitjs1.client.element"
+			purpose: "Circuit elements (components) and their simulation behavior."
+			root: "src/main/java/com/lushprojects/circuitjs1/client/element"
+	keyClasses:
+		- name: "CirSim"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java"
+			role: "Main UI/controller entry point for circuit interaction."
+		- name: "CircuitSimulator"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java"
+			role: "Time-step simulation engine and convergence handling."
+		- name: "CircuitDocument"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java"
+			role: "Holds circuit state and coordinates import/export."
+		- name: "CircuitRenderer"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java"
+			role: "Canvas rendering for elements, wires, and UI overlays."
+		- name: "BaseCirSim"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/BaseCirSim.java"
+			role: "Base simulation lifecycle and analyze hooks."
+		- name: "FindPathInfo"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/FindPathInfo.java"
+			role: "Connectivity/path checks used by the simulator."
+		- name: "CircuitElm"
+			file: "src/main/java/com/lushprojects/circuitjs1/client/element/CircuitElm.java"
+			role: "Base class for all circuit elements."
+	keyMethods:
+		- name: "CircuitSimulator.runCircuit()"
+			purpose: "Advance simulation by time steps and manage convergence."
+		- name: "CircuitSimulator.preStampAndStampCircuit()"
+			purpose: "Prepare and stamp elements into the simulation matrix."
+		- name: "CircuitDocument.importFromJson()"
+			purpose: "Load circuit from JSON format."
+		- name: "CircuitDocument.exportToJson()"
+			purpose: "Serialize circuit to JSON format."
+		- name: "CirSim.stepSimulation()"
+			purpose: "Invoke a single simulation step for UI-driven flow."
+		- name: "CircuitRenderer.drawMouseMode()"
+			purpose: "Draw mode/status UI overlay on the canvas."
+	keyFiles:
+		- "docs/JS_API.md"
+		- "docs/EXPORT_CJS.md"
+		- "docs/EXPORT_OLD.md"
+		- "docs/elements.md"
+
+modules:
+	- name: "Circuit authoring"
+		purpose: "Create and edit circuits in the UI."
+		inputs: "User actions, component palette, editing tools."
+		outputs: "Updated circuit data and element placement."
+		constraints: "Editing maintains valid connectivity and parameters."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/CirSim.java"
+			- "src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java"
+	- name: "Simulation engine"
+		purpose: "Compute circuit behavior over time."
+		inputs: "Circuit graph, simulation settings."
+		outputs: "Updated node voltages and element states."
+		constraints: "Uses stable time steps and convergence checks."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/CircuitSimulator.java"
+	- name: "Element library"
+		purpose: "Provide element definitions and behavior."
+		inputs: "Element types and parameters."
+		outputs: "Element instances for the circuit."
+		constraints: "Element behavior must match its type."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/element/CircuitElm.java"
+			- "src/main/java/com/lushprojects/circuitjs1/client/element/*.java"
+	- name: "Rendering"
+		purpose: "Render circuit graphics and overlays."
+		inputs: "Circuit state and UI mode."
+		outputs: "Canvas rendering of elements and indicators."
+		constraints: "Rendering reflects current simulation state."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/CircuitRenderer.java"
+	- name: "Import/Export"
+		purpose: "Load and save circuits in supported formats."
+		inputs: "JSON or legacy dump text."
+		outputs: "Circuit data or export files."
+		constraints: "Format must match specification."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/CircuitDocument.java"
+			- "docs/EXPORT_CJS.md"
+			- "docs/EXPORT_OLD.md"
+	- name: "Measurements & scopes"
+		purpose: "Provide meters and waveform plots."
+		inputs: "Selected nodes/pins and measurement settings."
+		outputs: "Numeric readings and plots."
+		constraints: "Measurements must reference valid points."
+		codeRefs:
+			- "src/main/java/com/lushprojects/circuitjs1/client/element/ProbeElm.java"
+			- "src/main/java/com/lushprojects/circuitjs1/client/element/OutputElm.java"
+
+flows:
+	- name: "Build a new circuit"
+		purpose: "Create a circuit from scratch in the editor."
+		preconditions: "Empty canvas is open."
+		triggers: "User selects an element from the palette."
+		steps:
+			- "Add element instances to the canvas."
+			- "Connect pins with wires, forming nodes."
+			- "Edit element parameters."
+			- "Circuit is ready to simulate."
+		alternatives:
+			- "If parameters are invalid, user updates them and retries."
+		outputs: "Editable circuit ready for simulation."
+		constraints: "Connectivity and parameters must be valid."
+		codeRefs:
+			- "com.lushprojects.circuitjs1.client.CirSim"
+			- "com.lushprojects.circuitjs1.client.CircuitDocument"
+	- name: "Run simulation"
+		purpose: "Execute time-step simulation and show results."
+		preconditions: "Circuit is loaded and analyzed."
+		triggers: "User clicks Run or CircuitJS1.setSimRunning(true)."
+		steps:
+			- "Analyze circuit and stamp elements."
+			- "Advance time steps and update element states."
+			- "Render updated visuals and scopes."
+		alternatives:
+			- "If convergence fails, warnings are shown and time step may be adjusted."
+		outputs: "Updated simulation state and visuals."
+		constraints: "Time step and iteration limits are enforced."
+		codeRefs:
+			- "com.lushprojects.circuitjs1.client.CircuitSimulator.runCircuit()"
+			- "com.lushprojects.circuitjs1.client.CircuitRenderer"
+	- name: "Import a circuit"
+		purpose: "Load a circuit from JSON or legacy dump."
+		preconditions: "User selects import or calls API."
+		triggers: "CircuitJS1.importFromJson() or paste dump text."
+		steps:
+			- "Parse input data."
+			- "Instantiate elements and nodes."
+			- "Rebuild circuit state in the editor."
+		alternatives:
+			- "If format mismatch, show an error and abort."
+		outputs: "Loaded circuit ready to edit or simulate."
+		constraints: "Input must match format specification."
+		codeRefs:
+			- "com.lushprojects.circuitjs1.client.CircuitDocument.importFromJson()"
+			- "docs/EXPORT_OLD.md"
+	- name: "Export a circuit"
+		purpose: "Save a circuit to JSON or legacy dump."
+		preconditions: "Circuit is open in the editor."
+		triggers: "User selects Export or calls API."
+		steps:
+			- "Serialize circuit to the chosen format."
+			- "Return or save the serialized output."
+		alternatives:
+			- "If export fails, show an error and keep the circuit open."
+		outputs: "Exported circuit data."
+		constraints: "Output must follow the target format."
+		codeRefs:
+			- "com.lushprojects.circuitjs1.client.CircuitDocument.exportToJson()"
+			- "docs/EXPORT_CJS.md"
+
+events:
+	- name: "InvalidCircuit"
+		condition: "Circuit has invalid parameters or broken connectivity."
+		action: "Show warning or stop simulation until corrected."
+	- name: "ImportFormatMismatch"
+		condition: "Input data does not match supported formats."
+		action: "Notify user and cancel import."
+	- name: "SimulationInstability"
+		condition: "Simulation becomes unstable or fails to converge."
+		action: "Adjust time step or show warning/stop message."
+
+rules:
+	- "Every element has a unique identifier in export formats."
+	- "Connections are represented via pins and nodes, not implicit lines."
+	- "Simulation settings are stored with the circuit."
+	- "Two export formats are supported: JSON (primary) and legacy dump."
+	- "Rendering reflects the current simulation state."
+	- "Measurements must reference valid nodes/pins."
+(content omitted)

@@ -1,0 +1,329 @@
+# Processing queue — one entry per logical module (not per file).
+# Modules within the same layer can be analyzed in parallel.
+# Element categories inside the domain core allow bulk handling of the 135
+# concrete *Elm classes.
+
+layers:
+  - layer: 0
+    modules:
+      - name: util
+        path: src/main/java/com/lushprojects/circuitjs1/client/util
+        files: 3
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        notes: "Locale, Log, PerfMonitor. PerfMonitor has inverted dep on element/BaseCircuitElm (see issues.md #1)."
+      - name: root-utils
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 17
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - Point.java
+          - Rectangle.java
+          - IntPair.java
+          - Polygon.java
+          - Color.java
+          - Font.java
+          - Graphics.java
+          - CircuitMath.java
+          - StringTokenizer.java
+          - RandomUtils.java
+          - FFT.java
+          - Expr.java
+          - ExprParser.java
+          - ExprState.java
+          - PlatformUtils.java
+          - GWTUtils.java
+          - CircuitConst.java
+        notes: "Geometry, math, expression parser, and rendering primitives kept at client root for historical reasons. Treated as a single math-and-primitives module."
+
+  - layer: 1
+    modules:
+      - name: ui-tabs
+        path: src/main/java/com/lushprojects/circuitjs1/client/ui/tabs
+        files: 2
+        status: pending
+        analyzed_at: null
+        docs_at: null
+      - name: root-widgets
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 5
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - Checkbox.java
+          - CheckboxMenuItem.java
+          - CheckboxAlignedMenuItem.java
+          - Choice.java
+          - Scrollbar.java
+        notes: "Small GWT-wrapped UI controls."
+
+  - layer: 2
+    modules:
+      - name: domain-core
+        path: src/main/java/com/lushprojects/circuitjs1/client/element
+        files: 185
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        composite: true
+        sub_units:
+          - id: element-base
+            path: src/main/java/com/lushprojects/circuitjs1/client/element
+            files: 11
+            scope:
+              - CircuitElm.java
+              - BaseCircuitElm.java
+              - ChipElm.java
+              - CompositeElm.java
+              - CustomCompositeElm.java
+              - CustomCompositeChipElm.java
+              - CustomLogicElm.java
+              - SwitchElm.java
+              - GraphicElm.java
+              - ElmGeometry.java
+              - Inductor.java
+            order: 1
+          - id: waveforms
+            path: src/main/java/com/lushprojects/circuitjs1/client/element/waveform
+            files: 9
+            order: 2
+          - id: shared-models
+            path: src/main/java/com/lushprojects/circuitjs1/client
+            files: 4
+            scope:
+              - DiodeModel.java
+              - TransistorModel.java
+              - CustomLogicModel.java
+              - CustomCompositeModel.java
+            order: 3
+          - id: element-categories
+            path: src/main/java/com/lushprojects/circuitjs1/client/element
+            files: 135
+            order: 4
+            categories:
+              - passives        # ResistorElm, CapacitorElm, InductorElm, PotElm, VaristorElm, MemristorElm, SparkGapElm, etc.
+              - sources         # DCVoltageElm, ACVoltageElm, VoltageElm, CurrentElm, RailElm, ACRailElm, NoiseElm, SweepElm, etc.
+              - diodes-and-semis  # DiodeElm, ZenerDiodeElm, TunnelDiodeElm, LEDElm, SCRElm, TriacElm, DiacElm, etc.
+              - transistors     # TransistorElm, MosfetElm, JfetElm, DarlingtonElm, TriodeElm, etc.
+              - opamps-analog   # OpAmpElm, ComparatorElm, VCVSElm, CCVSElm, CCCSElm, etc.
+              - logic-gates     # AndGateElm, OrGateElm, NandGateElm, NorGateElm, XorGateElm, InverterElm, etc.
+              - flip-flops-counters  # FlipFlopElm, CounterElm, Counter2Elm, ShiftRegisterElm, etc.
+              - chips           # ChipElm-derived ICs: ADCElm, DACElm, DecoderElm, MuxElm, etc.
+              - switches        # AnalogSwitchElm, AnalogSwitch2Elm, CrossSwitchElm, SwitchElm variants
+              - io              # LogicInputElm, LogicOutputElm, DataInputElm, OutputElm, DecimalDisplayElm, etc.
+              - audio-rf        # AudioInputElm, AudioOutputElm, AMElm, FMElm, AntennaElm, CrystalElm
+              - motors-mech     # DCMotorElm, relays, etc.
+              - measurement     # AmmeterElm, VoltmeterElm, ScopeElm, DataRecorderElm
+              - graphic         # BoxElm, TextElm, GraphicElm variants
+              - misc-advanced   # CustomLogicElm, CustomCompositeChipElm, SRAMElm, etc.
+            notes: "Category groups are analyzed as one bundle each — all variants share the same base-class contract; the per-file differences are parameters, drawing, and simulation step details. The exact category mapping will be finalized during analysis based on class hierarchy and element tags."
+          - id: dialog-base
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 3
+            scope:
+              - Dialog.java
+              - Editable.java
+              - EditInfo.java
+            order: 5
+          - id: dialog-edit
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 3
+            scope:
+              - EditDialog.java
+              - EditOptions.java
+              - EditDialogLoadFile.java
+            order: 6
+          - id: dialog-export
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 5
+            scope:
+              - ExportAsImageDialog.java
+              - ExportAsJsonDialog.java
+              - ExportAsLocalFileDialog.java
+              - ExportAsTextDialog.java
+              - ExportAsUrlDialog.java
+            order: 6
+          - id: dialog-import
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 2
+            scope:
+              - ImportFromDropboxDialog.java
+              - ImportFromTextDialog.java
+            order: 6
+          - id: dialog-info
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 7
+            scope:
+              - AboutBox.java
+              - HelpDialog.java
+              - LicenseDialog.java
+              - ShortcutsDialog.java
+              - ShowLogDialog.java
+              - UncaughtExceptionDialog.java
+              - ModDialog.java
+            order: 6
+          - id: dialog-specialized
+            path: src/main/java/com/lushprojects/circuitjs1/client/dialog
+            files: 10
+            scope:
+              - ControlsDialog.java
+              - EditCompositeModelDialog.java
+              - EditDiodeModelDialog.java
+              - EditTransistorModelDialog.java
+              - ScopePropertiesDialog.java
+              - ScrollValuePopup.java
+              - SearchDialog.java
+              - SliderDialog.java
+              - SlidersDialog.java
+              - SubcircuitDialog.java
+            order: 6
+      - name: io-framework
+        path: src/main/java/com/lushprojects/circuitjs1/client/io
+        files: 12
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        composite: true
+        sub_units:
+          - id: io-interfaces
+            path: src/main/java/com/lushprojects/circuitjs1/client/io
+            files: 4
+            scope:
+              - CircuitFormat.java
+              - CircuitFormatRegistry.java
+              - CircuitElementFactory.java
+              - UnitParser.java
+            order: 1
+          - id: io-text
+            path: src/main/java/com/lushprojects/circuitjs1/client/io/text
+            files: 3
+            order: 2
+          - id: io-json
+            path: src/main/java/com/lushprojects/circuitjs1/client/io/json
+            files: 5
+            order: 2
+          - id: io-orchestrators
+            path: src/main/java/com/lushprojects/circuitjs1/client/io
+            files: 2
+            scope:
+              - CircuitExporter.java
+              - CircuitImporter.java
+            order: 3
+
+  - layer: 3
+    modules:
+      - name: simulator-core
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 6
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - CirSim.java
+          - BaseCirSim.java
+          - BaseCirSimDelegate.java
+          - CircuitSimulator.java
+          - SimulationContextAware.java
+          - Diode.java
+      - name: circuit-state
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 12
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - CircuitDocument.java
+          - DocumentManager.java
+          - CircuitInfo.java
+          - CircuitLoader.java
+          - CircuitElmCreator.java
+          - CircuitNode.java
+          - CircuitNodeLink.java
+          - CircuitUtils.java
+          - FindPathInfo.java
+          - NodeMapEntry.java
+          - WireInfo.java
+          - RowInfo.java
+      - name: editor-interaction
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 11
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - CircuitEditor.java
+          - CircuitEditorEventHandler.java
+          - CircuitRenderer.java
+          - MouseMode.java
+          - MyCommand.java
+          - ActionManager.java
+          - MenuManager.java
+          - Toolbar.java
+          - ClipboardManager.java
+          - ClipboardCallback.java
+          - UndoManager.java
+      - name: options-settings
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 4
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - OptionsManager.java
+          - DisplaySettings.java
+          - ColorSettings.java
+          - QueryParameters.java
+      - name: scopes
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 5
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - Scope.java
+          - ScopeManager.java
+          - ScopePlot.java
+          - ScopeCheckBox.java
+          - ScopePopupMenu.java
+      - name: sliders
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 3
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - Adjustable.java
+          - AdjustableManager.java
+          - SliderDialog.java
+      - name: cross-cutting-managers
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 3
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - LogManager.java
+          - DialogManager.java
+          - ExtListEntry.java
+      - name: file-io-glue
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 3
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - LoadFile.java
+          - SRAMLoadFile.java
+          - ImportFromDropbox.java
+      - name: app-entry
+        path: src/main/java/com/lushprojects/circuitjs1/client
+        files: 1
+        status: pending
+        analyzed_at: null
+        docs_at: null
+        scope:
+          - circuitjs1.java

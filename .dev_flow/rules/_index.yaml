@@ -1,0 +1,282 @@
+rules:
+  # naming
+  - id: RULE_NAMING_001
+    title: Package naming under client.*
+    category: naming
+    severity: must
+    file: naming.md
+    summary: All production code lives under com.lushprojects.circuitjs1.client.*; new utilities go to util/ not client root.
+  - id: RULE_NAMING_002
+    title: Circuit element class Elm suffix
+    category: naming
+    severity: must
+    file: naming.md
+    summary: Concrete circuit-element classes end with the Elm suffix (ResistorElm, DiodeElm, ...).
+  - id: RULE_NAMING_003
+    title: Dialog class Dialog suffix
+    category: naming
+    severity: must
+    file: naming.md
+    summary: Classes extending dialog.Dialog end with Dialog (AboutBox is a grandfathered exception).
+  - id: RULE_NAMING_004
+    title: Manager class Manager suffix
+    category: naming
+    severity: must
+    file: naming.md
+    summary: App-shell cross-cutting managers end with Manager (LogManager, DialogManager, ...).
+  - id: RULE_NAMING_005
+    title: Shared parameter object Model suffix
+    category: naming
+    severity: must
+    file: naming.md
+    summary: Shared-parameter catalogue classes end with Model (DiodeModel, TransistorModel, CustomLogicModel, CustomCompositeModel).
+  - id: RULE_NAMING_006
+    title: Constants UPPER_SNAKE_CASE
+    category: naming
+    severity: must
+    file: naming.md
+    summary: static final integer flags/side/scale constants use UPPER_SNAKE (FLAG_*, SIDE_*, SCALE_*, WF_*).
+  - id: RULE_NAMING_007
+    title: Methods camelCase
+    category: naming
+    severity: must
+    file: naming.md
+    summary: All methods use lowerCamelCase.
+  - id: RULE_NAMING_008
+    title: GWT EntryPoint class lowercase
+    category: naming
+    severity: prefer
+    file: naming.md
+    summary: The circuitjs1 EntryPoint class is all lowercase; do not propagate.
+  - id: RULE_NAMING_009
+    title: Dump type identifier uniqueness
+    category: naming
+    severity: must
+    file: naming.md
+    summary: Element getDumpType() returns a single ASCII char or short numeric string; must not collide with existing element types or model token prefixes.
+  - id: RULE_NAMING_010
+    title: JSON type name PascalCase
+    category: naming
+    severity: should
+    file: naming.md
+    summary: getJsonTypeName defaults to class name minus Elm; use PascalCase with convention suffixes (VoltageSourceAC).
+
+  # structure
+  - id: RULE_STRUCT_001
+    title: Element subclass override points
+    category: structure
+    severity: must
+    file: structure.md
+    summary: New *Elm classes must override getDumpType and the simulation/topology/drawing contract methods relevant to their behavior.
+  - id: RULE_STRUCT_002
+    title: Element geometry through ElmGeometry
+    category: structure
+    severity: must
+    file: structure.md
+    summary: All endpoint/lead/bbox reads and writes go through geom(); do not access x1/y1/x2/y2 as fields.
+  - id: RULE_STRUCT_003
+    title: Dialogs extend dialog.Dialog
+    category: structure
+    severity: must
+    file: structure.md
+    summary: New dialogs extend com.lushprojects.circuitjs1.client.dialog.Dialog and override getOptionPrefix + apply.
+  - id: RULE_STRUCT_004
+    title: Editable / EditInfo contract
+    category: structure
+    severity: must
+    file: structure.md
+    summary: Parameter UI flows via Editable.getEditInfo(n)/setEditValue(n,ei); row indices stable; EditInfo mutated in place.
+  - id: RULE_STRUCT_005
+    title: Shared-model catalog pattern
+    category: structure
+    severity: must
+    file: structure.md
+    summary: *Model classes follow the static modelMap + getModelWithName[OrCopy] + dump-prefix + builtIn/dumped pattern.
+  - id: RULE_STRUCT_006
+    title: Singleton/manager pattern
+    category: structure
+    severity: must
+    file: structure.md
+    summary: Process-scoped managers live on BaseCirSim; document-scoped ones on CircuitDocument; reach from elements via circuitDocument.getDialogManager() etc.
+  - id: RULE_STRUCT_007
+    title: New utilities live in util/
+    category: structure
+    severity: must
+    file: structure.md
+    summary: New stateless helpers go into client/util/; do not grow the client root.
+  - id: RULE_STRUCT_008
+    title: JSNI clustered in app shell
+    category: structure
+    severity: should
+    file: structure.md
+    summary: Keep JSNI native methods concentrated in a small set of adapter files; do not sprinkle JSNI into element classes.
+
+  # architecture
+  - id: RULE_ARCH_001
+    title: Layer discipline
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: New code respects the L0 util -> L1 widgets/tabs -> L2 domain-core SCC -> L3 app-shell layer ordering.
+  - id: RULE_ARCH_002
+    title: Known layer inversions are frozen
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: Existing util/PerfMonitor->BaseCircuitElm and element<->dialog cycles are tolerated; do not add new cross-layer edges.
+  - id: RULE_ARCH_003
+    title: Element dialogs via EditInfo only
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: Elements reach dialog UI only through the Editable/EditInfo contract and DialogManager; do not new up *Dialog types directly.
+  - id: RULE_ARCH_004
+    title: IO format self-registration
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: New circuit formats register with CircuitFormatRegistry via a static initialiser block.
+  - id: RULE_ARCH_005
+    title: Element creation through factory
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: Element instances must be built via CircuitElmCreator (text format) or CircuitElementFactory (JSON) outside editor placement.
+  - id: RULE_ARCH_006
+    title: Document vs session scope
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: Document-scoped state lives on CircuitDocument; session-scoped on BaseCirSim/CirSim; pick the correct scope for new state.
+  - id: RULE_ARCH_007
+    title: Shared model vs per-element parameters
+    category: architecture
+    severity: should
+    file: architecture.md
+    summary: Use *Model only for shared/reusable parameter sets; keep instance-only parameters as element fields.
+  - id: RULE_ARCH_008
+    title: JSNI boundary concentration
+    category: architecture
+    severity: must
+    file: architecture.md
+    summary: All browser-integration JSNI stays in a small set of adapter files; do not interleave JSNI with domain physics.
+
+  # error-handling
+  - id: RULE_ERR_001
+    title: Use simulator.stop for convergence failures
+    category: error-handling
+    severity: must
+    file: error-handling.md
+    summary: Signal unrecoverable numerical failures via CircuitSimulator.stop/warn; do not throw exceptions from the Newton loop.
+  - id: RULE_ERR_002
+    title: No raw RuntimeException from doStep
+    category: error-handling
+    severity: must
+    file: error-handling.md
+    summary: Do not throw raw RuntimeException from stamp/doStep/startIteration/stepFinished; use simulator.stop or converged=false instead.
+  - id: RULE_ERR_003
+    title: Importers return null or set flag
+    category: error-handling
+    severity: should
+    file: error-handling.md
+    summary: Parse errors in text/JSON import return null or set an error flag plus log; do not throw up to the UI.
+  - id: RULE_ERR_004
+    title: JSNI exceptions via uncaught handler
+    category: error-handling
+    severity: must
+    file: error-handling.md
+    summary: Rely on GWT.setUncaughtExceptionHandler installed in circuitjs1.onModuleLoad; do not add ad-hoc try/catch at JSNI boundaries.
+  - id: RULE_ERR_005
+    title: Log via LogManager
+    category: error-handling
+    severity: must
+    file: error-handling.md
+    summary: Diagnostic logging goes through BaseCirSim.log/LogManager; avoid System.out.println, GWT.log, util/Log (dormant).
+  - id: RULE_ERR_006
+    title: Do not silently swallow parse errors
+    category: error-handling
+    severity: should
+    file: error-handling.md
+    summary: Empty catch blocks in parsers are an anti-pattern; log skipped tokens/lines with reason.
+
+  # style
+  - id: RULE_STYLE_001
+    title: Java 17 language level
+    category: style
+    severity: must
+    file: style.md
+    summary: Java source/target is 17 per pom.xml; use Java 17 syntax subject to GWT emulation limits.
+  - id: RULE_STYLE_002
+    title: GWT forbidden APIs
+    category: style
+    severity: must
+    file: style.md
+    summary: No java.awt.*, java.io.*, threads, reflection, java.nio.*; use client.Graphics/Color and gwt user.client.ui widgets.
+  - id: RULE_STYLE_003
+    title: Locale.LS for user strings
+    category: style
+    severity: should
+    file: style.md
+    summary: Wrap user-visible strings in Locale.LS / Locale.LSHTML; legacy unlocalised sites are grandfathered.
+  - id: RULE_STYLE_004
+    title: Format numbers via BaseCircuitElm helpers
+    category: style
+    severity: should
+    file: style.md
+    summary: Use getUnitText/getVoltageText/getTimeText/formatNumber for user-visible numeric output; dumpValue for persistence.
+  - id: RULE_STYLE_005
+    title: Public contract methods carry javadoc
+    category: style
+    severity: should
+    file: style.md
+    summary: New public contract methods should have brief javadoc covering preconditions, side-effects, ordering.
+  - id: RULE_STYLE_006
+    title: Use equals for String comparison
+    category: style
+    severity: should
+    file: style.md
+    summary: Compare Strings with .equals() not ==; existing violations in CheckboxMenuItem and ModDialog are grandfathered.
+  - id: RULE_STYLE_007
+    title: No hardcoded colors
+    category: style
+    severity: should
+    file: style.md
+    summary: Read colors from ColorSettings on the document; hardcoded hex/RGB breaks dark mode and printable export.
+  - id: RULE_STYLE_008
+    title: No printf-style logging
+    category: style
+    severity: must
+    file: style.md
+    summary: Route diagnostic output through cirSim.log/LogManager; ChipElm.setVoltageSource System.out violation is legacy.
+
+  # testing
+  - id: RULE_TEST_001
+    title: Build check before commit
+    category: testing
+    severity: should
+    file: testing.md
+    summary: Run npm run check (GWT compile) before committing Java changes.
+  - id: RULE_TEST_002
+    title: Devmode verification for simulator changes
+    category: testing
+    severity: should
+    file: testing.md
+    summary: Exercise an analog, digital, and subcircuit example in devmode after simulator-core changes.
+  - id: RULE_TEST_003
+    title: IO format round-trip
+    category: testing
+    severity: should
+    file: testing.md
+    summary: Text and JSON round-trip built-in circuits after io-framework changes.
+  - id: RULE_TEST_004
+    title: Example circuit for new element
+    category: testing
+    severity: should
+    file: testing.md
+    summary: Drop an example circuit into src/main/java/.../public/circuits/ for every new *Elm.
+  - id: RULE_TEST_005
+    title: Devmode for editor interaction changes
+    category: testing
+    severity: should
+    file: testing.md
+    summary: Manually verify interaction/editor/undo flows in devmode; compile alone is insufficient.

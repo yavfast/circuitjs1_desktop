@@ -1,0 +1,18 @@
+updated: 2026-04-18
+
+domains:
+  - path: gwt/
+    description: GWT framework constraints and JSNI bridge patterns specific to circuitjs1
+    topics: [gwt, jsni, browser-api, compile-time, widget-wrapper, nw-js, packaging]
+  - path: simulator/
+    description: MNA numerical simulation, Newton-Raphson, time-step control, convergence recovery
+    topics: [mna, stamping, newton-raphson, convergence, time-step, panic, companion-model]
+  - path: elements/
+    description: Authoring new circuit elements - base contract, flag bits, dump types
+    topics: [element, circuit-elm, dump-type, flags, override, editable, edit-info]
+  - path: io/
+    description: Circuit save/load formats (legacy text, modern JSON) and format registration
+    topics: [import, export, text-format, json-format, format-registry, unit-parser]
+  - path: editor/
+    description: Canvas editor patterns (undo, clipboard, MouseMode state machine)
+    topics: [editor, undo, clipboard, mouse-mode, command]

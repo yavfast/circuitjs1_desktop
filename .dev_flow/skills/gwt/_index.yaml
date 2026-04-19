@@ -1,0 +1,13 @@
+updated: 2026-04-18
+domain: gwt
+skills:
+  - file: jsni-patterns.md
+    skill: jsni-patterns
+    topics: [jsni, native, $wnd, $doc, clipboard, audio, dropbox, callback]
+    source: onboard
+    updated: 2026-04-18
+  - file: build-pipeline.md
+    skill: build-pipeline
+    topics: [maven, gwt-compile, npm, nw-builder, packaging, java17]
+    source: onboard
+    updated: 2026-04-18

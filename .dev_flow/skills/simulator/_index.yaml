@@ -1,0 +1,18 @@
+updated: 2026-04-18
+domain: simulator
+skills:
+  - file: mna-stamping.md
+    skill: mna-stamping
+    topics: [mna, stamping, circuit-simulator, row-info, simplify-matrix, sanitize]
+    source: onboard
+    updated: 2026-04-18
+  - file: newton-raphson-loop.md
+    skill: newton-raphson-loop
+    topics: [newton-raphson, convergence, panic-level, gmin, recovery]
+    source: onboard
+    updated: 2026-04-18
+  - file: time-step-control.md
+    skill: time-step-control
+    topics: [time-step, adaptive, frame-budget, min-time-step, reset]
+    source: onboard
+    updated: 2026-04-18
