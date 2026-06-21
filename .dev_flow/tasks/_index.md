@@ -21,4 +21,5 @@ _(none active)_
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
+| [fix-bl-drop](task_20260621_125942_fix-bl-drop.md) | fix | done | main | 2026-06-21 |
 | [code-audit-defects](task_20260621_104235_code-audit-defects.md) | audit (code) | done | main | 2026-06-21 |
