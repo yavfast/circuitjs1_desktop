@@ -176,13 +176,18 @@ public class StringTokenizer implements Enumeration<Object> {
      */
     public String nextToken() throws NoSuchElementException {
         if (pos < len && delim.indexOf(str.charAt(pos)) >= 0) {
-            if (retDelims)
+            if (retDelims) {
+                start = pos;
                 return str.substring(pos, ++pos);
+            }
             while (++pos < len && delim.indexOf(str.charAt(pos)) >= 0)
                 ;
         }
         if (pos < len) {
-            int start = pos;
+            // Record the token start on the instance field (not a local) so
+            // getStartTokenIdx() reports the real position. A local previously
+            // shadowed `start`, leaving the field permanently 0. [audit ITEM-03 / CF-03]
+            start = pos;
             while (++pos < len && delim.indexOf(str.charAt(pos)) < 0)
                 ;
 

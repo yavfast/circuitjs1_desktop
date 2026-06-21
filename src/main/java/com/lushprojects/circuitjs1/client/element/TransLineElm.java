@@ -388,7 +388,15 @@ public class TransLineElm extends CircuitElm {
     public void applyJsonState(java.util.Map<String, Object> stateMap) {
         super.applyJsonState(stateMap);
         if (stateMap != null) {
+            // Clamp the restored ptr into the current ring-buffer range: lenSteps
+            // (== voltageL/voltageR length) is recomputed in reset() from
+            // delay/maxTimeStep, so a ptr saved under a different delay/timestep
+            // could exceed it and crash startIteration's voltageL[ptr]. [audit ITEM-05 / CF-05]
             ptr = getJsonInt(stateMap, "ptr", 0);
+            if (lenSteps > 0)
+                ptr = ((ptr % lenSteps) + lenSteps) % lenSteps;
+            else
+                ptr = 0;
             current1 = getJsonDouble(stateMap, "current1", 0);
             current2 = getJsonDouble(stateMap, "current2", 0);
             // Restore delay line buffers

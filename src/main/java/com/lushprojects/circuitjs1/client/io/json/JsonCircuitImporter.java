@@ -260,6 +260,9 @@ public class JsonCircuitImporter implements CircuitImporter {
         CirSim.console("parseElements: found " + elements.keySet().size() + " element keys");
 
         for (String elementId : elements.keySet()) {
+            // [audit ITEM-04 / CF-04] RULE_ERR_003: isolate a malformed element (skip + log),
+            // never let one bad element abort the whole circuit import.
+            try {
             CirSim.console("parseElements: processing element '" + elementId + "'");
             JSONValue elementValue = elements.get(elementId);
             if (elementValue == null || elementValue.isObject() == null) {
@@ -357,6 +360,10 @@ public class JsonCircuitImporter implements CircuitImporter {
             }
 
             count++;
+            } catch (Exception elementError) {
+                CirSim.console("JSON import: skipping element '" + elementId
+                        + "' due to error: " + elementError.getMessage());
+            }
         }
 
         return count;
@@ -438,8 +445,9 @@ public class JsonCircuitImporter implements CircuitImporter {
                 JSONObject sourcePos = sourcePosValue.isObject();
                 JSONValue sourceXVal = sourcePos.get("x");
                 JSONValue sourceYVal = sourcePos.get("y");
-                if (sourceXVal == null || sourceYVal == null) {
-                    continue;
+                if (sourceXVal == null || sourceYVal == null
+                        || sourceXVal.isNumber() == null || sourceYVal.isNumber() == null) {
+                    continue;   // [audit ITEM-04 / CF-04] non-numeric coordinate → skip, don't NPE
                 }
                 int sourceX = (int) sourceXVal.isNumber().doubleValue();
                 int sourceY = (int) sourceYVal.isNumber().doubleValue();
@@ -471,8 +479,9 @@ public class JsonCircuitImporter implements CircuitImporter {
                     JSONObject targetPos = targetPosValue.isObject();
                     JSONValue targetXVal = targetPos.get("x");
                     JSONValue targetYVal = targetPos.get("y");
-                    if (targetXVal == null || targetYVal == null) {
-                        continue;
+                    if (targetXVal == null || targetYVal == null
+                            || targetXVal.isNumber() == null || targetYVal.isNumber() == null) {
+                        continue;   // [audit ITEM-04 / CF-04] non-numeric coordinate → skip, don't NPE
                     }
                     targetX = (int) targetXVal.isNumber().doubleValue();
                     targetY = (int) targetYVal.isNumber().doubleValue();

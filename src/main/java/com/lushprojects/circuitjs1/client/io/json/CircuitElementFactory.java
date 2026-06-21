@@ -549,7 +549,10 @@ public class CircuitElementFactory {
         JSONObject pos = posValue.isObject();
         JSONValue xVal = pos.get("x");
         JSONValue yVal = pos.get("y");
-        if (xVal == null || yVal == null) {
+        // [audit ITEM-04 / CF-04] guard isNumber(): a present-but-non-numeric coordinate
+        // (e.g. "x":"10") returns null from isNumber() and would NPE on doubleValue().
+        // Return null so the caller skips this pin instead of aborting the whole import.
+        if (xVal == null || yVal == null || xVal.isNumber() == null || yVal.isNumber() == null) {
             return null;
         }
         int x = (int) xVal.isNumber().doubleValue();

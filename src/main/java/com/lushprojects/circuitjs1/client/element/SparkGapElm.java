@@ -189,7 +189,9 @@ public class SparkGapElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonState() {
         java.util.Map<String, Object> state = super.getJsonState();
-        state.put("state", state);
+        // [audit ITEM-06 / CF-06] serialize the boolean field, not the map itself
+        // (the local Map shadows the field name `state`).
+        state.put("state", this.state);
         state.put("resistance", resistance);
         return state;
     }
@@ -197,8 +199,13 @@ public class SparkGapElm extends CircuitElm {
     @Override
     public void applyJsonState(java.util.Map<String, Object> state) {
         super.applyJsonState(state);
-        if (state.containsKey("state"))
-            this.state = (Boolean) state.get("state");
+        // [audit ITEM-06 / CF-06] guard the type before casting: legacy files saved the
+        // map-in-itself bug here, so an old "state" value may be a Map, not a Boolean.
+        if (state.containsKey("state")) {
+            Object s = state.get("state");
+            if (s instanceof Boolean)
+                this.state = (Boolean) s;
+        }
         if (state.containsKey("resistance"))
             resistance = ((Number) state.get("resistance")).doubleValue();
     }
