@@ -222,12 +222,12 @@ war/
 
 ## Security Notes
 
-> ⚠️ Remote debugging exposes full JavaScript execution access.
+> ⚠️ Remote debugging exposes full JavaScript execution access **by design** — this is intended diagnostic/automation functionality under a **localhost-only** trust model. See the settled [Trust Model & Design Decision](./remote_dbg_concept.md#trust-model--design-decision-settled-2026-06-21).
 
-- Use only in trusted environments
-- Channel ID acts as basic authentication
-- Run server on localhost by default
-- Do not expose to public internet without additional auth
+- Localhost-only, operator-initiated: the agent is inert unless a session is opted in (URL param or Options → Remote Debug)
+- Channel ID acts as basic authentication (long random UUID)
+- Run the debug server on localhost (`127.0.0.1`)
+- The full-`eval` execution is intentional for trusted viewers; the optional command-allowlist, loopback enforcement, and auth layer are required only if ever exposed beyond localhost
 
 ---
 

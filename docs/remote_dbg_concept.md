@@ -14,6 +14,9 @@ This document describes the concept and implementation plan for a remote debuggi
 - Circuit switching and project management
 - AI agent integration for automated testing and circuit optimization
 
+> [!IMPORTANT]
+> **Trust model (settled design decision).** Client-side execution of diagnostic JavaScript via the agent is **intentional, necessary functionality** for verifying and automating the application, and the system is **designed to operate on the local host only** (operator-initiated). Within that boundary the agent's `eval` of viewer commands is **by design, not a vulnerability**. See [Trust Model & Design Decision](#trust-model--design-decision-settled-2026-06-21).
+
 ---
 
 ## Architecture
@@ -360,18 +363,25 @@ A browser-based debug console providing:
 
 ---
 
-## Security Considerations
+## Trust Model & Design Decision (settled 2026-06-21)
 
-> [!CAUTION]
-> Remote debugging exposes full JavaScript execution access. Use only in trusted environments.
+**Decision** (`PL_AUDIT_20260621_104235_DEC_01`): client-side execution of arbitrary diagnostic JavaScript via the remote-debug agent is **intentional, necessary functionality** — it is how the application is verified and automated (AI-assisted testing, telemetry, E2E scripting). The system is **designed to operate on the local host only**: the operator explicitly starts the debug server locally and opts a session in via `?remote-debug=<channel>` or **Options → Remote Debug**. Within this localhost-only, operator-initiated trust model, the agent's `eval` of viewer commands is **by design — not a vulnerability**.
 
-### Mitigations
+**Trust boundary (explicit):**
+- The debug server is a **localhost** developer/test tool (`http://localhost:3030` / `127.0.0.1`); it is never part of a shipped end-user workflow.
+- The agent is **inert unless opted in** for a session (URL param or the Options → Remote Debug menu). A normal end-user run never loads it.
+- A connected **viewer (human or AI agent) is trusted** — granting it full `CircuitJS1` API + JavaScript access is the entire purpose of the tool.
+- `remote-debug-server` may name the server URL and the agent connects to whatever is specified; acceptable under the localhost-only model (the operator chooses the server).
 
-1. **Channel ID as authentication**: Long random UUID
-2. **Command whitelist**: Optional restriction to safe API calls only
-3. **Network isolation**: Run server on localhost only by default
-4. **Execution timeout**: Prevent infinite loops
-5. **No production deployment** recommendation without auth layer
+**Boundary conditions — required only if ever exposed beyond localhost** (NOT required for the localhost-only design; tracked as optional hardening in the audit backlog, not active work):
+
+1. **Channel ID as authentication** — long random UUID (already present).
+2. **Command allowlist** — switch the agent from `eval` to the optional restricted-API mode.
+3. **Network isolation** — bind the server and constrain `remote-debug-server` to loopback (`127.0.0.1`) only.
+4. **Execution timeout** — prevent infinite loops (5 s default).
+5. **No enabled-by-default / public deployment** without an auth layer.
+
+**Audit note.** The 2026-06-21 `audit code` security lens flagged the `eval` chain as an RCE class (finding SEC-01). Per this decision it is **accepted by design** and not treated as a defect — the finding is *cited, not reversed* (see [audit plan ITEM-01](../.dev_flow/audit/whole_20260621_104235.plan.md)). It is retained so the trust boundary stays explicit and re-surfaces automatically if the deployment model ever changes.
 
 ---
 

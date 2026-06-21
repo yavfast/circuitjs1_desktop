@@ -1,0 +1,50 @@
+# AuditState — /dev-flow audit code (L2, survives compact + restart)
+# Mirrors .dev_flow/onboard/state.yaml. A free-form "audit code continue"
+# resumes from here instead of re-analyzing settled units.
+
+run_id: code-audit_20260621_104235
+status: handed-off           # parsing -> analyzing -> consolidating -> planning -> handed-off
+# handed-off (2026-06-21): developer triggered `/dev-flow fix ITEM-03/04/05/06/07`.
+#   DONE + GWT-verified (source changed, NOT yet committed): ITEM-03, ITEM-04, ITEM-05, ITEM-06.
+#   DEMOTED: ITEM-07 -> BL-AR (WONTFIX under DEC_01, localhost-only).
+#   STILL ACTIVE: ITEM-02 (CSP) + backlog (BL-RD, BL-AR, BL-01..04, deferred lenses BL-05..11).
+# Pending: clean-context review + commit approval for the 4 applied fixes.
+mode: full                   # full | incremental ; FULL conformance baseline present (not REDUCED)
+preview_only: false
+
+scope: whole                 # whole codebase (src/main/java/com/lushprojects/circuitjs1/client/**)
+depth: standard
+
+# Run breadth chosen by developer: "Defects only"
+lenses: [security, correctness]
+deferred_lenses: [standards, architecture, specifications, patterns, duplication, performance, tests]
+deferral_reason: "Developer selected defects-only breadth; deferred lenses go to plan backlog with return triggers (no silent truncation)."
+
+units:
+  done: 2
+  total: 2                   # security + correctness lenses both returned
+  security_findings: 6       # SEC-01..06 (1 must/exploitable, 1 must, 3 should, 1 prefer)
+  correctness_findings: 5    # COR-01..05 (1 must, 3 should, 1 prefer)
+
+assumptions_defaulted:       # parsed from bare `audit code` (stated back per ParseIntent)
+  - "scope=whole (no path/glob given)"
+  - "depth=standard"
+  - "mode=full"
+  - "preview_only=false"
+
+artifacts:
+  plan: ".dev_flow/audit/whole_20260621_104235.plan.md"      # written at ProducePlan
+  report: ".dev_flow/audit/code-audit_20260621_104235.report.md"
+  framework_map: "docs/_framework.md"                         # created at ProducePlan
+
+decisions:
+  - id: PL_AUDIT_20260621_104235_DEC_01
+    settled: 2026-06-21
+    by: developer
+    resolves: CF-01 (SEC-01)
+    summary: "remote-debug client-side eval is intentional, necessary diagnostic functionality; system is localhost-only/operator-initiated. eval accepted by design, not a vulnerability. Fast-track withdrawn; finding cited not reversed; optional hardening = BL-RD (gated on localhost-only model changing)."
+    documented_in: docs/remote_dbg_concept.md
+
+timestamps:
+  started: 2026-06-21
+  ts: 20260621_104235
