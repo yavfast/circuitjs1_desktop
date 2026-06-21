@@ -283,6 +283,43 @@ public class CircuitElementFactory {
         register("Line", LineElm::new);
         register("LabeledNode", LabeledNodeElm::new);
 
+        // --- [BL-DROP fix] JSON type-name aliases --------------------------------
+        // The exporter writes getJsonTypeName() as the element "type"; for these
+        // types the emitted name was never an import key, so they were silently
+        // dropped on JSON import. Register the emitted name -> the same constructor;
+        // the terse legacy keys above are kept as import aliases (backward compat).
+        register("AMSource", AMElm::new);                         // legacy: "AM"
+        register("FMSource", FMElm::new);                         // legacy: "FM"
+        register("NoiseSource", NoiseElm::new);                   // legacy: "Noise"
+        register("CurrentSource", CurrentElm::new);               // legacy: "Current"
+        register("SweepGenerator", SweepElm::new);                // legacy: "Sweep"
+        register("PhaseComparator", PhaseCompElm::new);           // legacy: "PhaseComp"
+        register("SequenceGenerator", SeqGenElm::new);            // legacy: "SeqGen"
+        register("PISOShiftRegister", PisoShiftElm::new);         // legacy: "PisoShift"
+        register("SIPOShiftRegister", SipoShiftElm::new);         // legacy: "SipoShift"
+        register("SevenSegment", SevenSegElm::new);               // legacy: "SevenSeg"
+        register("SevenSegmentDecoder", SevenSegDecoderElm::new); // legacy: "SevenSegDecoder"
+        register("SPDTSwitch", Switch2Elm::new);                  // legacy: "Switch2"
+        register("Timer555", TimerElm::new);                      // legacy: "Timer"
+        register("TransmissionLine", TransLineElm::new);          // legacy: "TransLine"
+        register("TriStateBuffer", TriStateElm::new);             // legacy: "TriState"
+        register("UnijunctionTransistor", UnijunctionElm::new);   // legacy: "Unijunction"
+        register("ZenerDiode", ZenerElm::new);                    // legacy: "Zener"
+        register("Subcircuit", CustomCompositeElm::new);          // legacy: "CustomComposite"
+        register("CustomCompositeChip", CustomCompositeChipElm::new); // was unregistered
+        // Logic gates: getJsonTypeName() emits all-caps + inverting-variant names;
+        // inverting is class-based (NandGateElm/NorGateElm override isInverting()).
+        register("ANDGate", AndGateElm::new);    // legacy: "AndGate"
+        register("NANDGate", NandGateElm::new);  // legacy: "NandGate"
+        register("ORGate", OrGateElm::new);      // legacy: "OrGate"
+        register("NORGate", NorGateElm::new);    // legacy: "NorGate"
+        register("XORGate", XorGateElm::new);    // legacy: "XorGate"
+        register("XNORGate", XorGateElm::new);   // defensive: XNOR has no subclass today
+        // MOSFETs: NMosfet/PMosfet inherit MosfetElm.getJsonTypeName() => NMOS/PMOS.
+        register("NMOS", NMosfetElm::new);       // legacy: "MosfetN" / "NMosfet"
+        register("PMOS", PMosfetElm::new);       // legacy: "MosfetP" / "PMosfet"
+        // -------------------------------------------------------------------------
+
         // Keep initialization quiet in production/DevMode; JSON import may call this
         // frequently.
     }

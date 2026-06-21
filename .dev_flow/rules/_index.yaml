@@ -160,6 +160,12 @@ rules:
     severity: must
     file: architecture.md
     summary: All browser-integration JSNI stays in a small set of adapter files; do not interleave JSNI with domain physics.
+  - id: RULE_ARCH_009
+    title: getJsonTypeName resolves to a factory key
+    category: architecture
+    severity: should
+    file: architecture.md
+    summary: Every name getJsonTypeName() can emit (incl. ternary branches and inherited overrides) must be a registered CircuitElementFactory key, else the element is silently dropped on JSON import; add register("<emittedName>", Ctor::new) when adding/renaming. [BL-DROP]
 
   # error-handling
   - id: RULE_ERR_001

@@ -157,7 +157,10 @@ public class DarlingtonElm extends CompositeElm {
 
     @Override
     public String getJsonTypeName() {
-        return "Darlington";
+        // [BL-DROP fix] Discriminate NPN/PNP to match the factory keys
+        // (DarlingtonNPN / DarlingtonPNP). A flat Darlington name was unregistered
+        // and silently dropped on JSON import. Mirrors TransistorElm.getJsonTypeName().
+        return pnp == 1 ? "DarlingtonNPN" : "DarlingtonPNP";
     }
 
     @Override

@@ -223,3 +223,34 @@ private native void saveToLocalStorage() /*-{ ... }-*/;
 
 ### Rationale
 JSNI is invisible to the Java type checker and GWT's SOYC; auditing for correctness and NW.js vs browser fallback is only tractable if the call sites are concentrated. See `layer3__cross-cutting-managers.md` LogManager JSNI notes (issues #7–9).
+
+---
+
+## Rule: JsonTypeNameResolvesToFactoryKey
+
+**Category:** architecture
+**Severity:** should
+**Applies to:** every `CircuitElm` subclass that overrides `getJsonTypeName()`, and `CircuitElementFactory.init()`
+
+### Description
+The JSON exporter writes `elm.getJsonTypeName()` as the element `"type"` (`JsonCircuitExporter.java:237`); the importer resolves that string through `CircuitElementFactory`'s `JSON_TYPE_TO_CONSTRUCTOR` map (`createFromJson`). Therefore **every** name an element can emit from `getJsonTypeName()` — including every branch of a computed/ternary body (e.g. `pnp == 1 ? "NMOS" : "PMOS"`) and every concrete subclass that inherits the method — MUST be a registered factory key. Otherwise the lookup returns null and the element is **silently dropped on JSON import** (element-count loss, no exception).
+
+When you add an element, or add/rename a `getJsonTypeName()` override, add the matching `register("<emittedName>", <Ctor>::new)` in `CircuitElementFactory.init()`; keep any prior emitted name as an import alias for backward compatibility. For NPN/PNP-style families, discriminate in `getJsonTypeName()` to the per-variant keys (see `TransistorElm` / `DarlingtonElm`).
+
+### Examples
+**Correct:**
+```java
+public String getJsonTypeName() { return pnp == 1 ? "DarlingtonNPN" : "DarlingtonPNP"; }
+register("DarlingtonNPN", NDarlingtonElm::new);
+register("DarlingtonPNP", PDarlingtonElm::new);
+```
+**Incorrect:**
+```java
+public String getJsonTypeName() { return "Darlington"; }   // emitted name unregistered → dropped on import
+```
+
+### Verification
+A static check that extracts all string literals from each `getJsonTypeName()` body and diffs them against the `register("...")` keys must report no unregistered emitted name. This drift silently dropped ~27 element types (BL-DROP, fixed 2026-06-21).
+
+### Rationale
+The export name and the import key are two ends of one contract maintained in two files; they drift apart silently. The failure is invisible until a user loads a saved JSON circuit and finds elements missing. Relates to RULE_ARCH_004 (format self-registration), RULE_ARCH_005 (creation through factory), RULE_NAMING_010 (JSON type name).
