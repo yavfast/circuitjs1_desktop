@@ -96,6 +96,11 @@ public abstract class ChipElm extends CircuitElm {
         return 4;
     }
 
+    // Smallest bit count the "# of Bits" edit field accepts; JSON import clamps to it too.
+    int minBitCount() {
+        return 1;
+    }
+
     void setSize(int s) {
         csize = s;
         cspc = 8 * s;
@@ -723,8 +728,7 @@ public abstract class ChipElm extends CircuitElm {
         super.applyJsonProperties(properties);
         if (needsBits()) {
             int b = getJsonInt(properties, "bits", bits);
-            if (b > 0)
-                bits = b;
+            bits = Math.max(b, minBitCount());
         }
         highVoltage = getJsonDouble(properties, "high_voltage", highVoltage);
         // keep FLAG_CUSTOM_VOLTAGE consistent with highVoltage, as dump() does

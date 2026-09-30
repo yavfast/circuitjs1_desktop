@@ -109,13 +109,17 @@ public class CounterElm extends ChipElm {
         return null;
     }
 
+    int minBitCount() {
+        return 3;
+    }
+
     public void setChipEditValue(int n, EditInfo ei) {
         if (n == 0) {
             invertreset = ei.checkbox.getState();
             setupPins();
             setPoints();
         }
-        if (n == 1 && ei.value >= 3) {
+        if (n == 1 && ei.value >= minBitCount()) {
             bits = (int) ei.value;
             setupPins();
             setPoints();

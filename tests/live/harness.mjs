@@ -197,6 +197,13 @@ function pageHelpers() {
       return n;
     },
     selectedCount() { return CircuitJS1.getElements().filter((e) => e.isSelected()).length; },
+    slidersDialog() {
+      // Rows of the "Adjustable Sliders" dialog: slider count and plain (non gear/pencil) buttons.
+      const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.textContent.includes('Adjustable Sliders'));
+      if (!d || d.offsetWidth === 0) return { visible: false, sliders: 0, buttons: [] };
+      const buttons = Array.from(d.querySelectorAll('button')).map((b) => b.textContent).filter((t) => !/^[\u2699\u270E]$/.test(t));
+      return { visible: true, sliders: d.querySelectorAll('canvas').length, buttons };
+    },
     simInfo() { const i = CircuitJS1.getSimInfo(); return i ? { running: i.running, stopMessage: i.stopMessage, elementCount: i.elementCount, time: i.time } : null; },
   };
   window.__H = H;
@@ -346,6 +353,46 @@ async function scenarioPaste(s) {
   fs.writeFileSync(path.join(OUT_DIR, 'paste.json'), JSON.stringify(out, null, 2));
   const pass = out.afterDuplicate === 2 * out.loaded && out.afterPaste === 2 * out.loaded && out.afterDuplicateUndo === out.loaded;
   report('B.paste_duplicate', pass, { circuit: out.circuit, loaded: out.loaded, selectedAfterCtrlA: out.selectedAfterCtrlA, afterDuplicate: out.afterDuplicate, afterDuplicateUndo: out.afterDuplicateUndo, afterPaste: out.afterPaste, expected: 2 * out.loaded });
+}
+
+// Built-in element sliders (Pot/LDR/NTC/VarRail) and the AudioOutput "Play" row live in the Sliders
+// dialog and must follow load, duplicate, undo and delete.
+const SLIDER_CIRCUIT = '$ 1 0.000005 10.2 50 5 50 5e-11\n' +
+  '174 144 240 80 272 0 1000 0.3 Pot A\n' +
+  '374 300 100 300 200 0 0.34 Light\n' +
+  '350 400 100 400 200 0 10000 3605 -40 150 0.34 Temp\n' +
+  '172 272 288 192 288 0 6 4.5 5.0 0.0 0.0 0.5 Voltage\n' +
+  '211 592 272 688 272 0 1 8000 1\n';
+async function scenarioSliders(s) {
+  const out = {};
+  await resetApp(s);
+  const adj = (t) => t.split('\n').filter((l) => l.startsWith('38 ')).length;
+  out.loaded = await s.call('importText', SLIDER_CIRCUIT);
+  await sleep(300);
+  out.onLoad = await s.call('slidersDialog');
+  out.adjOnLoad = adj(await s.call('exportText'));
+  await s.call('focus');
+  await s.key('KeyA', { ctrl: true });
+  await s.key('KeyD', { ctrl: true });
+  await sleep(300);
+  out.afterDuplicate = await s.call('slidersDialog');
+  out.adjAfterDuplicate = adj(await s.call('exportText'));
+  await s.key('KeyZ', { ctrl: true });
+  await sleep(300);
+  out.afterUndo = await s.call('slidersDialog');
+  const ids = await s.call('ids'); const types = await s.call('types');
+  await s.call('select', ids[types.indexOf('PotElm')], false);
+  await s.call('select', ids[types.indexOf('AudioOutputElm')], true);
+  await s.key('Delete');
+  await sleep(300);
+  out.afterDelete = await s.call('slidersDialog');
+  fs.writeFileSync(path.join(OUT_DIR, 'sliders.json'), JSON.stringify(out, null, 2));
+  const n = (r) => r.sliders, b = (r) => r.buttons.length;
+  const pass = n(out.onLoad) === 4 && b(out.onLoad) === 1 && out.adjOnLoad === 4
+    && n(out.afterDuplicate) === 8 && b(out.afterDuplicate) === 2 && out.adjAfterDuplicate === 8
+    && n(out.afterUndo) === 4 && b(out.afterUndo) === 1
+    && n(out.afterDelete) === 3 && b(out.afterDelete) === 0;
+  report('D.element_sliders', pass, { sliders: [n(out.onLoad), n(out.afterDuplicate), n(out.afterUndo), n(out.afterDelete)], buttons: [b(out.onLoad), b(out.afterDuplicate), b(out.afterUndo), b(out.afterDelete)], adjustableLines: [out.adjOnLoad, out.adjAfterDuplicate] });
 }
 
 // One roundtrip: start state already loaded in app. Returns detail record.
@@ -579,7 +626,7 @@ async function scenarioTextFidelity(s) {
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'textfid', 'roundtrip', 'synth'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'textfid', 'roundtrip', 'synth'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -620,7 +667,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -24,16 +24,11 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
-import com.google.gwt.user.client.ui.Label;
-import com.lushprojects.circuitjs1.client.Scrollbar;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
-import com.lushprojects.circuitjs1.client.util.Locale;
 
-public class VarRailElm extends RailElm implements MouseWheelHandler {
-    public Scrollbar slider;
-    public Label label;
+public class VarRailElm extends RailElm implements HasBuiltInSlider, MouseWheelHandler {
     public String sliderText;
 
     private static final int EDIT_MIN_VOLTAGE = 0;
@@ -86,12 +81,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
             return;
         }
 
-        Adjustable adj = circuitDocument.adjustableManager.findAdjustable(this, EDIT_VOLTAGE);
-        if (adj == null) {
-            adj = new Adjustable(cirSim(), this, EDIT_VOLTAGE);
-            circuitDocument.adjustableManager.adjustables.add(adj);
-        }
-        adj.sliderText = sliderText;
+        Adjustable adj = circuitDocument.adjustableManager.ensureBuiltInSlider(this, false);
         adj.minValue = waveformInstance.bias;
         adj.maxValue = waveformInstance.maxVoltage;
 
@@ -139,9 +129,6 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
             waveformInstance.maxVoltage = ei.value;
         } else if (n == EDIT_SLIDER_TEXT) {
             sliderText = ei.textf.getText();
-            if (label != null) {
-                label.setText(Locale.LS(sliderText));
-            }
         } else if (n == EDIT_VOLTAGE) {
             waveformInstance.frequency = ei.value;
         }
@@ -151,17 +138,6 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
             double t = waveformInstance.maxVoltage;
             waveformInstance.maxVoltage = waveformInstance.bias;
             waveformInstance.bias = t;
-        }
-
-        // Sync the UI slider position to the current voltage.
-        if (slider != null) {
-            double min = waveformInstance.bias;
-            double max = waveformInstance.maxVoltage;
-            int value = 0;
-            if (max != min) {
-                value = (int) ((waveformInstance.frequency - min) * 100 / (max - min));
-            }
-            slider.setValue(value);
         }
 
         // Keep the adjustable slider (if present) in sync with range/label changes.
@@ -192,33 +168,21 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         simulator().updateVoltageSource(0, getNode(0), voltSource, getVoltage());
     }
 
-    public void delete() {
-        if (label != null) {
-            cirSim().removeWidgetFromVerticalPanel(label);
-        }
-        if (slider != null) {
-            cirSim().removeWidgetFromVerticalPanel(slider);
-        }
+    public int getBuiltInSliderItem() {
+        return EDIT_VOLTAGE;
+    }
 
-        if (circuitDocument != null && circuitDocument.adjustableManager != null) {
-            circuitDocument.adjustableManager.deleteSliders(this);
-        }
-        super.delete();
+    public String getBuiltInSliderText() {
+        return sliderText;
     }
 
     public int getShortcut() {
         return 0;
     }
 
-    public void setMouseElm(boolean v) {
-        super.setMouseElm(v);
-        if (slider != null)
-            slider.draw();
-    }
-
     public void onMouseWheel(MouseWheelEvent e) {
-        if (slider != null)
-            slider.onMouseWheel(e);
+        if (circuitDocument != null)
+            circuitDocument.adjustableManager.onBuiltInSliderWheel(this, e);
     }
 
     @Override
@@ -241,8 +205,5 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
         super.applyJsonProperties(properties);
         sliderText = getJsonString(properties, "slider_text", sliderText);
         waveformInstance.frequency = getJsonDouble(properties, "voltage", waveformInstance.frequency);
-        if (label != null) {
-            label.setText(Locale.LS(sliderText));
-        }
     }
 }

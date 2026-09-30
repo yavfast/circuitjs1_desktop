@@ -39,6 +39,11 @@ public class CustomCompositeChipElm extends ChipElm {
     }
 
     void setupPins() {
+        // Owners (CustomCompositeElm, the model editor) set size and pins right after
+        // construction. A standalone chip (e.g. from JSON import) has no pins; give it a
+        // minimal body so it stays visible and selectable.
+        if (pins == null)
+            sizeX = sizeY = 1;
     }
 
     public int getVoltageSourceCount() {
@@ -73,7 +78,14 @@ public class CustomCompositeChipElm extends ChipElm {
     }
 
     public int getPostCount() {
-        return pins == null ? 1 : pins.length;
+        // no pins yet (standalone chip): report no posts so pin loops never index a null array
+        return pins == null ? 0 : pins.length;
+    }
+
+    // Drawing helper only: it has no dump type, so a standalone instance is skipped by the
+    // text exporter/undo instead of throwing from getDumpType().
+    public String dump() {
+        return null;
     }
 
     @Override

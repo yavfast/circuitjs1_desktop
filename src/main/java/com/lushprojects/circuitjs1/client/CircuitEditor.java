@@ -23,6 +23,8 @@ import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
 import com.lushprojects.circuitjs1.client.element.CapacitorElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.GraphicElm;
+import com.lushprojects.circuitjs1.client.element.HasBuiltInSlider;
+import com.lushprojects.circuitjs1.client.element.HasControlWidget;
 import com.lushprojects.circuitjs1.client.element.InductorElm;
 import com.lushprojects.circuitjs1.client.element.LogicInputElm;
 import com.lushprojects.circuitjs1.client.element.ResistorElm;
@@ -772,8 +774,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 simulator().elmList.add(dragElm);
                 dragElm.draggingDone();
 
-                if (dragElm instanceof com.lushprojects.circuitjs1.client.element.VarRailElm) {
-                    ((com.lushprojects.circuitjs1.client.element.VarRailElm) dragElm).ensureVoltageAdjustable(true);
+                // Built-in sliders and control buttons live in the Sliders dialog.
+                if (dragElm instanceof HasBuiltInSlider || dragElm instanceof HasControlWidget) {
+                    getActiveDocument().adjustableManager.updateSliders();
                 }
                 circuitChanged = true;
             }
@@ -999,7 +1002,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     public void pushUndo() {
         undoManager().pushUndo();
         cirSim.enableUndoRedo();
-        circuitInfo().savedFlag = false;
     }
 
     void doUndo() {
@@ -1023,7 +1025,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
         circuitInfo.filePath = null;
         circuitInfo.fileName = null;
-        CirSim.changeWindowTitle(circuitInfo.unsavedChanges);
+        CirSim.changeWindowTitle(circuitInfo.isModified());
     }
 
     void doCut() {

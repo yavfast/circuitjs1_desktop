@@ -140,6 +140,10 @@ public class RingCounterElm extends ChipElm {
         return null;
     }
 
+    int minBitCount() {
+        return 2;
+    }
+
     public void setChipEditValue(int n, EditInfo ei) {
         if (n == 0) {
             if (ei.checkbox.getState())
@@ -150,7 +154,7 @@ public class RingCounterElm extends ChipElm {
             setPoints();
             return;
         }
-        if (n == 1 && ei.value >= 2) {
+        if (n == 1 && ei.value >= minBitCount()) {
             bits = (int) ei.value;
             setupPins();
             setPoints();

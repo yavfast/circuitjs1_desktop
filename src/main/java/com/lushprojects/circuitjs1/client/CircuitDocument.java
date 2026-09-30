@@ -210,11 +210,14 @@ public class CircuitDocument {
     }
 
     public static class LogBuffer {
+        /** Per-document log cap; the oldest messages are dropped first. */
+        static final int MAX_LOG_BUFFER_ENTRIES = 100;
+
         private final List<String> logs = new ArrayList<>();
 
         public void log(String message) {
             logs.add(message);
-            if (logs.size() > 100) {
+            if (logs.size() > MAX_LOG_BUFFER_ENTRIES) {
                 logs.remove(0);
             }
         }

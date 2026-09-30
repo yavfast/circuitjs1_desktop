@@ -6,12 +6,9 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
-import com.lushprojects.circuitjs1.client.Scrollbar;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -26,19 +23,20 @@ no heating effects
 ID = 350
 add id to CirSim.constructElement and part to CirSim.createCe and to CirSimcomposeMainMenu
  */
-public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelHandler {
-    double position; // of the slider 0.005 to 0.995
+public class ThermistorNTCElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHandler {
+    // Edit item driven by the Sliders dialog (see HasBuiltInSlider).
+    static final int EDIT_POSITION = 5;
+
+    double position; // of the slider 0 to 1
     double resistance; // based upon slider position
     double minTempr, maxTempr; // Celsius - note min is -40, max is +150 degC
-    double temperature; // calculated from slider value (0.005 - 0.995) ratios of minTempr - maxTempr
+    double temperature; // calculated from slider value (0 - 1) ratios of minTempr - maxTempr
     double r25, r50; // the values that a user can input from a datsheet r 225 degc and r at 50degC
     double rneg40; // maximum resistance - will be at -40 degC
     double b25100; // constant based upon 2 values of R for 2 temperatures
     double t0 = 273.15;
     double t25 = t0 + 25;
 
-    Scrollbar slider; // from Pot
-    Label label;
     String sliderText;
 
     // constructor - when initially created
@@ -56,7 +54,6 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
         sliderText = "Temperature";
-        createSlider();
     }
 
     // constructor - when read in from file
@@ -74,7 +71,6 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
         sliderText = CustomLogicModel.unescape(st.nextToken());
-        createSlider(); // uses position to set the slider
     }
 
     // void setup() {
@@ -94,22 +90,18 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         return dumpValues(super.dump(), r25, r50, minTempr, maxTempr, position, CustomLogicModel.escape(sliderText));
     }
 
-    void createSlider() {
-        cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
-        label.addStyleName("topSpace");
-        int value = (int) (position * 100);
-        cirSim().addWidgetToVerticalPanel(
-                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+    static double clampPosition(double p) {
+        if (Double.isNaN(p))
+            return 0;
+        return Math.max(0, Math.min(1, p));
     }
 
-    public void execute() {
-        cirSim().renderer.needsAnalysis();
-        setPoints();
+    public int getBuiltInSliderItem() {
+        return EDIT_POSITION;
     }
 
-    public void delete() {
-        cirSim().removeWidgetFromVerticalPanel(label);
-        cirSim().removeWidgetFromVerticalPanel(slider);
+    public String getBuiltInSliderText() {
+        return sliderText;
     }
 
     Point ps3, ps4;
@@ -118,7 +110,6 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        position = slider.getValue() * .0099 + .005;
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
         ps3 = new Point();
@@ -216,6 +207,8 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
             ei.text = sliderText;
             return ei;
         }
+        if (n == EDIT_POSITION)
+            return new EditInfo("Position", position, 0, 1).setDimensionless();
         return null;
     }
 
@@ -230,25 +223,24 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         if (n == 3)
             maxTempr = ei.value;
         if (n == 4) {
-            sliderText = ei.textf.getText();
-            label.setText(sliderText);
-            cirSim().setSlidersDialogHeight();
+            String text = ei.textf.getText();
+            if (!text.equals(sliderText)) {
+                sliderText = text;
+                if (circuitDocument != null)
+                    circuitDocument.adjustableManager.ensureBuiltInSlider(this, true);
+            }
         }
+        if (n == EDIT_POSITION)
+            position = clampPosition(ei.value);
         rneg40 = calcResistance(minTempr);
         b25100 = calcB25100(); //
         temperature = temprFromSliderPos();
         resistance = calcResistance(temperature);
     }
 
-    public void setMouseElm(boolean v) {
-        super.setMouseElm(v);
-        if (slider != null)
-            slider.draw();
-    }
-
     public void onMouseWheel(MouseWheelEvent e) {
-        if (slider != null)
-            slider.onMouseWheel(e);
+        if (circuitDocument != null)
+            circuitDocument.adjustableManager.onBuiltInSliderWheel(this, e);
     }
 
     double calcResistance(double tempr) // knowing the temperature
@@ -300,17 +292,8 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
         minTempr = getJsonDouble(properties, "min_temperature", minTempr);
         maxTempr = getJsonDouble(properties, "max_temperature", maxTempr);
         sliderText = getJsonString(properties, "slider_text", sliderText);
-        if (label != null)
-            label.setText(sliderText);
         if (properties != null && properties.containsKey("position")) {
-            position = getJsonDouble(properties, "position", position);
-            if (position < 0)
-                position = 0;
-            if (position > 1)
-                position = 1;
-            // setPoints() re-derives position from the slider (value * .0099 + .005).
-            if (slider != null)
-                slider.setValue((int) Math.round((position - .005) / .0099));
+            position = clampPosition(getJsonDouble(properties, "position", position));
         }
         // Same derived-value recomputation as the text ctor / setEditValue.
         rneg40 = calcResistance(minTempr);

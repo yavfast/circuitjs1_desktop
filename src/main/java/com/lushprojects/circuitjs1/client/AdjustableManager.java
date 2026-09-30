@@ -1,15 +1,23 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.event.dom.client.MouseWheelEvent;
+import com.google.gwt.user.client.ui.Widget;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
-import com.lushprojects.circuitjs1.client.element.VarRailElm;
+import com.lushprojects.circuitjs1.client.element.HasBuiltInSlider;
+import com.lushprojects.circuitjs1.client.element.HasControlWidget;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 
 public class AdjustableManager extends BaseCirSimDelegate {
 
     public final ArrayList<Adjustable> adjustables;
+
+    // Sliders-dialog rows of HasControlWidget elements, rebuilt with the sliders.
+    private final HashMap<CircuitElm, Widget> controlRows = new HashMap<>();
 
     public AdjustableManager(BaseCirSim cirSim, CircuitDocument circuitDocument) {
         super(cirSim, circuitDocument);
@@ -49,7 +57,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
 
     public void createSliders() {
         dedupeAdjustables();
-        addMissingVarRailVoltageAdjustables();
+        addMissingBuiltInAdjustables();
         dedupeAdjustables();
         for (int i = 0; i < adjustables.size(); i++) {
             if (!adjustables.get(i).createSlider()) {
@@ -64,6 +72,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
                 adjustables.remove(i--);
             }
         }
+        createControlRows();
     }
 
     private void dedupeAdjustables() {
@@ -90,22 +99,102 @@ public class AdjustableManager extends BaseCirSimDelegate {
         }
     }
 
-    private void addMissingVarRailVoltageAdjustables() {
-        CirSim cirSim = (CirSim) this.cirSim;
+    private void addMissingBuiltInAdjustables() {
         for (CircuitElm ce : simulator().elmList) {
-            if (!(ce instanceof VarRailElm)) {
-                continue;
+            if (ce instanceof HasBuiltInSlider
+                    && findAdjustable(ce, ((HasBuiltInSlider) ce).getBuiltInSliderItem()) == null) {
+                adjustables.add(newBuiltInAdjustable(ce));
             }
-            VarRailElm vr = (VarRailElm) ce;
-            if (findAdjustable(vr, VarRailElm.EDIT_VOLTAGE) != null) {
-                continue;
-            }
-            Adjustable adj = new Adjustable(cirSim, vr, VarRailElm.EDIT_VOLTAGE);
-            adj.sliderText = vr.sliderText;
-            adj.minValue = vr.waveformInstance.bias;
-            adj.maxValue = vr.waveformInstance.maxVoltage;
-            adjustables.add(adj);
         }
+    }
+
+    private Adjustable newBuiltInAdjustable(CircuitElm ce) {
+        HasBuiltInSlider bs = (HasBuiltInSlider) ce;
+        Adjustable adj = new Adjustable((CirSim) cirSim, ce, bs.getBuiltInSliderItem());
+        EditInfo ei = ce.getEditInfo(bs.getBuiltInSliderItem());
+        if (ei != null && !Double.isNaN(ei.minVal) && !Double.isNaN(ei.maxVal)) {
+            // Take the element's range even when it is empty (min == max), unlike the generic ctor.
+            adj.minValue = Math.min(ei.minVal, ei.maxVal);
+            adj.maxValue = Math.max(ei.minVal, ei.maxVal);
+        }
+        adj.sliderText = builtInSliderText(bs, ei);
+        return adj;
+    }
+
+    private static String builtInSliderText(HasBuiltInSlider bs, EditInfo ei) {
+        String text = bs.getBuiltInSliderText();
+        if (text != null && !text.isEmpty())
+            return text;
+        // An empty label would drop the slider (Adjustable.createSlider); fall back to the item name.
+        return (ei != null && ei.name != null && !ei.name.isEmpty()) ? ei.name : "Value";
+    }
+
+    /**
+     * Returns the built-in adjustable of an element, creating it if missing, and refreshes its label.
+     *
+     * @param ce             a HasBuiltInSlider element of this document
+     * @param refreshSliders rebuild the Sliders dialog afterwards
+     * @return the adjustable, or null if the element has no built-in slider
+     */
+    public Adjustable ensureBuiltInSlider(CircuitElm ce, boolean refreshSliders) {
+        if (!(ce instanceof HasBuiltInSlider)) {
+            return null;
+        }
+        HasBuiltInSlider bs = (HasBuiltInSlider) ce;
+        Adjustable adj = findAdjustable(ce, bs.getBuiltInSliderItem());
+        if (adj == null) {
+            adj = newBuiltInAdjustable(ce);
+            adjustables.add(adj);
+        } else {
+            adj.sliderText = builtInSliderText(bs, ce.getEditInfo(bs.getBuiltInSliderItem()));
+        }
+        if (refreshSliders) {
+            updateSliders();
+        }
+        return adj;
+    }
+
+    /** Forwards a mouse-wheel event over an element to the slider of its built-in adjustable. */
+    public void onBuiltInSliderWheel(CircuitElm ce, MouseWheelEvent e) {
+        if (!(ce instanceof HasBuiltInSlider)) {
+            return;
+        }
+        Adjustable adj = findAdjustable(ce, ((HasBuiltInSlider) ce).getBuiltInSliderItem());
+        if (adj != null) {
+            adj.onMouseWheel(e);
+        }
+    }
+
+    private void createControlRows() {
+        SlidersDialog slidersDialog = ((CirSim) cirSim).slidersDialog;
+        removeControlRows(slidersDialog);
+        if (slidersDialog == null) {
+            return;
+        }
+        for (CircuitElm ce : simulator().elmList) {
+            if (!(ce instanceof HasControlWidget)) {
+                continue;
+            }
+            Widget w = ((HasControlWidget) ce).createControlWidget();
+            if (w != null) {
+                controlRows.put(ce, slidersDialog.addWidgetRow(w));
+            }
+        }
+        if (!controlRows.isEmpty() && !slidersDialog.isShowing()) {
+            CirSim sim = (CirSim) cirSim;
+            slidersDialog.show();
+            sim.updateSlidersDialogPosition();
+            sim.setSlidersDialogHeight();
+        }
+    }
+
+    private void removeControlRows(SlidersDialog slidersDialog) {
+        if (slidersDialog != null) {
+            for (Widget row : controlRows.values()) {
+                slidersDialog.removeSlider(row);
+            }
+        }
+        controlRows.clear();
     }
 
     public void updateSliders() {
@@ -125,6 +214,7 @@ public class AdjustableManager extends BaseCirSimDelegate {
             slidersDialog.clear();
             slidersDialog.hide();
         }
+        controlRows.clear();
     }
 
     // delete sliders for an element
@@ -139,6 +229,14 @@ public class AdjustableManager extends BaseCirSimDelegate {
                 adj.deleteSlider();
                 adjustables.remove(i);
                 unlinkShared(adj, true);
+            }
+        }
+        Widget row = controlRows.remove(elm);
+        SlidersDialog slidersDialog = ((CirSim) cirSim).slidersDialog;
+        if (row != null && slidersDialog != null) {
+            slidersDialog.removeSlider(row);
+            if (slidersDialog.isEmpty()) {
+                slidersDialog.hide();
             }
         }
     }

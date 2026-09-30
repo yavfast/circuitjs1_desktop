@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.google.gwt.user.client.Window;
+import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Expr;
 import com.lushprojects.circuitjs1.client.ExprParser;
@@ -222,7 +223,7 @@ public class VCCSElm extends ChipElm {
     public void setChipEditValue(int n, EditInfo ei) {
         if (n == 0) {
             exprString = ei.textf.getText();
-            parseExpr();
+            parseExpr(true);
             return;
         }
         if (n == 1) {
@@ -241,11 +242,20 @@ public class VCCSElm extends ChipElm {
     }
 
     void parseExpr() {
+        parseExpr(false);
+    }
+
+    // Only an interactive edit may alert; during load/import a parse error is logged instead.
+    void parseExpr(boolean interactive) {
         ExprParser parser = new ExprParser(exprString);
         expr = parser.parseExpression();
         String err = parser.gotError();
-        if (err != null)
-            Window.alert(Locale.LS("Parse error in expression") + ": " + exprString + ": " + err);
+        if (err == null)
+            return;
+        String msg = Locale.LS("Parse error in expression") + ": " + exprString + ": " + err;
+        CirSim.console(msg);
+        if (interactive)
+            Window.alert(msg);
     }
 
     public void getInfo(String arr[]) {

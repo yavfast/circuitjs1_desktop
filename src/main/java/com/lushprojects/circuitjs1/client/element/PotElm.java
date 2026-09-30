@@ -23,26 +23,27 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
-import com.lushprojects.circuitjs1.client.Scrollbar;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
+public class PotElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHandler {
     final int FLAG_SHOW_VALUES = 1;
     final int FLAG_FLIP = 2;
     final int FLAG_FLIP_OFFSET = 4;
 
+    // Edit item driven by the Sliders dialog (see HasBuiltInSlider).
+    static final int EDIT_POSITION = 3;
+    // Wiper limits keep both halves non-zero (a 0-ohm resistor makes the matrix singular).
+    static final double MIN_POSITION = .005;
+    static final double MAX_POSITION = .995;
+
     double position, maxResistance, resistance1, resistance2;
     double current1, current2, current3;
     double curcount1, curcount2, curcount3;
-    Scrollbar slider;
-    Label label;
     String sliderText;
 
     public PotElm(CircuitDocument circuitDocument, int xx, int yy) {
@@ -52,7 +53,6 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         position = .5;
         sliderText = "Resistance";
         flags = FLAG_SHOW_VALUES;
-        createSlider();
     }
 
     public PotElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
@@ -63,7 +63,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         sliderText = st.nextToken();
         while (st.hasMoreTokens())
             sliderText += ' ' + st.nextToken();
-        createSlider();
+        position = clampPosition(position);
     }
 
     void setup() {
@@ -85,25 +85,18 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         return dumpValues(super.dump(), maxResistance, position, sliderText);
     }
 
-    void createSlider() {
-        cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
-        label.addStyleName("topSpace");
-        int value = (int) Math.round((position - .005) / .0099);
-        cirSim().addWidgetToVerticalPanel(
-                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
-        // sim.verticalPanel.validate();
-        // slider.addAdjustmentListener(this);
+    static double clampPosition(double p) {
+        if (Double.isNaN(p))
+            return .5;
+        return Math.max(MIN_POSITION, Math.min(MAX_POSITION, p));
     }
 
-    public void execute() {
-        cirSim().renderer.needsAnalysis();
-        setPoints();
+    public int getBuiltInSliderItem() {
+        return EDIT_POSITION;
     }
 
-    public void delete() {
-        cirSim().removeWidgetFromVerticalPanel(label);
-        cirSim().removeWidgetFromVerticalPanel(slider);
-        super.delete();
+    public String getBuiltInSliderText() {
+        return sliderText;
     }
 
     Point post3, corner2, arrowPoint, midpoint, arrow1, arrow2;
@@ -140,7 +133,6 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         double dn = getDn();
         int bodyLen = 32;
         calcLeads(bodyLen);
-        position = slider.getValue() * .0099 + .005;
         int soff = (int) ((position - .5) * bodyLen);
         // int offset2 = offset - sign(offset)*4;
         if (post3 == null) {
@@ -360,6 +352,8 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
             ei.checkbox = new Checkbox("Show Values", (flags & FLAG_SHOW_VALUES) != 0);
             return ei;
         }
+        if (n == EDIT_POSITION)
+            return new EditInfo("Position", position, MIN_POSITION, MAX_POSITION).setDimensionless();
         return null;
     }
 
@@ -367,23 +361,24 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         if (n == 0)
             maxResistance = ei.value;
         if (n == 1) {
-            sliderText = ei.textf.getText();
-            label.setText(sliderText);
-            cirSim().setSlidersDialogHeight();
+            String text = ei.textf.getText();
+            if (!text.equals(sliderText)) {
+                sliderText = text;
+                if (circuitDocument != null)
+                    circuitDocument.adjustableManager.ensureBuiltInSlider(this, true);
+            }
         }
         if (n == 2)
             flags = ei.changeFlag(flags, FLAG_SHOW_VALUES);
-    }
-
-    public void setMouseElm(boolean v) {
-        super.setMouseElm(v);
-        if (slider != null)
-            slider.draw();
+        if (n == EDIT_POSITION) {
+            position = clampPosition(ei.value);
+            setPoints();
+        }
     }
 
     public void onMouseWheel(MouseWheelEvent e) {
-        if (slider != null)
-            slider.onMouseWheel(e);
+        if (circuitDocument != null)
+            circuitDocument.adjustableManager.onBuiltInSliderWheel(this, e);
     }
 
     public void flipX(int c2, int count) {
@@ -434,23 +429,10 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
         maxResistance = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
                 getJsonString(props, "max_resistance", "1 kOhm"));
 
-        // Parse position (0.0 to 1.0)
-        position = getJsonDouble(props, "position", 0.5);
-        if (position < 0)
-            position = 0;
-        if (position > 1)
-            position = 1;
+        // Parse position (0.0 to 1.0, wiper limits applied)
+        position = clampPosition(getJsonDouble(props, "position", 0.5));
 
-        // Parse slider text
+        // Parse slider text (the Sliders dialog is rebuilt by the importer)
         sliderText = getJsonString(props, "slider_text", "Resistance");
-        if (label != null) {
-            label.setText(sliderText);
-        }
-
-        // Update slider value
-        if (slider != null) {
-            int value = (int) Math.round((position - .005) / .0099);
-            slider.setValue(value);
-        }
     }
 }

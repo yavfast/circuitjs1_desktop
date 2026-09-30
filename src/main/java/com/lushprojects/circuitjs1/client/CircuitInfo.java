@@ -9,10 +9,12 @@ public class CircuitInfo extends BaseCirSimDelegate {
     /** Name of the last saved file */
     String lastFileName;
 
-    /** Flag indicating if there are unsaved changes */
-    public boolean unsavedChanges;
-    /** Flag indicating if the file has been saved */
-    public boolean savedFlag;
+    /**
+     * Single per-document "modified since last save/load" state. Read it through
+     * {@link #isModified()}; UI code changes it through {@code CirSim.setUnsavedChanges},
+     * which also refreshes the window title and the tab "*" marker.
+     */
+    private boolean modified;
     /** Flag for DC analysis mode */
     public boolean dcAnalysisFlag;
     /** Flag for developer mode */
@@ -66,6 +68,16 @@ public class CircuitInfo extends BaseCirSimDelegate {
 
     public CircuitInfo(BaseCirSim cirSim, CircuitDocument circuitDocument) {
         super(cirSim, circuitDocument);
+    }
+
+    /** @return true if this document has changes that were not saved/exported yet */
+    public boolean isModified() {
+        return modified;
+    }
+
+    /** Sets the modified state of this document (no UI refresh; see CirSim.setUnsavedChanges). */
+    public void setModified(boolean modified) {
+        this.modified = modified;
     }
 
     void loadQueryParameters() {

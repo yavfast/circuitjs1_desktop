@@ -50,12 +50,10 @@ import com.google.gwt.user.client.Event.NativePreviewHandler;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
-import com.google.gwt.user.client.ui.Frame;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
-import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -86,7 +84,6 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     public Scrollbar powerBar;
     public Scrollbar timeStepBar;
 
-    Frame iFrame = null;
 
     private static CirSim theSim;
 
@@ -361,7 +358,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
                 undoManager.writeRecoveryToStorage();
                 // there is a bug in electron that makes it impossible to close the app if this
                 // warning is given
-                if (circuitInfo.unsavedChanges && !isElectron())
+                // Check every open tab, not just the document that was active at startup
+                if (documentManager.hasModifiedDocuments() && !isElectron())
                     event.setMessage(Locale.LS("Are you sure?  There are unsaved changes."));
             }
         });
@@ -603,13 +601,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         s = s.substring(s.lastIndexOf('\\') + 1);
         theSim.setCircuitTitle(s);
         theSim.allowSave(true);
-        theSim.getActiveDocument().circuitInfo.savedFlag = true;
+        theSim.setUnsavedChanges(false);
         theSim.repaint();
     }
 
     // JSInterface
     static void electronSaveCallback() {
-        theSim.getActiveDocument().circuitInfo.savedFlag = true;
+        theSim.setUnsavedChanges(false);
         theSim.repaint();
     }
 
@@ -737,24 +735,6 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         int dialogWidth = controlsDialog.getOffsetWidth();
         int left = mainWidth - dialogWidth - 20;
         controlsDialog.setPopupPosition(left, 80);
-    }
-
-    public void addWidgetToVerticalPanel(Widget w) {
-        // This method is now deprecated for sliders.
-        // Sliders should be added via addSliderToDialog.
-        // For other widgets, it adds to the main vertical panel.
-        if (iFrame != null) {
-            int i = controlsDialog.panel.getWidgetIndex(iFrame);
-            controlsDialog.panel.insert(w, i);
-        } else {
-            // Do nothing, as verticalPanel2 is removed.
-        }
-    }
-
-    public void removeWidgetFromVerticalPanel(Widget w) {
-        // This method is now deprecated for sliders.
-        // Sliders should be removed via removeSliderFromDialog.
-        controlsDialog.panel.remove(w);
     }
 
     native boolean weAreInUS(boolean orCanada) /*-{

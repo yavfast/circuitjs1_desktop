@@ -103,10 +103,9 @@ public final class ImportLifecycle {
         cirSim.setPowerBarEnable();
         cirSim.enableItems();
 
-        if ((flags & CircuitConst.RC_RETAIN) == 0) {
-            // Create sliders for adjustable elements
-            document.adjustableManager.createSliders();
-        }
+        // Create sliders for adjustable elements. Also on paste (RC_RETAIN): pasted elements with a
+        // built-in slider or control button need theirs; createSliders() rebuilds existing rows.
+        document.adjustableManager.createSliders();
 
         cirSim.needAnalyze();
 

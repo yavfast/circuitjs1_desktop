@@ -80,6 +80,12 @@ public class SlidersDialog extends Dialog {
         return row;
     }
 
+    // Adds a single-widget row (e.g. an element control button) below the sliders.
+    public Widget addWidgetRow(Widget widget) {
+        panel.add(widget);
+        return widget;
+    }
+
     public void removeSlider(Widget row) {
         panel.remove(row);
     }

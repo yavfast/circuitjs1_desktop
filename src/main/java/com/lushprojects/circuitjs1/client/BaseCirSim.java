@@ -168,7 +168,7 @@ public class BaseCirSim {
     }
 
     public void setUnsavedChanges(boolean hasChanges) {
-        activeDocument.circuitInfo.unsavedChanges = hasChanges;
+        activeDocument.circuitInfo.setModified(hasChanges);
     }
 
     void setCircuitTitle(String s) {

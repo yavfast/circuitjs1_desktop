@@ -21,6 +21,12 @@ public class DocumentManager {
         void onDocumentTitleChanged(CircuitDocument document);
     }
 
+    /**
+     * Maximum number of closed tabs kept for "Open Last Closed Tab". Each entry is a full
+     * circuit dump, so the oldest entries are dropped first.
+     */
+    static final int MAX_CLOSED_TABS = 20;
+
     private final BaseCirSim cirSim;
     private final List<CircuitDocument> documents = new ArrayList<>();
     private CircuitDocument activeDocument;
@@ -69,6 +75,10 @@ public class DocumentManager {
              setActiveDocument(current);
         }
         closedTabsHistory.push(dump);
+        if (closedTabsHistory.size() > MAX_CLOSED_TABS) {
+            // Stack extends Vector: index 0 is the oldest entry
+            closedTabsHistory.subList(0, closedTabsHistory.size() - MAX_CLOSED_TABS).clear();
+        }
 
         // Stop the simulation loop to prevent memory leaks
         document.dispose();
@@ -106,6 +116,16 @@ public class DocumentManager {
         return !closedTabsHistory.isEmpty();
     }
 
+    /** @return true if any open document has unsaved changes */
+    public boolean hasModifiedDocuments() {
+        for (CircuitDocument doc : documents) {
+            if (doc.circuitInfo.isModified()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void setInitialDocument(CircuitDocument doc) {
         this.activeDocument = doc;
         cirSim.bindDocument(doc);
@@ -139,7 +159,7 @@ public class DocumentManager {
         
         // Update window title and UI
         if (cirSim instanceof CirSim) {
-            ((CirSim)cirSim).setUnsavedChanges(document.circuitInfo.unsavedChanges);
+            ((CirSim)cirSim).setUnsavedChanges(document.circuitInfo.isModified());
             ((CirSim)cirSim).needAnalyze(); // Re-analyze/repaint
         }
 
@@ -168,7 +188,7 @@ public class DocumentManager {
         if (name == null || name.isEmpty()) {
             name = "Untitled";
         }
-        if (doc.circuitInfo.unsavedChanges) {
+        if (doc.circuitInfo.isModified()) {
             name += "*";
         }
         return name;

@@ -41,7 +41,7 @@ public class LoadFile extends FileUpload implements ChangeHandler {
         // Check if we should create a new tab
         boolean createNewTab = true;
         if (sim.getActiveDocument().simulator.elmList.isEmpty() && 
-            !sim.getActiveDocument().circuitInfo.unsavedChanges &&
+            !sim.getActiveDocument().circuitInfo.isModified() &&
             (sim.getActiveDocument().circuitInfo.fileName == null || sim.getActiveDocument().circuitInfo.fileName.isEmpty())) {
             createNewTab = false;
         }

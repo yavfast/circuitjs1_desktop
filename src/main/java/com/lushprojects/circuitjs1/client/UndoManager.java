@@ -19,6 +19,12 @@ public class UndoManager extends BaseCirSimDelegate {
         }
     }
 
+    /**
+     * Maximum number of undo snapshots kept per document. Each snapshot is a full circuit
+     * dump, so the history is capped and the oldest snapshots are dropped first.
+     */
+    static final int MAX_UNDO_DEPTH = 150;
+
     Vector<UndoItem> undoStack;
     Vector<UndoItem> redoStack;
 
@@ -59,6 +65,7 @@ public class UndoManager extends BaseCirSimDelegate {
         if (!undoStack.isEmpty() && s.compareTo(undoStack.lastElement().dump) == 0)
             return;
         undoStack.add(new UndoItem(s));
+        trimToMaxDepth(undoStack);
     }
 
     void doUndo() {
@@ -73,8 +80,17 @@ public class UndoManager extends BaseCirSimDelegate {
         if (redoStack.isEmpty())
             return;
         undoStack.add(new UndoItem(actionManager().dumpCircuit()));
+        trimToMaxDepth(undoStack);
         UndoItem ui = redoStack.remove(redoStack.size() - 1);
         loadUndoItem(ui);
+    }
+
+    /** Drops the oldest snapshots (bottom of the stack) until at most MAX_UNDO_DEPTH remain. */
+    private static void trimToMaxDepth(Vector<UndoItem> stack) {
+        int excess = stack.size() - MAX_UNDO_DEPTH;
+        if (excess > 0) {
+            stack.subList(0, excess).clear();
+        }
     }
 
     void loadUndoItem(UndoItem ui) {

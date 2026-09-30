@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.user.client.Command;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Label;
@@ -221,7 +222,8 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         double range = maxValue - minValue;
         if (range == 0 || Double.isNaN(range))
             return 0;
-        return (int) ((value - minValue) * 100 / range);
+        // round, not truncate: truncation shows (and on the next touch applies) one step less
+        return (int) Math.round((value - minValue) * 100 / range);
     }
 
     public void deleteSlider() {
@@ -237,6 +239,13 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         valueLabel = null;
         editAdjustableButton = null;
         editElementButton = null;
+    }
+
+    // Mouse wheel over the element moves its slider (or the slider it shares).
+    void onMouseWheel(MouseWheelEvent e) {
+        Scrollbar source = sharedSlider == null ? slider : sharedSlider.slider;
+        if (source != null)
+            source.onMouseWheel(e);
     }
 
     void setMouseElm(CircuitElm e) {

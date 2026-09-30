@@ -45,7 +45,10 @@ public class TFlipFlopElm extends ChipElm {
                         StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         pins[2].value = !pins[1].value;
+        justLoaded = true;
     }
+
+    boolean justLoaded;
 
     String getChipName() {
         return "T flip-flop";
@@ -87,6 +90,12 @@ public class TFlipFlopElm extends ChipElm {
     }
 
     void execute() {
+        // if we just loaded then the voltages are likely to be all zeroes, which might toggle or reset
+        // the restored outputs, so defer execution until the next iteration
+        if (justLoaded) {
+            justLoaded = false;
+            return;
+        }
         if (pins[3].value && !lastClock) {
             if (pins[0].value) //if T = 1
             {
@@ -176,5 +185,13 @@ public class TFlipFlopElm extends ChipElm {
         }
         setupPins();
         allocNodes();
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // As after a text load: defer the first execute() so all-zero node voltages at load
+        // time do not disturb the restored outputs and clock state.
+        justLoaded = true;
     }
 }

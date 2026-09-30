@@ -91,8 +91,12 @@ public class ADCElm extends ChipElm {
         return null;
     }
 
+    int minBitCount() {
+        return 2;
+    }
+
     public void setChipEditValue(int n, EditInfo ei) {
-        if (n == 0 && ei.value >= 2) {
+        if (n == 0 && ei.value >= minBitCount()) {
             bits = (int) ei.value;
             setupPins();
             setPoints();

@@ -542,10 +542,6 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             infoLines[lineIdx++] = badNodes
                     + ((badNodes == 1) ? Locale.LS(" bad connection") : Locale.LS(" bad connections"));
         }
-        if (circuitInfo().savedFlag) {
-            infoLines[lineIdx++] = "(saved)";
-        }
-
         int x = leftX + 5;
         if (scopeCount != 0) {
             x = scopeManager().scopes[scopeCount - 1].rightEdge() + 20;

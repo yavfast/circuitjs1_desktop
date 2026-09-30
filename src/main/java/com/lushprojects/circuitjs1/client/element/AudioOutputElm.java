@@ -9,6 +9,7 @@ import com.google.gwt.i18n.client.DateTimeFormat;
 import com.google.gwt.user.client.Window;
 import com.google.gwt.user.client.ui.Anchor;
 import com.google.gwt.user.client.ui.Button;
+import com.google.gwt.user.client.ui.Widget;
 import com.lushprojects.circuitjs1.client.Choice;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.Color;
@@ -21,7 +22,7 @@ import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.Date;
 
-public class AudioOutputElm extends CircuitElm {
+public class AudioOutputElm extends CircuitElm implements HasControlWidget {
     int dataCount, dataPtr;
     double data[];
     boolean dataFull;
@@ -42,7 +43,6 @@ public class AudioOutputElm extends CircuitElm {
         samplingRate = lastSamplingRate;
         labelNum = getNextLabelNum();
         setDataCount();
-        createButton();
     }
 
     public AudioOutputElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
@@ -52,7 +52,6 @@ public class AudioOutputElm extends CircuitElm {
         samplingRate = Integer.parseInt(st.nextToken());
         labelNum = Integer.parseInt(st.nextToken());
         setDataCount();
-        createButton();
     }
 
     public String dump() {
@@ -251,7 +250,7 @@ public class AudioOutputElm extends CircuitElm {
         int ln = getJsonInt(properties, "label_number", labelNum);
         if (ln != labelNum) {
             labelNum = ln;
-            // The play button was created by the (document, x, y) ctor with the old number.
+            // A play button may already show the old number.
             if (button != null)
                 button.setHTML(getButtonLabel());
         }
@@ -297,20 +296,16 @@ public class AudioOutputElm extends CircuitElm {
         return label;
     }
 
-    void createButton() {
-        cirSim().addWidgetToVerticalPanel(button = new Button(getButtonLabel()));
+    // The play button lives in the Sliders dialog; AdjustableManager rebuilds it per document.
+    public Widget createControlWidget() {
+        button = new Button(getButtonLabel());
         button.setStylePrimaryName("topButton");
         button.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {
                 play();
             }
         });
-
-    }
-
-    public void delete() {
-        cirSim().removeWidgetFromVerticalPanel(button);
-        super.delete();
+        return button;
     }
 
     public static native void playJS(JsArrayInteger samples, int sampleRate)

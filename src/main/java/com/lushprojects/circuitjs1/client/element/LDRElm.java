@@ -5,27 +5,28 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.google.gwt.canvas.dom.client.CanvasGradient;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
-import com.google.gwt.user.client.Command;
-import com.google.gwt.user.client.ui.Label;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
-import com.lushprojects.circuitjs1.client.Scrollbar;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 /*Bill Collis - June 2015 */
 
-public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
-    double position; // of the slider 0.005 to 0.995
+public class LDRElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHandler {
+    // Edit item driven by the Sliders dialog (see HasBuiltInSlider).
+    static final int EDIT_POSITION = 1;
+    // Slider range of the original scrollbar mapping; at 1.0 the resistance would drop to ~9 ohms.
+    static final double MIN_POSITION = .0001;
+    static final double MAX_POSITION = .9901;
+
+    double position; // of the slider 0.0001 to 0.9901
     double resistance; // based upon slider position
     double minLux, maxLux;
     double lux;
 
-    Scrollbar slider;
-    Label label;
     String sliderText;
 
     // constructor - when initially created
@@ -39,7 +40,6 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
         sliderText = Locale.LS("Light Brightness");
-        createSlider();
     }
 
     // constructor - when read in from file
@@ -52,7 +52,6 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
         sliderText = CustomLogicModel.unescape(st.nextToken());
-        createSlider(); // uses position to set the slider
     }
 
     // void setup() {
@@ -72,22 +71,12 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         return dumpValues(super.dump(), position, CustomLogicModel.escape(sliderText));
     }
 
-    void createSlider() {
-        cirSim().addWidgetToVerticalPanel(label = new Label(sliderText));
-        label.addStyleName("topSpace");
-        int value = (int) (position * 100);
-        cirSim().addWidgetToVerticalPanel(
-                slider = new Scrollbar(cirSim(), Scrollbar.HORIZONTAL, value, 1, 0, 100, this, this));
+    public int getBuiltInSliderItem() {
+        return EDIT_POSITION;
     }
 
-    public void execute() {
-        cirSim().renderer.needsAnalysis();
-        setPoints();
-    }
-
-    public void delete() {
-        cirSim().removeWidgetFromVerticalPanel(label);
-        cirSim().removeWidgetFromVerticalPanel(slider);
+    public String getBuiltInSliderText() {
+        return sliderText;
     }
 
     Point ps3, ps4;
@@ -96,7 +85,6 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
     public void setPoints() {
         super.setPoints();
         calcLeads(32);
-        position = slider.getValue() * .0099 + .0001;
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
         ps3 = new Point();
@@ -192,29 +180,36 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
             ei.text = sliderText;
             return ei;
         }
+        if (n == EDIT_POSITION)
+            return new EditInfo("Position", position, MIN_POSITION, MAX_POSITION).setDimensionless();
         return null;
     }
 
     // component edited
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0) {
-            sliderText = ei.textf.getText();
-            label.setText(sliderText);
-            cirSim().setSlidersDialogHeight();
+            String text = ei.textf.getText();
+            if (!text.equals(sliderText)) {
+                sliderText = text;
+                if (circuitDocument != null)
+                    circuitDocument.adjustableManager.ensureBuiltInSlider(this, true);
+            }
         }
+        if (n == EDIT_POSITION)
+            position = clampPosition(ei.value);
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
     }
 
-    public void setMouseElm(boolean v) {
-        super.setMouseElm(v);
-        if (slider != null)
-            slider.draw();
+    static double clampPosition(double p) {
+        if (Double.isNaN(p))
+            return MIN_POSITION;
+        return Math.max(MIN_POSITION, Math.min(MAX_POSITION, p));
     }
 
     public void onMouseWheel(MouseWheelEvent e) {
-        if (slider != null)
-            slider.onMouseWheel(e);
+        if (circuitDocument != null)
+            circuitDocument.adjustableManager.onBuiltInSliderWheel(this, e);
     }
 
     double calcResistance(double lux) // knowing the lux
@@ -258,18 +253,8 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         super.applyJsonProperties(properties);
         minLux = getJsonDouble(properties, "min_lux", minLux);
         maxLux = getJsonDouble(properties, "max_lux", maxLux);
-        position = getJsonDouble(properties, "position", position);
-        if (position < 0)
-            position = 0;
-        if (position > 1)
-            position = 1;
+        position = clampPosition(getJsonDouble(properties, "position", position));
         sliderText = getJsonString(properties, "slider_text", sliderText);
-        if (label != null)
-            label.setText(sliderText);
-        // setPoints() re-derives position from the slider (value * .0099 + .0001),
-        // so drive the slider with the exact inverse to keep position stable.
-        if (slider != null)
-            slider.setValue((int) Math.round((position - .0001) / .0099));
         // "lux" and "resistance" are derived from position; recompute instead of reading.
         lux = LuxFromSliderPos();
         resistance = calcResistance(lux);
