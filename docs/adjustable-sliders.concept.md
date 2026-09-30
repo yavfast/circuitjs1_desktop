@@ -20,7 +20,7 @@
 
 ### 1.1. Core Principle  {#C_ADJ_01_01}
 
-Any `EditInfo` that returns `canCreateAdjustable() == true` automatically becomes slider-able, with no per-element code required. `VarRailElm` is the only hardcoded exception — every `VarRailElm` auto-gets a voltage slider from its `waveformInstance`'s `bias`/`maxVoltage`.
+Any `EditInfo` that returns `canCreateAdjustable() == true` automatically becomes slider-able, with no per-element code required. Elements implementing `HasBuiltInSlider` (`PotElm`, `LDRElm`, `ThermistorNTCElm`, `VarRailElm`) always get a slider for their `getBuiltInSliderItem()` — the adjustable is created when missing. Elements implementing `HasControlWidget` (`AudioOutputElm` "Play") get a single-widget row in the same dialog. The dialog is rebuilt per document, so both follow tab switch, load, paste and undo.
 
 ### 1.2. Design Constraints  {#C_ADJ_01_02}
 
@@ -28,7 +28,7 @@ Any `EditInfo` that returns `canCreateAdjustable() == true` automatically become
 - **Linear 0..100 mapping.** Slider integer range is fixed; value↔slider mapping is linear between `minValue/maxValue`.
 - **Sharing requires ordering.** Owners must appear in the dump before followers so undump can resolve `sharedSlider` indexes in one pass (`reorderAdjustables()` stable-partitions).
 - **Re-entrancy guard.** `settingValue` flag prevents `setSliderValue → slider.setValue → execute` loops.
-- **Auto-bindings are synthesized, not persisted.** `VarRailElm` voltage sliders are recreated on every load; dedup prevents multiplication.
+- **Built-in bindings are synthesized when missing and then persisted like any other.** A file without the `38` line gets the adjustable on load; dedup prevents multiplication. The element's own field (e.g. pot `position`) stays authoritative and is dumped with the element.
 
 ## 2. Domain Model  {#C_ADJ_02}
 
@@ -78,11 +78,12 @@ Circuit load:
          -> new Adjustable(tokenizer, cirSim)
          -> if adj.elm == null: discard
             else adjustables.add(adj)
-  after load: createSliders()
+  after load or paste: createSliders()
     dedupeAdjustables
-    addMissingVarRailVoltageAdjustables
+    addMissingBuiltInAdjustables          -- HasBuiltInSlider elements
     dedupeAdjustables
     for each adj: createSlider() (drop if label empty)
+    createControlRows                     -- HasControlWidget elements
 
 Circuit save:
   adjustableManager.dump()
@@ -131,3 +132,4 @@ Circuit save:
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-09-30 | Built-in sliders generalized from VarRail to `HasBuiltInSlider` (Pot/LDR/NTC); control rows (`HasControlWidget`); rebuilt on paste. |

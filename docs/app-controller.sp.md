@@ -29,7 +29,6 @@
 | mainMenuBar | MenuBar | top-level menu |
 | buttonBar | HorizontalPanel | toolbar buttons |
 | tabBarPanel | TabBarPanel | multi-tab header |
-| iFrame | HTMLPanel | outer layout root |
 
 ### 01_02. JS-bridge object  {#SP_APC_01_02}
 

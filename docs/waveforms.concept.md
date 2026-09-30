@@ -45,11 +45,10 @@ Waveform [abstract]
 ├── TriangleWaveform  (WF_TRIANGLE = 3)
 ├── SawtoothWaveform  (WF_SAWTOOTH = 4)
 ├── PulseWaveform     (WF_PULSE = 5)
-├── NoiseWaveform     (WF_NOISE = 6)
-└── VarWaveform       (WF_VAR = 7; partial-strategy, glued to VarRailElm)
+└── NoiseWaveform     (WF_NOISE = 6)
 ```
 
-`Waveform.create(type, old)` is the factory, dispatching on integer `type` and calling `copyFrom(old)` to preserve shared parameters across type changes. `WF_VAR` is legacy — `create` returns a `DCWaveform` for it; `VarWaveform` is only instantiated directly by `VarRailElm`.
+`Waveform.create(type, old)` is the factory, dispatching on integer `type` and calling `copyFrom(old)` to preserve shared parameters across type changes. `WF_VAR` (7) is legacy — `create` returns a `DCWaveform` for it; `VarRailElm` is a DC rail whose voltage is driven by its built-in adjustable slider (the former `VarWaveform` class was never instantiated and was removed 2026-09-30).
 
 ### 2.2. Data Flows  {#C_WFM_02_02}
 
@@ -85,7 +84,6 @@ Default `doStep(VoltageElm)` calls `updateVoltageSource(n0, n1, voltSource, getV
 - **`FLAG_PULSE_DUTY`** absence → `dutyCycle` coerced to `1/(2π)` (legacy default).
 - **Truncated dump line** → `VoltageElm` ctor try/catch falls back to default-constructed waveform.
 - **Unknown type in `Waveform.create`** → fallback to `DCWaveform`.
-- **`VarWaveform` with non-VarRailElm** → `getEditInfo` returns null for all rows.
 - **NoiseWaveform deterministic icon** via xorshift hashed by `elementId.hashCode()` so icon doesn't flicker.
 
 ## 4. Integration Points  {#C_WFM_04}

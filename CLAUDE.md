@@ -72,7 +72,7 @@ Reusable, named, serializable parameter sets (diode physics, transistor Gummel-P
 
 Built-in example circuits live in `src/main/java/com/lushprojects/circuitjs1/public/circuits` (served at `circuitjs1/circuits/...`, i.e. `GWT.getModuleBaseURL() + "circuits/"`). They are the baseline corpus for manual checks and import/export roundtrip tests.
 
-`tests/live/harness.mjs` (`npm run test:live`, after `npm run buildgwt`) drives the compiled build in headless Chromium: undo/redo, paste/duplicate, text-format fidelity, text↔JSON roundtrip over the example corpus, and one element of every JSON type. See `tests/live/README.md`.
+`tests/live/harness.mjs` (`npm run test:live`, after `npm run buildgwt`) drives the compiled build in headless Chromium: undo/redo, paste/duplicate, element sliders / control rows, text-format fidelity, text↔JSON roundtrip over the example corpus, and one element of every JSON type. See `tests/live/README.md`.
 
 `tests/json_roundtrip_test.js` loads each example as text → export JSON → clear → import JSON → export text → diff. It runs in the browser DevTools console (`await runJsonRoundtripTests()`) or via remote-debug automation, driving the app through its JS API. The JS automation API (import/export, simulation control, scopes, logs) is documented in `docs/JS_API.md`. The remote-debug harness for NW.js is in `server/` (`remote-debug-server.js`, `scripts/open_web_dbg.sh`).
 

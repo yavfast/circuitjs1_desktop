@@ -80,11 +80,14 @@ Uniqueness key: `(elmIndex, editItem, sharedIndex)`.
 
     FUNCTION createSliders():
         dedupeAdjustables
-        addMissingVarRailVoltageAdjustables
+        addMissingBuiltInAdjustables        -- one per HasBuiltInSlider element, range from its EditInfo
         dedupeAdjustables
         FOR each adj in adjustables:
             IF NOT adj.createSlider():
                 adjustables.remove(adj)
+        createControlRows                   -- one row per HasControlWidget element; old rows removed first
+
+Called after every load, including paste (`RC_RETAIN`). `ensureBuiltInSlider(elm, refresh)` adds a missing built-in adjustable and refreshes its label; `deleteSliders(elm)` also removes the element's control row. Mouse wheel over a `HasBuiltInSlider` element is forwarded to its adjustable (`onBuiltInSliderWheel`). Slider position = `round((value - min) * 100 / (max - min))`.
 
 ### 02_05. reorderAdjustables  {#SP_ADJ_02_05}
 
@@ -122,7 +125,8 @@ Stable-partition: all `sharedSlider == null` first (owners), then sharers. Prese
 |-----------|--------------|
 | re-entrancy guard | `settingValue` true inside `setSliderValue`; `execute` no-op |
 | unique per key | no two adjustables share `(elmIndex, editItem, sharedIndex)` |
-| VarRail auto-bound | every `VarRailElm` has an EDIT_VOLTAGE adjustable after `createSliders` |
+| built-in auto-bound | every `HasBuiltInSlider` element has an adjustable for `getBuiltInSliderItem()` after `createSliders` (pot item 3, LDR 1, NTC 5, VarRail 3) |
+| control rows | exactly one Sliders-dialog row per `HasControlWidget` element of the active document |
 
 ### 05_03. Edge Cases  {#SP_ADJ_05_03}
 
@@ -138,3 +142,4 @@ Stable-partition: all `sharedSlider == null` first (owners), then sharers. Prese
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-09-30 | `HasBuiltInSlider` / `HasControlWidget`; createSliders on paste; rounding slider position. |

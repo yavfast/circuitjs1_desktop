@@ -1,56 +1,31 @@
-# Active Context
+# Dev-Flow Active Context
 
-- **Current work:** Onboard (Phase 0) — reverse-engineering dev-flow docs
-- **Phase:** onboard
-- **Status:** completed — all 3 validation findings resolved (2026-04-19)
-- **Started:** 2026-04-18
-- **Completed:** 2026-04-19
+A thin index over the task files in [`tasks/`](tasks/) — active and recently completed tasks only; per-task state lives in those files.
 
-## Progress State
+## Active Tasks
 
-- [x] Step 1: Initialize workspace
-- [x] Step 2: Map project structure
-- [x] Step 3: Dependency analysis + layer decomposition
-- [x] Scope confirmation with user
-- [x] Step 4: Per-module analysis — 37 files, 17 logical modules
-- [x] Step 5: Coding rules extracted — 45 rules across 6 categories
-- [x] Step 5a: Skills knowledge base — 10 skills across 5 domains
-- [x] Step 6: Concept/spec/plan docs — 45 triples (135 files)
-- [x] Step 7: `docs/_index.md` + 4 epics
-- [x] Step 8: Validation + `.dev_flow/onboard/report.md`
+_(none active)_
 
-## Next Step
+## Recently Completed
 
-Onboard fully complete. Optional follow-ups:
-1. Sample accuracy check — pick 2–3 concepts, read them end-to-end against source to confirm they describe current behavior before treating as authoritative.
-2. Cross-link hand-written docs (INTERNALS.md, elements.md, JS_API.md, EXPORT_*.md, remote_dbg*.md) from relevant concept "See also" sections.
-3. Commit the onboard output as an initial bulk commit (or one PR per epic).
+| Task | Phase | Completed | Contributors | Result |
+|------|-------|-----------|--------------|--------|
+| [task_20260930_205344_backlog-fixes](tasks/task_20260930_205344_backlog-fixes.md) — backlog defect fixes (BL-A06/A05/A03/B05/B06) | fix | 2026-09-30 | main | 21079bc on fix/backlog-20260930 (not merged) |
+| [task_20260930_173830_code-audit-full](tasks/task_20260930_173830_code-audit-full.md) — full code audit + defect fixes | audit (code) + fix | 2026-09-30 | main | Plan [whole_20260930_173830](audit/whole_20260930_173830.plan.md); fixes on master (b64e347, f0aee41, df62f60) |
+| [task_20260621_125942_fix-bl-drop](tasks/task_20260621_125942_fix-bl-drop.md) — JSON type-name aliases | fix | 2026-06-21 | main | c8d61db |
+| [task_20260621_104235_code-audit-defects](tasks/task_20260621_104235_code-audit-defects.md) — defects audit (security + correctness) | audit (code) | 2026-06-21 | main | cdba7b6, cbfb7b7 |
+| onboard (no task file) — reverse-engineered docs, rules, skills | onboard | 2026-04-19 | — | [onboard/report.md](onboard/report.md); old dashboard in [session_history/](session_history/active_context_onboard_20260419.md) |
 
-## Relevant Documents
+## Deferred (todos)
 
-- Project root: /home/yavfast/Projects/My_projects/Circuit/circuitjs1_desktop
-- Final report: `.dev_flow/onboard/report.md`
-- Index: `docs/_index.md`
-- Epics: `docs/{domain-core,editor,simulator,visualization}.epic.md`
-- 45 concept triples: `docs/*.{concept,sp,plan}.md`
-- Rules: `.dev_flow/rules/` + `_index.yaml`
-- Skills: `.dev_flow/skills/` + hierarchical `_index.yaml`
-- Authoritative raw analyses: `.dev_flow/onboard/analysis/*.md` (37 files)
-- Issues log: `.dev_flow/onboard/issues.md`
-- State: `.dev_flow/onboard/state.yaml` (status: completed)
+_No `todos/` register. Open work lives in the backlog of [audit/whole_20260930_173830.plan.md](audit/whole_20260930_173830.plan.md): ITEM-15 (CSP, active) · BL-A01…A16 · BL-B01…B06 · BL-C01…C06 · June BL-RD/BL-AR/BL-01…04 · proposed decisions PL_AUDIT_20260930_173830_DEC_01 (release build profile) and DEC_03 (element↔dialog cycle)._
 
-## Recent Changes
+## Notes
 
-- 2026-04-19 — Step 8 complete; report.md written; state.yaml closed as `completed`.
-- 2026-04-19 — Step 7 complete; index + 4 epics generated.
-- 2026-04-19 — Step 6 complete; 45 concept triples generated.
-- 2026-04-19 — Step 5a complete; skills knowledge base seeded.
-- 2026-04-19 — Step 5 complete; 45 coding rules extracted.
-- 2026-04-18 — Steps 1-4 complete; all 17 modules analyzed.
+- Suggested next: BL-C01 decision (Recover Auto-Save: remove vs per-document key), merge `fix/backlog-20260930` into master, DEC_01 build profile, BL-A11 test layer, ITEM-15 CSP.
+- Verification tool: `npm run buildgwt && npm run test:live` ([tests/live/README.md](../tests/live/README.md)) — RULE_TEST_006.
+- Tree at 2026-09-30: branch `master`, clean, 12 commits ahead of `origin/master` (not pushed); merged feature branches `fix/audit-20260930`, `fix/audit-defects-20260621` still exist locally.
 
-## Notes / Blockers
+---
 
-- V-1 is a blocker for treating `docs/*.concept.md` as canonical — fix first.
-- Authoritative raw content lives in `.dev_flow/onboard/analysis/*.md`. Concepts are distilled summaries; fall back to analyses when detail is needed.
-- No JUnit harness in the project — Phase 5 (Test) uses build checks + roundtrip + devmode (see `.dev_flow/rules/testing.md`).
-- User preference: pause between waves during long `/dev-flow onboard` runs (see user memory `feedback_pause_control.md`).
+*Dashboard maintained by dev-flow commands. Each contributor updates only their own row context (e.g., adds itself to Contributors when joining a task). Hygiene: keep under ~80 lines; any contributor may rebuild it from `tasks/*.md` when in doubt. See `phases/status.md` (dev-flow skill).*

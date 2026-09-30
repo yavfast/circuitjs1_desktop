@@ -52,7 +52,7 @@ Invariants:
 | `SawtoothWaveform` | 4 | maxV, bias, freq, phase | Ramp |
 | `PulseWaveform` | 5 | all 5 | Asymmetric (low = bias); `isPulse=true` |
 | `NoiseWaveform` | 6 | maxV, bias | `showFrequency=false`; `stepFinished` latches new sample |
-| `VarWaveform` | 7 | bias (min), maxV, sliderText | `usesShortLeads=true`, `showFrequency=false`; reads slider; JSON rail `VariableRail` |
+| _(WF_VAR)_ | 7 | — | legacy id; `Waveform.create` returns `DCWaveform`. `VarRailElm` keeps bias = min, maxV = max, frequency = current voltage |
 
 ## 02. Contracts  {#SP_WFM_02}
 
@@ -131,7 +131,6 @@ JSON element-type names: `VoltageSourceDC`, `VoltageSourceAC`, `VoltageSourceSqu
 - `FLAG_COS`: if set, cleared and `phaseShift := π/2`.
 - `FLAG_PULSE_DUTY`: if not set and waveform is pulse, `dutyCycle := 1/(2π)`.
 - `createWaveformInstance()` re-syncs integer `waveform` field with `waveformInstance.getType()` (out-of-range silently normalized).
-- `VarWaveform.getEditInfo` guards `elm instanceof VarRailElm`; returns null for all rows otherwise.
 
 ### 03_02. Type-change normalization  {#SP_WFM_03_02}
 
@@ -163,7 +162,7 @@ JSON element-type names: `VoltageSourceDC`, `VoltageSourceAC`, `VoltageSourceSqu
 
 ### 04_02. VarWaveform read-write  {#SP_WFM_04_02}
 
-`getVoltage` reads `slider.getValue()` each call and writes result back into `frequency` (field repurposed as current output voltage).
+Removed 2026-09-30: `VarWaveform` was never instantiated (`WF_VAR` maps to `DCWaveform`). `VarRailElm.getVoltage()` returns `waveformInstance.frequency`, which its built-in adjustable slider (edit item `EDIT_VOLTAGE`) writes.
 
 ### 04_03. DCWaveform no evolution  {#SP_WFM_04_03}
 
@@ -204,7 +203,6 @@ Stamp done once with fixed value; `doStep` skipped via `isDC()` guard.
 | Case | Input | Expected |
 |------|-------|----------|
 | Truncated dump line | missing tokens | waveformInstance default-created |
-| VarWaveform w/o VarRailElm | plain VoltageElm | getEditInfo returns null for all |
 | Mid-run frequency edit | user changes freq | phase discontinuity (freqTimeZero not reset) |
 
 ## Changelog
@@ -212,3 +210,4 @@ Stamp done once with fixed value; `doStep` skipped via `isDC()` guard.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-09-30 | `VarWaveform` removed (dead); SP_WFM_04_02 kept as a tombstone. |

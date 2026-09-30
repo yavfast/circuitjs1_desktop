@@ -259,3 +259,60 @@ private native void createLogDirectory() /*-{ ... NW.js fs access ... }-*/;
 
 ### Rationale
 JSNI is invisible to the Java type checker and to IDE refactorings. Concentrating it in a handful of files makes it auditable (`architecture.md` JSNI boundary rule). See also `layer3__cross-cutting-managers.md` LogManager JSNI cluster.
+
+---
+
+## Rule: ElementDeleteChainsToSuper
+
+**Category:** structure
+**Severity:** should
+**Applies to:** `CircuitElm` subclasses overriding `delete()`
+
+### Description
+An element that overrides `delete()` must call `super.delete()`. `CircuitElm.delete()` clears the editor's mouse-element reference and removes the element's adjustables and Sliders-dialog rows (`AdjustableManager.deleteSliders`); skipping it leaves stale sliders bound to a deleted element.
+
+### Examples
+**Correct:**
+```java
+public void delete() {
+    releaseResources();
+    super.delete();
+}
+```
+**Incorrect:**
+```java
+public void delete() {
+    releaseResources();   // adjustables of this element survive the delete
+}
+```
+
+### Rationale
+Found 2026-09-30 (BL-A06): `LDRElm` and `ThermistorNTCElm` overrode `delete()` without the super call, so their slider cleanup never ran.
+
+---
+
+## Rule: ElementControlsThroughAdjustableManager
+
+**Category:** structure
+**Severity:** should
+**Applies to:** element classes that need an on-screen control (slider, button)
+
+### Description
+Elements do not add widgets to session dialogs themselves. A value the user should always be able to drag is exposed as an edit item and declared through `HasBuiltInSlider`; a button-like control is returned from `HasControlWidget.createControlWidget()`. `AdjustableManager` (per document) creates, rebuilds on load/paste/undo/tab switch, and removes these rows. The element's own field stays authoritative; never derive it back from a widget.
+
+### Examples
+**Correct:**
+```java
+public class PotElm extends CircuitElm implements HasBuiltInSlider {
+    public int getBuiltInSliderItem() { return EDIT_POSITION; }
+    public String getBuiltInSliderText() { return sliderText; }
+}
+```
+**Incorrect:**
+```java
+cirSim().controlsDialog.panel.add(slider = new Scrollbar(...));   // session widget, lost on tab switch
+position = slider.getValue() * .0099 + .005;                     // field re-derived from a widget
+```
+
+### Rationale
+Found 2026-09-30 (BL-A06): the old `CirSim.addWidgetToVerticalPanel` path was a silent no-op, so pot/LDR/NTC sliders and the audio "Play" button never appeared; widgets in session-scoped dialogs also leak across documents.

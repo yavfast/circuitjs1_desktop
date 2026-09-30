@@ -48,7 +48,7 @@ Produced payload grammar: `"0: <b0> <b1> … <bN-1>"` — single line, decimal b
 
     FUNCTION doLoad(s, t):
         doc = documentManager.getActiveDocument()
-        IF doc.elmList.isEmpty() AND !doc.unsavedChanges AND doc.fileName == null:
+        IF doc.elmList.isEmpty() AND !doc.circuitInfo.isModified() AND doc.fileName == null:
             reuse doc
         ELSE:
             doc = documentManager.createDocument()

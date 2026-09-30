@@ -49,14 +49,15 @@ Invariants:
 |-------|------|-------------|
 | documents | List<CircuitDocument> | never empty post-startup |
 | activeDocument | CircuitDocument | current tab |
-| closedTabsHistory | Stack<String> | dump strings |
+| closedTabsHistory | Stack<String> | dump strings; at most `MAX_CLOSED_TABS` (20), oldest dropped |
 | listeners | List<DocumentManagerListener> | tab bar hooks |
 | saveTimer | Timer | 1 s debounce |
 
 ### 01_03. CircuitInfo  {#SP_DOC_01_03}
 
 File identity: `filePath`, `fileName`, `lastFileName` (package-private strings).
-Flags (public booleans): `unsavedChanges`, `savedFlag`, `dcAnalysisFlag`,
+Modified state: private `modified`, read via `isModified()`, written via `setModified()` (UI code calls `CirSim.setUnsavedChanges`, which also refreshes title and tab marker). `DocumentManager.hasModifiedDocuments()` drives the unload prompt.
+Flags (public booleans): `dcAnalysisFlag`,
 `developerMode`, `showResistanceInVoltageSources`, `hideInfoBox`, `hideMenu`,
 `euroSetting`, `euroGates`, `printable`, `convention`, `euroRes`, `usRes`,
 `running`, `noEditing`, `mouseWheelEdit`.
@@ -90,7 +91,7 @@ Processing:
     activeDocument = doc
     doc.restoreUIState(mm, cirSim)
     notifyActiveDocumentChanged(doc)
-    cirSim.setUnsavedChanges(doc.circuitInfo.unsavedChanges)
+    cirSim.setUnsavedChanges(doc.circuitInfo.isModified())
     cirSim.needAnalyze()
     Timer(1 ms).run { canvas.setFocus(true) }
 
@@ -101,6 +102,7 @@ Processing:
     if tempSwitch: activeDocument = doc; cirSim.bindDocument(doc)
     dump = cirSim.actionManager.dumpCircuit()
     closedTabsHistory.push(dump)
+    trim closedTabsHistory to MAX_CLOSED_TABS (drop oldest)
     if tempSwitch: restore previous active via bindDocument
     doc.dispose()                     // stops SimulationLoop
     documents.remove(doc)
@@ -219,3 +221,4 @@ Tab selection: `[inactive] --setActiveDocument--> [active]`.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-09-30 | `unsavedChanges`/`savedFlag` merged into `CircuitInfo.modified`; undo depth cap 150; closed-tab history cap 20. |

@@ -110,6 +110,18 @@ rules:
     severity: should
     file: structure.md
     summary: Keep JSNI native methods concentrated in a small set of adapter files; do not sprinkle JSNI into element classes.
+  - id: RULE_STRUCT_009
+    title: Element delete chains to super
+    category: structure
+    severity: should
+    file: structure.md
+    summary: An element overriding delete() must call super.delete() (mouse-element reference, adjustables and Sliders-dialog rows).
+  - id: RULE_STRUCT_010
+    title: Element controls through AdjustableManager
+    category: structure
+    severity: should
+    file: structure.md
+    summary: Element sliders/buttons are declared via HasBuiltInSlider / HasControlWidget and managed per document by AdjustableManager; elements never add widgets to session dialogs or re-derive fields from widgets.
 
   # architecture
   - id: RULE_ARCH_001

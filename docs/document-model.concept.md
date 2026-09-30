@@ -66,7 +66,7 @@ local UI state — lives on the document object. The shell's
   `saveTimer` (1 s debounce).
 - **CircuitInfo** — `BaseCirSimDelegate` subclass. Three field groups:
   file identity (`filePath`, `fileName`, `lastFileName`), document
-  state flags (`unsavedChanges`, `dcAnalysisFlag`, `developerMode`,
+  state flags (modified state via `isModified()`, `dcAnalysisFlag`, `developerMode`,
   `showResistanceInVoltageSources`, `hideMenu`, `euroSetting`, …), and
   URL/startup options (`startCircuit`, `startLabel`, `startCircuitText`,
   `startCircuitLink`, color overrides, `mouseModeReq`).
