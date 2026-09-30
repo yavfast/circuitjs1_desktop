@@ -133,7 +133,7 @@ Log diagnostic messages through `BaseCirSim.log(String)` (`BaseCirSim.java:257-2
 
 The legacy `util/Log` class is **dormant** (0 active callers, `util.md`). Do not route new calls into it; it compiles but writes to `CirSim.console`/`GWT.log` only and bypasses `LogManager`.
 
-`System.out.println` is also out of bounds — `ChipElm.setVoltageSource(j,vs)` at `ChipElm.java:315` is an existing violation (`domain-core__element-base.md` issue #7) and should not be replicated.
+`System.out.println` / `printStackTrace()` are also out of bounds (the last live sites, incl. `ChipElm.setVoltageSource`, were removed 2026-09-30). `CirSim.console(...)` is the per-document channel; since 2026-09-30 it also feeds `LogManager`, so it satisfies this rule.
 
 ### Examples
 **Correct:**
@@ -145,7 +145,7 @@ logManager.logWarning("gmin ramp engaged at subIter=" + subIterations);
 ```
 **Incorrect:**
 ```java
-System.out.println("setVoltageSource failed for " + this);   // ChipElm.java:315 — legacy violation
+System.out.println("setVoltageSource failed for " + this);   // bypasses LogManager
 GWT.log("debug: " + x);                                      // skips LogManager
 ```
 

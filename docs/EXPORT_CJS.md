@@ -2,6 +2,16 @@
 
 Цей документ описує концепцію нового, зрозумілого формату експорту схем у форматі JSON, який не потребує додаткової документації для розуміння.
 
+> **Відповідність реалізації (перевірено 2026-09-30, аудит PL_AUDIT_20260930_173830).** Приклади нижче — концепція; частину полів і назв типів реалізація не приймає. Авторитетними є `JsonCircuitExporter` / `JsonCircuitImporter` / `CircuitElementFactory`:
+>
+> - `schema` **обов'язково** містить `"format": "circuitjs"` і `"version"`, що починається з `"2."` — інакше імпорт відхиляється.
+> - `simulation`: `time_step`, `min_time_step`, `voltage_range` (рядки з одиницями SI), `simulation_speed`, `current_speed`, `power_brightness` (позиції повзунків), `auto_time_step`, `display` {`show_dots`, `show_voltage`, `show_power`, `show_values`, `small_grid`}, необов'язковий `hint` {`type`, `item1`, `item2`}. Поля `max_time_step`, `options`, `iteration_count` не читаються.
+> - `type` елемента — ключ реєстру `CircuitElementFactory` (повний список — `CircuitElementFactory.getAllJsonTypeNames()`); назви на кшталт `DCVoltageSource`, `PolarizedCapacitor`, `NMOSFET`, `PNP`, `TextLabel` не зареєстровані.
+> - `_flags` записується завжди (відсутність означає «прапорці конструктора за замовчуванням»); кожна властивість із `properties` читається назад тим самим елементом.
+> - Числа з одиницями записуються без втрат (`UnitParser.parse` повертає рівно збережене значення), не залежать від налаштування точності відображення; `u` — мікро, `f` — фемто.
+> - Списки в `state`/`properties` — масиви JSON; `bounds` — лише довідкова рамка, геометрію елемента задають піни.
+> - `scopes[].label` — підпис осцилографа; `adjustables[].shared_slider` — індекс спільного повзунка; визначення моделей (діоди, транзистори, custom logic, підсхеми) у JSON поки не зберігаються.
+
 ## Основні принципи
 
 1. **Самодокументований формат** — кожен параметр має зрозумілу назву

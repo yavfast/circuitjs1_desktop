@@ -16,11 +16,11 @@
 **Applies to:** any change that touches Java sources
 
 ### Description
-Run `npm run check` before committing. It runs the GWT compile (via `mvn gwt:compile`) and surfaces compilation errors early. A clean compile is the minimum bar.
+Run the GWT compile before committing: `npm run buildgwt` (Maven `gwt:compile` into `target/site/`). A clean compile is the minimum bar. `mvn -o -q compile` is a faster javac-level pre-check but misses GWT translation errors. Note: `npm run check` does **not** compile — it only reports the timestamps of existing build outputs.
 
 ### Examples
 ```bash
-npm run check   # runs the Maven GWT compile
+npm run buildgwt   # GWT compile; must end with BUILD SUCCESS
 ```
 
 ### Rationale
@@ -44,6 +44,20 @@ Observe: does the circuit run without `stopMessage`? Does Reset (`BaseCirSim.res
 
 ### Rationale
 Simulator changes have non-local effects. The non-convergence escalator (commit `fb4ee85`) can mask regressions by silently force-advancing time — visual inspection of a known-good circuit is the cheapest detector.
+
+---
+
+## Rule: LiveHarnessForIoAndEditorChanges
+
+**Category:** testing
+**Severity:** should
+**Applies to:** changes to `io/**`, `CircuitElmCreator`, `CircuitElementFactory`, element `dump()`/JSON methods, `UndoManager`, `CircuitEditor` copy/paste, `CircuitElm.dumpValue`/number formatting
+
+### Description
+After `npm run buildgwt`, run `npm run test:live` (`tests/live/harness.mjs`). It drives the compiled build headlessly: undo/redo, paste/duplicate, text-format fidelity (raw file vs text export, number by number), text↔JSON roundtrip (`CIRCUITS=all` for the whole example corpus, `JSON_STATE=1` to include simulation state) and one element of every JSON type. Compare the result with the previous run; the README lists the accepted residual differences.
+
+### Rationale
+The 2026-09-30 audit found undo loading an empty circuit, paste dropping an element, JSON import resetting parameters/geometry of most element types, and a text writer rounding every value — none visible to a compile or an element-count check, all caught by this harness.
 
 ---
 

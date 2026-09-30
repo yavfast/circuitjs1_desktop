@@ -196,7 +196,7 @@ Hardcoded colors break in dark mode and printable export. `ColorSettings` is the
 **Applies to:** diagnostic output
 
 ### Description
-Do not use `System.out.println`, `System.err.println`, `GWT.log` for new diagnostic code. Route through `cirSim.log(...)` → `LogManager` (see `error-handling.md` → `LogViaLogManager`). The legacy violation at `ChipElm.java:315` is grandfathered.
+Do not use `System.out.println`, `System.err.println`, `GWT.log` for new diagnostic code. Route through `cirSim.log(...)` → `LogManager` (see `error-handling.md` → `LogViaLogManager`). (The last legacy `System.out` sites were removed 2026-09-30.)
 
 ### Examples
 **Correct:**
@@ -206,3 +206,50 @@ cirSim.log("stamp: v=" + v + " n=" + n);
 
 ### Rationale
 `LogManager` is the UI-visible log pipeline; anything outside it is invisible to user bug reports.
+
+## Rule: NamedFlagBitsSingleDefinition
+
+**Category:** style
+**Severity:** should
+**Applies to:** bit-flag values used in serialization, import options and element/scope flags
+
+### Description
+A bit-flag value is written as a named constant (`FLAG_*`, `RC_*`, …), never as a raw literal (`1`, `2`, `4`, `64`) in bit operations, and each named flag is defined **once**. Code that needs the same flags imports that single definition instead of declaring a parallel set.
+
+### Examples
+**Correct:**
+```java
+readCircuit(dump, CircuitConst.RC_NO_CENTER);            // one definition, used by callers and importers alike
+```
+**Incorrect:**
+```java
+interface CircuitImporter { int RC_SUBCIRCUITS = 2; }    // same name as CircuitConst.RC_SUBCIRCUITS = 4 → callers and importer disagree
+if ((f & 64) != 0) ...                                     // raw literal
+```
+
+### Rationale
+Two definitions of the same flag names with different values made undo/redo and paste reinterpret their flags (PL_AUDIT_20260930_173830 CF-01); raw literals in the `$` options line and `Scope` flags hide the same class of drift. Element code already follows this (115 `FLAG_*` constants, no raw bit literals).
+
+## Rule: LosslessSerializedNumbers
+
+**Category:** style
+**Severity:** should
+**Applies to:** text dump (`dump()`, `dumpValues`, `dumpValue`), JSON export (`getJsonProperties`, `getJsonState`, `JsonCircuitExporter`)
+
+### Description
+Numbers written to a save format (text dump — also the undo and clipboard format — and JSON) must parse back to exactly the same `double`. Use `CircuitElm.dumpValue(double)` for the text dump and `CircuitElm.getJsonUnitText(v, unit)` for JSON values with units. Never use display formatters (`getUnitText`, `formatNumber`, `NumberFormat` with a fixed pattern) for serialization: their precision follows the display settings or a fixed number of decimals.
+
+### Examples
+**Correct:**
+```java
+return dumpValues(super.dump(), capacitance, voltDiff);            // dumpValue(double) is lossless
+props.put("capacitance", getJsonUnitText(capacitance, "F"));
+```
+**Incorrect:**
+```java
+props.put("capacitance", getUnitText(capacitance, "F"));           // display precision (3 digits by default)
+return formatNumber(v, 4, false);                                  // 4 decimals: 1.5e-4 -> "0.0002"
+```
+
+### Rationale
+Until 2026-09-30 the text writer rounded every value to 4 decimals / 6 digits and lost the sign of values in (-1, 0); JSON used the display formatter. Every save, undo step and paste silently changed circuits. `npm run test:live textfid` / `roundtrip` detect a regression (PL_AUDIT_20260930_173830).

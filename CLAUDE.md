@@ -30,7 +30,7 @@ There is **no JUnit suite** wired into the build. Functional testing is done in-
 ## Architecture
 
 ### Compilation & layering
-Java in `src/main/java/com/lushprojects/circuitjs1/client/` → GWT → JS. Static web assets (HTML, CSS, help, fonts, example circuits) live under `client/public/` and `war/`. The Java/JS boundary is crossed only through clustered `native` JSNI methods (entry point, `CirSim` `$wnd.CircuitJS1.*` bridge, `ClipboardManager`, `LoadFile`, `LogManager`, audio elements) — **do not sprinkle JSNI into element/domain classes.**
+Java in `src/main/java/com/lushprojects/circuitjs1/client/` → GWT → JS. Static web assets (HTML, CSS, help, fonts, example circuits) live under `src/main/java/com/lushprojects/circuitjs1/public/` and `war/`. The Java/JS boundary is crossed only through clustered `native` JSNI methods (entry point, `CirSim` `$wnd.CircuitJS1.*` bridge, `ClipboardManager`, `LoadFile`, `LogManager`, audio elements) — **do not sprinkle JSNI into element/domain classes.**
 
 Package layering (enforced by convention, not tooling — see `.dev_flow/rules/architecture.md`):
 - **L0** — `client/util/` + root primitives (`Point`, `Rectangle`, `Polygon`, `Graphics`, `Color`, `StringTokenizer`). Stateless.
@@ -66,11 +66,13 @@ Element parameter UI is exposed via the `Editable` contract — `getEditInfo(n)`
 Reusable, named, serializable parameter sets (diode physics, transistor Gummel-Poon coefficients, custom logic truth tables, composite subcircuits) become a `*Model` class with a global registry; one-off instance values stay as element fields.
 
 ### File formats
-`io/CircuitFormatRegistry` is the single dispatch point. Concrete formats (`io/text/TextCircuitFormat`, `io/json/JsonCircuitFormat`) **self-register via a static initializer** — the registry never imports them. The text format is the legacy `.txt` "dump" encoding (default, `DEFAULT_FORMAT_ID = "text"`); JSON is the modern self-describing schema. See `docs/EXPORT_OLD.md` and `docs/EXPORT_CJS.md`.
+`io/CircuitFormatRegistry` is the single dispatch point. Concrete formats (`io/text/TextCircuitFormat`, `io/json/JsonCircuitFormat`) are **registered centrally in the registry's own static block**, in detection order — a static initializer inside a format class would never run under GWT (RULE_ARCH_004). The text format is the legacy `.txt` "dump" encoding (default, `DEFAULT_FORMAT_ID = "text"`); JSON is the modern self-describing schema. See `docs/EXPORT_OLD.md` and `docs/EXPORT_CJS.md`.
 
 ## Testing
 
-Built-in example circuits live in `src/main/java/com/lushprojects/circuitjs1/client/public/circuits` (served at `/circuits/...`). They are the baseline corpus for manual checks and import/export roundtrip tests.
+Built-in example circuits live in `src/main/java/com/lushprojects/circuitjs1/public/circuits` (served at `circuitjs1/circuits/...`, i.e. `GWT.getModuleBaseURL() + "circuits/"`). They are the baseline corpus for manual checks and import/export roundtrip tests.
+
+`tests/live/harness.mjs` (`npm run test:live`, after `npm run buildgwt`) drives the compiled build in headless Chromium: undo/redo, paste/duplicate, text-format fidelity, text↔JSON roundtrip over the example corpus, and one element of every JSON type. See `tests/live/README.md`.
 
 `tests/json_roundtrip_test.js` loads each example as text → export JSON → clear → import JSON → export text → diff. It runs in the browser DevTools console (`await runJsonRoundtripTests()`) or via remote-debug automation, driving the app through its JS API. The JS automation API (import/export, simulation control, scopes, logs) is documented in `docs/JS_API.md`. The remote-debug harness for NW.js is in `server/` (`remote-debug-server.js`, `scripts/open_web_dbg.sh`).
 

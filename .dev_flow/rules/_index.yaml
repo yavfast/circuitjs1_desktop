@@ -91,7 +91,7 @@ rules:
     category: structure
     severity: must
     file: structure.md
-    summary: *Model classes follow the static modelMap + getModelWithName[OrCopy] + dump-prefix + builtIn/dumped pattern.
+    summary: "*Model classes follow the static modelMap + getModelWithName[OrCopy] + dump-prefix + builtIn/dumped pattern."
   - id: RULE_STRUCT_006
     title: Singleton/manager pattern
     category: structure
@@ -131,11 +131,11 @@ rules:
     file: architecture.md
     summary: Elements reach dialog UI only through the Editable/EditInfo contract and DialogManager; do not new up *Dialog types directly.
   - id: RULE_ARCH_004
-    title: IO format self-registration
+    title: IO format registration in CircuitFormatRegistry
     category: architecture
     severity: must
     file: architecture.md
-    summary: New circuit formats register with CircuitFormatRegistry via a static initialiser block.
+    summary: New circuit formats are added to CircuitFormatRegistry's own static block (central, ordered); a static initialiser in the format class never runs under GWT.
   - id: RULE_ARCH_005
     title: Element creation through factory
     category: architecture
@@ -166,6 +166,13 @@ rules:
     severity: should
     file: architecture.md
     summary: Every name getJsonTypeName() can emit (incl. ternary branches and inherited overrides) must be a registered CircuitElementFactory key, else the element is silently dropped on JSON import; add register("<emittedName>", Ctor::new) when adding/renaming. [BL-DROP]
+
+  - id: RULE_ARCH_010
+    title: JSON properties round-trip
+    category: architecture
+    severity: should
+    file: architecture.md
+    summary: Every key an element writes in getJsonProperties() must be read back in applyJsonProperties() (same class or owning superclass) with the ctor default and setEditValue clamps; the base apply is a no-op, so export-only keys silently reset on JSON import. [PL_AUDIT_20260930_173830]
 
   # error-handling
   - id: RULE_ERR_001
@@ -253,7 +260,20 @@ rules:
     category: style
     severity: must
     file: style.md
-    summary: Route diagnostic output through cirSim.log/LogManager; ChipElm.setVoltageSource System.out violation is legacy.
+    summary: Route diagnostic output through cirSim.log / CirSim.console (both reach LogManager); no System.out, printStackTrace or raw GWT.log.
+
+  - id: RULE_STYLE_009
+    title: Named flag bits, single definition
+    category: style
+    severity: should
+    file: style.md
+    summary: Bit flags are named constants (FLAG_*, RC_*), never raw literals in bit ops, and each flag set is defined once and imported — parallel definitions with different values break callers. [PL_AUDIT_20260930_173830]
+  - id: RULE_STYLE_010
+    title: Lossless serialized numbers
+    category: style
+    severity: should
+    file: style.md
+    summary: Save-format numbers (text dump, undo, clipboard, JSON) must parse back exactly — use dumpValue / getJsonUnitText, never display formatters. [PL_AUDIT_20260930_173830]
 
   # testing
   - id: RULE_TEST_001
@@ -261,7 +281,7 @@ rules:
     category: testing
     severity: should
     file: testing.md
-    summary: Run npm run check (GWT compile) before committing Java changes.
+    summary: Run npm run buildgwt (GWT compile) before committing Java changes; npm run check only lists output timestamps.
   - id: RULE_TEST_002
     title: Devmode verification for simulator changes
     category: testing
@@ -286,3 +306,9 @@ rules:
     severity: should
     file: testing.md
     summary: Manually verify interaction/editor/undo flows in devmode; compile alone is insufficient.
+  - id: RULE_TEST_006
+    title: Live harness for IO and editor changes
+    category: testing
+    severity: should
+    file: testing.md
+    summary: After npm run buildgwt, run npm run test:live (tests/live/harness.mjs) for io/element-serialization/undo/paste changes; compare with the previous run.

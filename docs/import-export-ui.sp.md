@@ -52,7 +52,7 @@
 
 ### 01_04. Protocol constants  {#SP_IEU_01_04}
 
-- `ActionManager.importCircuitFromText` flag bits: `RC_RETAIN = 1`, `RC_SUBCIRCUITS = 2`. Combined = 3 (merge subcircuits only into live document).
+- `ActionManager.importCircuitFromText` flag bits (`CircuitConst`): `RC_RETAIN = 1`, `RC_SUBCIRCUITS = 4`. Combined = 5 (merge subcircuits only into live document).
 - Image filename prefix: `"circuit-"`; timestamp `yyyyMMdd-HHmm`.
 - Local-file prefix: `"circuitjs-"`; timestamp `yyyyMMdd-HHmmss`.
 - URL template: `https://www.falstad.com/circuit/circuitjs.html?ctz=<compressed>` (2000-char UX limit).
@@ -252,7 +252,7 @@ idle ──menu action──▶ dumpCircuit(formatId) ──▶ dialog open with
 
 ## 06. Constants  {#SP_IEU_06}
 
-- `ActionManager.RC_RETAIN = 1`, `RC_SUBCIRCUITS = 2`.
+- `CircuitConst.RC_RETAIN = 1`, `CircuitConst.RC_SUBCIRCUITS = 4` (single definition; `io/CircuitImporter` aliases it).
 - `CirSim.CAC_IMAGE`, `CirSim.CAC_SVG` (image dialog mode).
 - `SliderDialog.TEXTAREA_JSON = 500×400`, `TEXT = 400×300`, `URL = 400×300`, `IMPORT_FROM_TEXT = 300×200`, `DROPBOX = 300×200` (per-dialog pixel dims).
 - EditDialogLoadFile DOM id: `"EditDialogLoadFileElement"` (inherited from C_EIC).

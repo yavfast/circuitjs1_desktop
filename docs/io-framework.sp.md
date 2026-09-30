@@ -57,11 +57,11 @@ Invariants:
 | Name | Value | Meaning |
 |------|------:|---------|
 | RC_RETAIN | 1 | Keep current elements/state (paste / merge) |
-| RC_SUBCIRCUITS | 2 | Parse only composite-model (`.`) definitions |
-| RC_NO_CENTER | 4 | Do not recentre viewport after load |
+| RC_NO_CENTER | 2 | Do not recentre viewport after load |
+| RC_SUBCIRCUITS | 4 | Parse only composite-model (`.`) definitions |
 | RC_KEEP_TITLE | 8 | Preserve document title |
 
-Duplicated constant: `CircuitConst.RC_RETAIN` = `CircuitImporter.RC_RETAIN` = 1. No shared source-of-truth (flagged).
+Single source of truth: `CircuitConst.RC_*`; `CircuitImporter.RC_*` are aliases of it. (Until 2026-09-30 `CircuitImporter` declared its own values with `RC_SUBCIRCUITS`/`RC_NO_CENTER` swapped, so undo/redo loaded an empty circuit and paste added nothing — audit PL_AUDIT_20260930_173830 ITEM-01.)
 
 ### 01_04. JSON document schema (v2.0)  {#SP_IOF_01_04}
 

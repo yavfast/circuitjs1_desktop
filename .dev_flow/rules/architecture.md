@@ -102,20 +102,25 @@ new EditDialog(this, cirSim).show();   // bypasses DialogManager tracking
 **Applies to:** new circuit file-format implementations
 
 ### Description
-Concrete circuit file formats register themselves with `CircuitFormatRegistry` via a static initialiser block (see `io-framework.md`). The registry is the single dispatch point for `io/text/*` and `io/json/*`; new formats plug in without the registry importing them directly.
+Every concrete circuit file format is registered with `CircuitFormatRegistry`, the single dispatch point for `io/text/*` and `io/json/*`. Registration happens **centrally in the registry's own static block** (`CircuitFormatRegistry.java`, which imports each format and calls `register(...)` in detection order: text first, JSON second). A static initialiser inside the format class does **not** work under GWT: a class's static initialiser only runs when the class is first referenced, and nothing references a new format until it is registered, so such a format would silently never be available. *(Corrected 2026-09-30, audit PL_AUDIT_20260930_173830 ITEM-14: the earlier text prescribed self-registration, which contradicts the working code.)*
 
 ### Examples
 **Correct:**
 ```java
-// io/text/TextCircuitFormat.java (pattern)
+// io/CircuitFormatRegistry.java
 static {
-    CircuitFormatRegistry.register(new TextCircuitFormat());
+    register(new TextCircuitFormat());   // detection order matters
+    register(new JsonCircuitFormat());
 }
+```
+**Incorrect:**
+```java
+// io/foo/FooCircuitFormat.java
+static { CircuitFormatRegistry.register(new FooCircuitFormat()); }   // never runs: class not referenced
 ```
 
 ### Rationale
-Static registration keeps `CircuitFormatRegistry` free of upstream imports (it does not need to know about each format's concrete type); removes an otherwise-inevitable L2 cycle.
-
+One explicit list keeps the set and the detection order of formats visible in one place and guarantees the formats are loaded. The registry → format import is the accepted direction (the formats depend on the `io` interfaces, the registry on the concrete formats).
 ---
 
 ## Rule: ElementCreationThroughFactory
@@ -253,4 +258,30 @@ public String getJsonTypeName() { return "Darlington"; }   // emitted name unreg
 A static check that extracts all string literals from each `getJsonTypeName()` body and diffs them against the `register("...")` keys must report no unregistered emitted name. This drift silently dropped ~27 element types (BL-DROP, fixed 2026-06-21).
 
 ### Rationale
-The export name and the import key are two ends of one contract maintained in two files; they drift apart silently. The failure is invisible until a user loads a saved JSON circuit and finds elements missing. Relates to RULE_ARCH_004 (format self-registration), RULE_ARCH_005 (creation through factory), RULE_NAMING_010 (JSON type name).
+The export name and the import key are two ends of one contract maintained in two files; they drift apart silently. The failure is invisible until a user loads a saved JSON circuit and finds elements missing. Relates to RULE_ARCH_004 (format registration), RULE_ARCH_005 (creation through factory), RULE_NAMING_010 (JSON type name).
+
+## Rule: JsonPropertiesRoundTrip
+
+**Category:** architecture
+**Severity:** should
+**Applies to:** every `CircuitElm` subclass that overrides `getJsonProperties()`
+
+### Description
+`CircuitElementFactory.createFromJson` builds an element with the `(document, x, y)` constructor and then calls `elm.applyJsonProperties(props)`; the base implementation (`CircuitElm.applyJsonProperties`) is a no-op. Therefore every key an element writes in `getJsonProperties()` MUST be read back in `applyJsonProperties()` of the same class (or of a superclass that owns the key), using the constructor's default and the same clamps `setEditValue` applies. A key that is exported but not applied is silently reset to its default on JSON import — no exception, element count unchanged.
+
+### Examples
+**Correct:**
+```java
+public Map<String, Object> getJsonProperties() { Map<String, Object> p = super.getJsonProperties(); p.put("label", text); return p; }
+public void applyJsonProperties(Map<String, Object> p) { super.applyJsonProperties(p); text = getJsonString(p, "label", text); }
+```
+**Incorrect:**
+```java
+public Map<String, Object> getJsonProperties() { ...; p.put("label", text); return p; }   // no applyJsonProperties → every label imports as "label"
+```
+
+### Verification
+A static check that diffs, per class chain, the keys `put` in `getJsonProperties` against the keys read in `applyJsonProperties` must report no export-only key; the JSON roundtrip must compare properties, not only element counts. At the 2026-09-30 audit 69 classes violated this (PL_AUDIT_20260930_173830 ITEM-03).
+
+### Rationale
+Export and import of one property are two halves of one contract written in two methods; nothing ties them together, and an element-count roundtrip does not notice the loss. Lens proposal was `must`; kept at `should` (never an auto-`must`) pending independent review. Relates to RULE_ARCH_009 (type name ↔ factory key), RULE_ERR_003 (importer skip-and-log).

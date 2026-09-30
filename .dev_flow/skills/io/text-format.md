@@ -3,7 +3,7 @@ skill: text-format
 domain: io
 topics: [falstad, text-format, dump-type, options-line, scope-line, hint-line]
 source: onboard
-updated: 2026-04-18
+updated: 2026-09-30
 ---
 
 # Legacy Text Format
@@ -105,7 +105,7 @@ subcircuit mode, `AudioInputElm.clearCache()`,
    append via `dumpValues(...)`.
 3. Add a case to `CircuitElmCreator.createCe(...)` to construct the
    element from the tokenizer.
-4. Round-trip verify with `npm run check` + `RULE_TEST_003`.
+4. Round-trip verify with `npm run buildgwt` + `npm run test:live` (RULE_TEST_006).
 
 ## Pitfalls
 
@@ -128,6 +128,9 @@ subcircuit mode, `AudioInputElm.clearCache()`,
    update the count does not throw; fields just read as defaults.
 6. **Do not log via `System.out` or `GWT.log`** (RULE_STYLE_008,
    RULE_ERR_005) — route through `cirSim.log` / `LogManager`.
+
+7. **Numbers in the dump must be lossless.** `CircuitElm.dumpValue(double)` writes whole numbers as integers and everything else with `Double.toString` (shortest round-trip form). Until 2026-09-30 it rounded to 4 decimals / 6 digits and `formatNumber` dropped the sign of values in (-1, 0) — every save, undo step and paste corrupted values. `npm run test:live textfid` checks this.
+8. **The options line needs its own newline.** `ActionManager.dumpOptions()` returns `$ …` without `\n`; a caller that appends element lines must add it (the copy/duplicate path glued the first element onto the options line and dropped it).
 
 ## References
 

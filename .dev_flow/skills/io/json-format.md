@@ -3,7 +3,7 @@ skill: json-format
 domain: io
 topics: [json, schema-v2, circuit-element-factory, unit-parser, bounds, auto-wires]
 source: onboard
-updated: 2026-04-18
+updated: 2026-09-30
 ---
 
 # JSON v2.0 Format
@@ -99,10 +99,7 @@ with `"2."`. No semver range; future `3.x` rejects.
 
 ## Pitfalls
 
-1. **Adjustables lose `current_value` on round-trip.** Comment at
-   `JsonCircuitImporter.java:812`: sliders are created after adjustable
-   parsing and take their defaults; the loaded `current_value` is
-   silently dropped. Document or fix.
+1. **Every exported property must be applied back** (RULE_ARCH_010). The factory builds elements with the `(doc, x, y)` constructor and then calls `applyJsonProperties`; the base is a no-op. Until 2026-09-30 ~70 classes exported keys nobody read (labeled-node names, chip bits, expressions, model names). A static "has an apply override" check is not enough — single keys can still be missed; verify with `npm run test:live` roundtrip. (`current_value` of adjustables needs no restore: the slider takes the element's restored value.)
 2. **Auto-wire non-idempotency.** A circuit with two elements sharing
    a pin location via `connected_to` but **no explicit wire** imports
    with a synthetic wire, re-exports *with* the wire. Re-importing is
@@ -122,17 +119,15 @@ with `"2."`. No semver range; future `3.x` rejects.
    the parser is not round-trip with arbitrary strings.
 6. **Schema validation has no forward-compat.** `"3.0"` is rejected.
    When bumping major, provide a converter.
-7. **Bounds restoration runs twice** — once during element creation,
-   once post-finalise (L483-510) — do not rely on `getBoundingBox()`
-   between those steps.
+7. **`bounds` are not endpoints.** They are the bounding box (informational). Writing them into `setEndpoints` turned every element into its box diagonal and disconnected the circuit (fixed 2026-09-30); geometry comes from the pins / `_startpoint` / `_endpoint`.
 8. **Detection order** puts text before JSON in
    `CircuitFormatRegistry.detectFormat` (LinkedHashMap order). JSON
    blobs start with `{`, text's `canImport` rejects that prefix, so the
    fallback is benign — but do not reorder registration without
    verifying.
-9. **Do not use `CircuitConst.RC_RETAIN` vs `CircuitImporter.RC_RETAIN`
-   inconsistently** — both are `1`, but there is no shared declaration
-   (issue #7). Pick one in new code.
+9. **Import flags have one definition: `CircuitConst.RC_*`** (`CircuitImporter.RC_*` alias it). A second set with `RC_NO_CENTER`/`RC_SUBCIRCUITS` swapped made undo load an empty circuit (fixed 2026-09-30).
+10. **Values are serialized losslessly** with `CircuitElm.getJsonUnitText` (not the display `getUnitText`, whose precision follows the display setting). `_flags` is always written. Lists are JSON arrays and arrive as `java.util.List`.
+11. **Pin keys in `state` must be unique** — chips name Q and Q-bar both "Q"; keys get a `~` (line-over) prefix and a `_<index>` suffix on collision.
 
 ## References
 
