@@ -21,9 +21,12 @@ package com.lushprojects.circuitjs1.client.io.json;
 
 import com.google.gwt.json.client.*;
 import com.lushprojects.circuitjs1.client.*;
+import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
+import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
+import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -67,15 +70,26 @@ public class JsonCircuitImporter implements CircuitImporter {
                 return;
             }
 
-            // Reset circuit state unless retaining (same as TextCircuitImporter)
+            // Reset circuit state unless retaining (shared with TextCircuitImporter)
             if ((flags & CircuitConst.RC_RETAIN) == 0) {
-                resetCircuitState(document);
+                ImportLifecycle.resetCircuitState(document);
             }
 
             importedElements = new HashMap<>();
 
-            // 1. Parse simulation parameters
-            parseSimulation(root, document);
+            // "Import subcircuits only" takes model definitions and nothing else (text: '.'
+            // lines). The JSON format carries no model definitions yet, so there is nothing
+            // to merge.
+            if ((flags & CircuitConst.RC_SUBCIRCUITS) != 0) {
+                CirSim.console("JSON import: no subcircuit definitions in JSON format; nothing imported");
+                return;
+            }
+
+            // 1. Parse simulation parameters (a paste keeps the current document settings,
+            // as the text importer does)
+            if ((flags & CircuitConst.RC_RETAIN) == 0) {
+                parseSimulation(root, document);
+            }
 
             // 2. Parse elements
             int elementCount = parseElements(root, document);
@@ -89,11 +103,9 @@ public class JsonCircuitImporter implements CircuitImporter {
             // 5. Parse adjustables
             int adjustableCount = parseAdjustables(root, document);
 
-            // 6. Create UI sliders for adjustables
-            document.adjustableManager.createSliders();
-
-            // 7. Notify document that import is complete
-            document.getCirSim().needAnalyze();
+            // 6-7. Shared post-processing (sliders, analysis, models, caches). Centring waits
+            // until the explicit bounds below have been re-applied.
+            ImportLifecycle.finalizeCircuitLoading(document, flags | CircuitConst.RC_NO_CENTER);
 
             // 8. Re-apply explicit element bounds from JSON after analysis to preserve
             // exact geometry
@@ -112,7 +124,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                         JSONValue tv = b.get("top");
                         JSONValue rv = b.get("right");
                         JSONValue bv = b.get("bottom");
-                        if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null) {
+                        if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null
+                        && tv.isNumber() != null && rv.isNumber() != null && bv.isNumber() != null) {
                             CircuitElm elm = importedElements.get(elementId);
                             if (elm != null) {
                                 try {
@@ -120,10 +133,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                                     int top = (int) tv.isNumber().doubleValue();
                                     int right = (int) rv.isNumber().doubleValue();
                                     int bottom = (int) bv.isNumber().doubleValue();
-                                    // Re-apply bounds and coords after analysis
-                                    elm.setEndpoints(left, top, right, bottom);
-                                        // Endpoints changed after finalizeJsonImport(); recompute derived geometry.
-                                        elm.setPoints();
+                                    // Re-apply the bounding box after analysis (geometry itself comes
+                                    // from the pins; bounds are not endpoints)
                                     elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
                                             new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                                 } catch (Exception e) {
@@ -136,38 +147,16 @@ public class JsonCircuitImporter implements CircuitImporter {
                 }
             }
 
+            if ((flags & CircuitConst.RC_NO_CENTER) == 0) {
+                document.getRenderer().centreCircuit();
+            }
+
             CirSim.console("JSON import: " + elementCount + " elements, " + wireCount + " auto-wires, " +
                     scopeCount + " scopes, " + adjustableCount + " adjustables");
 
         } catch (Exception e) {
-            CirSim.console("JSON import error: " + e.getMessage());
-            e.printStackTrace();
+            CirSim.console("JSON import error: " + e);
         }
-    }
-
-    /**
-     * Reset circuit state before import (similar to TextCircuitImporter).
-     */
-    private void resetCircuitState(CircuitDocument document) {
-        CircuitSimulator simulator = document.simulator;
-        CircuitEditor circuitEditor = document.circuitEditor;
-        ScopeManager scopeManager = document.scopeManager;
-
-        // Clear existing elements
-        circuitEditor.clearMouseElm();
-        for (int i = 0; i < simulator.elmList.size(); i++) {
-            CircuitElm element = simulator.elmList.get(i);
-            element.delete();
-        }
-
-        // Reset simulation parameters
-        simulator.t = simulator.timeStepAccum = 0;
-        simulator.elmList.clear();
-        document.adjustableManager.reset();
-        simulator.lastIterTime = 0;
-
-        // Reset scope count
-        scopeManager.setScopeCount(0);
     }
 
     private void parseSimulation(JSONObject root, CircuitDocument document) {
@@ -181,22 +170,34 @@ public class JsonCircuitImporter implements CircuitImporter {
         CirSim cirSim = document.getCirSim();
         MenuManager menuManager = cirSim.menuManager;
 
-        // Time step
+        // Time step (same effect as the text options line: current and max step, UI bar)
         JSONValue timeStepValue = sim.get("time_step");
         if (timeStepValue != null) {
+            double ts = 0;
             if (timeStepValue.isString() != null) {
-                simulator.maxTimeStep = UnitParser.parse(timeStepValue.isString().stringValue());
+                ts = UnitParser.parse(timeStepValue.isString().stringValue());
             } else if (timeStepValue.isNumber() != null) {
-                simulator.maxTimeStep = timeStepValue.isNumber().doubleValue();
+                ts = timeStepValue.isNumber().doubleValue();
+            }
+            if (ts > 0) {
+                simulator.maxTimeStep = simulator.timeStep = ts;
+                cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(ts));
+                cirSim.controlsDialog.updateTimeStepLabel();
+            } else {
+                CirSim.console("JSON import: ignoring invalid time_step " + timeStepValue);
             }
         }
 
         JSONValue minTimeStepValue = sim.get("min_time_step");
         if (minTimeStepValue != null) {
+            double mts = 0;
             if (minTimeStepValue.isString() != null) {
-                simulator.minTimeStep = UnitParser.parse(minTimeStepValue.isString().stringValue());
+                mts = UnitParser.parse(minTimeStepValue.isString().stringValue());
             } else if (minTimeStepValue.isNumber() != null) {
-                simulator.minTimeStep = minTimeStepValue.isNumber().doubleValue();
+                mts = minTimeStepValue.isNumber().doubleValue();
+            }
+            if (mts > 0) {
+                simulator.minTimeStep = mts;
             }
         }
 
@@ -211,6 +212,10 @@ public class JsonCircuitImporter implements CircuitImporter {
         }
 
         // Speed settings
+        JSONValue simSpeedValue = sim.get("simulation_speed");
+        if (simSpeedValue != null && simSpeedValue.isNumber() != null && cirSim.speedBar != null) {
+            cirSim.speedBar.setValue((int) simSpeedValue.isNumber().doubleValue());
+        }
         JSONValue currentSpeedValue = sim.get("current_speed");
         if (currentSpeedValue != null && currentSpeedValue.isNumber() != null && cirSim.currentBar != null) {
             cirSim.currentBar.setValue((int) currentSpeedValue.isNumber().doubleValue());
@@ -219,6 +224,16 @@ public class JsonCircuitImporter implements CircuitImporter {
         JSONValue powerBrightnessValue = sim.get("power_brightness");
         if (powerBrightnessValue != null && powerBrightnessValue.isNumber() != null && cirSim.powerBar != null) {
             cirSim.powerBar.setValue((int) powerBrightnessValue.isNumber().doubleValue());
+        }
+
+        // Circuit hint
+        JSONValue hintValue = sim.get("hint");
+        if (hintValue != null && hintValue.isObject() != null) {
+            JSONObject hint = hintValue.isObject();
+            CircuitRenderer renderer = document.getRenderer();
+            renderer.setHintType(getInt(hint, "type", -1));
+            renderer.setHintItem1(getInt(hint, "item1", 0));
+            renderer.setHintItem2(getInt(hint, "item2", 0));
         }
 
         // Auto time step
@@ -237,6 +252,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             setCheckItem(menuManager.powerCheckItem, display, "show_power");
             setCheckItem(menuManager.showValuesCheckItem, display, "show_values");
             setCheckItem(menuManager.smallGridCheckItem, display, "small_grid");
+            document.circuitEditor.setGrid();
         }
     }
 
@@ -249,24 +265,22 @@ public class JsonCircuitImporter implements CircuitImporter {
 
     private int parseElements(JSONObject root, CircuitDocument document) {
         JSONValue elementsValue = root.get("elements");
-        CirSim.console("parseElements: elementsValue=" + (elementsValue != null ? "exists" : "null"));
         if (elementsValue == null || elementsValue.isObject() == null) {
-            CirSim.console("parseElements: no elements object found");
             return 0;
         }
 
         JSONObject elements = elementsValue.isObject();
         int count = 0;
-        CirSim.console("parseElements: found " + elements.keySet().size() + " element keys");
+        int skipped = 0;
 
         for (String elementId : elements.keySet()) {
             // [audit ITEM-04 / CF-04] RULE_ERR_003: isolate a malformed element (skip + log),
             // never let one bad element abort the whole circuit import.
             try {
-            CirSim.console("parseElements: processing element '" + elementId + "'");
             JSONValue elementValue = elements.get(elementId);
             if (elementValue == null || elementValue.isObject() == null) {
-                CirSim.console("parseElements: element '" + elementId + "' value is null or not object");
+                CirSim.console("JSON import: element '" + elementId + "' is not an object");
+                skipped++;
                 continue;
             }
 
@@ -276,19 +290,17 @@ public class JsonCircuitImporter implements CircuitImporter {
             JSONValue typeValue = elementJson.get("type");
             if (typeValue == null || typeValue.isString() == null) {
                 CirSim.console("JSON import: element " + elementId + " has no type");
+                skipped++;
                 continue;
             }
 
             String jsonType = typeValue.isString().stringValue();
-            CirSim.console("parseElements: element '" + elementId + "' has type '" + jsonType + "'");
 
             // Create element using factory with CircuitDocument
-            CirSim.console("parseElements: calling CircuitElementFactory.createFromJson for '" + jsonType + "'");
             CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson, document);
-            CirSim.console(
-                    "parseElements: factory returned " + (elm != null ? elm.getClass().getSimpleName() : "null"));
             if (elm == null) {
                 CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
+                skipped++;
                 continue;
             }
 
@@ -342,15 +354,14 @@ public class JsonCircuitImporter implements CircuitImporter {
                 JSONValue tv = b.get("top");
                 JSONValue rv = b.get("right");
                 JSONValue bv = b.get("bottom");
-                if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null) {
+                if (lv != null && tv != null && rv != null && bv != null && lv.isNumber() != null
+                        && tv.isNumber() != null && rv.isNumber() != null && bv.isNumber() != null) {
                     try {
                         int left = (int) lv.isNumber().doubleValue();
                         int top = (int) tv.isNumber().doubleValue();
                         int right = (int) rv.isNumber().doubleValue();
                         int bottom = (int) bv.isNumber().doubleValue();
-                        elm.setEndpoints(left, top, right, bottom);
-                        // Keep derived points/leads in sync with endpoints.
-                        elm.setPoints();
+                        // Bounding box only; endpoints come from the pins (see CircuitElementFactory)
                         elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
                                 new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                     } catch (Exception e) {
@@ -361,11 +372,16 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             count++;
             } catch (Exception elementError) {
+                // toString() keeps the exception type; getMessage() is null for NPE/JS errors
                 CirSim.console("JSON import: skipping element '" + elementId
-                        + "' due to error: " + elementError.getMessage());
+                        + "' due to error: " + elementError);
+                skipped++;
             }
         }
 
+        if (skipped > 0) {
+            CirSim.console("JSON import: " + skipped + " element(s) could not be imported and were skipped");
+        }
         return count;
     }
 
@@ -529,9 +545,15 @@ public class JsonCircuitImporter implements CircuitImporter {
         JSONArray scopes = scopesValue.isArray();
         ScopeManager scopeManager = document.scopeManager;
         CirSim cirSim = document.getCirSim();
-        int count = 0;
+        // Append after existing scopes (0 after a reset; a paste keeps the current ones)
+        int first = scopeManager.getScopeCount();
+        int count = first;
 
         for (int i = 0; i < scopes.size(); i++) {
+            if (count >= scopeManager.getMaxScopes()) {
+                CirSim.console("JSON import: ignoring scopes beyond the limit of " + scopeManager.getMaxScopes());
+                break;
+            }
             JSONValue scopeValue = scopes.get(i);
             if (scopeValue == null || scopeValue.isObject() == null) {
                 continue;
@@ -592,6 +614,11 @@ public class JsonCircuitImporter implements CircuitImporter {
             JSONValue posValue = scopeJson.get("position");
             if (posValue != null && posValue.isNumber() != null) {
                 scope.position = (int) posValue.isNumber().doubleValue();
+            }
+
+            JSONValue labelValue = scopeJson.get("label");
+            if (labelValue != null && labelValue.isString() != null) {
+                scope.setText(labelValue.isString().stringValue());
             }
 
             // Speed (applied after plots/settings are restored)
@@ -756,7 +783,7 @@ public class JsonCircuitImporter implements CircuitImporter {
 
         // Update scope count
         scopeManager.setScopeCount(count);
-        return count;
+        return count - first;
     }
 
     private int parseAdjustables(JSONObject root, CircuitDocument document) {
@@ -769,8 +796,12 @@ public class JsonCircuitImporter implements CircuitImporter {
         AdjustableManager adjustableManager = document.adjustableManager;
         CirSim cirSim = document.getCirSim();
         int count = 0;
+        // Exported index -> imported adjustable, and the pending shared_slider references
+        Adjustable[] byIndex = new Adjustable[adjustables.size()];
+        int[] sharedRef = new int[adjustables.size()];
 
         for (int i = 0; i < adjustables.size(); i++) {
+            sharedRef[i] = -1;
             JSONValue adjValue = adjustables.get(i);
             if (adjValue == null || adjValue.isObject() == null) {
                 continue;
@@ -801,10 +832,14 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Create adjustable
             Adjustable adj = new Adjustable(cirSim, elm, editItem);
 
-            // Label
+            // Label (optional in hand-written files: fall back to the edit item name, as the
+            // Sliders dialog does when a slider is added)
             JSONValue labelValue = adjJson.get("label");
             if (labelValue != null && labelValue.isString() != null) {
                 adj.sliderText = labelValue.isString().stringValue();
+            } else {
+                EditInfo ei = elm.getEditInfo(editItem);
+                adj.sliderText = ei != null && ei.name != null ? ei.name.replaceAll(" \\(.*\\)$", "") : "";
             }
 
             // Value range
@@ -818,15 +853,29 @@ public class JsonCircuitImporter implements CircuitImporter {
                 adj.maxValue = maxValue.isNumber().doubleValue();
             }
 
-            // Note: current_value is not applied here because slider is not created yet.
-            // The slider will be created with default value by createSliders().
-            // If we need to restore the exact value, we would need to implement
-            // a deferred value setting mechanism.
+            // current_value needs no separate restore: createSlider() positions the slider from
+            // the element's own (already imported) property value.
+
+            JSONValue sharedValue = adjJson.get("shared_slider");
+            if (sharedValue != null && sharedValue.isNumber() != null) {
+                sharedRef[i] = (int) sharedValue.isNumber().doubleValue();
+            }
 
             // Add adjustable directly to the list
             adjustableManager.adjustables.add(adj);
+            byIndex[i] = adj;
             count++;
         }
+
+        // Resolve shared sliders once every adjustable exists (references use exported indices)
+        for (int i = 0; i < byIndex.length; i++) {
+            int ref = sharedRef[i];
+            if (byIndex[i] != null && ref >= 0 && ref < byIndex.length && ref != i && byIndex[ref] != null
+                    && byIndex[ref].sharedSlider == null) {
+                byIndex[i].sharedSlider = byIndex[ref];
+            }
+        }
+        adjustableManager.reorderAdjustables();
 
         return count;
     }

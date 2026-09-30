@@ -117,4 +117,11 @@ public class CC2Elm extends ChipElm {
         props.put("type", gain == 1 ? "CCII+" : "CCII-");
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // "type" is derived from gain and is not read back
+        gain = getJsonDouble(properties, "gain", gain);
+    }
 }

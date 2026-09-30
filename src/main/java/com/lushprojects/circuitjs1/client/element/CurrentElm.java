@@ -154,7 +154,7 @@ public class CurrentElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("current", getUnitText(currentValue, "A"));
+        props.put("current", getJsonUnitText(currentValue, "A"));
         return props;
     }
 

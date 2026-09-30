@@ -335,7 +335,7 @@ public class DiodeElm extends CircuitElm {
         if (Double.isFinite(current)) {
             state.put("current", current);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

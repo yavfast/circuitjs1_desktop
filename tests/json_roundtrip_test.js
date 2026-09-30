@@ -19,7 +19,10 @@
  * mcp_chrome-devtoo_evaluate_script(function="async () => { ... }")
  */
 
-// Базові схеми для тестування (шляхи відносно public/circuits/)
+// Example circuits (served by the app from GWT.getModuleBaseURL() + "circuits/", i.e.
+// /circuitjs1/circuits/ next to circuitjs.html). The list covers the element families whose
+// JSON import had defects: labeled nodes, chips/counters, transmission lines, sweep and AM
+// sources, controlled sources, custom logic, composites, rails, sliders.
 const TEST_CIRCUITS = [
     // Basics
     'ohms.txt',
@@ -27,44 +30,58 @@ const TEST_CIRCUITS = [
     'cap.txt',
     'induct.txt',
     'voltdivide.txt',
-    
+    'lrc.txt',
+
     // Semiconductors
     'npn.txt',
     'pnp.txt',
     'diodevar.txt',
-    
-    // Oscillators
+    'scr.txt',
+    'jfetfollower.txt',
+
+    // Oscillators / timers
     'joule-thief.txt',
-    'astable.txt',
-    
-    // OpAmps
+    '555int.txt',
+    'crystalosc2.txt',
+
+    // OpAmps / controlled sources
     'amp-invert.txt',
     'amp-noninvert.txt',
-    
-    // Digital
-    'and.txt',
-    'nand.txt',
+    'filt-vcvs-lopass.txt',
+    'cc2.txt',
+    'ota-gain.txt',
+
+    // Digital / chips
     'counter.txt',
-    
-    // Transformers
-    'transformer.txt',
-    
-    // Filters
+    'deccounter.txt',
+    '7segdecoder.txt',
+    'piso-sr.txt',
+    'ledarray.txt',
+    'alu74181.txt',
+
+    // Transmission lines, sources
+    'tl.txt',
+    'tlfreq.txt',
+    'amdetect.txt',
     'filt-lopass.txt',
     'filt-hipass.txt',
-    
-    // Power
+
+    // Transformers, power, motors
+    'transformer.txt',
     'fullrect.txt',
-    'rectify.txt'
+    'rectify.txt',
+    '3motor.txt',
+    'motorprotect.txt'
 ];
 
+
 /**
- * Завантажує схему з файлу через fetch
+ * Loads an example circuit file via fetch.
  */
 async function loadCircuitFile(filename) {
-    const baseUrl = window.location.origin;
-    const url = `${baseUrl}/circuits/${filename}`;
-    
+    // Module base = <page dir>/circuitjs1/ (see CircuitLoader.readSetupFile)
+    const url = new URL('circuitjs1/circuits/' + filename, window.location.href).toString();
+
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -162,11 +179,12 @@ async function testCircuitRoundtrip(circuitText, circuitName) {
         CircuitJS1.importCircuit(circuitText, false);
         result.steps.import_text = true;
         
-        // Даємо час на аналіз схеми
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         const elementCountAfterImport = CircuitJS1.getElementCount();
         result.steps.element_count_initial = elementCountAfterImport;
+
+        // Baseline = the app's own text export. Comparing against the raw file would also
+        // flag harmless exporter normalization (number formatting, option defaults).
+        const textBeforeRoundtrip = CircuitJS1.exportCircuit();
         
         // Step 2: Експорт у JSON
         const jsonExport = CircuitJS1.exportAsJson();
@@ -198,8 +216,6 @@ async function testCircuitRoundtrip(circuitText, circuitName) {
         CircuitJS1.importFromJson(jsonExport);
         result.steps.import_json = true;
         
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
         const elementCountAfterJsonImport = CircuitJS1.getElementCount();
         result.steps.element_count_after_json = elementCountAfterJsonImport;
         
@@ -214,7 +230,7 @@ async function testCircuitRoundtrip(circuitText, circuitName) {
         result.steps.export_text = true;
         
         // Step 6: Порівняння результатів
-        const comparison = compareTextFormats(circuitText, textExportAfterRoundtrip);
+        const comparison = compareTextFormats(textBeforeRoundtrip, textExportAfterRoundtrip);
         result.comparison = comparison;
         result.steps.comparison = true;
         
@@ -297,8 +313,14 @@ async function runJsonRoundtripTests(circuitList = TEST_CIRCUITS) {
     console.log(`Passed:  ${results.passed}`);
     console.log(`Failed:  ${results.failed}`);
     console.log(`Skipped: ${results.skipped}`);
-    console.log(`Success Rate: ${((results.passed / (results.total - results.skipped)) * 100).toFixed(1)}%`);
-    
+    const executed = results.total - results.skipped;
+    console.log(`Success Rate: ${executed > 0 ? ((results.passed / executed) * 100).toFixed(1) : '0.0'}%`);
+
+    // A circuit that could not be loaded is a harness failure, not a pass: a run that
+    // executes nothing must not look green.
+    results.ok = results.failed === 0 && results.skipped === 0 && executed > 0;
+    console.log(results.ok ? 'RESULT: PASS' : 'RESULT: FAIL');
+
     return results;
 }
 

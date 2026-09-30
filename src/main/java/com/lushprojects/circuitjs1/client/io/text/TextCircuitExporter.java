@@ -81,8 +81,11 @@ public class TextCircuitExporter implements CircuitExporter {
                 dump.append(modelDump).append("\n");
             }
             
-            // Export element
-            dump.append(CircuitElm.dumpElm(ce)).append("\n");
+            // Export element (skip elements with nothing to save, e.g. an unassigned scope)
+            String elmDump = CircuitElm.dumpElm(ce);
+            if (elmDump != null) {
+                dump.append(elmDump).append("\n");
+            }
         }
 
         // 3. Export scope configurations
@@ -132,8 +135,11 @@ public class TextCircuitExporter implements CircuitExporter {
                 dump.append(modelDump).append("\n");
             }
 
-            // Export element
-            dump.append(CircuitElm.dumpElm(ce)).append("\n");
+            // Export element (skip elements with nothing to save, e.g. an unassigned scope)
+            String elmDump = CircuitElm.dumpElm(ce);
+            if (elmDump != null) {
+                dump.append(elmDump).append("\n");
+            }
         }
 
         return dump.toString();

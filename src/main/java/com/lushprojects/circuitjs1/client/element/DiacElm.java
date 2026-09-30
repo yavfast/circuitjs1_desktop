@@ -216,11 +216,29 @@ public class DiacElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("on_resistance", getUnitText(onresistance, "Ohm"));
-        props.put("off_resistance", getUnitText(offresistance, "Ohm"));
-        props.put("breakdown_voltage", getUnitText(breakdown, "V"));
-        props.put("holding_current", getUnitText(holdcurrent, "A"));
+        props.put("on_resistance", getJsonUnitText(onresistance, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(offresistance, "Ohm"));
+        props.put("breakdown_voltage", getJsonUnitText(breakdown, "V"));
+        props.put("holding_current", getJsonUnitText(holdcurrent, "A"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "on_resistance", onresistance);
+        if (v > 0)
+            onresistance = v;
+        v = getJsonDouble(properties, "off_resistance", offresistance);
+        if (v > 0)
+            offresistance = v;
+        v = getJsonDouble(properties, "breakdown_voltage", breakdown);
+        if (v > 0)
+            breakdown = v;
+        v = getJsonDouble(properties, "holding_current", holdcurrent);
+        if (v > 0)
+            holdcurrent = v;
     }
 
     @Override

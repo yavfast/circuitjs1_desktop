@@ -215,11 +215,34 @@ public class LogicInputElm extends SwitchElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("high_voltage", getUnitText(hiV, "V"));
-        props.put("low_voltage", getUnitText(loV, "V"));
+        props.put("high_voltage", getJsonUnitText(hiV, "V"));
+        props.put("low_voltage", getJsonUnitText(loV, "V"));
         props.put("ternary", isTernary());
         props.put("numeric", isNumeric());
+        // SwitchElm's open/closed "state" cannot express the third (ternary) position
+        props.put("position", position);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        hiV = getJsonDouble(props, "high_voltage", hiV);
+        loV = getJsonDouble(props, "low_voltage", loV);
+        if (props != null && props.containsKey("ternary")) {
+            if (getJsonBoolean(props, "ternary", false))
+                flags |= FLAG_TERNARY;
+            else
+                flags &= ~FLAG_TERNARY;
+        }
+        // "numeric" is also true for ternary inputs; only touch FLAG_NUMERIC when it disagrees
+        if (props != null && props.containsKey("numeric") && getJsonBoolean(props, "numeric", false) != isNumeric()) {
+            flags ^= FLAG_NUMERIC;
+        }
+        posCount = isTernary() ? 3 : 2;
+        int pos = getJsonInt(props, "position", position);
+        if (pos >= 0 && pos < posCount)
+            position = pos;
     }
 
     @Override

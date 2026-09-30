@@ -151,10 +151,22 @@ public class StopTriggerElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("trigger_voltage", getUnitText(triggerVoltage, "V"));
+        props.put("trigger_voltage", getJsonUnitText(triggerVoltage, "V"));
         props.put("trigger_type", type == 0 ? ">=" : "<=");
-        props.put("delay", getUnitText(delay, "s"));
+        props.put("delay", getJsonUnitText(delay, "s"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        triggerVoltage = getJsonDouble(properties, "trigger_voltage", triggerVoltage);
+        String t = getJsonString(properties, "trigger_type", null);
+        if (">=".equals(t))
+            type = 0;
+        else if ("<=".equals(t))
+            type = 1;
+        delay = getJsonDouble(properties, "delay", delay);
     }
 
     @Override

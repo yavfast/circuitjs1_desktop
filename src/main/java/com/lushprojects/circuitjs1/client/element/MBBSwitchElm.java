@@ -240,6 +240,12 @@ public class MBBSwitchElm extends SwitchElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        link = getJsonInt(props, "link_group", link);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "common", "throw1", "throw2" };
     }

@@ -211,6 +211,30 @@ public class DocumentManager {
         saveTimer.schedule(1000); // Debounce 1s
     }
 
+    /**
+     * Dumps a document in the default format. An inactive document is bound only for the
+     * duration of the dump, with its own options applied to the session widgets the
+     * exporters read, so it is not saved with the active tab's display/speed settings.
+     */
+    private String dumpDocument(CircuitDocument doc) {
+        if (doc == activeDocument) {
+            return cirSim.actionManager.dumpCircuit();
+        }
+        CirSim sim = (CirSim) cirSim;
+        CircuitDocument current = activeDocument;
+        current.saveUIState(sim.menuManager, sim);
+        activeDocument = doc;
+        cirSim.bindDocument(doc);
+        try {
+            doc.applyOptionWidgets(sim.menuManager, sim);
+            return cirSim.actionManager.dumpCircuit();
+        } finally {
+            activeDocument = current;
+            cirSim.bindDocument(current);
+            current.applyOptionWidgets(sim.menuManager, sim);
+        }
+    }
+
     public void saveSession() {
         Storage storage = Storage.getLocalStorageIfSupported();
         if (storage == null) return;
@@ -231,23 +255,7 @@ public class DocumentManager {
                 docObj.put("lastFileName", new JSONString(doc.circuitInfo.lastFileName));
             }
             
-            String dump;
-            if (doc == activeDocument) {
-                dump = cirSim.actionManager.dumpCircuit();
-            } else {
-                // Temporarily switch to document to dump it
-                // We avoid full UI update by not calling setActiveDocument if possible, 
-                // but setActiveDocument does a lot of binding.
-                // Let's just use setActiveDocument for now, but we need to be careful about recursion or events.
-                // Actually, we can just swap the lists in CirSim without triggering full UI refresh if we are careful.
-                // But safe way is:
-                CircuitDocument current = activeDocument;
-                activeDocument = doc;
-                cirSim.bindDocument(doc);
-                dump = cirSim.actionManager.dumpCircuit();
-                activeDocument = current;
-                cirSim.bindDocument(current);
-            }
+            String dump = dumpDocument(doc);
             
             docObj.put("data", new JSONString(dump));
             if (doc == activeDocument) {

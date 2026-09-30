@@ -357,9 +357,33 @@ public class OpAmpRealElm extends CompositeElm {
         String[] models = { "LM741", "LM324", "LM324v2" };
         props.put("model", models[modelType]);
         props.put("slew_rate", slewRate + " V/us");
-        props.put("current_limit", getUnitText(currentLimit, "A"));
+        props.put("current_limit", getJsonUnitText(currentLimit, "A"));
         props.put("swap_inputs", (flags & FLAG_SWAP) != 0);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        int newModel = modelType;
+        String modelStr = getJsonString(properties, "model", null);
+        if ("LM741".equals(modelStr))
+            newModel = MODEL_741;
+        else if ("LM324".equals(modelStr))
+            newModel = MODEL_324;
+        else if ("LM324v2".equals(modelStr))
+            newModel = MODEL_324v2;
+        double newSlew = getJsonDouble(properties, "slew_rate", slewRate);
+        double newLimit = getJsonDouble(properties, "current_limit", currentLimit);
+        boolean swap = getJsonBoolean(properties, "swap_inputs", hasFlag(FLAG_SWAP));
+        flags = swap ? (flags | FLAG_SWAP) : (flags & ~FLAG_SWAP);
+        if (newModel != modelType || newSlew != slewRate || newLimit != currentLimit) {
+            modelType = newModel;
+            slewRate = newSlew;
+            currentLimit = newLimit;
+            // rebuild the internal composite with the new parameters (same as text ctor / setEditValue)
+            initModel();
+        }
     }
 
     @Override

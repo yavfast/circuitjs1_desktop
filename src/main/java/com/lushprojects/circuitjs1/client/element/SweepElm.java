@@ -270,13 +270,33 @@ public class SweepElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("min_frequency", getUnitText(minF, "Hz"));
-        props.put("max_frequency", getUnitText(maxF, "Hz"));
-        props.put("max_voltage", getUnitText(maxV, "V"));
-        props.put("sweep_time", getUnitText(sweepTime, "s"));
+        props.put("min_frequency", getJsonUnitText(minF, "Hz"));
+        props.put("max_frequency", getJsonUnitText(maxF, "Hz"));
+        props.put("max_voltage", getJsonUnitText(maxV, "V"));
+        props.put("sweep_time", getJsonUnitText(sweepTime, "s"));
         props.put("logarithmic", (flags & FLAG_LOG) != 0);
         props.put("bidirectional", (flags & FLAG_BIDIR) != 0);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        minF = getJsonDouble(properties, "min_frequency", minF);
+        maxF = getJsonDouble(properties, "max_frequency", maxF);
+        maxV = getJsonDouble(properties, "max_voltage", maxV);
+        sweepTime = getJsonDouble(properties, "sweep_time", sweepTime);
+        // The booleans mirror FLAG_LOG / FLAG_BIDIR (also carried by _flags); keep both in sync.
+        if (getJsonBoolean(properties, "logarithmic", (flags & FLAG_LOG) != 0))
+            flags |= FLAG_LOG;
+        else
+            flags &= ~FLAG_LOG;
+        if (getJsonBoolean(properties, "bidirectional", (flags & FLAG_BIDIR) != 0))
+            flags |= FLAG_BIDIR;
+        else
+            flags &= ~FLAG_BIDIR;
+        // Same as the text ctor: restart the sweep with the restored range.
+        reset();
     }
 
     @Override

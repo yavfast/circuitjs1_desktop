@@ -135,9 +135,16 @@ public class MonostableElm extends ChipElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("delay", getUnitText(delay, "s"));
+        props.put("delay", getJsonUnitText(delay, "s"));
         props.put("retriggerable", retriggerable);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        delay = getJsonDouble(properties, "delay", delay);
+        retriggerable = getJsonBoolean(properties, "retriggerable", retriggerable);
     }
 
     @Override

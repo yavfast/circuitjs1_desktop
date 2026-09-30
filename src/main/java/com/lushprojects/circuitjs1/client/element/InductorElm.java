@@ -171,9 +171,9 @@ public class InductorElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
         if (initialCurrent != 0) {
-            props.put("initial_current", getUnitText(initialCurrent, "A"));
+            props.put("initial_current", getJsonUnitText(initialCurrent, "A"));
         }
         if (!ind.isTrapezoidal()) {
             props.put("back_euler", true);
@@ -202,7 +202,7 @@ public class InductorElm extends CircuitElm {
         if (Double.isFinite(current)) {
             state.put("current", current);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

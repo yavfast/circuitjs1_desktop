@@ -285,6 +285,17 @@ public class DPDTSwitchElm extends SwitchElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        int pc = getJsonInt(props, "pole_count", poleCount);
+        if (pc >= 1 && pc != poleCount) {
+            // post count depends on poleCount; same re-setup as setEditValue
+            poleCount = pc;
+            allocNodes();
+        }
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         String[] pins = new String[3 * poleCount];
         for (int i = 0; i < poleCount; i++) {

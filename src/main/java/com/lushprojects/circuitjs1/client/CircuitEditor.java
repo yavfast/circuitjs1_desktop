@@ -1081,7 +1081,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
     }
 
     String copyOfSelectedElms() {
-        String resultString = actionManager().dumpOptions();
+        // The options line has no trailing newline; without one the first copied element
+        // would be glued onto it and dropped on paste/duplicate.
+        String resultString = actionManager().dumpOptions() + "\n";
         CustomLogicModel.clearDumpedFlags();
         CustomCompositeModel.clearDumpedFlags();
         DiodeModel.clearDumpedFlags();

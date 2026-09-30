@@ -142,8 +142,7 @@ public class OptocouplerElm extends CompositeElm {
             stubs[3] = transistor.getPost(2);
             step = 5;
         } catch (Exception e) {
-            CirSim.console("OptocouplerElm.setPoints failed at step " + step + ": " + e.getMessage());
-            e.printStackTrace();
+            CirSim.console("OptocouplerElm.setPoints failed at step " + step + ": " + e);
             throw e;
         }
     }

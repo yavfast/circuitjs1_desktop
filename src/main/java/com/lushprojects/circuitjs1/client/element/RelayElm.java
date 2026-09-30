@@ -583,15 +583,15 @@ public class RelayElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("inductance", getUnitText(inductance, "H"));
-        props.put("on_resistance", getUnitText(r_on, "Ohm"));
-        props.put("off_resistance", getUnitText(r_off, "Ohm"));
-        props.put("on_current", getUnitText(onCurrent, "A"));
-        props.put("off_current", getUnitText(offCurrent, "A"));
-        props.put("coil_resistance", getUnitText(coilR, "Ohm"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
+        props.put("on_resistance", getJsonUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(r_off, "Ohm"));
+        props.put("on_current", getJsonUnitText(onCurrent, "A"));
+        props.put("off_current", getJsonUnitText(offCurrent, "A"));
+        props.put("coil_resistance", getJsonUnitText(coilR, "Ohm"));
         props.put("poles", poleCount);
         if (switchingTime > 0) {
-            props.put("switching_time", getUnitText(switchingTime, "s"));
+            props.put("switching_time", getJsonUnitText(switchingTime, "s"));
         }
         return props;
     }

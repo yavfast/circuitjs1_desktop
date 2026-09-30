@@ -163,6 +163,15 @@ public class DataRecorderElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue; re-allocates the sample buffer.
+        int ct = getJsonInt(properties, "data_points", dataCount);
+        if (ct > 0 && ct != dataCount)
+            setDataCount(ct);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "input" };
     }

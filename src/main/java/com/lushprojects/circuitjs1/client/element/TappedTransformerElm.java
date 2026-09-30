@@ -741,12 +741,12 @@ public class TappedTransformerElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("primary_inductance", getUnitText(inductance, "H"));
+        props.put("primary_inductance", getJsonUnitText(inductance, "H"));
         props.put("ratio", ratio);
         props.put("coupling_coefficient", couplingCoef);
-        props.put("primary_resistance", getUnitText(primaryResistance, "Ohm"));
-        props.put("secondary_resistance_1", getUnitText(secondaryResistance1, "Ohm"));
-        props.put("secondary_resistance_2", getUnitText(secondaryResistance2, "Ohm"));
+        props.put("primary_resistance", getJsonUnitText(primaryResistance, "Ohm"));
+        props.put("secondary_resistance_1", getJsonUnitText(secondaryResistance1, "Ohm"));
+        props.put("secondary_resistance_2", getJsonUnitText(secondaryResistance2, "Ohm"));
         props.put("trapezoidal", isTrapezoidal());
         return props;
     }

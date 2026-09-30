@@ -217,7 +217,8 @@ public class TimerElm extends ChipElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("has_reset", hasReset());
+        // the flag itself: hasReset() is also true whenever a ground pin exists
+        props.put("has_reset", (flags & FLAG_RESET) != 0);
         props.put("has_ground_pin", hasGroundPin());
         props.put("use_pin_numbers", usePinNumbers());
         return props;

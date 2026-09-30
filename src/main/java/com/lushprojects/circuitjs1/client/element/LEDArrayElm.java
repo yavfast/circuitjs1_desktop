@@ -234,4 +234,18 @@ public class LEDArrayElm extends ChipElm {
         props.put("grid_height", sizeY);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // same range as setChipEditValue
+        int w = getJsonInt(properties, "grid_width", sizeX);
+        if (w >= 2 && w <= 16)
+            sizeX = w;
+        int h = getJsonInt(properties, "grid_height", sizeY);
+        if (h >= 2 && h <= 16)
+            sizeY = h;
+        allocNodes();
+        setupPins();
+    }
 }

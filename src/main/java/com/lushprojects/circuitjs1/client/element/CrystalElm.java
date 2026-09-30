@@ -179,11 +179,31 @@ public class CrystalElm extends CompositeElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("parallel_capacitance", getUnitText(parallelCapacitance, "F"));
-        props.put("series_capacitance", getUnitText(seriesCapacitance, "F"));
-        props.put("inductance", getUnitText(inductance, "H"));
-        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("parallel_capacitance", getJsonUnitText(parallelCapacitance, "F"));
+        props.put("series_capacitance", getJsonUnitText(seriesCapacitance, "F"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
+        props.put("resistance", getJsonUnitText(resistance, "Ohm"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "parallel_capacitance", parallelCapacitance);
+        if (v > 0)
+            parallelCapacitance = v;
+        v = getJsonDouble(properties, "series_capacitance", seriesCapacitance);
+        if (v > 0)
+            seriesCapacitance = v;
+        v = getJsonDouble(properties, "inductance", inductance);
+        if (v > 0)
+            inductance = v;
+        v = getJsonDouble(properties, "resistance", resistance);
+        if (v > 0)
+            resistance = v;
+        // Push the values into the internal model elements.
+        initCrystal();
     }
 
     @Override

@@ -17,7 +17,7 @@ public class SawtoothWaveform extends Waveform {
         if (elm.circuitDocument.circuitInfo.dcAnalysisFlag) {
             return bias;
         }
-        return bias + (w(elm) % VoltageElm.PI_2) * (maxVoltage / Math.PI) - maxVoltage;
+        return bias + wrappedPhase(elm) * (maxVoltage / Math.PI) - maxVoltage;
     }
 
     @Override
@@ -60,5 +60,10 @@ public class SawtoothWaveform extends Waveform {
     @Override
     public String getJsonTypeName() {
         return "VoltageSourceSawtooth";
+    }
+
+    @Override
+    public String getJsonRailTypeName() {
+        return "SawtoothRail";
     }
 }

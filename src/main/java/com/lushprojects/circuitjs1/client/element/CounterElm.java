@@ -198,4 +198,21 @@ public class CounterElm extends ChipElm {
         props.put("negative_edge_triggered", negativeEdgeTriggered());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        modulus = getJsonInt(properties, "modulus", modulus);
+        invertreset = getJsonBoolean(properties, "invert_reset", invertreset);
+        if (getJsonBoolean(properties, "has_up_down", hasUpDown()))
+            flags |= FLAG_UP_DOWN;
+        else
+            flags &= ~FLAG_UP_DOWN;
+        if (getJsonBoolean(properties, "negative_edge_triggered", negativeEdgeTriggered()))
+            flags |= FLAG_NEGATIVE_EDGE;
+        else
+            flags &= ~FLAG_NEGATIVE_EDGE;
+        // reset bubble, U/D pin and clock bubble depend on the fields above
+        setupPins();
+    }
 }

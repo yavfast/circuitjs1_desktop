@@ -122,4 +122,18 @@ public class FullAdderElm extends ChipElm {
         props.put("bits", bits);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // ChipElm reads "bits" only when FLAG_BITS is set; like the text constructor,
+        // an old-style adder without FLAG_BITS is 1 bit wide
+        int b = getJsonInt(properties, "bits", needsBits() ? bits : 1);
+        if (b > 0) {
+            bits = b;
+            if (bits != 1)
+                flags |= FLAG_BITS;
+            setupPins();
+        }
+    }
 }

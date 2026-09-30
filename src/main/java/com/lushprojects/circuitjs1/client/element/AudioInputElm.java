@@ -212,10 +212,19 @@ public class AudioInputElm extends RailElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("max_voltage", getUnitText(maxVoltage, "V"));
-        props.put("start_position", getUnitText(startPosition, "s"));
+        props.put("max_voltage", getJsonUnitText(maxVoltage, "V"));
+        props.put("start_position", getJsonUnitText(startPosition, "s"));
         if (fileName != null)
             props.put("file_name", fileName);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // own fields (maxVoltage shadows the waveform's; the waveform reads the same key)
+        maxVoltage = getJsonDouble(properties, "max_voltage", maxVoltage);
+        startPosition = getJsonDouble(properties, "start_position", startPosition);
+        // file_name is informational: the samples live in the session file map
     }
 }

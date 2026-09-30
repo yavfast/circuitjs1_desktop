@@ -86,5 +86,11 @@ public class CustomCompositeChipElm extends ChipElm {
             props.put("label", label);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        label = getJsonString(properties, "label", label);
+    }
 }
 

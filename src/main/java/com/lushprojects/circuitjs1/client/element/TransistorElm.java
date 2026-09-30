@@ -311,7 +311,6 @@ public class TransistorElm extends CircuitElm {
         double vbc = pnp * (getNodeVoltage(0) - getNodeVoltage(1)); // typically negative
         double vbe = pnp * (getNodeVoltage(0) - getNodeVoltage(2)); // typically positive
         if (!CircuitMath.isConverged(vbc, lastvbc) || !CircuitMath.isConverged(vbe, lastvbe)) {
-            System.out.println("Convergence failed: vbc=" + vbc + ", lastvbc=" + lastvbc + ", vbe=" + vbe + ", lastvbe=" + lastvbe);
             simulator().converged = false;
         }
 
@@ -792,7 +791,7 @@ public class TransistorElm extends CircuitElm {
         if (Double.isFinite(ie)) {
             state.put("ie", ie);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

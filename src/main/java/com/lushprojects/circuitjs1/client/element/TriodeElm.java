@@ -299,6 +299,18 @@ public class TriodeElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "mu", mu);
+        if (v > 0)
+            mu = v;
+        v = getJsonDouble(properties, "kg1", kg1);
+        if (v > 0)
+            kg1 = v;
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "plate", "grid", "cathode" };
     }

@@ -186,4 +186,31 @@ public class JKFlipFlopElm extends ChipElm {
         props.put("invert_reset", invertReset());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        if (getJsonBoolean(properties, "has_reset", hasReset()))
+            flags |= FLAG_RESET;
+        else
+            flags &= ~FLAG_RESET;
+        if (getJsonBoolean(properties, "positive_edge_triggered", positiveEdgeTriggered()))
+            flags |= FLAG_POSITIVE_EDGE;
+        else
+            flags &= ~FLAG_POSITIVE_EDGE;
+        if (getJsonBoolean(properties, "invert_reset", invertReset()))
+            flags |= FLAG_INVERT_RESET;
+        else
+            flags &= ~FLAG_INVERT_RESET;
+        setupPins();
+        allocNodes();
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // As after a text load: defer the first execute() so all-zero node voltages at load
+        // time do not reset the restored outputs.
+        justLoaded = true;
+    }
 }

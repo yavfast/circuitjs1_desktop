@@ -102,4 +102,10 @@ public class ExtVoltageElm extends RailElm {
         props.put("name", name);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        name = getJsonString(properties, "name", name);
+    }
 }

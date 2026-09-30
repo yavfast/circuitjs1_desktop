@@ -39,6 +39,11 @@ public class RailElm extends VoltageElm {
         super(circuitDocument, xx, yy, wf);
     }
 
+    /** Creates a rail with the given waveform (JSON import of waveform rails without their own class). */
+    public static RailElm createRail(CircuitDocument circuitDocument, int x, int y, int wf) {
+        return new RailElm(circuitDocument, x, y, wf);
+    }
+
     public RailElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                    StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);

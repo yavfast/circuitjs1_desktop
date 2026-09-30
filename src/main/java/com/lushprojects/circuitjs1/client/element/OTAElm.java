@@ -200,9 +200,18 @@ public class OTAElm extends CompositeElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("positive_supply", getUnitText(posVolt, "V"));
-        props.put("negative_supply", getUnitText(negVolt, "V"));
+        props.put("positive_supply", getJsonUnitText(posVolt, "V"));
+        props.put("negative_supply", getJsonUnitText(negVolt, "V"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        posVolt = getJsonDouble(properties, "positive_supply", posVolt);
+        negVolt = getJsonDouble(properties, "negative_supply", negVolt);
+        // push supply voltages into the internal rails (same as setEditValue)
+        initOTA();
     }
 
     @Override

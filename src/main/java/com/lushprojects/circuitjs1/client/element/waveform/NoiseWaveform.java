@@ -91,9 +91,9 @@ public class NoiseWaveform extends Waveform {
 
     @Override
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
+        props.put("max_voltage", VoltageElm.getJsonUnitText(maxVoltage, "V"));
         if (bias != 0) {
-            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
+            props.put("dc_offset", VoltageElm.getJsonUnitText(bias, "V"));
         }
     }
 
@@ -105,5 +105,10 @@ public class NoiseWaveform extends Waveform {
     @Override
     public String getJsonTypeName() {
         return "VoltageSourceNoise";
+    }
+
+    @Override
+    public String getJsonRailTypeName() {
+        return "NoiseRail";
     }
 }

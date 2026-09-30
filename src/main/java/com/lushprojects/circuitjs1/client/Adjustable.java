@@ -24,7 +24,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     public double minValue;
     public double maxValue;
     int flags;
-    public String sliderText;
+    public String sliderText = "";
 
     // null if this Adjustable has its own slider, non-null if it's sharing another one.
     public Adjustable sharedSlider;
@@ -82,6 +82,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             }
             sliderText = CustomLogicModel.unescape(st.nextToken());
         } catch (Exception ex) {
+            CirSim.console("Adjustable: incomplete slider line for element " + e + ": " + ex);
         }
         try {
             elm = simulator().getElm(e);
@@ -102,7 +103,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         // (This can happen on imports, edits, or UI refreshes.)
         deleteSlider();
 
-        if (sliderText.isEmpty())
+        if (sliderText == null || sliderText.isEmpty())
             return false;
         double value = ei.value;
         createSlider(value);
@@ -114,7 +115,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         label.addStyleName("topSpace");
         valueLabel = new Label();
         valueLabel.addStyleName("topSpace");
-        int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
+        int intValue = toSliderPosition(value);
         slider = new Scrollbar(cirSim, Scrollbar.HORIZONTAL, intValue, 1, 0, 100, this, elm);
 
         editAdjustableButton = new Button("\u2699"); // Gear icon
@@ -164,7 +165,9 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             sharedSlider.setSliderValue(value);
             return;
         }
-        int intValue = (int) ((value - minValue) * 100 / (maxValue - minValue));
+        if (slider == null)
+            return;
+        int intValue = toSliderPosition(value);
         settingValue = true; // don't recursively set value again in execute()
         slider.setValue(intValue);
         updateValueLabel();
@@ -207,8 +210,18 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
     }
 
     public double getSliderValue() {
-        double val = sharedSlider == null ? slider.getValue() : sharedSlider.slider.getValue();
-        return minValue + (maxValue - minValue) * val / 100;
+        Scrollbar source = sharedSlider == null ? slider : sharedSlider.slider;
+        if (source == null)
+            return minValue;
+        return minValue + (maxValue - minValue) * source.getValue() / 100;
+    }
+
+    // Slider position (0..100) for a value; a zero-width range (min == max) maps to 0.
+    private int toSliderPosition(double value) {
+        double range = maxValue - minValue;
+        if (range == 0 || Double.isNaN(range))
+            return 0;
+        return (int) ((value - minValue) * 100 / range);
     }
 
     public void deleteSlider() {

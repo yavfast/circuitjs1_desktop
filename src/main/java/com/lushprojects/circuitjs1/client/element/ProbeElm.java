@@ -373,6 +373,17 @@ public class ProbeElm extends CircuitElm {
             resistance = ei.value;
     }
 
+    // JSON "mode" names, indexed by meter (TP_*)
+    static final String[] JSON_MODES = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period",
+            "pulse_width", "duty_cycle" };
+
+    static int jsonModeIndex(String mode, int def) {
+        for (int i = 0; i != JSON_MODES.length; i++)
+            if (JSON_MODES[i].equals(mode))
+                return i;
+        return def;
+    }
+
     @Override
     public String getJsonTypeName() {
         return "Probe";
@@ -381,15 +392,35 @@ public class ProbeElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        String[] modes = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width",
-                "duty_cycle" };
-        props.put("mode", modes[meter]);
+        props.put("mode", JSON_MODES[meter]);
         props.put("scale", scale == SCALE_AUTO ? "auto" : scale == 1 ? "V" : scale == 2 ? "mV" : "uV");
         props.put("show_voltage", mustShowVoltage());
         props.put("circular_symbol", drawAsCircle());
         if (resistance != 0)
-            props.put("series_resistance", getUnitText(resistance, "Ohm"));
+            props.put("series_resistance", getJsonUnitText(resistance, "Ohm"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        meter = jsonModeIndex(getJsonString(properties, "mode", null), meter);
+        String sc = getJsonString(properties, "scale", null);
+        if ("auto".equals(sc))
+            scale = SCALE_AUTO;
+        else if ("V".equals(sc))
+            scale = SCALE_1;
+        else if ("mV".equals(sc))
+            scale = SCALE_M;
+        else if ("uV".equals(sc))
+            scale = SCALE_MU;
+        boolean show = getJsonBoolean(properties, "show_voltage", mustShowVoltage());
+        flags = show ? (flags | FLAG_SHOWVOLTAGE) : (flags & ~FLAG_SHOWVOLTAGE);
+        boolean circle = getJsonBoolean(properties, "circular_symbol", drawAsCircle());
+        flags = circle ? (flags | FLAG_CIRCLE) : (flags & ~FLAG_CIRCLE);
+        // series_resistance is only exported when non-zero, so an absent key means 0 (= infinite),
+        // which is also the text-format default
+        resistance = getJsonDouble(properties, "series_resistance", 0);
     }
 
     @Override

@@ -305,14 +305,44 @@ public class DCMotorElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("inductance", getUnitText(inductance, "H"));
-        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
+        props.put("resistance", getJsonUnitText(resistance, "Ohm"));
         props.put("torque_constant", K);
         props.put("back_emf_constant", Kb);
         props.put("moment_of_inertia", J);
         props.put("friction_coefficient", b);
         props.put("gear_ratio", gearRatio);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "inductance", inductance);
+        if (v > 0)
+            inductance = v;
+        v = getJsonDouble(properties, "resistance", resistance);
+        if (v > 0)
+            resistance = v;
+        v = getJsonDouble(properties, "torque_constant", K);
+        if (v > 0)
+            K = v;
+        v = getJsonDouble(properties, "back_emf_constant", Kb);
+        if (v > 0)
+            Kb = v;
+        v = getJsonDouble(properties, "moment_of_inertia", J);
+        if (v > 0)
+            J = v;
+        v = getJsonDouble(properties, "friction_coefficient", b);
+        if (v >= 0) // the text format accepts a frictionless motor (b = 0)
+            b = v;
+        v = getJsonDouble(properties, "gear_ratio", gearRatio);
+        if (v > 0)
+            gearRatio = v;
+        // Re-setup the internal inductors exactly like the text ctor.
+        ind.setup(inductance, 0, Inductor.FLAG_BACK_EULER);
+        indInertia.setup(J, 0, Inductor.FLAG_BACK_EULER);
     }
 
     @Override

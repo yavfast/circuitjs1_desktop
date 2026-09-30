@@ -285,4 +285,16 @@ public class CustomLogicElm extends ChipElm {
         props.put("output_count", outputCount);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // input_count / output_count are derived from the bound model
+        String name = getJsonString(properties, "model_name", null);
+        if (name != null && !name.isEmpty()) {
+            modelName = name;
+            // same model binding + pin setup as the text constructor
+            updateModels();
+        }
+    }
 }

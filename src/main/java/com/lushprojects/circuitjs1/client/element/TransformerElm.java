@@ -682,11 +682,11 @@ public class TransformerElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
         props.put("ratio", ratio);
         props.put("coupling", couplingCoef);
-        props.put("primary_resistance", getUnitText(primaryResistance, "Ohm"));
-        props.put("secondary_resistance", getUnitText(secondaryResistance, "Ohm"));
+        props.put("primary_resistance", getJsonUnitText(primaryResistance, "Ohm"));
+        props.put("secondary_resistance", getJsonUnitText(secondaryResistance, "Ohm"));
         if (polarity == -1) {
             props.put("reverse_polarity", true);
         }
@@ -774,7 +774,7 @@ public class TransformerElm extends CircuitElm {
         if (Double.isFinite(current[1])) {
             state.put("current_secondary", current[1]);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

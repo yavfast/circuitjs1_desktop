@@ -164,7 +164,7 @@ public class LEDElm extends DiodeElm {
         props.put("color_r", colorR);
         props.put("color_g", colorG);
         props.put("color_b", colorB);
-        props.put("max_brightness_current", getUnitText(maxBrightnessCurrent, "A"));
+        props.put("max_brightness_current", getJsonUnitText(maxBrightnessCurrent, "A"));
         return props;
     }
 

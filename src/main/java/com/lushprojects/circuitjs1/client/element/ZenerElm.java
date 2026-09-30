@@ -46,7 +46,6 @@ public class ZenerElm extends DiodeElm {
             double zvoltage = parseDouble(st.nextToken());
             model = DiodeModel.getModelWithParameters(model.fwdrop, zvoltage);
             modelName = model.name;
-            CirSim.console("model name wparams = " + modelName);
         }
         setup();
     }
@@ -127,7 +126,7 @@ public class ZenerElm extends DiodeElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("zener_voltage", getUnitText(model.breakdownVoltage, "V"));
+        props.put("zener_voltage", getJsonUnitText(model.breakdownVoltage, "V"));
         return props;
     }
 }

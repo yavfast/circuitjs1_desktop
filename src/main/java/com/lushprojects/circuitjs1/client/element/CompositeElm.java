@@ -460,14 +460,19 @@ public abstract class CompositeElm extends CircuitElm {
     public java.util.Map<String, Object> getJsonState() {
         java.util.Map<String, Object> state = super.getJsonState();
         // Save state of all sub-elements
+        // One entry per sub-element (empty map when it has no state) so that restore can match
+        // entries to compElmList by index.
         java.util.List<Object> subStates = new java.util.ArrayList<>();
+        boolean anyState = false;
         for (CircuitElm elm : compElmList) {
             java.util.Map<String, Object> subState = elm.getJsonState();
-            if (subState != null && !subState.isEmpty()) {
-                subStates.add(subState);
+            if (subState == null) {
+                subState = new java.util.LinkedHashMap<>();
             }
+            anyState |= !subState.isEmpty();
+            subStates.add(subState);
         }
-        if (!subStates.isEmpty()) {
+        if (anyState) {
             state.put("subElements", subStates);
         }
         return state;
@@ -478,12 +483,18 @@ public abstract class CompositeElm extends CircuitElm {
     public void applyJsonState(java.util.Map<String, Object> state) {
         super.applyJsonState(state);
         // Restore state of all sub-elements
-        if (state.containsKey("subElements")) {
-            java.util.List<Object> subStates = (java.util.List<Object>) state.get("subElements");
-            int count = Math.min(subStates.size(), compElmList.size());
-            for (int i = 0; i < count; i++) {
-                java.util.Map<String, Object> subState = (java.util.Map<String, Object>) subStates.get(i);
-                compElmList.get(i).applyJsonState(subState);
+        Object subObj = state.get("subElements");
+        if (subObj instanceof java.util.List) {
+            java.util.List<Object> subStates = (java.util.List<Object>) subObj;
+            if (subStates.size() != compElmList.size()) {
+                // Saved for a different model layout; keep the freshly reset sub-element state.
+                return;
+            }
+            for (int i = 0; i < subStates.size(); i++) {
+                Object subState = subStates.get(i);
+                if (subState instanceof java.util.Map) {
+                    compElmList.get(i).applyJsonState((java.util.Map<String, Object>) subState);
+                }
             }
         }
     }

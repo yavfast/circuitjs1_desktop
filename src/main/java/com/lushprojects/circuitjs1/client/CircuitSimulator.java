@@ -813,7 +813,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 // We've found a row with a single unknown. We can solve for this unknown.
                 if (pivotRowInfo.type != RowInfo.ROW_NORMAL) {
                     // This case should ideally not be reached if logic is correct.
-                    System.out.println("type already " + pivotRowInfo.type + " for " + pivotColumnIndex + "!");
+                    console("type already " + pivotRowInfo.type + " for " + pivotColumnIndex + "!");
                     continue;
                 }
                 // Mark the variable as a constant and calculate its value.
@@ -1427,6 +1427,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public long lastIterTime;
     int steps = 0;
 
+    // Per-step solver diagnostics fire on most frames of an adaptive-timestep circuit; build
+    // and log them only in developer mode so they do not evict real errors from the log.
+    private boolean traceSteps() {
+        return circuitInfo().developerMode;
+    }
+
     void dumpCircuitMatrix() {
         StringBuilder xBuilder = new StringBuilder();
         for (int j = 0; j < circuitMatrixSize; j++) {
@@ -1477,7 +1483,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
                 // things are going well, double the time step
                 timeStep = Math.min(timeStep * 2, maxTimeStep);
-                console("timestep up = " + timeStep + " at " + t);
+                if (traceSteps())
+                    console("timestep up = " + timeStep + " at " + t);
                 stampCircuit();
                 goodIterations = 0;
             }
@@ -1621,7 +1628,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 boolean canReduceTimeStep = !matrixFailureThisIteration && adjustTimeStep && (timeStep / 2 > minTimeStep);
                 if (canReduceTimeStep) {
                     timeStep /= 2;
-                    console("timestep down to " + timeStep + " at " + t);
+                    if (traceSteps())
+                        console("timestep down to " + timeStep + " at " + t);
                     // we reduced the timestep. reset circuit state to the way it was at start of iteration
                     setNodeVoltages(lastNodeVoltages);
                     stampCircuit();
@@ -1680,7 +1688,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 break;
             }
 
-            if (subIter > 5 || timeStep < maxTimeStep) {
+            if (traceSteps() && (subIter > 5 || timeStep < maxTimeStep)) {
                 console("converged after " + subIter + " iterations, timeStep = " + timeStep);
             }
 

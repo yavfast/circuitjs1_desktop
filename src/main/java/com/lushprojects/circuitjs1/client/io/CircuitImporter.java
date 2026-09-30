@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.io;
 
+import com.lushprojects.circuitjs1.client.CircuitConst;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 /**
@@ -26,17 +27,21 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
  */
 public interface CircuitImporter {
 
-    /** Flag: retain current circuit state (for paste operations) */
-    int RC_RETAIN = 1;
+    // Import flags are aliases of CircuitConst — the single definition shared with every caller
+    // (UndoManager, CircuitEditor paste, ActionManager). A private copy with different values made
+    // undo/redo read RC_NO_CENTER as RC_SUBCIRCUITS and load an empty circuit.
 
-    /** Flag: import only subcircuits/models */
-    int RC_SUBCIRCUITS = 2;
+    /** Flag: retain current circuit state (for paste operations) */
+    int RC_RETAIN = CircuitConst.RC_RETAIN;
 
     /** Flag: don't center circuit after import */
-    int RC_NO_CENTER = 4;
+    int RC_NO_CENTER = CircuitConst.RC_NO_CENTER;
+
+    /** Flag: import only subcircuits/models */
+    int RC_SUBCIRCUITS = CircuitConst.RC_SUBCIRCUITS;
 
     /** Flag: keep current title */
-    int RC_KEEP_TITLE = 8;
+    int RC_KEEP_TITLE = CircuitConst.RC_KEEP_TITLE;
 
     /**
      * Import circuit data into document.

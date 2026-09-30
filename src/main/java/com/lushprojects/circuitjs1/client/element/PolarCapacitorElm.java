@@ -103,8 +103,14 @@ public class PolarCapacitorElm extends CapacitorElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("max_reverse_voltage", getUnitText(maxNegativeVoltage, "V"));
+        props.put("max_reverse_voltage", getJsonUnitText(maxNegativeVoltage, "V"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        maxNegativeVoltage = getJsonDouble(properties, "max_reverse_voltage", maxNegativeVoltage);
     }
 
     @Override

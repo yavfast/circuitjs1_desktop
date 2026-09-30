@@ -282,4 +282,23 @@ public class CustomCompositeElm extends CompositeElm {
         props.put("output_count", outputCount);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // input_count/output_count are informational only (never assigned; derived from the model)
+        String name = getJsonString(properties, "model_name", modelName);
+        if (name.equals(modelName))
+            return;
+        if (CustomCompositeModel.getModelWithName(name) == null) {
+            // JSON does not carry subcircuit models; keep the current model rather than
+            // leaving model == null (which would break setPoints/getInfo)
+            if (circuitDocument != null && cirSim() != null)
+                cirSim().log("JSON import: subcircuit model '" + name + "' not found, using '" + modelName + "'");
+            return;
+        }
+        // same rebuild as the text constructor, using the model's default element dump
+        modelName = name;
+        updateModels();
+    }
 }

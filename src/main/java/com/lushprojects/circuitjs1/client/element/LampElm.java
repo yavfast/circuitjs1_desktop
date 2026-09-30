@@ -245,10 +245,10 @@ public class LampElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("nominal_power", getUnitText(nom_pow, "W"));
-        props.put("nominal_voltage", getUnitText(nom_v, "V"));
-        props.put("warmup_time", getUnitText(warmTime, "s"));
-        props.put("cooldown_time", getUnitText(coolTime, "s"));
+        props.put("nominal_power", getJsonUnitText(nom_pow, "W"));
+        props.put("nominal_voltage", getJsonUnitText(nom_v, "V"));
+        props.put("warmup_time", getJsonUnitText(warmTime, "s"));
+        props.put("cooldown_time", getJsonUnitText(coolTime, "s"));
         return props;
     }
 
@@ -291,7 +291,7 @@ public class LampElm extends CircuitElm {
         if (Double.isFinite(resistance)) {
             state.put("resistance", resistance);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

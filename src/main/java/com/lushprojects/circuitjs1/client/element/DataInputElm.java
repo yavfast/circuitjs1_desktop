@@ -225,11 +225,19 @@ public class DataInputElm extends RailElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("sample_length", getUnitText(sampleLength, "s"));
+        props.put("sample_length", getJsonUnitText(sampleLength, "s"));
         props.put("scale_factor", scaleFactor);
         props.put("repeat", doesRepeat());
         if (fileName != null)
             props.put("file_name", fileName);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        sampleLength = getJsonDouble(properties, "sample_length", sampleLength);
+        scaleFactor = getJsonDouble(properties, "scale_factor", scaleFactor);
+        // repeat travels in _flags; file_name is informational (data lives in the file map)
     }
 }

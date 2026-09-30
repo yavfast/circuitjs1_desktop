@@ -102,6 +102,15 @@ public class CircuitElementFactory {
         // Legacy alias: previously a variable waveform existed; treat it as DC.
         register("VoltageSourceVar", (doc, x, y) -> VoltageElm.createWithWaveform(doc, x, y,
             com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_DC));
+        // Waveform rails without a dedicated class (emitted by Waveform.getJsonRailTypeName)
+        register("TriangleRail", (doc, x, y) -> RailElm.createRail(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_TRIANGLE));
+        register("SawtoothRail", (doc, x, y) -> RailElm.createRail(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_SAWTOOTH));
+        register("PulseRail", (doc, x, y) -> RailElm.createRail(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_PULSE));
+        register("NoiseRail", (doc, x, y) -> RailElm.createRail(doc, x, y,
+                com.lushprojects.circuitjs1.client.element.waveform.Waveform.WF_NOISE));
         // Rail aliases
         register("VariableRail", VarRailElm::new);
         register("ExternalVoltage", ExtVoltageElm::new);
@@ -341,6 +350,23 @@ public class CircuitElementFactory {
     }
 
     /**
+     * Maps type names written by older exporters whose element class depends on a property.
+     * Files exported before the NPN/PNP split wrote a flat "Darlington" with a "pnp" property.
+     */
+    private static String resolveLegacyType(String jsonType, JSONObject elementJson) {
+        if ("Darlington".equals(jsonType)) {
+            boolean pnp = false;
+            JSONValue propsValue = elementJson.get("properties");
+            if (propsValue != null && propsValue.isObject() != null) {
+                JSONValue pnpValue = propsValue.isObject().get("pnp");
+                pnp = pnpValue != null && pnpValue.isBoolean() != null && pnpValue.isBoolean().booleanValue();
+            }
+            return pnp ? "DarlingtonPNP" : "DarlingtonNPN";
+        }
+        return jsonType;
+    }
+
+    /**
      * Creates a CircuitElm from JSON element definition.
      * 
      * @param jsonType    The JSON type name (e.g., "Resistor")
@@ -350,6 +376,8 @@ public class CircuitElementFactory {
      */
     public static CircuitElm createFromJson(String jsonType, JSONObject elementJson, CircuitDocument document) {
         ensureInitialized();
+
+        jsonType = resolveLegacyType(jsonType, elementJson);
 
         // Get constructor from type mapping
         ElementConstructor constructor = JSON_TYPE_TO_CONSTRUCTOR.get(jsonType);
@@ -448,7 +476,9 @@ public class CircuitElementFactory {
                 JSONValue bottomVal = bounds.get("bottom");
                 JSONValue leftVal = bounds.get("left");
                 JSONValue topVal = bounds.get("top");
-                if (rightVal != null && bottomVal != null && leftVal != null && topVal != null) {
+                if (rightVal != null && bottomVal != null && leftVal != null && topVal != null
+                        && rightVal.isNumber() != null && bottomVal.isNumber() != null
+                        && leftVal.isNumber() != null && topVal.isNumber() != null) {
                     int left = (int) leftVal.isNumber().doubleValue();
                     int top = (int) topVal.isNumber().doubleValue();
                     int right = (int) rightVal.isNumber().doubleValue();
@@ -533,11 +563,9 @@ public class CircuitElementFactory {
                 int right = (int) rightVal.isNumber().doubleValue();
                 int bottom = (int) bottomVal.isNumber().doubleValue();
                 try {
-                    // Set coords to match JSON bounds so any later re-computation
-                    // uses the intended geometry.
-                    elm.setEndpoints(left, top, right, bottom);
-                    // Use public setBbox(Point,Point,double) to update boundingBox
-                    // (avoids calling package-private API and works across packages).
+                    // Bounds are the element's bounding box, not its endpoints: only refresh the
+                    // box (drawing recomputes it). Writing them into the endpoints turned every
+                    // element into its box diagonal and disconnected the circuit.
                     elm.setBbox(new com.lushprojects.circuitjs1.client.Point(left, top),
                             new com.lushprojects.circuitjs1.client.Point(right, bottom), 0);
                 } catch (Exception e) {
@@ -655,10 +683,12 @@ public class CircuitElementFactory {
             return jsonObjectToMap(value.isObject());
         }
         if (value.isArray() != null) {
+            // Element consumers (CompositeElm sub-states, TransLineElm buffers, CustomTransformerElm
+            // tap offsets) expect java.util.List, matching what the exporter writes.
             JSONArray arr = value.isArray();
-            Object[] result = new Object[arr.size()];
+            java.util.List<Object> result = new java.util.ArrayList<>(arr.size());
             for (int i = 0; i < arr.size(); i++) {
-                result[i] = jsonValueToObject(arr.get(i));
+                result.add(jsonValueToObject(arr.get(i)));
             }
             return result;
         }

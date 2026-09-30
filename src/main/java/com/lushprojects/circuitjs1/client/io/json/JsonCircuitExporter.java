@@ -23,6 +23,7 @@ import com.google.gwt.json.client.*;
 import com.lushprojects.circuitjs1.client.Adjustable;
 import com.lushprojects.circuitjs1.client.AdjustableManager;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.CircuitRenderer;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.ColorSettings;
@@ -162,12 +163,23 @@ public class JsonCircuitExporter implements CircuitExporter {
         sim.put("voltage_range", new JSONString(formatWithUnit(ColorSettings.get().getVoltageRange(), "V")));
 
         // Speed settings
+        sim.put("simulation_speed", new JSONNumber(cirSim.speedBar.getValue()));
         sim.put("current_speed", new JSONNumber(cirSim.currentBar.getValue()));
         sim.put("power_brightness", new JSONNumber(cirSim.powerBar.getValue()));
 
         // Auto time step
         if (simulator.adjustTimeStep) {
             sim.put("auto_time_step", JSONBoolean.getInstance(true));
+        }
+
+        // Circuit hint (text format 'h' line); items are element indices, as in the text format
+        CircuitRenderer renderer = document.getRenderer();
+        if (renderer.getHintType() != -1) {
+            JSONObject hint = new JSONObject();
+            hint.put("type", new JSONNumber(renderer.getHintType()));
+            hint.put("item1", new JSONNumber(renderer.getHintItem1()));
+            hint.put("item2", new JSONNumber(renderer.getHintItem2()));
+            sim.put("hint", hint);
         }
 
         return sim;
@@ -327,10 +339,10 @@ public class JsonCircuitExporter implements CircuitExporter {
         }
 
         // Flags (internal, for reimport)
+        // Always written: an absent _flags means "keep the constructor's defaults" on import,
+        // which differ from 0 for several elements (JFET/MOSFET body diode, SCR, pot, 555).
         int flags = elm.getJsonFlags();
-        if (flags != 0) {
-            element.put("_flags", new JSONNumber(flags));
-        }
+        element.put("_flags", new JSONNumber(flags));
 
         // State (simulation state - voltages, currents, internal state)
         if (includeState) {
@@ -409,6 +421,11 @@ public class JsonCircuitExporter implements CircuitExporter {
                 
                 // Position in scope stack
                 scopeObj.put("position", new JSONNumber(scope.position));
+
+                // User label shown on the scope (text format: trailing token of the 'o' line)
+                if (scope.getText() != null && !scope.getText().isEmpty()) {
+                    scopeObj.put("label", new JSONString(scope.getText()));
+                }
                 
                 // Time scale (speed)
                 scopeObj.put("speed", new JSONNumber(scope.speed));
@@ -553,6 +570,14 @@ public class JsonCircuitExporter implements CircuitExporter {
         
         java.util.ArrayList<Adjustable> adjList = adjustableManager.getAdjustables();
         int idx = 0;
+        // Index in the exported array (entries with no element are skipped, so it can differ
+        // from the list index); shared_slider refers to it.
+        java.util.Map<Adjustable, Integer> exportedIndex = new java.util.HashMap<>();
+        for (Adjustable a : adjList) {
+            if (a != null && a.getElm() != null) {
+                exportedIndex.put(a, exportedIndex.size());
+            }
+        }
         
         for (int i = 0; i < adjList.size(); i++) {
             Adjustable adj = adjList.get(i);
@@ -582,7 +607,8 @@ public class JsonCircuitExporter implements CircuitExporter {
                 
                 // Shared slider reference
                 if (adj.sharedSlider != null) {
-                    int sharedIdx = adjList.indexOf(adj.sharedSlider);
+                    Integer shared = exportedIndex.get(adj.sharedSlider);
+                    int sharedIdx = shared == null ? -1 : shared;
                     if (sharedIdx >= 0) {
                         adjObj.put("shared_slider", new JSONNumber(sharedIdx));
                     }
@@ -659,49 +685,37 @@ public class JsonCircuitExporter implements CircuitExporter {
                 obj.put(entry.getKey(), toJsonValue(entry.getValue()));
             }
             return obj;
+        } else if (value instanceof java.util.List) {
+            // Lists (sub-element states, delay buffers, tap offsets) are written as JSON arrays;
+            // the importer reads JSON arrays back as java.util.List.
+            JSONArray arr = new JSONArray();
+            java.util.List<Object> list = (java.util.List<Object>) value;
+            for (int i = 0; i < list.size(); i++) {
+                arr.set(i, toJsonValue(list.get(i)));
+            }
+            return arr;
+        } else if (value instanceof Object[]) {
+            JSONArray arr = new JSONArray();
+            Object[] items = (Object[]) value;
+            for (int i = 0; i < items.length; i++) {
+                arr.set(i, toJsonValue(items[i]));
+            }
+            return arr;
+        } else if (value instanceof double[]) {
+            JSONArray arr = new JSONArray();
+            double[] items = (double[]) value;
+            for (int i = 0; i < items.length; i++) {
+                arr.set(i, new JSONNumber(items[i]));
+            }
+            return arr;
         } else {
             return new JSONString(value.toString());
         }
     }
 
     private String formatWithUnit(double value, String unit) {
-        // Use SI prefixes
-        String[] prefixes = {"f", "p", "n", "u", "m", "", "k", "M", "G", "T"};
-        double[] multipliers = {1e-15, 1e-12, 1e-9, 1e-6, 1e-3, 1, 1e3, 1e6, 1e9, 1e12};
-
-        int idx = 5; // Start with no prefix
-        double absValue = Math.abs(value);
-
-        if (absValue != 0) {
-            for (int i = 0; i < multipliers.length; i++) {
-                if (absValue >= multipliers[i] * 0.999 && absValue < multipliers[i] * 1000) {
-                    idx = i;
-                    break;
-                }
-            }
-        }
-
-        double scaledValue = value / multipliers[idx];
-        String prefix = prefixes[idx];
-
-        // Format number
-        if (scaledValue == Math.floor(scaledValue) && scaledValue < 1e6) {
-            return String.valueOf((long) scaledValue) + " " + prefix + unit;
-        } else {
-            // Use up to 4 decimal places
-            String formatted = String.valueOf(scaledValue);
-            if (formatted.contains(".") && formatted.length() > formatted.indexOf('.') + 5) {
-                formatted = formatted.substring(0, formatted.indexOf('.') + 5);
-            }
-            // Remove trailing zeros
-            while (formatted.endsWith("0") && formatted.contains(".")) {
-                formatted = formatted.substring(0, formatted.length() - 1);
-            }
-            if (formatted.endsWith(".")) {
-                formatted = formatted.substring(0, formatted.length() - 1);
-            }
-            return formatted + " " + prefix + unit;
-        }
+        // One serializer for all JSON values (simulation settings and element properties).
+        return CircuitElm.getJsonUnitText(value, unit);
     }
 
     /**

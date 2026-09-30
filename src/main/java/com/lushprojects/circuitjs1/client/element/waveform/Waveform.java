@@ -67,13 +67,17 @@ public abstract class Waveform {
     public abstract String getJsonTypeName();
 
     public void getJsonProperties(VoltageElm elm, java.util.Map<String, Object> props) {
-        props.put("max_voltage", VoltageElm.getUnitText(maxVoltage, "V"));
+        props.put("max_voltage", VoltageElm.getJsonUnitText(maxVoltage, "V"));
         if (bias != 0) {
-            props.put("dc_offset", VoltageElm.getUnitText(bias, "V"));
+            props.put("dc_offset", VoltageElm.getJsonUnitText(bias, "V"));
         }
-        props.put("frequency", VoltageElm.getUnitText(frequency, "Hz"));
+        props.put("frequency", VoltageElm.getJsonUnitText(frequency, "Hz"));
         if (phaseShift != 0) {
             props.put("phase_shift", phaseShift * 180 / Math.PI);
+        }
+        // kept even where the waveform ignores it, so text -> JSON -> text is lossless
+        if (dutyCycle != 0.5) {
+            props.put("duty_cycle", dutyCycle);
         }
     }
 
@@ -151,5 +155,14 @@ public abstract class Waveform {
 
     protected double w(VoltageElm elm) {
         return 2 * Math.PI * (elm.simulator().t - freqTimeZero) * frequency + phaseShift;
+    }
+
+    /**
+     * Phase wrapped into [0, 2*pi). Java's % keeps the sign of the dividend, so a negative
+     * phase shift would otherwise yield negative values right after t=0 or a reset.
+     */
+    protected double wrappedPhase(VoltageElm elm) {
+        double x = w(elm) % VoltageElm.PI_2;
+        return x < 0 ? x + VoltageElm.PI_2 : x;
     }
 }

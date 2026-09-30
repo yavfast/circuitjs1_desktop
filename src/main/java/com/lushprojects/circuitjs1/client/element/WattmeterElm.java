@@ -264,6 +264,13 @@ public class WattmeterElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // geometry parameter used by setPoints() (called from finalizeJsonImport)
+        width = getJsonInt(properties, "width", width);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "I1+", "I1-", "V+", "V-" };
     }

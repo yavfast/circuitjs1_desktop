@@ -660,7 +660,9 @@ public class MosfetElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("threshold_voltage", getUnitText(Math.abs(vt), "V"));
+        // vt as stored by the text format (polarity-independent; negative = depletion device).
+        // abs() lost the sign of depletion devices; pnp scaling on import flipped PMOS.
+        props.put("threshold_voltage", getJsonUnitText(vt, "V"));
         props.put("beta", beta);
         if (drawDigital()) {
             props.put("digital", true);
@@ -692,7 +694,7 @@ public class MosfetElm extends CircuitElm {
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
-        vt = pnp * getJsonDouble(properties, "threshold_voltage", pnp < 0 ? -1.5 : 1.5);
+        vt = getJsonDouble(properties, "threshold_voltage", vt);
         beta = getJsonDouble(properties, "beta", getDefaultBeta());
         if (getJsonBoolean(properties, "digital", false)) {
             flags |= FLAG_DIGITAL;
@@ -715,7 +717,7 @@ public class MosfetElm extends CircuitElm {
         if (Double.isFinite(ids)) {
             state.put("ids", ids);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

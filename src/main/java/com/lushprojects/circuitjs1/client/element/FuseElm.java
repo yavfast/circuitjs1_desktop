@@ -213,12 +213,26 @@ public class FuseElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("resistance", getJsonUnitText(resistance, "Ohm"));
         props.put("i2t", i2t);
         if (blown) {
             props.put("blown", true);
         }
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "resistance", resistance);
+        if (v > 0)
+            resistance = v;
+        v = getJsonDouble(properties, "i2t", i2t);
+        if (v > 0)
+            i2t = v;
+        // "blown" is only exported when true; absent means intact.
+        blown = getJsonBoolean(properties, "blown", blown);
     }
 
     @Override

@@ -279,11 +279,27 @@ public class TriStateElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("on_resistance", getUnitText(r_on, "Ohm"));
-        props.put("off_resistance", getUnitText(r_off, "Ohm"));
-        props.put("pulldown_resistance", getUnitText(r_off_ground, "Ohm"));
-        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        props.put("on_resistance", getJsonUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(r_off, "Ohm"));
+        props.put("pulldown_resistance", getJsonUnitText(r_off_ground, "Ohm"));
+        props.put("high_voltage", getJsonUnitText(highVoltage, "V"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        double v = getJsonDouble(properties, "on_resistance", r_on);
+        if (v > 0)
+            r_on = v;
+        v = getJsonDouble(properties, "off_resistance", r_off);
+        if (v > 0)
+            r_off = v;
+        // 0 is a valid persisted value (text-format default: no pulldown), so accept >= 0 here
+        v = getJsonDouble(properties, "pulldown_resistance", r_off_ground);
+        if (v >= 0)
+            r_off_ground = v;
+        highVoltage = getJsonDouble(properties, "high_voltage", highVoltage);
     }
 
     @Override

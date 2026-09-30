@@ -17,7 +17,7 @@ public class PulseWaveform extends Waveform {
         if (elm.circuitDocument.circuitInfo.dcAnalysisFlag) {
             return bias;
         }
-        return ((w(elm) % VoltageElm.PI_2) < (VoltageElm.PI_2 * dutyCycle)) ? maxVoltage + bias : bias;
+        return (wrappedPhase(elm) < (VoltageElm.PI_2 * dutyCycle)) ? maxVoltage + bias : bias;
     }
 
     @Override
@@ -75,5 +75,10 @@ public class PulseWaveform extends Waveform {
     @Override
     public String getJsonTypeName() {
         return "VoltageSourcePulse";
+    }
+
+    @Override
+    public String getJsonRailTypeName() {
+        return "PulseRail";
     }
 }

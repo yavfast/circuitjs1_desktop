@@ -10,4 +10,9 @@ public class CC2NegElm extends CC2Elm {
     public Class<CC2Elm> getDumpClass() {
         return CC2Elm.class;
     }
+
+    @Override
+    public String getJsonTypeName() {
+        return "CC2Neg";
+    }
 }

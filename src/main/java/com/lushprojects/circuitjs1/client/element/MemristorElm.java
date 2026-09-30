@@ -193,12 +193,22 @@ public class MemristorElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("min_resistance", getUnitText(r_on, "Ohm"));
-        props.put("max_resistance", getUnitText(r_off, "Ohm"));
-        props.put("dope_width", getUnitText(dopeWidth, "m"));
-        props.put("total_width", getUnitText(totalWidth, "m"));
+        props.put("min_resistance", getJsonUnitText(r_on, "Ohm"));
+        props.put("max_resistance", getJsonUnitText(r_off, "Ohm"));
+        props.put("dope_width", getJsonUnitText(dopeWidth, "m"));
+        props.put("total_width", getJsonUnitText(totalWidth, "m"));
         props.put("mobility", mobility);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        r_on = getJsonDouble(properties, "min_resistance", r_on);
+        r_off = getJsonDouble(properties, "max_resistance", r_off);
+        dopeWidth = getJsonDouble(properties, "dope_width", dopeWidth);
+        totalWidth = getJsonDouble(properties, "total_width", totalWidth);
+        mobility = getJsonDouble(properties, "mobility", mobility);
     }
 
     @Override
@@ -219,15 +229,17 @@ public class MemristorElm extends CircuitElm {
         if (Double.isFinite(resistance)) {
             state.put("resistance", resistance);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override
     public void applyJsonState(java.util.Map<String, Object> stateMap) {
         super.applyJsonState(stateMap);
         if (stateMap != null) {
-            dopeWidth = getJsonDouble(stateMap, "dope_width", 0);
-            resistance = getJsonDouble(stateMap, "resistance", 100);
+            // Default to the current values so a state without these keys keeps
+            // the dope width restored by applyJsonProperties().
+            dopeWidth = getJsonDouble(stateMap, "dope_width", dopeWidth);
+            resistance = getJsonDouble(stateMap, "resistance", resistance);
         }
     }
 }

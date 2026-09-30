@@ -272,5 +272,26 @@ public class VCCSElm extends ChipElm {
         props.put("input_count", inputCount);
         return props;
     }
+
+    // Same range the "# of Inputs" edit field accepts; subclasses may narrow it.
+    boolean isValidInputCount(int n) {
+        return n >= 0 && n <= 8;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        String newExpr = getJsonString(properties, "expression", exprString);
+        if (!newExpr.equals(exprString)) {
+            exprString = newExpr;
+            parseExpr();
+        }
+        int newCount = getJsonInt(properties, "input_count", inputCount);
+        if (newCount != inputCount && isValidInputCount(newCount)) {
+            inputCount = newCount;
+            // setupPins() rebuilds pins/state arrays and calls allocNodes()
+            setupPins();
+        }
+    }
 }
 

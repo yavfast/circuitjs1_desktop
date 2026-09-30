@@ -311,10 +311,10 @@ public class OpAmpElm extends CircuitElm {
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("gain", gain);
-        props.put("max_output", getUnitText(maxOut, "V"));
-        props.put("min_output", getUnitText(minOut, "V"));
+        props.put("max_output", getJsonUnitText(maxOut, "V"));
+        props.put("min_output", getJsonUnitText(minOut, "V"));
         if (gbw != 1e6) {
-            props.put("gbw", getUnitText(gbw, "Hz"));
+            props.put("gbw", getJsonUnitText(gbw, "Hz"));
         }
         if ((flags & FLAG_SWAP) != 0) {
             props.put("swap_inputs", true);
@@ -380,7 +380,7 @@ public class OpAmpElm extends CircuitElm {
         if (Double.isFinite(lastvd)) {
             state.put("lastvd", lastvd);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

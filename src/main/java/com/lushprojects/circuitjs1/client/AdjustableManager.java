@@ -53,6 +53,14 @@ public class AdjustableManager extends BaseCirSimDelegate {
         dedupeAdjustables();
         for (int i = 0; i < adjustables.size(); i++) {
             if (!adjustables.get(i).createSlider()) {
+                Adjustable removed = adjustables.remove(i--);
+                unlinkShared(removed, false);
+            }
+        }
+        // Adjustables detached above (their shared slider was dropped) still need a slider.
+        for (int i = 0; i < adjustables.size(); i++) {
+            Adjustable adj = adjustables.get(i);
+            if (adj.sharedSlider == null && adj.slider == null && !adj.createSlider()) {
                 adjustables.remove(i--);
             }
         }
@@ -64,20 +72,20 @@ public class AdjustableManager extends BaseCirSimDelegate {
             Adjustable adj = adjustables.get(i);
             CircuitElm elm = adj.getElm();
             if (elm == null) {
-                adjustables.remove(i--);
+                unlinkShared(adjustables.remove(i--), false);
                 continue;
             }
 
             int elmIndex = simulator().locateElm(elm);
             if (elmIndex < 0) {
-                adjustables.remove(i--);
+                unlinkShared(adjustables.remove(i--), false);
                 continue;
             }
 
             int sharedIndex = adj.sharedSlider == null ? -1 : adjustables.indexOf(adj.sharedSlider);
             String key = elmIndex + ":" + adj.getEditItem() + ":" + sharedIndex;
             if (!seen.add(key)) {
-                adjustables.remove(i--);
+                unlinkShared(adjustables.remove(i--), false);
             }
         }
     }
@@ -130,6 +138,26 @@ public class AdjustableManager extends BaseCirSimDelegate {
             if (adj.elm == elm) {
                 adj.deleteSlider();
                 adjustables.remove(i);
+                unlinkShared(adj, true);
+            }
+        }
+    }
+
+    /**
+     * Detaches adjustables that share the slider of a removed adjustable, so they do not
+     * keep a reference to a slider that no longer exists (NPE on the next edit).
+     *
+     * @param removed       the adjustable just removed from the list
+     * @param createSliders give each detached adjustable its own slider now (outside createSliders())
+     */
+    public void unlinkShared(Adjustable removed, boolean createSliders) {
+        for (int i = 0; i < adjustables.size(); i++) {
+            Adjustable adj = adjustables.get(i);
+            if (adj.sharedSlider == removed) {
+                adj.sharedSlider = null;
+                if (createSliders) {
+                    adj.createSlider();
+                }
             }
         }
     }

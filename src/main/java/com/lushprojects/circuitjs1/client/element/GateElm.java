@@ -338,7 +338,7 @@ public abstract class GateElm extends CircuitElm {
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("input_count", inputCount);
-        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        props.put("high_voltage", getJsonUnitText(highVoltage, "V"));
         if (hasSchmittInputs()) {
             props.put("schmitt", true);
         }

@@ -316,6 +316,27 @@ public class AmmeterElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        String mode = getJsonString(properties, "mode", null);
+        if ("current".equals(mode))
+            meter = AM_VOL;
+        else if ("rms".equals(mode))
+            meter = AM_RMS;
+        String sc = getJsonString(properties, "scale", null);
+        if ("auto".equals(sc))
+            scale = SCALE_AUTO;
+        else if ("A".equals(sc))
+            scale = SCALE_1;
+        else if ("mA".equals(sc))
+            scale = SCALE_M;
+        else if ("uA".equals(sc))
+            scale = SCALE_MU;
+        boolean circle = getJsonBoolean(properties, "circular_symbol", drawAsCircle());
+        flags = circle ? (flags | FLAG_CIRCLE) : (flags & ~FLAG_CIRCLE);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] {"in+", "in-"};
     }

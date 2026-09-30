@@ -24,7 +24,7 @@ public class TriangleWaveform extends Waveform {
         if (elm.circuitDocument.circuitInfo.dcAnalysisFlag) {
             return bias;
         }
-        return bias + triangleFunc(w(elm) % VoltageElm.PI_2) * maxVoltage;
+        return bias + triangleFunc(wrappedPhase(elm)) * maxVoltage;
     }
 
     @Override
@@ -69,5 +69,10 @@ public class TriangleWaveform extends Waveform {
     @Override
     public String getJsonTypeName() {
         return "VoltageSourceTriangle";
+    }
+
+    @Override
+    public String getJsonRailTypeName() {
+        return "TriangleRail";
     }
 }

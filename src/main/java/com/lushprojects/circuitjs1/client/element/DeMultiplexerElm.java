@@ -64,6 +64,8 @@ public class DeMultiplexerElm extends ChipElm {
         outputCount = 1 << selectBitCount;
         sizeX = 1 + selectBitCount;
         sizeY = 1 + outputCount;
+        // getPostCount() depends on qPin, so compute it before sizing the pin array
+        qPin = outputCount + selectBitCount;
         pins = new Pin[getPostCount()];
         int i;
         for (i = 0; i != outputCount; i++) {
@@ -123,5 +125,16 @@ public class DeMultiplexerElm extends ChipElm {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("select_bits", selectBitCount);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        int b = getJsonInt(properties, "select_bits", selectBitCount);
+        if (b >= 1 && b <= 6) {
+            selectBitCount = b;
+            setupPins();
+            allocNodes();
+        }
     }
 }

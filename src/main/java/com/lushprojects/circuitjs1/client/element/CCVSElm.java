@@ -265,5 +265,11 @@ public class CCVSElm extends VCCSElm {
         props.put("input_count", inputCount);
         return props;
     }
+
+    @Override
+    boolean isValidInputCount(int n) {
+        // make sure number of inputs is even (same check as the edit dialog)
+        return super.isValidInputCount(n) && (n % 2) == 0;
+    }
 }
 

@@ -169,4 +169,15 @@ public class SevenSegDecoderElm extends ChipElm {
         props.put("blank_on_1111", blankOnF());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        boolean blankPin = getJsonBoolean(properties, "has_blank_pin", hasBlank());
+        flags = blankPin ? (flags | FLAG_ENABLE) : (flags & ~FLAG_ENABLE);
+        boolean blankF = getJsonBoolean(properties, "blank_on_1111", blankOnF());
+        flags = blankF ? (flags | FLAG_BLANK_F) : (flags & ~FLAG_BLANK_F);
+        // the BI pin changes the post count
+        setupPins();
+    }
 }

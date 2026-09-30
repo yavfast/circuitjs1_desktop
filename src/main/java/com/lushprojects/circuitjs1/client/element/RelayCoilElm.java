@@ -430,11 +430,11 @@ public class RelayCoilElm extends CircuitElm {
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("label", label);
-        props.put("inductance", getUnitText(inductance, "H"));
-        props.put("on_current", getUnitText(onCurrent, "A"));
-        props.put("off_current", getUnitText(offCurrent, "A"));
-        props.put("coil_resistance", getUnitText(coilR, "Ohm"));
-        props.put("switching_time", getUnitText(switchingTime, "s"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
+        props.put("on_current", getJsonUnitText(onCurrent, "A"));
+        props.put("off_current", getJsonUnitText(offCurrent, "A"));
+        props.put("coil_resistance", getJsonUnitText(coilR, "Ohm"));
+        props.put("switching_time", getJsonUnitText(switchingTime, "s"));
         String[] typeNames = { "normal", "on_delay", "off_delay", "latching" };
         props.put("type", typeNames[type]);
         return props;
@@ -488,6 +488,9 @@ public class RelayCoilElm extends CircuitElm {
         state.put("d_position", d_position);
         state.put("i_position", i_position);
         state.put("avgCurrent", avgCurrent);
+        // latched position and coil state, as in the text dump (lost for latching relays)
+        state.put("relay_state", this.state);
+        state.put("switch_position", switchPosition);
         return state;
     }
 
@@ -502,5 +505,7 @@ public class RelayCoilElm extends CircuitElm {
             i_position = ((Number) state.get("i_position")).intValue();
         if (state.containsKey("avgCurrent"))
             avgCurrent = ((Number) state.get("avgCurrent")).doubleValue();
+        this.state = getJsonInt(state, "relay_state", this.state);
+        switchPosition = getJsonInt(state, "switch_position", switchPosition);
     }
 }

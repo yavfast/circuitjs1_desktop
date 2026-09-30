@@ -269,6 +269,19 @@ public class Switch2Elm extends SwitchElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> props) {
+        super.applyJsonProperties(props);
+        link = getJsonInt(props, "link_group", link);
+        int tc = getJsonInt(props, "throw_count", throwCount);
+        if (tc >= 2 && tc != throwCount) {
+            // post count depends on throwCount; same re-setup as setEditValue
+            throwCount = tc;
+            allocNodes();
+        }
+        // center_off is FLAG_CENTER_OFF, already restored from _flags
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         String[] pins = new String[1 + throwCount];
         pins[0] = "common";

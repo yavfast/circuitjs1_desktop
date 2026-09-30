@@ -24,7 +24,6 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.Context2d.LineCap;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.core.client.JsArrayString;
-import com.google.gwt.i18n.client.NumberFormat;
 import com.google.gwt.user.client.Random;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
@@ -394,7 +393,9 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     public void setDescription(String description) {
         if (description != null) {
-            description = description.trim();
+            // The text dump stores the description at the end of the element line, so a line
+            // break would split it into extra (element/option) lines on export or undo.
+            description = description.replaceAll("[\\r\\n]+", " ").trim();
             if (description.isEmpty()) {
                 description = null;
             }
@@ -406,8 +407,12 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return description;
     }
 
+    /** Element line with its description, or null when the element has nothing to save. */
     public static String dumpElm(CircuitElm elm) {
         String dump = elm.dump();
+        if (dump == null) {
+            return null;
+        }
         String desc = elm.description;
         if (desc != null && !desc.isEmpty()) {
             dump += " # " + desc;
@@ -417,10 +422,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
 
     // dump component state for export/undo
     public String dump() {
-        int t = getDumpType();
-        String type = (t < 127 ? String.valueOf((char) t) : String.valueOf(t));
         ElmGeometry g = geom();
-        return dumpValues(type, g.getX1(), g.getY1(), g.getX2(), g.getY2(), flags);
+        return dumpValues(dumpTypeToken(), g.getX1(), g.getY1(), g.getX2(), g.getY2(), flags);
+    }
+
+    /** Leading dump token: the type as a character below 127, otherwise its number. */
+    protected String dumpTypeToken() {
+        int t = getDumpType();
+        return t < 127 ? String.valueOf((char) t) : String.valueOf(t);
     }
 
     public static String dumpValues(Object... values) {
@@ -462,21 +471,19 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return Integer.toString(v);
     }
 
-    private static final NumberFormat EXP_FORMAT = NumberFormat.getFormat("0.#####E0");
-
     public static String dumpValue(double v) {
-        // Format with 4 decimal places, avoid scientific notation for typical values
         if (Double.isNaN(v) || Double.isInfinite(v)) {
             return Double.toString(v);
         }
-        // Use plain format for values in a reasonable range, else fallback to
-        // scientific
-        double absV = Math.abs(v);
-        if ((absV >= 0.0001 && absV < 1e7) || absV == 0.0) {
-            return formatNumber(v, 4, false);
-        } else {
-            return EXP_FORMAT.format(v);
+        // Whole numbers without a fraction ("5", not "5.0")
+        if (v == Math.rint(v) && Math.abs(v) < 1e15) {
+            return Long.toString((long) v);
         }
+        // Shortest representation that parses back to the same double. The text dump is the
+        // save, undo and clipboard format, so it must be lossless (a fixed 4-decimal /
+        // 6-digit format silently rounded component values on every save). JS prints large
+        // exponents as "1e+21"; '+' is a token delimiter of the text importer, so drop it.
+        return Double.toString(v).replace("e+", "e");
     }
 
     public static String dumpValue(boolean v) {
@@ -1668,7 +1675,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * The state includes pin voltages/currents and element-specific internal state.
      * Subclasses should override to add their specific state variables.
      * 
-     * @return Map containing simulation state, or null if no state to export
+     * @return Map containing simulation state (never null; empty when there is none)
      */
     public java.util.Map<String, Object> getJsonState() {
         java.util.Map<String, Object> state = new java.util.LinkedHashMap<>();
@@ -1677,8 +1684,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         Pin[] pinsArr = getPins();
         if (pinsArr.length > 0) {
             java.util.Map<String, Object> pins = new java.util.LinkedHashMap<>();
+            String[] keys = jsonStatePinKeys(pinsArr);
 
-            for (Pin pin : pinsArr) {
+            for (int k = 0; k < pinsArr.length; k++) {
+                Pin pin = pinsArr[k];
                 java.util.Map<String, Object> pinState = new java.util.LinkedHashMap<>();
                 double voltage = pin.getVoltage();
                 double current = pin.getCurrentIntoNode();
@@ -1692,7 +1701,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                 }
 
                 if (!pinState.isEmpty()) {
-                    pins.put(pin.getName(), pinState);
+                    pins.put(keys[k], pinState);
                 }
             }
 
@@ -1701,7 +1710,27 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             }
         }
         
-        return state.isEmpty() ? null : state;
+        // Never null: subclasses add their own entries to super.getJsonState(); the exporter
+        // skips empty maps.
+        return state;
+    }
+
+    /**
+     * Keys of the per-pin "pins" state map: the pin name, made unique by appending the pin's
+     * 1-based index when a name repeats (chips name Q and Q-bar both "Q").
+     */
+    private static String[] jsonStatePinKeys(Pin[] pinsArr) {
+        String[] keys = new String[pinsArr.length];
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (int i = 0; i < pinsArr.length; i++) {
+            String key = pinsArr[i].getName();
+            if (!used.add(key)) {
+                key = key + "_" + (i + 1);
+                used.add(key);
+            }
+            keys[i] = key;
+        }
+        return keys;
     }
 
     /**
@@ -1721,8 +1750,11 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             @SuppressWarnings("unchecked")
             java.util.Map<String, Object> pins = (java.util.Map<String, Object>) pinsObj;
 
-            for (Pin pin : getPins()) {
-                Object pinObj = pins.get(pin.getName());
+            Pin[] pinsArr = getPins();
+            String[] keys = jsonStatePinKeys(pinsArr);
+            for (int k = 0; k < pinsArr.length; k++) {
+                Pin pin = pinsArr[k];
+                Object pinObj = pins.get(keys[k]);
                 if (!(pinObj instanceof java.util.Map)) {
                     continue;
                 }
@@ -1899,7 +1931,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             return ((Number) value).doubleValue();
         }
         if (value instanceof String) {
-            return com.lushprojects.circuitjs1.client.io.json.UnitParser.parse((String) value);
+            // parseValue keeps the default for an unparseable string (plain parse() returns 0)
+            return com.lushprojects.circuitjs1.client.io.json.UnitParser.parseValue(value, defaultValue);
         }
         return defaultValue;
     }

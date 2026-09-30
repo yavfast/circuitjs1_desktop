@@ -201,11 +201,25 @@ public class LogicOutputElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("threshold", getUnitText(threshold, "V"));
+        props.put("threshold", getJsonUnitText(threshold, "V"));
         props.put("ternary", isTernary());
         props.put("numeric", isNumeric());
         props.put("pulldown", needsPullDown());
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        threshold = getJsonDouble(properties, "threshold", threshold);
+        boolean ternary = getJsonBoolean(properties, "ternary", isTernary());
+        flags = ternary ? (flags | FLAG_TERNARY) : (flags & ~FLAG_TERNARY);
+        // "numeric" is exported as (TERNARY | NUMERIC), so only adjust FLAG_NUMERIC on a mismatch
+        boolean numeric = getJsonBoolean(properties, "numeric", isNumeric());
+        if (numeric != isNumeric())
+            flags = numeric ? (flags | FLAG_NUMERIC) : (flags & ~FLAG_NUMERIC);
+        boolean pulldown = getJsonBoolean(properties, "pulldown", needsPullDown());
+        flags = pulldown ? (flags | FLAG_PULLDOWN) : (flags & ~FLAG_PULLDOWN);
     }
 
     @Override

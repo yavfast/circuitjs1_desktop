@@ -90,12 +90,16 @@ public class BaseCircuitElm {
         }
 
         long rounded = Math.round(value * multiplier);
+        // Work on the magnitude: truncating division turned e.g. -0.5 into integer part 0
+        // and printed "0.5", losing the sign of every value between -1 and 0.
+        String sign = rounded < 0 ? "-" : "";
+        rounded = Math.abs(rounded);
         long integerPart = rounded / multiplier;
-        long decimalPart = Math.abs(rounded % multiplier);
+        long decimalPart = rounded % multiplier;
 
         // Return only integer part if no decimal places are needed or if value is whole number (for non-fixed)
         if (decimalPlaces == 0 || (!fixedDecimal && decimalPart == 0)) {
-            return String.valueOf(integerPart);
+            return sign + integerPart;
         }
 
         String decimalStr = String.valueOf(decimalPart);
@@ -112,7 +116,7 @@ public class BaseCircuitElm {
             }
         }
 
-        return integerPart + "." + decimalStr;
+        return sign + integerPart + "." + decimalStr;
     }
 
     /**
@@ -552,6 +556,67 @@ public class BaseCircuitElm {
     }
 
     /**
+     * Formats a value with unit for serialization (JSON properties/state).
+     * Unlike {@link #getUnitText(double, String)} the result does not depend on the
+     * display precision setting and is lossless: {@code UnitParser.parse} returns exactly
+     * {@code v}. The micro prefix is the ASCII "u"; values outside the SI prefix range, or
+     * whose prefixed form would not round-trip, are written in plain notation.
+     *
+     * @param v numeric value
+     * @param u unit string
+     * @return value with SI prefix and unit, e.g. "4.7 uF", "1.2345678 kOhm"
+     */
+    public static String getJsonUnitText(double v, String u) {
+        double va = Math.abs(v);
+        if (va == 0 || Double.isNaN(v) || Double.isInfinite(v)) {
+            return (va == 0 ? "0" : String.valueOf(v)) + " " + u;
+        }
+        if (va < 1e-15 || va >= 1e15) {
+            return jsonPlain(v, u);
+        }
+        int magnitude = getMagnitude(v);
+        double scaled = v * Math.pow(10, -magnitude);
+        // Prefer a clean mantissa: 12 decimals drop the FP noise of the scaling multiplication.
+        double rounded = Math.round(scaled * 1e12) / 1e12;
+        int roundedMagnitude = magnitude;
+        if (Math.abs(rounded) >= 1000) {
+            // Rounding carried into the next prefix (e.g. 999.9999999999 k -> 1 M)
+            roundedMagnitude += 3;
+            rounded = rounded / 1000;
+        }
+        // Keep the clean form only if it parses back to exactly v; otherwise the unrounded
+        // mantissa, and as a last resort plain notation. JSON save must be lossless.
+        String candidate = jsonMantissa(rounded) + " " + jsonPrefix(roundedMagnitude) + u;
+        if (com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(candidate) == v) {
+            return candidate;
+        }
+        candidate = jsonMantissa(scaled) + " " + jsonPrefix(magnitude) + u;
+        if (com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(candidate) == v) {
+            return candidate;
+        }
+        return jsonPlain(v, u);
+    }
+
+    // Plain notation with the unit when that parses back exactly; otherwise the bare number
+    // (a unit such as "m" would be read as the milli prefix).
+    private static String jsonPlain(double v, String u) {
+        String withUnit = String.valueOf(v) + " " + u;
+        if (com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(withUnit) == v) {
+            return withUnit;
+        }
+        return String.valueOf(v);
+    }
+
+    private static String jsonMantissa(double m) {
+        String num = String.valueOf(m);
+        return num.endsWith(".0") ? num.substring(0, num.length() - 2) : num;
+    }
+
+    private static String jsonPrefix(int magnitude) {
+        return magnitude == -6 ? "u" : getSIPrefix(magnitude);
+    }
+
+    /**
      * Calculates the SI unit magnitude (power of 10) for a given value.
      * Returns the nearest multiple of 3 that represents the appropriate SI prefix.
      *
@@ -579,8 +644,8 @@ public class BaseCircuitElm {
         String sp = sf ? "" : " ";
         double va = Math.abs(v);
 
-        // Handle zero and very small values
-        if (va < 1e-14) {
+        // Handle zero and very small values (below the femto range)
+        if (va < 1e-15) {
             return "0" + sp + u;
         }
 
@@ -606,11 +671,12 @@ public class BaseCircuitElm {
      * Returns SI prefix string based on power of 10 magnitude.
      * Uses mathematical calculation instead of array lookup.
      *
-     * @param magnitude power of 10 (must be multiple of 3 in range [-12, 9])
+     * @param magnitude power of 10 (must be multiple of 3 in range [-15, 12])
      * @return SI prefix string
      */
     public static String getSIPrefix(int magnitude) {
         switch (magnitude) {
+            case -15: return "f";  // femto
             case -12: return "p";  // pico
             case -9:  return "n";  // nano
             case -6:  return Locale.muString; // micro

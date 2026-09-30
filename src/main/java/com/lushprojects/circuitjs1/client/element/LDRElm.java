@@ -246,11 +246,33 @@ public class LDRElm extends CircuitElm implements Command, MouseWheelHandler {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("position", position);
         props.put("lux", lux);
-        props.put("resistance", getUnitText(resistance, "Ohm"));
+        props.put("resistance", getJsonUnitText(resistance, "Ohm"));
         props.put("min_lux", minLux);
         props.put("max_lux", maxLux);
         props.put("slider_text", sliderText);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        minLux = getJsonDouble(properties, "min_lux", minLux);
+        maxLux = getJsonDouble(properties, "max_lux", maxLux);
+        position = getJsonDouble(properties, "position", position);
+        if (position < 0)
+            position = 0;
+        if (position > 1)
+            position = 1;
+        sliderText = getJsonString(properties, "slider_text", sliderText);
+        if (label != null)
+            label.setText(sliderText);
+        // setPoints() re-derives position from the slider (value * .0099 + .0001),
+        // so drive the slider with the exact inverse to keep position stable.
+        if (slider != null)
+            slider.setValue((int) Math.round((position - .0001) / .0099));
+        // "lux" and "resistance" are derived from position; recompute instead of reading.
+        lux = LuxFromSliderPos();
+        resistance = calcResistance(lux);
     }
 
     @Override

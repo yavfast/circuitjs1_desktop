@@ -294,4 +294,17 @@ public class SRAMElm extends ChipElm {
         props.put("data_bits", dataBits);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // same range as setChipEditValue
+        int ab = getJsonInt(properties, "address_bits", addressBits);
+        if (ab >= 2 && ab <= 16)
+            addressBits = ab;
+        int db = getJsonInt(properties, "data_bits", dataBits);
+        if (db >= 2 && db <= 16)
+            dataBits = db;
+        setupPins();
+    }
 }

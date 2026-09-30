@@ -93,7 +93,7 @@ public class VoltageElm extends CircuitElm {
             flags &= ~Waveform.FLAG_PULSE_DUTY;
         }
 
-        return dumpValues(getDumpType(), getX(), getY(), getX2(), getY2(), flags, waveform, waveformInstance.frequency, waveformInstance.maxVoltage, waveformInstance.bias, waveformInstance.phaseShift, waveformInstance.dutyCycle);
+        return dumpValues(dumpTypeToken(), getX(), getY(), getX2(), getY2(), flags, waveform, waveformInstance.frequency, waveformInstance.maxVoltage, waveformInstance.bias, waveformInstance.phaseShift, waveformInstance.dutyCycle);
         // VarRailElm adds text at the end
     }
 

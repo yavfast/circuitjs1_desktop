@@ -171,6 +171,18 @@ public class DarlingtonElm extends CompositeElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // The factory key (DarlingtonNPN/PNP) already selects polarity; honor "pnp" if present.
+        int newPnp = getJsonBoolean(properties, "pnp", pnp == -1) ? -1 : 1;
+        if (newPnp != pnp) {
+            pnp = newPnp;
+            ((TransistorElm) compElmList.get(0)).pnp = pnp;
+            ((TransistorElm) compElmList.get(1)).pnp = pnp;
+        }
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "base", "collector", "emitter" };
     }

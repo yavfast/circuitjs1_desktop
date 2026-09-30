@@ -362,10 +362,25 @@ public class SCRElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("trigger_current", getUnitText(triggerI, "A"));
-        props.put("holding_current", getUnitText(holdingI, "A"));
-        props.put("gate_resistance", getUnitText(gresistance, "Ohm"));
+        props.put("trigger_current", getJsonUnitText(triggerI, "A"));
+        props.put("holding_current", getJsonUnitText(holdingI, "A"));
+        props.put("gate_resistance", getJsonUnitText(gresistance, "Ohm"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "trigger_current", triggerI);
+        if (v > 0)
+            triggerI = v;
+        v = getJsonDouble(properties, "holding_current", holdingI);
+        if (v > 0)
+            holdingI = v;
+        v = getJsonDouble(properties, "gate_resistance", gresistance);
+        if (v > 0)
+            gresistance = v;
     }
 
     @Override
@@ -389,7 +404,7 @@ public class SCRElm extends CircuitElm {
         if (Double.isFinite(aresistance)) {
             state.put("aresistance", aresistance);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

@@ -232,10 +232,31 @@ public class AudioOutputElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("duration", getUnitText(duration, "s"));
+        props.put("duration", getJsonUnitText(duration, "s"));
         props.put("sampling_rate", samplingRate + " Hz");
         props.put("label_number", labelNum);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double d = getJsonDouble(properties, "duration", duration);
+        if (d > 0)
+            duration = d;
+        int sr = getJsonInt(properties, "sampling_rate", samplingRate);
+        if (sr > 0)
+            samplingRate = sr;
+        int ln = getJsonInt(properties, "label_number", labelNum);
+        if (ln != labelNum) {
+            labelNum = ln;
+            // The play button was created by the (document, x, y) ctor with the old number.
+            if (button != null)
+                button.setHTML(getButtonLabel());
+        }
+        // duration/samplingRate size the sample buffer: re-allocate like the text ctor.
+        setDataCount();
     }
 
     @Override
@@ -269,11 +290,15 @@ public class AudioOutputElm extends CircuitElm {
         }
     }
 
-    void createButton() {
+    String getButtonLabel() {
         String label = "&#9654; " + Locale.LS("Play Audio");
         if (labelNum > 1)
             label += " " + labelNum;
-        cirSim().addWidgetToVerticalPanel(button = new Button(label));
+        return label;
+    }
+
+    void createButton() {
+        cirSim().addWidgetToVerticalPanel(button = new Button(getButtonLabel()));
         button.setStylePrimaryName("topButton");
         button.addClickHandler(new ClickHandler() {
             public void onClick(ClickEvent event) {

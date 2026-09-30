@@ -50,11 +50,9 @@ public class CapacitorElm extends CircuitElm {
 
     public CapacitorElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
-        CirSim.console("CapacitorElm constructor called with (" + xx + ", " + yy + ")");
         capacitance = 1e-5;
         initialVoltage = 1e-3;
         seriesResistance = 1e-3;
-        CirSim.console("CapacitorElm constructor completed");
     }
 
     public CapacitorElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f, StringTokenizer st) {
@@ -323,12 +321,12 @@ public class CapacitorElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("capacitance", getUnitText(capacitance, "F"));
+        props.put("capacitance", getJsonUnitText(capacitance, "F"));
         if (initialVoltage != 1e-3) {
-            props.put("initial_voltage", getUnitText(initialVoltage, "V"));
+            props.put("initial_voltage", getJsonUnitText(initialVoltage, "V"));
         }
         if (seriesResistance > 0) {
-            props.put("series_resistance", getUnitText(seriesResistance, "Ohm"));
+            props.put("series_resistance", getJsonUnitText(seriesResistance, "Ohm"));
         }
         if (!isTrapezoidal()) {
             props.put("back_euler", true);
@@ -383,7 +381,7 @@ public class CapacitorElm extends CircuitElm {
         if (Double.isFinite(voltDiff)) {
             state.put("voltage_diff", voltDiff);
         }
-        return state.isEmpty() ? null : state;
+        return state;
     }
 
     @Override

@@ -172,4 +172,21 @@ public class MultiplexerElm extends ChipElm {
         props.put("strobe_pin", hasFlag(FLAG_STROBE));
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        int b = getJsonInt(properties, "select_bits", selectBitCount);
+        if (b >= 1 && b <= 6)
+            selectBitCount = b;
+        if (getJsonBoolean(properties, "inverted_output", hasFlag(FLAG_INVERTED_OUTPUT)))
+            flags |= FLAG_INVERTED_OUTPUT;
+        else
+            flags &= ~FLAG_INVERTED_OUTPUT;
+        if (getJsonBoolean(properties, "strobe_pin", hasFlag(FLAG_STROBE)))
+            flags |= FLAG_STROBE;
+        else
+            flags &= ~FLAG_STROBE;
+        setupPins();
+    }
 }

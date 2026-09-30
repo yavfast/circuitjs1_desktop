@@ -177,7 +177,7 @@ public class Counter2Elm extends ChipElm {
 
     @Override
     public String getJsonTypeName() {
-        return "Counter";
+        return "Counter2";
     }
 
     @Override
@@ -186,5 +186,12 @@ public class Counter2Elm extends ChipElm {
         props.put("bits", bits);
         props.put("modulus", modulus);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        // "bits" is restored (and pins rebuilt) by ChipElm
+        super.applyJsonProperties(properties);
+        modulus = getJsonInt(properties, "modulus", modulus);
     }
 }

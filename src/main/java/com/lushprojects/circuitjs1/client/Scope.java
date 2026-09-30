@@ -2229,6 +2229,10 @@ public class Scope extends BaseCirSimDelegate {
 
 
     public String dump() {
+        // A scope element placed without a target has no plots yet; nothing to save
+        if (plots.isEmpty()) {
+            return null;
+        }
         ScopePlot vPlot = plots.get(0);
 
         CircuitSimulator simulator = simulator();

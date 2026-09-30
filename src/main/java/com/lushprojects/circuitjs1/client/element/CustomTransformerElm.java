@@ -1116,7 +1116,7 @@ public class CustomTransformerElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("inductance", getUnitText(inductance, "H"));
+        props.put("inductance", getJsonUnitText(inductance, "H"));
         props.put("coupling_coefficient", couplingCoef);
         props.put("winding_resistance", windingResistance);
         props.put("description", description);

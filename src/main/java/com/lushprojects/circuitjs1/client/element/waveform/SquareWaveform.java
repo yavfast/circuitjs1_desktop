@@ -18,7 +18,7 @@ public class SquareWaveform extends Waveform {
         if (elm.circuitDocument.circuitInfo.dcAnalysisFlag) {
             return bias;
         }
-        return bias + ((w(elm) % VoltageElm.PI_2 > (VoltageElm.PI_2 * dutyCycle)) ? -maxVoltage : maxVoltage);
+        return bias + ((wrappedPhase(elm) > (VoltageElm.PI_2 * dutyCycle)) ? -maxVoltage : maxVoltage);
     }
 
     @Override

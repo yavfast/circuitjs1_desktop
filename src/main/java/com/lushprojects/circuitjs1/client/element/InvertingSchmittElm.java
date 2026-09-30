@@ -233,12 +233,30 @@ public class InvertingSchmittElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("lower_trigger", getUnitText(lowerTrigger, "V"));
-        props.put("upper_trigger", getUnitText(upperTrigger, "V"));
+        props.put("lower_trigger", getJsonUnitText(lowerTrigger, "V"));
+        props.put("upper_trigger", getJsonUnitText(upperTrigger, "V"));
         props.put("slew_rate", slewRate);
-        props.put("logic_on_level", getUnitText(logicOnLevel, "V"));
-        props.put("logic_off_level", getUnitText(logicOffLevel, "V"));
+        props.put("logic_on_level", getJsonUnitText(logicOnLevel, "V"));
+        props.put("logic_off_level", getJsonUnitText(logicOffLevel, "V"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        double lt = getJsonDouble(properties, "lower_trigger", lowerTrigger);
+        double ut = getJsonDouble(properties, "upper_trigger", upperTrigger);
+        // keep lower <= upper, as setEditValue does
+        if (lt > ut) {
+            upperTrigger = lt;
+            lowerTrigger = ut;
+        } else {
+            upperTrigger = ut;
+            lowerTrigger = lt;
+        }
+        slewRate = getJsonDouble(properties, "slew_rate", slewRate);
+        logicOnLevel = getJsonDouble(properties, "logic_on_level", logicOnLevel);
+        logicOffLevel = getJsonDouble(properties, "logic_off_level", logicOffLevel);
     }
 
     @Override

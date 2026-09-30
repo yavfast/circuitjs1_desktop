@@ -103,7 +103,19 @@ public class UnitParser {
 
         // Extract prefix from unit part
         double multiplier = extractMultiplier(unitPart);
-        
+
+        // For a power-of-ten prefix, parse "<mantissa>e<exp>" instead of multiplying:
+        // 10 * 1e-12 is 1.0000000000000001e-11, while "10e-12" parses to exactly 1e-11.
+        if (multiplier != 1.0 && numberPart.indexOf('e') < 0 && numberPart.indexOf('E') < 0) {
+            int exp = (int) Math.round(Math.log10(multiplier));
+            if (Math.abs(Math.pow(10, exp) / multiplier - 1) < 1e-12) {
+                try {
+                    return Double.parseDouble(numberPart + "e" + exp);
+                } catch (NumberFormatException e) {
+                    // fall through to multiplication
+                }
+            }
+        }
         return value * multiplier;
     }
 
@@ -244,8 +256,9 @@ public class UnitParser {
             return ((Number) value).doubleValue() == 0;
         }
         if (value instanceof String) {
+            // A literal zero mantissa ("0", "0 V", "0.0", "-0.00e3 uF"), not a parse failure
             String str = ((String) value).trim();
-            return str.equals("0") || str.startsWith("0 ");
+            return str.matches("[+-]?(0+(\\.0*)?|\\.0+)([eE][+-]?\\d+)?(\\s.*|[^0-9.].*)?");
         }
         return false;
     }

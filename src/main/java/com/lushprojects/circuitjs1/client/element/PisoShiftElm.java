@@ -183,4 +183,16 @@ public class PisoShiftElm extends ChipElm {
         props.put("has_serial_input", hasNewBhvr());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // "bits" is restored by ChipElm; has_serial_input mirrors FLAG_NEW_BEHAVIOR
+        boolean serial = getJsonBoolean(properties, "has_serial_input", hasNewBhvr());
+        flags = serial ? (flags | FLAG_NEW_BEHAVIOR) : (flags & ~FLAG_NEW_BEHAVIOR);
+        // register size and pin layout depend on bits and the flag
+        data = new boolean[bits];
+        dataIndex = 0;
+        setupPins();
+    }
 }

@@ -157,4 +157,24 @@ public class TFlipFlopElm extends ChipElm {
         props.put("has_set", hasSet());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        boolean set = getJsonBoolean(properties, "has_set", hasSet());
+        boolean reset = getJsonBoolean(properties, "has_reset", hasReset());
+        if (set)
+            flags |= FLAG_SET;
+        else
+            flags &= ~FLAG_SET;
+        // hasReset() is implied by FLAG_SET, so FLAG_RESET is only meaningful without a set pin
+        if (!set) {
+            if (reset)
+                flags |= FLAG_RESET;
+            else
+                flags &= ~FLAG_RESET;
+        }
+        setupPins();
+        allocNodes();
+    }
 }

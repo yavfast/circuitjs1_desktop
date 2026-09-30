@@ -296,8 +296,10 @@ public class CircuitDocument {
     }
 
     // UI State
-    boolean dots, volts, power, showValues, smallGrid;
+    // Defaults match a freshly reset circuit (ImportLifecycle.resetCircuitState)
+    boolean dots, volts = true, power, showValues = true, smallGrid;
     int speedValue = 117, currentValue = 50, powerValue = 50;
+    double voltageRange = 5; // ColorSettings holds one session-wide value; each document keeps its own
     double[] transform = new double[6]; // Store view transform (zoom/pan)
 
     void saveUIState(MenuManager menuManager, CirSim cirSim) {
@@ -310,12 +312,18 @@ public class CircuitDocument {
         speedValue = cirSim.speedBar.getValue();
         currentValue = cirSim.currentBar.getValue();
         powerValue = cirSim.powerBar.getValue();
+        voltageRange = ColorSettings.get().getVoltageRange();
 
         // Save view transform
         System.arraycopy(cirSim.renderer.transform, 0, transform, 0, 6);
     }
 
-    void restoreUIState(MenuManager menuManager, CirSim cirSim) {
+    /**
+     * Puts this document's saved simulation/display options back into the session widgets
+     * that the exporters read (menu checkboxes, speed/current/power bars, voltage range).
+     * Used on tab activation and when dumping an inactive document.
+     */
+    void applyOptionWidgets(MenuManager menuManager, CirSim cirSim) {
         menuManager.dotsCheckItem.setState(dots);
         menuManager.voltsCheckItem.setState(volts);
         menuManager.powerCheckItem.setState(power);
@@ -325,7 +333,12 @@ public class CircuitDocument {
         cirSim.speedBar.setValue(speedValue);
         cirSim.currentBar.setValue(currentValue);
         cirSim.powerBar.setValue(powerValue);
-        
+        ColorSettings.get().setVoltageRange(voltageRange);
+    }
+
+    void restoreUIState(MenuManager menuManager, CirSim cirSim) {
+        applyOptionWidgets(menuManager, cirSim);
+
         // Update time step bar to match this document's simulator
         cirSim.controlsDialog.updateTimeStepBar();
 

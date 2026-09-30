@@ -283,11 +283,39 @@ public class ThermistorNTCElm extends CircuitElm implements Command, MouseWheelH
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("r25", getUnitText(r25, "Ohm"));
-        props.put("r50", getUnitText(r50, "Ohm"));
+        props.put("r25", getJsonUnitText(r25, "Ohm"));
+        props.put("r50", getJsonUnitText(r50, "Ohm"));
         props.put("min_temperature", minTempr);
         props.put("max_temperature", maxTempr);
         props.put("slider_text", sliderText);
+        props.put("position", position);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        r25 = getJsonDouble(properties, "r25", r25);
+        r50 = getJsonDouble(properties, "r50", r50);
+        minTempr = getJsonDouble(properties, "min_temperature", minTempr);
+        maxTempr = getJsonDouble(properties, "max_temperature", maxTempr);
+        sliderText = getJsonString(properties, "slider_text", sliderText);
+        if (label != null)
+            label.setText(sliderText);
+        if (properties != null && properties.containsKey("position")) {
+            position = getJsonDouble(properties, "position", position);
+            if (position < 0)
+                position = 0;
+            if (position > 1)
+                position = 1;
+            // setPoints() re-derives position from the slider (value * .0099 + .005).
+            if (slider != null)
+                slider.setValue((int) Math.round((position - .005) / .0099));
+        }
+        // Same derived-value recomputation as the text ctor / setEditValue.
+        rneg40 = calcResistance(minTempr);
+        b25100 = calcB25100();
+        temperature = temprFromSliderPos();
+        resistance = calcResistance(temperature);
     }
 }

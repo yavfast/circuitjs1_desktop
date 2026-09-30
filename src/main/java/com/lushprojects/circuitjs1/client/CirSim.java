@@ -511,8 +511,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     }-*/;
 
     public static void console(String s) {
-        if (theSim != null && theSim.getActiveDocument() != null) {
-            theSim.getActiveDocument().logBuffer.log(s);
+        if (theSim != null) {
+            if (theSim.getActiveDocument() != null) {
+                theSim.getActiveDocument().logBuffer.log(s);
+            }
+            // Also feed the session log so ShowLogDialog / the log file see import and
+            // solver messages, not only the per-document buffer read by the JS API.
+            theSim.logManager.addLogEntry(s);
         }
         GWT.log(s);
     }

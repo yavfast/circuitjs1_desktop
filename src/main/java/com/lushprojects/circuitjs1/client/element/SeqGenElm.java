@@ -203,7 +203,7 @@ public class SeqGenElm extends ChipElm {
                 if (c == '0' || c == '1')
                     bitCount++;
             }
-            data = new int[bitCount / Integer.SIZE];
+            data = new int[(bitCount / Integer.SIZE) + (bitCount % Integer.SIZE != 0 ? 1 : 0)];
 
             // Fill the data array
             bitCount = 0;
@@ -236,6 +236,43 @@ public class SeqGenElm extends ChipElm {
             sb.append((data[i / Integer.SIZE] & (1 << (i % Integer.SIZE))) != 0 ? '1' : '0');
         props.put("sequence", sb.toString());
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        boolean playOnce = getJsonBoolean(properties, "play_once", hasPlayOnce());
+        flags = playOnce ? (flags | FLAG_PLAY_ONCE) : (flags & ~FLAG_PLAY_ONCE);
+        boolean reset = getJsonBoolean(properties, "has_reset", hasReset());
+        flags = reset ? (flags | FLAG_HAS_RESET) : (flags & ~FLAG_HAS_RESET);
+        // JSON always stores the new (bit-count + packed data) layout
+        flags |= FLAG_NEW_VERSION;
+
+        // bit_count is derived from the sequence string, which is authoritative
+        String seq = getJsonString(properties, "sequence", null);
+        if (seq != null) {
+            int count = 0;
+            for (int i = 0; i < seq.length(); i++) {
+                char c = seq.charAt(i);
+                if (c == '0' || c == '1')
+                    count++;
+            }
+            data = new int[(count / Integer.SIZE) + (count % Integer.SIZE != 0 ? 1 : 0)];
+            bitCount = 0;
+            for (int i = 0; i < seq.length(); i++) {
+                char c = seq.charAt(i);
+                if (c == '0' || c == '1') {
+                    if (c == '1')
+                        data[bitCount / Integer.SIZE] |= (1 << (bitCount % Integer.SIZE));
+                    bitCount++;
+                }
+            }
+        }
+        bitPosition = 0;
+
+        // reset pin presence changes the post count
+        setupPins();
+        allocNodes();
     }
 
     @Override

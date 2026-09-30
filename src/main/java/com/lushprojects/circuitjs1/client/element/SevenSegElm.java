@@ -431,4 +431,32 @@ public class SevenSegElm extends ChipElm {
         props.put("diode_type", diodeDirection == 1 ? "common_cathode" : diodeDirection == -1 ? "common_anode" : "logic_inputs");
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // only the segment counts offered by the edit dialog are accepted
+        int segs = getJsonInt(properties, "segment_count", baseSegmentCount);
+        if (segs == 7 || segs == 14 || segs == 16)
+            baseSegmentCount = segs;
+
+        String extra = getJsonString(properties, "extra_segment", null);
+        if ("none".equals(extra))
+            extraSegment = ES_NONE;
+        else if ("decimal_point".equals(extra))
+            extraSegment = ES_DP;
+        else if ("colon".equals(extra))
+            extraSegment = ES_COLON;
+
+        String diodes = getJsonString(properties, "diode_type", null);
+        if ("common_cathode".equals(diodes))
+            diodeDirection = 1;
+        else if ("common_anode".equals(diodes))
+            diodeDirection = -1;
+        else if ("logic_inputs".equals(diodes))
+            diodeDirection = 0;
+
+        // recomputes segment/pin counts, nodes and pins
+        setPinCount();
+    }
 }

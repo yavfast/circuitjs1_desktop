@@ -86,7 +86,6 @@ public class UndoManager extends BaseCirSimDelegate {
     }
 
     void writeRecoveryToStorage() {
-        CirSim.console("write recovery");
         String s = actionManager().dumpCircuit();
         OptionsManager.setOptionInStorage("circuitRecovery", s);
     }

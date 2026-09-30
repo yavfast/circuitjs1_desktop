@@ -195,9 +195,16 @@ public class InverterElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        props.put("high_voltage", getJsonUnitText(highVoltage, "V"));
         props.put("slew_rate", slewRate);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        highVoltage = getJsonDouble(properties, "high_voltage", highVoltage);
+        slewRate = getJsonDouble(properties, "slew_rate", slewRate);
     }
 
     @Override

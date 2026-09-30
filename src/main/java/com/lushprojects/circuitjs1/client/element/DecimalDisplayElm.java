@@ -127,4 +127,15 @@ public class DecimalDisplayElm extends ChipElm {
         props.put("bits", bitCount);
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // "bits" maps to bitCount here (needsBits() is false, so ChipElm ignores it)
+        int b = getJsonInt(properties, "bits", bitCount);
+        if (b >= 1 && b <= 16) {
+            bitCount = b;
+            setupPins();
+        }
+    }
 }

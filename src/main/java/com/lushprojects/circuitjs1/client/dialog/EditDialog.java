@@ -66,7 +66,8 @@ public class EditDialog extends Dialog {
 //		setLayout(new EditDialogLayout());
         mainPanel = new VerticalPanel();
         setWidget(mainPanel);
-        einfos = new EditInfo[10];
+        // Room for the largest editor (EditOptions has 14 rows); the build loop is bounded by it.
+        einfos = new EditInfo[32];
 //		noCommaFormat = DecimalFormat.getInstance();
 //		noCommaFormat.setMaximumFractionDigits(10);
 //		noCommaFormat.setGroupingUsed(false);
@@ -112,7 +113,7 @@ public class EditDialog extends Dialog {
         VerticalPanel vp = new VerticalPanel();
         mainPanel.insert(hp, mainPanel.getWidgetIndex(bottomButtonPanel));
         hp.add(vp);
-        for (i = 0; ; i++) {
+        for (i = 0; i < einfos.length; i++) {
             Label l = null;
             einfos[i] = elm.getEditInfo(i);
             if (einfos[i] == null)

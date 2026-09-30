@@ -174,4 +174,25 @@ public class RingCounterElm extends ChipElm {
         props.put("has_clock_inhibit", hasClockInhibit());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // "bits" is restored by ChipElm; the booleans mirror FLAG_RESET_HIGH / FLAG_CLOCK_INHIBIT
+        boolean invertReset = getJsonBoolean(properties, "invert_reset", hasInvertReset());
+        flags = invertReset ? (flags & ~FLAG_RESET_HIGH) : (flags | FLAG_RESET_HIGH);
+        // hasClockInhibit() is also gated by bits >= 3, so only touch the flag on a real mismatch
+        boolean inhibit = getJsonBoolean(properties, "has_clock_inhibit", hasClockInhibit());
+        if (inhibit != hasClockInhibit())
+            flags = inhibit ? (flags | FLAG_CLOCK_INHIBIT) : (flags & ~FLAG_CLOCK_INHIBIT);
+        setupPins();
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // As after a text load: defer the first execute() so all-zero node voltages at load
+        // time do not reset the restored outputs.
+        justLoaded = true;
+    }
 }

@@ -471,14 +471,40 @@ public class ThreePhaseMotorElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("stator_inductance", getUnitText(Ls, "H"));
-        props.put("rotor_inductance", getUnitText(Lr, "H"));
-        props.put("stator_resistance", getUnitText(Rs, "Ohm"));
-        props.put("rotor_resistance", getUnitText(Rr, "Ohm"));
-        props.put("coupling_inductance", getUnitText(Lm, "H"));
+        props.put("stator_inductance", getJsonUnitText(Ls, "H"));
+        props.put("rotor_inductance", getJsonUnitText(Lr, "H"));
+        props.put("stator_resistance", getJsonUnitText(Rs, "Ohm"));
+        props.put("rotor_resistance", getJsonUnitText(Rr, "Ohm"));
+        props.put("coupling_inductance", getJsonUnitText(Lm, "H"));
         props.put("friction_coefficient", b);
         props.put("moment_of_inertia", J);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive values are accepted.
+        double v = getJsonDouble(properties, "stator_inductance", Ls);
+        if (v > 0)
+            Ls = v;
+        v = getJsonDouble(properties, "rotor_inductance", Lr);
+        if (v > 0)
+            Lr = v;
+        v = getJsonDouble(properties, "stator_resistance", Rs);
+        if (v > 0)
+            Rs = v;
+        v = getJsonDouble(properties, "rotor_resistance", Rr);
+        if (v > 0)
+            Rr = v;
+        // Exported as absolute Lm; setEditValue requires coupling k = Lm/sqrt(Ls*Lr) in (0, 1).
+        v = getJsonDouble(properties, "coupling_inductance", Lm);
+        if (v > 0 && v < Math.sqrt(Ls * Lr))
+            Lm = v;
+        b = getJsonDouble(properties, "friction_coefficient", b);
+        v = getJsonDouble(properties, "moment_of_inertia", J);
+        if (v > 0)
+            J = v;
     }
 
     @Override

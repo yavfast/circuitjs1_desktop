@@ -415,7 +415,7 @@ public class PotElm extends CircuitElm implements Command, MouseWheelHandler {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("max_resistance", getUnitText(maxResistance, "Ohm"));
+        props.put("max_resistance", getJsonUnitText(maxResistance, "Ohm"));
         props.put("position", position);
         props.put("slider_text", sliderText);
         return props;

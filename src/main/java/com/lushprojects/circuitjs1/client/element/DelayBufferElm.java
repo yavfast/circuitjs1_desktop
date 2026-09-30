@@ -190,10 +190,18 @@ public class DelayBufferElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("delay", getUnitText(delay, "s"));
-        props.put("threshold", getUnitText(threshold, "V"));
-        props.put("high_voltage", getUnitText(highVoltage, "V"));
+        props.put("delay", getJsonUnitText(delay, "s"));
+        props.put("threshold", getJsonUnitText(threshold, "V"));
+        props.put("high_voltage", getJsonUnitText(highVoltage, "V"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        delay = getJsonDouble(properties, "delay", delay);
+        threshold = getJsonDouble(properties, "threshold", threshold);
+        highVoltage = getJsonDouble(properties, "high_voltage", highVoltage);
     }
 
     @Override

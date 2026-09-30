@@ -412,6 +412,17 @@ public class TestPointElm extends CircuitElm {
             label = ei.textf.getText();
     }
 
+    // JSON "mode" names, indexed by meter (TP_*)
+    static final String[] JSON_MODES = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period",
+            "pulse_width", "duty_cycle" };
+
+    static int jsonModeIndex(String mode, int def) {
+        for (int i = 0; i != JSON_MODES.length; i++)
+            if (JSON_MODES[i].equals(mode))
+                return i;
+        return def;
+    }
+
     @Override
     public String getJsonTypeName() {
         return "TestPoint";
@@ -420,11 +431,17 @@ public class TestPointElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        String[] modes = { "voltage", "rms", "max", "min", "p2p", "binary", "frequency", "period", "pulse_width",
-                "duty_cycle" };
-        props.put("mode", modes[meter]);
+        props.put("mode", JSON_MODES[meter]);
         props.put("label", label);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        meter = jsonModeIndex(getJsonString(properties, "mode", null), meter);
+        // raw string in JSON; FLAG_LABEL is recomputed by dump()
+        label = getJsonString(properties, "label", label);
     }
 
     @Override

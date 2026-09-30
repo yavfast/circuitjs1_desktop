@@ -153,11 +153,27 @@ public class TimeDelayRelayElm extends ChipElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("on_delay", getUnitText(onDelay, "s"));
-        props.put("off_delay", getUnitText(offDelay, "s"));
-        props.put("on_resistance", getUnitText(onResistance, "Ohm"));
-        props.put("off_resistance", getUnitText(offResistance, "Ohm"));
+        props.put("on_delay", getJsonUnitText(onDelay, "s"));
+        props.put("off_delay", getJsonUnitText(offDelay, "s"));
+        props.put("on_resistance", getJsonUnitText(onResistance, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(offResistance, "Ohm"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        onDelay = getJsonDouble(properties, "on_delay", onDelay);
+        offDelay = getJsonDouble(properties, "off_delay", offDelay);
+        // Same validation as setChipEditValue: only positive resistances are accepted.
+        double v = getJsonDouble(properties, "on_resistance", onResistance);
+        if (v > 0)
+            onResistance = v;
+        v = getJsonDouble(properties, "off_resistance", offResistance);
+        if (v > 0)
+            offResistance = v;
+        // Same as the text ctor: start in the off state.
+        resistance = offResistance;
     }
 
     @Override

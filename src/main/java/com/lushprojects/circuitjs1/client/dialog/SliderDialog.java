@@ -61,7 +61,8 @@ public class SliderDialog extends Dialog {
         elm = ce;
         vp = new VerticalPanel();
         setWidget(vp);
-        einfos = new EditInfo[10];
+        // Room for the largest editor (EditOptions has 14 rows); the build loop is bounded by it.
+        einfos = new EditInfo[32];
         noCommaFormat = NumberFormat.getFormat("####.##########");
         hp = new HorizontalPanel();
         hp.setWidth("100%");
@@ -95,7 +96,7 @@ public class SliderDialog extends Dialog {
     void buildDialog() {
         int i;
         int idx;
-        for (i = 0; ; i++) {
+        for (i = 0; i < einfos.length; i++) {
             einfos[i] = elm.getEditInfo(i);
             if (einfos[i] == null)
                 break;
@@ -210,6 +211,7 @@ public class SliderDialog extends Dialog {
                     Adjustable adj = findAdjustable(i);
                     adj.deleteSlider();
                     adjustableManager.adjustables.remove(adj);
+                    adjustableManager.unlinkShared(adj, true);
                 }
                 changed = true;
             }

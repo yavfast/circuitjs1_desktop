@@ -344,10 +344,27 @@ public class TransLineElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("delay", getUnitText(delay, "s"));
-        props.put("impedance", getUnitText(imped, "Ohm"));
+        props.put("delay", getJsonUnitText(delay, "s"));
+        props.put("impedance", getJsonUnitText(imped, "Ohm"));
         props.put("width", width);
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive delay/impedance are accepted.
+        double d = getJsonDouble(properties, "delay", delay);
+        if (d > 0)
+            delay = d;
+        double z = getJsonDouble(properties, "impedance", imped);
+        if (z > 0)
+            imped = z;
+        width = getJsonInt(properties, "width", width);
+        // delay determines lenSteps and the voltageL/voltageR ring-buffer size:
+        // re-allocate exactly like the text ctor does, before applyJsonState()
+        // restores ptr/buffers against the new lenSteps.
+        reset();
     }
 
     @Override
@@ -399,19 +416,33 @@ public class TransLineElm extends CircuitElm {
                 ptr = 0;
             current1 = getJsonDouble(stateMap, "current1", 0);
             current2 = getJsonDouble(stateMap, "current2", 0);
-            // Restore delay line buffers
+            // Restore delay line buffers (JSON arrays arrive as List<Object>).
+            // Only copy when both saved buffers match the ring buffer allocated by
+            // reset() for the current delay/maxTimeStep and hold only numbers;
+            // otherwise keep the freshly reset (zeroed) buffers.
             Object vLObj = stateMap.get("voltageL");
             Object vRObj = stateMap.get("voltageR");
-            if (vLObj instanceof java.util.List && vRObj instanceof java.util.List) {
-                java.util.List<Double> vL = (java.util.List<Double>) vLObj;
-                java.util.List<Double> vR = (java.util.List<Double>) vRObj;
-                if (voltageL != null && voltageL.length == vL.size()) {
-                    for (int i = 0; i < vL.size(); i++) {
-                        voltageL[i] = vL.get(i);
-                        voltageR[i] = vR.get(i);
+            if (vLObj instanceof java.util.List && vRObj instanceof java.util.List
+                    && voltageL != null && voltageR != null) {
+                java.util.List<Object> vL = (java.util.List<Object>) vLObj;
+                java.util.List<Object> vR = (java.util.List<Object>) vRObj;
+                if (vL.size() == lenSteps && vR.size() == lenSteps
+                        && voltageL.length == lenSteps && voltageR.length == lenSteps
+                        && allNumbers(vL) && allNumbers(vR)) {
+                    for (int i = 0; i < lenSteps; i++) {
+                        voltageL[i] = ((Number) vL.get(i)).doubleValue();
+                        voltageR[i] = ((Number) vR.get(i)).doubleValue();
                     }
                 }
             }
         }
+    }
+
+    private static boolean allNumbers(java.util.List<Object> list) {
+        for (int i = 0; i < list.size(); i++) {
+            if (!(list.get(i) instanceof Number))
+                return false;
+        }
+        return true;
     }
 }

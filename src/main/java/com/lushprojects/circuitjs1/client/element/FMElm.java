@@ -187,11 +187,20 @@ public class FMElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("carrier_frequency", getUnitText(carrierfreq, "Hz"));
-        props.put("signal_frequency", getUnitText(signalfreq, "Hz"));
-        props.put("max_voltage", getUnitText(maxVoltage, "V"));
-        props.put("deviation", getUnitText(deviation, "Hz"));
+        props.put("carrier_frequency", getJsonUnitText(carrierfreq, "Hz"));
+        props.put("signal_frequency", getJsonUnitText(signalfreq, "Hz"));
+        props.put("max_voltage", getJsonUnitText(maxVoltage, "V"));
+        props.put("deviation", getJsonUnitText(deviation, "Hz"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        carrierfreq = getJsonDouble(properties, "carrier_frequency", carrierfreq);
+        signalfreq = getJsonDouble(properties, "signal_frequency", signalfreq);
+        maxVoltage = getJsonDouble(properties, "max_voltage", maxVoltage);
+        deviation = getJsonDouble(properties, "deviation", deviation);
     }
 
     @Override

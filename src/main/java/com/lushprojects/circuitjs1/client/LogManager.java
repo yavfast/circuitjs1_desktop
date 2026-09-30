@@ -9,6 +9,7 @@ import java.util.Date;
 public class LogManager extends BaseCirSimDelegate {
 
     public final ArrayList<String> logEntries;
+    private static final int MAX_MEMORY_ENTRIES = 5000;
 
     // File logging fields
     private String currentLogFileName;
@@ -332,8 +333,12 @@ public class LogManager extends BaseCirSimDelegate {
         String timestamp = logEntryFormat.format(new Date());
         String logEntry = "[" + timestamp + "] " + message;
 
-        // Add to memory collection
+        // Add to memory collection; keep only the newest entries in memory (the file log,
+        // when enabled, still receives everything)
         logEntries.add(logEntry);
+        if (logEntries.size() > MAX_MEMORY_ENTRIES) {
+            logEntries.subList(0, logEntries.size() - MAX_MEMORY_ENTRIES).clear();
+        }
 
         // Write to file asynchronously to avoid blocking UI
         writeLogToFileAsync(logEntry);

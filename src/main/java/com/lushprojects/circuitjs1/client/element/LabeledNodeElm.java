@@ -223,6 +223,16 @@ public class LabeledNodeElm extends CircuitElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // JSON stores the raw label (no escape/unescape as in the text dump).
+        // labelList is rebuilt from text during wire closure, nothing to register here.
+        text = getJsonString(properties, "label", text);
+        boolean internal = getJsonBoolean(properties, "internal", isInternal());
+        flags = internal ? (flags | FLAG_INTERNAL) : (flags & ~FLAG_INTERNAL);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] { "node" };
     }

@@ -267,12 +267,34 @@ public class AnalogSwitchElm extends CircuitElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("on_resistance", getUnitText(r_on, "Ohm"));
-        props.put("off_resistance", getUnitText(r_off, "Ohm"));
-        props.put("threshold", getUnitText(threshold, "V"));
+        props.put("on_resistance", getJsonUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(r_off, "Ohm"));
+        props.put("threshold", getJsonUnitText(threshold, "V"));
         props.put("normally_closed", hasFlag(FLAG_INVERT));
         props.put("pulldown", needsPulldown());
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Same validation as setEditValue: only positive resistances are accepted.
+        double v = getJsonDouble(properties, "on_resistance", r_on);
+        if (v > 0)
+            r_on = v;
+        v = getJsonDouble(properties, "off_resistance", r_off);
+        if (v > 0)
+            r_off = v;
+        threshold = getJsonDouble(properties, "threshold", threshold);
+        // The booleans mirror FLAG_INVERT / FLAG_PULLDOWN (also carried by _flags); keep both in sync.
+        if (getJsonBoolean(properties, "normally_closed", hasFlag(FLAG_INVERT)))
+            flags |= FLAG_INVERT;
+        else
+            flags &= ~FLAG_INVERT;
+        if (getJsonBoolean(properties, "pulldown", hasFlag(FLAG_PULLDOWN)))
+            flags |= FLAG_PULLDOWN;
+        else
+            flags &= ~FLAG_PULLDOWN;
     }
 
     @Override

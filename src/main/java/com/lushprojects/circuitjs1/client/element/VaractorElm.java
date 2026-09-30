@@ -168,8 +168,14 @@ public class VaractorElm extends DiodeElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        props.put("base_capacitance", getUnitText(baseCapacitance, "F"));
+        props.put("base_capacitance", getJsonUnitText(baseCapacitance, "F"));
         return props;
+    }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        baseCapacitance = getJsonDouble(properties, "base_capacitance", baseCapacitance);
     }
 
     @Override

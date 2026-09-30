@@ -147,6 +147,16 @@ public class ComparatorElm extends CompositeElm {
     }
 
     @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        // Both keys mirror flag bits; defaults come from _flags (already applied) so that
+        // opsize is re-synced with FLAG_SMALL like the text constructor does.
+        boolean swap = getJsonBoolean(properties, "swap_inputs", hasFlag(FLAG_SWAP));
+        flags = swap ? (flags | FLAG_SWAP) : (flags & ~FLAG_SWAP);
+        setSize(getJsonBoolean(properties, "small_size", hasFlag(FLAG_SMALL)) ? 1 : 2);
+    }
+
+    @Override
     public String[] getJsonPinNames() {
         return new String[] {"in-", "in+", "out"};
     }

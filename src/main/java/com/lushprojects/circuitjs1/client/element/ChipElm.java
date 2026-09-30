@@ -312,7 +312,7 @@ public abstract class ChipElm extends CircuitElm {
                 return;
             }
         }
-        System.out.println("setVoltageSource failed for " + this);
+        CirSim.console("setVoltageSource failed for " + this);
     }
 
     public void stamp() {
@@ -691,10 +691,49 @@ public abstract class ChipElm extends CircuitElm {
         if (needsBits()) {
             props.put("bits", bits);
         }
-        if (hasCustomVoltage()) {
-            props.put("high_voltage", getUnitText(highVoltage, "V"));
+        // FLAG_CUSTOM_VOLTAGE is only synced inside dump(); test the value itself so an edited
+        // voltage is exported even if no text dump happened since.
+        if (highVoltage != 5) {
+            props.put("high_voltage", getJsonUnitText(highVoltage, "V"));
         }
         return props;
+    }
+
+    /**
+     * The JSON importer builds the chip with the (document, x, y) constructor, whose
+     * setupPins() ran with default flags. Rebuild the size and pin layout from the
+     * imported flags, as the text constructor does. This also covers chips whose
+     * properties map is empty (applyJsonProperties is then never called).
+     */
+    @Override
+    public void applyJsonFlags(int jsonFlags) {
+        super.applyJsonFlags(jsonFlags);
+        setSize((flags & FLAG_SMALL) != 0 ? 1 : 2);
+        setupPins();
+        allocNodes();
+    }
+
+    /**
+     * Restores the common chip keys ("bits", "high_voltage") and rebuilds the pins.
+     * Subclasses that read further structural keys must call setupPins() again
+     * after setting their own fields.
+     */
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        super.applyJsonProperties(properties);
+        if (needsBits()) {
+            int b = getJsonInt(properties, "bits", bits);
+            if (b > 0)
+                bits = b;
+        }
+        highVoltage = getJsonDouble(properties, "high_voltage", highVoltage);
+        // keep FLAG_CUSTOM_VOLTAGE consistent with highVoltage, as dump() does
+        if (highVoltage == 5)
+            flags &= ~FLAG_CUSTOM_VOLTAGE;
+        else
+            flags |= FLAG_CUSTOM_VOLTAGE;
+        setupPins();
+        allocNodes();
     }
 
     @Override
@@ -716,9 +755,10 @@ public abstract class ChipElm extends CircuitElm {
         // Export pin values (outputs state)
         if (pins != null) {
             java.util.Map<String, Object> pinStates = new java.util.LinkedHashMap<>();
+            String[] keys = jsonPinStateKeys();
             for (int i = 0; i < pins.length; i++) {
                 if (pins[i].output || pins[i].state) {
-                    pinStates.put(pins[i].text.isEmpty() ? "pin" + (i + 1) : pins[i].text, pins[i].value);
+                    pinStates.put(keys[i], pins[i].value);
                 }
             }
             if (!pinStates.isEmpty()) {
@@ -727,7 +767,25 @@ public abstract class ChipElm extends CircuitElm {
         }
         // Export last clock state
         state.put("last_clock", lastClock);
-        return state.isEmpty() ? null : state;
+        return state;
+    }
+
+    /**
+     * Unique per-pin keys for the "outputs" state map. Several chips name Q and Q-bar both
+     * "Q" (the bar is drawn via lineOver), which made one value overwrite the other.
+     */
+    private String[] jsonPinStateKeys() {
+        String[] keys = new String[pins.length];
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (int i = 0; i < pins.length; i++) {
+            String key = pins[i].text.isEmpty() ? "pin" + (i + 1) : (pins[i].lineOver ? "~" : "") + pins[i].text;
+            if (!used.add(key)) {
+                key = key + "_" + (i + 1);
+                used.add(key);
+            }
+            keys[i] = key;
+        }
+        return keys;
     }
 
     @Override
@@ -739,8 +797,9 @@ public abstract class ChipElm extends CircuitElm {
             Object outputsObj = stateMap.get("outputs");
             if (outputsObj instanceof java.util.Map) {
                 java.util.Map<String, Object> outputs = (java.util.Map<String, Object>) outputsObj;
+                String[] keys = jsonPinStateKeys();
                 for (int i = 0; i < pins.length; i++) {
-                    String pinName = pins[i].text.isEmpty() ? "pin" + (i + 1) : pins[i].text;
+                    String pinName = keys[i];
                     if (outputs.containsKey(pinName)) {
                         pins[i].value = getJsonBoolean(outputs, pinName, false);
                     }

@@ -230,6 +230,9 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("slider_text", sliderText);
+        // current rail voltage (kept in waveformInstance.frequency, see EDIT_VOLTAGE); the DC
+        // waveform itself does not export frequency
+        props.put("voltage", getJsonUnitText(waveformInstance.frequency, "V"));
         return props;
     }
 
@@ -237,6 +240,7 @@ public class VarRailElm extends RailElm implements MouseWheelHandler {
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
         sliderText = getJsonString(properties, "slider_text", sliderText);
+        waveformInstance.frequency = getJsonDouble(properties, "voltage", waveformInstance.frequency);
         if (label != null) {
             label.setText(Locale.LS(sliderText));
         }

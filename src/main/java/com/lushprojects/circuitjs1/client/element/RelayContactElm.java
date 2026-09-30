@@ -295,8 +295,8 @@ public class RelayContactElm extends CircuitElm {
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
         props.put("label", label);
-        props.put("on_resistance", getUnitText(r_on, "Ohm"));
-        props.put("off_resistance", getUnitText(r_off, "Ohm"));
+        props.put("on_resistance", getJsonUnitText(r_on, "Ohm"));
+        props.put("off_resistance", getJsonUnitText(r_off, "Ohm"));
         props.put("normally_closed", isNormallyClosed());
         props.put("iec_symbol", useIECSymbol());
         return props;

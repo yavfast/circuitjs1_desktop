@@ -126,4 +126,19 @@ public class LatchElm extends ChipElm {
         props.put("edge_triggered", isEdgeTriggered());
         return props;
     }
+
+    @Override
+    public void applyJsonProperties(java.util.Map<String, Object> properties) {
+        // "bits" is restored by ChipElm
+        super.applyJsonProperties(properties);
+        if (getJsonBoolean(properties, "edge_triggered", isEdgeTriggered()))
+            flags &= ~FLAG_NO_EDGE;
+        else
+            flags |= FLAG_NO_EDGE;
+        // as the text constructor does: always save output state
+        if ((flags & FLAG_STATE) == 0) {
+            flags |= FLAG_STATE;
+            setupPins();
+        }
+    }
 }

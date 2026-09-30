@@ -37,6 +37,11 @@ public class ScopeManager extends BaseCirSimDelegate {
         return scopes[index];
     }
 
+    /** Capacity of the docked-scope table; importers must not add scopes beyond it. */
+    public int getMaxScopes() {
+        return scopes.length;
+    }
+
     /** Set scope at index (used during import). */
     public void setScope(int index, Scope scope) {
         scopes[index] = scope;
@@ -235,6 +240,7 @@ public class ScopeManager extends BaseCirSimDelegate {
 
     void setupScopes() {
         int i;
+        boolean layoutChanged = false;
         // check scopes to make sure the elements still exist, and remove
         // unused scopes/columns
         int pos = -1;
@@ -245,6 +251,7 @@ public class ScopeManager extends BaseCirSimDelegate {
                     scopes[j] = scopes[j + 1];
                 scopeCount--;
                 i--;
+                layoutChanged = true;
                 continue;
             }
             if (scopes[i].position > pos + 1)
@@ -289,14 +296,20 @@ public class ScopeManager extends BaseCirSimDelegate {
             }
             Rectangle r = new Rectangle(pos * w, renderer.canvasHeight - h + colh * row, w - marg, colh);
             row++;
-            if (!r.equals(s.rect))
+            if (!r.equals(s.rect)) {
                 s.setRect(r);
+                layoutChanged = true;
+            }
         }
         if (oldScopeCount != scopeCount) {
             renderer.setCircuitArea();
             oldScopeCount = scopeCount;
+            layoutChanged = true;
         }
-        cirSim.repaint();
+        // setupScopes() runs inside render(); an unconditional repaint() here queued a second
+        // full render on every frame. Re-render only when the scope layout actually changed.
+        if (layoutChanged)
+            cirSim.repaint();
     }
 
 }

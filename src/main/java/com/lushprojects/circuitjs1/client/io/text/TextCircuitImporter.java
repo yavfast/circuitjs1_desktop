@@ -35,11 +35,10 @@ import com.lushprojects.circuitjs1.client.ScopeManager;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.TransistorModel;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
-import com.lushprojects.circuitjs1.client.element.AudioInputElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
-import com.lushprojects.circuitjs1.client.element.DataInputElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
+import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 
 /**
  * Imports circuit from the original CircuitJS1 text format.
@@ -69,7 +68,7 @@ public class TextCircuitImporter implements CircuitImporter {
 
         // Reset circuit state unless retaining
         if ((flags & RC_RETAIN) == 0) {
-            resetCircuitState(document);
+            ImportLifecycle.resetCircuitState(document);
         }
 
         // Parse circuit data
@@ -77,7 +76,7 @@ public class TextCircuitImporter implements CircuitImporter {
         parseCircuitLines(data, document, isSubcircuitMode, flags);
 
         // Finalize loading
-        finalizeCircuitLoading(document, flags);
+        ImportLifecycle.finalizeCircuitLoading(document, flags);
     }
 
     @Override
@@ -105,55 +104,6 @@ public class TextCircuitImporter implements CircuitImporter {
         }
         
         return false;
-    }
-
-    /**
-     * Reset circuit state to default values.
-     */
-    private void resetCircuitState(CircuitDocument document) {
-        CirSim cirSim = document.getCirSim();
-        CircuitSimulator simulator = document.simulator;
-        CircuitEditor circuitEditor = document.circuitEditor;
-        MenuManager menuManager = cirSim.menuManager;
-        ScopeManager scopeManager = document.scopeManager;
-        CircuitRenderer renderer = document.getRenderer();
-
-        // Clear any previous simulation stop/error so the newly loaded circuit can run.
-        document.clearError();
-        simulator.clearStopState();
-
-        // Clear existing elements
-        circuitEditor.clearMouseElm();
-        for (int i = 0; i < simulator.elmList.size(); i++) {
-            CircuitElm element = simulator.elmList.get(i);
-            element.delete();
-        }
-
-        // Reset simulation parameters
-        simulator.t = simulator.timeStepAccum = 0;
-        simulator.elmList.clear();
-        document.adjustableManager.reset();
-        renderer.setHintType(-1);
-        simulator.maxTimeStep = 5e-6;
-        simulator.minTimeStep = 50e-12;
-        simulator.lastIterTime = 0;
-
-        // Reset menu states
-        menuManager.dotsCheckItem.setState(false);
-        menuManager.smallGridCheckItem.setState(false);
-        menuManager.powerCheckItem.setState(false);
-        menuManager.voltsCheckItem.setState(true);
-        menuManager.showValuesCheckItem.setState(true);
-
-        // Reset UI components
-        circuitEditor.setGrid();
-        cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(5e-6));
-        cirSim.controlsDialog.updateTimeStepLabel();
-        cirSim.speedBar.setValue(117);
-        cirSim.currentBar.setValue(50);
-        cirSim.powerBar.setValue(50);
-        ColorSettings.get().setVoltageRange(5);
-        scopeManager.setScopeCount(0);
     }
 
     /**
@@ -222,8 +172,12 @@ public class TextCircuitImporter implements CircuitImporter {
 
         switch (typeId) {
             case 'o': // Scope
-                Scope scope = new Scope(cirSim, document);
                 int scopeCount = scopeManager.getScopeCount();
+                if (scopeCount >= scopeManager.getMaxScopes()) {
+                    CirSim.console("Text import: ignoring scope beyond the limit of " + scopeManager.getMaxScopes());
+                    return true;
+                }
+                Scope scope = new Scope(cirSim, document);
                 scope.position = scopeCount;
                 scope.undump(tokenizer);
                 scopeManager.setScope(scopeCount, scope);
@@ -368,39 +322,6 @@ public class TextCircuitImporter implements CircuitImporter {
         }
 
         circuitEditor.setGrid();
-    }
-
-    /**
-     * Finalize circuit loading with post-processing.
-     */
-    private void finalizeCircuitLoading(CircuitDocument document, int flags) {
-        CirSim cirSim = document.getCirSim();
-        CircuitSimulator simulator = document.simulator;
-        CircuitRenderer renderer = document.getRenderer();
-
-        cirSim.setPowerBarEnable();
-        cirSim.enableItems();
-
-        if ((flags & RC_RETAIN) == 0) {
-            // Create sliders for adjustable elements
-            document.adjustableManager.createSliders();
-        }
-
-        cirSim.needAnalyze();
-
-        if ((flags & RC_NO_CENTER) == 0) {
-            renderer.centreCircuit();
-        }
-
-        if ((flags & RC_SUBCIRCUITS) != 0) {
-            simulator.updateModels();
-        }
-
-        // Clear caches to save memory
-        AudioInputElm.clearCache();
-        DataInputElm.clearCache();
-
-        cirSim.setSlidersDialogHeight();
     }
 
     @Override
