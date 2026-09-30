@@ -1,50 +1,54 @@
 # AuditState — /dev-flow audit code (L2, survives compact + restart)
 # Mirrors .dev_flow/onboard/state.yaml. A free-form "audit code continue"
 # resumes from here instead of re-analyzing settled units.
+# Previous run archived: state_code-audit_20260621_104235.yaml
 
-run_id: code-audit_20260621_104235
+run_id: code-audit_20260930_173830
 status: handed-off           # parsing -> analyzing -> consolidating -> planning -> handed-off
-# handed-off (2026-06-21): developer triggered `/dev-flow fix ITEM-03/04/05/06/07`.
-#   DONE + GWT-verified (source changed, NOT yet committed): ITEM-03, ITEM-04, ITEM-05, ITEM-06.
-#   DEMOTED: ITEM-07 -> BL-AR (WONTFIX under DEC_01, localhost-only).
-#   STILL ACTIVE: ITEM-02 (CSP) + backlog (BL-RD, BL-AR, BL-01..04, deferred lenses BL-05..11).
-# Pending: clean-context review + commit approval for the 4 applied fixes.
-mode: full                   # full | incremental ; FULL conformance baseline present (not REDUCED)
+# handed-off (2026-09-30): defect track executed, reviewed, live-verified, committed (b64e347, f0aee41).
+# planning (2026-09-30): plan + report + framework map written; awaiting developer at Plan->Code gate (DEC_01..03 proposed).
+mode: full                   # FULL conformance baseline present (rules + _framework.md + 45 concept/spec triples) — not REDUCED
 preview_only: false
-
-scope: whole                 # whole codebase (src/main/java/com/lushprojects/circuitjs1/client/**)
+scope: whole                 # src/main/java/com/lushprojects/circuitjs1/client/** (+ tests/, war/ host page where a lens needs it)
 depth: standard
 
-# Run breadth chosen by developer: "Defects only"
-lenses: [security, correctness]
-deferred_lenses: [standards, architecture, specifications, patterns, duplication, performance, tests]
-deferral_reason: "Developer selected defects-only breadth; deferred lenses go to plan backlog with return triggers (no silent truncation)."
+# Bare `audit code` => all base lenses. security + correctness ran in full on
+# 2026-06-21 (code-audit_20260621_104235) and code has changed only by the fix
+# commits since then, so they run INCREMENTAL over that delta; the 7 lenses the
+# previous run deferred (BL-05..BL-11) run in full.
+lenses_full: [standards, architecture, specifications, patterns, duplication, performance, tests]
+lenses_incremental: [security, correctness]
+incremental_baseline: cdba7b6^   # parent of the first audit-fix commit; delta = cdba7b6, c8d61db (+docs commits)
 
 units:
-  done: 2
-  total: 2                   # security + correctness lenses both returned
-  security_findings: 6       # SEC-01..06 (1 must/exploitable, 1 must, 3 should, 1 prefer)
-  correctness_findings: 5    # COR-01..05 (1 must, 3 should, 1 prefer)
+  done: 8
+  total: 8                   # 7 full lenses + 1 combined security/correctness delta agent
 
-assumptions_defaulted:       # parsed from bare `audit code` (stated back per ParseIntent)
+assumptions_defaulted:
   - "scope=whole (no path/glob given)"
   - "depth=standard"
-  - "mode=full"
+  - "lenses=all base (security/correctness incremental over the post-2026-06-21 delta; the 7 previously-deferred lenses full)"
   - "preview_only=false"
 
 artifacts:
-  plan: ".dev_flow/audit/whole_20260621_104235.plan.md"      # written at ProducePlan
-  report: ".dev_flow/audit/code-audit_20260621_104235.report.md"
-  framework_map: "docs/_framework.md"                         # created at ProducePlan
+  plan: ".dev_flow/audit/whole_20260930_173830.plan.md"
+  report: ".dev_flow/audit/code-audit_20260930_173830.report.md"
+  framework_map: "docs/_framework.md"
+  workspace: "session scratchpad audit/ (transient, not linked from docs)"
 
-decisions:
-  - id: PL_AUDIT_20260621_104235_DEC_01
-    settled: 2026-06-21
-    by: developer
-    resolves: CF-01 (SEC-01)
-    summary: "remote-debug client-side eval is intentional, necessary diagnostic functionality; system is localhost-only/operator-initiated. eval accepted by design, not a vulnerability. Fast-track withdrawn; finding cited not reversed; optional hardening = BL-RD (gated on localhost-only model changing)."
-    documented_in: docs/remote_dbg_concept.md
+findings:
+  lens_findings: 108          # STD16 ARC15 SPC14 PAT15 DUP12 PRF11 TST11 DLT14
+  consolidated: 31            # CF-01..CF-31
+  active_items: 15            # ITEM-01..15 (ITEM-15 carried from June ITEM-02)
+  backlog: 16                 # BL-A01..A16
+  source_verified: [CF-01, CF-02, CF-03, CF-04, CF-06]
+  harvested_rules: [RULE_ARCH_010, RULE_STYLE_009]
+
+proposed_decisions: [PL_AUDIT_20260930_173830_DEC_01, PL_AUDIT_20260930_173830_DEC_02, PL_AUDIT_20260930_173830_DEC_03]
+
+carried_decisions:
+  - PL_AUDIT_20260621_104235_DEC_01   # remote-debug eval is intentional, localhost-only — cite, never reverse
 
 timestamps:
-  started: 2026-06-21
-  ts: 20260621_104235
+  started: 2026-09-30
+  ts: 20260930_173830
