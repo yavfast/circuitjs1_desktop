@@ -102,6 +102,15 @@
 | C_FBR | Browser File Bridge | active | LoadFile/SRAMLoadFile adapters turning `<input type=file>` events into Java strings | [concept](browser-file-bridge.concept.md) · [spec](browser-file-bridge.sp.md) · [plan](browser-file-bridge.plan.md) |
 | C_APE | App Entrypoint — GWT Bootstrap | active | `circuitjs1` GWT EntryPoint: install exception hook, load locale, construct CirSim | [concept](app-entrypoint.concept.md) · [spec](app-entrypoint.sp.md) · [plan](app-entrypoint.plan.md) |
 
+### Agent automation (E_AGT)
+
+| ID | Title | Status | Summary | Files |
+|---|---|---|---|---|
+| C_AGA | Agent API | draft | Transport-free agent operations: stable element IDs, grid-cell geometry, incremental edits, connectivity report, bounded runs/probes, diagnostics, commented checkpoints | [concept](agent-api.concept.md) · [spec](agent-api.sp.md) |
+| C_MCP | In-app MCP Server | draft | Always-on Streamable HTTP endpoint in the desktop runtime projecting the Agent API as tools/resources; per-instance registry | [concept](mcp-server.concept.md) · [spec](mcp-server.sp.md) |
+| C_MCB | MCP Bridge & CLI | draft | Stdio forwarder for stdio-only hosts, instance discovery/launch, command-line client | [concept](mcp-bridge.concept.md) · [spec](mcp-bridge.sp.md) |
+| C_AGS | Circuit Authoring Skill | draft | Agent skill: workflow checklist, references, evals | [concept](agent-skill.concept.md) · [spec](agent-skill.sp.md) |
+
 ## Epics
 
 | ID | Title | Span |
@@ -110,6 +119,11 @@
 | [E_EDITOR](editor.epic.md) | Canvas editing + commands + menus + clipboard | C_EDI + C_UND + C_MEN + C_CLP |
 | [E_SIMULATOR](simulator.epic.md) | Numerical simulation engine + document model | C_SIM + C_APC + C_DOC + C_NET |
 | [E_VISUALIZATION](visualization.epic.md) | Scope, sliders, display settings | C_SCP + C_ADJ + C_USR |
+| [E_AGT](agent-automation.epic.md) | AI agents drive the app over MCP | C_AGA + C_MCP + C_MCB + C_AGS |
+
+## Spikes
+
+- [mcp-agent-bridge.spike.md](mcp-agent-bridge.spike.md) — concluded 2026-10-01: app as MCP server (in-app Streamable HTTP + stdio bridge), JS API gaps, agent tools & skill; feeds epic E_AGT (the interview chose agent-written grid-cell coordinates over the spike's netlist-first recommendation)
 
 ## Pre-existing hand-written docs (cross-reference)
 

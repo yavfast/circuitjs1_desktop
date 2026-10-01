@@ -4,12 +4,15 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 ## Active Tasks
 
-_(none active)_
+| Task | Phase | Started | Contributors | Next |
+|------|-------|---------|--------------|------|
+| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | spec | 2026-10-01 | main | commit sign-off → `/dev-flow plan` |
 
 ## Recently Completed
 
 | Task | Phase | Completed | Contributors | Result |
 |------|-------|-----------|--------------|--------|
+| [task_20261001_142742_mcp-research](tasks/task_20261001_142742_mcp-research.md) — app as MCP server + agent client/skill | research | 2026-10-01 | main | spike [mcp-agent-bridge.spike.md](../docs/mcp-agent-bridge.spike.md) concluded; skills automation/ |
 | [task_20261001_131500_backlog-fixes-3](tasks/task_20261001_131500_backlog-fixes-3.md) — backlog batch 3 (BL-C07/C08/C09) | fix | 2026-10-01 | main | fix/backlog-20260930, merged to master |
 | [task_20261001_113805_backlog-fixes-2](tasks/task_20261001_113805_backlog-fixes-2.md) — backlog batch 2 (BL-C01..C04, BL-A01) | fix | 2026-10-01 | main | fix/backlog-20260930, merged to master |
 | [task_20260930_205344_backlog-fixes](tasks/task_20260930_205344_backlog-fixes.md) — backlog defect fixes (BL-A06/A05/A03/B05/B06) | fix | 2026-09-30 | main | 21079bc on fix/backlog-20260930, merged to master |

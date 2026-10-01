@@ -1,0 +1,363 @@
+# In-app MCP Server — Specification  {#SP_MCP}
+
+> **Code:** SP_MCP
+> **Status:** draft
+> **Created:** 2026-10-01
+> **Updated:** 2026-10-01
+>
+> **Concept:** [C_MCP](./mcp-server.concept.md)
+> **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_USR](./user-preferences.sp.md)
+> **Used by:** [SP_MCB](./mcp-bridge.sp.md), [SP_AGS](./agent-skill.sp.md)
+> **Plan:** [mcp-server.plan.md](./mcp-server.plan.md)
+>
+> This specification defines the in-app MCP endpoint: its HTTP behaviour, preferences, instance records, the tool and resource catalogue mapped onto [SP_AGA](./agent-api.sp.md) contracts, result shaping, and the user-visible server info. Read it to implement the server, to add a tool, or to write the bridge against it. The protocol-layer choice ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)) stays open; this spec fixes only the behaviour any choice must satisfy.
+
+## Contents
+
+- [01. Data Structures](#SP_MCP_01) — preferences, instance record, tool descriptor, tool result
+- [02. Contracts](#SP_MCP_02) — endpoint behaviour, the tool catalogue, resources, server info
+- [03. Validation Rules](#SP_MCP_03) — origin rule, argument validation, error mapping, sizing
+- [04. State Transitions](#SP_MCP_04) — server lifecycle and instance record lifecycle
+- [05. Verification Criteria](#SP_MCP_05) — functional, invariant, integration, edge-case checks
+- [06. Reversibility](#SP_MCP_06) — disabling and removing the server
+- [07. Design Decisions](#SP_MCP_DEC) — tool granularity, response transport
+
+## 01. Data Structures  {#SP_MCP_01}
+
+> Implements: [C_MCP_02](./mcp-server.concept.md#C_MCP_02)
+
+### 01_01. Server preferences  {#SP_MCP_01_01}
+
+Stored in the user-preferences store ([SP_USR](./user-preferences.sp.md)); changes apply at the next app start.
+
+| Key | Type | Default | Constraints | Description |
+|-----|------|---------|-------------|-------------|
+| mcpServerEnabled | bool | true | — | Start the endpoint with the app ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) |
+| mcpServerPort | int | 7311 | 1024..65535; `mcpServerPort + mcpServerPortRange − 1 ≤ 65535` | Base port |
+| mcpServerPortRange | int | 20 | 1..100 | Number of consecutive ports tried |
+| mcpServerHost | string | `0.0.0.0` | an IPv4/IPv6 literal or `localhost` | Listening address; the default covers loopback and the private network |
+
+### 01_02. Instance record  {#SP_MCP_01_02}
+
+One JSON file `<instanceId>.json` in the instance directory `<user home>/.circuitjs1/instances/`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| instanceId | string | yes | `<pid>-<startedAtMs>` |
+| pid | int | yes | Process ID |
+| port | int | yes | Bound port |
+| host | string | yes | Listening address |
+| urls | string[] | yes | `http://127.0.0.1:<port>/mcp` first, then one URL per non-internal IPv4 address when `host` is not loopback |
+| appVersion | string | yes | App version from the manifest |
+| startedAt | string | yes | ISO-8601 UTC |
+| title | string | yes | Window title at start |
+| protocolRevisions | string[] | yes | Protocol revisions the endpoint serves |
+| toolsVersion | string | yes | Version `MAJOR.MINOR` of the tool and resource contract ([§06_01](#SP_MCP_06_01)) |
+
+### 01_03. Tool descriptor  {#SP_MCP_01_03}
+
+| Field | Type | Description |
+|-------|------|-------------|
+| name | string | `circuit_<verb>` ([§02_02](#SP_MCP_02_02)) |
+| title | string | Human-readable title |
+| description | string | Agent-facing description: purpose, when to use, key arguments, what comes back; ≤ 1200 chars |
+| inputSchema | JSON Schema object | Derived from the mapped SP_AGA contract inputs |
+| outputSchema | JSON Schema object | OperationResult ([SP_AGA_01_08](./agent-api.sp.md#SP_AGA_01_08)) with the contract's `data` shape |
+| annotations | {readOnlyHint, destructiveHint, idempotentHint, openWorldHint: bool} | Per [§02_02](#SP_MCP_02_02); `openWorldHint` is false for every tool |
+
+### 01_04. Tool result  {#SP_MCP_01_04}
+
+| Part | Content |
+|------|---------|
+| structuredContent | The SP_AGA OperationResult |
+| content[0] | Text: the OperationResult serialized as compact JSON |
+| content[1] | Image (`image/png`) for `circuit_render` with `format=png`; omitted otherwise |
+| isError | `true` exactly when `ok = false` |
+
+For `circuit_render` with `format=png` the base64 PNG appears only in the image part; `structuredContent.data.content` is replaced by `"<image>"` (the only deviation of `structuredContent` from the Agent API result).
+
+## 02. Contracts  {#SP_MCP_02}
+
+### 02_01. Endpoint behaviour  {#SP_MCP_02_01}
+
+- **Address.** `POST http://<host>:<port>/mcp`, `Content-Type: application/json`, one JSON-RPC message per request.
+- **Response.** Replies are `application/json` single responses. No server-initiated stream: `GET /mcp` and `DELETE /mcp` answer 405. Notifications from the client answer 202 with no body.
+- **Protocol revisions.** The endpoint serves the initialize-based revisions `2025-11-25` and `2025-06-18`. `initialize` answers with the client's requested revision when it is served, else with `2025-11-25`. Whether the endpoint also serves the stateless `2026-07-28` revision is decided by [C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03).
+- **Version header.** A request whose `MCP-Protocol-Version` header names a revision the endpoint does not serve gets HTTP 400 with a JSON-RPC error body, which lets dual-era clients fall back. A request without the header is treated as `2025-06-18`.
+- **Sessions.** The server keeps no protocol session state and issues no `Mcp-Session-Id`. Session headers sent by clients are ignored.
+- **Capabilities.** `tools` (with `listChanged: false`) and `resources` (with `listChanged: false`, `subscribe: false`). No `prompts`, no sampling, no elicitation.
+- **Server info.** `serverInfo` = `{name: "circuitjs1", version: <appVersion>}`. `instructions` is one paragraph naming the coordinate unit (grid cells), the verify loop (connectivity report → run → measure), the skill name `circuitjs-circuits` and the `toolsVersion`.
+- **Concurrency.** Requests are processed on the app's event loop. A `circuit_run` request answers when its run ends, and other requests are served meanwhile.
+
+### 02_02. Tool catalogue  {#SP_MCP_02_02}
+
+> **Criticality:** critical
+
+Every tool takes the `doc` argument of SP_AGA contracts, optional except where the contract requires it (`circuit_documents` `activate`/`close`).
+
+| Tool | Maps to (SP_AGA) | Arguments (beyond `doc`) | readOnlyHint | destructiveHint | idempotentHint |
+|------|------------------|---------------------------|----------|-------------|------------|
+| circuit_types | listTypes / describeType | `type?` (describe when given), `filter?` | true | false | true |
+| circuit_documents | listDocuments / createDocument / activateDocument / closeDocument | `action: list\|create\|activate\|close`, `title?`, `activate?`, `discardChanges?` | false | true (`close`) | false |
+| circuit_import | importCircuit | `circuit` (AgentCircuit object or text) | false | true (replaces the circuit) | false |
+| circuit_edit | applyEdits | `edits[]` | false | true (`delete`) | false |
+| circuit_get | getCircuit | `detail?`, `ids?`, `offset?`, `limit?` | true | false | true |
+| circuit_connectivity | getConnectivity | `includeNets?`, `netFilter?` | true | false | true |
+| circuit_read | read | `targets[]` | true | false | true |
+| circuit_render | render | `format?`, `scale?`, `includeScopes?` | true | false | true |
+| circuit_sim | simControl | `action`, `settings?` | false | true (`reset`) | false |
+| circuit_run | run | `mode?`, `span?`, `settle?`, `budgetMs?`, `probes?`, `recordFrom?`, `maxPoints?`, `reset?` | false | true (`reset`) | false |
+| circuit_diagnostics | getDiagnostics | `log?` | true | false | true |
+| circuit_checkpoint | checkpoint | `comment` | false | false | false |
+| circuit_history | getHistory / undo / redo / restoreCheckpoint | `action: list\|undo\|redo\|restore`, `steps?`, `checkpointId?`, `limit?` | false | true (`undo`, `restore`) | false |
+| circuit_file | openFile / saveFile / exportCircuit | `action: open\|save\|export`, `path?`, `into?`, `activate?`, `format?` | false | true (`save` overwrite) | false |
+
+Annotations are the most conservative values over the tool's actions: a tool with any mutating action declares `readOnlyHint: false`, and `destructiveHint` is true when any action is destructive. `openWorldHint` is false for every tool.
+
+Every tool description contains these points, all stated in the tool text:
+- what the tool does;
+- that coordinates are grid cells (for tools that take geometry);
+- the default `doc` behaviour;
+- one minimal argument example.
+
+### 02_03. Resources  {#SP_MCP_02_03}
+
+| URI (or template) | MIME | Content | Maps to |
+|-------------------|------|---------|---------|
+| `circuitjs://catalogue` | application/json | Type index | listTypes |
+| `circuitjs://catalogue/{type}` | application/json | TypeInfo | describeType |
+| `circuitjs://documents` | application/json | Document list | listDocuments |
+| `circuitjs://documents/{doc}/circuit` | application/json | `{elements: ElementRecord[], simulation, scopes}` of the document at full detail, all pages; importable unchanged through `circuit_import` | getCircuit (`detail: full`, all pages) |
+| `circuitjs://examples` | application/json | `{path, title}[]` of the bundled example circuits | example index of the app package |
+| `circuitjs://examples/{path}` | text/plain | Example circuit text (legacy format) | bundled example file |
+| `circuitjs://docs/agent-format` | text/markdown | Coordinate model, ElementSpec, edit ops, issue codes | text shipped with the app |
+
+`resources/list` lists the fixed URIs. `resources/templates/list` lists the templates. An unknown URI returns JSON-RPC error -32002 (resource not found).
+
+### 02_04. Server info for the user  {#SP_MCP_02_04}
+
+The Options menu has an item "MCP Server…" that opens an info dialog through the dialog router. The dialog shows:
+- status (`listening` or `failed: <reason>` or `disabled`);
+- instance ID;
+- the `urls` of the instance record;
+- one copyable command line `claude mcp add --transport http circuitjs <first URL>`;
+- the count of handled tool calls in this run;
+- editable settings: an "Enabled" checkbox, the base port and the listening address. "Save" writes them to the preferences ([§01_01](#SP_MCP_01_01)) and states that they apply at the next start.
+
+The menu item text is "MCP Server…", followed by "(off)" when the server is disabled.
+
+### 02_05. Start-up and shutdown  {#SP_MCP_02_05}
+
+Processing logic:
+
+    FUNCTION startServer():                               # called by the app's own start-up, right after the Agent API export
+                                                          # (not through the single-slot "loaded" page hook)
+        IF NOT desktop runtime OR NOT pref.mcpServerEnabled: status ← disabled; RETURN
+        FOR port IN pref.mcpServerPort .. pref.mcpServerPort + pref.mcpServerPortRange − 1:
+            IF listen(pref.mcpServerHost, port) succeeds: BREAK
+        IF not listening: status ← failed("no free port in range"); log; RETURN
+        write instance record (§01_02) atomically (temp file + rename), file mode user-only
+        status ← listening; log "MCP server listening on <urls>"
+
+    FUNCTION stopServer():                                # window close / app exit
+        close listener; delete own instance record
+
+### 02_06. Desktop runtime settings  {#SP_MCP_02_06}
+
+The package manifest's Chromium arguments gain `--disable-background-timer-throttling`, `--disable-renderer-backgrounding` and `--disable-backgrounding-occluded-windows`, so agent runs keep their pace while the window is hidden, minimised or covered ([C_MCP_03_01](./mcp-server.concept.md#C_MCP_03_01)).
+
+## 03. Validation Rules  {#SP_MCP_03}
+
+### 03_01. Origin rule  {#SP_MCP_03_01}
+
+- A request without an `Origin` header is accepted.
+- A request whose `Origin` host is `localhost`, `127.0.0.1` or `[::1]` (any port) is accepted.
+- Any other `Origin` is answered with HTTP 403 and an empty body.
+- No other authentication is performed ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)).
+
+### 03_02. Argument validation  {#SP_MCP_03_02}
+
+- Arguments are validated against `inputSchema` before mapping. Type, required-field and enum violations are JSON-RPC errors -32602 with a message naming the field.
+- Domain validation (lattice, IDs, property keys, value formats) is left to the Agent API and comes back as `isError` tool results.
+
+### 03_03. Error mapping  {#SP_MCP_03_03}
+
+| Condition | Response |
+|-----------|----------|
+| Body not JSON | JSON-RPC -32700 |
+| Not a JSON-RPC request object | JSON-RPC -32600 |
+| Unknown method | JSON-RPC -32601 |
+| Unknown tool name / schema violation | JSON-RPC -32602 |
+| Agent API returned `ok = false` | Tool result, `isError: true` |
+| SVG render text or export content over the size limit ([§03_04](#SP_MCP_03_04)) | Tool result, `isError: true`, server issue `result_too_large` (error) |
+| Unexpected exception in a tool | Tool result, `isError: true`, issue `internal_error` with the exception message; the exception is passed to the application's global uncaught-exception handler through the Agent API export (RULE_ERR_004) |
+
+### 03_04. Sizing  {#SP_MCP_03_04}
+
+- **Limit.** The serialized text part of a tool result stays ≤ 60 000 characters. This is about 20 000 tokens for numeric JSON at about 3 characters per token, below the host's default 25 000-token cap.
+- **Runs.** `circuit_run` results stay within the limit by the Agent API caps (Σ `maxPoints` ≤ 2000, 6 significant digits) and are never re-requested.
+- **Mutating tools.** These are never re-executed. Their results stay within the limit by the Agent API caps (≤ 50 element records, ≤ 50 issues per list, `ids` only up to 200 elements).
+- **Read-only tools.** A read-only tool whose result would exceed the limit is re-executed with a smaller request, and the result of that *effective* call is returned:
+  - `circuit_get`: `detail: "concise"`, then `limit` halved until it fits (`nextOffset` tells the agent where to continue);
+  - `circuit_connectivity`: `includeNets: false` (issues only);
+  - `circuit_diagnostics`: log `limit` halved until it fits;
+  - `circuit_types`: never exceeds (bounded by the catalogue);
+  - `circuit_render` with `format=svg`: when the SVG text exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use png or a lower scale".
+  - `circuit_file` with `action: export`: when the content exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use action save, or circuit_get pages".
+  The text part then starts with a note naming the reduced arguments.
+- **Resources.** Resource reads are not tool results and are not subject to this limit; `circuitjs://documents/{doc}/circuit` and example texts are returned whole.
+- **Structure.** A result is never cut mid-structure.
+
+## 04. State Transitions  {#SP_MCP_04}
+
+### 04_01. Server lifecycle  {#SP_MCP_04_01}
+
+    [disabled] (pref off or no desktop runtime)
+    [starting] --listen ok--> [listening] --app exit--> [stopped]
+    [starting] --no free port--> [failed]
+
+| From | To | Condition | Side effects |
+|------|----|-----------|-------------|
+| starting | listening | A port in range bound | Instance record written; log line |
+| starting | failed | Range exhausted or listen error | Status reason kept for the info dialog; app continues |
+| listening | stopped | Window closed / process exit | Listener closed; record deleted |
+
+### 04_02. Instance record lifecycle  {#SP_MCP_04_02}
+
+| Event | Effect |
+|-------|--------|
+| Server listening | Record created |
+| Clean exit | Record deleted by its owner |
+| Crash | Record stays; readers ([SP_MCB_03_01](./mcp-bridge.sp.md#SP_MCB_03_01)) delete records whose `pid` is not alive |
+| Start-up of any instance | The starting instance also deletes dead-pid records it finds |
+
+## 05. Verification Criteria  {#SP_MCP_05}
+
+### 05_01. Functional Expectations  {#SP_MCP_05_01}
+
+| Contract | Scenario | Input | Expected outcome |
+|----------|----------|-------|------------------|
+| Endpoint | Claude Code connects | `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` | `/mcp` lists the server as connected with 14 tools |
+| Endpoint | MCP Inspector | Inspector at localhost origin | Handshake, `tools/list`, `resources/list` succeed |
+| Origin rule | Foreign web page | `Origin: http://example.com` | 403 |
+| Origin rule | No origin | curl POST | 200 |
+| circuit_edit | domain error | unknown property | result `isError: true`, `structuredContent.issues[0].code = unknown_property` |
+| circuit_edit | schema error | `edits` not an array | JSON-RPC -32602 |
+| circuit_render | png | — | image content part present; text part carries `"<image>"` |
+| Resources | catalogue | read `circuitjs://catalogue/Resistor` | TypeInfo JSON |
+| Start-up | port busy | 7311 taken | server on 7312; record says 7312 |
+| Info dialog | listening | open "MCP Server…" | URLs and command line shown |
+| Info dialog | disable | untick "Enabled", Save, restart | status `disabled`; no port bound; no instance record |
+| Endpoint | GET | `GET /mcp` | 405 |
+| Endpoint | unsupported revision header | `MCP-Protocol-Version: 1999-01-01` | 400 with JSON-RPC error body |
+| Endpoint | session header | request with an arbitrary `Mcp-Session-Id` | processed normally |
+| Resources | unknown URI | read `circuitjs://nope` | JSON-RPC -32002 |
+| Resources | circuit round trip | read `circuitjs://documents/d1/circuit`, pass it to `circuit_import` on d2 | d2 equals d1 |
+| Tool | file rule | `circuit_file save` to `/etc/x.conf` | `isError`, issue `file_not_allowed` |
+| Endpoint | notification | POST a JSON-RPC notification | 202, empty body |
+| Resources | templates | `resources/templates/list` | the three templates of [§02_03](#SP_MCP_02_03) |
+| Resources | examples | read `circuitjs://examples`, then one listed path | index JSON; the example text |
+| Info dialog | counter | 3 tool calls, open the dialog | count shows 3 |
+| Runtime settings | hidden window | minimise the window, `circuit_run` with `span` needing ~2 s wall time | `wallMs` within 25 % of the same run with the window visible |
+| Sizing | oversized read | `circuit_get` with `detail: full`, `limit: 500` on the largest example | text ≤ 60 000 chars; note names the reduced arguments; `nextOffset` present |
+
+### 05_02. Invariant Checks  {#SP_MCP_05_02}
+
+| Invariant | Verification method |
+|-----------|-------------------|
+| Tools add no circuit logic | Every tool's `structuredContent` equals the OperationResult of the effective Agent API call (the requested arguments, or the reduced ones of [§03_04](#SP_MCP_03_04)), except the PNG content of `circuit_render` ([§01_04](#SP_MCP_01_04)) |
+| `isError` ⇔ `ok = false` | Checked over every §05_01 case |
+| Text part ≤ 60 000 chars | Large-circuit `circuit_get` and `circuit_connectivity` on the largest bundled example; `circuit_run` with 16 probes at Σ `maxPoints` = 2000 |
+| One record per live instance | Two windows → two records with distinct ports; close one → one record |
+
+### 05_03. Integration Scenarios  {#SP_MCP_05_03}
+
+| Scenario | Preconditions | Steps | Expected result |
+|----------|--------------|-------|-----------------|
+| Private-network agent | Agent host on another machine of the LAN | Connect to the LAN URL from the info dialog; `circuit_types` | Tools usable; no token asked |
+| Long run while reading | `circuit_run` with 5 s budget in flight | Call `circuit_get` | `circuit_get` answers before the run ends |
+| Bridge forwarding | Bridge running ([SP_MCB](./mcp-bridge.sp.md)) | Call any tool via the bridge | Same result as direct |
+
+### 05_04. Edge Cases and Boundaries  {#SP_MCP_05_04}
+
+| Case | Input | Expected behavior |
+|------|-------|-------------------|
+| All ports busy | 20 ports taken | status `failed`; app usable; info dialog shows the reason |
+| Browser build | Opened in a browser | status `disabled`; no listen attempt |
+| Crash record | Stale record with dead pid | Deleted by the next starting instance |
+| Huge result | `circuit_get` with `limit=500`, `detail=full` on a big circuit | Concise retry or truncation with `nextOffset` |
+
+## 06. Reversibility  {#SP_MCP_06}
+
+### 06_01. Rollback Strategy  {#SP_MCP_06_01}
+
+| Aspect | Rollback approach |
+|--------|-------------------|
+| Data/state changes | Four preference keys; instance files under `~/.circuitjs1/instances/` (safe to delete) |
+| Artifacts | The server script bundled into the package, the menu item and the info dialog |
+| Dependent modules | [SP_MCB](./mcp-bridge.sp.md) and [SP_AGS](./agent-skill.sp.md) need the endpoint; the Agent API does not depend on the server |
+| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`): a breaking change bumps MAJOR, an addition bumps MINOR; the skill states the `toolsVersion` it supports |
+
+Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes.
+
+## 07. Design Decisions  {#SP_MCP_DEC}
+
+### DEC_01 — How many tools?  {#SP_MCP_DEC_01}
+
+> **Status:** resolved
+> **Date:** 2026-10-01
+
+**Question:** Should the server expose one tool per Agent API contract (~25), or group related contracts behind an `action` argument (14)?
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — 14 grouped tools (Recommended) | A smaller tool list to choose from; `action` discriminators; annotations become the most conservative over actions |
+| B — one tool per contract (~25) | Exact annotations per tool; a longer list that agents scan on every turn |
+
+**Decision:** A — 14 grouped tools (confirmed by the developer).
+**Rationale:** Tool-design guidance favours fewer, consolidated tools; the grouped families (documents, history, files) are each used together.
+**Rejected because:** B — tool-list size grows without adding capability.
+
+### DEC_02 — Single JSON responses or event streams?  {#SP_MCP_DEC_02}
+
+> **Status:** resolved
+> **Date:** 2026-10-01
+
+**Question:** Should replies be single JSON responses, or should long calls stream progress?
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — single JSON responses | Simplest transport; a run answers when it ends (bounded by its 120 s budget cap, below the host's 5-minute idle timeout) |
+| B — event-stream responses with progress notifications | Progress for long runs; more transport code on the old runtime |
+
+**Decision:** A — single JSON responses.
+**Rationale:** Runs are budget-capped below host timeouts; progress has no consumer in the agent loop.
+**Rejected because:** B — transport complexity with no consumer.
+
+### DEC_03 — How are file actions bounded without access control?  {#SP_MCP_DEC_03}
+
+> **Status:** resolved
+> **Date:** 2026-10-01
+
+**Question:** With no authentication ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)), any private-network client can call `circuit_file` with an arbitrary path. How are open/save bounded?
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — circuit files only | Only absolute `.txt`/`.json` paths; open ≤ 10 MB; save overwrites only empty or circuit files ([SP_AGA_03_09](./agent-api.sp.md#SP_AGA_03_09)); no change for agents |
+| B — A, and file actions for loopback clients only | Remote agents work through import/export content only |
+| C — no restriction | Any client can read or overwrite any user-writable file |
+
+**Decision:** A — circuit files only.
+**Rationale:** It removes the arbitrary-file read/overwrite exposure that review round 1 found, without adding the access control the developer rejected.
+**Rejected because:** B — it limits remote agents more than the stated environment needs. C — arbitrary file overwrite is out of proportion to the feature.
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| 2026-10-01 | Initial version |
+| 2026-10-01 | Review round 3: SVG size rule, resources exempt from the tool-result limit, required `doc` for activate/close |
+| 2026-10-01 | Review round 1: named protocol revisions and header/session handling, `toolsVersion`, annotation corrections, resource shape, settings in the info dialog, start-up trigger, Chromium arguments, sizing rules, error reporting via the global handler, file-rule decision DEC_03, verification gaps |

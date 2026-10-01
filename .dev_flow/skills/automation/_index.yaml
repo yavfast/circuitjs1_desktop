@@ -1,0 +1,13 @@
+updated: 2026-10-01
+domain: automation
+skills:
+  - file: js-api-surface.md
+    skill: js-api-surface
+    topics: [js-api, circuitjs1-global, jsni-bridge, element-id, scope-data, stop-message, undo, documents]
+    source: research
+    updated: 2026-10-01
+  - file: agent-mcp-surface.md
+    skill: agent-mcp-surface
+    topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, netlist-first]
+    source: research
+    updated: 2026-10-01
