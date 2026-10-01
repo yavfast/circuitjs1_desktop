@@ -52,7 +52,7 @@ Conversions: input `px = cell × 16` (exact). Output `cell = px / 16`, exact —
 | PinName | string | unique within one element ([§03_02](#SP_AGA_03_02)) | Agent-facing pin name |
 | PostRef | string | `<ElementId>.<PinName>` or `<ElementId>.#<index>` (0-based post index) | One post of one element; outputs always use the PinName form |
 | CheckpointId | string | `^cp[1-9][0-9]*$`; unique within a document, never reused | Identity of one sealed agent transaction |
-| NetName | string | `gnd`, a label text, `label:<text>`, or `$<k>` (`k` = simulator node index) | Name of a net ([§01_06](#SP_AGA_01_06)) |
+| NetName | string | `gnd`, a label text, `label:<text>`, or `$<k>` (`k` = 1-based rank of the unlabelled net by its smallest member PostRef) | Name of a net ([§01_06](#SP_AGA_01_06)) |
 
 ### 01_03. ElementSpec (input)  {#SP_AGA_01_03}
 
@@ -116,7 +116,7 @@ Index form (`listTypes`): `{type, aliases, pins, geometry, summary: string}` per
 Net:
 | Field | Type | Description |
 |-------|------|-------------|
-| name | NetName | `gnd` for the ground node (also when labelled); else the lexicographically smallest label text on the net, written `label:<text>` when the text is `gnd`, starts with `$` or starts with `label:`; else `$<k>` |
+| name | NetName | `gnd` for the ground node (also when labelled); else the lexicographically smallest label text on the net, written `label:<text>` when the text is `gnd`, starts with `$` or starts with `label:`; else `$<k>`, where the unlabelled nets are numbered 1, 2, … in order of their smallest member PostRef, so the names do not depend on element order and survive a re-import (a net whose only members are wire posts is ranked by its smallest wire PostRef) |
 | posts | PostRef[] | Member posts of all elements except elements of type `Wire`, sorted (ground and labelled nodes are members) |
 | wires | int | Number of `Wire` elements in the net |
 | labels | string[] | Label texts on the net |
@@ -227,7 +227,7 @@ CheckpointRecord (history view): `{checkpointId?, comment?, auto: bool, kind: "a
 | stop | Issue? | Stop state as a solver issue ([§03_06](#SP_AGA_03_06)), with the culprit element ID |
 | warning | Issue? | The most recent solver warning |
 | events | Issue[] | Every solver warning and stop raised since the document's last analysis, in order, each code once ([§03_06](#SP_AGA_03_06)) |
-| recovering | bool | The non-convergence recovery mode is active for this document ([§03_06](#SP_AGA_03_06)) |
+| recovering | bool | The non-convergence recovery is currently engaged for this document (a panic level or singular-matrix stabilisers active), not merely enabled ([§03_06](#SP_AGA_03_06)) |
 | lastImport | Issue[] | Issues of the most recent import into this document |
 | simTime | number | Simulated time (s) |
 | running | bool | Free-running state |
@@ -407,7 +407,7 @@ Errors: `unknown_element` (an ID in `ids`).
 
 Purpose: full connectivity report.
 
-Input: `doc?`, `includeNets: bool = true`, `netFilter: NetName[]?`.
+Input: `doc?`, `includeNets: bool = true`, `netFilter: NetName[]?` (1..1000 names).
 
 Output: `data: ConnectivityReport`; with `netFilter`, `nets` holds only the named nets (issues stay complete).
 
@@ -425,7 +425,7 @@ Purpose: instant readings at the current simulated time.
 
 Input: `doc?`, `targets: ProbeSpec[]` (1..100).
 
-Output: `data: {t: number, values: {name, value: number, unit}[]}`.
+Output: `data: {t: number, values: {name, value: number | null, unit}[]}`. `value` is `null` only for a non-finite reading (the solver produced NaN or infinity), which also adds a `solver_warning`; it is never `null` for a target that does not exist.
 
 Errors: `unknown_net` (the net name is not present; no 0 V reading is returned); `unknown_post`; `unknown_element`; `invalid_value` (quantity not defined by the element).
 
@@ -1039,6 +1039,8 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | `read` null for non-finite values, wire-only net ranking, `netFilter` range, `recovering` = engaged (PL_AGA Phase 5 review) |
+| 2026-10-01 | `$<k>` net names ranked by smallest member PostRef instead of the simulator node index (PL_AGA Phase 5: node indices follow element order and broke the round-trip rows) |
 | 2026-10-01 | Catalogue: built-in defaults from a scratch document, one-to-one English labels, slider-seed sentinels, `readOnly` keys, `add` applies TypeInfo defaults (PL_AGA Phase 3 review) |
 | 2026-10-01 | TypeInfo: defaultSize defined by a 4-cell editor drag, post-less elements are `derived`, `summary` in English, unmeasurable keys omitted (PL_AGA Phase 3) |
 | 2026-10-01 | createDocument `title` range and meaning stated (PL_AGA Phase 1 review) |

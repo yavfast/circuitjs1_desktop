@@ -82,11 +82,120 @@ public class CircuitSimulator extends BaseCirSimDelegate {
      */
     String warningMessage;
     CircuitElm warningElm;
+    /** Untranslated message key of {@link #warningMessage} ([SP_AGA_03_06]). */
+    String warningKey;
+    /** Untranslated message key of {@link #stopMessage} ([SP_AGA_03_06]). */
+    String stopKey;
+
+    /**
+     * [SP_AGA_03_06] One solver warning or stop: the untranslated message key (codes are matched
+     * by its prefix), the translated text, and the culprit element when the simulator names one.
+     */
+    public static final class SolverEvent {
+        public final String key;
+        public final String text;
+        public final boolean stop;
+        public final CircuitElm culprit;
+
+        SolverEvent(String key, String text, boolean stop, CircuitElm culprit) {
+            this.key = key;
+            this.text = text;
+            this.stop = stop;
+            this.culprit = culprit;
+        }
+    }
+
+    /** Maximum number of distinct events kept per analysis (repeats are folded). */
+    static final int MAX_SOLVER_EVENTS = 64;
+
+    /**
+     * [SP_AGA_03_06] Every warning and stop since the last analysis of this document, in order;
+     * a repeat of the same key, kind and culprit is kept once. Cleared when analysis starts.
+     */
+    private final ArrayList<SolverEvent> solverEvents = new ArrayList<>();
+    /** The most recent warning event (also when the list is full). */
+    private SolverEvent lastWarningEvent;
+
+    private static final String CONVERGENCE_KEY = "Convergence failed!";
+
+    /** Keys that differ only by their culprit belong to one family (one event per family). */
+    private static String eventFamily(String key) {
+        return key.startsWith(CONVERGENCE_KEY) ? CONVERGENCE_KEY : key;
+    }
+
+    /**
+     * Records an event. A repeat is folded: the same kind and key with the same culprit, and
+     * every further {@code Convergence failed!} event of the same kind (the first culprit is
+     * kept, [SP_AGA_03_06] "each code once"). The cap only drops warnings of a family already
+     * listed: stops and the first event of every family are always kept.
+     */
+    private void recordEvent(String key, String text, boolean stop, CircuitElm ce) {
+        SolverEvent e = new SolverEvent(key, text, stop, ce);
+        if (!stop) {
+            lastWarningEvent = e;
+        }
+        String family = eventFamily(key);
+        boolean familyListed = false;
+        for (SolverEvent old : solverEvents) {
+            if (old.stop != stop || !eventFamily(old.key).equals(family)) {
+                continue;
+            }
+            if (CONVERGENCE_KEY.equals(family) || (old.culprit == ce && old.key.equals(key))) {
+                return;
+            }
+            familyListed = true;
+        }
+        if (solverEvents.size() < MAX_SOLVER_EVENTS || stop || !familyListed) {
+            solverEvents.add(e);
+        }
+    }
+
+    /** @return the solver events since the last analysis, oldest first (read-only view) */
+    public java.util.List<SolverEvent> getSolverEvents() {
+        return java.util.Collections.unmodifiableList(solverEvents);
+    }
+
+    /** @return the most recent warning event since the last analysis, or null */
+    public SolverEvent getLastWarningEvent() {
+        return lastWarningEvent;
+    }
+
+    /** @return the translated stop message, or null when the solver is not in a stop state */
+    public String getStopMessage() {
+        return stopMessage;
+    }
+
+    /** @return the untranslated key of the stop message, or null */
+    public String getStopKey() {
+        return stopKey;
+    }
+
+    /** @return the element named by the stop, or null */
+    public CircuitElm getStopElm() {
+        return stopElm;
+    }
+
+    /**
+     * @return true while the non-convergence recovery is engaged for this document: a panic level
+     *         above 0 (convergence stabilisers) or the singular-matrix stabilisers active
+     */
+    public boolean isRecoveryEngaged() {
+        return nonConvergenceRecoveryEnabled && (nonConvergencePanicLevel > 0 || singularStabilizersActive);
+    }
+
+    /** Analyses started so far ({@link #analyzeCircuit()} calls); identifies one analysis. */
+    private int analysisCount;
+
+    public int getAnalysisCount() {
+        return analysisCount;
+    }
 
     public void warn(String message, CircuitElm ce) {
         String ls = Locale.LS(message);
+        recordEvent(message, ls, false, ce);
         if (warningMessage == null || !warningMessage.equals(ls) || warningElm != ce) {
             warningMessage = ls;
+            warningKey = message;
             warningElm = ce;
             console(ls);
         }
@@ -94,7 +203,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     public void stop(String message, CircuitElm ce) {
         stopMessage = Locale.LS(message);
+        stopKey = message;
         stopElm = ce;
+        recordEvent(message, stopMessage, true, ce);
 
         circuitMatrix = null; // causes an exception
 
@@ -107,8 +218,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
      */
     public void clearStopState() {
         stopMessage = null;
+        stopKey = null;
         stopElm = null;
         warningMessage = null;
+        warningKey = null;
         warningElm = null;
     }
 
@@ -501,6 +614,25 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     final ArrayList<CircuitElm> nodesWithGroundConnection = new ArrayList<>();
     int nodesWithGroundConnectionCount;
 
+    /**
+     * [SP_AGA_03_05] isolated_group: for every node, the index into {@link #unconnectedNodes} of
+     * the group that was tied to ground through that seed, or -1 when the node reaches ground.
+     */
+    private int[] unconnectedGroupOf = new int[0];
+
+    /**
+     * @return the isolated group of {@code node} found by the last analysis (the index of the
+     *         seed node tied to ground through 100 MOhm), or -1 when the node reaches ground
+     */
+    public int getUnconnectedGroup(int node) {
+        return node >= 0 && node < unconnectedGroupOf.length ? unconnectedGroupOf[node] : -1;
+    }
+
+    /** @return the posts the last analysis found touching another element's body (read-only) */
+    public java.util.List<Point> getBadConnections() {
+        return java.util.Collections.unmodifiableList(badConnectionList);
+    }
+
     void findUnconnectedNodes() {
         int i, j;
 
@@ -511,6 +643,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         boolean changed = true;
         unconnectedNodes.clear();
         nodesWithGroundConnection.clear();
+        unconnectedGroupOf = new int[nodeList.size()];
+        java.util.Arrays.fill(unconnectedGroupOf, -1);
         closure[0] = true;
         while (changed) {
             changed = false;
@@ -529,6 +663,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     if (!closure[ce.getConnectionNode(j)]) {
                         if (hg) {
                             closure[ce.getConnectionNode(j)] = changed = true;
+                            markUnconnectedGroup(ce.getConnectionNode(j));
                         }
                         continue;
                     }
@@ -541,6 +676,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         if (ce.getConnection(j, k) && !closure[kn]) {
                             closure[kn] = true;
                             changed = true;
+                            markUnconnectedGroup(kn);
                         }
                     }
                 }
@@ -557,6 +693,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             for (i = 0; i != nodeList.size(); i++) {
                 if (!closure[i] && !getCircuitNode(i).internal) {
                     unconnectedNodes.add(i);
+                    markUnconnectedGroup(i);
                     console("node " + i + " unconnected");
                     // stampResistor(0, i, 1e8); // do this later in connectUnconnectedNodes()
                     closure[i] = true;
@@ -564,6 +701,14 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     break;
                 }
             }
+        }
+    }
+
+    // Nodes added to the closure after the first seed belong to the group of the latest seed:
+    // everything reaching ground was added before any seed (the closure is a fixpoint).
+    private void markUnconnectedGroup(int node) {
+        if (!unconnectedNodes.isEmpty() && node >= 0 && node < unconnectedGroupOf.length) {
+            unconnectedGroupOf[node] = unconnectedNodes.size() - 1;
         }
     }
 
@@ -1039,9 +1184,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // simulation is stopped.
     void analyzeCircuit() {
         stopMessage = null;
+        stopKey = null;
         stopElm = null;
         warningMessage = null;
+        warningKey = null;
         warningElm = null;
+        // [SP_AGA_03_06] the event list covers one analysis
+        analysisCount++;
+        solverEvents.clear();
+        lastWarningEvent = null;
         singularStabilizersActive = false;
         nonConvergenceStreak = 0;
         nonConvergenceCooldown = 0;
@@ -1680,6 +1831,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     if (nonConvergencePanicLevel >= 3 && nonConvergenceStreak >= 3) {
                         console("non-convergence: forcing step at t=" + t + " (" + subIter + " iters, elm="
                                 + (firstNonConvergedElm != null ? firstNonConvergedElm.getElementId() : "?") + ")");
+                        // [SP_AGA_03_06] a step forced through without convergence is an event
+                        // naming the first non-converged element (no stop, no warning slot)
+                        String key = firstNonConvergedElm != null
+                                ? "Convergence failed! Element: " + firstNonConvergedElm.getElementId()
+                                : "Convergence failed!";
+                        recordEvent(key, Locale.LS(key), false, firstNonConvergedElm);
                         setNodeVoltages(lastNodeVoltages);
                         this.t += timeStep;
                         timeStepAccum += timeStep;

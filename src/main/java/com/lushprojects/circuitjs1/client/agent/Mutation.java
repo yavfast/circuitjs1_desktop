@@ -24,7 +24,8 @@ import java.util.List;
  *     handler (RULE_ERR_004) and gives {@code internal_error} with the exception message.</li>
  * </ol>
  * No undo entry is pushed in either case (the transaction of PL_AGA Phase 6 pushes
- * {@link Context#snapshot}'s entry when a mutation succeeds).
+ * {@link Context#snapshot}'s entry when a mutation succeeds). A successful result carries the
+ * ConnectivityDelta between the connectivity before and after the body ([SP_AGA_01_08]).
  */
 final class Mutation {
 
@@ -97,10 +98,16 @@ final class Mutation {
     /** Runs {@code body} as one guarded mutation of {@code doc}. */
     static OperationResult run(CirSim sim, CircuitDocument doc, Body body) {
         return DocumentScope.call(sim, doc, () -> {
+            // [SP_AGA_01_06] the delta compares the issue sets before and after the operation
+            Connectivity.Report before = Connectivity.analyse(doc);
             Context ctx = new Context(sim, doc, DocumentSnapshot.capture(doc));
             doc.setAgentOrigin(true);
             try {
-                return CellGeometry.withPinnedGrid(doc, () -> body.apply(ctx));
+                OperationResult result = CellGeometry.withPinnedGrid(doc, () -> body.apply(ctx));
+                if (result.isOk()) {
+                    result.setConnectivity(Connectivity.delta(before, Connectivity.analyse(doc)));
+                }
+                return result;
             } catch (Rejected r) {
                 rollback(ctx);
                 return OperationResult.failure(r.issues);
@@ -128,15 +135,14 @@ final class Mutation {
 
     /**
      * Post-processing of a successful mutation: analyse the document now (also while it
-     * free-runs) and set its modified flag ([SP_AGA_02] "Modified flag").
+     * free-runs, and including the node allocation, so records and the connectivity delta name
+     * the nets of the changed circuit) and set its modified flag ([SP_AGA_02] "Modified flag").
      */
     static void finish(Context ctx) {
         // needAnalyze analyses at once when stopped (and repaints); a running document would
-        // only flag it for its next frame, so analyse it here.
+        // only flag it for its next frame — ensureAnalysed runs it here, then allocates nodes.
         ctx.sim.needAnalyze();
-        if (ctx.doc.isRunning()) {
-            ctx.doc.analyzeNow();
-        }
+        ctx.doc.ensureAnalysed();
         ctx.sim.setUnsavedChanges(true);
     }
 }

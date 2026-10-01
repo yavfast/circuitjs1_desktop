@@ -1,8 +1,8 @@
 package com.lushprojects.circuitjs1.client.agent;
 
 /**
- * Stable issue codes of the Agent API ([SP_AGA_03_06]); connectivity codes of [SP_AGA_03_05]
- * are added with the connectivity rules. Each code carries its default severity; a producer may
+ * Stable issue codes of the Agent API: solver and operation codes of [SP_AGA_03_06] and the
+ * connectivity codes of [SP_AGA_03_05]. Each code carries its default severity; a producer may
  * give another severity where the spec says so (a solver code reached as a stop is an error).
  */
 public enum IssueCode {
@@ -16,6 +16,15 @@ public enum IssueCode {
     MATRIX_ERROR("matrix_error", Issue.Severity.ERROR),
     SOLVER_STOP("solver_stop", Issue.Severity.ERROR),
     SOLVER_WARNING("solver_warning", Issue.Severity.WARNING),
+
+    // Connectivity codes ([SP_AGA_03_05]; reserved_label and source_or_wire_loop are shared)
+    DANGLING_POST("dangling_post", Issue.Severity.ERROR),
+    POST_ON_WIRE_BODY("post_on_wire_body", Issue.Severity.ERROR),
+    OVERLAPPING_ELEMENTS("overlapping_elements", Issue.Severity.WARNING),
+    NO_GROUND("no_ground", Issue.Severity.WARNING),
+    ISOLATED_GROUP("isolated_group", Issue.Severity.ERROR),
+    BAD_CONNECTION("bad_connection", Issue.Severity.WARNING),
+    SINGLE_LABEL("single_label", Issue.Severity.INFO),
 
     // Operation codes
     NOT_READY("not_ready", Issue.Severity.ERROR),

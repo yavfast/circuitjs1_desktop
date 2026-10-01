@@ -29,8 +29,9 @@ import java.util.Map;
  * {@code DocumentScope}: the simulation settings and the export's options come from the
  * document's own UI state (SP_AGA_03_08 R2), and the visible tab is not disturbed (R1).
  * <p>
- * PostRecord {@code net} names come with the connectivity analysis (PL_AGA Phase 5); records
- * of this phase carry {@code pin}, {@code index}, {@code at} and {@code open}.
+ * PostRecord {@code net} names come from the document's own analysed nodes, named by the
+ * {@link Connectivity} rules; a post is without {@code net} only when the document could not be
+ * analysed.
  */
 final class CircuitView {
 
@@ -85,9 +86,12 @@ final class CircuitView {
         final int total = selected.size();
         final int end = Math.min(offset, total) + page.size();
         return DocumentScope.call(call.sim, doc, () -> {
+            // PostRecord.net comes from the document's own analysed nodes
+            // no net names from stale node indices when the analysis failed
+            Connectivity.Nets nets = doc.ensureAnalysed() ? Connectivity.nets(doc) : null;
             JSONArray list = new JSONArray();
             for (int i = 0; i < page.size(); i++) {
-                list.set(i, record(page.get(i), doc, cat, full));
+                list.set(i, record(page.get(i), doc, cat, full, nets));
             }
             JSONObject data = new JSONObject();
             data.put("elements", list);
@@ -119,9 +123,10 @@ final class CircuitView {
 
     /**
      * [SP_AGA_01_04] The ElementRecord of {@code elm}. {@code concise} omits properties equal to
-     * the type defaults and flags equal to the type default flags.
+     * the type defaults and flags equal to the type default flags. {@code nets} names the posts'
+     * nets (null: no {@code net} fields).
      */
-    static JSONObject record(CircuitElm elm, CircuitDocument doc, Catalogue cat, boolean full) {
+    static JSONObject record(CircuitElm elm, CircuitDocument doc, Catalogue cat, boolean full, Connectivity.Nets nets) {
         String id = elm.getElementId();
         String typeName = elm.getJsonTypeName();
         Catalogue.TypeInfo type = cat.find(typeName);
@@ -140,6 +145,10 @@ final class CircuitView {
             post.put("index", new JSONNumber(i));
             if (p != null) {
                 post.put("at", CellGeometry.cellPoint(p.x, p.y));
+            }
+            String net = nets == null ? null : nets.nameOf(elm.getNode(i));
+            if (net != null) {
+                post.put("net", new JSONString(net));
             }
             post.put("open", JSONBoolean.getInstance(doc.hasOpenMark(id + "." + pins[i])));
             posts.set(i, post);

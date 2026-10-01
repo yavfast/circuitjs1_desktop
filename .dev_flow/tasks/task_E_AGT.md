@@ -96,7 +96,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 2 — element identity and pin names (review PASS; follow-ups applied; also fixed CirSim JSNI Vector→ArrayList signatures)
 - [x] PL_AGA Phase 3 — catalogue (review FAIL ×2 → fixed; spec §01_05/§02_01 amended: built-in defaults, English labels, readOnly keys, `add` applies TypeInfo defaults; XNORGate factory key removed)
 - [x] PL_AGA Phase 4 — geometry, edits, import, getCircuit, exportCircuit (review FAIL: grid restore, transformer rollback → fixed → delta PASS)
-- [ ] **Next:** PL_AGA Phase 5 — connectivity, readings, diagnostics (incl. PostRecord.net)
+- [x] PL_AGA Phase 5 — connectivity, readings, diagnostics (review PASS + follow-ups; spec: `$<k>` ranked by smallest PostRef, read null for non-finite)
+- [ ] **Next:** fix task — ElmGeometry aliases lead1/lead2 to point1/point2 since dde7f33 (elements writing leads move their posts: Inverter, Crystal, Schmitt, DelayBuffer, TestPoint, StopTrigger, …); then PL_AGA Phase 6
 
 **Activity:**
 - 23:59 — developer resolved PL_MCP_DEC_01 = A (SDK core, script-tag loading, no Node crypto)

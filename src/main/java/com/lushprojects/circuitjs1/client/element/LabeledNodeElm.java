@@ -65,6 +65,10 @@ public class LabeledNodeElm extends CircuitElm {
         int node;
     }
 
+    // Scratch registry of one wire-closure pass: cleared at the start of every analysis and filled
+    // by the document being analysed, so after it returns it describes whichever document was
+    // analysed last. Readings and net names must use the document's own label elements
+    // (getNode(0)), never getByName() ([SP_AGA_03_08]).
     static final HashMap<String, LabelEntry> labelList = new HashMap<>(64);
 
     public boolean isInternal() {
@@ -91,6 +95,11 @@ public class LabeledNodeElm extends CircuitElm {
         // geom() should handle initialization.
         // Let's use getLead1() and see if it's null.
         // Actually, ElmGeometry initializes lead1.
+        // lead1 starts out as the same object as point1 (the post): interpolating into it would
+        // move the post to the circle and disconnect the label from what it was drawn on.
+        if (geom().getLead1() == geom().getPoint1()) {
+            geom().setLead1(new Point());
+        }
         double dn = getDn();
         interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
     }

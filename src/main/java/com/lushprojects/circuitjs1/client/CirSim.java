@@ -910,11 +910,16 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface
     double getLabeledNodeVoltage(String name) {
-        int node = LabeledNodeElm.getByName(name);
-        if (node <= 0)
-            return 0;
-        // subtract one because ground is not included in nodeVoltages[]
-        return getActiveDocument().simulator.getNodeVoltages(node - 1);
+        // [SP_AGA_03_08] the node comes from the active document's own analysed labels, not the
+        // session-wide label registry, which holds the labels of whichever document was analysed
+        // last (an agent call may analyse a background document)
+        for (CircuitElm ce : getActiveDocument().simulator.elmList) {
+            if (ce instanceof LabeledNodeElm && ((LabeledNodeElm) ce).text.equals(name)) {
+                // ground reads 0; otherwise the solved voltage the simulator set on the label's post
+                return ce.getNode(0) <= 0 ? 0 : ce.getNodeVoltage(0);
+            }
+        }
+        return 0;
     }
 
     // JSInterface
@@ -1492,7 +1497,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     // JSInterface - Clear logs
     void clearLogs() {
-        logManager.logEntries.clear();
+        logManager.clearMemoryEntries();
     }
 
     native void setupJSInterface() /*-{
@@ -1581,7 +1586,30 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	    	hook($wnd.CircuitJS1);
 	}-*/;
 
-    native void callAnalyzeHook() /*-{
+    /**
+     * The visible tab's document while {@code DocumentScope} has a background document bound,
+     * else null ([SP_AGA_03_08] R1: session hooks must not fire for a background document).
+     */
+    private CircuitDocument visibleWhileBound;
+
+    CircuitDocument getVisibleWhileBound() {
+        return visibleWhileBound;
+    }
+
+    void setVisibleWhileBound(CircuitDocument doc) {
+        visibleWhileBound = doc;
+    }
+
+    // The user's onanalyze hook belongs to the visible tab: skipped while an agent call has a
+    // background document bound (its analysis is not the visible circuit's).
+    void callAnalyzeHook() {
+        if (visibleWhileBound != null && getActiveDocument() != visibleWhileBound) {
+            return;
+        }
+        callAnalyzeHookNative();
+    }
+
+    private native void callAnalyzeHookNative() /*-{
         var hook = $wnd.CircuitJS1.onanalyze;
         if (hook)
             hook($wnd.CircuitJS1);

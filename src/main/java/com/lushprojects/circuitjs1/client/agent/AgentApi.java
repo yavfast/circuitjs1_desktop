@@ -89,6 +89,9 @@ public final class AgentApi {
         ImportOps.register(this);
         EditOps.register(this);
         CircuitView.register(this);
+        Connectivity.register(this);
+        Readings.register(this);
+        DiagnosticsOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {

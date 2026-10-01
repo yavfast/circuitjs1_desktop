@@ -667,6 +667,49 @@ public class CircuitDocument {
         circuitInfo.dcAnalysisFlag = false;
     }
 
+    /**
+     * [SP_AGA_02_06] Makes this document's analysis current, also while it is stopped: runs a
+     * pending analysis and the pending node allocation and stamp, exactly as the next
+     * free-running frame would ({@link SimulationLoop}), so node indices, the isolated groups and
+     * the solver event list describe the present circuit. Does nothing when both are current, or
+     * when the stamp is pending only because a stop interrupted it (its node data is current).
+     * Call it while the document is bound ({@code DocumentScope}): console lines and the analysis
+     * hook go to the bound document.
+     *
+     * @return false when the current analysis threw (the document is then stopped with the
+     *         exception message, as the free-running loop does); the failure is remembered until
+     *         the next analysis starts, so the node data is never taken as current meanwhile
+     */
+    public boolean ensureAnalysed() {
+        if (circuitInfo.dcAnalysisFlag) {
+            analyzeNow();
+        }
+        if (isAnalysisFailed()) {
+            return false;
+        }
+        if (!simulator.needsStamp || simulator.stopMessage != null || simulator.elmList.isEmpty()) {
+            return true;
+        }
+        try {
+            simulator.preStampAndStampCircuit();
+            return true;
+        } catch (Exception e) {
+            // same handling as SimulationLoop.update
+            failedAnalysis = simulator.getAnalysisCount();
+            logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
+            stop("Exception in stampCircuit(): " + e.getMessage(), null);
+            return false;
+        }
+    }
+
+    /** {@code CircuitSimulator.getAnalysisCount()} of the analysis whose stamp threw, or -1. */
+    private int failedAnalysis = -1;
+
+    /** @return true when {@link #ensureAnalysed()} failed for the current analysis */
+    public boolean isAnalysisFailed() {
+        return failedAnalysis == simulator.getAnalysisCount();
+    }
+
     public void dispose() {
         simulationLoop.stop();
     }

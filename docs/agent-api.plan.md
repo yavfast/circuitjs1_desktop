@@ -71,7 +71,7 @@ When this plan is complete:
 - [x] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
 - [x] [Phase 3 — Catalogue](#PL_AGA_P3)
 - [x] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
-- [ ] [Phase 5 — Connectivity, readings and diagnostics](#PL_AGA_P5)
+- [x] [Phase 5 — Connectivity, readings and diagnostics](#PL_AGA_P5)
 - [ ] [Phase 6 — Transactions and history](#PL_AGA_P6)
 - [ ] [Phase 7 — Runs, probes and simulation control](#PL_AGA_P7)
 - [ ] [Phase 8 — Background-document completion and render](#PL_AGA_P8)
@@ -217,7 +217,7 @@ Notes:
   - **Left for Phase 5.** PostRecord `net` (needs the connectivity naming) and the `connectivity` delta; for Phase 6 the `transaction` field and the undo entry.
   - **Known limit.** A Transformer whose endpoints are axis-aligned (the editor's own 4-cell drag, and agent `add` with the default size) is rewritten by any text reload — its text constructor synthesizes the diagonal corner. Agent snapshot restores put it back; user undo still changes its `end` (not its posts) — see Backlog.
 
-### Phase 5 — Connectivity, readings and diagnostics [TODO]  {#PL_AGA_P5}
+### Phase 5 — Connectivity, readings and diagnostics [DONE]  {#PL_AGA_P5}
 
 **Depends on:** Phase 4
 **Implements:** [SP_AGA_01_06](./agent-api.sp.md#SP_AGA_01_06), [SP_AGA_01_11](./agent-api.sp.md#SP_AGA_01_11), [SP_AGA_02_06](./agent-api.sp.md#SP_AGA_02_06), [SP_AGA_02_07](./agent-api.sp.md#SP_AGA_02_07), [SP_AGA_02_11](./agent-api.sp.md#SP_AGA_02_11), [SP_AGA_03_05](./agent-api.sp.md#SP_AGA_03_05), [SP_AGA_03_06](./agent-api.sp.md#SP_AGA_03_06), [SP_AGA_03_07](./agent-api.sp.md#SP_AGA_03_07) connectivity caps
@@ -232,6 +232,15 @@ What to create / change:
 | Log sequence | `LogManager.java` | `seq` per entry; `getLogsSince(seq, limit)` with gap detection |
 | Diagnostics | `client/agent/DiagnosticsOps.java` | `getDiagnostics` |
 | PostRecord.net (deferred from Phase 4) | `client/agent/CircuitView.java` (record posts) | `net` of every PostRecord from the document's analysed nodes, named by the Connectivity naming rules |
+
+Notes:
+- **Result (2026-10-01).** Live scenarios `agent_connect` (27 checks) and `agent_connect_all` (44 examples by default; `CIRCUITS=all`: 342 examples, 0 failures, no page exception) pass; the other scenarios are unchanged against the pre-phase baseline.
+  - **Analysis.** `CircuitDocument.ensureAnalysed()` runs a pending analysis and the pending node allocation/stamp (as the next free-run frame would), also for a stopped document; every connectivity, read, diagnostics and getCircuit call and every mutation (`Mutation.finish`) uses it inside `DocumentScope`. The delta compares a report computed at mutation entry with one after the body.
+  - **Solver events.** The event list (key, translated text, stop/warning, culprit) is kept by the document's `CircuitSimulator` (document-scoped; `SolverEvents` maps it), cleared in `analyzeCircuit`; repeats of the same key/kind/culprit are folded, at most 64 per analysis. Isolated groups come from `findUnconnectedNodes` (node → seed group).
+  - **Labels.** Analysis never joined labels across documents (the static registry is reset at every wire closure); only readers of it after the fact leaked. `CircuitJS1.getNodeVoltage` now resolves labels from the active document's own label elements.
+  - **Deviation ($<k>).** `k` numbers the unlabelled nets by their smallest member PostRef instead of the simulator node index: node indices follow element order, so `getCircuit(full)` re-imported in ID order renamed nets and broke the SP_AGA_05_01 round-trip rows. Resolved by spec amendment 2026-10-01 (SP_AGA_01_02/01_06 now define this ranking).
+  - **Review follow-ups (2026-10-01).** `read`/probe resolution rejects every target with `analysis_failed` when the analysis failed; a failed stamp is remembered per analysis (`CircuitDocument.isAnalysisFailed`), so PostRecords get no `net` from stale nodes; the user's `onanalyze` hook is skipped while a background document is bound; `recovering` = recovery engaged; `Convergence failed!` events fold to the first culprit and the event cap never drops stops or the first event of a family; headless free-run check `agent_freerun` (RULE_TEST_002 approximation).
+  - **Fix.** `LabeledNodeElm.setPoints` moved its own post onto the label circle (`lead1` aliases `point1` since the geometry refactor); labels connect at their point again. The same aliasing displaces the posts of other types (Inverter verified) — see the js-api-surface skill pitfall; not fixed here.
 
 ### Phase 6 — Transactions and history [TODO]  {#PL_AGA_P6}
 

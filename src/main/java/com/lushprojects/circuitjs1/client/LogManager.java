@@ -11,6 +11,14 @@ public class LogManager extends BaseCirSimDelegate {
     public final ArrayList<String> logEntries;
     private static final int MAX_MEMORY_ENTRIES = 5000;
 
+    /**
+     * [SP_AGA_02_11] Sequence numbers: every message the session logs gets the next number,
+     * starting at 1. {@code logEntries.get(i)} has number {@code firstSeq + i}; entries evicted
+     * from the retained window (or cleared) advance {@code firstSeq}.
+     */
+    private int nextSeq = 1;
+    private int firstSeq = 1;
+
     // File logging fields
     private String currentLogFileName;
     private String sessionStartTime;
@@ -335,10 +343,7 @@ public class LogManager extends BaseCirSimDelegate {
 
         // Add to memory collection; keep only the newest entries in memory (the file log,
         // when enabled, still receives everything)
-        logEntries.add(logEntry);
-        if (logEntries.size() > MAX_MEMORY_ENTRIES) {
-            logEntries.subList(0, logEntries.size() - MAX_MEMORY_ENTRIES).clear();
-        }
+        appendEntry(logEntry);
 
         // Write to file asynchronously to avoid blocking UI
         writeLogToFileAsync(logEntry);
@@ -348,8 +353,62 @@ public class LogManager extends BaseCirSimDelegate {
         // Flush any pending writes and UI updates before clearing
         forceFlushLogs();
 
-        logEntries.clear();
+        clearMemoryEntries();
         updateLogCount();
+    }
+
+    /** Appends one entry to the in-memory window with the next sequence number. */
+    private void appendEntry(String logEntry) {
+        logEntries.add(logEntry);
+        nextSeq++;
+        if (logEntries.size() > MAX_MEMORY_ENTRIES) {
+            int evicted = logEntries.size() - MAX_MEMORY_ENTRIES;
+            logEntries.subList(0, evicted).clear();
+            firstSeq += evicted;
+        }
+    }
+
+    /** Clears the in-memory entries only; their sequence numbers count as evicted. */
+    public void clearMemoryEntries() {
+        logEntries.clear();
+        firstSeq = nextSeq;
+    }
+
+    /** [SP_AGA_02_11] One window of the session log read by sequence number. */
+    public static final class LogWindow {
+        public final ArrayList<Integer> seqs = new ArrayList<>();
+        public final ArrayList<String> texts = new ArrayList<>();
+        /** The last returned sequence number, or {@code since} when nothing was returned. */
+        public int cursor;
+        /** True when entries after {@code since} were already evicted from the retained window. */
+        public boolean gap;
+    }
+
+    /**
+     * [SP_AGA_02_11] The retained entries with {@code seq > since}, oldest first, at most
+     * {@code limit} of them, each cut at {@code maxChars} characters.
+     */
+    public LogWindow getLogsSince(int since, int limit, int maxChars) {
+        LogWindow w = new LogWindow();
+        w.cursor = since;
+        // entries since+1 .. firstSeq-1 existed and are gone
+        w.gap = since < firstSeq - 1;
+        int start = Math.max(0, since + 1 - firstSeq);
+        for (int i = start; i < logEntries.size() && w.seqs.size() < limit; i++) {
+            String text = logEntries.get(i);
+            if (text.length() > maxChars) {
+                text = text.substring(0, maxChars);
+            }
+            w.seqs.add(firstSeq + i);
+            w.texts.add(text);
+            w.cursor = firstSeq + i;
+        }
+        return w;
+    }
+
+    /** @return the sequence number of the newest logged message (0 before the first one) */
+    public int getLastSeq() {
+        return nextSeq - 1;
     }
 
     // Cleanup method to call before application shutdown
@@ -426,7 +485,7 @@ public class LogManager extends BaseCirSimDelegate {
             DateTimeFormat.getFormat("yyyy-MM-dd HH:mm:ss").format(new Date()) + " ===";
 
         // Add to memory and queue for file writing
-        logEntries.add(startMessage);
+        appendEntry(startMessage);
         if (fileLoggingEnabled) {
             queueLogEntry(startMessage);
         }

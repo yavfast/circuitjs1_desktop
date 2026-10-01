@@ -909,6 +909,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return getNodeState(0).voltage - getNodeState(1).voltage;
     }
 
+    /**
+     * @return the voltage difference this element reports ({@link #getVoltageDiff()}: post 0
+     *         minus post 1 unless the element defines its own), for readers outside the package
+     */
+    public final double getReportedVoltageDiff() {
+        return getVoltageDiff();
+    }
+
     public boolean nonLinear() {
         return false;
     }

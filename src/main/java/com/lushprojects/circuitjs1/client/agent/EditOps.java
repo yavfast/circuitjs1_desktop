@@ -621,6 +621,8 @@ final class EditOps {
         }
         data.put("created", ids);
         JSONArray records = new JSONArray();
+        // Mutation.finish analysed the document; after a failed analysis no PostRecord gets a net
+        Connectivity.Nets nets = doc.isAnalysisFailed() ? null : Connectivity.nets(doc);
         int truncated = 0;
         for (String id : touched) {
             CircuitElm elm = byId.get(id);
@@ -628,7 +630,7 @@ final class EditOps {
                 continue;
             }
             if (records.size() < MAX_RECORDS) {
-                records.set(records.size(), CircuitView.record(elm, doc, cat, true));
+                records.set(records.size(), CircuitView.record(elm, doc, cat, true, nets));
             } else {
                 truncated++;
             }

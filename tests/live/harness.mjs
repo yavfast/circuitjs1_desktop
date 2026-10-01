@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -1656,10 +1656,352 @@ async function scenarioAgentEdit(s) {
   report('AG.agent_edit', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_edit.json') });
 }
 
+// ---------------------------------------------------------------- agent_connect (PL_AGA Phase 5)
+// Connectivity, readings and diagnostics: SP_AGA_05_01 rows importCircuit RC divider in cells,
+// applyEdits dangling wire end / markOpen / post on wire body / delta cap, getConnectivity
+// netFilter / labelled ground / parallel wires / reserved label, read unknown label,
+// getDiagnostics log cursor; SP_AGA_05_02 "No 0-V fallback", "Labels are per document"; the
+// visible tab stays unchanged across background getConnectivity/read/getDiagnostics (R1).
+const cellsLabel = (id, text, x, y, ex, ey) => ({ id, type: 'LabeledNode', start: { x, y }, end: { x: ex, y: ey }, properties: { label: text } });
+const rcWith = (volts, extra) => [
+  ...(extra || []),
+  { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: volts } },
+  { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1k' } },
+  { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { resistance: '1k' } },
+  { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+  { id: 'GND1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+];
+
+async function scenarioAgentConnect(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const codes = (list) => (list || []).map((i) => i.code);
+  const recs = (r) => (r && r.data && r.data.elements) || [];
+  const rec = (r, id) => recs(r).find((e) => e.id === id);
+  const net = (rep, name) => ((rep && rep.data && rep.data.nets) || []).find((n) => n.name === name);
+  const errors = (list) => (list || []).filter((i) => i.severity === 'error');
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+
+  // Visible tab: lrc.txt (free-running, sliders, hint); the documents below are background ones
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const vis0 = await s.call('visibleTab');
+  const A0 = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const mk = async (title) => (await A('createDocument', { title })).data.doc;
+  const B = await mk('Connect B');
+  let tabs = 1;
+  const r1 = { failed: [] };
+  const visibleSame = async (label) => {
+    const v = await s.call('visibleTab');
+    if (!same(v, { ...vis0, tabCount: vis0.tabCount + tabs })) r1.failed.push({ label, v });
+  };
+
+  // --- importCircuit: RC divider in cells -> connectivity.errorCount = 0
+  const imp = await A('importCircuit', { doc: B, circuit: { elements: RC_CELLS } });
+  out.notes.importConnectivity = imp.connectivity;
+  ck('importRcErrorCount0', imp.ok && imp.connectivity && imp.connectivity.errorCount === 0 && Array.isArray(imp.connectivity.added)
+    && Array.isArray(imp.connectivity.cleared) && imp.connectivity.truncatedAdded === 0);
+  await visibleSame('importRc');
+
+  // --- PostRecord.net from the document's analysed nodes
+  const gB = await A('getCircuit', { doc: B, detail: 'full' });
+  const allNets = recs(gB).every((e) => e.posts.every((p) => typeof p.net === 'string' && p.net.length > 0));
+  const v1 = rec(gB, 'V1'), rr1 = rec(gB, 'R1'), rr2 = rec(gB, 'R2');
+  ck('postRecordNet', allNets && v1.posts[0].net === 'gnd' && rr2.posts[1].net === 'gnd' && rr1.posts[0].net === v1.posts[1].net
+    && /^\$\d+$/.test(rr1.posts[0].net) && rr1.posts[1].net === rr2.posts[0].net && rr1.posts[0].net !== rr1.posts[1].net);
+  await visibleSame('getCircuitNets');
+
+  // --- getConnectivity of the RC divider: nets, posts sorted, wires counted apart, no issues
+  const cB = await A('getConnectivity', { doc: B });
+  out.notes.connectB = cB.data;
+  const gnd = net(cB, 'gnd');
+  ck('connectRc', cB.ok && cB.data.analysed === true && cB.data.implicitGround === false && cB.data.truncated === false
+    && cB.data.issues.length === 0 && cB.data.nets.length === 3 && gnd && gnd.wires === 1
+    && same(gnd.posts, [...gnd.posts].sort()) && gnd.posts.includes('GND1.gnd') && gnd.posts.includes('R2.pin2') && !gnd.posts.some((p) => p.startsWith('W1.'))
+    && same(cB.data.nets.map((n) => n.name), [...cB.data.nets.map((n) => n.name)].sort()));
+  await visibleSame('getConnectivity');
+
+  // --- applyEdits dangling wire end: far post named although the wire's node holds R1's post
+  const dw = await A('applyEdits', { doc: B, edits: [{ op: 'add', element: { id: 'W9', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: -3 } } }] });
+  const w9 = dw.data && dw.data.elements.find((e) => e.id === 'W9');
+  const dang = dw.connectivity && dw.connectivity.added.find((i) => i.code === 'dangling_post' && same(i.posts, ['W9.b']));
+  out.notes.danglingWire = dw.connectivity;
+  ck('danglingWireEnd', dw.ok && dang && dang.severity === 'error' && same(dang.at, { x: 4, y: -3 }) && w9 && w9.posts[1].net === rr1.posts[1].net
+    && dw.connectivity.errorCount === 1 && dw.connectivity.added.length === 1);
+  // --- applyEdits markOpen: the dangling post is cleared and its record shows open=true
+  const mo = await A('applyEdits', { doc: B, edits: [{ op: 'markOpen', posts: ['W9.b'] }] });
+  const gB2 = await A('getCircuit', { doc: B, ids: ['W9'] });
+  ck('markOpenClears', mo.ok && dang && mo.connectivity.cleared.some((i) => i.key === dang.key) && mo.connectivity.errorCount === 0
+    && rec(gB2, 'W9').posts[1].open === true);
+  await visibleSame('applyEdits');
+
+  // --- applyEdits post on wire body: wire (0,0)-(4,0), resistor posted at (2,0)
+  const C = await mk('Connect C'); tabs++;
+  const pw = await A('applyEdits', { doc: C, edits: [
+    { op: 'add', element: { id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } } },
+    { op: 'add', element: { id: 'R1', type: 'Resistor', start: { x: 2, y: 0 }, end: { x: 2, y: 4 } } }] });
+  const pob = pw.connectivity && pw.connectivity.added.find((i) => i.code === 'post_on_wire_body');
+  out.notes.postOnWire = pw.connectivity;
+  ck('postOnWireBody', pw.ok && pob && pob.severity === 'error' && same(pob.posts, ['R1.pin1']) && pob.elements.includes('W1'));
+
+  // --- applyEdits delta cap: 80 wires, one end on an existing post, the other end free
+  const D = await mk('Connect D'); tabs++;
+  const res80 = []; const wires80 = [];
+  for (let k = 0; k < 80; k++) {
+    res80.push({ id: 'R' + (k + 1), type: 'Resistor', start: { x: 4 * k, y: 0 }, end: { x: 4 * k, y: 4 } });
+    wires80.push({ op: 'add', element: { type: 'Wire', start: { x: 4 * k, y: 0 }, end: { x: 4 * k, y: -2 } } });
+  }
+  const i80 = await A('importCircuit', { doc: D, circuit: { elements: res80 } });
+  const e80 = await A('applyEdits', { doc: D, edits: wires80 });
+  out.notes.deltaCap = e80.connectivity && { added: e80.connectivity.added.length, truncatedAdded: e80.connectivity.truncatedAdded,
+    cleared: e80.connectivity.cleared.length, truncatedCleared: e80.connectivity.truncatedCleared, codes: [...new Set(codes(e80.connectivity.added))] };
+  ck('deltaCap', i80.ok && e80.ok && e80.connectivity.added.length === 50 && e80.connectivity.truncatedAdded === 30
+    && codes(e80.connectivity.added).every((c) => c === 'dangling_post') && e80.connectivity.truncatedCleared === 30);
+  const cD = await A('getConnectivity', { doc: D });
+  ck('reportCaps', cD.ok && cD.data.issues.length === 100 && cD.data.truncated === true);
+  await visibleSame('deltaCap');
+
+  // --- labelled ground, netFilter, reserved label (document E)
+  const E = await mk('Connect E'); tabs++;
+  const eImp = await A('importCircuit', { doc: E, circuit: { elements: [...rcWith('5 V'),
+    cellsLabel('L1', 'out', 4, 0, 6, 0), cellsLabel('L2', '0V', 0, 4, -2, 4), cellsLabel('L3', 'gnd', 0, 0, -2, 0)] } });
+  const cE = await A('getConnectivity', { doc: E });
+  out.notes.connectE = cE.data;
+  const gE = net(cE, 'gnd'), lg = net(cE, 'label:gnd'), outNet = net(cE, 'out');
+  ck('labelledGround', eImp.ok && gE && gE.labels.includes('0V') && gE.posts.includes('L2.node'));
+  ck('reservedLabel', lg && same(lg.labels, ['gnd']) && cE.data.issues.some((i) => i.code === 'reserved_label' && i.severity === 'warning' && same(i.elements, ['L3'])));
+  const fE = await A('getConnectivity', { doc: E, netFilter: ['out'] });
+  ck('netFilter', fE.ok && fE.data.nets.length === 1 && fE.data.nets[0].name === 'out' && same(fE.data.issues, cE.data.issues)
+    && outNet && same(outNet.posts, ['L1.node', 'R1.pin2', 'R2.pin1']));
+  const fBad = await A('getConnectivity', { doc: E, netFilter: ['out', 'nope'] });
+  ck('netFilterUnknown', fBad.ok === false && codes(fBad.issues).includes('unknown_net'));
+  ck('singleLabelInfo', cE.data.issues.filter((i) => i.code === 'single_label').every((i) => i.severity === 'info')
+    && cE.data.issues.some((i) => i.code === 'single_label' && same(i.elements, ['L1'])) && errors(cE.data.issues).length === 0);
+  await visibleSame('labels');
+
+  // --- parallel wires: wire_loop warning at most, no error
+  const F = await mk('Connect F'); tabs++;
+  const pImp = await A('importCircuit', { doc: F, circuit: { elements: [
+    { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W3', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'GND1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  const cF = await A('getConnectivity', { doc: F });
+  out.notes.parallel = cF.data && cF.data.issues.map((i) => i.code + ':' + i.severity);
+  ck('parallelWires', pImp.ok && cF.ok && errors(cF.data.issues).length === 0 && pImp.connectivity.errorCount === 0
+    && cF.data.issues.every((i) => i.severity !== 'error'));
+
+  // --- shorted source: source_or_wire_loop (error) naming the source, also in getDiagnostics.events
+  const G = await mk('Connect G'); tabs++;
+  await A('importCircuit', { doc: G, circuit: { elements: [
+    { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 0, y: 4 } },
+    { id: 'GND1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  const cG = await A('getConnectivity', { doc: G });
+  const dG = await A('getDiagnostics', { doc: G });
+  out.notes.shorted = { issues: cG.data && cG.data.issues, events: dG.data && dG.data.events };
+  ck('sourceLoop', cG.ok && cG.data.issues.some((i) => i.code === 'source_or_wire_loop' && i.severity === 'error' && same(i.elements, ['V1']))
+    && dG.ok && dG.data.events.some((i) => i.code === 'source_or_wire_loop' && same(i.elements, ['V1'])));
+
+  // --- read: unknown label -> unknown_net, no value (No 0-V fallback); valid readings
+  const ru = await A('read', { doc: E, targets: [{ net: 'vout' }] });
+  ck('readUnknownNet', ru.ok === false && codes(ru.issues).includes('unknown_net') && ru.data === undefined);
+  const rMix = await A('read', { doc: E, targets: [{ net: 'out' }, { net: 'vout' }] });
+  ck('noZeroVoltFallback', rMix.ok === false && rMix.data === undefined && codes(rMix.issues).includes('unknown_net'));
+  const rOk = await A('read', { doc: E, targets: [{ net: 'out' }, { net: 'gnd' }, { post: 'R1.pin1' }, { element: 'R2', quantity: 'current', name: 'iR2' }, { element: 'R2', name: 'vR2' }, { post: 'R1.#1', name: 'p' }] });
+  ck('readOk', rOk.ok && rOk.data.values.length === 6 && same(rOk.data.values.map((v) => v.unit), ['V', 'V', 'V', 'A', 'V', 'V'])
+    && rOk.data.values[1].value === 0 && typeof rOk.data.t === 'number');
+  const rBad = [
+    await A('read', { doc: E, targets: [{ post: 'R1.pin9' }] }),
+    await A('read', { doc: E, targets: [{ element: 'Nope' }] }),
+    await A('read', { doc: E, targets: [{ net: 'out', quantity: 'current' }] }),
+    await A('read', { doc: E, targets: [{ net: 'out' }, { net: 'out' }] }),
+    await A('read', { doc: E, targets: [] }),
+  ];
+  const T = await mk('Connect T'); tabs++;
+  await A('applyEdits', { doc: T, edits: [{ op: 'add', element: { id: 'TX1', type: 'Text', start: { x: 2, y: 2 } } }] });
+  const rText = await A('read', { doc: T, targets: [{ element: 'TX1' }] });
+  ck('readErrors', same(rBad.map((r) => r.ok), [false, false, false, false, false]) && codes(rBad[0].issues).includes('unknown_post')
+    && codes(rBad[1].issues).includes('unknown_element') && codes(rBad[2].issues).includes('invalid_value') && codes(rBad[3].issues).includes('invalid_value')
+    && rText.ok === false && codes(rText.issues).includes('invalid_value') && /Text/.test(rText.issues[0].message));
+  await visibleSame('read');
+
+  // --- getDiagnostics: fields and the log cursor
+  const d1 = await A('getDiagnostics', { doc: B, log: { since: 0, limit: 500 } });
+  // read up to the newest entry (earlier scenarios may have logged more than one page)
+  let c1 = d1.data && d1.data.log.cursor;
+  for (let page = d1, n = 0; page.ok && page.data.log.entries.length === 500 && n < 50; n++) {
+    page = await A('getDiagnostics', { doc: B, log: { since: c1, limit: 500 } });
+    c1 = page.data.log.cursor;
+  }
+  await s.eval(`CircuitJS1.addLog('agent_connect marker 1'); CircuitJS1.addLog('agent_connect marker 2'); true`);
+  const d2 = await A('getDiagnostics', { doc: B, log: { since: c1 } });
+  const d3 = await A('getDiagnostics', { doc: B, log: { since: d2.data.log.cursor } });
+  const d4 = await A('getDiagnostics', { doc: B, log: { since: c1, limit: 1 } });
+  const seq2 = d2.data.log.entries.map((e) => e.seq);
+  out.notes.diag = { fields: Object.keys(d1.data || {}), c1, gap0: d1.data && d1.data.log.gap, d2: d2.data && d2.data.log, d3: d3.data && d3.data.log };
+  ck('diagnosticsFields', d1.ok && d1.data.stopped === false && Array.isArray(d1.data.events) && typeof d1.data.recovering === 'boolean'
+    && Array.isArray(d1.data.lastImport) && typeof d1.data.simTime === 'number' && d1.data.running === false
+    && d1.data.timeStep.max === 5e-6 && typeof d1.data.timeStep.auto === 'boolean');
+  ck('logCursor', d2.ok && seq2.length >= 2 && seq2.every((q, i) => q > c1 && (i === 0 || q === seq2[i - 1] + 1))
+    && d2.data.log.entries.some((e) => /agent_connect marker 2/.test(e.text)) && d2.data.log.cursor === seq2[seq2.length - 1]
+    && d2.data.log.gap === false && d3.data.log.entries.length === 0 && d3.data.log.cursor === d2.data.log.cursor
+    && d4.data.log.entries.length === 1 && d4.data.log.cursor === c1 + 1);
+  // the harness cleared the log at start-up, so entries after seq 0 are gone
+  ck('logGap', d1.data.log.gap === true && d1.data.log.entries.length > 0 && d1.data.log.entries.every((e) => e.text.length <= 500));
+  const dBad = await A('getDiagnostics', { doc: B, log: { limit: 501 } });
+  ck('logLimitInvalid', dBad.ok === false && codes(dBad.issues).includes('invalid_value'));
+  await visibleSame('getDiagnostics');
+
+  // --- Labels are per document: same label text in two documents, nets not joined, readings differ
+  const X = await mk('Labels X'); tabs++;
+  const Y = await mk('Labels Y'); tabs++;
+  await A('importCircuit', { doc: X, circuit: { elements: [...rcWith('5 V'), cellsLabel('L1', 'vout', 0, 0, -2, 0)] } });
+  // Y: other node numbering (an extra resistor first) and another source voltage
+  await A('importCircuit', { doc: Y, circuit: { elements: [...rcWith('10 V', [{ id: 'R9', type: 'Resistor', start: { x: 10, y: 0 }, end: { x: 14, y: 0 } }]),
+    cellsLabel('L1', 'vout', 0, 0, -2, 0)] } });
+  const cX = await A('getConnectivity', { doc: X, netFilter: ['vout'] });
+  const cY = await A('getConnectivity', { doc: Y, netFilter: ['vout'] });
+  const voutOk = (c) => c.ok && c.data.nets.length === 1 && c.data.nets[0].posts.length === 3 && c.data.nets[0].posts.includes('L1.node') && c.data.nets[0].posts.includes('R1.pin1');
+  ck('labelsNotJoined', voutOk(cX) && voutOk(cY) && same(cX.data.nets[0].posts, cY.data.nets[0].posts));
+  // solve each document once (stepSimulation acts on the active tab), then read both in the background
+  for (const d of [X, Y]) {
+    await A('activateDocument', { doc: d });
+    await s.eval(`CircuitJS1.stepSimulation(); CircuitJS1.stepSimulation(); true`);
+  }
+  await A('activateDocument', { doc: X });
+  // a background mutation analyses Y last: the session label registry then holds Y's labels
+  const yEdit = await A('applyEdits', { doc: Y, edits: [{ op: 'describe', id: 'R2', description: 'y' }] });
+  const jsX = await s.eval(`CircuitJS1.getNodeVoltage('vout')`);
+  const rY = await A('read', { doc: Y, targets: [{ net: 'vout' }] });
+  const rX = await A('read', { doc: X, targets: [{ net: 'vout' }] });
+  out.notes.labels = { rX: rX.data, rY: rY.data, jsX };
+  ck('labelsPerDocument', yEdit.ok && rX.ok && rY.ok && Math.abs(Math.abs(rX.data.values[0].value) - 5) < 1e-6 && Math.abs(Math.abs(rY.data.values[0].value) - 10) < 1e-6
+    && Math.abs(jsX - rX.data.values[0].value) < 1e-9);
+  await A('activateDocument', { doc: A0 });
+  await sleep(200);
+
+  for (const d of [B, C, D, E, F, G, T, X, Y]) await A('closeDocument', { doc: d, discardChanges: true });
+  ck('visibleTabUnchanged', r1.failed.length === 0);
+  out.r1 = r1;
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_connect', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_connect.json') });
+}
+
+// agent_connect_all: importCircuit + getConnectivity + getCircuit + getDiagnostics + read of the
+// first net over the example corpus (DEFAULT_CIRCUITS; CIRCUITS=all for every bundled example)
+// in a background document; passes when every call returns a result without page exceptions.
+async function scenarioAgentConnectAll(s) {
+  const list = process.env.CIRCUITS === 'all' ? listAllCircuits() : (process.env.CIRCUITS ? process.env.CIRCUITS.split(',') : DEFAULT_CIRCUITS);
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const vis0 = await s.call('visibleTab');
+  const doc = (await A('createDocument', { title: 'Connect all' })).data.doc;
+  const bad = []; const stats = { circuits: 0, importRejected: 0, nets: 0, issues: 0, notAnalysed: 0, ms: 0 };
+  const byCode = {};
+  for (const name of list) {
+    const ex0 = s.exceptions.length;
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+    const t0 = Date.now();
+    const imp = await A('importCircuit', { doc, circuit: text });
+    const con = await A('getConnectivity', { doc });
+    const gc = await A('getCircuit', { doc, limit: 500 });
+    const dg = await A('getDiagnostics', { doc });
+    const first = con.data && con.data.nets[0];
+    const rd = first ? await A('read', { doc, targets: [{ net: first.name }] }) : { ok: true };
+    stats.ms += Date.now() - t0;
+    stats.circuits++;
+    if (!imp.ok) stats.importRejected++;
+    const results = [imp, con, gc, dg, rd];
+    const problem = results.some((r) => r.__undefined) || !con.ok || !gc.ok || !dg.ok || !rd.ok
+      || (imp.ok && !imp.connectivity) || s.exceptions.length !== ex0
+      || (con.ok && con.data.analysed && recs(gc).some((e) => e.posts.some((p) => typeof p.net !== 'string')));
+    if (con.ok) {
+      stats.nets += con.data.nets.length; stats.issues += con.data.issues.length;
+      if (!con.data.analysed) stats.notAnalysed++;
+      for (const i of con.data.issues) byCode[i.code] = (byCode[i.code] || 0) + 1;
+    }
+    if (problem) bad.push({ name, imp: imp.ok, con: con.ok, gc: gc.ok, dg: dg.ok, rd: rd.ok, conIssues: (con.issues || []).map((i) => i.code), exceptions: s.exceptions.slice(ex0).map((e) => e.slice(0, 300)) });
+  }
+  await A('closeDocument', { doc, discardChanges: true });
+  const vis1 = await s.call('visibleTab');
+  const visibleSame = JSON.stringify(vis0) === JSON.stringify(vis1);
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad }, null, 2));
+  report('AG.agent_connect_all', bad.length === 0 && visibleSame && s.exceptions.length === exMark,
+    { ...stats, bad: bad.length, visibleSame, details: path.join(OUT_DIR, 'agent_connect_all.json') });
+  function recs(r) { return (r && r.data && r.data.elements) || []; }
+}
+
+// agent_freerun: headless approximation of RULE_TEST_002 after the simulator-core changes of
+// PL_AGA Phase 5. Free-runs an analog (lrc.txt), a digital (counter.txt) and a subcircuit
+// (alu74181.txt) example for ~2 s each in the visible tab and asserts that simulated time
+// advances without page exceptions; free-runs a voltage source shorted by a wire (recovery
+// mode) and checks that getDiagnostics.events holds source_or_wire_loop exactly once; and
+// checks that the user's onanalyze hook does not fire for agent calls on a background document.
+async function scenarioAgentFreeRun(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const runFor = async (ms) => {
+    const t0 = (await s.call('simInfo')).time;
+    await s.eval(`CircuitJS1.setSimRunning(true); true`);
+    await sleep(ms);
+    const info = await s.call('simInfo');
+    await s.eval(`CircuitJS1.setSimRunning(false); true`);
+    return { t0, t1: info.time, running: info.running, stop: info.stopMessage };
+  };
+  for (const name of ['lrc.txt', 'counter.txt', 'alu74181.txt']) {
+    const ex0 = s.exceptions.length;
+    await s.call('loadExample', name);
+    await sleep(200);
+    const r = await runFor(2000);
+    out.notes[name] = r;
+    ck('advances_' + name, r.t1 > r.t0 && r.running === true && !r.stop && s.exceptions.length === ex0);
+  }
+  // voltage source shorted by a wire: recovery-mode warning, simulation continues
+  await s.call('importText', '$ 1 0.000005 10.2 50 5 50 5e-11\nv 0 64 0 0 0 0 40 5 0 0 0.5\nw 0 0 0 64 0\ng 0 64 0 80 0 0\n');
+  await sleep(200);
+  const loop = await runFor(2000);
+  const dg = await A('getDiagnostics', {});
+  const evCodes = ((dg.data && dg.data.events) || []).map((i) => i.code);
+  out.notes.loop = { run: loop, events: dg.data && dg.data.events, recovering: dg.data && dg.data.recovering };
+  ck('loopEventOnce', dg.ok && evCodes.filter((c) => c === 'source_or_wire_loop').length === 1
+    && new Set(evCodes).size === evCodes.length && dg.data.stopped === false && loop.t1 > loop.t0 && typeof dg.data.recovering === 'boolean');
+  // onanalyze: silent for a background document, called for the visible one
+  await s.eval(`window.__analyzeCount = 0; CircuitJS1.onanalyze = function() { window.__analyzeCount++; }; true`);
+  const bg = (await A('createDocument', { title: 'Freerun bg' })).data.doc;
+  await A('importCircuit', { doc: bg, circuit: { elements: RC_CELLS } });
+  await A('getConnectivity', { doc: bg });
+  await A('read', { doc: bg, targets: [{ net: 'gnd' }] });
+  const bgCount = await s.eval(`window.__analyzeCount`);
+  await A('applyEdits', { edits: [{ op: 'describe', id: 'V1', description: 'visible' }] });
+  const fgCount = await s.eval(`window.__analyzeCount`);
+  await s.eval(`CircuitJS1.onanalyze = null; true`);
+  await A('closeDocument', { doc: bg, discardChanges: true });
+  out.notes.hook = { bgCount, fgCount };
+  ck('analyzeHookBackgroundSilent', bgCount === 0 && fgCount > 0);
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_freerun.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_freerun', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_freerun.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -1700,7 +2042,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

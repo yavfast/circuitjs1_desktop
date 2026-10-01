@@ -15,7 +15,8 @@ import java.util.function.Supplier;
  *     {@code bindDocument}, which restarts the visible tab's loop timer.</li>
  * <li>Detach the session sliders dialog, so the target's slider rebuilds cannot touch it.</li>
  * <li>Apply the target's options, its view transform (or centre it when it has none) and hint.</li>
- * <li>Run the operation.</li>
+ * <li>Run the operation. The user's {@code onanalyze} hook is not called while a document other
+ *     than the visible tab is bound.</li>
  * <li>Save the target's UI state and hint, swap back, re-apply the bound document's options,
  *     transform, hint and circuit area, re-attach the sliders dialog and refresh the derived
  *     session widgets (time-step bar, power bar, Undo/Redo, edit items, Save item, window title).
@@ -62,6 +63,11 @@ public final class DocumentScope {
         int mosfetFlags = MosfetElm.getGlobalFlags();
 
         bound.saveUIState(mm, sim);
+        // the outermost scope remembers the visible tab (user hooks skip background documents)
+        CircuitDocument visibleBefore = sim.getVisibleWhileBound();
+        if (visibleBefore == null) {
+            sim.setVisibleWhileBound(bound);
+        }
         sim.documentManager.swapActiveSilently(target);
         try {
             if (sliders != null) {
@@ -75,6 +81,7 @@ public final class DocumentScope {
                 target.saveUIState(mm, sim);
             } finally {
                 sim.documentManager.swapActiveSilently(bound);
+                sim.setVisibleWhileBound(visibleBefore);
                 MosfetElm.setGlobalFlags(mosfetFlags);
                 try {
                     renderer.circuitArea = circuitArea;
