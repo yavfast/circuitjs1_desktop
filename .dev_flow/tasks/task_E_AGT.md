@@ -92,7 +92,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Commit sign-off for the Phase 0 record (docs + skill) — given 2026-10-01
 - [x] PL_MCP Phase 0 hosting prototype (scratchpad only — no branch needed): SDK 1.31 core + own transport in npm start / packaged / devmode; Claude Code + Inspector connected; developer resolved PL_MCP_DEC_01 = A (closes C_MCP_DEC_03)
 - [x] Commit of the PL_MCP Phase 0 record (review FAIL → delta PASS)
-- [ ] **Next:** PL_AGA Phase 1 — foundations (`client/agent/`, results, documents, `CircuitJS1Agent` export)
+- [x] PL_AGA Phase 1 — foundations (review FAIL: circuitArea leak, layering → fixed → delta PASS); also fixed pre-existing tab-switch scope collapse and hint leak
+- [ ] **Next:** PL_AGA Phase 2 — element identity and pin names
 
 **Activity:**
 - 23:59 — developer resolved PL_MCP_DEC_01 = A (SDK core, script-tag loading, no Node crypto)

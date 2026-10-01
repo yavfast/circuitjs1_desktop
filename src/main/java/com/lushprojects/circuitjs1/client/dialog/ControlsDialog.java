@@ -112,6 +112,18 @@ public class ControlsDialog extends Dialog {
     }
     
     /**
+     * Shows the bound document's max time step on the bar and label without running the bar's
+     * command, which would write the (quantised) bar value back into the simulator and request an
+     * analysis. Used after a scoped background bind, where the bound document's time step itself
+     * did not change.
+     */
+    public void syncTimeStepBar() {
+        double ts = cirSim.getActiveDocument().simulator.maxTimeStep;
+        cirSim.timeStepBar.setValueWithoutCommand(timeStepToPosition(ts));
+        updateTimeStepLabel();
+    }
+
+    /**
      * Update time step label with current value
      */
     public void updateTimeStepLabel() {

@@ -31,6 +31,8 @@ Measured by the PL_AGA Phase 0 prototype (2026-10-01, scratch branch `proto/agen
 - `CircuitSimulator.runCircuit` reads the speed bar through `cirSim.getIterCount()`. Stepping a background simulator without a bind uses the active tab's speed, and its console lines and element-level `CirSim` calls reach the active document.
 - Log lines from session UI (for example `Save option: SlidersDialog.pos`) land in whichever document is bound. Do not compare raw log buffers in R2 checks.
 - `ImportLifecycle` writes the time-step, speed, current and power bars directly. Restore them after the scope; `saveUIState` does not cover the time-step bar.
+- `CircuitRenderer.centreCircuit()` calls `setCircuitArea()`, which sizes the session `circuitArea` from the *bound* document's scope count. Centring a background target leaves the visible tab's scopes at height 0 unless the area is restored (`DocumentScope` keeps the reference and puts it back; `restoreUIState` recomputes it on every tab activation). `ScopeManager.setupScopes` recomputes it only when that document's own scope count changes.
+- Do not refresh the time-step bar with `ControlsDialog.updateTimeStepBar()` after the scope: `Scrollbar.setValue` runs the bar's command, which writes the quantised bar value into the bound simulator's `maxTimeStep`/`timeStep` and calls `needAnalyze()` on the visible tab. `DocumentScope` uses `ControlsDialog.syncTimeStepBar()` (thumb and label only, via `Scrollbar.setValueWithoutCommand`).
 
 ## References
 

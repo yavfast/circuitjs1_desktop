@@ -24,6 +24,10 @@ package com.lushprojects.circuitjs1.client;
 // For information about the theory behind this, see Electronic Circuit & System Simulation Methods by Pillage
 // or https://github.com/sharpie7/circuitjs1/blob/master/INTERNALS.md
 
+import com.google.gwt.json.client.JSONArray;
+import com.google.gwt.json.client.JSONNumber;
+import com.google.gwt.json.client.JSONObject;
+import com.google.gwt.json.client.JSONString;
 import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.core.client.Callback;
@@ -365,6 +369,11 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         resetAction();
         setSimRunning(circuitInfo.running);
         toolbar.updateRunStopButton();
+
+        // [SP_AGA_02] Readiness: agent contracts answer not_ready until this point. The loaded
+        // hook fires after it, so a host calling CircuitJS1Agent from the hook is served.
+        markStartupCompleted();
+        callLoadedHook();
     }
 
     void setColors(String positiveColor, String negativeColor, String neutralColor, String selectColor,
@@ -665,6 +674,76 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	    promise.then(function(x) { console.log(x); });
 	});
     }-*/;
+
+    /**
+     * Diagnostic snapshot of the session view state, for the live harness (not an API contract):
+     * renderer transform, canvas size, circuit area, hint, and the bound document's scope rects.
+     *
+     * @return a JSON object string
+     */
+    public String getViewStateJson() {
+        JSONObject o = new JSONObject();
+        JSONArray t = new JSONArray();
+        for (int i = 0; i < 6; i++) {
+            t.set(i, new JSONNumber(renderer.transform[i]));
+        }
+        o.put("transform", t);
+        o.put("canvas", rectJson(new Rectangle(0, 0, renderer.canvasWidth, renderer.canvasHeight)));
+        if (renderer.circuitArea != null) {
+            o.put("circuitArea", rectJson(renderer.circuitArea));
+        }
+        o.put("hint", new JSONString(renderer.getHintType() + " " + renderer.getHintItem1() + " " + renderer.getHintItem2()));
+        ScopeManager sm = getActiveDocument().scopeManager;
+        JSONArray scopes = new JSONArray();
+        for (int i = 0; i < sm.scopeCount; i++) {
+            Rectangle r = sm.scopes[i].rect;
+            if (r != null) {
+                scopes.set(scopes.size(), rectJson(r));
+            }
+        }
+        o.put("scopes", scopes);
+        return o.toString();
+    }
+
+    private static JSONObject rectJson(Rectangle r) {
+        JSONObject o = new JSONObject();
+        o.put("x", new JSONNumber(r.x));
+        o.put("y", new JSONNumber(r.y));
+        o.put("width", new JSONNumber(r.width));
+        o.put("height", new JSONNumber(r.height));
+        return o;
+    }
+
+    /** @return true when the File > Save item is enabled */
+    boolean isSaveAllowed() {
+        return menuManager.saveFileItem != null && menuManager.saveFileItem.isEnabled();
+    }
+
+    /**
+     * Re-derives the session widgets that reflect the bound document: time-step bar (without its
+     * command, so the document's time step and analysis state are untouched), power bar
+     * enablement, Undo/Redo and edit-menu enablement, the Save item and the window title.
+     * Called after a scoped background bind is undone ({@link DocumentScope}), so the visible tab's
+     * widgets show its own state again.
+     *
+     * @param saveAllowed enabled state of the Save item to put back (it is not derived from the document)
+     */
+    void refreshSessionWidgets(boolean saveAllowed) {
+        if (controlsDialog != null && timeStepBar != null) {
+            controlsDialog.syncTimeStepBar();
+        }
+        if (powerLabel != null && powerBar != null) {
+            setPowerBarEnable();
+        }
+        if (menuManager.undoItem != null && menuManager.redoItem != null) {
+            enableUndoRedo();
+        }
+        if (menuManager.cutItem != null) {
+            enableDisableMenuItems();
+        }
+        allowSave(saveAllowed);
+        changeWindowTitle(getActiveDocument().circuitInfo.isModified());
+    }
 
     public void setPowerBarEnable() {
         if (menuManager.powerCheckItem.getState()) {
@@ -1484,6 +1563,13 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 			// Permissions
 			allowSave: $entry(function(b) { return that.@com.lushprojects.circuitjs1.client.CirSim::allowSave(Z)(b);})
 	    };
+	    // Agent API export ($wnd.CircuitJS1Agent), separate from $wnd.CircuitJS1 (PL_AGA Phase 1)
+	    @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::install(Lcom/lushprojects/circuitjs1/client/CirSim;)(that);
+	}-*/;
+
+    // Fires $wnd.oncircuitjsloaded once start-up has completed (end of init), so a host may call
+    // both CircuitJS1 and CircuitJS1Agent from the hook.
+    native void callLoadedHook() /*-{
 	    var hook = $wnd.oncircuitjsloaded;
 	    if (hook)
 	    	hook($wnd.CircuitJS1);

@@ -27,6 +27,21 @@ public class CircuitDocument {
     private String errorMessage = null;
     private CircuitElm stopElm = null;
 
+    /**
+     * Session-unique number of this document, assigned at creation and never reused
+     * (the agent handle is {@code d<number>}, SP_AGA_01_02).
+     */
+    private final int documentNumber;
+
+    /** Tab title used while the document has no file name (null: "Untitled"). */
+    private String displayTitle;
+
+    /**
+     * True while an agent operation that owns this document (a run, Phase 7 of PL_AGA) is in
+     * progress; contracts that are not served while busy are rejected (SP_AGA_02 class table).
+     */
+    private boolean agentBusy;
+
     private final Map<String, Integer> elementTypeCounters = new HashMap<>();
 
     public String nextElementId(String prefix) {
@@ -56,6 +71,7 @@ public class CircuitDocument {
 
     CircuitDocument(BaseCirSim cirSim) {
         this.cirSim = cirSim;
+        documentNumber = cirSim.allocateDocumentNumber();
         circuitInfo = new CircuitInfo(cirSim, this);
         simulator = new CircuitSimulator(cirSim, this);
         scopeManager = new ScopeManager(cirSim, this);
@@ -93,6 +109,34 @@ public class CircuitDocument {
 
     public boolean isRunning() {
         return isRunning;
+    }
+
+    /** @return the session-unique number of this document (assigned at creation, never reused) */
+    public int getDocumentNumber() {
+        return documentNumber;
+    }
+
+    /** @return the tab title used while the document has no file name, or null */
+    public String getDisplayTitle() {
+        return displayTitle;
+    }
+
+    /**
+     * Sets the tab title used while the document has no file name. The caller refreshes the tab
+     * through {@code DocumentManager.notifyTitleChanged}.
+     */
+    public void setDisplayTitle(String title) {
+        displayTitle = title;
+    }
+
+    /** @return true while an agent operation owns this document (see {@link #setAgentBusy}) */
+    public boolean isAgentBusy() {
+        return agentBusy;
+    }
+
+    /** Marks the document as owned by a running agent operation (set and cleared by the agent run). */
+    public void setAgentBusy(boolean busy) {
+        agentBusy = busy;
     }
 
     public String getErrorMessage() {
@@ -304,7 +348,14 @@ public class CircuitDocument {
     int speedValue = 117, currentValue = 50, powerValue = 50;
     double voltageRange = 5; // ColorSettings holds one session-wide value; each document keeps its own
     double[] transform = new double[6]; // Store view transform (zoom/pan)
+    // Renderer hint (the "h" line). The renderer holds one session-wide hint; each document keeps
+    // its own, so a tab switch or a background operation never shows another document's hint.
+    int hintType = -1, hintItem1, hintItem2;
 
+    /**
+     * Stores the session widgets' current values (options, bars, voltage range, view transform,
+     * hint) as this document's UI state. Call it while this document is bound.
+     */
     void saveUIState(MenuManager menuManager, CirSim cirSim) {
         dots = menuManager.dotsCheckItem.getState();
         volts = menuManager.voltsCheckItem.getState();
@@ -319,6 +370,10 @@ public class CircuitDocument {
 
         // Save view transform
         System.arraycopy(cirSim.renderer.transform, 0, transform, 0, 6);
+
+        hintType = cirSim.renderer.getHintType();
+        hintItem1 = cirSim.renderer.getHintItem1();
+        hintItem2 = cirSim.renderer.getHintItem2();
     }
 
     /**
@@ -345,13 +400,11 @@ public class CircuitDocument {
         // Update time step bar to match this document's simulator
         cirSim.controlsDialog.updateTimeStepBar();
 
-        // Restore view transform
-        if (transform[0] != 0) {
-            System.arraycopy(transform, 0, cirSim.renderer.transform, 0, 6);
-        } else {
-            // Reset to default if no saved transform
-            cirSim.renderer.centreCircuit();
-        }
+        // The circuit area depends on this document's scope count. Recompute it on every activation:
+        // centring does so only for a document without a saved transform, and setupScopes only
+        // when this document's own scope count changed, so a scope-less tab left it full height.
+        cirSim.renderer.setCircuitArea();
+        applyViewState(cirSim, true);
 
         // Trigger side effects
         if (smallGrid) {
@@ -361,6 +414,24 @@ public class CircuitDocument {
 
         // Restore sliders
         adjustableManager.updateSliders();
+    }
+
+    /**
+     * Puts this document's saved view transform and hint into the session renderer.
+     *
+     * @param centreIfUnset when no transform was saved yet, centre the circuit (tab activation and
+     *                      a first background bind); false copies the saved transform as is
+     */
+    void applyViewState(CirSim cirSim, boolean centreIfUnset) {
+        if (transform[0] != 0 || !centreIfUnset) {
+            System.arraycopy(transform, 0, cirSim.renderer.transform, 0, 6);
+        } else {
+            // Reset to default if no saved transform
+            cirSim.renderer.centreCircuit();
+        }
+        cirSim.renderer.setHintType(hintType);
+        cirSim.renderer.setHintItem1(hintItem1);
+        cirSim.renderer.setHintItem2(hintItem2);
     }
 
     public void dispose() {

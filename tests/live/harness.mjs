@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | textfid | roundtrip | synth | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -205,6 +205,36 @@ function pageHelpers() {
       return { visible: true, sliders: d.querySelectorAll('canvas').length, buttons };
     },
     simInfo() { const i = CircuitJS1.getSimInfo(); return i ? { running: i.running, stopMessage: i.stopMessage, elementCount: i.elementCount, time: i.time } : null; },
+    // Agent API (window.CircuitJS1Agent): parsed OperationResult, or {__undefined: true} when the
+    // call returned no string (a Java exception went to the uncaught handler).
+    agentCall(op, args) {
+      const r = CircuitJS1Agent.call(op, JSON.stringify(args || {}));
+      return typeof r === 'string' ? JSON.parse(r) : { __undefined: true, type: typeof r };
+    },
+    agentRaw(op, argsJson) { const r = CircuitJS1Agent.call(op, argsJson); return { type: typeof r, text: r }; },
+    agentCallAsync(op, args) {
+      return new Promise((resolve) => {
+        let sync = true;
+        CircuitJS1Agent.callAsync(op, JSON.stringify(args || {}), (r) => resolve({ sync, type: typeof r, result: JSON.parse(r) }));
+        sync = false;
+        setTimeout(() => resolve({ timeout: true }), 3000);
+      });
+    },
+    // What the user sees of the visible tab: tab bar, window title, circuit, sliders dialog and view.
+    visibleTab() {
+      const act = document.querySelector('.tabWidget.activeTab .tabTitle');
+      return {
+        tabCount: document.querySelectorAll('.tabWidget').length,
+        activeTitle: act ? act.textContent : null,
+        windowTitle: document.title,
+        count: CircuitJS1.getElementCount(),
+        ids: CircuitJS1.getElementIds().join(','),
+        options: String(CircuitJS1.exportCircuit()).split('\n')[0],
+        sliders: H.slidersDialog(),
+        // renderer transform, canvas, circuit area, hint and the visible document's scope rects
+        view: JSON.parse(CircuitJS1Agent.debugViewState()),
+      };
+    },
   };
   window.__H = H;
   return true;
@@ -679,10 +709,139 @@ async function scenarioTextFidelity(s) {
   report('T.text_fidelity', agg.lossy === 0, { circuits: agg.circuits, linesCompared: agg.linesCompared, lossyFields: agg.lossy, signFlips: agg.signFlips, byType: agg.byType, sample: agg.samples.slice(0, 5) });
 }
 
+// Agent API documents (PL_AGA Phase 1, SP_AGA_02_02 / SP_AGA_05_01): listDocuments, createDocument
+// in the background, activateDocument, closeDocument (unsaved, background, last document),
+// unknown handle, invalid arguments, callAsync — and the visible tab never changes except on
+// activateDocument.
+async function scenarioAgentDocs(s) {
+  const out = { checks: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const docsOf = (r) => (r && r.data && r.data.documents) || [];
+  const code0 = (r) => (r && r.issues && r.issues[0] && r.issues[0].code) || null;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+
+  // listDocuments returns a valid JSON string
+  const raw = await s.call('agentRaw', 'listDocuments', '{}');
+  let parsed = null; try { parsed = JSON.parse(raw.text); } catch (e) { /* checked below */ }
+  ck('listJsonString', raw.type === 'string' && parsed && parsed.ok === true && Array.isArray(parsed.data.documents) && parsed.truncatedIssues === 0);
+  const actives = docsOf(parsed).filter((d) => d.active);
+  ck('oneActive', actives.length === 1 && /^d[1-9][0-9]*$/.test(actives[0].doc));
+  const A0 = actives[0] && actives[0].doc;
+
+  // The visible tab gets a circuit with sliders (lrc.txt)
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const vis0 = await s.call('visibleTab');
+  out.visible = vis0;
+  out.hintA0 = String(await s.call('exportText')).split('\n').filter((l) => l.startsWith('h ')).join('|');
+
+  // createDocument in the background: new handle, active tab unchanged, listed active=false
+  const c1 = await A('createDocument', {});
+  const B = c1.data && c1.data.doc;
+  await sleep(200);
+  const l1 = await A('listDocuments', {});
+  const bRec = docsOf(l1).find((d) => d.doc === B);
+  ck('createOk', c1.ok && /^d[1-9][0-9]*$/.test(B) && B !== A0);
+  ck('createListedInactive', bRec && bRec.active === false && bRec.elementCount === 0 && bRec.modified === false);
+  ck('createActiveUnchanged', docsOf(l1).find((d) => d.active).doc === A0);
+  const vis1 = await s.call('visibleTab');
+  ck('createVisibleUnchanged', same({ ...vis0, tabCount: vis0.tabCount + 1 }, vis1));
+
+  const c2 = await A('createDocument', { title: 'Agent X' });
+  const C = c2.data && c2.data.doc;
+  const l2 = await A('listDocuments', {});
+  const cRec = docsOf(l2).find((d) => d.doc === C);
+  ck('createTitled', c2.ok && cRec && cRec.title === 'Agent X' && cRec.active === false && C !== B);
+
+  // Let the debounced session save (dumps every background document through DocumentScope) run
+  await sleep(1300);
+  ck('sessionSaveVisibleUnchanged', same({ ...vis0, tabCount: vis0.tabCount + 2 }, await s.call('visibleTab')));
+
+  // Make B modified through the UI: activate it, load a circuit with sliders, delete an element
+  const act = await A('activateDocument', { doc: B });
+  const lAct = await A('listDocuments', {});
+  ck('activateOk', act.ok && act.data.doc === B && docsOf(lAct).find((d) => d.active).doc === B);
+  // Per-document hint: the blank tab B does not inherit A0's hint line (lrc.txt has one)
+  const hintOf = (t) => String(t).split('\n').filter((l) => l.startsWith('h ')).join('|');
+  const hintB = hintOf(await s.call('exportText'));
+  ck('hintPerDocument', hintB === '' && out.hintA0 !== '');
+  await s.call('importText', SLIDER_CIRCUIT);
+  await s.call('focus');
+  const ids = await s.call('ids');
+  await s.call('select', ids[0], false);
+  await s.key('Delete');
+  await sleep(200);
+  const lMod = await A('listDocuments', {});
+  ck('bModified', (docsOf(lMod).find((d) => d.doc === B) || {}).modified === true);
+  await A('activateDocument', { doc: A0 });
+  await sleep(300);
+  const visBack = await s.call('visibleTab');
+  out.visibleBack = visBack;
+  ck('backToA0', same({ ...vis0, tabCount: vis0.tabCount + 2 }, visBack) && hintOf(await s.call('exportText')) === out.hintA0);
+
+  // closeDocument unsaved -> unsaved_changes, document still open
+  const u = await A('closeDocument', { doc: B });
+  ck('unsavedChanges', u.ok === false && code0(u) === 'unsaved_changes' && u.issues[0].severity === 'error' && docsOf(await A('listDocuments', {})).some((d) => d.doc === B));
+
+  // closeDocument of a background document with discardChanges: ok, no replacement, no tab switch
+  const k = await A('closeDocument', { doc: B, discardChanges: true });
+  await sleep(200);
+  const lK = await A('listDocuments', {});
+  ck('closeBackgroundOk', k.ok && k.data.doc === B && k.data.replacement === undefined && !docsOf(lK).some((d) => d.doc === B) && docsOf(lK).find((d) => d.active).doc === A0);
+  ck('closeVisibleUnchanged', same({ ...vis0, tabCount: vis0.tabCount + 1 }, await s.call('visibleTab')));
+
+  // unknown handle -> unknown_document with the open handles as hint
+  const unk = await A('closeDocument', { doc: 'd999' });
+  ck('unknownDocument', unk.ok === false && code0(unk) === 'unknown_document' && unk.issues[0].hint.includes(A0));
+  const unk2 = await A('activateDocument', { doc: B });
+  ck('closedHandleUnknown', unk2.ok === false && code0(unk2) === 'unknown_document');
+
+  // invalid arguments -> invalid_value naming the argument; nothing applied
+  const nDocs = docsOf(await A('listDocuments', {})).length;
+  const inv1 = await A('createDocument', { activate: 'yes' });
+  const inv2 = await A('closeDocument', {});
+  const inv3 = await A('noSuchOp', {});
+  const inv4 = await s.call('agentRaw', 'listDocuments', '{not json');
+  const inv4p = JSON.parse(inv4.text);
+  const inv5 = await A('createDocument', { title: '' });
+  ck('invalidValue', code0(inv1) === 'invalid_value' && inv1.issues[0].message.includes("'activate'")
+    && code0(inv2) === 'invalid_value' && inv2.issues[0].message.includes("'doc'")
+    && code0(inv3) === 'invalid_value' && inv3.issues[0].message.includes("'op'")
+    && code0(inv4p) === 'invalid_value' && inv4p.issues[0].message.includes("'args'")
+    && code0(inv5) === 'invalid_value' && inv5.issues[0].message.includes("'title'"));
+  ck('invalidNothingApplied', docsOf(await A('listDocuments', {})).length === nDocs);
+  ck('issueKey', inv1.issues[0].key === 'invalid_value|||');
+
+  // callAsync on a synchronous contract calls back immediately with the JSON result
+  const as = await s.call('agentCallAsync', 'listDocuments', {});
+  ck('callAsync', as.sync === true && as.type === 'string' && as.result.ok === true);
+
+  // Closing the last document with discardChanges: ok + replacement handle (new, never reused)
+  for (const d of docsOf(await A('listDocuments', {}))) {
+    if (d.doc !== A0) await A('closeDocument', { doc: d.doc, discardChanges: true });
+  }
+  const seen = [A0, B, C].map((h) => +h.slice(1));
+  const last = await A('closeDocument', { doc: A0, discardChanges: true });
+  await sleep(300);
+  const lLast = await A('listDocuments', {});
+  const rep = last.data && last.data.replacement;
+  ck('lastReplacement', last.ok && last.data.doc === A0 && /^d[1-9][0-9]*$/.test(rep || '') && +rep.slice(1) > Math.max(...seen)
+    && docsOf(lLast).length === 1 && docsOf(lLast)[0].doc === rep && docsOf(lLast)[0].active === true);
+  ck('noPageExceptions', s.exceptions.length === exMark);
+
+  out.samples = { unsaved: u.issues && u.issues[0], unknown: unk.issues && unk.issues[0], invalid: inv1.issues && inv1.issues[0], last: last.data };
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_docs.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_docs', failed.length === 0, { checks: Object.keys(out.checks).length, failed, replacement: rep, details: path.join(OUT_DIR, 'agent_docs.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -723,7 +882,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

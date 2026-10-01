@@ -14,6 +14,15 @@ import com.lushprojects.circuitjs1.client.Scrollbar;
 public class SlidersDialog extends Dialog {
     private final VerticalPanel panel;
 
+    /**
+     * While detached, the dialog belongs to the visible tab only and ignores every change: rows
+     * are built but not added, and clear/remove/show/hide/resize do nothing. Set by the app shell
+     * while a background document is bound, so that document's slider rebuilds (load, import,
+     * undo) cannot clear or refill the visible tab's sliders (PL_AGA_DEC_01). The background
+     * document's rows are rebuilt when its tab is activated.
+     */
+    private boolean detached;
+
     public SlidersDialog() {
         super(false, false);
         setText("Adjustable Sliders");
@@ -23,8 +32,21 @@ public class SlidersDialog extends Dialog {
         getElement().getStyle().setProperty("overflowY", "auto");
     }
 
+    /** Detaches the dialog from slider changes (see {@link #isDetached()}); restore the previous value afterwards. */
+    public void setDetached(boolean detached) {
+        this.detached = detached;
+    }
+
+    /** @return true while slider changes are ignored because a background document is bound */
+    public boolean isDetached() {
+        return detached;
+    }
+
     @Override
     public void show() {
+        if (detached) {
+            return;
+        }
         super.show();
         // If position wasn't restored from storage, apply fallback: position to the right below Controls
         if (!isPositionRestored()) {
@@ -32,6 +54,14 @@ public class SlidersDialog extends Dialog {
                 applyFallbackPosition();
             });
         }
+    }
+
+    @Override
+    public void hide(boolean autoClosed) {
+        if (detached) {
+            return;
+        }
+        super.hide(autoClosed);
     }
 
     private void applyFallbackPosition() {
@@ -76,22 +106,30 @@ public class SlidersDialog extends Dialog {
         row.add(titlePanel);
         row.add(controlPanel);
         
-        panel.add(row);
+        if (!detached) {
+            panel.add(row);
+        }
         return row;
     }
 
     // Adds a single-widget row (e.g. an element control button) below the sliders.
     public Widget addWidgetRow(Widget widget) {
-        panel.add(widget);
+        if (!detached) {
+            panel.add(widget);
+        }
         return widget;
     }
 
     public void removeSlider(Widget row) {
-        panel.remove(row);
+        if (!detached) {
+            panel.remove(row);
+        }
     }
 
     public void clear() {
-        panel.clear();
+        if (!detached) {
+            panel.clear();
+        }
     }
 
     public boolean isEmpty() {
@@ -99,6 +137,9 @@ public class SlidersDialog extends Dialog {
     }
 
     public void setMaxHeight(int height) {
+        if (detached) {
+            return;
+        }
         getElement().getStyle().setPropertyPx("maxHeight", height);
     }
 }

@@ -297,6 +297,17 @@ public class Scrollbar extends Composite implements
         return val;
     }
 
+    /** Moves the thumb like {@link #setValue} but does not run the bar's command. */
+    public void setValueWithoutCommand(int i) {
+        if (i < min) {
+            i = min;
+        } else if (i > max) {
+            i = max;
+        }
+        val = i;
+        draw();
+    }
+
     public void setValue(int i) {
         if (i < min) {
             i = min;

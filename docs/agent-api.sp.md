@@ -296,7 +296,7 @@ Purpose: list and manage open documents.
 | Contract | Input | Output (`data`) |
 |----------|-------|-----------------|
 | listDocuments | — | `documents: {doc, title, active: bool, modified: bool, running: bool, busy: bool, elementCount: int, filePath: string?}[]` |
-| createDocument | `title: string?`, `activate: bool = false` | `{doc}` |
+| createDocument | `title: string?` (1..200 chars, not only whitespace; shown as the tab title until the document has a file name), `activate: bool = false` | `{doc}` |
 | activateDocument | `doc` (required) | `{doc}` |
 | closeDocument | `doc` (required), `discardChanges: bool = false` | `{doc, replacement: DocumentHandle?}` |
 
@@ -1037,6 +1037,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | createDocument `title` range and meaning stated (PL_AGA Phase 1 review) |
 | 2026-10-01 | SP_AGA_DEC_04 resolved: A (scoped silent bind) with the conditions of PL_AGA_DEC_01, after the PL_AGA Phase 0 prototype |
 | 2026-10-01 | DEC_04 trigger aligned with the plan's reduced prototype sequence (plan review) |
 | 2026-10-01 | Review round 5: R1 holds during calls with test rows for R1/R2 and the DEC_04 trigger tied to them; grid option consistent across sections; openFile activate/rejection/modified-flag precedence |

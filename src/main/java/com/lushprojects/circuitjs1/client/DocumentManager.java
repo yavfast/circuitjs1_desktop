@@ -63,17 +63,9 @@ public class DocumentManager {
             return;
         }
 
-        // Save to history
-        String dump;
-        if (document == activeDocument) {
-             dump = cirSim.actionManager.dumpCircuit();
-        } else {
-             // Temporarily switch to document to dump it correctly
-             CircuitDocument current = activeDocument;
-             setActiveDocument(document);
-             dump = cirSim.actionManager.dumpCircuit();
-             setActiveDocument(current);
-        }
+        // Save to history. A background document is dumped inside a scoped silent bind, so
+        // closing it does not switch the visible tab (SP_AGA_02_02, SP_AGA_03_08).
+        String dump = dumpDocument(document);
         closedTabsHistory.push(dump);
         if (closedTabsHistory.size() > MAX_CLOSED_TABS) {
             // Stack extends Vector: index 0 is the oldest entry
@@ -179,15 +171,39 @@ public class DocumentManager {
         return activeDocument;
     }
 
+    /**
+     * Silent bind of {@code document} as the bound document of the session: swaps this manager's
+     * and {@code BaseCirSim}'s active-document fields only — no listener notification, no
+     * {@code setActive}, no UI-state save/restore. The visible tab does not change.
+     * Only {@link DocumentScope} calls it; it saves and restores the session UI around the swap
+     * and always swaps back (PL_AGA_DEC_01).
+     */
+    void swapActiveSilently(CircuitDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("document must not be null");
+        }
+        activeDocument = document;
+        cirSim.swapDocumentSilently(document);
+    }
+
     public List<CircuitDocument> getDocuments() {
         return Collections.unmodifiableList(documents);
     }
 
-    public String getTabTitle(CircuitDocument doc) {
+    /** @return the document's title without the modified marker: file name, display title or "Untitled" */
+    public String getDocumentTitle(CircuitDocument doc) {
         String name = doc.circuitInfo.fileName;
+        if (name == null || name.isEmpty()) {
+            name = doc.getDisplayTitle();
+        }
         if (name == null || name.isEmpty()) {
             name = "Untitled";
         }
+        return name;
+    }
+
+    public String getTabTitle(CircuitDocument doc) {
+        String name = getDocumentTitle(doc);
         if (doc.circuitInfo.isModified()) {
             name += "*";
         }
@@ -232,27 +248,13 @@ public class DocumentManager {
     }
 
     /**
-     * Dumps a document in the default format. An inactive document is bound only for the
-     * duration of the dump, with its own options applied to the session widgets the
-     * exporters read, so it is not saved with the active tab's display/speed settings.
+     * Dumps a document in the default format. An inactive document is dumped inside a scoped
+     * silent bind ({@link DocumentScope}), with its own options, transform and hint applied to the
+     * session widgets the exporters read, so it is not saved with the active tab's settings and
+     * the active tab's simulation loop, sliders and widgets are left alone.
      */
     private String dumpDocument(CircuitDocument doc) {
-        if (doc == activeDocument) {
-            return cirSim.actionManager.dumpCircuit();
-        }
-        CirSim sim = (CirSim) cirSim;
-        CircuitDocument current = activeDocument;
-        current.saveUIState(sim.menuManager, sim);
-        activeDocument = doc;
-        cirSim.bindDocument(doc);
-        try {
-            doc.applyOptionWidgets(sim.menuManager, sim);
-            return cirSim.actionManager.dumpCircuit();
-        } finally {
-            activeDocument = current;
-            cirSim.bindDocument(current);
-            current.applyOptionWidgets(sim.menuManager, sim);
-        }
+        return DocumentScope.call((CirSim) cirSim, doc, () -> cirSim.actionManager.dumpCircuit());
     }
 
     public void saveSession() {
@@ -273,6 +275,9 @@ public class DocumentManager {
             }
             if (doc.circuitInfo.lastFileName != null) {
                 docObj.put("lastFileName", new JSONString(doc.circuitInfo.lastFileName));
+            }
+            if (doc.getDisplayTitle() != null) {
+                docObj.put("displayTitle", new JSONString(doc.getDisplayTitle()));
             }
             
             String dump = dumpDocument(doc);
@@ -338,6 +343,9 @@ public class DocumentManager {
                 }
                 if (docObj.containsKey("lastFileName")) {
                     doc.circuitInfo.lastFileName = docObj.get("lastFileName").isString().stringValue();
+                }
+                if (docObj.containsKey("displayTitle")) {
+                    doc.setDisplayTitle(docObj.get("displayTitle").isString().stringValue());
                 }
                 
                 notifyTitleChanged(doc);

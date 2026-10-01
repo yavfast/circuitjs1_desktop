@@ -32,8 +32,8 @@ When this plan is complete:
 | Layering of shared types | `ElementIdRegistry` at client root behind `CircuitDocument` methods (`nextElementId`, `raiseIdCounter`, `resetElementIds`); the import report collector `io/ImportReport.java` in `io/`; `agent/` only consumes them | RULE_ARCH_001/002: `io/` (L2) and user paths must not import `agent/` (L3) |
 | Session-scoped state | Catalogue cache, document-handle counter, log sequence counter on `BaseCirSim`/`LogManager` | RULE_ARCH_006 |
 | Result values | `com.google.gwt.json.client` (`JSONObject`/`JSONArray`) built in Java, serialized to a JSON string | Already used by `io/json`; one value type across the boundary |
-| JS boundary | One new JSNI adapter `agent/AgentJsBridge.java` exporting `window.CircuitJS1Agent = {call(op, argsJson) → resultJson, callAsync(op, argsJson, callback), reportError(message)}`; installed from `CirSim.setupJSInterface()`; entry points wrapped with `$entry`, so a Java exception reaches the global handler and the call returns `undefined`, which callers map to `internal_error` | RULE_ARCH_008: one clustered adapter; string JSON avoids JSNI object marshalling; RULE_ERR_004 |
-| Client-root additions | `ElementIdRegistry` (document-scoped state used by user paths and `io/`), `PathFileAdapter` (placed beside `LoadFile` by SP_AGA_03_09) | Not stateless utilities, so RULE_STRUCT_007 (utilities into `util/`) does not apply; each is reachable from L2 without an `agent/` import |
+| JS boundary | One new JSNI adapter `agent/AgentJsBridge.java` exporting `window.CircuitJS1Agent = {call(op, argsJson) → resultJson, callAsync(op, argsJson, callback), reportError(message)}` plus the non-contract diagnostic `debugViewState()` used by the live harness; installed from `CirSim.setupJSInterface()`; entry points wrapped with `$entry`, so a Java exception reaches the global handler and the call returns `undefined`, which callers map to `internal_error` | RULE_ARCH_008: one clustered adapter; string JSON avoids JSNI object marshalling; RULE_ERR_004 |
+| Client-root additions | `ElementIdRegistry` (document-scoped state used by user paths and `io/`), `DocumentScope` (the silent-bind scope, used by the closed-tab dump and session save as well as by `agent/`; it needs the package-private silent swap), `PathFileAdapter` (placed beside `LoadFile` by SP_AGA_03_09) | Not stateless utilities, so RULE_STRUCT_007 (utilities into `util/`) does not apply; each is reachable from L2 and user paths without an `agent/` import |
 | Path file I/O | One new JSNI adapter `PathFileAdapter.java` at client root, beside `LoadFile` (SP_AGA_03_09), using `$wnd.nw.require('fs')`/`('path')` | RULE_ARCH_008; the existing `LogManager` uses the same NW Node access; the only other JSNI file of this plan |
 | Element creation | `CircuitElementFactory` (JSON) for `add` and AgentCircuit import; `CircuitLoader`/format registry for text and JSON import | RULE_ARCH_005 |
 | Geometry writes | Through `geom()` / `setEndpoints` + `setPoints` only | RULE_STRUCT_002 |
@@ -67,7 +67,7 @@ When this plan is complete:
 ## Progress
 
 - [x] [Phase 0 — Background-document prototype (closes SP_AGA_DEC_04)](#PL_AGA_P0)
-- [ ] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
+- [x] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
 - [ ] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
 - [ ] [Phase 3 — Catalogue](#PL_AGA_P3)
 - [ ] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
@@ -124,7 +124,7 @@ Findings:
 - Session-coupled paths confirmed beyond the §03_08 list: the window title (`CirSim.changeWindowTitle`), the enabled state of the Undo, Redo and Save items, and the loop toggle inside `bindDocument`. Not exercised by the reduced sequence (Phases 8 and 9): the closed-tab dump, rendering and `openFile`.
 - Direct stepping (C) gives about 15–20 % more background throughput. But it runs element and simulator code while the session is bound to the active tab. `runCircuit` reads the speed bar through `cirSim.getIterCount()`, and session calls and console lines from element code reach the active document. A per-slice bind routes all of these to the target.
 
-### Phase 1 — Foundations: results, documents, JS export (`client/agent/`) [TODO]  {#PL_AGA_P1}
+### Phase 1 — Foundations: results, documents, JS export (`client/agent/`) [DONE]  {#PL_AGA_P1}
 
 **Depends on:** Phase 0
 **Implements:** [SP_AGA_03_08](./agent-api.sp.md#SP_AGA_03_08) mechanism (per PL_AGA_DEC_01), [SP_AGA_01_02](./agent-api.sp.md#SP_AGA_01_02) (handles), [SP_AGA_01_07](./agent-api.sp.md#SP_AGA_01_07), [SP_AGA_01_08](./agent-api.sp.md#SP_AGA_01_08), [SP_AGA_02](./agent-api.sp.md#SP_AGA_02) common rules and class table, [SP_AGA_02_02](./agent-api.sp.md#SP_AGA_02_02)
@@ -139,7 +139,7 @@ What to create:
 | DocumentHandles | `client/agent/DocumentHandles.java` + field on `CircuitDocument` | `d<n>` assignment at creation (session counter on `BaseCirSim`) |
 | DocumentsOps | `client/agent/DocumentsOps.java` | listDocuments / createDocument / activateDocument / closeDocument through `DocumentManager` |
 | AgentJsBridge | `client/agent/AgentJsBridge.java` | JSNI export of `CircuitJS1Agent`; installed from `CirSim.setupJSInterface()` |
-| DocumentScope | `client/agent/DocumentScope.java` | The one entry through which every contract touches its target document, implementing the mechanism PL_AGA_DEC_01 selected; Phases 2–7 use it from the start, Phase 8 completes the session-coupled path list and adds render |
+| DocumentScope | `DocumentScope.java` at client root (user paths — closed-tab dump, session save — use it too; `agent/` calls it) | The one entry through which every contract touches its target document, implementing the mechanism PL_AGA_DEC_01 selected; Phases 2–7 use it from the start, Phase 8 completes the session-coupled path list and adds render |
 
 Notes:
 - `CircuitJS1Agent` is separate from the existing `CircuitJS1` global, whose methods stay as they are (SP_AGA_06_01).
@@ -291,7 +291,7 @@ What to update:
 
 - Split SP_AGA into an umbrella plus children (it is above the docs soft-split size) — return when: the next `/dev-flow audit docs` flags it, or SP_AGA grows further.
 - Agent control of adjustable sliders (values of element sliders) — return when: an eval or user request needs an agent to drive sliders.
-- Tab-switch hint leak (found by Phase 0): the renderer hint is session state, so activating a tab shows the previous tab's hint items and logs `getElm: invalid index`. Phase 8 gives each document its own hint for agent paths; the user tab switch should restore it from the same field — return when: Phase 8 adds the per-document hint field.
+- ~~Tab-switch hint leak (found by Phase 0): the renderer hint is session state, so activating a tab shows the previous tab's hint items and logs `getElm: invalid index`.~~ **Done in Phase 1:** each document keeps its hint in its saved UI state (`CircuitDocument.saveUIState`/`restoreUIState`/`applyViewState`), used by both the user tab switch and `DocumentScope`.
 - Per-element validity ranges as a declared contract (beyond element clamping) — return when: agents are seen setting physically meaningless values that elements accept.
 
 ## Design Decisions  {#PL_AGA_DEC}
@@ -324,3 +324,4 @@ What to update:
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A with four conditions); backlog: tab-switch hint leak |
+| 2026-10-01 | Phase 1 done; backlog: tab-switch hint leak closed by the per-document hint |

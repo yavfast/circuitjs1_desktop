@@ -70,6 +70,11 @@ public class CircuitInfo extends BaseCirSimDelegate {
         super(cirSim, circuitDocument);
     }
 
+    /** @return the path of the document's file, or null when it has none */
+    public String getFilePath() {
+        return filePath;
+    }
+
     /** @return true if this document has changes that were not saved/exported yet */
     public boolean isModified() {
         return modified;

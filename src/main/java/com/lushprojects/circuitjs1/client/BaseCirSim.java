@@ -28,6 +28,12 @@ public class BaseCirSim {
 
     private CircuitDocument activeDocument;
 
+    // Last document number handed out; numbers are never reused in a session (SP_AGA_01_02).
+    private int lastDocumentNumber;
+
+    // Set once application start-up has completed (end of CirSim.init); see isStartupCompleted().
+    private boolean startupCompleted;
+
     BaseCirSim() {
         CircuitDocument initialDocument = documentManager.createDocument();
         documentManager.setInitialDocument(initialDocument);
@@ -46,6 +52,36 @@ public class BaseCirSim {
         activeDocument.addUpdateListener(updateListener);
         activeDocument.setActive(true);
         renderer.resetTimers();
+    }
+
+    /**
+     * Silent bind: swaps the bound document by field only. Unlike {@link #bindDocument} it does not
+     * call {@code setActive}, move listeners or reset the renderer timers, so the active tab's
+     * simulation loop keeps running. Only {@code DocumentManager.swapActiveSilently} calls it, for
+     * the scoped background-document bind (PL_AGA_DEC_01); the caller swaps back.
+     */
+    void swapDocumentSilently(CircuitDocument document) {
+        if (document == null) {
+            throw new IllegalArgumentException("document must not be null");
+        }
+        activeDocument = document;
+    }
+
+    /** @return the next session-unique document number (1, 2, ...); called once per new document */
+    int allocateDocumentNumber() {
+        return ++lastDocumentNumber;
+    }
+
+    /**
+     * @return true once application start-up has completed: the UI is built, the start-up
+     *         document is bound and the JS interfaces are installed (end of {@code CirSim.init})
+     */
+    public boolean isStartupCompleted() {
+        return startupCompleted;
+    }
+
+    void markStartupCompleted() {
+        startupCompleted = true;
     }
 
     public CircuitDocument getActiveDocument() {

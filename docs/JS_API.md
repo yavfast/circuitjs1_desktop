@@ -182,6 +182,8 @@ if (typeof CircuitJS1 !== 'undefined') {
 
 You can register callback hooks for lifecycle events:
 
+`oncircuitjsloaded` fires once at the end of start-up, after the initial run state and mouse mode are applied and after `window.CircuitJS1Agent` reports ready, so settings made inside the hook are kept.
+
 ```javascript
 // Called when CircuitJS1 is loaded
 window.oncircuitjsloaded = function(api) {
