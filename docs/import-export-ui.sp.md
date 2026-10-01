@@ -3,7 +3,7 @@
 > **Code:** SP_IEU
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 >
 > **Concept:** [C_IEU](./import-export-ui.concept.md)
 > **Depends on specs:** [SP_EIC](./edit-info-contract.sp.md), [SP_IOF](./io-framework.sp.md), [SP_UTL](./util-locale-log.sp.md)
@@ -25,7 +25,6 @@
 | `ExportAsTextDialog` | Legacy Falstad text | TextArea 400×300 + OK + Copy + Re-Import | `TextCircuitExporter` via `ActionManager.dumpCircuit()` | `copyToClipboard()` | `ExportAsTextDialog.java:38-89` |
 | `ExportAsJsonDialog` | JSON | TextArea 500×400 + OK + Copy + Re-Import | `JsonCircuitExporter` via `ActionManager.dumpCircuit("json")` | `copyToClipboard()` | `ExportAsJsonDialog.java:42-94` |
 | `ExportAsUrlDialog` | `https://www.falstad.com/circuit/circuitjs.html?ctz=<LZ>` | TextArea 400×300 + OK + Copy + optional Short URL | `ActionManager.dumpCircuit()` + `LZString.compressToEncodedURIComponent` | `copyToClipboard()`, `compress(String)`, `shortrelay.php` via GWT `RequestBuilder` | `ExportAsUrlDialog.java:91-150` |
-| `ExportAsLocalFileDialog` | Text (always) | hidden Anchor + `click()`, `Blob({type:'text/plain'})`, `URL.createObjectURL` | `ActionManager.dumpCircuit()` (default) | `downloadIsSupported()`, `getBlobUrl(String)`, `click(Element)` | `ExportAsLocalFileDialog.java:72-128` |
 | `ExportAsImageDialog` | PNG (`CAC_IMAGE`) or SVG (`CAC_SVG`) | Anchor Download="circuit-yyyyMMdd-HHmm.{png,svg}" | `CircuitRenderer.getCircuitAsCanvas(type)` (PNG) / `getCircuitAsSVG()` (SVG) | `b64encode(String)` (Unicode-safe btoa) | `ExportAsImageDialog.java:44-75` |
 
 ### 01_02. Import-dialog catalog  {#SP_IEU_01_02}
@@ -41,9 +40,6 @@
 | JSNI native | File:line | Implementation |
 |-------------|-----------|----------------|
 | `b64encode(a)` | `ExportAsImageDialog.java:39-42` | `window.btoa(unescape(encodeURIComponent(a)))` — Unicode-safe |
-| `downloadIsSupported()` | `ExportAsLocalFileDialog.java:41-44` | `"download" in $doc.createElement("a")` (**unused at runtime**) |
-| `getBlobUrl(data)` | `ExportAsLocalFileDialog.java:46-57` | revoke prev `$doc.exportBlob`; `new Blob([data],{type:'text/plain'})`; `URL.createObjectURL` |
-| `click(elem)` | `ExportAsLocalFileDialog.java:115-117` | `elem.click()` |
 | `copyToClipboard()` ×3 | Json/Text/Url | `$doc.execCommand('copy')` (deprecated) |
 | `compress(dump)` | `ExportAsUrlDialog.java:87-89` | `$wnd.LZString.compressToEncodedURIComponent(dump)` |
 | `doDropboxImport(link)` | `ImportFromDropboxDialog.java:41-56` | synchronous `XMLHttpRequest`; on load → `doLoadCallback(text)` |
@@ -165,7 +161,6 @@ sim.allowSave(false)
 - Re-Import silently skips null `s1`.
 - Parse errors inside `readCircuit` are logged to console, not surfaced.
 - Short-URL HTTP error text overwrites the user's TextArea (destructive; no retry).
-- `ExportAsLocalFileDialog.downloadIsSupported()` is declared but unused (only commented reference at `MenuManager.java:156`).
 - Filename TextBox edits are not validated; memoisation guard `setLastFileName` only skips `"circuitjs-"`-prefixed names (not `"circuit-"`).
 - Dropbox synchronous XHR — may be hard-disabled in modern browsers.
 
@@ -263,3 +258,4 @@ idle ──menu action──▶ dumpCircuit(formatId) ──▶ dialog open with
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-01 | `ExportAsLocalFileDialog` rows removed (class deleted, BL-C08). |

@@ -3,7 +3,7 @@
 > **Code:** C_IEU
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 > **Author:** onboard-doc-gen
 >
 > **Depends on:** [C_EIC](./edit-info-contract.concept.md), [C_IOF](./io-framework.concept.md), [C_UTL](./util-locale-log.concept.md)
@@ -26,7 +26,7 @@ Dialogs in this concept contain **zero serialisation logic**. Payloads (text dum
 
 - **Separation.** Dialogs know nothing of format parsing — they speak only strings / canvases. Format plug-ins live in `io/`.
 - **Round-trip symmetry.** Text and JSON exports carry a Re-Import button that feeds the dialog's contents back through the same loader; image/URL are one-way.
-- **Single active dialog.** `DialogManager` owns `activeDialog`; most dialogs are routed via factory methods. `ExportAsLocalFileDialog` is the outlier (see Issues).
+- **Single active dialog.** `DialogManager` owns `activeDialog`; most dialogs are routed via factory methods.
 - **Bookkeeping protocol.** Importers must `pushUndo()` before close, must null out filename/path, call `allowSave(false)`, reset window title.
 - **Browser-glue via JSNI.** Clipboard copy, Blob URL, base64, LZString compression, Dropbox SDK chooser — all hand-rolled JSNI, ES5-compatible bodies. No modern `navigator.clipboard` / `FileReader`.
 
@@ -39,7 +39,6 @@ dialog/
   ExportAsTextDialog        — TextArea + Copy + Re-Import
   ExportAsJsonDialog        — TextArea + Copy + Re-Import  (near-duplicate of Text)
   ExportAsUrlDialog         — TextArea + Copy + optional shortrelay.php
-  ExportAsLocalFileDialog   — Blob URL + hidden Anchor.click()
   ExportAsImageDialog       — PNG (Canvas.toDataUrl) or SVG (base64 via canvas2svg)
   ImportFromTextDialog      — TextArea paste → ActionManager.importCircuitFromText
   ImportFromDropboxDialog   — Dropbox.choose() chooser OR pasted-link XHR
@@ -69,15 +68,7 @@ ActionManager.doExportAsImage | CirSim.doExportAsSVG
     → anchor = new Anchor("circuit-yyyyMMdd-HHmm.{png,svg}", dataUrl)  # PNG: toDataUrl; SVG: base64
 ```
 
-**Export (local file):**
-```
-ActionManager.doExportAsLocalFile (bypasses DialogManager!)
-  → dump = dumpCircuit()
-  → new ExportAsLocalFileDialog(dump).show()
-    → blobUrl = URL.createObjectURL(new Blob([dump]))   # JSNI
-    → hidden Anchor with Download="circuitjs-yyyyMMdd-HHmmss.txt"
-    → click(elem)  # programmatic JSNI click
-```
+**Export (local file):** the browser-download `ExportAsLocalFileDialog` was deleted on 2026-10-01 as dead code (no caller; PL_AUDIT_20260930_173830 BL-A01/BL-C08). Saving to disk goes through the NW.js save path (`CirSim.nodeSave` / `nodeSaveAs`).
 
 **Import (text paste):**
 ```
@@ -136,7 +127,6 @@ center()
 
 ### 3.2. Edge Cases  {#C_IEU_03_02}
 
-- **ExportAsLocalFileDialog bypasses DialogManager** (ActionManager:530). Not auto-dismissed by sibling flows.
 - **No error handling on Re-Import** — null `s1` silently no-ops; `readCircuit` errors logged to console.
 - **Short-URL error** overwrites the user's TextArea with HTTP status text — destructive.
 - **closeOnEnter inconsistency** — set false in Text/JSON/URL; not in LocalFile (Enter in filename TextBox closes prematurely).
@@ -164,7 +154,6 @@ center()
 - `EditDialog.resetDialog()` integration — `SRAMLoadFile` refresh after load.
 - `ImportFromDropbox.isSupported()` — feature detect.
 - `EditDialogLoadFile` — for element-level file-loading rows (covered in C_EIC).
-- `ExportAsLocalFileDialog.downloadIsSupported()` — JSNI feature-detect (dead code; only commented reference at `MenuManager:156`).
 - Protocol contract for importers: `pushUndo → closeDialog → readCircuit → allowSave(false) → filePath=null → fileName=null → changeWindowTitle(false)`.
 
 ## Changelog
@@ -172,3 +161,4 @@ center()
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-01 | `ExportAsLocalFileDialog` deleted (dead code, BL-C08). |

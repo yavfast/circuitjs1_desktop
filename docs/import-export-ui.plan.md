@@ -3,7 +3,7 @@
 > **Code:** PL_IEU
 > **Status:** completed
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 >
 > **Concept:** [C_IEU](./import-export-ui.concept.md)
 > **Specification:** [SP_IEU](./import-export-ui.sp.md)
@@ -34,7 +34,7 @@ Deliver the user-facing file-I/O surface (text, JSON, compressed URL, local-file
 - [x] Phase 1 — ExportAsTextDialog
 - [x] Phase 2 — ExportAsJsonDialog
 - [x] Phase 3 — ExportAsUrlDialog
-- [x] Phase 4 — ExportAsLocalFileDialog
+- [x] Phase 4 — ExportAsLocalFileDialog *(deleted 2026-10-01 as dead code, BL-C08)*
 - [x] Phase 5 — ExportAsImageDialog (PNG + SVG)
 - [x] Phase 6 — ImportFromTextDialog
 - [x] Phase 7 — ImportFromDropboxDialog + root ImportFromDropbox JSNI helper
@@ -55,7 +55,7 @@ Delivered: near-clone of Text dialog with 500×400 TextArea and `dumpCircuit("js
 
 Delivered: LZString compression JSNI, `?ctz=<compressed>` URL template, optional short-URL relay via GWT `RequestBuilder` (gated by `circuitjs1.shortRelaySupported`), 2000-char warning label.
 
-### Phase 4 — ExportAsLocalFileDialog [DONE]
+### Phase 4 — ExportAsLocalFileDialog [DONE — deleted 2026-10-01, BL-C08]
 
 **Implements:** [SP_IEU_02_03](./import-export-ui.sp.md#SP_IEU_02_03)
 
@@ -85,12 +85,12 @@ Items deferred from current cycle (from `dialog-export.md` §Issues and `dialog-
 
 - **Package-location drift (export #1).** Onboard brief said `element/dialog/`; actual path is `client/dialog/`.
 - **Three separate `copyToClipboard` JSNI declarations (export #2).** Identical; all use deprecated `execCommand('copy')`. Migration to `navigator.clipboard` would need 3 edits.
-- **`ExportAsLocalFileDialog` bypasses DialogManager (export #3).** `ActionManager:530` constructs directly; not auto-dismissed; add `DialogManager.showExportAsLocalFileDialog(dump)` symmetric factory.
+- *(resolved 2026-10-01: class deleted)* **`ExportAsLocalFileDialog` bypasses DialogManager (export #3).** `ActionManager:530` constructs directly; not auto-dismissed; add `DialogManager.showExportAsLocalFileDialog(dump)` symmetric factory.
 - **Dead feature-detection (export #4).** `downloadIsSupported()` referenced only from a commented `MenuManager:156` line.
 - **Text ↔ JSON dialog near-duplication (export #5).** ~60 lines of copy-paste; a `TextualExportDialog` base would collapse it.
 - **Inconsistent filename prefixes (export #6).** `"circuit-"` vs `"circuitjs-"`; `setLastFileName` memoisation skips only the latter.
 - **No error handling on Re-Import / short-URL (export #7).** Null guard silent; short-URL error overwrites user's TextArea.
-- **`ExportAsLocalFileDialog` always produces text (export #8).** No format picker; no io-framework registry plumb-through.
+- *(resolved 2026-10-01: class deleted)* **`ExportAsLocalFileDialog` always produces text (export #8).** No format picker; no io-framework registry plumb-through.
 - **URL shortening SPOF (export #9).** `shortrelay.php` is a relative URL; 404s silently on self-host / desktop build.
 - **`closeOnEnter` inconsistency (export #10).** Set false in Text/JSON/URL; not in Image/LocalFile — LocalFile filename TextBox closes on Enter.
 - **Dropbox chooser size-gate bug (import #1).** `var xhr` is scoped inside the `<100000` guard but `xhr.open/send` run outside; large files silently fail via closure-scope JS accident.
@@ -109,3 +109,4 @@ Items deferred from current cycle (from `dialog-export.md` §Issues and `dialog-
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-01 | Phase 4 dialog deleted (dead code, BL-C08). |

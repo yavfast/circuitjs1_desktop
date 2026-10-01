@@ -3,7 +3,7 @@ skill: text-format
 domain: io
 topics: [falstad, text-format, dump-type, options-line, scope-line, hint-line]
 source: onboard
-updated: 2026-09-30
+updated: 2026-10-01
 ---
 
 # Legacy Text Format
@@ -131,6 +131,8 @@ subcircuit mode, `AudioInputElm.clearCache()`,
 
 7. **Numbers in the dump must be lossless.** `CircuitElm.dumpValue(double)` writes whole numbers as integers and everything else with `Double.toString` (shortest round-trip form). Until 2026-09-30 it rounded to 4 decimals / 6 digits and `formatNumber` dropped the sign of values in (-1, 0) — every save, undo step and paste corrupted values. `npm run test:live textfid` checks this.
 8. **The options line needs its own newline.** `ActionManager.dumpOptions()` returns `$ …` without `\n`; a caller that appends element lines must add it (the copy/duplicate path glued the first element onto the options line and dropped it).
+9. **Booleans: match the reader.** `dumpValues` writes a `boolean` as `1`/`0`; a field read with `Boolean.parseBoolean` (the upstream form, `"true"`/`"false"`) must be passed as `String.valueOf(b)` and read with `CircuitElm.parseBool` (accepts both). Mismatch flips the flag on every save **and every undo** (Counter `invertreset`, Fuse/MotorProtectionSwitch `blown`, Monostable `retriggerable`, Triac `state` — fixed 2026-10-01).
+10. **References in dump lines are indices among dumped lines.** Use `CircuitSimulator.locateElmForDump`, not `elmList.indexOf`; elements whose `hasDumpLine()` is false are skipped by the exporter (2026-10-01).
 
 ## References
 

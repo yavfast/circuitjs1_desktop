@@ -338,21 +338,21 @@ M <x> <y> <x2> <y2> <flags> <threshold>
 
 ### Counter (CounterElm)
 ```
-164 <x> <y> <x2> <y2> <flags> <invertreset> <modulus> [bits] [pin voltages...]
+164 <x> <y> <x2> <y2> <flags> [bits] [highVoltage] [pin voltages...] <invertreset> <modulus>
 ```
-- `invertreset`: true/false (reset pin logic)
+- `invertreset`: true/false (reset pin logic; default true when absent). Written as `true`/`false`; `1`/`0` from 2025-07..2026-09 builds is also read
+- `highVoltage`: only with the custom-voltage flag (`1 << 13`)
 - `modulus`: modulus value
 - `bits`: Number of bits (if needsBits() returns true)
 - `pin voltages...`: Voltage for each pin that has state=true
 
 ### Monostable Multivibrator (MonostableElm)
 ```
-194 <x> <y> <x2> <y2> <flags> <retriggerable> <delay> [bits] [pin voltages...]
+194 <x> <y> <x2> <y2> <flags> [highVoltage] <retriggerable> <delay>
 ```
 - `retriggerable`: true/false
 - `delay`: Pulse duration
-- `bits`: Number of bits (if needsBits() returns true)
-- `pin voltages...`: Voltage for each pin that has state=true
+- no `bits` and no saved pin voltages (no state pins)
 
 ### AND Gate (AndGateElm)
 ```
