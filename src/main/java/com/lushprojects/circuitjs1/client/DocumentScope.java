@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
+import com.lushprojects.circuitjs1.client.element.MosfetElm;
 
 import java.util.function.Supplier;
 
@@ -19,6 +20,9 @@ import java.util.function.Supplier;
  *     transform, hint and circuit area, re-attach the sliders dialog and refresh the derived
  *     session widgets (time-step bar, power bar, Undo/Redo, edit items, Save item, window title).
  *     The swap back and the re-attach always run, also when an earlier step throws.</li>
+ * <li>Put back the session-wide MOSFET display flags ({@code MosfetElm.globalFlags}): a text load
+ *     of a MOSFET into the target sets them from the loaded file, which would restyle the visible
+ *     tab's MOSFETs. (A user load into the active tab sets them, as before.)</li>
  * </ol>
  * When the target already is the bound document, the operation runs directly. Nested scopes
  * work: each level saves and restores what was bound when it was entered.
@@ -55,6 +59,7 @@ public final class DocumentScope {
         boolean saveAllowed = sim.isSaveAllowed();
         // setCircuitArea() replaces the rectangle, so keeping the reference restores it exactly.
         Rectangle circuitArea = renderer.circuitArea;
+        int mosfetFlags = MosfetElm.getGlobalFlags();
 
         bound.saveUIState(mm, sim);
         sim.documentManager.swapActiveSilently(target);
@@ -70,6 +75,7 @@ public final class DocumentScope {
                 target.saveUIState(mm, sim);
             } finally {
                 sim.documentManager.swapActiveSilently(bound);
+                MosfetElm.setGlobalFlags(mosfetFlags);
                 try {
                     renderer.circuitArea = circuitArea;
                     bound.applyOptionWidgets(mm, sim);

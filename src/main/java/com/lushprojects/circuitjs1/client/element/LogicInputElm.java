@@ -215,6 +215,9 @@ public class LogicInputElm extends SwitchElm {
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
+        // SwitchElm's IEC bit is FLAG_NUMERIC here (RULE_STYLE_009): "iec_symbol" would be a
+        // second key for the same bit, and setting it would fight "numeric"
+        props.remove("iec_symbol");
         props.put("high_voltage", getJsonUnitText(hiV, "V"));
         props.put("low_voltage", getJsonUnitText(loV, "V"));
         props.put("ternary", isTernary());
@@ -225,7 +228,19 @@ public class LogicInputElm extends SwitchElm {
     }
 
     @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.remove("iec_symbol"); // see getJsonProperties
+        return props;
+    }
+
+    @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
+        if (props != null && props.containsKey("iec_symbol")) {
+            // not a LogicInput key (its bit is FLAG_NUMERIC); older exports wrote it
+            props = new java.util.LinkedHashMap<>(props);
+            props.remove("iec_symbol");
+        }
         super.applyJsonProperties(props);
         hiV = getJsonDouble(props, "high_voltage", hiV);
         loV = getJsonDouble(props, "low_voltage", loV);

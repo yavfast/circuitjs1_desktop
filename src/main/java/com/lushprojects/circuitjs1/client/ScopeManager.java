@@ -229,6 +229,87 @@ public class ScopeManager extends BaseCirSimDelegate {
             scopes[i].speed = scopes[i - 1].speed;
     }
 
+    /**
+     * [SP_AGA_02_04] {@code addScope}: adds an on-screen (docked) scope view of {@code ce}, as
+     * "View in Scope" does, in the first free slot.
+     *
+     * @param value scope value to plot ({@code Scope.VAL_*}), or -1 for the editor's default
+     *              plots of the element
+     * @return the slot index, or -1 when all slots are used
+     */
+    public int addScopeView(CircuitElm ce, int value) {
+        int i;
+        for (i = 0; i != scopeCount; i++) {
+            if (scopes[i].getElm() == null) {
+                break;
+            }
+        }
+        if (i == scopeCount) {
+            if (scopeCount == scopes.length) {
+                return -1;
+            }
+            scopeCount++;
+            scopes[i] = new Scope(cirSim, getActiveDocument());
+            scopes[i].position = i;
+        }
+        scopes[i].setElm(ce);
+        if (value >= 0) {
+            scopes[i].setValue(value, ce);
+        }
+        if (i > 0) {
+            scopes[i].speed = scopes[i - 1].speed;
+        }
+        return i;
+    }
+
+    /** @return the number of free docked-scope slots (unused slots and slots without element) */
+    public int getFreeScopeSlots() {
+        int free = scopes.length - scopeCount;
+        for (int i = 0; i != scopeCount; i++) {
+            if (scopes[i].getElm() == null) {
+                free++;
+            }
+        }
+        return free;
+    }
+
+    /**
+     * [SP_AGA_02_04] {@code removeScope} / {@code delete}: removes the plots of {@code ce} from
+     * every docked scope; a scope left without plots is removed at once (the remaining scopes
+     * close up, as {@link #setupScopes()} would do on the next frame).
+     *
+     * @return the number of docked scope views that showed {@code ce}
+     */
+    public int removeScopeViews(CircuitElm ce) {
+        int affected = 0;
+        for (int i = 0; i < scopeCount; i++) {
+            Scope s = scopes[i];
+            boolean shows = false;
+            for (int p = s.plots.size() - 1; p >= 0; p--) {
+                if (s.plots.get(p).elm == ce) {
+                    s.plots.remove(p);
+                    shows = true;
+                }
+            }
+            if (!shows) {
+                continue;
+            }
+            affected++;
+            if (s.plots.isEmpty()) {
+                for (int j = i; j < scopeCount - 1; j++) {
+                    scopes[j] = scopes[j + 1];
+                }
+                scopes[scopeCount - 1] = null;
+                scopeCount--;
+                i--;
+            } else {
+                s.calcVisiblePlots();
+                s.resetGraph();
+            }
+        }
+        return affected;
+    }
+
     void addToScope(int n, CircuitElm ce) {
         CircuitSimulator simulator = simulator();
         if (n < scopeCount + simulator.countScopeElms()) {

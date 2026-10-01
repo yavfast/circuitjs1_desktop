@@ -27,6 +27,7 @@ import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
+import com.lushprojects.circuitjs1.client.io.ImportReport;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,14 +45,39 @@ public class JsonCircuitImporter implements CircuitImporter {
     // Map from element ID to created element (for scope/adjustable references)
     private Map<String, CircuitElm> importedElements;
 
+    /** Report of the running import ([SP_AGA_03_04]); null for user loads. */
+    private ImportReport report;
+
     public JsonCircuitImporter(JsonCircuitFormat format) {
         this.format = format;
     }
 
     @Override
     public void importCircuit(String data, CircuitDocument document, int flags) {
+        importCircuit(data, document, flags, null);
+    }
+
+    @Override
+    public void importCircuit(String data, CircuitDocument document, int flags, ImportReport report) {
+        this.report = report;
+        try {
+            importJson(data, document, flags);
+        } finally {
+            this.report = null;
+        }
+    }
+
+    /** Adds an item to the report of the running import (no-op for user loads). */
+    private void reportItem(String code, ImportReport.Severity severity, String message, String key) {
+        if (report != null) {
+            report.addForKey(code, severity, message, key);
+        }
+    }
+
+    private void importJson(String data, CircuitDocument document, int flags) {
         if (data == null || data.trim().isEmpty()) {
             CirSim.console("JSON import: empty data");
+            reportItem(ImportReport.SCHEMA_INVALID, ImportReport.Severity.ERROR, "the JSON circuit is empty", null);
             return;
         }
 
@@ -59,6 +85,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             JSONValue parsed = JSONParser.parseStrict(data);
             if (parsed == null || parsed.isObject() == null) {
                 CirSim.console("JSON import: invalid JSON structure");
+                reportItem(ImportReport.SCHEMA_INVALID, ImportReport.Severity.ERROR,
+                        "the JSON circuit is not a JSON object", null);
                 return;
             }
 
@@ -67,6 +95,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             // Validate schema
             if (!validateSchema(root)) {
                 CirSim.console("JSON import: invalid or unsupported schema");
+                reportItem(ImportReport.SCHEMA_INVALID, ImportReport.Severity.ERROR,
+                        "schema must be {format: \"circuitjs\", version: \"2.x\"}", null);
                 return;
             }
 
@@ -105,7 +135,7 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             // 6-7. Shared post-processing (sliders, analysis, models, caches). Centring waits
             // until the explicit bounds below have been re-applied.
-            ImportLifecycle.finalizeCircuitLoading(document, flags | CircuitConst.RC_NO_CENTER);
+            ImportLifecycle.finalizeCircuitLoading(document, flags | CircuitConst.RC_NO_CENTER, report);
 
             // 8. Re-apply explicit element bounds from JSON after analysis to preserve
             // exact geometry
@@ -156,6 +186,10 @@ public class JsonCircuitImporter implements CircuitImporter {
 
         } catch (Exception e) {
             CirSim.console("JSON import error: " + e);
+            // A JSONException from parseStrict is a malformed circuit; anything later is a failed load
+            boolean parse = e instanceof JSONException;
+            reportItem(parse ? ImportReport.SCHEMA_INVALID : ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                    parse ? "the JSON circuit is not valid JSON" : "the JSON import failed: " + e, null);
         }
     }
 
@@ -185,6 +219,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                 cirSim.controlsDialog.updateTimeStepLabel();
             } else {
                 CirSim.console("JSON import: ignoring invalid time_step " + timeStepValue);
+                reportItem(ImportReport.SETTING_INVALID, ImportReport.Severity.WARNING,
+                        "simulation.time_step is not a positive time; kept at its default", "time_step");
             }
         }
 
@@ -198,16 +234,26 @@ public class JsonCircuitImporter implements CircuitImporter {
             }
             if (mts > 0) {
                 simulator.minTimeStep = mts;
+            } else {
+                reportItem(ImportReport.SETTING_INVALID, ImportReport.Severity.WARNING,
+                        "simulation.min_time_step is not a positive time; kept at its default", "min_time_step");
             }
         }
 
         // Voltage range
         JSONValue voltageRangeValue = sim.get("voltage_range");
         if (voltageRangeValue != null) {
+            double vr = 0;
             if (voltageRangeValue.isString() != null) {
-                ColorSettings.get().setVoltageRange(UnitParser.parse(voltageRangeValue.isString().stringValue()));
+                vr = UnitParser.parse(voltageRangeValue.isString().stringValue());
             } else if (voltageRangeValue.isNumber() != null) {
-                ColorSettings.get().setVoltageRange(voltageRangeValue.isNumber().doubleValue());
+                vr = voltageRangeValue.isNumber().doubleValue();
+            }
+            if (vr > 0) {
+                ColorSettings.get().setVoltageRange(vr);
+            } else {
+                reportItem(ImportReport.SETTING_INVALID, ImportReport.Severity.WARNING,
+                        "simulation.voltage_range is not a positive voltage; kept at its default", "voltage_range");
             }
         }
 
@@ -280,6 +326,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             JSONValue elementValue = elements.get(elementId);
             if (elementValue == null || elementValue.isObject() == null) {
                 CirSim.console("JSON import: element '" + elementId + "' is not an object");
+                reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                        "element " + elementId + " is not an object", elementId);
                 skipped++;
                 continue;
             }
@@ -290,6 +338,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             JSONValue typeValue = elementJson.get("type");
             if (typeValue == null || typeValue.isString() == null) {
                 CirSim.console("JSON import: element " + elementId + " has no type");
+                reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                        "element " + elementId + " has no type", elementId);
                 skipped++;
                 continue;
             }
@@ -300,8 +350,21 @@ public class JsonCircuitImporter implements CircuitImporter {
             CircuitElm elm = CircuitElementFactory.createFromJson(jsonType, elementJson, document);
             if (elm == null) {
                 CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
+                reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                        "element " + elementId + " of type " + jsonType + " could not be created", elementId);
                 skipped++;
                 continue;
+            }
+
+            // A single-post element without _endpoint takes its end point from the informational
+            // bounds (CircuitElementFactory): geometry adjusted from bounds (SP_AGA_03_04)
+            JSONValue pinsForBounds = elementJson.get("pins");
+            boolean hasEndpointPin = pinsForBounds != null && pinsForBounds.isObject() != null
+                    && pinsForBounds.isObject().get("_endpoint") != null;
+            if (elm.getPostCount() == 1 && !hasEndpointPin && elementJson.get("bounds") != null
+                    && elementJson.get("bounds").isObject() != null) {
+                reportItem(ImportReport.GEOMETRY_ADJUSTED, ImportReport.Severity.WARNING,
+                        "element " + elementId + ": its end point is derived from bounds (no _endpoint pin)", elementId);
             }
 
             // [SP_AGA_03_02] Content replacement keeps the JSON keys as element IDs; an invalid or
@@ -335,6 +398,11 @@ public class JsonCircuitImporter implements CircuitImporter {
                         int y1 = (int) p1y.isNumber().doubleValue();
                         int x2 = (int) p2x.isNumber().doubleValue();
                         int y2 = (int) p2y.isNumber().doubleValue();
+                        if (x1 != elm.getX() || y1 != elm.getY() || x2 != elm.getX2() || y2 != elm.getY2()) {
+                            // p1/p2 override the geometry the pins gave
+                            reportItem(ImportReport.GEOMETRY_ADJUSTED, ImportReport.Severity.WARNING,
+                                    "element " + elementId + ": p1/p2 replace the endpoints given by its pins", elementId);
+                        }
                         elm.setEndpoints(x1, y1, x2, y2);
                         // finalizeJsonImport() already ran in the factory; endpoints update must refresh geometry.
                         elm.setPoints();
@@ -380,6 +448,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                 // toString() keeps the exception type; getMessage() is null for NPE/JS errors
                 CirSim.console("JSON import: skipping element '" + elementId
                         + "' due to error: " + elementError);
+                reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                        "element " + elementId + " failed to load: " + elementError, elementId);
                 skipped++;
             }
         }
@@ -455,6 +525,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                 CircuitElm targetElement = importedElements.get(targetElementId);
                 if (targetElement == null) {
                     CirSim.console("JSON auto-wire: target element not found: " + targetElementId);
+                    reportItem(ImportReport.WIRE_SKIPPED, ImportReport.Severity.WARNING,
+                            "auto-wire " + elementId + "." + pinName + " -> " + connectedTo + " skipped: no such element", elementId);
                     continue;
                 }
 
@@ -490,6 +562,8 @@ public class JsonCircuitImporter implements CircuitImporter {
                     JSONValue targetPinValue = targetPins.get(targetPinName);
                     if (targetPinValue == null || targetPinValue.isObject() == null) {
                         CirSim.console("JSON auto-wire: target pin not found: " + connectedTo);
+                        reportItem(ImportReport.WIRE_SKIPPED, ImportReport.Severity.WARNING,
+                                "auto-wire " + elementId + "." + pinName + " -> " + connectedTo + " skipped: no such pin", elementId);
                         continue;
                     }
                     JSONObject targetPin = targetPinValue.isObject();
@@ -557,6 +631,8 @@ public class JsonCircuitImporter implements CircuitImporter {
         for (int i = 0; i < scopes.size(); i++) {
             if (count >= scopeManager.getMaxScopes()) {
                 CirSim.console("JSON import: ignoring scopes beyond the limit of " + scopeManager.getMaxScopes());
+                reportItem(ImportReport.SCOPE_LIMIT, ImportReport.Severity.WARNING,
+                        (scopes.size() - i) + " scope(s) beyond the limit of " + scopeManager.getMaxScopes() + " ignored", "#" + i);
                 break;
             }
             JSONValue scopeValue = scopes.get(i);

@@ -52,6 +52,16 @@ public interface CircuitImporter {
     void importCircuit(String data, CircuitDocument document, int flags);
 
     /**
+     * Import circuit data into document and report every skipped, failed or adjusted item to
+     * {@code report} ([SP_AGA_03_04] "Import reporting"). A null report behaves exactly like
+     * {@link #importCircuit(String, CircuitDocument, int)}. The default ignores the report;
+     * the text and JSON importers override it.
+     */
+    default void importCircuit(String data, CircuitDocument document, int flags, ImportReport report) {
+        importCircuit(data, document, flags);
+    }
+
+    /**
      * Import circuit data with default flags.
      * @param data Raw circuit data
      * @param document Target document

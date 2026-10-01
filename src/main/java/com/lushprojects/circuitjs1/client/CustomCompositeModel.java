@@ -20,6 +20,41 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
     boolean internal; // don't show in list
     public boolean builtin;  // included by default, don't allow deletion
     static int sequenceNumber;
+    /**
+     * [SP_AGA_03_04] "Model catalogues": captures catalogue entry {@code name} as it is now and
+     * returns the action that puts it back — the entry's current values are re-applied in place
+     * (elements keep their model object), or an entry that does not exist yet is removed again.
+     * The text importer records one restorer before it undumps a model line; a caller that
+     * rejects the import runs them.
+     */
+    public static Runnable entryRestorer(final String name) {
+        if (modelMap == null) {
+            initModelMap();
+        }
+        final CustomCompositeModel old = modelMap == null ? null : modelMap.get(name);
+        if (old == null) {
+            return () -> {
+                if (modelMap != null) {
+                    modelMap.remove(name);
+                }
+            };
+        }
+        final boolean wasDumped = old.dumped;
+        final String line = old.dump();
+        old.dumped = wasDumped;
+        if (line == null || line.isEmpty()) {
+            return () -> modelMap.put(name, old);
+        }
+        return () -> {
+            StringTokenizer st = new StringTokenizer(line, " +\t\n\r\f");
+            st.nextToken(); // line type
+            st.nextToken(); // name
+            boolean dumped = old.dumped;
+            old.undump(st);
+            old.dumped = dumped;
+            modelMap.put(name, old);
+        };
+    }
     public static final int FLAG_SHOW_LABEL = 1;
 
     public void setName(String n) {

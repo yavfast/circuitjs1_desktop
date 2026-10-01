@@ -373,9 +373,7 @@ public class CapacitorElm extends CircuitElm {
         initialVoltage = getJsonDouble(properties, "initial_voltage", 1e-3);
         // Default to 0 if not specified (no series resistance)
         seriesResistance = getJsonDouble(properties, "series_resistance", 0);
-        if (getJsonBoolean(properties, "back_euler", false)) {
-            flags |= FLAG_BACK_EULER;
-        }
+        applyJsonFlagProperty(properties, "back_euler", FLAG_BACK_EULER);
         if (seriesResistance > 0) {
             flags |= FLAG_RESISTANCE;
         }

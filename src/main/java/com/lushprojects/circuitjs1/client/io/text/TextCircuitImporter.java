@@ -39,6 +39,7 @@ import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
+import com.lushprojects.circuitjs1.client.io.ImportReport;
 
 /**
  * Imports circuit from the original CircuitJS1 text format.
@@ -54,7 +55,15 @@ import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
  */
 public class TextCircuitImporter implements CircuitImporter {
 
+    /** Token delimiters of a circuit line. */
+    private static final String DELIMITERS = " +\t\n\r\f";
+
     private final TextCircuitFormat format;
+
+    /** Report of the running import ([SP_AGA_03_04]); null for user loads. */
+    private ImportReport report;
+    /** 1-based number of the line being processed (for the report). */
+    private int lineNumber;
 
     public TextCircuitImporter(TextCircuitFormat format) {
         this.format = format;
@@ -62,9 +71,23 @@ public class TextCircuitImporter implements CircuitImporter {
 
     @Override
     public void importCircuit(String data, CircuitDocument document, int flags) {
+        importCircuit(data, document, flags, null);
+    }
+
+    @Override
+    public void importCircuit(String data, CircuitDocument document, int flags, ImportReport report) {
         if (data == null || data.isEmpty()) {
             return;
         }
+        this.report = report;
+        try {
+            importLines(data, document, flags);
+        } finally {
+            this.report = null;
+        }
+    }
+
+    private void importLines(String data, CircuitDocument document, int flags) {
 
         // Reset circuit state unless retaining
         if ((flags & RC_RETAIN) == 0) {
@@ -76,7 +99,7 @@ public class TextCircuitImporter implements CircuitImporter {
         parseCircuitLines(data, document, isSubcircuitMode, flags);
 
         // Finalize loading
-        ImportLifecycle.finalizeCircuitLoading(document, flags);
+        ImportLifecycle.finalizeCircuitLoading(document, flags, report);
     }
 
     @Override
@@ -111,14 +134,17 @@ public class TextCircuitImporter implements CircuitImporter {
      */
     private void parseCircuitLines(String data, CircuitDocument document, 
                                    boolean isSubcircuitMode, int flags) {
-        String[] lines = data.split("[\r\n]+");
+        // Split on single line breaks so that reported line numbers match the source text
+        String[] lines = data.split("\r\n|\n|\r");
 
-        for (String line : lines) {
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            lineNumber = i + 1;
             if (line.trim().isEmpty()) {
                 continue;
             }
 
-            StringTokenizer tokenizer = new StringTokenizer(line, " +\t\n\r\f");
+            StringTokenizer tokenizer = new StringTokenizer(line, DELIMITERS);
             if (tokenizer.hasMoreTokens()) {
                 processCircuitLine(tokenizer, document, isSubcircuitMode, flags);
             }
@@ -159,6 +185,47 @@ public class TextCircuitImporter implements CircuitImporter {
 
         } catch (Exception e) {
             CirSim.console("Exception while parsing: " + tokenizer.getOriginalString());
+            // A line whose parsing throws counts as failed (SP_AGA_03_04)
+            reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                    "line " + lineNumber + ": the line could not be parsed");
+        }
+    }
+
+    private void reportItem(String code, ImportReport.Severity severity, String message) {
+        if (report != null) {
+            report.addAtLine(code, severity, message, lineNumber);
+        }
+    }
+
+    /**
+     * Before a model line is undumped, records how to restore the model catalogue entry it names
+     * as it is now ([SP_AGA_03_04] "Model catalogues"); only when a report is collected.
+     */
+    private void recordModelEntry(StringTokenizer tokenizer, int typeId) {
+        if (report == null) {
+            return;
+        }
+        StringTokenizer st = new StringTokenizer(tokenizer.getOriginalString(), DELIMITERS);
+        st.nextToken(); // line type
+        if (!st.hasMoreTokens()) {
+            return;
+        }
+        String name = CustomLogicModel.unescape(st.nextToken());
+        switch (typeId) {
+            case 34:
+                report.addModelRestorer(DiodeModel.entryRestorer(name));
+                break;
+            case 32:
+                report.addModelRestorer(TransistorModel.entryRestorer(name));
+                break;
+            case '!':
+                report.addModelRestorer(CustomLogicModel.entryRestorer(name));
+                break;
+            case '.':
+                report.addModelRestorer(CustomCompositeModel.entryRestorer(name));
+                break;
+            default:
+                break;
         }
     }
 
@@ -175,6 +242,8 @@ public class TextCircuitImporter implements CircuitImporter {
                 int scopeCount = scopeManager.getScopeCount();
                 if (scopeCount >= scopeManager.getMaxScopes()) {
                     CirSim.console("Text import: ignoring scope beyond the limit of " + scopeManager.getMaxScopes());
+                    reportItem(ImportReport.SCOPE_LIMIT, ImportReport.Severity.WARNING,
+                            "line " + lineNumber + ": scope beyond the limit of " + scopeManager.getMaxScopes() + " ignored");
                     return true;
                 }
                 Scope scope = new Scope(cirSim, document);
@@ -193,6 +262,7 @@ public class TextCircuitImporter implements CircuitImporter {
                 return true;
 
             case '!': // Custom logic model
+                recordModelEntry(tokenizer, typeId);
                 CustomLogicModel.undumpModel(tokenizer);
                 return true;
 
@@ -214,10 +284,12 @@ public class TextCircuitImporter implements CircuitImporter {
                                            int typeId) {
         switch (typeId) {
             case 34: // Diode model
+                recordModelEntry(tokenizer, typeId);
                 DiodeModel.undumpModel(tokenizer);
                 return true;
 
             case 32: // Transistor model
+                recordModelEntry(tokenizer, typeId);
                 TransistorModel.undumpModel(tokenizer);
                 return true;
 
@@ -226,6 +298,7 @@ public class TextCircuitImporter implements CircuitImporter {
                 return true;
 
             case '.': // Custom composite model
+                recordModelEntry(tokenizer, typeId);
                 CustomCompositeModel.undumpModel(tokenizer);
                 return true;
 
@@ -252,6 +325,8 @@ public class TextCircuitImporter implements CircuitImporter {
         
         if (element == null) {
             CirSim.console("Unrecognized element type: " + tokenizer.getOriginalString());
+            reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
+                    "line " + lineNumber + ": unknown element type");
             return;
         }
 

@@ -379,15 +379,9 @@ public abstract class GateElm extends CircuitElm {
         highVoltage = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
             getJsonString(props, "high_voltage", "5 V"));
         
-        // Parse schmitt inputs flag
-        if (getJsonBoolean(props, "schmitt", false)) {
-            flags |= FLAG_SCHMITT;
-        }
-        
-        // Parse invert inputs flag
-        if (getJsonBoolean(props, "invert_inputs", false)) {
-            flags |= FLAG_INVERT_INPUTS;
-        }
+        // Schmitt / inverted inputs flags (a present false clears the bit)
+        applyJsonFlagProperty(props, "schmitt", FLAG_SCHMITT);
+        applyJsonFlagProperty(props, "invert_inputs", FLAG_INVERT_INPUTS);
         
         allocNodes();
         setupVolts();

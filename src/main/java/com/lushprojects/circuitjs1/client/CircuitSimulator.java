@@ -186,7 +186,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return count;
     }
 
-    void deleteUnusedScopeElms() {
+    public void deleteUnusedScopeElms() {
         // Remove any scopeElms for elements that no longer exist
         for (int i = elmList.size() - 1; i >= 0; i--) {
             CircuitElm ce = elmList.get(i);

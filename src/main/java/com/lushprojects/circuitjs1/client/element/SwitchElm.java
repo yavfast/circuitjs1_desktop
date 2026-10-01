@@ -330,12 +330,12 @@ public class SwitchElm extends CircuitElm {
         label = getJsonString(props, "label", null);
         if (label != null && !label.isEmpty()) {
             flags |= FLAG_LABEL;
+        } else if (props != null && props.containsKey("label")) {
+            flags &= ~FLAG_LABEL;
         }
         
-        // Parse IEC symbol
-        if (getJsonBoolean(props, "iec_symbol", false)) {
-            flags |= FLAG_IEC;
-        }
+        // Parse IEC symbol (a present false clears the bit)
+        applyJsonFlagProperty(props, "iec_symbol", FLAG_IEC);
     }
 
     @Override

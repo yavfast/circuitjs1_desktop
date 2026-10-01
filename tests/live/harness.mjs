@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -1259,10 +1259,407 @@ async function scenarioAgentCatalogue(s) {
   report('AG.agent_catalogue', failed.length === 0, { checks: Object.keys(out.checks).length, failed, types: names.length, firstBuildMs: out.timing.firstBuildMs, cachedMs: out.timing.cachedMs, details: path.join(OUT_DIR, 'agent_catalogue.json') });
 }
 
+// [PL_AGA_P4] Geometry, edits and import (SP_AGA_02_03/04/05, 02_14 exportCircuit, 03_01-03_04,
+// 03_10, 04_01 agent origin). Most operations run on a background document, each followed by an
+// R1-style check that the visible tab is unchanged.
+const RC_CELLS = [
+  { type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '10 V' } },
+  { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1k' } },
+  { type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { resistance: 2000 } },
+  { type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+  { type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+];
+// Legacy text with odd-pixel coordinates (an example drawn off the half-cell lattice)
+const ODD_TEXT = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11\n' +
+  'v 101 213 101 77 0 0 40 5 0 0 0.5\n' +
+  'r 101 77 213 77 0 1000\n' +
+  'c 213 77 213 213 0 0.00001 0.001 0.001\n' +
+  'w 213 213 101 213 0\n' +
+  'g 101 213 101 229 0 0\n';
+async function scenarioAgentEdit(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const codes = (r) => ((r && r.issues) || []).map((i) => i.code);
+  const has = (r, code) => codes(r).includes(code);
+  const recs = (r) => (r && r.data && r.data.elements) || [];
+  const rec = (r, id) => recs(r).find((e) => e.id === id);
+  const docState = (doc) => s.eval(`JSON.parse(CircuitJS1Agent.debugDocState(${JSON.stringify(doc)}))`);
+  // circuit text, IDs and open marks of a document (SP_AGA_05_02 "ok=false => document unchanged")
+  const state = async (doc) => {
+    const t = await A('exportCircuit', { doc, format: 'text' });
+    const g = await A('getCircuit', { doc, detail: 'full', limit: 500 });
+    const d = await docState(doc);
+    return { text: t.data && t.data.content, ids: recs(g).map((e) => e.id), marks: d.openMarks, undo: d.undo, redo: d.redo };
+  };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+
+  // Visible tab: lrc.txt with sliders and a hint; background documents B (main), G16, G8
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const vis0 = await s.call('visibleTab');
+  const B = (await A('createDocument', { title: 'Agent B' })).data.doc;
+  const A0 = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const visBase = { ...vis0, tabCount: vis0.tabCount + 1 };
+  const r1 = { failed: [] };
+  const visibleSame = async (label) => {
+    const v = await s.call('visibleTab');
+    if (!same(v, visBase)) r1.failed.push({ label, v });
+  };
+
+  // --- importCircuit: RC divider in cells (AgentCircuit), supplied and generated IDs
+  const imp = await A('importCircuit', { doc: B, circuit: { elements: RC_CELLS } });
+  await visibleSame('importAgentCircuit');
+  out.notes.importIds = imp.data && imp.data.ids;
+  ck('importAgentCircuitOk', imp.ok && same(imp.data.ids, ['V1', 'R1', 'R2', 'W1', 'GND1']) && imp.data.elements === 5);
+  const dB0 = await docState(B);
+  ck('importNoUndoEntry', dB0.undo === 0 && dB0.redo === 0 && dB0.modified === true && dB0.agentOrigin === false);
+
+  // --- getCircuit: ordering, cells, posts, concise vs full
+  const gc = await A('getCircuit', { doc: B });
+  const gcf = await A('getCircuit', { doc: B, detail: 'full' });
+  const r2 = rec(gcf, 'R2');
+  ck('getCircuitOrdered', gc.ok && same(recs(gc).map((e) => e.id), ['GND1', 'R1', 'R2', 'V1', 'W1']) && gc.data.total === 5 && gc.data.nextOffset === undefined);
+  ck('getCircuitRecord', r2 && same(r2.start, { x: 4, y: 0 }) && same(r2.end, { x: 4, y: 4 }) && r2.posts.length === 2
+    && r2.posts[1].pin === 'pin2' && same(r2.posts[1].at, { x: 4, y: 4 }) && r2.posts[1].open === false
+    && r2.properties.resistance === '2 kOhm' && typeof r2.flags === 'number');
+  ck('getCircuitConcise', rec(gc, 'R1') && rec(gc, 'R1').properties.resistance === undefined && rec(gc, 'R1').flags === undefined
+    && rec(gc, 'R2').properties.resistance === '2 kOhm' && rec(gc, 'V1').properties.max_voltage === '10 V');
+  const page = await A('getCircuit', { doc: B, offset: 1, limit: 2 });
+  ck('getCircuitPaging', same(recs(page).map((e) => e.id), ['R1', 'R2']) && page.data.nextOffset === 3 && page.data.total === 5);
+  const sub = await A('getCircuit', { doc: B, ids: ['W1', 'R1'] });
+  const subBad = await A('getCircuit', { doc: B, ids: ['R1', 'Nope'] });
+  ck('getCircuitIds', same(recs(sub).map((e) => e.id), ['R1', 'W1']) && subBad.ok === false && has(subBad, 'unknown_element'));
+  ck('getCircuitSimulation', gc.data.simulation && gc.data.simulation.time_step === '5 us' && Array.isArray(gc.data.scopes));
+  await visibleSame('getCircuit');
+
+  // --- exportCircuit json keys = getCircuit IDs (background document)
+  const ex = await A('exportCircuit', { doc: B });
+  const exKeys = Object.keys(JSON.parse(ex.data.content).elements);
+  ck('exportJsonKeys', ex.ok && same([...exKeys].sort(), recs(gcf).map((e) => e.id).sort()));
+  const exText = await A('exportCircuit', { doc: B, format: 'text' });
+  ck('exportText', exText.ok && /^\$ /.test(exText.data.content) && exText.data.content.split('\n').filter((l) => /^r /.test(l)).length === 2);
+  await visibleSame('exportCircuit');
+
+  // --- importCircuit round trip: getCircuit(full) re-imported -> identical records
+  const rt0 = await A('getCircuit', { doc: B, detail: 'full' });
+  const rtImp = await A('importCircuit', { doc: B, circuit: { elements: recs(rt0), simulation: rt0.data.simulation, scopes: rt0.data.scopes } });
+  const rt1 = await A('getCircuit', { doc: B, detail: 'full' });
+  ck('importRoundTrip', rtImp.ok && same(recs(rt0), recs(rt1)) && same(rt0.data.simulation, rt1.data.simulation));
+  await visibleSame('importRoundTrip');
+
+  // --- ok=false => document unchanged, for each rejected import
+  const rejections = {};
+  const rejectCase = async (name, args, code) => {
+    const before = await state(args.doc);
+    const r = await A(args.op, args.args);
+    const after = await state(args.doc);
+    rejections[name] = { ok: r.ok, codes: codes(r), unchanged: same(before, after) };
+    if (!(r.ok === false && has(r, code) && same(before, after))) rejections[name].before = before, rejections[name].after = after;
+    await visibleSame(name);
+    return r.ok === false && has(r, code) && same(before, after);
+  };
+  const offLat = RC_CELLS.map((e, i) => (i === 1 ? { ...e, start: { x: 3.3, y: 0 } } : e));
+  ck('importOffLattice', await rejectCase('importOffLattice', { doc: B, op: 'importCircuit', args: { doc: B, circuit: { elements: offLat } } }, 'off_lattice'));
+  const broken = '$ 1 0.000005 10.2 50 5 50 5e-11\nr 64 64 128 64 0 1000\nqqq 0 0 16 16 0\nr 128 64 192 64 0 1000\n';
+  ck('importBrokenText', await rejectCase('importBrokenText', { doc: B, op: 'importCircuit', args: { doc: B, circuit: broken } }, 'import_element_skipped'));
+  const brokenJson = JSON.stringify({ schema: { format: 'circuitjs', version: '2.0' }, elements: { R1: { type: 'NoSuchType', pins: {} } } });
+  ck('importJsonUnknownType', await rejectCase('importJsonUnknownType', { doc: B, op: 'importCircuit', args: { doc: B, circuit: brokenJson } }, 'import_element_skipped'));
+  const fracJson = JSON.stringify({ schema: { format: 'circuitjs', version: '2.0' }, elements: { R1: { type: 'Resistor', pins: { pin1: { position: { x: 0.5, y: 0 } }, pin2: { position: { x: 64, y: 0 } } } } } });
+  ck('importJsonFractionalPixel', await rejectCase('importJsonFractionalPixel', { doc: B, op: 'importCircuit', args: { doc: B, circuit: fracJson } }, 'off_lattice'));
+  ck('importJsonSchema', await rejectCase('importJsonSchema', { doc: B, op: 'importCircuit', args: { doc: B, circuit: '{"elements": {}}' } }, 'import_schema_invalid'));
+  ck('importDuplicateId', await rejectCase('importDuplicateId', { doc: B, op: 'importCircuit', args: { doc: B, circuit: { elements: [RC_CELLS[1], RC_CELLS[1]] } } }, 'id_taken'));
+  ck('importUnknownProperty', await rejectCase('importUnknownProperty', { doc: B, op: 'importCircuit', args: { doc: B, circuit: { elements: [{ ...RC_CELLS[1], properties: { resistanse: 5 } }] } } }, 'unknown_property'));
+
+  // Model catalogue: a rejected text import that redefines a diode model leaves the model unchanged
+  const C = (await A('createDocument', {})).data.doc;
+  const modelLine = '34 agentModel 0 1e-14 0 1 0 0';
+  await A('importCircuit', { doc: C, circuit: '$ 1 0.000005 10.2 50 5 50 5e-11\n' + modelLine + '\nd 64 64 128 64 2 agentModel\n' });
+  const cText0 = (await A('exportCircuit', { doc: C, format: 'text' })).data.content;
+  const mRej = await A('importCircuit', { doc: B, circuit: '$ 1 0.000005 10.2 50 5 50 5e-11\n34 agentModel 0 5e-9 3 2 0 0\nd 64 64 128 64 2 agentModel\nqqq 1 2 3 4 0\n' });
+  const cText1 = (await A('exportCircuit', { doc: C, format: 'text' })).data.content;
+  out.notes.model = { c0: cText0.split('\n').filter((l) => l.startsWith('34 ')), c1: cText1.split('\n').filter((l) => l.startsWith('34 ')) };
+  ck('rejectedImportRestoresModel', mRej.ok === false && has(mRej, 'import_element_skipped') && cText0 === cText1 && cText0.includes('1e-14'));
+  await A('closeDocument', { doc: C, discardChanges: true });
+
+  // --- legacy round trip + legacy coordinates off lattice (SP_AGA_05_04)
+  const lg = await A('importCircuit', { doc: B, circuit: ODD_TEXT });
+  const lg0 = await A('getCircuit', { doc: B, detail: 'full' });
+  const r1rec = rec(lg0, 'R1');
+  ck('legacyCellsFractional', lg.ok && r1rec && same(r1rec.start, { x: 101 / 16, y: 77 / 16 }) && same(r1rec.end, { x: 213 / 16, y: 77 / 16 }));
+  const lgRt = await A('importCircuit', { doc: B, circuit: { elements: recs(lg0), simulation: lg0.data.simulation } });
+  const lg1 = await A('getCircuit', { doc: B, detail: 'full' });
+  ck('legacyRoundTrip', lgRt.ok && same(recs(lg0), recs(lg1)));
+  const mvOff = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'R1', by: { dx: 0.3, dy: 0 } }] });
+  const mvHalf = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'R1', by: { dx: 0.5, dy: 0 } }] });
+  const mvRec = rec(mvHalf, 'R1');
+  ck('legacyMoveOnLattice', mvOff.ok === false && has(mvOff, 'off_lattice') && mvHalf.ok && mvRec && mvRec.start.x === 101 / 16 + 0.5 && mvRec.end.x === 213 / 16 + 0.5);
+  await visibleSame('legacy');
+
+  // --- applyEdits on the RC divider
+  await A('importCircuit', { doc: B, circuit: { elements: RC_CELLS } });
+  // add + set in one batch
+  const as = await A('applyEdits', { doc: B, edits: [
+    { op: 'add', element: { id: 'R_load', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 8, y: 0 } } },
+    { op: 'set', id: 'R_load', properties: { resistance: '4.7k' } }] });
+  ck('addSetBatch', as.ok && as.data.applied === 2 && same(as.data.created, ['R_load']) && rec(as, 'R_load') && rec(as, 'R_load').properties.resistance === '4.7 kOhm' && as.data.truncated === 0);
+  await visibleSame('addSet');
+  // add applies TypeInfo defaults; a generated ID follows the counters
+  const ad = await A('applyEdits', { doc: B, edits: [{ op: 'add', element: { type: 'Capacitor', start: { x: 8, y: 0 }, end: { x: 8, y: 4 }, properties: { series_resistance: 1 } } }] });
+  const cid = ad.data && ad.data.created[0];
+  const cRec = rec(ad, cid);
+  ck('addDefaults', ad.ok && cid === 'C1' && cRec.properties.capacitance === '10 uF' && cRec.properties.series_resistance === '1 Ohm' && cRec.properties.back_euler === false);
+  // partial set keeps others; back_euler can be set and cleared again
+  const ps = await A('applyEdits', { doc: B, edits: [{ op: 'set', id: cid, properties: { capacitance: '22u' } }] });
+  const be1 = await A('applyEdits', { doc: B, edits: [{ op: 'set', id: cid, properties: { back_euler: true } }] });
+  const be0 = await A('applyEdits', { doc: B, edits: [{ op: 'set', id: cid, properties: { back_euler: false } }] });
+  ck('partialSetKeepsOthers', ps.ok && rec(ps, cid).properties.series_resistance === '1 Ohm' && rec(ps, cid).properties.capacitance === '22 uF' && codes(ps).length === 0);
+  ck('setBoolRoundTrip', be1.ok && rec(be1, cid).properties.back_euler === true && be0.ok && rec(be0, cid).properties.back_euler === false
+    && rec(be0, cid).properties.series_resistance === '1 Ohm' && codes(be1).length === 0 && codes(be0).length === 0);
+  // unit strings: Ω accepted; a wrong unit, an empty string and junk are invalid_value
+  const om = await A('applyEdits', { doc: B, edits: [{ op: 'set', id: 'R2', properties: { resistance: '3.3 kΩ' } }] });
+  ck('ohmSymbol', om.ok && rec(om, 'R2').properties.resistance === '3.3 kOhm');
+  // set changing the canonical type keeps the ID
+  const sw = await A('applyEdits', { doc: B, edits: [{ op: 'add', element: { id: 'SW5', type: 'Switch', start: { x: 12, y: 0 }, end: { x: 16, y: 0 } } },
+    { op: 'set', id: 'SW5', properties: { momentary: true } }] });
+  ck('setTypeChangeKeepsId', sw.ok && rec(sw, 'SW5') && rec(sw, 'SW5').type === 'PushSwitch');
+  // value_adjusted: an element clamps a value (transformer coupling must be < 1)
+  const tr = await A('applyEdits', { doc: B, edits: [{ op: 'add', element: { id: 'T9', type: 'Transformer', start: { x: 20, y: 0 } } },
+    { op: 'set', id: 'T9', properties: { coupling: 2 } }] });
+  const adj = (tr.issues || []).find((i) => i.code === 'value_adjusted');
+  out.notes.valueAdjusted = adj;
+  ck('valueAdjusted', tr.ok && adj && adj.severity === 'warning' && adj.elements[0] === 'T9' && /coupling/.test(adj.message));
+  // move by
+  const mb = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'R_load', by: { dx: 2, dy: 0 } }] });
+  ck('moveBy', mb.ok && same(rec(mb, 'R_load').start, { x: 6, y: 0 }) && same(rec(mb, 'R_load').end, { x: 10, y: 0 }));
+  const ms = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'R_load', start: { x: 4, y: 1 } }, { op: 'move', id: 'SW5', start: { x: 12, y: 2 }, end: { x: 12, y: 6 } }] });
+  ck('moveStartEnd', ms.ok && same(rec(ms, 'R_load').start, { x: 4, y: 1 }) && same(rec(ms, 'R_load').end, { x: 8, y: 1 })
+    && same(rec(ms, 'SW5').end, { x: 12, y: 6 }) && same(rec(ms, 'SW5').posts[1].at, { x: 12, y: 6 }));
+  // describe
+  const ds = await A('applyEdits', { doc: B, edits: [{ op: 'describe', id: 'R2', description: 'lower leg' }] });
+  ck('describe', ds.ok && rec(await A('getCircuit', { doc: B, ids: ['R2'] }), 'R2').description === 'lower leg');
+  // add/removeScope; delete in scope
+  const nScopes = async () => (await A('getCircuit', { doc: B, limit: 1 })).data.scopes.length;
+  const sc0 = await nScopes();
+  const as1 = await A('applyEdits', { doc: B, edits: [{ op: 'addScope', element: 'R1' }] });
+  const sc1 = await nScopes();
+  const rs1 = await A('applyEdits', { doc: B, edits: [{ op: 'removeScope', element: 'R1' }] });
+  const sc2 = await nScopes();
+  ck('addRemoveScope', as1.ok && rs1.ok && sc1 === sc0 + 1 && sc2 === sc0);
+  const asq = await A('applyEdits', { doc: B, edits: [{ op: 'addScope', element: 'R2', quantity: 'current' }] });
+  const scq = (await A('getCircuit', { doc: B, limit: 1 })).data.scopes;
+  const del = await A('applyEdits', { doc: B, edits: [{ op: 'delete', id: 'R2' }] });
+  const rem = (del.issues || []).find((i) => i.code === 'scope_removed');
+  ck('deleteInScope', asq.ok && same(scq[scq.length - 1], { element: 'R2', quantity: 'current' }) && del.ok && rem && rem.severity === 'info'
+    && rem.elements.includes('R2') && (await nScopes()) === sc0 && !(await A('getCircuit', { doc: B })).data.elements.some((e) => e.id === 'R2'));
+  // markOpen: the post record shows open=true; marks follow delete
+  const mo = await A('applyEdits', { doc: B, edits: [{ op: 'markOpen', posts: ['R_load.pin2', 'SW5.#0'] }] });
+  const moRec = rec(await A('getCircuit', { doc: B, ids: ['R_load'] }), 'R_load');
+  const marks1 = (await docState(B)).openMarks;
+  await A('applyEdits', { doc: B, edits: [{ op: 'delete', id: 'SW5' }] });
+  const marks2 = (await docState(B)).openMarks;
+  ck('markOpen', mo.ok && moRec.posts[1].open === true && moRec.posts[0].open === false && same(marks1, ['R_load.pin2', 'SW5.a']) && same(marks2, ['R_load.pin2']));
+  // single-post orientation: Ground with end one cell below start
+  const gnd = await A('applyEdits', { doc: B, edits: [{ op: 'add', element: { id: 'G2', type: 'Ground', start: { x: 2, y: 8 }, end: { x: 2, y: 9 } } }] });
+  const gRec = rec(gnd, 'G2');
+  ck('singlePostOrientation', gnd.ok && gRec.posts.length === 1 && same(gRec.posts[0].at, { x: 2, y: 8 }) && same(gRec.end, { x: 2, y: 9 }));
+  await visibleSame('applyEdits');
+  ck('editsNoUndoEntry', (await docState(B)).undo === 0);
+
+  // --- rejected batches leave the document unchanged and add no undo entry
+  const E = (edits) => ({ doc: B, op: 'applyEdits', args: { doc: B, edits } });
+  ck('invalidInBatch', await rejectCase('invalidInBatch', E([
+    { op: 'add', element: { id: 'R40', type: 'Resistor', start: { x: 0, y: 10 }, end: { x: 4, y: 10 } } },
+    { op: 'set', id: 'R1', properties: { resistanse: '1k' } },
+    { op: 'move', id: 'R1', by: { dx: 1, dy: 0 } }]), 'unknown_property'));
+  const uk = await A('applyEdits', { doc: B, edits: [{ op: 'set', id: 'R1', properties: { nope: 1 } }] });
+  ck('unknownPropertyHint', has(uk, 'unknown_property') && /resistance/.test(uk.issues[0].hint));
+  ck('moveByOffLattice', await rejectCase('moveByOffLattice', E([{ op: 'move', id: 'R1', by: { dx: 0.3, dy: 0 } }]), 'off_lattice'));
+  ck('addOffLattice', await rejectCase('addOffLattice', E([{ op: 'add', element: { type: 'Resistor', start: { x: 0.25, y: 10 } } }]), 'off_lattice'));
+  ck('zeroLength', await rejectCase('zeroLength', E([{ op: 'add', element: { type: 'Resistor', start: { x: 1, y: 10 }, end: { x: 1, y: 10 } } }]), 'zero_length'));
+  ck('idInvalid', await rejectCase('idInvalid', E([{ op: 'add', element: { id: '9bad', type: 'Resistor', start: { x: 1, y: 10 } } }]), 'id_invalid'));
+  ck('idTaken', await rejectCase('idTaken', E([{ op: 'add', element: { id: 'R1', type: 'Resistor', start: { x: 1, y: 10 } } }]), 'id_taken'));
+  ck('unknownType', await rejectCase('unknownType', E([{ op: 'add', element: { type: 'Resistr', start: { x: 1, y: 10 } } }]), 'unknown_type'));
+  ck('unknownElement', await rejectCase('unknownElement', E([{ op: 'delete', id: 'R1' }, { op: 'move', id: 'R1', by: { dx: 1, dy: 0 } }]), 'unknown_element'));
+  ck('unknownPost', await rejectCase('unknownPost', E([{ op: 'markOpen', posts: ['R1.pin9'] }]), 'unknown_post'));
+  ck('badQuantity', await rejectCase('badQuantity', E([{ op: 'set', id: 'R1', properties: { resistance: '4.7 kF' } }]), 'invalid_value'));
+  ck('emptyQuantity', await rejectCase('emptyQuantity', E([{ op: 'set', id: 'R1', properties: { resistance: '' } }]), 'invalid_value'));
+  ck('readOnlySet', await rejectCase('readOnlySet', E([{ op: 'set', id: 'T9', properties: { vertical: true } }]), 'invalid_value'));
+  // T9 is a horizontal transformer (axis-aligned endpoints, as the editor's own drag gives): a text
+  // reload rewrites its end corner, so the rejections below also prove the snapshot puts it back
+  ck('transformerHorizontal', (() => { const t = rec(tr, 'T9'); return t && t.start.y === t.end.y; })());
+  ck('rejectedImportKeepsTransformer', await rejectCase('rejectedImportTransformer', { doc: B, op: 'importCircuit', args: { doc: B, circuit: broken } }, 'import_element_skipped'));
+  const big = Array.from({ length: 201 }, (_, i) => ({ op: 'describe', id: 'R1', description: 'x' + i }));
+  ck('batchSize201', await rejectCase('batchSize201', E(big), 'invalid_value'));
+  ck('badOp', await rejectCase('badOp', E([{ op: 'rotate', id: 'R1' }]), 'invalid_value'));
+  // scope slots full: 20 views, then addScope -> scope_limit
+  const twenty = Array.from({ length: 20 - (await nScopes()) }, () => ({ op: 'addScope', element: 'R1' }));
+  const full = await A('applyEdits', { doc: B, edits: twenty });
+  ck('scopeSlotsFull', full.ok && (await nScopes()) === 20 && await rejectCase('scopeLimit', E([{ op: 'addScope', element: 'R_load' }]), 'scope_limit'));
+  await A('applyEdits', { doc: B, edits: Array.from({ length: 1 }, () => ({ op: 'removeScope', element: 'R1' })) });
+  ck('scopesRemoved', (await nScopes()) === 0);
+  out.rejections = rejections;
+
+  // --- forced exception inside a batch (debug hook): snapshot restored, internal_error, global handler
+  const conMark = s.markConsole();
+  const fb = await state(B);
+  await s.eval('CircuitJS1Agent.debugFailNextMutation()');
+  const fe = await A('applyEdits', { doc: B, edits: [
+    { op: 'add', element: { id: 'R41', type: 'Resistor', start: { x: 0, y: 12 }, end: { x: 4, y: 12 } } },
+    { op: 'add', element: { id: 'R42', type: 'Resistor', start: { x: 0, y: 14 }, end: { x: 4, y: 14 } } }] });
+  const fa = await state(B);
+  await sleep(200);
+  const handlerDialog = (await s.call('dialogShowing')).some((d) => /debugFailNextMutation/.test(d));
+  const handlerConsole = s.consoleSince(conMark).some((c) => /debugFailNextMutation/.test(c.text));
+  out.notes.forced = { issues: fe.issues, handlerDialog, handlerConsole };
+  if (!same(fb, fa)) out.notes.forcedDiff = { before: fb, after: fa };
+  ck('forcedExceptionRestores', fe.ok === false && has(fe, 'internal_error') && /debugFailNextMutation/.test(fe.issues[0].message) && same(fb, fa));
+  ck('forcedExceptionReachesHandler', handlerDialog || handlerConsole);
+  await s.call('closeDialogs');
+  await s.eval('CircuitJS1Agent.debugFailNextMutation()');
+  const fi = await A('importCircuit', { doc: B, circuit: { elements: RC_CELLS } });
+  const fa2 = await state(B);
+  ck('forcedExceptionImport', fi.ok === false && has(fi, 'internal_error') && same(fb, fa2) && (await docState(B)).agentOrigin === false);
+  await s.call('closeDialogs');
+  await sleep(200);
+
+  // --- supplied ID matching the generated form (SP_AGA_05_04)
+  const D = (await A('createDocument', {})).data.doc;
+  const s7 = await A('applyEdits', { doc: D, edits: [{ op: 'add', element: { id: 'R7', type: 'Resistor', start: { x: 0, y: 0 } } }] });
+  const s8 = await A('applyEdits', { doc: D, edits: [{ op: 'add', element: { type: 'Resistor', start: { x: 0, y: 2 } } }] });
+  const s9 = await A('applyEdits', { doc: D, edits: [{ op: 'add', element: { type: 'Resistor', start: { x: 0, y: 4 } } }, { op: 'add', element: { id: 'R20', type: 'Resistor', start: { x: 0, y: 6 } } }] });
+  ck('suppliedIdRaisesCounter', s7.ok && s8.ok && same(s8.data.created, ['R8']) && s9.ok && same(s9.data.created, ['R21', 'R20']));
+  await A('closeDocument', { doc: D, discardChanges: true });
+
+  // --- Grid preference of other tabs has no effect (posts; SP_AGA_05_02)
+  const G16 = (await A('createDocument', {})).data.doc;
+  const G8 = (await A('createDocument', {})).data.doc;
+  await A('importCircuit', { doc: G8, circuit: '$ 3 0.000005 10.2 50 5 50 5e-11\n' });
+  const potAt = async (doc, x) => {
+    const r = await A('applyEdits', { doc, edits: [{ op: 'add', element: { type: 'Potentiometer', start: { x, y: 0 }, end: { x: x + 3, y: 0 } } }] });
+    const e = recs(r)[0];
+    return e ? e.posts.map((p) => [p.at.x - x, p.at.y]) : null;
+  };
+  const OPTS_SMALL = '$ 3 0.000005 10.20027730826997 50 5 50 5e-11\n';
+  const OPTS_NORMAL = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11\n';
+  await s.call('importText', OPTS_SMALL + 'r 64 64 128 64 0 1000\n');
+  const optFlags = async () => +String(await s.call('exportText')).split(' ')[1];
+  const smallOn = ((await optFlags()) & 2) !== 0;
+  const pOn = await potAt(G16, 0);
+  await s.call('importText', OPTS_NORMAL + 'r 64 64 128 64 0 1000\n');
+  const smallOff = ((await optFlags()) & 2) === 0;
+  const pOff = await potAt(G16, 10);
+  const p8 = await potAt(G8, 0);
+  out.notes.grid = { smallOn, smallOff, pOn, pOff, p8 };
+  ck('gridOtherTabsNoEffect', smallOn && smallOff && pOn && same(pOn, pOff) && p8 && !same(p8, pOn));
+  // The editor grid follows the option the imported content selects, in both directions
+  const gridOf = async (doc) => (await docState(doc)).gridSize;
+  const gridSeq = [];
+  await A('importCircuit', { doc: G16, circuit: '$ 3 0.000005 10.2 50 5 50 5e-11\n' }); gridSeq.push(await gridOf(G16));
+  await A('importCircuit', { doc: G16, circuit: '$ 1 0.000005 10.2 50 5 50 5e-11\n' }); gridSeq.push(await gridOf(G16));
+  const jsonGrid = (small) => JSON.stringify({ schema: { format: 'circuitjs', version: '2.0' }, simulation: { display: { small_grid: small } }, elements: {} });
+  await A('importCircuit', { doc: G16, circuit: jsonGrid(true) }); gridSeq.push(await gridOf(G16));
+  await A('importCircuit', { doc: G16, circuit: jsonGrid(false) }); gridSeq.push(await gridOf(G16));
+  await A('importCircuit', { doc: G16, circuit: { elements: [], simulation: { display: { small_grid: true } } } }); gridSeq.push(await gridOf(G16));
+  await A('importCircuit', { doc: G16, circuit: { elements: [] } }); gridSeq.push(await gridOf(G16));
+  out.notes.gridSeq = gridSeq;
+  ck('gridFollowsImport', same(gridSeq, [8, 16, 8, 16, 8, 16]));
+  // tab switches keep each document's own grid (8 -> 16 included)
+  const actives = [];
+  for (const d of [G8, G16, G8, G16]) { await A('activateDocument', { doc: d }); actives.push(await gridOf(d)); }
+  out.notes.gridTabs = actives;
+  ck('gridOnTabSwitch', same(actives, [8, 16, 8, 16]));
+  await A('activateDocument', { doc: A0 });
+  for (const d of [G16, G8, B]) await A('closeDocument', { doc: d, discardChanges: true });
+
+  // --- Every catalogue type ([SP_AGA_02_04] add / set over the whole factory): add with the TypeInfo
+  // defaults; a set of every writable key at its current value reports nothing (merge-then-apply is
+  // idempotent); every writable bool key can be set and cleared again (RULE_ARCH_010). NMOS/PMOS "digital"
+  // is the session-wide MOSFET display setting and is read-only.
+  const sweep = await s.eval(`(() => {
+    const A = (op, a) => __H.agentCall(op, a);
+    const out = { types: 0, addFail: [], noopAdjusted: {}, boolFail: {} };
+    const D = A('createDocument', {}).data.doc;
+    let n = 0;
+    for (const t of A('listTypes', {}).data.types.map((x) => x.type)) {
+      out.types++;
+      const info = A('describeType', { type: t }).data;
+      A('importCircuit', { doc: D, circuit: { elements: [] } });
+      const id = 'X' + (++n);
+      const add = A('applyEdits', { doc: D, edits: [{ op: 'add', element: { id, type: t, start: { x: 10, y: 10 } } }] });
+      if (!add.ok) { out.addFail.push(t); continue; }
+      const cur = add.data.elements[0].properties;
+      const patch = {};
+      for (const p of info.properties) if (!p.readOnly && cur[p.key] !== undefined) patch[p.key] = cur[p.key];
+      const ns = A('applyEdits', { doc: D, edits: [{ op: 'set', id, properties: patch }] });
+      const adj = ns.ok ? ns.issues.filter((i) => i.code === 'value_adjusted').map((i) => i.message) : ['rejected'];
+      if (adj.length || add.issues.some((i) => i.code === 'value_adjusted')) out.noopAdjusted[t] = adj;
+      for (const p of info.properties.filter((q) => q.kind === 'bool' && !q.readOnly)) {
+        const v0 = A('getCircuit', { doc: D, ids: [id], detail: 'full' }).data.elements[0].properties[p.key];
+        const r1 = A('applyEdits', { doc: D, edits: [{ op: 'set', id, properties: { [p.key]: !v0 } }] });
+        const r2 = A('applyEdits', { doc: D, edits: [{ op: 'set', id, properties: { [p.key]: v0 } }] });
+        const v1 = r1.ok && r1.data.elements[0].properties[p.key], v2 = r2.ok && r2.data.elements[0].properties[p.key];
+        if (v1 !== !v0 || v2 !== v0) (out.boolFail[t] = out.boolFail[t] || []).push(p.key);
+      }
+    }
+    A('closeDocument', { doc: D, discardChanges: true });
+    return out;
+  })()`);
+  out.sweep = sweep;
+  ck('catalogueSweep', sweep.types >= 140 && sweep.addFail.length === 0 && Object.keys(sweep.noopAdjusted).length === 0 && Object.keys(sweep.boolFail).length === 0);
+
+  // --- MOSFET display flags are session-wide: a background import, and a rejected import into the
+  // visible tab, leave the visible tab's MOSFET unchanged
+  const OPTS = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11\n';
+  await s.call('importText', OPTS + 'f 64 64 128 64 0 1.5 0.02\n');
+  await sleep(200);
+  const mosLine = async () => String(await s.call('exportText')).split('\n').find((l) => l.startsWith('f ')) || '';
+  const mos0 = await mosLine();
+  const M = (await A('createDocument', {})).data.doc;
+  const mImp = await A('importCircuit', { doc: M, circuit: OPTS + 'f 64 64 128 64 4 1.5 0.02\n' });
+  await sleep(300);
+  const mos1 = await mosLine();
+  const mRejA = await A('importCircuit', { circuit: OPTS + 'f 64 64 128 64 4 1.5 0.02\nqqq 1 2 3 4 0\n' });
+  await sleep(300);
+  const mos2 = await mosLine();
+  const dig = await A('applyEdits', { doc: M, edits: [{ op: 'set', id: 'M1', properties: { digital: false } }] });
+  out.notes.mosfet = { mos0, mos1, mos2 };
+  ck('mosfetGlobalFlagsKept', mImp.ok && mos0 !== '' && mos1 === mos0 && mRejA.ok === false && mos2 === mos0);
+  ck('mosfetDigitalReadOnly', dig.ok === false && has(dig, 'invalid_value'));
+  await A('closeDocument', { doc: M, discardChanges: true });
+
+  // --- One ID scheme (active document): exportCircuit json keys = getCircuit IDs = scripting global IDs
+  await s.call('loadExample', 'lrc.txt');
+  const gIds = (await A('getCircuit', { limit: 500 })).data.elements.map((e) => e.id).sort();
+  const eKeys = Object.keys(JSON.parse((await A('exportCircuit', {})).data.content).elements).sort();
+  const sIds = [...(await s.call('ids'))].sort();
+  ck('oneIdScheme', gIds.length > 0 && same(gIds, eKeys) && same(gIds, sIds));
+
+  // --- Legacy circuit inspection (SP_AGA_05_03): user load, every element has an ID, cells, same IDs on reload
+  await s.call('loadExample', 'zenerref.txt');
+  const li0 = await A('getCircuit', { detail: 'full', limit: 500 });
+  await s.call('loadExample', 'zenerref.txt');
+  const li1 = await A('getCircuit', { detail: 'full', limit: 500 });
+  const allCells = recs(li0).every((e) => /^[A-Za-z][A-Za-z0-9_]*$/.test(e.id) && Number.isFinite(e.start.x) && Number.isFinite(e.end.y)
+    && Number.isInteger(e.start.x * 16) && Number.isInteger(e.end.y * 16));
+  const zr = recs(li0).find((e) => e.type === 'Resistor');
+  ck('legacyInspection', li0.ok && recs(li0).length === (await s.call('count')) && allCells && same(recs(li0).map((e) => e.id), recs(li1).map((e) => e.id))
+    && zr && zr.start.x === 416 / 16);
+
+  ck('visibleTabUnchanged', r1.failed.length === 0);
+  out.r1 = r1;
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_edit.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_edit', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_edit.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -1303,7 +1700,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

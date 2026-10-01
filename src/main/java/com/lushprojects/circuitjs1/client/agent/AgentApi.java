@@ -86,6 +86,9 @@ public final class AgentApi {
         this.sim = sim;
         DocumentsOps.register(this);
         CatalogueOps.register(this);
+        ImportOps.register(this);
+        EditOps.register(this);
+        CircuitView.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {

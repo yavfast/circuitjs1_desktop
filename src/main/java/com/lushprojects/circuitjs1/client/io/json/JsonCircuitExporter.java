@@ -134,6 +134,15 @@ public class JsonCircuitExporter implements CircuitExporter {
         return formatJson(root.toString());
     }
 
+    /**
+     * The {@code simulation} object of a JSON v2 export of {@code document} (time steps, display
+     * options, bars, hint), read from the bound session widgets as {@link #export} does. Used by
+     * the agent circuit view ([SP_AGA_02_05] {@code simulation}).
+     */
+    public JSONObject exportSimulation(CircuitDocument document) {
+        return buildSimulation(document);
+    }
+
     private JSONObject buildSchema() {
         JSONObject schema = new JSONObject();
         schema.put("format", new JSONString("circuitjs"));

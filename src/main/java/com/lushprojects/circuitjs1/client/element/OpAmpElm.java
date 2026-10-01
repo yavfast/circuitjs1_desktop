@@ -374,9 +374,7 @@ public class OpAmpElm extends CircuitElm {
         }
 
         // Parse swap inputs
-        if (getJsonBoolean(props, "swap_inputs", false)) {
-            flags |= FLAG_SWAP;
-        }
+        applyJsonFlagProperty(props, "swap_inputs", FLAG_SWAP);
     }
 
     @Override

@@ -48,6 +48,28 @@ public class MosfetElm extends CircuitElm {
     // beta = 1/(RdsON*(Vgs-Vt))
     double beta;
     static int globalFlags;
+
+    /**
+     * @return the session-wide MOSFET display flags (digital symbol, hidden bulk), which every
+     *         MOSFET adopts in setPoints and a text load sets from the loaded MOSFETs
+     */
+    public static int getGlobalFlags() {
+        return globalFlags;
+    }
+
+    /** Restores the session-wide MOSFET display flags (background-document scope, agent rollback). */
+    public static void setGlobalFlags(int flags) {
+        globalFlags = flags;
+    }
+
+    // "digital" is the session-wide display setting (globalFlags), copied onto every MOSFET in
+    // setPoints: exported, but not applied per element from the key
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("digital");
+        return keys;
+    }
     Diode diodeB1, diodeB2;
     double diodeCurrent1, diodeCurrent2, bodyCurrent;
     double curcount_body1, curcount_body2;
@@ -706,15 +728,11 @@ public class MosfetElm extends CircuitElm {
         super.applyJsonProperties(properties);
         vt = getJsonDouble(properties, "threshold_voltage", vt);
         beta = getJsonDouble(properties, "beta", getDefaultBeta());
-        if (getJsonBoolean(properties, "digital", false)) {
-            flags |= FLAG_DIGITAL;
-        }
-        if (getJsonBoolean(properties, "body_diode", false)) {
-            flags |= FLAG_BODY_DIODE;
-        }
-        if (getJsonBoolean(properties, "body_terminal", false)) {
-            flags |= FLAG_BODY_TERMINAL;
-        }
+        // a present false clears the bit; FLAG_DIGITAL is overridden by the session-wide MOSFET
+        // display setting on the next setPoints (globalFlags)
+        applyJsonFlagProperty(properties, "digital", FLAG_DIGITAL);
+        applyJsonFlagProperty(properties, "body_diode", FLAG_BODY_DIODE);
+        applyJsonFlagProperty(properties, "body_terminal", FLAG_BODY_TERMINAL);
     }
 
     @Override

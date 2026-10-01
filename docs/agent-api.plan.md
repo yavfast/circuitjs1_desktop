@@ -32,7 +32,7 @@ When this plan is complete:
 | Layering of shared types | `ElementIdRegistry` at client root behind `CircuitDocument` methods (`nextElementId`, `raiseIdCounter`, `resetElementIds`); the import report collector `io/ImportReport.java` in `io/`; `agent/` only consumes them | RULE_ARCH_001/002: `io/` (L2) and user paths must not import `agent/` (L3) |
 | Session-scoped state | Catalogue cache, document-handle counter, log sequence counter on `BaseCirSim`/`LogManager` | RULE_ARCH_006 |
 | Result values | `com.google.gwt.json.client` (`JSONObject`/`JSONArray`) built in Java, serialized to a JSON string | Already used by `io/json`; one value type across the boundary |
-| JS boundary | One new JSNI adapter `agent/AgentJsBridge.java` exporting `window.CircuitJS1Agent = {call(op, argsJson) → resultJson, callAsync(op, argsJson, callback), reportError(message)}` plus the non-contract diagnostic `debugViewState()` used by the live harness; installed from `CirSim.setupJSInterface()`; entry points wrapped with `$entry`, so a Java exception reaches the global handler and the call returns `undefined`, which callers map to `internal_error` | RULE_ARCH_008: one clustered adapter; string JSON avoids JSNI object marshalling; RULE_ERR_004 |
+| JS boundary | One new JSNI adapter `agent/AgentJsBridge.java` exporting `window.CircuitJS1Agent = {call(op, argsJson) → resultJson, callAsync(op, argsJson, callback), reportError(message)}` plus the non-contract diagnostics used by the live harness: `debugViewState()`, `debugDocState(handle)` (undo/redo depth, modified flag, open marks, editor grid; Phase 4) and `debugFailNextMutation()` (the next importCircuit/applyEdits throws after its first change, for the SP_AGA_03_10 rollback check; Phase 4); installed from `CirSim.setupJSInterface()`; entry points wrapped with `$entry`, so a Java exception reaches the global handler and the call returns `undefined`, which callers map to `internal_error` | RULE_ARCH_008: one clustered adapter; string JSON avoids JSNI object marshalling; RULE_ERR_004 |
 | Client-root additions | `ElementIdRegistry` (document-scoped state used by user paths and `io/`), `DocumentScope` (the silent-bind scope, used by the closed-tab dump and session save as well as by `agent/`; it needs the package-private silent swap), `PathFileAdapter` (placed beside `LoadFile` by SP_AGA_03_09) | Not stateless utilities, so RULE_STRUCT_007 (utilities into `util/`) does not apply; each is reachable from L2 and user paths without an `agent/` import |
 | Path file I/O | One new JSNI adapter `PathFileAdapter.java` at client root, beside `LoadFile` (SP_AGA_03_09), using `$wnd.nw.require('fs')`/`('path')` | RULE_ARCH_008; the existing `LogManager` uses the same NW Node access; the only other JSNI file of this plan |
 | Element creation | `CircuitElementFactory` (JSON) for `add` and AgentCircuit import; `CircuitLoader`/format registry for text and JSON import | RULE_ARCH_005 |
@@ -70,7 +70,7 @@ When this plan is complete:
 - [x] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
 - [x] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
 - [x] [Phase 3 — Catalogue](#PL_AGA_P3)
-- [ ] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
+- [x] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
 - [ ] [Phase 5 — Connectivity, readings and diagnostics](#PL_AGA_P5)
 - [ ] [Phase 6 — Transactions and history](#PL_AGA_P6)
 - [ ] [Phase 7 — Runs, probes and simulation control](#PL_AGA_P7)
@@ -185,7 +185,7 @@ Notes:
   - **Defects fixed.** `RelayElm`: an absent `switching_time` now means 0 (RULE_ARCH_010). The factory key `XNORGate` is removed, because it imported an XNOR as a plain XOR.
   - **Left out.** `Optocoupler` is left out because its `setPoints` throws. Building the catalogue writes one console line for it into the active document's log. `CustomTransformer.tap_offsets` is a list, so it is not declared as a property.
 
-### Phase 4 — Geometry, edits and import [TODO]  {#PL_AGA_P4}
+### Phase 4 — Geometry, edits and import [DONE]  {#PL_AGA_P4}
 
 **Depends on:** Phase 3
 **Implements:** [SP_AGA_01_01](./agent-api.sp.md#SP_AGA_01_01), [SP_AGA_01_03](./agent-api.sp.md#SP_AGA_01_03), [SP_AGA_01_04](./agent-api.sp.md#SP_AGA_01_04), [SP_AGA_01_12](./agent-api.sp.md#SP_AGA_01_12), [SP_AGA_02_03](./agent-api.sp.md#SP_AGA_02_03), [SP_AGA_02_04](./agent-api.sp.md#SP_AGA_02_04), [SP_AGA_02_05](./agent-api.sp.md#SP_AGA_02_05), `exportCircuit` of [SP_AGA_02_14](./agent-api.sp.md#SP_AGA_02_14), [SP_AGA_03_01](./agent-api.sp.md#SP_AGA_03_01), [SP_AGA_03_03](./agent-api.sp.md#SP_AGA_03_03), [SP_AGA_03_04](./agent-api.sp.md#SP_AGA_03_04), [SP_AGA_03_10](./agent-api.sp.md#SP_AGA_03_10), agent-origin suppression of undo pushes ([SP_AGA_04_01](./agent-api.sp.md#SP_AGA_04_01) "Agent origin")
@@ -207,6 +207,15 @@ What to create / change:
 Notes:
 - Results of mutating contracts carry `connectivity` once Phase 5 provides it and `transaction` once Phase 6 provides it; in this phase both fields are absent and are verified in those phases. Agent edits of this phase add no undo entries; the transaction entry arrives in Phase 6. All of this lives on the feature branch and is not released before Phase 6.
 - `set` that changes the canonical type keeps the ID (SP_AGA_02_04 step 4).
+- **Result (2026-10-01, after review round 1).** Live scenario `agent_edit`: 70 checks pass; `npm run test:live` roundtrip/textfid/synth numbers equal the pre-phase baseline (RULE_TEST_003).
+  - **Shape.** `ImportOps` (importCircuit), `EditOps` (applyEdits), `CircuitView` (getCircuit, exportCircuit), `Mutation` (DocumentScope + snapshot + agent origin + pinned grid + rollback guard), `PropertyValues` (strict unit parsing), plus the listed `CellGeometry`, `AgentCircuitConverter`, `DocumentSnapshot`, `OpenMarks`. The open-mark set is a field of `CircuitDocument` (so `UndoItem.openMarks` needs no agent import); the last import's issues are kept there as Issue JSON for Phase 5.
+  - **Snapshot.** `DocumentSnapshot` is an `UndoManager.UndoItem` (now public, with `openMarks`) plus ID counters and the modified flag; restore is the undo load. Phase 6 can push the same entry as the transaction's pre-mutation entry.
+  - **Grid.** The importers already apply the grid option the content selects (`resetCircuitState`, options line, `display.small_grid`); every mutation calls `circuitEditor.setGrid()` inside the scope before and after (the session option is then the target's own), so the grid follows an imported option in both directions. `restoreUIState` now calls `setGrid()` on every activation (it did so only for small-grid documents, which left 8 px after 8 → 16).
+  - **Exact restore.** The snapshot also keeps every element's defining points by ID and re-applies those a text reload rewrote (a horizontal transformer), the session-wide MOSFET display flags, the ID counters and the modified flag; open marks come back exactly (no pruning). `DocumentScope` restores `MosfetElm.globalFlags` after a background bind: a text load of a MOSFET sets them (a user load into the active tab still does, restyling every tab's MOSFETs, as today). The guard catches `Throwable`.
+  - **Flags.** Explicit `flags` (set, add, AgentCircuit import) are applied after the properties, so they win over property-backed bits; changes are reported as `value_adjusted`.
+  - **Element fixes (RULE_ARCH_010).** A present `false` now clears the flag bit in `applyJsonProperties` of Capacitor/Inductor `back_euler`, Gate `schmitt`/`invert_inputs`, Switch family `iec_symbol` and `FLAG_LABEL`, MOSFET `digital`/`body_diode`/`body_terminal`, OpAmp `swap_inputs`, Wire `show_current`/`show_voltage` (helper `CircuitElm.applyJsonFlagProperty`); LogicInput no longer exports `iec_symbol`, which was a second key for its `FLAG_NUMERIC` bit (RULE_STYLE_009). MOSFET `digital` is the session-wide display setting (`globalFlags`) and is now read-only.
+  - **Left for Phase 5.** PostRecord `net` (needs the connectivity naming) and the `connectivity` delta; for Phase 6 the `transaction` field and the undo entry.
+  - **Known limit.** A Transformer whose endpoints are axis-aligned (the editor's own 4-cell drag, and agent `add` with the default size) is rewritten by any text reload — its text constructor synthesizes the diagonal corner. Agent snapshot restores put it back; user undo still changes its `end` (not its posts) — see Backlog.
 
 ### Phase 5 — Connectivity, readings and diagnostics [TODO]  {#PL_AGA_P5}
 
@@ -222,6 +231,7 @@ What to create / change:
 | Solver events | `CircuitSimulator.java` (`warn`, `stop`, forced-step branch) + `client/agent/SolverEvents.java` on `CircuitDocument` | Keep the untranslated key; per-document event list cleared at analysis start; `convergence_failed` event under recovery |
 | Log sequence | `LogManager.java` | `seq` per entry; `getLogsSince(seq, limit)` with gap detection |
 | Diagnostics | `client/agent/DiagnosticsOps.java` | `getDiagnostics` |
+| PostRecord.net (deferred from Phase 4) | `client/agent/CircuitView.java` (record posts) | `net` of every PostRecord from the document's analysed nodes, named by the Connectivity naming rules |
 
 ### Phase 6 — Transactions and history [TODO]  {#PL_AGA_P6}
 
@@ -300,6 +310,7 @@ What to update:
 - Split SP_AGA into an umbrella plus children (it is above the docs soft-split size) — return when: the next `/dev-flow audit docs` flags it, or SP_AGA grows further.
 - Agent control of adjustable sliders (values of element sliders) — return when: an eval or user request needs an agent to drive sliders.
 - ~~Tab-switch hint leak (found by Phase 0): the renderer hint is session state, so activating a tab shows the previous tab's hint items and logs `getElm: invalid index`.~~ **Done in Phase 1:** each document keeps its hint in its saved UI state (`CircuitDocument.saveUIState`/`restoreUIState`/`applyViewState`), used by both the user tab switch and `DocumentScope`.
+- Transformer endpoints rewritten by text reload (affects user undo) — return when: Phase 6 undo work or a user report.
 - Per-element validity ranges as a declared contract (beyond element clamping) — return when: agents are seen setting physically meaningless values that elements accept.
 
 ## Design Decisions  {#PL_AGA_DEC}

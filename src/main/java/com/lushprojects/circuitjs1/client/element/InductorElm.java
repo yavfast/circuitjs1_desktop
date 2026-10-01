@@ -195,9 +195,7 @@ public class InductorElm extends CircuitElm {
         super.applyJsonProperties(properties);
         inductance = getJsonDouble(properties, "inductance", 1e-3);
         initialCurrent = getJsonDouble(properties, "initial_current", 0);
-        if (getJsonBoolean(properties, "back_euler", false)) {
-            flags |= Inductor.FLAG_BACK_EULER;
-        }
+        applyJsonFlagProperty(properties, "back_euler", Inductor.FLAG_BACK_EULER);
         ind.setup(inductance, current, flags);
     }
 

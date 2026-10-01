@@ -74,6 +74,21 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         mouseElmRef = element;
     }
 
+    /**
+     * Drops every editor reference to an element that is being removed outside the editor's own
+     * delete (agent delete): the hovered element, the menu element and the hover highlight, as
+     * {@code doDelete} does.
+     */
+    public void forgetElement(CircuitElm element) {
+        if (element == mouseElm) {
+            setMouseElm(null);
+        }
+        if (element == menuElm) {
+            menuElm = null;
+        }
+        clearMouseElmRef(element);
+    }
+
     public void clearMouseElmRef(CircuitElm element) {
         if (mouseElmRef == element) {
             mouseElmRef = null;

@@ -1,10 +1,13 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class CircuitDocument {
@@ -44,6 +47,92 @@ public class CircuitDocument {
 
     /** [SP_AGA_03_02] Element ID counters of this document (one content lifetime, SP_AGA_04_03). */
     private final ElementIdRegistry elementIdRegistry = new ElementIdRegistry();
+
+    /**
+     * [SP_AGA_04_01] "Agent origin": true while an Agent API mutation of this document runs.
+     * Undo pushes requested by editor paths reused inside the mutation are suppressed
+     * ({@code UndoManager.pushUndo}); they do not count as user edits.
+     */
+    private boolean agentOrigin;
+
+    /**
+     * [SP_AGA_01_12] Open marks: PostRefs ({@code <ElementId>.<PinName>}) the agent declared
+     * intentionally unconnected. In memory only, captured in every undo entry, never written to
+     * circuit files; cleared when the content is replaced.
+     */
+    private final Set<String> openMarks = new LinkedHashSet<>();
+
+    /**
+     * Issues of the most recent agent import into this document, as Issue JSON objects
+     * ([SP_AGA_01_11] {@code lastImport}); null before the first one.
+     */
+    private JSONArray lastImportIssues;
+
+    /** @return true while an agent mutation of this document runs (see {@link #setAgentOrigin}) */
+    public boolean isAgentOrigin() {
+        return agentOrigin;
+    }
+
+    /** Marks or unmarks the running Agent API mutation of this document ([SP_AGA_04_01]). */
+    public void setAgentOrigin(boolean agentOrigin) {
+        this.agentOrigin = agentOrigin;
+    }
+
+    /** @return the open marks in insertion order */
+    public String[] getOpenMarks() {
+        return openMarks.toArray(new String[0]);
+    }
+
+    /** Replaces the open-mark set (undo/redo and snapshot restore). */
+    public void setOpenMarks(String[] marks) {
+        openMarks.clear();
+        if (marks != null) {
+            for (String m : marks) {
+                openMarks.add(m);
+            }
+        }
+    }
+
+    /** @return true when {@code postRef} carries an open mark */
+    public boolean hasOpenMark(String postRef) {
+        return openMarks.contains(postRef);
+    }
+
+    /** Adds ({@code open}) or removes an open mark. */
+    public void setOpenMark(String postRef, boolean open) {
+        if (open) {
+            openMarks.add(postRef);
+        } else {
+            openMarks.remove(postRef);
+        }
+    }
+
+    /** Clears the open-mark set (content replacement, SP_AGA_01_12). */
+    public void clearOpenMarks() {
+        openMarks.clear();
+    }
+
+    /** @return the issues of the last agent import as Issue JSON objects, or null */
+    public JSONArray getLastImportIssues() {
+        return lastImportIssues;
+    }
+
+    public void setLastImportIssues(JSONArray issues) {
+        lastImportIssues = issues;
+    }
+
+    /**
+     * @return a copy of the element ID counters, for a snapshot that must leave the document
+     *         unchanged when restored ([SP_AGA_03_04]); see {@link #restoreIdCounters}
+     */
+    public Map<String, Integer> captureIdCounters() {
+        return elementIdRegistry.copyCounters();
+    }
+
+    /** Puts back counters taken by {@link #captureIdCounters}. */
+    public void restoreIdCounters(Map<String, Integer> counters) {
+        elementIdRegistry.setCounters(counters);
+    }
 
     /**
      * Generates the next ID for {@code prefix} ([SP_AGA_03_02] "Generated IDs"): counter + 1,
@@ -542,10 +631,9 @@ public class CircuitDocument {
         cirSim.renderer.setCircuitArea();
         applyViewState(cirSim, true);
 
-        // Trigger side effects
-        if (smallGrid) {
-            circuitEditor.setGrid();
-        }
+        // The editor grid follows this document's option in both directions (16 -> 8 and 8 -> 16);
+        // calling it only for the small grid left an 8 px grid after the option was cleared.
+        circuitEditor.setGrid();
         cirSim.setPowerBarEnable();
 
         // Restore sliders
@@ -568,6 +656,15 @@ public class CircuitDocument {
         cirSim.renderer.setHintType(hintType);
         cirSim.renderer.setHintItem1(hintItem1);
         cirSim.renderer.setHintItem2(hintItem2);
+    }
+
+    /**
+     * Analyses this document's circuit now, also while it free-runs ([SP_AGA_02_04]: an agent
+     * mutation returns the state of the analysed circuit). Call it while the document is bound.
+     */
+    public void analyzeNow() {
+        simulator.analyzeCircuit();
+        circuitInfo.dcAnalysisFlag = false;
     }
 
     public void dispose() {

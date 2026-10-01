@@ -118,6 +118,28 @@ public final class Catalogue {
         int defaultFlags;
         String summary;
 
+        /** @return the property with this key, or null */
+        PropertyInfo property(String key) {
+            for (PropertyInfo p : properties) {
+                if (p.key.equals(key)) {
+                    return p;
+                }
+            }
+            return null;
+        }
+
+        /** @return the property keys in catalogue order, comma-separated (for hints) */
+        String propertyKeys() {
+            StringBuilder sb = new StringBuilder();
+            for (PropertyInfo p : properties) {
+                if (sb.length() > 0) {
+                    sb.append(", ");
+                }
+                sb.append(p.key);
+            }
+            return sb.length() == 0 ? "(none)" : sb.toString();
+        }
+
         /** @return the index form {type, aliases, pins, geometry, summary} */
         JSONObject toIndexJson() {
             JSONObject o = new JSONObject();
@@ -390,7 +412,11 @@ public final class Catalogue {
         matchEditEntries(info.properties, editEntries(elm));
     }
 
-    private static PropertyInfo describeValue(String key, Object value) {
+    /**
+     * @return the PropertyInfo (kind, unit, default) of an exported property value, or null for
+     *         a structured value (list, map), which is no agent property
+     */
+    static PropertyInfo describeValue(String key, Object value) {
         PropertyInfo p = new PropertyInfo();
         p.key = key;
         if (value instanceof Boolean) {
@@ -600,7 +626,7 @@ public final class Catalogue {
         return prev[b.length()];
     }
 
-    private static JSONValue jsonValue(Object v) {
+    static JSONValue jsonValue(Object v) {
         if (v instanceof Boolean) {
             return JSONBoolean.getInstance((Boolean) v);
         }

@@ -1946,6 +1946,18 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * 
      * @param jsonFlags The flags value from JSON
      */
+    /**
+     * Applies a bool JSON property that is stored as a flag bit: a present key sets or clears the
+     * bit, an absent key keeps the bit given by {@code _flags} (RULE_ARCH_010). Clearing matters
+     * for the agent {@code set}, which applies the merged property set: {@code false} must undo an
+     * earlier {@code true}.
+     */
+    protected void applyJsonFlagProperty(java.util.Map<String, Object> properties, String key, int flag) {
+        if (properties != null && properties.containsKey(key)) {
+            flags = getJsonBoolean(properties, key, false) ? (flags | flag) : (flags & ~flag);
+        }
+    }
+
     public void applyJsonFlags(int jsonFlags) {
         this.flags = jsonFlags;
     }
@@ -1958,6 +1970,16 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public void finalizeJsonImport() {
         initBoundingBox();
         setPoints();
+    }
+
+    /**
+     * [SP_AGA_02_04] {@code set} step 3: after {@link #applyJsonProperties} changed an existing
+     * element, re-runs its geometry (the JSON import's finalisation) and its node allocation,
+     * whose size may follow a property (a chip's bit count).
+     */
+    public void refreshAfterPropertyChange() {
+        finalizeJsonImport();
+        allocNodes();
     }
 
     /**

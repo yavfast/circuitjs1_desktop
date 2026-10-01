@@ -174,14 +174,8 @@ public class WireElm extends CircuitElm {
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
 
-        // Parse show current flag
-        if (getJsonBoolean(props, "show_current", false)) {
-            flags |= FLAG_SHOWCURRENT;
-        }
-
-        // Parse show voltage flag
-        if (getJsonBoolean(props, "show_voltage", false)) {
-            flags |= FLAG_SHOWVOLTAGE;
-        }
+        // Show current / voltage flags (a present false clears the bit)
+        applyJsonFlagProperty(props, "show_current", FLAG_SHOWCURRENT);
+        applyJsonFlagProperty(props, "show_voltage", FLAG_SHOWVOLTAGE);
     }
 }

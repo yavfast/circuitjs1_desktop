@@ -12,6 +12,7 @@ import com.google.gwt.user.client.ui.MenuItem;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
+import com.lushprojects.circuitjs1.client.io.ImportReport;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
@@ -63,6 +64,24 @@ public class CircuitLoader extends BaseCirSimDelegate implements CircuitConst {
         
         CircuitImporter importer = format.createImporter();
         importer.importCircuit(circuitData, getActiveDocument(), flags);
+    }
+
+    /**
+     * Reads circuit data in the given format ({@code null}: auto-detect) and reports every
+     * skipped, failed or adjusted item to {@code report} ([SP_AGA_03_04]).
+     *
+     * @param report collector of import issues; null behaves like the other overloads
+     */
+    public void readCircuit(String circuitData, String formatId, int flags, ImportReport report) {
+        if (circuitData == null || circuitData.isEmpty()) {
+            return;
+        }
+        CircuitFormat format = formatId == null ? CircuitFormatRegistry.detectFormatOrDefault(circuitData)
+                : CircuitFormatRegistry.getById(formatId);
+        if (format == null) {
+            format = CircuitFormatRegistry.getDefault();
+        }
+        format.createImporter().importCircuit(circuitData, getActiveDocument(), flags, report);
     }
 
     /**

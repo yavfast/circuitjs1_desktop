@@ -74,6 +74,17 @@ public final class ElementIdRegistry {
         return id;
     }
 
+    /** @return a copy of the counters (restored by {@link #setCounters}) */
+    Map<String, Integer> copyCounters() {
+        return new HashMap<>(counters);
+    }
+
+    /** Replaces the counters with a copy taken by {@link #copyCounters}. */
+    void setCounters(Map<String, Integer> saved) {
+        counters.clear();
+        counters.putAll(saved);
+    }
+
     void setPendingRestore(String[] ids) {
         pendingRestore = ids;
     }

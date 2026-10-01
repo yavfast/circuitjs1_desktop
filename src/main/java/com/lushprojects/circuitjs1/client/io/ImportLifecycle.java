@@ -72,6 +72,9 @@ public final class ImportLifecycle {
         // undo/redo restore keeps the current one.
         if (!document.isRestoringElementIds()) {
             document.resetElementIds();
+            // [SP_AGA_01_12] Replacing the content clears the open-mark set; an undo/redo restore
+            // puts the snapshot's marks back after loading.
+            document.clearOpenMarks();
         }
         document.adjustableManager.reset();
         renderer.setHintType(-1);
@@ -101,6 +104,14 @@ public final class ImportLifecycle {
      * Finalize circuit loading with post-processing.
      */
     public static void finalizeCircuitLoading(CircuitDocument document, int flags) {
+        finalizeCircuitLoading(document, flags, null);
+    }
+
+    /**
+     * Finalize circuit loading with post-processing; ID warnings also go to {@code report}
+     * ([SP_AGA_03_04], may be null).
+     */
+    public static void finalizeCircuitLoading(CircuitDocument document, int flags, ImportReport report) {
         CirSim cirSim = document.getCirSim();
         CircuitSimulator simulator = document.simulator;
         CircuitRenderer renderer = document.getRenderer();
@@ -108,9 +119,13 @@ public final class ImportLifecycle {
         // [SP_AGA_03_02] Every element gets its ID before anything else can ask for one:
         // supplied (JSON keys) and restored (undo) IDs raise their counters first, then elements
         // without one get generated IDs in element order (text lines, pastes, auto-wires).
-        // Phase 4: ImportReport — return these ids_regenerated warnings to the caller too.
+        // The ids_regenerated warnings are logged and, for a reporting caller, returned too.
         for (String warning : document.settleElementIds()) {
             CirSim.console("[WARN] ids_regenerated: " + warning);
+            if (report != null) {
+                report.addForKey(ImportReport.IDS_REGENERATED, ImportReport.Severity.WARNING, warning,
+                        null);
+            }
         }
 
         cirSim.setPowerBarEnable();
