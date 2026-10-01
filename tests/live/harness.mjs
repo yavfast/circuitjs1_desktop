@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -1941,6 +1941,80 @@ async function scenarioAgentConnectAll(s) {
   function recs(r) { return (r && r.data && r.data.elements) || []; }
 }
 
+// geom_posts: element posts stay at the positions the pre-refactor build (dde7f33^) gave them.
+// Since dde7f33 ElmGeometry started the leads as the same Point objects as the posts, so elements
+// that interpolate into a lead (gates, Schmitt, delay buffer, crystal, single-post labels) moved
+// their own posts. Expected posts come from a reference run of the dde7f33^ build: the element
+// line is loaded as text at three geometries, drawn (SVG export, for leads computed in draw()),
+// reloaded from its own text export, and its JSON pin positions are compared. Elements whose
+// two posts are their endpoints are also checked in examples that use them.
+const GEOM_POST_CASES = [
+  ["Inverter", "I", "0 0.5 5", {"H96":"208,208 304,208","V96":"208,208 208,304","D64":"208,208 272,272"}],
+  ["NANDGate", "151", "0 2 0 5", {"H96":"208,224 208,192 304,208","V96":"192,208 224,208 208,304","D64":"197,219 219,197 272,272"}],
+  ["Crystal", "412", "1 4\\s2.87e-11\\s0\\s0.001\\s0.001 4\\s1e-13\\s0\\s0.001\\s0.001 0\\s0.0025\\s0\\s0 0\\s6.4", {"H96":"208,208 304,208","V96":"208,208 208,304","D64":"208,208 272,272"}],
+  ["Schmitt", "182", "0 0.5 1.66 3.33 5 0", {"H96":"208,208 304,208","V96":"208,208 208,304","D64":"208,208 272,272"}],
+  ["InvertingSchmitt", "183", "0 0.5 1.66 3.33 5 0", {"H96":"208,208 304,208","V96":"208,208 208,304","D64":"208,208 272,272"}],
+  ["DelayBuffer", "422", "0 0 2.5 5", {"H96":"208,208 304,208","V96":"208,208 208,304","D64":"208,208 272,272"}],
+  ["TestPoint", "368", "0 0", {"H96":"208,208","V96":"208,208","D64":"208,208"}],
+  ["StopTrigger", "408", "0 1 0 0", {"H96":"208,208","V96":"208,208","D64":"208,208"}],
+  ["LabeledNode", "207", "4 label", {"H96":"208,208","V96":"208,208","D64":"208,208"}],
+  ["FM", "201", "0 800 40 5 200", {"H96":"208,208","V96":"208,208","D64":"208,208"}],
+  ["TriState", "180", "0 0.1 10000000000 100000000 5", {"H96":"208,208 304,208 256,224","V96":"208,208 208,304 192,256","D64":"208,208 272,272 229,251"}],
+];
+const GEOM_POST_GEOMS = { H96: [208, 208, 304, 208], V96: [208, 208, 208, 304], D64: [208, 208, 272, 272] };
+const GEOM_POST_OPTIONS = '$ 0 0.000005 1.0312258501325766 50 5 50 5e-11';
+
+async function scenarioGeomPosts(s) {
+  const out = { checks: {}, mismatches: [] };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  // The first SVG export loads canvas2svg asynchronously; later ones draw synchronously.
+  out.svgReady = await s.eval(`(async () => {
+    window.__geomSvg = 0; const prev = CircuitJS1.onsvgrendered;
+    CircuitJS1.onsvgrendered = function () { window.__geomSvg++; };
+    CircuitJS1.getCircuitAsSVG();
+    for (let i = 0; i < 100 && !window.__geomSvg; i++) await new Promise((r) => setTimeout(r, 100));
+    window.__geomSvgPrev = prev; return window.__geomSvg > 0;
+  })()`);
+  const posts = () => s.eval(`(() => {
+    CircuitJS1.getCircuitAsSVG();
+    const j = JSON.parse(CircuitJS1.exportAsJson()); const els = CircuitJS1.getElements();
+    return Object.values(j.elements || {}).map((e, i) => {
+      const p = e.pins || {};
+      return { type: e.type, ends: [els[i].getX(), els[i].getY(), els[i].getX2(), els[i].getY2()],
+        pos: Object.keys(p).filter((n) => n !== '_startpoint' && n !== '_endpoint').map((n) => p[n].position.x + ',' + p[n].position.y).join(' ') };
+    });
+  })()`);
+  for (const [type, code, rest, expected] of GEOM_POST_CASES) {
+    for (const [g, c] of Object.entries(GEOM_POST_GEOMS)) {
+      const text = `${GEOM_POST_OPTIONS}\n${code} ${c.join(' ')} ${rest}\n`;
+      await s.call('importText', text);
+      const a = await posts();
+      await s.call('importText', await s.call('exportText')); // second setPoints pass from the saved text
+      const b = await posts();
+      const ok = a.length === 1 && a[0].pos === expected[g] && b.length === 1 && b[0].pos === expected[g];
+      if (!ck(`${type}@${g}`, ok)) out.mismatches.push({ type, g, expected: expected[g], got: a.map((e) => e.pos), reloaded: b.map((e) => e.pos) });
+    }
+  }
+  // Two-post elements whose posts are their endpoints, inside bundled examples.
+  const endPostTypes = ['Inverter', 'Schmitt', 'InvertingSchmitt', 'DelayBuffer', 'Crystal'];
+  out.examples = {};
+  for (const name of ['inv-osc.txt', 'crystalosc.txt', '7segdecoder.txt', 'delta-pwm.txt']) {
+    await s.call('loadExample', name);
+    const els = (await posts()).filter((e) => endPostTypes.includes(e.type));
+    const bad = els.filter((e) => e.pos !== `${e.ends[0]},${e.ends[1]} ${e.ends[2]},${e.ends[3]}`);
+    out.examples[name] = { checked: els.length, bad: bad.length };
+    if (!ck('example_' + name, els.length > 0 && !bad.length)) out.mismatches.push({ example: name, bad: bad.slice(0, 5) });
+  }
+  await s.eval(`(() => { CircuitJS1.onsvgrendered = window.__geomSvgPrev; return true; })()`);
+  ck('svgReady', out.svgReady);
+  ck('noPageException', s.exceptions.length === exMark);
+  fs.writeFileSync(path.join(OUT_DIR, 'geom_posts.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('geom_posts', !failed.length, { checks: Object.keys(out.checks).length, failed, examples: out.examples, details: path.join(OUT_DIR, 'geom_posts.json') });
+}
+
 // agent_freerun: headless approximation of RULE_TEST_002 after the simulator-core changes of
 // PL_AGA Phase 5. Free-runs an analog (lrc.txt), a digital (counter.txt) and a subcircuit
 // (alu74181.txt) example for ~2 s each in the visible tab and asserts that simulated time
@@ -2001,7 +2075,7 @@ async function scenarioAgentFreeRun(s) {
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -2042,7 +2116,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

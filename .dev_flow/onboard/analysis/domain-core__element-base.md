@@ -507,11 +507,12 @@ Grouped by concern. File:line refers to the default implementation.
 - **Role:** **Single source of truth** for element geometry. Each
   `CircuitElm` owns one instance via `geom()` and every endpoint /
   lead / bounding-box read or write is funnelled through it.
-- **Fields (all package-private):**
+- **Fields (private):**
   - `x1, y1, x2, y2` — grid-coordinate endpoints
   - `point1, point2` — canonical `Point` objects (stable references);
-    lead aliases (`lead1`, `lead2`) default to these and may be
-    replaced via `setLead1`/`setLead2`
+    leads (`lead1`, `lead2`) are separate objects (never aliased to
+    the posts; `setLead1`/`setLead2` copy a post passed to them) and
+    take the post positions by value on every geometry update
   - `boundingBox` — `Rectangle` for selection hit-testing
   - Derived: `dx, dy, dsign, dn, dpx1, dpy1` — recomputed by
     `updatePointsFromEndpoints()`
@@ -987,11 +988,10 @@ Ordering guarantees observed in the base class:
 10. **`CustomCompositeElm.updateModels()` silently returns if the
     model is not in the registry** (`CustomCompositeElm.java:180`) —
     the element ends up half-initialized. No user-visible error.
-11. **`ElmGeometry.calcLeads(int len)`** creates new `Point` objects
-    lazily to avoid aliasing with `point1`/`point2`, but the check
-    `lead1 == null || lead1 == p1` (line 345) uses reference
-    equality, which is correct but brittle if anything else assigns
-    `lead1` externally.
+11. ~~**`ElmGeometry.calcLeads(int len)`** aliasing check~~ — resolved:
+    leads are never the post objects (from dde7f33 until the fix they
+    started as `point1`/`point2`, which moved the posts of elements that
+    interpolate into a lead).
 12. **`CircuitElm.getCurrentIntoNode(int n)` special-cases `getPostCount() == 2`**
     (line 1330-1336) — two-port elements return `-current` for post 0
     and `+current` otherwise. Multi-port elements must override;

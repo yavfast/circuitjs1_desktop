@@ -81,7 +81,7 @@ Nested `public class Pin`: `Point post, stub, textloc`; `int pos, side, side0, v
 |-------|------|-------------|
 | `x1, y1, x2, y2` | `int` | Grid-coordinate endpoints. |
 | `point1, point2` | `Point` | Canonical endpoint objects (stable refs). |
-| `lead1, lead2` | `Point` | Lead aliases (default to point1/point2). |
+| `lead1, lead2` | `Point` | Lead points: separate objects from point1/point2 (never aliased), set to the post positions by value on every geometry update until the element computes them. |
 | `boundingBox` | `Rectangle` | Selection hit-test rect. |
 | `dx, dy, dsign, dn, dpx1, dpy1` | `int/double` | Derived; recomputed by `updatePointsFromEndpoints()`. |
 

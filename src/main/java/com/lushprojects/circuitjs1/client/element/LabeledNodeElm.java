@@ -88,18 +88,7 @@ public class LabeledNodeElm extends CircuitElm {
 
     public void setPoints() {
         super.setPoints();
-        // lead1 was a protected field in CircuitElm, now in ElmGeometry.
-        // We need to use setters/getters. But LabeledNodeElm seems to want to modify
-        // it?
-        // "if (lead1 == null ... lead1 = new Point())"
-        // geom() should handle initialization.
-        // Let's use getLead1() and see if it's null.
-        // Actually, ElmGeometry initializes lead1.
-        // lead1 starts out as the same object as point1 (the post): interpolating into it would
-        // move the post to the circle and disconnect the label from what it was drawn on.
-        if (geom().getLead1() == geom().getPoint1()) {
-            geom().setLead1(new Point());
-        }
+        // lead1 is a separate object from the post (ElmGeometry), so this keeps the post in place.
         double dn = getDn();
         interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
     }

@@ -19,8 +19,11 @@ public final class ElmGeometry {
     // Canonical point objects (stable references)
     private final Point point1 = new Point();
     private final Point point2 = new Point();
-    private Point lead1 = point1;
-    private Point lead2 = point2;
+    // Lead points (ends of the wire stubs drawn inside the element). Always distinct objects
+    // from point1/point2: elements interpolate into their leads in place, and an aliased lead
+    // would move the post with it.
+    private Point lead1 = new Point();
+    private Point lead2 = new Point();
 
     private final Rectangle boundingBox = new Rectangle();
 
@@ -92,19 +95,39 @@ public final class ElmGeometry {
     }
 
     /**
-     * Replace the lead point reference. Needed for elements that must ensure
-     * leads are not aliased to endpoints.
+     * Replace the lead point reference. A post (point1/point2) or null is not stored as the
+     * lead: the lead becomes a separate copy, so writing into it never moves the post.
      */
     public void setLead1(Point lead1) {
-        this.lead1 = lead1;
+        this.lead1 = detachedLead(lead1);
     }
 
     /**
-     * Replace the lead point reference. Needed for elements that must ensure
-     * leads are not aliased to endpoints.
+     * Replace the lead point reference. A post (point1/point2) or null is not stored as the
+     * lead: the lead becomes a separate copy, so writing into it never moves the post.
      */
     public void setLead2(Point lead2) {
-        this.lead2 = lead2;
+        this.lead2 = detachedLead(lead2);
+    }
+
+    private Point detachedLead(Point p) {
+        if (p == null) {
+            return new Point();
+        }
+        if (p == point1 || p == point2) {
+            return new Point(p);
+        }
+        return p;
+    }
+
+    // Lead objects not aliased to a post (they are replaced only through setLead1/setLead2).
+    private void ensureLeadsDetached() {
+        if (lead1 == null || lead1 == point1 || lead1 == point2) {
+            lead1 = new Point();
+        }
+        if (lead2 == null || lead2 == point1 || lead2 == point2) {
+            lead2 = new Point();
+        }
     }
 
     public Rectangle getBoundingBox() {
@@ -133,16 +156,14 @@ public final class ElmGeometry {
         point2.x = x2;
         point2.y = y2;
 
+        // Leads default to the post positions (by value) until the element's setPoints()
+        // computes them; elements that never set leads read the posts.
+        ensureLeadsDetached();
+        lead1.setLocation(point1);
+        lead2.setLocation(point2);
+
         // Allow owner to adjust derived geometry.
         owner.adjustDerivedGeometry(this);
-
-        // Ensure leads always exist.
-        if (lead1 == null) {
-            lead1 = point1;
-        }
-        if (lead2 == null) {
-            lead2 = point2;
-        }
     }
 
     /**
@@ -331,27 +352,16 @@ public final class ElmGeometry {
         Point p1 = point1;
         Point p2 = point2;
 
+        ensureLeadsDetached();
         if (effectiveDn < len || len == 0) {
-            lead1 = p1;
-            lead2 = p2;
+            // Leads at the posts (by value, so a later write into a lead keeps the post).
+            lead1.setLocation(p1);
+            lead2.setLocation(p2);
             return;
         }
 
-        if (effectiveDn == 0) {
-            lead1 = p1;
-            lead2 = p2;
-        } else {
-            // Allocate lead points once; reuse thereafter.
-            if (lead1 == null || lead1 == p1) {
-                lead1 = new Point();
-            }
-            if (lead2 == null || lead2 == p2) {
-                lead2 = new Point();
-            }
-
-            BaseCircuitElm.interpPoint(p1, p2, lead1, (effectiveDn - len) / (2 * effectiveDn));
-            BaseCircuitElm.interpPoint(p1, p2, lead2, (effectiveDn + len) / (2 * effectiveDn));
-        }
+        BaseCircuitElm.interpPoint(p1, p2, lead1, (effectiveDn - len) / (2 * effectiveDn));
+        BaseCircuitElm.interpPoint(p1, p2, lead2, (effectiveDn + len) / (2 * effectiveDn));
     }
 
     public void adjustLeadsToGrid(boolean flipX, boolean flipY) {
@@ -366,14 +376,7 @@ public final class ElmGeometry {
         int adjx = owner.circuitEditor().snapGrid(cx + roundx) - cx;
         int adjy = owner.circuitEditor().snapGrid(cy + roundy) - cy;
 
-        // Ensure we don't accidentally move endpoints when leads are aliased.
-        if (lead1 == null || lead1 == p1) {
-            lead1 = new Point(p1);
-        }
-        if (lead2 == null || lead2 == p2) {
-            lead2 = new Point(p2);
-        }
-
+        ensureLeadsDetached();
         lead1.move(adjx, adjy);
         lead2.move(adjx, adjy);
     }
