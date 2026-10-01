@@ -58,7 +58,7 @@ public class TriacElm extends CircuitElm {
         triggerI = Double.parseDouble(st.nextToken());
         holdingI = Double.parseDouble(st.nextToken());
         cresistance = Double.parseDouble(st.nextToken());
-        state = Boolean.parseBoolean(st.nextToken());
+        state = parseBool(st.nextToken());
         setup();
     }
 
@@ -93,7 +93,8 @@ public class TriacElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), triggerI, holdingI, cresistance, state);
+        // "true"/"false" as in the original format (Boolean.parseBoolean readers); parseBool also takes 1/0
+        return dumpValues(super.dump(), triggerI, holdingI, cresistance, String.valueOf(state));
     }
 
     double i1, i2, ig, curcount_1, curcount_2, curcount_g;

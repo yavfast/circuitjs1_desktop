@@ -43,7 +43,7 @@ public class MonostableElm extends ChipElm {
     public MonostableElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
                          StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
-        retriggerable = Boolean.parseBoolean(st.nextToken());
+        retriggerable = parseBool(st.nextToken());
         delay = parseDouble(st.nextToken());
         reset();
     }
@@ -97,7 +97,8 @@ public class MonostableElm extends ChipElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), retriggerable, delay);
+        // "true"/"false" as in the original format (Boolean.parseBoolean readers); parseBool also takes 1/0
+        return dumpValues(super.dump(), String.valueOf(retriggerable), delay);
     }
 
     int getDumpType() {

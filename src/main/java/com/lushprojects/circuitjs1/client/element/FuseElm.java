@@ -50,11 +50,12 @@ public class FuseElm extends CircuitElm {
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
         heat = parseDouble(st.nextToken());
-        blown = Boolean.parseBoolean(st.nextToken());
+        blown = parseBool(st.nextToken());
     }
 
     public String dump() {
-        return dumpValues(super.dump(), resistance, i2t, heat, blown);
+        // "true"/"false" as in the original format (Boolean.parseBoolean readers); parseBool also takes 1/0
+        return dumpValues(super.dump(), resistance, i2t, heat, String.valueOf(blown));
     }
 
     int getDumpType() {

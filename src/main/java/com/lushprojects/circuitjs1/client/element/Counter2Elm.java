@@ -39,6 +39,15 @@ public class Counter2Elm extends ChipElm {
             modulus = Integer.parseInt(st.nextToken());
         } catch (Exception e) {
         }
+        justLoaded = true;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // As after a text load: defer the first execute() so all-zero node voltages at load
+        // time do not clear the restored count or read the clock as a new edge.
+        justLoaded = true;
     }
 
     public String dump() {
@@ -123,6 +132,11 @@ public class Counter2Elm extends ChipElm {
     boolean carry;
 
     void execute() {
+        // if we just loaded then the voltages are likely to be all zeroes, which would trigger an
+        // active-low clear and a false clock edge, so defer execution until the next iteration
+        if (skipExecuteAfterLoad(clk)) {
+            return;
+        }
         if (pins[clk].value && !lastClock) {
             if (pins[enp].value && pins[ent].value) {
                 int i;

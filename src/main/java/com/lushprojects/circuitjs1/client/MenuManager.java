@@ -26,7 +26,7 @@ public class MenuManager extends BaseCirSimDelegate {
     MenuItem aboutCircuitsPLItem;
     MenuItem closeItem;
     // CheckboxMenuItem fullscreenCheckItem;
-    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsLocalFileItem, exportAsTextItem,
+    MenuItem importFromLocalFileItem, importFromTextItem, exportAsUrlItem, exportAsTextItem,
             exportAsJsonItem,
             printItem, saveFileItem, openLastClosedTabItem;
     // MenuItem importFromDropboxItem;
@@ -148,16 +148,6 @@ public class MenuManager extends BaseCirSimDelegate {
         saveFileItem = fileMenuBar.addItem(menuItemWithShortcut("floppy", "Save", Locale.LS(ctrlMetaKey + "S"),
                 new MyCommand("file", "save")));
         fileMenuBar.addItem(iconMenuItem("floppy", "Save As...", new MyCommand("file", "saveas")));
-        /*
-         * } else {
-         * exportAsLocalFileItem = menuItemWithShortcut("floppy", "Save As...",
-         * Locale.LS(ctrlMetaKey + "S"),
-         * new MyCommand("file","exportaslocalfile"));
-         * exportAsLocalFileItem.setEnabled(ExportAsLocalFileDialog.downloadIsSupported(
-         * ));
-         * fileMenuBar.addItem(exportAsLocalFileItem);
-         * }
-         */
         exportAsUrlItem = iconMenuItem("export", "Export As Link...", new MyCommand("file", "exportasurl"));
         fileMenuBar.addItem(exportAsUrlItem);
         exportAsTextItem = iconMenuItem("export", "Export As Text...", new MyCommand("file", "exportastext"));

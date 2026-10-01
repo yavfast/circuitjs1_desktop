@@ -80,7 +80,8 @@ public class SwitchElm extends CircuitElm {
     }
 
     public String dump() {
-        String s = dumpValues(super.dump(), position, momentary);
+        // "true"/"false" as in the original format (upstream reads it with Boolean.parseBoolean)
+        String s = dumpValues(super.dump(), position, String.valueOf(momentary));
         if ((flags & FLAG_LABEL) != 0) {
             s += " " + escape(label);
         }

@@ -60,7 +60,7 @@ public class MotorProtectionSwitchElm extends CircuitElm {
         super(circuitDocument, xa, ya, xb, yb, f);
         resistance = parseDouble(st.nextToken());
         i2t = parseDouble(st.nextToken());
-        blown = Boolean.parseBoolean(st.nextToken());
+        blown = parseBool(st.nextToken());
         label = "";
         try {
             label = CustomLogicModel.unescape(st.nextToken());
@@ -72,7 +72,8 @@ public class MotorProtectionSwitchElm extends CircuitElm {
     }
 
     public String dump() {
-        return dumpValues(super.dump(), resistance, i2t, blown, CustomLogicModel.escape(label));
+        // "true"/"false" as in the original format (Boolean.parseBoolean readers); parseBool also takes 1/0
+        return dumpValues(super.dump(), resistance, i2t, String.valueOf(blown), CustomLogicModel.escape(label));
     }
 
     int getDumpType() {

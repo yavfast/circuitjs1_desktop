@@ -395,6 +395,62 @@ async function scenarioSliders(s) {
   report('D.element_sliders', pass, { sliders: [n(out.onLoad), n(out.afterDuplicate), n(out.afterUndo), n(out.afterDelete)], buttons: [b(out.onLoad), b(out.afterDuplicate), b(out.afterUndo), b(out.afterDelete)], adjustableLines: [out.adjOnLoad, out.adjAfterDuplicate] });
 }
 
+// Runs in the page: state that must survive a text/JSON reload (what undo does) — chip clock
+// history (no false edge, no active-low clear at load), boolean dump fields, `38` slider indices
+// when a dump-less element precedes them.
+async function loadStateProbe() {
+  const C = window.CircuitJS1, out = {};
+  const base = location.href.replace(/[^/]*$/, '') + 'circuitjs1/circuits/';
+  const get = async (f) => (await fetch(base + f)).text();
+  const steps = (n) => { for (let i = 0; i < n; i++) C.stepSimulation(); };
+  const load = (t) => { C.setSimRunning(false); C.importCircuit(t, false); C.setSimRunning(false); };
+  const volts = (type, posts) => { const e = C.getElements().find((x) => x.getType() === type); return posts.map((i) => Math.round(e.getVoltage(i))); };
+  // D flip-flop, clock high at t=0, saved Q=0 / Q=5
+  const d2 = await get('divideby2.txt');
+  load(d2); steps(20); out.dffFreshQ = volts('DFlipFlopElm', [1])[0];
+  load(d2.replace('155 272 96 320 96 0 0.0', '155 272 96 320 96 0 5.0')); steps(20); out.dffSavedQ5 = volts('DFlipFlopElm', [1])[0];
+  // counter with an active-low reset held high: count kept across text and JSON reload
+  load(await get('graycode.txt')); steps(1500);
+  const c0 = volts('CounterElm', [2, 3, 4, 5]).join();
+  load(C.exportCircuit()); steps(20); const c1 = volts('CounterElm', [2, 3, 4, 5]).join();
+  C.importFromJson(C.exportAsJsonWithState()); C.setSimRunning(false); steps(20); const c2 = volts('CounterElm', [2, 3, 4, 5]).join();
+  out.counter = [c0, c1, c2];
+  // boolean dump fields survive two text passes
+  // [line, expected flag]; `false` cases catch a reader that always returns true
+  const lines = [['164 144 152 224 152 0 4 0 0 0 0 true 0', 'true'], ['164 144 152 224 152 0 4 0 0 0 0 false 0', 'false'],
+    ['428 640 432 736 576 0 0.0613 6.73 true abc', 'true'], ['206 1360 272 1312 528 0 0.011 0.008 100 true', 'true'],
+    ['404 100 100 200 100 0 0.05 2 0 true', 'true'], ['194 100 100 164 100 0 true 0.01', 'true'], ['s 100 100 200 100 0 1 true', 'true']];
+  out.boolLost = [];
+  for (const [L, flag] of lines) {
+    const code = L.split(' ')[0];
+    const pick = (x) => x.split('\n').find((l) => l.startsWith(code + ' '));
+    load('$ 1 5e-6 10 50 5\n' + L + '\n'); load(C.exportCircuit());
+    if (!new RegExp(' ' + flag + '( |$)').test(pick(C.exportCircuit()) || '')) out.boolLost.push(code + ':' + flag);
+  }
+  // `38` lines with a standalone CustomCompositeChip placed first
+  load(await get('lrc.txt'));
+  const elmLines = (t) => t.split('\n').filter((l) => l && !/^(38|o|h|\$|%|\?|!) /.test(l + ' ') && !l.startsWith('$'));
+  const refTypes = (t) => { const L = elmLines(t); return t.split('\n').filter((l) => l.startsWith('38 ')).map((l) => (L[+l.split(' ')[1]] || '?').split(' ')[0]).join(); };
+  const want = refTypes(C.exportCircuit());
+  const j = JSON.parse(C.exportAsJson());
+  j.elements = Object.assign({ XCHIP: { type: 'CustomCompositeChip', p1: { x: 600, y: 600 }, p2: { x: 700, y: 600 } } }, j.elements);
+  C.importFromJson(JSON.stringify(j)); C.setSimRunning(false);
+  const t1 = C.exportCircuit(); load(t1);
+  out.sliderRefs = [want, refTypes(t1), refTypes(C.exportCircuit())];
+  return out;
+}
+async function scenarioLoadState(s) {
+  await resetApp(s);
+  const out = await s.eval(`(${loadStateProbe.toString()})()`);
+  fs.writeFileSync(path.join(OUT_DIR, 'loadstate.json'), JSON.stringify(out, null, 2));
+  // a zero count or no `38` lines would make the equality checks pass trivially
+  const pass = out.dffFreshQ === 0 && out.dffSavedQ5 === 5
+    && out.counter[0] !== '0,0,0,0' && out.counter[0] === out.counter[1] && out.counter[1] === out.counter[2]
+    && out.boolLost.length === 0
+    && out.sliderRefs[0] !== '' && out.sliderRefs[0] === out.sliderRefs[1] && out.sliderRefs[1] === out.sliderRefs[2];
+  report('L.load_state', pass, out);
+}
+
 // One roundtrip: start state already loaded in app. Returns detail record.
 async function roundtripCurrent(s, label, detailDir, srcCount) {
   const rec = { circuit: label };
@@ -626,7 +682,7 @@ async function scenarioTextFidelity(s) {
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'textfid', 'roundtrip', 'synth'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -667,7 +723,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

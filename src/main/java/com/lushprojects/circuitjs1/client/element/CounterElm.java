@@ -41,15 +41,25 @@ public class CounterElm extends ChipElm {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         invertreset = true;
         try {
-            invertreset = Boolean.parseBoolean(st.nextToken());
+            invertreset = parseBool(st.nextToken(), true);
             modulus = Integer.parseInt(st.nextToken());
         } catch (Exception e) {
         }
         pins[1].bubble = invertreset;
+        justLoaded = true;
+    }
+
+    @Override
+    public void applyJsonState(java.util.Map<String, Object> state) {
+        super.applyJsonState(state);
+        // As after a text load: defer the first execute() so all-zero node voltages at load
+        // time do not clear the restored count or read the clock as a new edge.
+        justLoaded = true;
     }
 
     public String dump() {
-        return dumpValues(super.dump(), invertreset, modulus);
+        // "true"/"false" as in the original format (Boolean.parseBoolean readers); parseBool also takes 1/0
+        return dumpValues(super.dump(), String.valueOf(invertreset), modulus);
     }
 
     boolean needsBits() {
@@ -151,6 +161,11 @@ public class CounterElm extends ChipElm {
     }
 
     void execute() {
+        // if we just loaded then the voltages are likely to be all zeroes, which would trigger an
+        // active-low clear and a false clock edge, so defer execution until the next iteration
+        if (skipExecuteAfterLoad(0)) {
+            return;
+        }
         boolean neg = negativeEdgeTriggered();
         if (pins[0].value != neg && lastClock == neg) {
             int i;

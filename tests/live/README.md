@@ -15,7 +15,7 @@ It exists because the defects it covers are invisible to a GWT compile and to an
 
 ```bash
 npm run buildgwt
-npm run test:live                                  # undo, paste, sliders, textfid, roundtrip, synth
+npm run test:live                                  # undo, paste, sliders, loadstate, textfid, roundtrip, synth
 node tests/live/harness.mjs undo paste             # a subset
 CIRCUITS=all node tests/live/harness.mjs roundtrip # every bundled example (~340, a few minutes)
 JSON_STATE=1 node tests/live/harness.mjs roundtrip # JSON export including simulation state
@@ -41,6 +41,7 @@ Each scenario prints one line, `PASS <name> {json}` or `FAIL <name> {json}`. Exi
 | `undo` | Delete an element, Ctrl+Z restores it (text export equal), Ctrl+Y re-deletes. Keyboard events via CDP. |
 | `paste` | Ctrl+A + Ctrl+D and Ctrl+A + Ctrl+C + Ctrl+V double the element count; undo of the duplicate restores it. |
 | `sliders` | A pot, LDR, NTC, variable rail and audio output: the Sliders dialog shows 4 sliders + 1 "Play" button after load, 8 + 2 after Ctrl+A/Ctrl+D (and 8 adjustable `38` lines), 4 + 1 after undo, 3 + 0 after deleting the pot and the audio output. |
+| `loadstate` | State that must survive a text/JSON reload (what undo does): D flip-flop with the clock high at load keeps Q (no false edge); a counter with an active-low reset keeps its count across text and JSON reload; boolean dump fields (`164`, `428`, `206`, `404`, `194`, `s`) keep `true` (and a `164` keeps `false`) after two text passes; `38` slider indices still name the right elements when a standalone `CustomCompositeChip` precedes them. |
 | `textfid` | Raw example file → text import → text export, compared number by number per element line (flags field excluded). Catches a lossy text writer. |
 | `roundtrip` | Text import → export text T1 and JSON J1 → import J1 → export T2 and J2. Reports element count, element class, text line and JSON property differences, and import log warnings. |
 | `synth` | Creates one default element of every JSON type name found in the build and runs the same JSON/text legs. |
