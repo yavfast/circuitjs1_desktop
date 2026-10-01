@@ -283,6 +283,15 @@ public class CustomCompositeElm extends CompositeElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: pin counts come from the subcircuit model
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("input_count");
+        keys.add("output_count");
+        return keys;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

@@ -676,6 +676,16 @@ public class MosfetElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("digital", false);
+        props.put("body_diode", false);
+        props.put("body_terminal", false);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         if (hasBodyTerminal()) {

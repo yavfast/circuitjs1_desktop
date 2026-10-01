@@ -81,6 +81,16 @@ public abstract class Waveform {
         }
     }
 
+    /**
+     * [SP_AGA_03_03] Keys {@link #getJsonProperties} writes only when they differ from these
+     * defaults (the element's conditional property declaration).
+     */
+    public void getJsonConditionalProperties(java.util.Map<String, Object> props) {
+        props.put("dc_offset", VoltageElm.getJsonUnitText(0, "V"));
+        props.put("phase_shift", 0.0);
+        props.put("duty_cycle", 0.5);
+    }
+
     public void applyJsonProperties(VoltageElm elm, java.util.Map<String, Object> properties) {
         maxVoltage = CircuitElm.getJsonDouble(properties, "max_voltage", 5);
         bias = CircuitElm.getJsonDouble(properties, "dc_offset", 0);

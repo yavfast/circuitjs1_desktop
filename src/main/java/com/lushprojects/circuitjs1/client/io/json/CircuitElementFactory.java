@@ -323,7 +323,8 @@ public class CircuitElementFactory {
         register("ORGate", OrGateElm::new);      // legacy: "OrGate"
         register("NORGate", NorGateElm::new);    // legacy: "NorGate"
         register("XORGate", XorGateElm::new);    // legacy: "XorGate"
-        register("XNORGate", XorGateElm::new);   // defensive: XNOR has no subclass today
+        // No "XNORGate": there is no XNOR element (XorGateElm never inverts), and mapping the
+        // name to XorGateElm imported an XNOR as a plain XOR. An unknown type is reported instead.
         // MOSFETs: NMosfet/PMosfet inherit MosfetElm.getJsonTypeName() => NMOS/PMOS.
         register("NMOS", NMosfetElm::new);       // legacy: "MosfetN" / "NMosfet"
         register("PMOS", PMosfetElm::new);       // legacy: "MosfetP" / "PMosfet"
@@ -575,6 +576,27 @@ public class CircuitElementFactory {
         }
 
         return elm;
+    }
+
+    /**
+     * Creates a default element of a registered JSON type with its placement constructor
+     * {@code (document, x, y)} — both endpoints at (x, y), no JSON properties applied — as the
+     * editor does before the element is dragged out. The element is not added to any list.
+     *
+     * @return the element, or null if the type is unknown or its constructor failed
+     */
+    public static CircuitElm createDefault(String jsonType, CircuitDocument document, int x, int y) {
+        ensureInitialized();
+        ElementConstructor constructor = JSON_TYPE_TO_CONSTRUCTOR.get(jsonType);
+        if (constructor == null) {
+            return null;
+        }
+        try {
+            return constructor.create(document, x, y);
+        } catch (Exception e) {
+            CirSim.console("CircuitElementFactory: Exception creating " + jsonType + ": " + e.getMessage());
+            return null;
+        }
     }
 
     /**

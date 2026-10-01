@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.i18n.client.DateTimeFormat;
+import com.lushprojects.circuitjs1.client.agent.Catalogue;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
 import com.lushprojects.circuitjs1.client.element.TransistorElm;
@@ -33,6 +34,9 @@ public class BaseCirSim {
 
     // Set once application start-up has completed (end of CirSim.init); see isStartupCompleted().
     private boolean startupCompleted;
+
+    // [SP_AGA_02_01] Agent element catalogue: session-scoped (RULE_ARCH_006), built on first use.
+    private Catalogue agentCatalogue;
 
     BaseCirSim() {
         CircuitDocument initialDocument = documentManager.createDocument();
@@ -86,6 +90,21 @@ public class BaseCirSim {
 
     public CircuitDocument getActiveDocument() {
         return activeDocument;
+    }
+
+    /** @return the session's agent element catalogue, measured on first use ([SP_AGA_02_01]) */
+    public Catalogue getAgentCatalogue() {
+        if (agentCatalogue == null) {
+            // Measured against a scratch document with default options, so neither the active
+            // tab nor its options and grid preference take part; it is dropped after the build.
+            CircuitDocument scratch = CircuitDocument.createScratch(this);
+            try {
+                agentCatalogue = Catalogue.build(this, scratch);
+            } finally {
+                scratch.dispose();
+            }
+        }
+        return agentCatalogue;
     }
 
     public void setCanvasSize(int width, int height) {
@@ -253,6 +272,11 @@ public class BaseCirSim {
         }
 
         return false;
+    }
+
+    /** @return the untranslated element menu label for a class name (e.g. "ResistorElm"), or null */
+    public String getEnglishLabelForClass(String cls) {
+        return menuManager.classToEnglishLabelMap.get(cls);
     }
 
     String getLabelTextForClass(String cls) {

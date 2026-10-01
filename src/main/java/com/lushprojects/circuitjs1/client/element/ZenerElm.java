@@ -129,4 +129,12 @@ public class ZenerElm extends DiodeElm {
         props.put("zener_voltage", getJsonUnitText(model.breakdownVoltage, "V"));
         return props;
     }
+
+    // [SP_AGA_01_05] exported but not applied: the breakdown voltage comes from the diode model
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("zener_voltage");
+        return keys;
+    }
 }

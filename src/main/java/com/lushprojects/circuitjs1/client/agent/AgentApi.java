@@ -85,6 +85,7 @@ public final class AgentApi {
     public AgentApi(CirSim sim) {
         this.sim = sim;
         DocumentsOps.register(this);
+        CatalogueOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {

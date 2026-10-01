@@ -248,6 +248,15 @@ public class LDRElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHa
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: lux and resistance are derived from position
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("lux");
+        keys.add("resistance");
+        return keys;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

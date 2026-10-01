@@ -348,6 +348,15 @@ public abstract class GateElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("schmitt", false);
+        props.put("invert_inputs", false);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         String[] names = new String[inputCount + 1];

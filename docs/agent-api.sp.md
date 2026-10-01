@@ -93,19 +93,21 @@ The `concise` detail level omits `properties` that equal the type defaults and o
 | aliases | string[] | Other factory keys creating the same type |
 | dumpCode | string | Legacy text-format dump type |
 | idPrefix | string | Prefix of generated IDs ([§03_02](#SP_AGA_03_02)) |
-| geometry | `"single"` \| `"two_point"` \| `"derived"` | `single`: one post at `start`, `end` orients it; `two_point`: posts at `start` and `end`; `derived`: posts computed from the two points |
+| geometry | `"single"` \| `"two_point"` \| `"derived"` | `single`: one post at `start`, `end` orients it; `two_point`: posts at `start` and `end`; `derived`: posts computed from the two points. Elements without posts (text, box, line, scope views placed on the canvas) are `derived` with empty `pins` |
 | pins | PinName[] | Pin names in post order at the default configuration (configurable elements may change them; see ElementRecord.posts) |
-| defaultSize | {dx: number, dy: number} | `end − start` of a freshly placed element, in cells |
+| defaultSize | {dx: number, dy: number} | `end − start` of a freshly placed element, in cells. "Freshly placed" means created by an editor drag of 4 cells to the right from (0, 0), or of (4, 4) when the element is not created by the horizontal drag; elements that size themselves (text, transformers) report their own resulting size |
 | derivedPostsAtDefault | map<PinName, CellPoint> | For `derived`: each pin's offset from `start` when placed with `defaultSize` |
 | properties | PropertyInfo[] | Editable properties ([§03_03](#SP_AGA_03_03) for the key source) |
-| defaultFlags | int | Flags of a freshly created element |
+| defaultFlags | int | Flags of a freshly placed element (after the default placement drag, which can set orientation bits) |
 
 PropertyInfo:
-- **Shape.** `{key: string, kind: "quantity" | "number" | "bool" | "text", default: number | string | bool, unit: string?, label: string?, sliderMin: number?, sliderMax: number?}`.
+- **Shape.** `{key: string, kind: "quantity" | "number" | "bool" | "text", default: number | string | bool, unit: string?, label: string?, sliderMin: number?, sliderMax: number?, readOnly: bool?}`.
 - **`kind`.** It is `"quantity"` when the default is a unit string. `unit` is then its unit suffix (`Ohm`, `F`, `H`, `V`, `A`, `Hz`, `s`, …).
-- **`label`, `sliderMin`, `sliderMax`.** These come from the matching editable-parameter entry when exactly one is matched ([§02_01](#SP_AGA_02_01)). `sliderMin`/`sliderMax` are the slider seeds of that entry — a hint of a typical range, never a validity limit; they are omitted when the entry carries the sentinel pairs (−1, −1) or (0, 0).
+- **`label`, `sliderMin`, `sliderMax`.** These come from the matching editable-parameter entry ([§02_01](#SP_AGA_02_01)). Matching is one-to-one: a key whose default equals the value of exactly one entry gets that entry, and an entry matched by more than one key is given to none of them; `bool` keys are not matched. `label` is the entry's English name (untranslated, markup removed). `sliderMin`/`sliderMax` are the slider seeds of that entry — a hint of a typical range, never a validity limit; they are omitted when the entry has sliders disabled or carries a degenerate pair (min = max, including (−1, −1) and (0, 0)).
+- **`readOnly`.** `true` for a key the element exports but derives from its geometry or state rather than applying it from the property (for example a transformer's orientation keys). `set` of a read-only key is `invalid_value`; an import accepts read-only keys and ignores them, so a circuit read with `getCircuit` re-imports unchanged.
+- **Defaults.** They are the element's built-in defaults: the catalogue is measured against a session scratch document with default options, with the element classes' remembered last-used values (model names, gate options, ground symbol and similar) at their initial values. They never reflect the user's latest choices in the editor. Text defaults are in English (an element placed by `add` in a localized UI keeps English default texts such as slider captions). `add` applies these defaults to every property its spec does not give ([§02_04](#SP_AGA_02_04)).
 
-Index form (`listTypes`): `{type, aliases, pins, geometry, summary: string}` per type; `summary` = the element's menu label.
+Index form (`listTypes`): `{type, aliases, pins, geometry, summary: string}` per type; `summary` = the element's menu label in English (untranslated, whatever the UI language). A factory key whose fresh instance cannot be created or placed is left out of the catalogue.
 
 ### 01_06. Net and ConnectivityReport  {#SP_AGA_01_06}
 
@@ -280,10 +282,10 @@ Processing logic:
     FUNCTION buildCatalogue():                                  # once per session, lazily
         pin editor grid size to 16 for the duration
         FOR each key IN element factory registry:
-            elm ← factory.create(key, owner = active document, at (0,0))   # never inserted into any element list
+            elm ← factory.create(key, owner = session scratch document with default options, at (0,0))   # never inserted into any element list; last-used class values at their initial values
             canonical ← elm JSON type name; IF key ≠ canonical: add key to aliases[canonical]   # independent of registry order
             IF canonical already measured: CONTINUE
-            place elm at its default size; record posts (agent pin names, §03_02), dump code, id prefix, flags
+            place elm at its default size (§01_05; fixed-size elements keep their own size, as in the editor); record posts (agent pin names, §03_02), dump code, id prefix, flags
             keys ← exported property keys of elm ∪ elm's declared conditional property keys (§03_03)
             FOR each key: default, kind, unit from the exported/declared default value;
                 label/sliderMin/sliderMax from the editable-parameter entry whose value equals the default, used only when exactly one entry matches
@@ -350,7 +352,7 @@ Input: `doc?`, `edits: Edit[]` (1 ≤ length ≤ 200).
 Edit (discriminated by `op`):
 | op | Fields | Effect |
 |----|--------|--------|
-| add | `element: ElementSpec` | Create an element through the element factory |
+| add | `element: ElementSpec` | Create an element through the element factory; properties not given take the TypeInfo defaults ([§01_05](#SP_AGA_01_05)) |
 | move | `id` + one of: `start` (and optional `end`), or `by: {dx, dy}` | `start` + `end`: set both defining points. `start` alone: translate so `start` lands there. `by`: translate both points; `dx`/`dy` are multiples of 0.5 |
 | delete | `id` | Remove the element, its scope views and its open marks |
 | set | `id`, `properties: map`, `flags: int?` | Patch properties (keys not given keep their value) |
@@ -1037,6 +1039,8 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | Catalogue: built-in defaults from a scratch document, one-to-one English labels, slider-seed sentinels, `readOnly` keys, `add` applies TypeInfo defaults (PL_AGA Phase 3 review) |
+| 2026-10-01 | TypeInfo: defaultSize defined by a 4-cell editor drag, post-less elements are `derived`, `summary` in English, unmeasurable keys omitted (PL_AGA Phase 3) |
 | 2026-10-01 | createDocument `title` range and meaning stated (PL_AGA Phase 1 review) |
 | 2026-10-01 | SP_AGA_DEC_04 resolved: A (scoped silent bind) with the conditions of PL_AGA_DEC_01, after the PL_AGA Phase 0 prototype |
 | 2026-10-01 | DEC_04 trigger aligned with the plan's reduced prototype sequence (plan review) |

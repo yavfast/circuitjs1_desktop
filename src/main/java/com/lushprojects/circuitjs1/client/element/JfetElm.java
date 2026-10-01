@@ -256,6 +256,12 @@ public class JfetElm extends MosfetElm {
         return props;
     }
 
+    // [SP_AGA_03_03] JFET exports its own fixed key set (no MOSFET option keys): nothing conditional
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        return new java.util.LinkedHashMap<>();
+    }
+
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "gate", "source", "drain" };

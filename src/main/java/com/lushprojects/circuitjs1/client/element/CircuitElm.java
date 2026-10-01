@@ -1573,7 +1573,42 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public java.util.Map<String, Object> getJsonProperties() {
         return new java.util.LinkedHashMap<>();
     }
-    
+
+    /**
+     * [SP_AGA_03_03] Conditional property keys: keys that {@link #getJsonProperties()} writes only
+     * when their value differs from the default (a capacitor's series resistance, for example),
+     * each mapped to that default in the same value format the exporter uses ("0 Ohm", false,
+     * 0.5). Together with the keys of a fresh instance they form the complete key set of the
+     * type. Consumed only by the agent catalogue and the agent {@code set} edit; an element whose
+     * exporter writes a key conditionally must declare it here (subclasses add to super's map).
+     */
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        return new java.util.LinkedHashMap<>();
+    }
+
+    /**
+     * [SP_AGA_01_05] Read-only property keys: keys {@link #getJsonProperties()} writes but
+     * {@link #applyJsonProperties} never reads, because the value is derived from the element's
+     * geometry, flags, model or loaded data (a transformer's orientation, a chip's pin counts).
+     * The agent catalogue marks them {@code readOnly}; subclasses add to super's set.
+     */
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        return new java.util.LinkedHashSet<>();
+    }
+
+    /**
+     * Legacy text-format dump type of this element ({@code "r"}, {@code "403"}), or null for an
+     * element that has no dump type (a drawing helper such as a standalone composite chip).
+     */
+    public String getDumpCode() {
+        try {
+            return dumpTypeToken();
+        } catch (IllegalStateException e) {
+            // getDumpType() not overridden: the element has no text-format type
+            return null;
+        }
+    }
+
     /**
      * Returns properties as a flat array [key1, value1, key2, value2, ...] for JSNI access.
      * Used by JavaScript API to get element properties.

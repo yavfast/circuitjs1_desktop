@@ -238,6 +238,14 @@ public class SeqGenElm extends ChipElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: derived from the sequence string
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("bit_count");
+        return keys;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -161,6 +161,17 @@ class Session {
     await this.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
     await sleep(150);
   }
+  // Left-button double click in viewport coordinates (hover first, so the editor picks the element).
+  async mouseDoubleClick(x, y) {
+    const m = (type, extra = {}) => this.cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });
+    await m('mouseMoved', { button: 'none' });
+    await sleep(100);
+    for (const clickCount of [1, 2]) {
+      await m('mousePressed', { clickCount, buttons: 1 });
+      await m('mouseReleased', { clickCount });
+    }
+    await sleep(300);
+  }
   // Left-button drag in viewport coordinates (press, a few moves, release).
   async mouseDrag(x1, y1, x2, y2) {
     const m = (type, x, y, extra = {}) => this.cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });
@@ -241,6 +252,33 @@ function pageHelpers() {
         sync = false;
         setTimeout(() => resolve({ timeout: true }), 3000);
       });
+    },
+    // Opens a menu path by DOM events, as a user click does; each step is a list of accepted
+    // item texts (English and translations). Returns the number of steps found.
+    async clickMenuPath(steps) {
+      const visible = () => Array.from(document.querySelectorAll('.gwt-MenuItem')).filter((e) => e.offsetWidth > 0);
+      const fire = (el, type) => el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      let found = 0;
+      for (const texts of steps) {
+        const el = visible().find((e) => { const t = e.textContent.replace(/\s+/g, ' ').trim(); return texts.some((x) => t === x || t.startsWith(x + ' ')); });
+        if (!el) break;
+        fire(el, 'mouseover'); fire(el, 'click'); found++;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+      return found;
+    },
+    // Text of the visible dialog that has checkboxes (an element's edit dialog), or null.
+    editDialogText() {
+      const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('input[type=checkbox]'));
+      return d ? (d.innerText || '').replace(/\s+/g, ' ').trim() : null;
+    },
+    // Clicks the n-th checkbox of the visible dialog (a user edit); returns false if there is none.
+    clickDialogCheckbox(n) {
+      const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('input[type=checkbox]'));
+      const cb = d && d.querySelectorAll('input[type=checkbox]')[n];
+      if (!cb) return false;
+      cb.click();
+      return true;
     },
     // What the user sees of the visible tab: tab bar, window title, circuit, sliders dialog and view.
     visibleTab() {
@@ -987,10 +1025,244 @@ async function scenarioAgentIds(s) {
   report('AG.agent_ids', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_ids.json') });
 }
 
+// Menu label texts for a menu key in every UI language: the English key and its translations
+// in the bundled locale files (markup and &nbsp; removed).
+function menuTexts(key) {
+  const clean = (t) => t.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  const out = new Set([clean(key)]);
+  const dir = path.join(SITE_DIR, 'circuitjs1');
+  for (const f of fs.readdirSync(dir).filter((x) => /^locale_.*\.txt$/.test(x))) {
+    for (const line of fs.readFileSync(path.join(dir, f), 'utf8').split('\n')) {
+      const m = /^"(.*)"="(.*)"\s*$/.exec(line);
+      if (m && m[1] === key) out.add(clean(m[2]));
+    }
+  }
+  return [...out];
+}
+
+// [PL_AGA_P3] Catalogue (SP_AGA_02_01 / SP_AGA_01_05): SP_AGA_05_01 rows listTypes/describeType,
+// SP_AGA_05_02 "Pin names unique", the type count against the factory, the first-build time, and
+// a first build that leaves the active document unchanged.
+async function scenarioAgentCatalogue(s) {
+  const out = { checks: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const unique = (a) => new Set(a).size === a.length;
+  const A = (op, args) => s.call('agentCall', op, args);
+  const OPTS16 = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11';
+  const OPTS8 = '$ 3 0.000005 10.20027730826997 50 5 50 5e-11'; // bit 2: Small Grid
+  const elmLines = (code) => String(s.lastText || '').split('\n').filter((l) => l.split(' ')[0] === code);
+  const exportLines = async (code) => { s.lastText = await s.call('exportText'); return elmLines(code); };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const cr = await s.call('canvasRect');
+  const px = Math.round(cr.x + cr.w * 0.45), py = Math.round(cr.y + cr.h * 0.6);
+
+  // --- Before the first build, on a 16-grid document: user-like actions
+  await s.call('importText', OPTS16 + '\n');
+  await s.call('focus');
+  // (1) A user edit changes a remembered last-used value: an AND gate placed with "2", opened by
+  // double click, its first checkbox (Schmitt Inputs) ticked -> GateElm.lastSchmitt = true
+  await s.key('Escape');
+  await s.typeChar('2');
+  await s.mouseDrag(px, py, px + 96, py);
+  await s.mouseDoubleClick(px + 48, py);
+  const ticked = await s.call('clickDialogCheckbox', 0);
+  await sleep(200);
+  const dialogBefore = await s.call('editDialogText');
+  await s.call('closeDialogs'); await s.key('Escape');
+  const gateJson = JSON.parse(await s.call('exportJson'));
+  const gate0 = Object.values(gateJson.elements || {}).find((e) => /AND/i.test(e.type));
+  out.userSchmitt = { ticked, gate: gate0 && gate0.properties };
+  ck('userEditSetsSchmitt', ticked && gate0 && gate0.properties && gate0.properties.schmitt === true);
+  // (2) An editor placement of a tapped transformer (fixed size on creation) through the menu
+  await s.call('importText', OPTS16 + '\n');
+  const menuOk = await s.call('clickMenuPath', [menuTexts('Draw'), menuTexts('&nbsp;</div>Passive Components'), menuTexts('Add Tapped Transformer')]);
+  await s.call('focus');
+  await s.mouseDrag(px, py, px + 96, py);
+  await s.key('Escape');
+  const tt = (await exportLines('169'))[0];
+  const ttTok = tt ? tt.split(' ').map(Number) : null;
+  out.tappedPlacement = { menuOk, line: tt };
+  const editorTapped = ttTok ? { dx: (ttTok[3] - ttTok[1]) / 16, dy: (ttTok[4] - ttTok[2]) / 16 } : null;
+
+  // --- Active document before the first build: Small Grid, R1..R3
+  await s.call('importText', [OPTS8, 'r 64 64 128 64 0 1000', 'r 64 128 128 128 0 1000', 'r 64 192 128 192 0 1000', ''].join('\n'));
+  await sleep(200);
+  const snap = async () => ({ ids: await s.call('ids'), text: await s.call('exportText'), json: await s.call('exportJson'), visible: await s.call('visibleTab'), docs: (await A('listDocuments', {})).data });
+  const before = await snap();
+  const logMark = await s.call('logCount');
+
+  // First call builds the catalogue (timed in the page), the second one reads the cache
+  const timed = (op, args) => s.eval(`(() => { const t0 = performance.now(); const r = window.__H.agentCall(${JSON.stringify(op)}, ${JSON.stringify(args)}); return { ms: performance.now() - t0, r }; })()`);
+  const first = await timed('listTypes', {});
+  const second = await timed('listTypes', {});
+  out.timing = { firstBuildMs: Math.round(first.ms * 10) / 10, cachedMs: Math.round(second.ms * 10) / 10 };
+  const after = await snap();
+  out.buildLogLines = await s.call('logsSince', logMark);
+  ck('buildLeavesIds', same(before.ids, after.ids));
+  ck('buildLeavesCircuit', before.text === after.text && before.json === after.json);
+  ck('buildLeavesVisibleTab', same(before.visible, after.visible));
+  // the scratch document is never listed and takes no handle: the next document gets the next number
+  ck('buildLeavesDocuments', same(before.docs, after.docs));
+  if (before.text !== after.text) out.textDiff = lineDiff(before.text.split('\n'), after.text.split('\n'));
+  if (!same(before.visible, after.visible)) { const fb = flatten(before.visible), fa = flatten(after.visible); out.visibleDiff = Object.keys({ ...fb, ...fa }).filter((k) => !same(fb[k], fa[k])).map((k) => ({ key: k, before: fb[k], after: fa[k] })); }
+
+  const types = (first.r.data && first.r.data.types) || [];
+  const names = types.map((t) => t.type);
+  out.typeCount = names.length;
+  ck('listOk', first.r.ok === true && names.length > 0 && same(first.r, second.r));
+  ck('listSortedUnique', unique(names) && same(names, [...names].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))));
+  ck('indexForm', types.every((t) => typeof t.type === 'string' && Array.isArray(t.aliases) && Array.isArray(t.pins)
+    && ['single', 'two_point', 'derived'].includes(t.geometry) && typeof t.summary === 'string' && t.summary.length > 0));
+  const byType = Object.fromEntries(types.map((t) => [t.type, t]));
+  out.summaries = { Resistor: byType.Resistor && byType.Resistor.summary, TappedTransformer: byType.TappedTransformer && byType.TappedTransformer.summary };
+  // English summaries whatever the UI language (the harness browser may run another locale)
+  ck('summaryEnglish', byType.Resistor && byType.Resistor.summary === 'Add Resistor' && types.every((t) => /^[\x20-\x7eµΩμ]*$/.test(t.summary)));
+
+  // listTypes filter "mosfet": NMOS and PMOS (through their aliases), each type once
+  const mos = await A('listTypes', { filter: 'mosfet' });
+  const mosNames = (mos.data && mos.data.types || []).map((t) => t.type);
+  out.mosfet = mosNames;
+  ck('filterMosfet', mos.ok && mosNames.filter((n) => n === 'NMOS').length === 1 && mosNames.filter((n) => n === 'PMOS').length === 1 && unique(mosNames));
+  const mosUpper = await A('listTypes', { filter: 'MOSFET' });
+  ck('filterCaseInsensitive', mosUpper.ok && same(mosUpper.data.types, mos.data.types));
+
+  // describeType rows
+  const D = async (type) => A('describeType', { type });
+  const prop = (info, key) => info && info.properties && info.properties.find((p) => p.key === key);
+  const res = await D('Resistor');
+  const rp = prop(res.data, 'resistance');
+  out.resistor = res.data;
+  ck('describeResistor', res.ok && res.data.geometry === 'two_point' && res.data.pins.length === 2 && rp && rp.kind === 'quantity' && rp.unit === 'Ohm');
+  ck('labelEnglishPlain', rp && rp.label === 'Resistance (ohms)');
+  const npn = await D('TransistorNPN');
+  out.npn = npn.ok ? { geometry: npn.data.geometry, pins: npn.data.pins, derivedPostsAtDefault: npn.data.derivedPostsAtDefault } : npn;
+  ck('describeNPN', npn.ok && npn.data.geometry === 'derived' && npn.data.pins.length === 3 && Object.keys(npn.data.derivedPostsAtDefault || {}).length === 3);
+  const cap = await D('Capacitor');
+  out.capacitor = cap.ok ? cap.data.properties : cap;
+  const pv = (k) => { const p = prop(cap.data, k); return p ? [p.kind, p.default, p.unit || null] : null; };
+  ck('describeCapacitorConditional', cap.ok && same(pv('capacitance'), ['quantity', '10 uF', 'F']) && same(pv('initial_voltage'), ['quantity', '1 mV', 'V'])
+    && same(pv('series_resistance'), ['quantity', '1 mOhm', 'Ohm']) && same(pv('back_euler'), ['bool', false, null]));
+  const dff = await D('DFlipFlop');
+  out.dffPins = dff.ok ? dff.data.pins : dff;
+  ck('describeFlipFlopPins', dff.ok && unique(dff.data.pins) && dff.data.pins.includes('Q') && dff.data.pins.indexOf('Q_2') > dff.data.pins.indexOf('Q'));
+  const zen = await D('Zener');
+  ck('describeAlias', zen.ok && zen.data.type === 'ZenerDiode' && zen.data.aliases.includes('Zener'));
+  const unk = await D('Resistr');
+  out.unknown = unk.issues;
+  ck('describeUnknown', unk.ok === false && unk.issues[0].code === 'unknown_type' && /\bResistor\b/.test(unk.issues[0].hint));
+  const noArg = await A('describeType', {});
+  ck('describeMissingType', noArg.ok === false && noArg.issues[0].code === 'invalid_value');
+  const trf = await D('Transformer'), ldr = await D('LDR'), cc2 = await D('CC2Neg'), din = await D('DataInput'), sw2 = await D('SPDTSwitch');
+  const ro = (r, k) => !!(r.ok && prop(r.data, k) && prop(r.data, k).readOnly === true);
+  out.readOnly = { trf: [ro(trf, 'vertical'), ro(trf, 'flip'), ro(trf, 'ratio')], ldr: [ro(ldr, 'lux'), ro(ldr, 'resistance'), ro(ldr, 'position')], cc2Neg: ro(cc2, 'type'), repeat: ro(din, 'repeat'), centerOff: ro(sw2, 'center_off') };
+  ck('readOnlyKeys', same(out.readOnly, { trf: [true, true, false], ldr: [true, true, false], cc2Neg: true, repeat: false, centerOff: false }));
+  // built-in defaults: the user's Schmitt choice above does not reach the catalogue
+  const and = await D('AndGate');
+  out.andGate = and.ok ? { schmitt: prop(and.data, 'schmitt'), defaultFlags: and.data.defaultFlags } : and;
+  ck('defaultsBuiltIn', and.ok && prop(and.data, 'schmitt') && prop(and.data, 'schmitt').default === false);
+  // fixed-size element: defaultSize = the editor placement
+  const tap = await D('TappedTransformer');
+  out.tappedPlacement.catalogue = tap.ok ? tap.data.defaultSize : tap;
+  out.tappedPlacement.editor = editorTapped;
+  ck('tappedSizeEqualsEditor', menuOk === 3 && editorTapped && tap.ok && same(tap.data.defaultSize, editorTapped));
+
+  // Every type: describeType works, aliases resolve to it, pins unique (SP_AGA_05_02), index = TypeInfo,
+  // labels one-to-one and without markup
+  const dupPins = [], badDescribe = [], badAlias = [], dupLabels = [], markup = [], badSlider = [];
+  const kinds = {};
+  for (const t of types) {
+    const d = await D(t.type);
+    if (!d.ok || d.data.type !== t.type || !same(d.data.pins, t.pins) || !same(d.data.aliases, t.aliases) || d.data.geometry !== t.geometry) { badDescribe.push(t.type); continue; }
+    if (!unique(d.data.pins)) dupPins.push(t.type);
+    const labels = d.data.properties.filter((p) => p.label).map((p) => p.label);
+    if (!unique(labels)) dupLabels.push(t.type);
+    for (const p of d.data.properties) {
+      kinds[p.kind] = (kinds[p.kind] || 0) + 1;
+      if (p.label && /[<>]|&[a-z]+;/.test(p.label)) markup.push(`${t.type}.${p.key}`);
+      if (p.sliderMin !== undefined && (p.sliderMin === p.sliderMax || p.kind === 'bool')) badSlider.push(`${t.type}.${p.key}`);
+      if (p.kind === 'bool' && p.label) badSlider.push(`${t.type}.${p.key}(bool label)`);
+    }
+    for (const a of t.aliases) { const da = await D(a); if (!da.ok || da.data.type !== t.type) badAlias.push(a); }
+  }
+  out.propertyKinds = kinds;
+  ck('pinNamesUnique', dupPins.length === 0);
+  ck('describeEveryType', badDescribe.length === 0);
+  ck('aliasesResolve', badAlias.length === 0);
+  ck('labelsOneToOne', dupLabels.length === 0);
+  ck('labelsWithoutMarkup', markup.length === 0);
+  ck('sliderSeedsValid', badSlider.length === 0);
+  Object.assign(out, { dupPins, badDescribe, badAlias, dupLabels, markup, badSlider });
+
+  // After the build: the user's last-used value is back, the ID counters and the Small Grid are untouched.
+  // Resistors placed by the user get R4.. on the 8 px grid.
+  await s.call('focus');
+  await s.key('Escape');
+  const placed = [];
+  for (const [k, len] of [[0, 104], [1, 120], [2, 88]]) {
+    await s.typeChar('r');
+    await s.mouseDrag(px + 8 * k, py + 40 * k, px + 8 * k + len, py + 40 * k);
+    await s.key('Escape');
+  }
+  const rl = await exportLines('r');
+  const coords = rl.slice(3).flatMap((l) => l.split(' ').slice(1, 5).map(Number));
+  out.placedResistors = rl.slice(3);
+  out.idsPlaced = await s.call('ids');
+  ck('nextIdAfterBuild', same(out.idsPlaced, ['R1', 'R2', 'R3', 'R4', 'R5', 'R6']));
+  ck('smallGridKept', String(s.lastText).split('\n')[0].split(' ')[1] === '3' && coords.length === 12 && coords.every((c) => c % 8 === 0) && coords.some((c) => c % 16 !== 0));
+  await s.typeChar('2');
+  await s.mouseDrag(px, py + 200, px + 96, py + 200);
+  await s.key('Escape');
+  const gj = JSON.parse(await s.call('exportJson'));
+  const gate1 = Object.values(gj.elements || {}).find((e) => /AND/i.test(e.type));
+  out.gateAfterBuild = gate1 && gate1.properties;
+  ck('lastUsedRestored', gate1 && gate1.properties.schmitt === true);
+  // UI translation still works after the build (translation is suspended only while it runs):
+  // the same element's edit dialog reads the same as before the build
+  await s.mouseDoubleClick(px + 48, py + 200);
+  const dialogAfter = await s.call('editDialogText');
+  await s.call('closeDialogs'); await s.key('Escape');
+  out.editDialog = { before: dialogBefore, after: dialogAfter };
+  // translated = the UI runs a non-English locale (the headless browser here: uk)
+  out.editDialog.translated = !!dialogBefore && !dialogBefore.includes('Schmitt Inputs');
+  ck('translationKept', !!dialogBefore && dialogBefore === dialogAfter);
+
+  // Flag-backed options set from their key and kept by a JSON round trip (RULE_ARCH_010)
+  const optJson = { schema: { format: 'circuitjs', version: '2.0' }, elements: {
+    DI1: { type: 'DataInput', _flags: 0, properties: { repeat: true }, pins: { _startpoint: { position: { x: 64, y: 64 } }, _endpoint: { position: { x: 128, y: 64 } } } },
+    SW1: { type: 'SPDTSwitch', _flags: 0, properties: { center_off: true }, pins: { common: { position: { x: 64, y: 160 } }, throw1: { position: { x: 128, y: 144 } } } } } };
+  await s.call('importJson', JSON.stringify(optJson));
+  const j1 = JSON.parse(await s.call('exportJson'));
+  const t1 = await s.call('exportText');
+  await s.call('importJson', JSON.stringify(j1));
+  const j2 = JSON.parse(await s.call('exportJson'));
+  const t2 = await s.call('exportText');
+  const pp = (j, id) => j.elements && j.elements[id] && j.elements[id].properties;
+  out.flagOptions = { DI1: pp(j1, 'DI1') && pp(j1, 'DI1').repeat, SW1: pp(j1, 'SW1') && pp(j1, 'SW1').center_off, textEqual: t1 === t2 };
+  ck('flagOptionsFromKeys', out.flagOptions.DI1 === true && out.flagOptions.SW1 === true && same(pp(j1, 'DI1'), pp(j2, 'DI1')) && same(pp(j1, 'SW1'), pp(j2, 'SW1')) && t1 === t2);
+
+  // Type count = distinct canonical JSON type names the factory produces: every factory key of
+  // the build (synth's source) imported through JSON, canonical name = the created element's type
+  const keys = buildTypeNames();
+  const allJson = { schema: { format: 'circuitjs', version: '2.0' }, elements: Object.fromEntries(keys.map((k, i) => [`X${i + 1}`, { type: k, p1: { x: 64 + 96 * (i % 12), y: 64 + 96 * Math.floor(i / 12) }, p2: { x: 128 + 96 * (i % 12), y: 64 + 96 * Math.floor(i / 12) } }])) };
+  await s.call('importJson', JSON.stringify(allJson));
+  const produced = [...new Set(await s.call('jsonTypes'))].sort();
+  const exportKeys = new Set(keys);
+  out.reference = { factoryKeys: keys.length, produced: produced.length, notInCatalogue: produced.filter((n) => !names.includes(n)), notProduced: names.filter((n) => !produced.includes(n)) };
+  ck('typeCountEqualsFactory', names.length === produced.length && same(names, produced));
+  ck('typesAreFactoryKeys', names.every((n) => exportKeys.has(n)) && types.every((t) => t.aliases.every((a) => exportKeys.has(a))));
+  ck('noPageExceptions', s.exceptions.length === exMark);
+
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_catalogue.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_catalogue', failed.length === 0, { checks: Object.keys(out.checks).length, failed, types: names.length, firstBuildMs: out.timing.firstBuildMs, cachedMs: out.timing.cachedMs, details: path.join(OUT_DIR, 'agent_catalogue.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -1031,7 +1303,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

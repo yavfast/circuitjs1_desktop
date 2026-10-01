@@ -764,6 +764,15 @@ public class TransistorElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("model", "default");
+        props.put("beta", 100.0);
+        return props;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

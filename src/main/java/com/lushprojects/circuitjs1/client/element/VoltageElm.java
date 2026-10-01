@@ -294,6 +294,14 @@ public class VoltageElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] the waveform writes some keys only when they differ from its defaults
+    @Override
+    public Map<String, Object> getJsonConditionalProperties() {
+        Map<String, Object> props = super.getJsonConditionalProperties();
+        waveformInstance.getJsonConditionalProperties(props);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "positive", "negative" };

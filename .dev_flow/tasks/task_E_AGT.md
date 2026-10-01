@@ -94,7 +94,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Commit of the PL_MCP Phase 0 record (review FAIL → delta PASS)
 - [x] PL_AGA Phase 1 — foundations (review FAIL: circuitArea leak, layering → fixed → delta PASS); also fixed pre-existing tab-switch scope collapse and hint leak
 - [x] PL_AGA Phase 2 — element identity and pin names (review PASS; follow-ups applied; also fixed CirSim JSNI Vector→ArrayList signatures)
-- [ ] **Next:** PL_AGA Phase 3 — catalogue
+- [x] PL_AGA Phase 3 — catalogue (review FAIL ×2 → fixed; spec §01_05/§02_01 amended: built-in defaults, English labels, readOnly keys, `add` applies TypeInfo defaults; XNORGate factory key removed)
+- [ ] **Next:** PL_AGA Phase 4 — geometry, edits and import
 
 **Activity:**
 - 23:59 — developer resolved PL_MCP_DEC_01 = A (SDK core, script-tag loading, no Node crypto)

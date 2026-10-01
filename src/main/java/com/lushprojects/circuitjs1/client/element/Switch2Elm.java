@@ -278,7 +278,14 @@ public class Switch2Elm extends SwitchElm {
             throwCount = tc;
             allocNodes();
         }
-        // center_off is FLAG_CENTER_OFF, already restored from _flags
+        // center_off is FLAG_CENTER_OFF (also in _flags); the key wins when given. It only has an
+        // effect with two throws, where hasCenterOff() exports it, so other counts keep the bit.
+        if (throwCount == 2 && props.containsKey("center_off")) {
+            if (getJsonBoolean(props, "center_off", hasCenterOff()))
+                flags |= FLAG_CENTER_OFF;
+            else
+                flags &= ~FLAG_CENTER_OFF;
+        }
     }
 
     @Override

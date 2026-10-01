@@ -219,6 +219,22 @@ public class AudioInputElm extends RailElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: informational, the samples live in the session file map
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("file_name");
+        return keys;
+    }
+
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("file_name", "");
+        return props;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

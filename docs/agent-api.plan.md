@@ -69,7 +69,7 @@ When this plan is complete:
 - [x] [Phase 0 — Background-document prototype (closes SP_AGA_DEC_04)](#PL_AGA_P0)
 - [x] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
 - [x] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
-- [ ] [Phase 3 — Catalogue](#PL_AGA_P3)
+- [x] [Phase 3 — Catalogue](#PL_AGA_P3)
 - [ ] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
 - [ ] [Phase 5 — Connectivity, readings and diagnostics](#PL_AGA_P5)
 - [ ] [Phase 6 — Transactions and history](#PL_AGA_P6)
@@ -162,7 +162,7 @@ What to change:
 | Text load IDs | `CircuitLoader` / `ImportLifecycle` | Deterministic generated IDs in file order after counter reset |
 | PinNames | `client/agent/PinNames.java` | Sanitize, `pin<i>`, `_<k>` suffix (consumed by the catalogue and agent records; the file formats keep their own pin names) |
 
-### Phase 3 — Catalogue [TODO]  {#PL_AGA_P3}
+### Phase 3 — Catalogue [DONE]  {#PL_AGA_P3}
 
 **Depends on:** Phase 2
 **Implements:** [SP_AGA_02_01](./agent-api.sp.md#SP_AGA_02_01), [SP_AGA_01_05](./agent-api.sp.md#SP_AGA_01_05), conditional key source of [SP_AGA_03_03](./agent-api.sp.md#SP_AGA_03_03)
@@ -176,6 +176,14 @@ What to create / change:
 
 Notes:
 - Find the elements with conditional keys by searching `getJsonProperties` implementations for guarded `props.put`. CapacitorElm is a known one. Each override lists the key with its default.
+- **Result (2026-10-01).** Live scenario `agent_catalogue`: 36 checks pass. 140 types come from 176 factory keys, with a first build of about 260–370 ms and about 4 ms per cached call.
+  - **Measurement.** Elements are measured against a scratch `CircuitDocument`: number 0, never listed, bound or shown, and given the blank-circuit time-step defaults. Translation is suspended, and `LastUsedValues` resets the classes' remembered last-used values, both restored afterwards.
+  - **Placement.** Fixed-size elements are placed with `dragFixedSize`, as the editor does. All other elements get a 4-cell drag, or a (4, 4) drag when the straight drag does not create them.
+  - **English labels.** Summaries come from a new untranslated label map in `MenuManager`.
+  - **Labels and sliders.** Labels are matched one-to-one, and bool keys are not matched. Slider seeds are dropped when `!canCreateAdjustable()` or min = max.
+  - **Read-only keys.** They are declared through `getJsonReadOnlyProperties()`. The keys were found by comparing exported and applied keys for each class chain, with comments stripped. DataInput `repeat` and Switch2 `center_off` are applied from their keys, so they are not read-only.
+  - **Defects fixed.** `RelayElm`: an absent `switching_time` now means 0 (RULE_ARCH_010). The factory key `XNORGate` is removed, because it imported an XNOR as a plain XOR.
+  - **Left out.** `Optocoupler` is left out because its `setPoints` throws. Building the catalogue writes one console line for it into the active document's log. `CustomTransformer.tap_offsets` is a list, so it is not declared as a property.
 
 ### Phase 4 — Geometry, edits and import [TODO]  {#PL_AGA_P4}
 

@@ -98,6 +98,11 @@ public class DCWaveform extends Waveform {
     }
 
     @Override
+    public void getJsonConditionalProperties(java.util.Map<String, Object> props) {
+        props.put("dc_offset", VoltageElm.getJsonUnitText(0, "V"));
+    }
+
+    @Override
     public String getJsonTypeName() {
         return "VoltageSourceDC";
     }

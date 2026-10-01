@@ -118,6 +118,14 @@ public class CC2Elm extends ChipElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: type (CCII+/CCII-) is derived from gain
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("type");
+        return keys;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

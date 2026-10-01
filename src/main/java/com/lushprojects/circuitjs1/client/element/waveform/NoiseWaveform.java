@@ -100,6 +100,11 @@ public class NoiseWaveform extends Waveform {
     }
 
     @Override
+    public void getJsonConditionalProperties(java.util.Map<String, Object> props) {
+        props.put("dc_offset", VoltageElm.getJsonUnitText(0, "V"));
+    }
+
+    @Override
     public void stepFinished(VoltageElm elm) {
         noiseValue = (RandomUtils.getRandom().nextDouble() * 2 - 1) * maxVoltage + bias;
     }

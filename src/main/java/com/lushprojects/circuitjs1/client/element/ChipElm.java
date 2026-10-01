@@ -729,6 +729,14 @@ public abstract class ChipElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("high_voltage", getJsonUnitText(5, "V"));
+        return props;
+    }
+
     /**
      * The JSON importer builds the chip with the (document, x, y) constructor, whose
      * setupPins() ran with default flags. Rebuild the size and pin layout from the

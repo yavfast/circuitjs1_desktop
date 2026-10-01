@@ -198,6 +198,16 @@ public class DFlipFlopElm extends ChipElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("has_reset", false);
+        props.put("has_set", false);
+        props.put("invert_set_reset", false);
+        return props;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);

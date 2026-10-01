@@ -67,6 +67,7 @@ public class XorGateElm extends OrGateElm {
 
     @Override
     public String getJsonTypeName() {
-        return isInverting() ? "XNORGate" : "XORGate";
+        // XOR never inverts; there is no XNOR element or factory key
+        return "XORGate";
     }
 }

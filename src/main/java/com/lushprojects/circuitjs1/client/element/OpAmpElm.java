@@ -322,6 +322,15 @@ public class OpAmpElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("gbw", getJsonUnitText(1e6, "Hz"));
+        props.put("swap_inputs", false);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         if ((flags & FLAG_SWAP) != 0) {

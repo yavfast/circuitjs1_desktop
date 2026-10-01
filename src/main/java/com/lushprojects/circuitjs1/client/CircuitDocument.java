@@ -186,8 +186,28 @@ public class CircuitDocument {
     private final List<SimulationUpdateListener> updateListeners = new ArrayList<>();
 
     CircuitDocument(BaseCirSim cirSim) {
+        this(cirSim, cirSim.allocateDocumentNumber());
+    }
+
+    /**
+     * Scratch document ([SP_AGA_01_05] "Defaults"): default options, document number 0 (no
+     * handle is consumed), never added to {@code DocumentManager}, never bound and never shown.
+     * The agent catalogue uses it as the owner of the elements it measures.
+     */
+    static CircuitDocument createScratch(BaseCirSim cirSim) {
+        CircuitDocument doc = new CircuitDocument(cirSim, 0);
+        // The blank-circuit simulation defaults (ImportLifecycle.resetCircuitState)
+        doc.simulator.maxTimeStep = doc.simulator.timeStep = 5e-6;
+        doc.simulator.minTimeStep = 50e-12;
+        doc.circuitEditor.gridSize = 16;
+        doc.circuitEditor.gridMask = -16;
+        doc.circuitEditor.gridRound = 7;
+        return doc;
+    }
+
+    private CircuitDocument(BaseCirSim cirSim, int documentNumber) {
         this.cirSim = cirSim;
-        documentNumber = cirSim.allocateDocumentNumber();
+        this.documentNumber = documentNumber;
         circuitInfo = new CircuitInfo(cirSim, this);
         simulator = new CircuitSimulator(cirSim, this);
         scopeManager = new ScopeManager(cirSim, this);

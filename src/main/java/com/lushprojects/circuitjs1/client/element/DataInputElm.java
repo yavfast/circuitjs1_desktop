@@ -233,11 +233,32 @@ public class DataInputElm extends RailElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: file_name is informational
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("file_name");
+        return keys;
+    }
+
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("file_name", "");
+        return props;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> properties) {
         super.applyJsonProperties(properties);
         sampleLength = getJsonDouble(properties, "sample_length", sampleLength);
         scaleFactor = getJsonDouble(properties, "scale_factor", scaleFactor);
-        // repeat travels in _flags; file_name is informational (data lives in the file map)
+        // repeat is FLAG_REPEAT (also in _flags); the key wins when given
+        if (getJsonBoolean(properties, "repeat", doesRepeat()))
+            flags |= FLAG_REPEAT;
+        else
+            flags &= ~FLAG_REPEAT;
+        // file_name is informational (data lives in the file map)
     }
 }

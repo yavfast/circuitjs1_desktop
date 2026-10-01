@@ -596,6 +596,14 @@ public class RelayElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("switching_time", getJsonUnitText(0, "s"));
+        return props;
+    }
+
     @Override
     public void applyJsonProperties(java.util.Map<String, Object> props) {
         super.applyJsonProperties(props);
@@ -626,10 +634,13 @@ public class RelayElm extends CircuitElm {
         if (poleCount > 4)
             poleCount = 4;
 
-        // Parse switching time
+        // Parse switching time. The exporter omits it when it is 0 (instant switching), so an
+        // absent key means 0 (RULE_ARCH_010), as for ProbeElm's series_resistance.
         if (props.containsKey("switching_time")) {
             switchingTime = com.lushprojects.circuitjs1.client.io.json.UnitParser.parse(
                     getJsonString(props, "switching_time", "5 ms"));
+        } else {
+            switchingTime = 0;
         }
 
         setupPoles();

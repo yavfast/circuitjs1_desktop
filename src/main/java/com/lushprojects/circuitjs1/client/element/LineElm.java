@@ -99,4 +99,15 @@ public class LineElm extends GraphicElm {
         props.put("y2", getY2());
         return props;
     }
+
+    // [SP_AGA_01_05] exported but not applied: the line ends are the element's endpoints
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("x");
+        keys.add("y");
+        keys.add("x2");
+        keys.add("y2");
+        return keys;
+    }
 }

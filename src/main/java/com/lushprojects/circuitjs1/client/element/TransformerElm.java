@@ -700,6 +700,25 @@ public class TransformerElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_01_05] exported but not applied: orientation travels in _flags and the endpoints
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("vertical");
+        keys.add("flip");
+        return keys;
+    }
+
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("reverse_polarity", false);
+        props.put("vertical", false);
+        props.put("flip", false);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "pri1", "pri2", "sec1", "sec2" };

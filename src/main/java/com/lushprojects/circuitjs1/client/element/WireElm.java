@@ -156,6 +156,15 @@ public class WireElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
+    @Override
+    public java.util.Map<String, Object> getJsonConditionalProperties() {
+        java.util.Map<String, Object> props = super.getJsonConditionalProperties();
+        props.put("show_current", false);
+        props.put("show_voltage", false);
+        return props;
+    }
+
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "a", "b" };
