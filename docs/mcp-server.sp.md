@@ -10,7 +10,7 @@
 > **Used by:** [SP_MCB](./mcp-bridge.sp.md), [SP_AGS](./agent-skill.sp.md)
 > **Plan:** [mcp-server.plan.md](./mcp-server.plan.md)
 >
-> This specification defines the in-app MCP endpoint: its HTTP behaviour, preferences, instance records, the tool and resource catalogue mapped onto [SP_AGA](./agent-api.sp.md) contracts, result shaping, and the user-visible server info. Read it to implement the server, to add a tool, or to write the bridge against it. The protocol-layer choice ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)) stays open; this spec fixes only the behaviour any choice must satisfy.
+> This specification defines the in-app MCP endpoint: its HTTP behaviour, preferences, instance records, the tool and resource catalogue mapped onto [SP_AGA](./agent-api.sp.md) contracts, result shaping, and the user-visible server info. Read it to implement the server, to add a tool, or to write the bridge against it. The protocol layer is resolved as the SDK 1.x core with a custom HTTP transport ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)); this spec fixes the behaviour that layer must satisfy.
 
 ## Contents
 
@@ -82,7 +82,7 @@ For `circuit_render` with `format=png` the base64 PNG appears only in the image 
 
 - **Address.** `POST http://<host>:<port>/mcp`, `Content-Type: application/json`, one JSON-RPC message per request.
 - **Response.** Replies are `application/json` single responses. No server-initiated stream: `GET /mcp` and `DELETE /mcp` answer 405. Notifications from the client answer 202 with no body.
-- **Protocol revisions.** The endpoint serves the initialize-based revisions `2025-11-25` and `2025-06-18`. `initialize` answers with the client's requested revision when it is served, else with `2025-11-25`. Whether the endpoint also serves the stateless `2026-07-28` revision is decided by [C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03).
+- **Protocol revisions.** The endpoint serves the initialize-based revisions `2025-11-25` and `2025-06-18`. `initialize` answers with the client's requested revision when it is served, else with `2025-11-25`. The stateless `2026-07-28` revision is not served in-app ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)); serving it is a backlog item of [PL_MCP](./mcp-server.plan.md).
 - **Version header.** A request whose `MCP-Protocol-Version` header names a revision the endpoint does not serve gets HTTP 400 with a JSON-RPC error body, which lets dual-era clients fall back. A request without the header is treated as `2025-06-18`.
 - **Sessions.** The server keeps no protocol session state and issues no `Mcp-Session-Id`. Session headers sent by clients are ignored.
 - **Capabilities.** `tools` (with `listChanged: false`) and `resources` (with `listChanged: false`, `subscribe: false`). No `prompts`, no sampling, no elicitation.
@@ -213,14 +213,14 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 ### 04_01. Server lifecycle  {#SP_MCP_04_01}
 
     [disabled] (pref off or no desktop runtime)
-    [starting] --listen ok--> [listening] --app exit--> [stopped]
+    [starting] --listen ok--> [listening] --window unload--> [stopped]
     [starting] --no free port--> [failed]
 
 | From | To | Condition | Side effects |
 |------|----|-----------|-------------|
 | starting | listening | A port in range bound | Instance record written; log line |
 | starting | failed | Range exhausted or listen error | Status reason kept for the info dialog; app continues |
-| listening | stopped | Window closed / process exit | Listener closed; record deleted |
+| listening | stopped | Window unload (window-manager close or File → Exit) | Listener closed; record deleted |
 
 ### 04_02. Instance record lifecycle  {#SP_MCP_04_02}
 

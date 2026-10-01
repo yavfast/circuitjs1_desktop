@@ -16,7 +16,7 @@
 > **Specification:** [SP_MCP](./mcp-server.sp.md)
 > **Plan:** [mcp-server.plan.md](./mcp-server.plan.md)
 >
-> The desktop application acts as an MCP server. It runs a Streamable HTTP endpoint inside its own desktop runtime and exposes the [Agent API](./agent-api.concept.md) as typed MCP tools and resources. Read this concept to connect an agent host, add or change a tool, or understand how several app windows are found. It covers hosting, reachability, the instance registry, the tool/resource projection, result shaping, and the open choice of protocol layer.
+> The desktop application acts as an MCP server. It runs a Streamable HTTP endpoint inside its own desktop runtime and exposes the [Agent API](./agent-api.concept.md) as typed MCP tools and resources. Read this concept to connect an agent host, add or change a tool, or understand how several app windows are found. It covers hosting, reachability, the instance registry, the tool/resource projection, result shaping, and the protocol-layer choice.
 
 ## Contents
 
@@ -36,7 +36,7 @@ The circuit lives in the running application, so the application itself serves i
 
 - **Projection, not logic.** Each tool maps to [Agent API](./agent-api.concept.md) operations and adds no circuit logic of its own. A capability missing from the Agent API is added there, not here.
 - **Desktop runtime only.** The endpoint runs in the desktop shell's embedded server-side runtime, which the app page can already reach. A plain browser page cannot listen on a port, so a browser-only build is not an MCP target.
-- **Old embedded runtime.** The shell bundles an older server-side runtime version (Node 18.0.0 at the time of the spike; see the `automation/agent-mcp-surface` skill). Stock MCP server libraries partly do not run on it, which leaves the protocol layer open ([C_MCP_DEC_03](#C_MCP_DEC_03)). Everything the endpoint needs ships inside the application package, because the package carries no separately installed modules.
+- **Old embedded runtime.** The shell bundles an older server-side runtime version (Node 18.0.0 at the time of the spike; see the `automation/agent-mcp-surface` skill). Stock MCP server libraries partly do not run on it; the library core does, with a custom transport ([C_MCP_DEC_03](#C_MCP_DEC_03)). Everything the endpoint needs ships inside the application package, because the package carries no separately installed modules.
 - **Always on, private-network trust** ([C_MCP_DEC_02](#C_MCP_DEC_02)).
   - The server starts with every app instance.
   - It is reachable from the local machine and the private network.
@@ -171,7 +171,7 @@ Several windows are several processes, because "New window" starts a new instanc
 
 ### DEC_03 — Which protocol layer serves MCP inside the old embedded runtime?  {#C_MCP_DEC_03}
 
-> **Status:** open
+> **Status:** resolved
 > **Date:** 2026-10-01
 
 **Question:** Should the endpoint use the official MCP server library's core with a custom HTTP transport, or a self-written protocol layer? And which protocol revision should it serve: the legacy initialize-based one, or the current stateless one, or both?
@@ -183,12 +183,13 @@ Several windows are several processes, because "New window" starts a new instanc
 | B — self-written tools/resources-only protocol layer | No dependencies; we track spec changes ourselves (headers, revision fallback) |
 | C — A or B in-app, with the bridge serving the current revision to stdio hosts | Modern-revision compliance where the host runtime allows it |
 
-**Decision:** OPEN — see the resolution trigger.
-**Rationale:** It depends on a fact nobody has checked yet: whether the library core runs on the embedded runtime.
-**Resolution trigger:** The hosting prototype (load the library core in the embedded runtime and answer a tool listing from Claude Code) runs at the start of the plan phase for [C_MCP](./mcp-server.concept.md). The plan must close this decision before any phase that writes the protocol layer.
+**Decision:** A in-app — the library core of the legacy-revision line (SDK 1.x) with a custom HTTP transport, bundled into the package; it serves the initialize-based revisions (2025-11-25 and older). Serving the stateless revision stays a backlog item of the plan; option C is not taken here — what the bridge serves to stdio hosts is [C_MCB](./mcp-bridge.concept.md)'s decision.
+**Rationale:** The hosting prototype loaded the core on the embedded runtime in all three run modes, and Claude Code and the MCP Inspector connected to the release build and negotiated the legacy revision ([PL_MCP_DEC_01](./mcp-server.plan.md#PL_MCP_DEC_01)).
+**Resolved by:** the developer, 2026-10-01, after the PL_MCP Phase 0 prototype.
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version from the spike and the concept interview |
+| 2026-10-01 | C_MCP_DEC_03 resolved: A in-app (SDK 1.x core + custom HTTP transport), after the PL_MCP Phase 0 prototype |

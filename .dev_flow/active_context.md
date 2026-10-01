@@ -4,13 +4,13 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 ## Resume
 
-- `/dev-flow resume task_E_AGT` — `implement` — PL_AGA P0 done (DEC_01 = A + 4 conditions), commit sign-off pending; next: PL_MCP Phase 0 hosting prototype on scratch branch `proto/mcp-hosting` — branch `design/agent-mcp`, not pushed — 2026-10-01 23:58
+- `/dev-flow resume task_E_AGT` — `implement` — PL_AGA P0 + PL_MCP P0 done, both decisions resolved; next: PL_AGA Phase 1 (foundations) — branch `design/agent-mcp`, not pushed — 2026-10-01 23:59
 
 ## Active Tasks
 
 | Task | Phase | Started | Contributors | Next |
 |------|-------|---------|--------------|------|
-| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | implement | 2026-10-01 | main | PL_AGA P0 done; PL_MCP P0 hosting prototype |
+| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | implement | 2026-10-01 | main | PL_AGA Phase 1 (foundations) |
 
 ## Recently Completed
 

@@ -1,9 +1,10 @@
 ---
 skill: agent-mcp-surface
 domain: automation
-topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells]
+topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells, nw-flavor, node-crypto, script-loading, shutdown-events]
 source: research
 updated: 2026-10-01
+verified: prototype PL_MCP Phase 0 (2026-10-01)
 ---
 
 # Hosting an MCP server in the app & designing tools for circuit agents
@@ -15,8 +16,10 @@ Findings of [docs/mcp-agent-bridge.spike.md](../../../docs/mcp-agent-bridge.spik
 ## Key concepts
 
 - **Runtime.** Release builds use NW.js `0.64.1-mod1` (SEVA77 fork, `scripts/dev_n_build.js:83`) = **Node 18.0.0 / Chromium 101**. The app page has Node integration (`war/package.json`, `main: circuitjs.html`); `$wnd.nw.require(...)` already works (`LogManager.java:125`). Devmode manifest `scripts/devmode/package.json` adds `node-remote` and CDP 9222.
-- **Packaging.** The NW package is `target/site` only — no `node_modules`. JS dependencies must be bundled into one CJS file under `war/` / `public/`. Prefer CJS; ESM `import()` in the NW Node context is risky.
-- **MCP SDK fit.** `@modelcontextprotocol/sdk` 1.x core runs on Node ≥18, but its stock `StreamableHTTPServerTransport` needs `@hono/node-server` (Node ≥18.14.1) and global `crypto` → write a small custom transport over Node `http`, or hand-roll tools-only JSON-RPC. SDK v2 / protocol 2026-07-28 needs Node ≥20 → only in an external bridge process.
+- **Packaging.** The NW package is `target/site` only — no `node_modules`. JS dependencies must be bundled into one file under `war/` / `public/`: an esbuild IIFE bundle loaded by a `<script>` tag (see Loading). Avoid ESM `import()` in the NW Node context.
+- **MCP SDK fit (measured, [PL_MCP_DEC_01](../../../docs/mcp-server.plan.md#PL_MCP_DEC_01)).** `@modelcontextprotocol/sdk` 1.31 core `Server` runs on the embedded Node 18.0.0 in all three run modes. It is paired with our own JSON-response Streamable HTTP transport over `http`; the stock `StreamableHTTPServerTransport` needs `@hono/node-server` (Node ≥18.14.1). It serves 2025-11-25 and older. SDK v2 / protocol 2026-07-28 needs Node ≥20, so it can run only in an external bridge process.
+- **Runtime flavors.** `npm start` and devmode run `node_modules/nw` 0.64.1 **SDK** flavor. The release build runs 0.64.1-mod1 **normal** flavor. Both have Node 18.0.0 and Chromium 101.
+- **Loading.** `<script src="scripts/mcp-server.js">`: an esbuild bundle (`--platform=node --format=iife`) registers a global in the page context. `require` for `http` works there. This is the only method that works in `npm start`, packaged and devmode; `require(path)` fails in devmode, where the package root is `scripts/devmode/` and the page is remote.
 - **Hosts.** Claude Code connects to Streamable HTTP directly (`claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp`, no auth header — [C_MCP_DEC_02](../../../docs/mcp-server.concept.md#C_MCP_DEC_02)); default tool-output cap 25k tokens (SP_MCP keeps text parts ≤ 60 000 chars); images render inline. Claude Desktop config is stdio-only → needs a stdio bridge (`mcp-remote` or our own).
 - **Exposure policy (developer decision [C_MCP_DEC_02](../../../docs/mcp-server.concept.md#C_MCP_DEC_02), overrides the spike's security floor).** Always on, reachable from localhost and the private network, no token / access-control mode. Kept: foreign-`Origin` rejection (spec MUST, invisible to agents) and no code-execution tool. Do not reintroduce tokens or opt-in without the developer.
 - **Instances.** "New window" is a separate NW process (`ActionManager.java:215`, `new_instance: true`) → each instance needs its own port + a discovery record.
@@ -33,6 +36,11 @@ Tool-design conventions recommended by the spike (prior art: circuitjs-mcp, SPIC
 
 ## Pitfalls
 
+- **The release runtime's Node has no OpenSSL.** `require('crypto')` throws `Node.js is not compiled with OpenSSL crypto support` in 0.64.1-mod1 normal flavor only; the SDK flavor has crypto. Keep `require("crypto")` out of the bundle and use Web Crypto `crypto.randomUUID()` of the page context. Only a packaged run catches this.
+- **Claude Code probes the stateless revision first.** It sends `server/discover` (2026-07-28) without a session and falls back to `initialize` on a 400. It then opens a GET SSE stream; answer 405.
+- **Shutdown.** `unload`, `pagehide` and `beforeunload` fire on both a window-manager close and `close(true)`. The NW `close` event fires only on the former, and Node `process` `exit` fires on neither. Remove registry records in `unload` with synchronous `fs`.
+- **New window.** `new_instance: true` gives a separate renderer process with its own `process.pid` under the same NW browser process (same `ppid`). Each window runs its own server on the next free port.
+- **Paths.** `process.cwd()` and `nw.__dirname` are the package root: `target/site`, `package.nw`, or `scripts/devmode/` in devmode. `nw.App.startPath` is the launch directory.
 - The simulator runs with non-convergence recovery on: source/wire loops and singular matrices arrive as `warn()` while simulation continues, not as `stop()` — map both (SP_AGA_03_06).
 - Desktop "save" (`CirSim.nodeSave`) is a browser download and "open" is a file picker — there is no path-based file seam yet (SP_AGA_03_09).
 - Many mechanisms act on the active document only (undo dump via `ActionManager.dumpCircuit`, `BaseCirSim.needAnalyze/stop`, renderer) — how background-document work meets SP_AGA_03_08 R1/R2 is resolved by SP_AGA_DEC_04 as a scoped silent bind (A) — see [background-documents](background-documents.md).

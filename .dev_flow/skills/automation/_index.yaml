@@ -8,7 +8,7 @@ skills:
     updated: 2026-10-01
   - file: agent-mcp-surface.md
     skill: agent-mcp-surface
-    topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, netlist-first]
+    topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells, nw-flavor, node-crypto, script-loading, shutdown-events]
     source: research
     updated: 2026-10-01
   - file: background-documents.md

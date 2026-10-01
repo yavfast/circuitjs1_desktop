@@ -2,17 +2,17 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-01 23:58
+> **Last updated:** 2026-10-01 23:59
 > **Status:** `in-progress`
 > **Contributors:** `main`
-> **Autonomy:** `checkpoints`
+> **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
 
 ## Current Work Item
 
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 0 and [mcp-server.plan.md](../../docs/mcp-server.plan.md) Phase 0 (prototypes) |
-| **Pipeline phase** | `implement` — PL_AGA P0 done; next PL_MCP P0 |
+| **Pipeline phase** | `implement` — PL_AGA P0 + PL_MCP P0 done; next PL_AGA P1 |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -82,7 +82,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 22:10 — SP_AGA_DEC_04 trigger edited in place (non-breaking) to the reduced prototype sequence
 
 ### Subtask: implementation
-> Author: `main` — Created: 22:40 — Last updated: 23:58 — Status: `in-progress`
+> Author: `main` — Created: 22:40 — Last updated: 23:59 — Status: `in-progress`
 
 **Goal:** implement PL_AGA, PL_MCP, PL_MCB, PL_AGS in plan order; one commit sign-off per plan phase.
 
@@ -90,10 +90,13 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 0 prototype built (worktree on `proto/agent-bg-doc`, scratchpad) and measured headless over 5 configurations; result in the plan's Phase 0 block; skill `automation/background-documents` created
 - [x] Developer chose A + 4 conditions; PL_AGA_DEC_01 and SP_AGA_DEC_04 `resolved`; Phase 0 `[DONE]`; scratch worktree and branch removed
 - [x] Commit sign-off for the Phase 0 record (docs + skill) — given 2026-10-01
-- [ ] **Next:** scratch branch `proto/mcp-hosting` for PL_MCP Phase 0 (SDK v1 core under Node 18.0 in three run modes, Claude Code + Inspector connect, `process.pid` in `new_instance`, close/Exit events); record in PL_MCP_DEC_01 and close C_MCP_DEC_03
-- [ ] PL_AGA Phase 1 after PL_AGA_DEC_01 is closed
+- [x] PL_MCP Phase 0 hosting prototype (scratchpad only — no branch needed): SDK 1.31 core + own transport in npm start / packaged / devmode; Claude Code + Inspector connected; developer resolved PL_MCP_DEC_01 = A (closes C_MCP_DEC_03)
+- [x] Commit of the PL_MCP Phase 0 record (review FAIL → delta PASS)
+- [ ] **Next:** PL_AGA Phase 1 — foundations (`client/agent/`, results, documents, `CircuitJS1Agent` export)
 
 **Activity:**
+- 23:59 — developer resolved PL_MCP_DEC_01 = A (SDK core, script-tag loading, no Node crypto)
+- 23:59 — PL_MCP P0: release runtime (0.64.1-mod1 normal) Node lacks OpenSSL → `require('crypto')` throws; only the script-tag load works in all 3 modes; Claude Code probes `server/discover` (2026-07-28) then falls back; a stray `"/tmp/chrome/devmode"` dir created in the repo root by the devmode run (quoted manifest arg) was removed; filed in PL_MCP backlog
 - 23:58 — developer resolved PL_AGA_DEC_01 = A + 4 conditions (closes SP_AGA_DEC_04)
 - 23:55 — PL_AGA P0: today's `bindDocument` starves the active tab when bound per slice (0 % rate); silent field-swap bind + sliders-dialog guard passes R1 at 97.5 %, R2 equal on all §05_02 fields given the per-document hint (condition 3); slices 23–25 ms vs the 20 ms bound (disclosed, Phase 8 proves it); pre-existing tab-switch hint leak filed in the PL_AGA backlog
 - 23:55 — P0 verified headless (harness `eval` + probe) instead of by hand in devmode — stronger evidence: every R1 field sampled per call and per slice
@@ -124,7 +127,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 ## Relevant Context
 
-- `{s:pin}` Resolved 2026-10-01: [PL_AGA_DEC_01](../../docs/agent-api.plan.md#PL_AGA_DEC_01) = A, scoped silent bind + 4 conditions (closes [SP_AGA_DEC_04](../../docs/agent-api.sp.md#SP_AGA_DEC_04)); skill `automation/background-documents`. Still open (blocks PL_MCP Phase 1): [PL_MCP_DEC_01](../../docs/mcp-server.plan.md#PL_MCP_DEC_01) → closes [C_MCP_DEC_03](../../docs/mcp-server.concept.md#C_MCP_DEC_03) (protocol layer). — main
+- `{s:pin}` Resolved 2026-10-01: [PL_AGA_DEC_01](../../docs/agent-api.plan.md#PL_AGA_DEC_01) = A, scoped silent bind + 4 conditions (closes [SP_AGA_DEC_04](../../docs/agent-api.sp.md#SP_AGA_DEC_04)); skill `automation/background-documents`. Also resolved 2026-10-01: [PL_MCP_DEC_01](../../docs/mcp-server.plan.md#PL_MCP_DEC_01) = A, SDK 1.x core + own transport, script-tag loading, no Node crypto (closes [C_MCP_DEC_03](../../docs/mcp-server.concept.md#C_MCP_DEC_03)). No open design decisions remain. — main
 - `{s:pin}` Spec-level decisions settled by the developer: SP_AGA_DEC_01 one atomic `applyEdits` batch · SP_MCP_DEC_01 14 grouped tools · SP_MCP_DEC_03 file actions on circuit files only (.txt/.json, ≤10 MB, overwrite only empty/circuit files). — main
 - Read first on resume — main:
   - [agent-automation.epic.md](../../docs/agent-automation.epic.md) — epic, interview-decision map, acceptance criteria
