@@ -21,6 +21,7 @@ _(none active)_
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
+| [backlog-fixes-2](task_20261001_113805_backlog-fixes-2.md) | fix | done | main | 2026-10-01 |
 | [backlog-fixes](task_20260930_205344_backlog-fixes.md) | fix | done | main | 2026-09-30 |
 | [code-audit-full](task_20260930_173830_code-audit-full.md) | audit (code) + fix | done | main | 2026-09-30 |
 | [fix-bl-drop](task_20260621_125942_fix-bl-drop.md) | fix | done | main | 2026-06-21 |

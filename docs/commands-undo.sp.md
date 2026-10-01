@@ -3,7 +3,7 @@
 > **Code:** SP_UND
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 >
 > **Concept:** [C_UND](./commands-undo.concept.md)
 > **Depends on specs:** SP_IOF, SP_DOC
@@ -31,7 +31,6 @@ Invariants: immutable after construction.
 |-------|------|---------|-------------|
 | undoStack | Vector<UndoItem> | empty | LIFO of pre-edit snapshots. |
 | redoStack | Vector<UndoItem> | empty | LIFO of post-edit snapshots after an undo. |
-| recovery | String | null | Crash auto-save payload. |
 
 ## 02. Contracts  {#SP_UND_02}
 
@@ -61,19 +60,9 @@ Purpose: Record current state before a mutation.
         renderer.transform[4] = item.tx
         renderer.transform[5] = item.ty
 
-### 02_03. Recovery slot  {#SP_UND_02_03}
+### 02_03. Recovery slot (removed)  {#SP_UND_02_03}
 
-    FUNCTION writeRecoveryToStorage():
-        recovery = actionManager.dumpCircuit()
-        OptionsManager.setOptionInStorage("circuitRecovery", recovery)
-
-    FUNCTION readRecovery():
-        recovery = OptionsManager.getOptionFromStorage("circuitRecovery", null)
-
-    FUNCTION doRecover():
-        IF recovery == null: RETURN
-        pushUndo
-        circuitLoader.readCircuit(recovery, RC_NO_CENTER)
+Removed 2026-10-01 (PL_AUDIT_20260930_173830 BL-C01): no `recovery` field, no `writeRecoveryToStorage` / `readRecovery` / `doRecover`, no "Recover Auto-Save" menu item. At startup `CirSim` calls `OptionsManager.removeOptionFromStorage("circuitRecovery")` once to free the dump older builds left behind. The ID stays reserved.
 
 ### 02_04. clearStacks / resetAndSeedFromCurrentCircuit  {#SP_UND_02_04}
 
@@ -84,7 +73,6 @@ Purpose: Record current state before a mutation.
 
 - `pushUndo` never pushes on an empty circuit during boot before `resetAndSeedFromCurrentCircuit`.
 - `loadUndoItem` runs only when not inside a modal dialog (editor gating).
-- `recovery` may be null (no prior session).
 
 ## 04. State Transitions  {#SP_UND_04}
 
@@ -103,7 +91,6 @@ Purpose: Record current state before a mutation.
 |----------|----------|-------|----------|
 | pushUndo | repeated no-op | identical dump | single stack entry (dedup) |
 | doUndo/doRedo | round-trip | edit then undo then redo | dump identical to post-edit |
-| doRecover | crash restore | recovery set | circuit equals last checkpoint; transform preserved |
 
 ### 05_02. Invariants  {#SP_UND_05_02}
 
@@ -125,3 +112,4 @@ Purpose: Record current state before a mutation.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-01 | SP_UND_02_03 recovery slot removed (BL-C01). |

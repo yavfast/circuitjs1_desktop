@@ -10,6 +10,7 @@ _(none active)_
 
 | Task | Phase | Completed | Contributors | Result |
 |------|-------|-----------|--------------|--------|
+| [task_20261001_113805_backlog-fixes-2](tasks/task_20261001_113805_backlog-fixes-2.md) — backlog batch 2 (BL-C01..C04, BL-A01) | fix | 2026-10-01 | main | fix/backlog-20260930 (not merged) |
 | [task_20260930_205344_backlog-fixes](tasks/task_20260930_205344_backlog-fixes.md) — backlog defect fixes (BL-A06/A05/A03/B05/B06) | fix | 2026-09-30 | main | 21079bc on fix/backlog-20260930 (not merged) |
 | [task_20260930_173830_code-audit-full](tasks/task_20260930_173830_code-audit-full.md) — full code audit + defect fixes | audit (code) + fix | 2026-09-30 | main | Plan [whole_20260930_173830](audit/whole_20260930_173830.plan.md); fixes on master (b64e347, f0aee41, df62f60) |
 | [task_20260621_125942_fix-bl-drop](tasks/task_20260621_125942_fix-bl-drop.md) — JSON type-name aliases | fix | 2026-06-21 | main | c8d61db |
@@ -22,7 +23,7 @@ _No `todos/` register. Open work lives in the backlog of [audit/whole_20260930_1
 
 ## Notes
 
-- Suggested next: BL-C01 decision (Recover Auto-Save: remove vs per-document key), merge `fix/backlog-20260930` into master, DEC_01 build profile, BL-A11 test layer, ITEM-15 CSP.
+- Suggested next: BL-C07 counters (trivial), merge `fix/backlog-20260930` into master, DEC_01 build profile, BL-A11 test layer, ITEM-15 CSP.
 - Verification tool: `npm run buildgwt && npm run test:live` ([tests/live/README.md](../tests/live/README.md)) — RULE_TEST_006.
 - Tree at 2026-09-30: branch `master`, clean, 12 commits ahead of `origin/master` (not pushed); merged feature branches `fix/audit-20260930`, `fix/audit-defects-20260621` still exist locally.
 

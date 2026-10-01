@@ -216,7 +216,7 @@ rules:
     category: error-handling
     severity: must
     file: error-handling.md
-    summary: Diagnostic logging goes through BaseCirSim.log/LogManager; avoid System.out.println, GWT.log, util/Log (dormant).
+    summary: Diagnostic logging goes through BaseCirSim.log/LogManager; avoid System.out.println and GWT.log (the dormant util/Log was deleted 2026-10-01).
   - id: RULE_ERR_006
     title: Do not silently swallow parse errors
     category: error-handling

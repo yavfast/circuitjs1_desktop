@@ -101,7 +101,7 @@ Processing logic:
         circuitLoader.readCircuit(text, RC_RETAIN | RC_NO_CENTER)
         selectNewItems
         IF canMoveNewItems THEN moveNewItems(deltaFromOldBBoxOrCursor)
-        needAnalyze; writeRecoveryToStorage; setUnsavedChanges(true)
+        needAnalyze; setUnsavedChanges(true)
 
 ### 02_04. Render pipeline  {#SP_EDI_02_04}
 
@@ -143,7 +143,7 @@ Processing logic:
 | dragging(SELECT) | dragging(DRAG_SELECTED) | elapsed ≥ 150 ms, hovering an element | none |
 | idle | dragging(ADD_ELM) | mouseDown in ADD_ELM | constructElement; pushUndo |
 | idle | dragging(DRAG_SPLITTER) | mouseDown over splitter | pushUndo |
-| dragging(*) | idle | mouseUp | if dragElm → commit or creationFailed→delete; if changed → needAnalyze + pushUndo + writeRecovery; reset tempMouseMode = mouseMode |
+| dragging(*) | idle | mouseUp | if dragElm → commit or creationFailed→delete; if changed → needAnalyze + pushUndo; reset tempMouseMode = mouseMode |
 
 ## 05. Verification Criteria  {#SP_EDI_05}
 

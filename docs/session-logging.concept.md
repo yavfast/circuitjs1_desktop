@@ -95,7 +95,7 @@ flushLogQueue
 ### 4.1. Dependencies  {#C_LOG_04_01}
 
 - **C_PLT** — GWT `Scheduler`, `DateTimeFormat`, `Date`; JSNI to NW.js `require('fs').appendFile` / `writeFileSync`; browser `Blob`/`URL.createObjectURL`.
-- **[C_UTL](./util-locale-log.concept.md)** — no direct dependency; `util.Log` is deliberately **unrelated** (dead).
+- **[C_UTL](./util-locale-log.concept.md)** — no direct dependency; the dead `util.Log` was deleted on 2026-10-01 (BL-A01).
 - **C_APC (simulator-core)** — `BaseCirSim.log(String)` forwards here; `CirSim` exposes `getLogs/getLastLogs/getLogCount/addLog/clearLogs` JS bridge.
 
 ### 4.2. API Surface  {#C_LOG_04_02}

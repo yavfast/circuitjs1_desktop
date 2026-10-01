@@ -26,7 +26,7 @@ Key catalog (partial):
 | `positiveColor`/`negativeColor`/`neutralColor`/`selectColor`/`currentColor` | hex string | defaults | ColorSettings via EditOptions |
 | `toolbar`/`showMouseMode`/`crossHair`/`euroResistors`/`euroGates`/`whiteBackground`/`conventionalCurrent`/`mouseWheelEdit` | bool | per flag | MenuManager |
 | `wheelSensitivity` | double | "1" | CircuitEditor |
-| `circuitRecovery` | string | — | UndoManager |
+| `circuitRecovery` | string | — | removed 2026-10-01 (BL-C01); `CirSim` deletes a leftover value at startup |
 | `scopeDefaults` | string | — | Scope |
 | `shortcuts` | string | null | MenuManager |
 | `subcircuit:<name>` | string | — | CustomCompositeModel |

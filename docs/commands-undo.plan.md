@@ -28,7 +28,7 @@ Implement full-snapshot undo/redo plus a single-slot crash-recovery store, drive
 - [x] Phase 1 — UndoItem inner class
 - [x] Phase 2 — push/doUndo/doRedo
 - [x] Phase 3 — resetAndSeedFromCurrentCircuit
-- [x] Phase 4 — writeRecoveryToStorage / readRecovery / doRecover
+- [x] Phase 4 — writeRecoveryToStorage / readRecovery / doRecover *(removed 2026-10-01, BL-C01)*
 - [x] Phase 5 — Wire pushUndo into every mutating editor path
 
 ## Backlog

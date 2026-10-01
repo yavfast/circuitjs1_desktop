@@ -12,7 +12,7 @@
 | C_RND | Rendering Primitives | active | Color, Font, Graphics — thin GWT-to-canvas wrappers consumed by every element's draw() | [concept](rendering-primitives.concept.md) · [spec](rendering-primitives.sp.md) · [plan](rendering-primitives.plan.md) |
 | C_MDS | Math / DSP Utilities | active | CircuitMath, StringTokenizer, RandomUtils, FFT — numeric + parsing helpers for solver and scopes | [concept](math-dsp.concept.md) · [spec](math-dsp.sp.md) · [plan](math-dsp.plan.md) |
 | C_EXP | Expression Engine | active | Expr, ExprParser, ExprState — arithmetic expression compiler for custom sources and logic | [concept](expression-engine.concept.md) · [spec](expression-engine.sp.md) · [plan](expression-engine.plan.md) |
-| C_PLT | Platform Bridge | active | PlatformUtils, GWTUtils — thin JSNI layer isolating browser/NW.js-specific calls | [concept](platform-bridge.concept.md) · [spec](platform-bridge.sp.md) · [plan](platform-bridge.plan.md) |
+| C_PLT | Platform Bridge | active | GWTUtils (PlatformUtils deleted 2026-10-01) — thin JSNI layer isolating browser/NW.js-specific calls | [concept](platform-bridge.concept.md) · [spec](platform-bridge.sp.md) · [plan](platform-bridge.plan.md) |
 
 ## Layer 1 — Reusable UI primitives
 

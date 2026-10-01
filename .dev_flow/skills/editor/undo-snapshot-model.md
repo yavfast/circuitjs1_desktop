@@ -1,9 +1,9 @@
 ---
 skill: undo-snapshot-model
 domain: editor
-topics: [undo, redo, snapshot, recovery, local-storage, dedup]
+topics: [undo, redo, snapshot, dedup, dump-index]
 source: onboard
-updated: 2026-04-18
+updated: 2026-10-01
 ---
 
 # Undo Snapshot Model
@@ -26,9 +26,8 @@ would recenter the viewport.
 **Stacks** (`UndoManager.java:28-32`):
 - `Vector<UndoItem> undoStack` — the history.
 - `Vector<UndoItem> redoStack` — cleared on every new `pushUndo`.
-- `String recovery` — a **separate slot** (not a stack) persisted to
-  `localStorage` via `OptionsManager` key `"circuitRecovery"`. Crash
-  auto-save.
+- *(The `recovery` slot / "Recover Auto-Save" was removed 2026-10-01,
+  BL-C01; `CirSim` deletes a leftover `circuitRecovery` key at startup.)*
 
 **Push rule** (`pushUndo`, L56):
 1. Drop the redo stack.
@@ -54,18 +53,19 @@ mutation:
 - `CircuitEditor.onMouseDown` (L681) — before drag-create/drag-move.
 - `doDelete` (L1037), `doPaste` (L1117), `prepareFlip` (L940),
   `doEditOptions` (L1241), `doEditElementOptions` (L1247), `doSliders`
-  (L1253), `doRecover` (L1018).
+  (L1253).
 - `ActionManager` menu actions: `centrecircuit`, `flipx/y/xy`, `setup`
   (load preset), `newblankcircuit`, `importfromlocalfile` (L210, 344-466
   region).
 - `UndoManager.resetAndSeedFromCurrentCircuit` (L43) — after open,
   seeds a baseline so Undo does not jump to pre-load state.
 
-**Recovery slot** is separate from the stack. `writeRecoveryToStorage`
-(L88) is called on destructive ops; `readRecovery` (L94) loads it on
-boot. The "Recover Auto-Save" menu item calls `circuitEditor.doRecover()`
-which **also** pushes an undo before applying — so recovery is itself
-undoable.
+**Undo rebuilds every element.** `loadUndoItem` re-runs the text
+constructors, so any state the text dump does not carry is lost on every
+undo (e.g. a chip's `lastClock` — clocked chips therefore call
+`ChipElm.skipExecuteAfterLoad(clockPin)` to prime the edge detector), and
+any index a dump line stores must be an index among *dumped* lines
+(`CircuitSimulator.locateElmForDump`), not `elmList.indexOf`.
 
 ## Usage in this project
 
@@ -104,9 +104,7 @@ undoable.
    `getActiveDocument()` at call time — correct only while *this*
    `UndoManager` belongs to the currently-active document. Do not call
    `loadUndoItem` from a background tab context.
-6. **Recovery slot is single-value, not stack.** Only the most recent
-   auto-save is recoverable. Opening an unrelated circuit overwrites the
-   prior recovery blob.
+6. *(Removed 2026-10-01: the single-value recovery slot no longer exists.)*
 7. **Clipboard paste uses `RC_RETAIN`** (keeps existing elements) with
    a `pushUndo` before. Paste cannot be undone in one step if the
    paste triggers element collisions that the importer silently

@@ -31,7 +31,7 @@ Desktop API / `xdg-open` integration in `openURLWithSystemCommand`.
 
 ## Progress
 
-- [DONE] Phase 1 — PlatformUtils (URL opening + probes)
+- [DONE] Phase 1 — PlatformUtils (URL opening + probes) *(deleted 2026-10-01 as dead code, BL-A01)*
 - [DONE] Phase 2 — GWTUtils (CSS sugar)
 - [backlog] Phase 3 — System-command URL fallback
 

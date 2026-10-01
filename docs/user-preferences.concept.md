@@ -118,7 +118,7 @@ Runtime write:
 - `ColorSettings`: palette getters/setters (printable-aware), `getVoltageColor/getPowerColor`, `updateColorScale`, `isPrintable/setPrintable`.
 - `QueryParameters`: `getValue`, `getBooleanValue`.
 
-Key consumers: `CirSim` (boot sequencer), `CircuitInfo` (URL overrides), `MenuManager` (check items), `EditOptions` + `ModDialog` (UI), `Dialog` (per-dialog pos/collapsed), `CustomCompositeModel` (subcircuit enumeration), `UndoManager` (`circuitRecovery`), `Scope` (`scopeDefaults`).
+Key consumers: `CirSim` (boot sequencer), `CircuitInfo` (URL overrides), `MenuManager` (check items), `EditOptions` + `ModDialog` (UI), `Dialog` (per-dialog pos/collapsed), `CustomCompositeModel` (subcircuit enumeration), `Scope` (`scopeDefaults`).
 
 ## Changelog
 

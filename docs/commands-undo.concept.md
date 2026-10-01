@@ -3,7 +3,7 @@
 > **Code:** C_UND
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 > **Author:** onboard-doc-gen
 >
 > **Depends on:** C_IOF (io-framework), [C_DOC](./document-model.concept.md)
@@ -14,7 +14,7 @@
 >
 > Backing analysis: `.dev_flow/onboard/analysis/layer3__editor-interaction.md` §5.
 >
-> A full-snapshot undo/redo stack plus a separate crash-recovery slot. Every mutating edit in the editor calls `pushUndo()`, which serializes the entire circuit via the active `CircuitFormat` exporter (through `ActionManager.dumpCircuit()`) and dedupes against the previous snapshot. Restoration rebuilds the whole circuit through `CircuitLoader.readCircuit`.
+> A full-snapshot undo/redo stack. Every mutating edit in the editor calls `pushUndo()`, which serializes the entire circuit via the active `CircuitFormat` exporter (through `ActionManager.dumpCircuit()`) and dedupes against the previous snapshot. Restoration rebuilds the whole circuit through `CircuitLoader.readCircuit`.
 
 ## 1. Philosophy  {#C_UND_01}
 
@@ -29,7 +29,7 @@ The undo engine stores full textual dumps, not inverse commands. This keeps the 
 - **Full-snapshot only.** No inverse commands, no deltas, no merging.
 - **Dedup on push.** Consecutive identical dumps collapse (`undoStack.last().dump.equals(newDump)`).
 - **Transform captured.** The view transform (`transform[0]`, `[4]`, `[5]`) is stored in the `UndoItem` and restored after `readCircuit(RC_NO_CENTER)`.
-- **Recovery is a separate slot.** `recovery` is a single `String` written to `localStorage` under key `circuitRecovery`; not a stack.
+- **No crash-recovery slot.** The former "Recover Auto-Save" slot (one global `circuitRecovery` localStorage key) was removed on 2026-10-01: its read side had long been disabled while every edit still wrote a full dump. Restoring open tabs on restart is the session-restore job of [C_DOC](./document-model.concept.md); `CirSim` deletes the stale key once at startup.
 - **Redo cleared on every push.** A new edit always invalidates the redo path.
 
 ## 2. Domain Model  {#C_UND_02}
@@ -40,7 +40,6 @@ The undo engine stores full textual dumps, not inverse commands. This keeps the 
 UndoManager extends BaseCirSimDelegate
   Vector<UndoItem> undoStack
   Vector<UndoItem> redoStack
-  String           recovery          -- crash auto-save
 
 UndoItem (inner)
   String dump           -- full circuit text from CircuitFormat exporter
@@ -60,7 +59,7 @@ Mutating edit path (e.g. editor.doDelete, editor.doPaste, menu "centrecircuit"):
     undoStack.push(UndoItem(dump, transform))
 
   ...perform mutation on simulator().elmList...
-  needAnalyze; setUnsavedChanges; writeRecoveryToStorage (for destructive ops)
+  needAnalyze; setUnsavedChanges
 
 doUndo():
   push current (dump+transform) to redoStack
@@ -69,12 +68,6 @@ doUndo():
                        restore transform[0/4/5]
 
 doRedo(): symmetric.
-
-Recovery:
-  writeRecoveryToStorage: recovery = actionManager.dumpCircuit();
-                          OptionsManager.setOptionInStorage("circuitRecovery", recovery)
-  readRecovery (at boot): recovery = OptionsManager.getOptionFromStorage(...)
-  doRecover (menu): pushUndo; circuitLoader.readCircuit(recovery, RC_NO_CENTER)
 ```
 
 ## 3. Mechanisms  {#C_UND_03}
@@ -86,8 +79,6 @@ Recovery:
 **Load.** `RC_NO_CENTER` preserves current pan/zoom, then the stored transform overrides. Any simulator-internal state (Newton iteration guesses, scope cursor) is *not* captured and is reset by the reload.
 
 **Seed after load.** `resetAndSeedFromCurrentCircuit()` is called after `CircuitLoader` finishes: clears both stacks and pushes the just-loaded state, so the first `doUndo` cannot revert to the pre-load placeholder.
-
-**Recovery slot.** Written on destructive ops (delete, paste, import) and at periodic checkpoints; read once at boot into `undoManager.recovery`. The "Recover Auto-Save" menu item calls `doRecover`.
 
 ### 3.2. Edge Cases  {#C_UND_03_02}
 
@@ -101,8 +92,7 @@ Recovery:
 
 - **C_IOF (io-framework)** — `ActionManager.dumpCircuit()` → `CircuitFormatRegistry` exporter; `CircuitLoader.readCircuit(dump, flags)` for restoration.
 - **C_DOC** — per-document lifecycle (`undoManager = new UndoManager(cirSim, doc)`); `getActiveDocument()` used during load.
-- **C_USR (user-preferences)** — `OptionsManager` read/write for `circuitRecovery`.
-- **[C_EDI](./canvas-editor.concept.md)** — all mutation paths wrap with `pushUndo`; `doUndo/doRedo/doRecover` proxied from editor.
+- **[C_EDI](./canvas-editor.concept.md)** — all mutation paths wrap with `pushUndo`; `doUndo/doRedo` proxied from editor.
 
 ### 4.2. API Surface  {#C_UND_04_02}
 
@@ -110,7 +100,6 @@ Recovery:
 - `resetAndSeedFromCurrentCircuit()` — clear + push current.
 - `pushUndo()` — dedup + dump + push; clears redo.
 - `doUndo()`, `doRedo()` — swap current with top of target stack.
-- `writeRecoveryToStorage()`, `readRecovery()`, `doRecover()` — recovery slot.
 - Inner `UndoItem(dump, scale, tx, ty)` — immutable snapshot record.
 
 ## Changelog
@@ -118,3 +107,4 @@ Recovery:
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-01 | Crash-recovery slot ("Recover Auto-Save") removed — developer decision, PL_AUDIT_20260930_173830 BL-C01. |

@@ -131,7 +131,7 @@ Per-site catches dilute the global handler's coverage and often swallow the type
 ### Description
 Log diagnostic messages through `BaseCirSim.log(String)` (`BaseCirSim.java:257-259`), which forwards to `LogManager.addLogEntry(...)`. `LogManager` maintains both the in-memory buffer consumed by `ShowLogDialog` and the optional NW.js file output (`layer3__cross-cutting-managers.md:87-103`).
 
-The legacy `util/Log` class is **dormant** (0 active callers, `util.md`). Do not route new calls into it; it compiles but writes to `CirSim.console`/`GWT.log` only and bypasses `LogManager`.
+The legacy `util/Log` class (dormant, 0 callers) was deleted on 2026-10-01 (BL-A01); do not reintroduce a parallel logger that bypasses `LogManager`.
 
 `System.out.println` / `printStackTrace()` are also out of bounds (the last live sites, incl. `ChipElm.setVoltageSource`, were removed 2026-09-30). `CirSim.console(...)` is the per-document channel; since 2026-09-30 it also feeds `LogManager`, so it satisfies this rule.
 

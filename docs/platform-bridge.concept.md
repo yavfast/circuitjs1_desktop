@@ -1,13 +1,13 @@
-# Platform Bridge: PlatformUtils, GWTUtils  {#C_PLT}
+# Platform Bridge: GWTUtils  {#C_PLT}
 
 > **Code:** C_PLT
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 > **Author:** onboard
 >
 > **Depends on:** none (Layer 0 leaf)
-> **Used by:** `ActionManager`, `MenuManager` (URL opening); `CircuitRenderer`,
+> **Used by:** `CircuitRenderer`,
 > `CircuitEditor`, `UndoManager`, `CircuitLoader`, `JsonCircuitImporter`
 > (CSS helpers)
 > **Spike:** —
@@ -15,8 +15,9 @@
 > **Plan:** [platform-bridge.plan.md](./platform-bridge.plan.md)
 >
 > Thin glue between the Java/GWT client and the underlying browser / NW.js
-> runtime. `PlatformUtils` opens external URLs and probes the runtime;
-> `GWTUtils` provides small CSS-on-Widget sugar.
+> runtime. `GWTUtils` provides small CSS-on-Widget sugar.
+>
+> **2026-10-01:** `PlatformUtils` (URL opening + runtime probes) was deleted as dead code (no caller; PL_AUDIT_20260930_173830 BL-A01). The URL-opening text below is kept as history and marked *(removed)*.
 
 ## 1. Philosophy  {#C_PLT_01}
 
@@ -43,7 +44,7 @@ share only the fact that they touch browser APIs, so they are colocated as
 
 ### 2.1. Key Entities  {#C_PLT_02_01}
 
-- **PlatformUtils** — static utility. Public methods: `openURL(String)`,
+- **PlatformUtils** *(removed 2026-10-01)* — static utility. Public methods: `openURL(String)`,
   `getPlatformInfo()`, `isURLOpeningSupported()`. JSNI private methods:
   `openURLWithJavaScript` (tries `nw.Shell.openExternal`, else
   `window.open`), `openURLWithSystemCommand` (AI_TODO / unimplemented).
@@ -53,7 +54,7 @@ share only the fact that they touch browser APIs, so they are colocated as
 
 ### 2.2. Data Flows  {#C_PLT_02_02}
 
-- Action/menu click → `ActionManager`/`MenuManager` → `PlatformUtils.openURL(url)`
+- *(removed)* Action/menu click → `ActionManager`/`MenuManager` → `PlatformUtils.openURL(url)`
   → JSNI `openURLWithJavaScript` → NW.js shell or `window.open` →
   external browser or new tab.
 - UI setup → widget construction → `GWTUtils.setStyle(...)` or
@@ -63,7 +64,7 @@ share only the fact that they touch browser APIs, so they are colocated as
 
 ### 3.1. Core Algorithm  {#C_PLT_03_01}
 
-`openURL`: null/empty → false. Try `openURLWithJavaScript`. On exception,
+*(removed)* `openURL`: null/empty → false. Try `openURLWithJavaScript`. On exception,
 fall back to `openURLWithSystemCommand` (currently a stub). Log outcome via
 `GWT.log`.
 
@@ -91,9 +92,6 @@ pair to the underlying DOM style API.
 
 ### 4.2. API Surface  {#C_PLT_04_02}
 
-- `PlatformUtils.openURL(String) → boolean`.
-- `PlatformUtils.getPlatformInfo() → String` (JSON).
-- `PlatformUtils.isURLOpeningSupported() → boolean`.
 - `GWTUtils.setStyle(Widget, String, String)`.
 - `GWTUtils.setStyles(Widget, String...)`.
 - Additional `GWTUtils` family helpers for common CSS properties (flex,
@@ -104,3 +102,4 @@ pair to the underlying DOM style API.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure |
+| 2026-10-01 | `PlatformUtils` deleted (dead code, BL-A01); concept now covers `GWTUtils` only. |

@@ -3,7 +3,7 @@
 > **Code:** SP_PLT
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-01
 >
 > **Concept:** [C_PLT](./platform-bridge.concept.md)
 > **Depends on specs:** — (Layer 0)
@@ -19,7 +19,7 @@
 
 > Implements: [C_PLT_02](./platform-bridge.concept.md#C_PLT_02)
 
-### 01_01. PlatformUtils  {#SP_PLT_01_01}
+### 01_01. PlatformUtils (removed 2026-10-01, BL-A01 — IDs SP_PLT_01_01, 02_01..02_03 stay reserved)  {#SP_PLT_01_01}
 
 Stateless static utility. No fields.
 
@@ -29,7 +29,7 @@ Stateless static utility. No fields.
 
 ## 02. Contracts  {#SP_PLT_02}
 
-### 02_01. PlatformUtils.openURL(String url)  {#SP_PLT_02_01}
+### 02_01. PlatformUtils.openURL(String url) — removed  {#SP_PLT_02_01}
 
 Purpose: Open `url` externally.
 Input:
@@ -46,12 +46,12 @@ Logic:
     IF exception: try openURLWithSystemCommand(url)  # currently stub
     log outcome via GWT.log; return success
 
-### 02_02. PlatformUtils.getPlatformInfo()  {#SP_PLT_02_02}
+### 02_02. PlatformUtils.getPlatformInfo() — removed  {#SP_PLT_02_02}
 
 Output: JSON string describing NW.js presence, `nw.Shell` availability, and
 navigator.platform.
 
-### 02_03. PlatformUtils.isURLOpeningSupported()  {#SP_PLT_02_03}
+### 02_03. PlatformUtils.isURLOpeningSupported() — removed  {#SP_PLT_02_03}
 
 Output: `boolean` — true if NW.js shell or `window.open` is reachable.
 
@@ -113,3 +113,4 @@ N/A — stateless utilities.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure |
+| 2026-10-01 | `PlatformUtils` contracts removed (dead code, BL-A01). |

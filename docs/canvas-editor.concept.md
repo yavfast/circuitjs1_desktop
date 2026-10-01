@@ -67,7 +67,7 @@ GWT DOM event → CircuitEditorEventHandler → active document's CircuitEditor
               | dragPost | SELECT→DRAG_SELECTED (after 150 ms) | dragSelected
               | dragSplitter;  else mouseSelect → findElm / findElmInScope / findElmByPost
   mouseUp:    finalise dragElm (or delete if creationFailed); needAnalyze;
-              pushUndo on change; setUnsavedChanges; writeRecoveryToStorage
+              pushUndo on change; setUnsavedChanges
   wheel:      scrollValues (element-specific) OR zoomCircuit
   contextMenu: menuManager.doPopupMenu
   doubleClick: doEditElementOptions(mouseElm)
@@ -114,7 +114,7 @@ Render loop (per frame):
 
 - Event entry points: `onMouseDown/Move/Up/Wheel/Out/Click/ContextMenu/DoubleClick`.
 - Mode API: `setMouseMode(String|MouseMode)`, `setCursorStyle`, `setMenuSelection`, `clearSelection`, `doSelectAll`.
-- Edit API: `doFlip/doSplit/flipX/Y/XY`, `doSwitch`, `doCut/Copy/Paste/Duplicate/Delete`, `doEditOptions/doEditElementOptions/doSliders`, `doUndo/Redo/Recover`, `pushUndo`.
+- Edit API: `doFlip/doSplit/flipX/Y/XY`, `doSwitch`, `doCut/Copy/Paste/Duplicate/Delete`, `doEditOptions/doEditElementOptions/doSliders`, `doUndo/Redo`, `pushUndo`.
 - Grid/view: `snapGrid`, `setGrid`, `setWheelSensitivity`.
 - Renderer API: `initCanvas`, `setCanvasSize`, `setCircuitArea`, `zoomCircuit`, `setCircuitScale`, `transformX/Y`/`inverseTransformX/Y`, `centreCircuit`, `repaint`, `getCircuitAsCanvas/SVG`, `getCircuitBounds`.
 
