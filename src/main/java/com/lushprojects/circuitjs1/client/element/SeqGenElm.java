@@ -286,9 +286,8 @@ public class SeqGenElm extends ChipElm {
     @Override
     public void applyJsonState(java.util.Map<String, Object> state) {
         super.applyJsonState(state);
-        if (state.containsKey("bitPosition"))
-            bitPosition = ((Number) state.get("bitPosition")).intValue();
-        if (state.containsKey("clockstate"))
-            clockstate = (Boolean) state.get("clockstate");
+        // nextBit() wraps positions past the end; keep a hand-edited value inside 0..bitCount
+        bitPosition = Math.max(0, Math.min(bitCount, getJsonInt(state, "bitPosition", bitPosition)));
+        clockstate = getJsonBoolean(state, "clockstate", clockstate);
     }
 }

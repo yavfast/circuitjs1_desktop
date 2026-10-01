@@ -42,7 +42,6 @@ public class DFlipFlopElm extends ChipElm {
         return (flags & FLAG_INVERT_SET_RESET) != 0;
     }
 
-    boolean justLoaded;
 
     public DFlipFlopElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
@@ -100,8 +99,7 @@ public class DFlipFlopElm extends ChipElm {
 
     void execute() {
         // if we just loaded then the voltages are likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
-        if (justLoaded) {
-            justLoaded = false;
+        if (skipExecuteAfterLoad(3)) {
             return;
         }
 

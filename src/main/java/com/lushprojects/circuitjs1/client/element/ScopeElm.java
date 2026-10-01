@@ -106,6 +106,12 @@ public class ScopeElm extends CircuitElm {
         return 403;
     }
 
+    @Override
+    public boolean hasDumpLine() {
+        // elmScope is null once the scope has been docked (the element is deleted right after)
+        return elmScope != null && elmScope.hasDumpTarget();
+    }
+
     public String dump() {
         String dumpStr = super.dump();
         String elmDump = elmScope.dump();

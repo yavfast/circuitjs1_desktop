@@ -39,6 +39,7 @@ public class TFlipFlopElm extends ChipElm {
 
     public TFlipFlopElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
+        pins[2].value = !pins[1].value;
     }
 
     public TFlipFlopElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
@@ -47,8 +48,6 @@ public class TFlipFlopElm extends ChipElm {
         pins[2].value = !pins[1].value;
         justLoaded = true;
     }
-
-    boolean justLoaded;
 
     String getChipName() {
         return "T flip-flop";
@@ -92,8 +91,7 @@ public class TFlipFlopElm extends ChipElm {
     void execute() {
         // if we just loaded then the voltages are likely to be all zeroes, which might toggle or reset
         // the restored outputs, so defer execution until the next iteration
-        if (justLoaded) {
-            justLoaded = false;
+        if (skipExecuteAfterLoad(3)) {
             return;
         }
         if (pins[3].value && !lastClock) {

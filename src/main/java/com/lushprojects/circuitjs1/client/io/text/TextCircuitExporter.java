@@ -107,7 +107,7 @@ public class TextCircuitExporter implements CircuitExporter {
         // 5. Export hints
         CircuitRenderer renderer = document.getRenderer();
         if (renderer.getHintType() != -1) {
-            dump.append(dumpHint(renderer)).append("\n");
+            dump.append(dumpHint(document, renderer)).append("\n");
         }
 
         return dump.toString();
@@ -180,13 +180,22 @@ public class TextCircuitExporter implements CircuitExporter {
      * Dump hint in text format.
      * Format: h hintType hintItem1 hintItem2
      */
-    private String dumpHint(CircuitRenderer renderer) {
+    private String dumpHint(CircuitDocument document, CircuitRenderer renderer) {
         return CircuitElm.dumpValues(
                 "h",
                 renderer.getHintType(),
-                renderer.getHintItem1(),
-                renderer.getHintItem2()
+                hintIndexForDump(document.simulator, renderer.getHintItem1()),
+                hintIndexForDump(document.simulator, renderer.getHintItem2())
         );
+    }
+
+    /** Hint items are element-list indices; translate to the index among the dumped element lines. */
+    private static int hintIndexForDump(CircuitSimulator simulator, int item) {
+        if (item < 0 || item >= simulator.elmList.size()) {
+            return item;
+        }
+        int n = simulator.locateElmForDump(simulator.elmList.get(item));
+        return n < 0 ? item : n;
     }
 
     @Override

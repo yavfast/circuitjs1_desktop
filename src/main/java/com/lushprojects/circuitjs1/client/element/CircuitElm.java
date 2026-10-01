@@ -420,6 +420,14 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return dump;
     }
 
+    /**
+     * Whether {@link #dump()} produces a line. Must agree with {@code dump() != null}; it exists so
+     * element indices in saved references can be computed without building every dump string.
+     */
+    public boolean hasDumpLine() {
+        return true;
+    }
+
     // dump component state for export/undo
     public String dump() {
         ElmGeometry g = geom();

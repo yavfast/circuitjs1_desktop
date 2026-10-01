@@ -89,6 +89,11 @@ public class CustomCompositeChipElm extends ChipElm {
     }
 
     @Override
+    public boolean hasDumpLine() {
+        return false;
+    }
+
+    @Override
     public String getJsonTypeName() { return "CustomCompositeChip"; }
 
     @Override

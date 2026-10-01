@@ -2228,38 +2228,53 @@ public class Scope extends BaseCirSimDelegate {
     }
 
 
+    /**
+     * Whether {@link #dump()} produces a line: the first plot targets an element of the circuit that
+     * is itself saved. Uses the plain index (no locateElmForDump) so a ScopeElm asking this never recurses.
+     */
+    public boolean hasDumpTarget() {
+        if (plots.isEmpty()) {
+            return false;
+        }
+        CircuitElm elm = plots.get(0).elm;
+        return elm != null && elm.hasDumpLine() && simulator().locateElm(elm) >= 0;
+    }
+
     public String dump() {
         // A scope element placed without a target has no plots yet; nothing to save
-        if (plots.isEmpty()) {
+        if (!hasDumpTarget()) {
             return null;
         }
         ScopePlot vPlot = plots.get(0);
 
         CircuitSimulator simulator = simulator();
-        CircuitElm elm = vPlot.elm;
-        if (elm == null) {
-            return null;
-        }
         int flags = getFlags();
-        int eno = simulator.locateElm(elm);
-        if (eno < 0) {
-            return null;
+        int eno = simulator.locateElmForDump(vPlot.elm);
+        // extra plots on an element without a dump line cannot be bound on reload: leave them out
+        Vector<ScopePlot> dumpPlots = new Vector<ScopePlot>();
+        Vector<Integer> dumpIndices = new Vector<Integer>();
+        for (int i = 0; i < plots.size(); i++) {
+            int pe = (i == 0) ? eno : simulator.locateElmForDump(plots.get(i).elm);
+            if (pe >= 0) {
+                dumpPlots.add(plots.get(i));
+                dumpIndices.add(pe);
+            }
         }
         String x = CircuitElm.dumpValues("o", eno,
                 vPlot.scopePlotSpeed, vPlot.value,
                 exportAsDecOrHex(flags, FLAG_PERPLOTFLAGS),
                 scale[UNITS_V], scale[UNITS_A], position,
-                plots.size());
+                dumpPlots.size());
         if ((flags & FLAG_DIVISIONS) != 0) {
             x += " " + CircuitElm.dumpValue(manDivisions);
         }
-        for (int i = 0; i < plots.size(); i++) {
-            ScopePlot p = plots.get(i);
+        for (int i = 0; i < dumpPlots.size(); i++) {
+            ScopePlot p = dumpPlots.get(i);
             if ((flags & FLAG_PERPLOTFLAGS) != 0) {
                 x += " " + Integer.toHexString(p.getPlotFlags()); // NB always export in Hex (no prefix)
             }
             if (i > 0) {
-                x += " " + simulator.locateElm(p.elm) + " " + CircuitElm.dumpValue(p.value);
+                x += " " + dumpIndices.get(i) + " " + CircuitElm.dumpValue(p.value);
             }
             // dump scale if units are not V or A
             if (p.units > UNITS_A) {

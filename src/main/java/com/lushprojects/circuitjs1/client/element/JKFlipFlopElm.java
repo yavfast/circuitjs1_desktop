@@ -44,6 +44,7 @@ public class JKFlipFlopElm extends ChipElm {
 
     public JKFlipFlopElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
+        pins[4].value = !pins[3].value;
     }
 
     public JKFlipFlopElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
@@ -86,12 +87,10 @@ public class JKFlipFlopElm extends ChipElm {
         return 2;
     }
 
-    boolean justLoaded;
 
     void execute() {
         // if we just loaded then the voltages are likely to be all zeroes, which might force us to do a reset, so defer execution until the next iteration
-        if (justLoaded) {
-            justLoaded = false;
+        if (skipExecuteAfterLoad(1)) {
             return;
         }
 

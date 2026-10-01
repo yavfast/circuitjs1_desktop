@@ -22,7 +22,6 @@ import com.google.gwt.canvas.client.Canvas;
 import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.dialog.Dialog;
-import com.lushprojects.circuitjs1.client.dialog.ExportAsLocalFileDialog;
 import com.lushprojects.circuitjs1.client.dialog.ScrollValuePopup;
 import com.lushprojects.circuitjs1.client.dialog.ShowLogDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -247,12 +246,6 @@ public class ActionManager extends BaseCirSimDelegate {
             doExportAsUrl();
             cirSim.setUnsavedChanges(false);
         }
-        /*
-         * if (item=="exportaslocalfile") {
-         * doExportAsLocalFile();
-         * unsavedChanges = false;
-         * }
-         */
         if (item == "exportastext") {
             doExportAsText();
             cirSim.setUnsavedChanges(false);
@@ -276,8 +269,6 @@ public class ActionManager extends BaseCirSimDelegate {
             cirSim.doDCAnalysis();
         if (item == "print")
             cirSim.doPrint();
-        if (item == "recover")
-            circuitEditor().doRecover();
 
         if ((menu == "elm" || menu == "scopepop") && menuManager.contextPanel != null)
             menuManager.contextPanel.hide();
@@ -523,12 +514,6 @@ public class ActionManager extends BaseCirSimDelegate {
 
     void doCreateSubcircuit() {
         cirSim.dialogManager.showEditCompositeModelDialog(null);
-    }
-
-    void doExportAsLocalFile() {
-        String dump = dumpCircuit();
-        Dialog dialogShowing = new ExportAsLocalFileDialog(dump);
-        dialogShowing.show();
     }
 
     public void importCircuitFromText(String circuitText, boolean subcircuitsOnly) {

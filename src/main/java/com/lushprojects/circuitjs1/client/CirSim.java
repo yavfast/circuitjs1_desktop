@@ -217,11 +217,9 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
         circuitInfo.loadQueryParameters();
 
-        UndoManager undoManager = getActiveDocument().undoManager;
-        // undoManager.readRecovery();
-        // if (circuitInfo.startCircuitText == null && undoManager.recovery != null) {
-        // circuitInfo.startCircuitText = undoManager.recovery;
-        // }
+        // "Recover Auto-Save" was removed (tab-session restore covers it); drop the stale dump
+        // older builds kept writing to this key so it no longer takes local-storage quota.
+        OptionsManager.removeOptionFromStorage("circuitRecovery");
 
         layoutPanel = new DockLayoutPanel(Unit.PX);
 
@@ -355,7 +353,6 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
         Window.addWindowClosingHandler(new Window.ClosingHandler() {
             public void onWindowClosing(ClosingEvent event) {
-                undoManager.writeRecoveryToStorage();
                 // there is a bug in electron that makes it impossible to close the app if this
                 // warning is given
                 // Check every open tab, not just the document that was active at startup

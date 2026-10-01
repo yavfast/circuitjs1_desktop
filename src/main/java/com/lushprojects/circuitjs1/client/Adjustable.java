@@ -269,7 +269,7 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
             ano = getActiveDocument().adjustableManager.adjustables.indexOf(sharedSlider);
         }
 
-        return simulator().locateElm(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
+        return simulator().locateElmForDump(elm) + " F1 " + editItem + " " + minValue + " " + maxValue + " " + ano + " " +
                 CustomLogicModel.escape(sliderText);
     }
 

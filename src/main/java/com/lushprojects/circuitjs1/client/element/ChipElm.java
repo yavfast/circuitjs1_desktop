@@ -192,6 +192,30 @@ public abstract class ChipElm extends CircuitElm {
     public Pin pins[];
     public int sizeX, sizeY, flippedSizeX, flippedSizeY;
     boolean lastClock;
+    /** Set by clocked subclasses when restored from a file or undo state; see {@link #skipExecuteAfterLoad}. */
+    boolean justLoaded;
+    private boolean primeClockAfterLoad;
+
+    /**
+     * Load-time guard for clocked chips, called first in execute(). The first call after a load sees
+     * all-zero node voltages, so it is skipped (true = return now). The next call takes the present
+     * clock level as the previous one: the saved state already reflects any edge before the save
+     * (text dumps carry no clock history), so a clock that was high then must not read as a new edge.
+     * This also overrides a JSON-restored {@code last_clock}; the result differs only if the clock
+     * level changed between save and reload, where "no edge at load" is the intended reading.
+     */
+    boolean skipExecuteAfterLoad(int clockPin) {
+        if (justLoaded) {
+            justLoaded = false;
+            primeClockAfterLoad = true;
+            return true;
+        }
+        if (primeClockAfterLoad) {
+            primeClockAfterLoad = false;
+            lastClock = pins[clockPin].value;
+        }
+        return false;
+    }
 
     public void drag(int xx, int yy) {
         int x = getX();
@@ -362,6 +386,7 @@ public abstract class ChipElm extends CircuitElm {
             setNodeVoltageDirect(i, 0);
         }
         lastClock = false;
+        primeClockAfterLoad = false;
     }
 
     public String dump() {

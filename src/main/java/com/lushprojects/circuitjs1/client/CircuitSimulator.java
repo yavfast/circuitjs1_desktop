@@ -144,6 +144,26 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return elmList.indexOf(elm);
     }
 
+    /**
+     * Index of {@code elm} among the element lines of a text dump, i.e. the index it gets back on
+     * reload. Elements without a dump line (standalone CustomCompositeChip, unassigned scope) are
+     * skipped by the exporter, so they must not be counted. -1 if the element is not in the circuit
+     * or has no dump line itself (a reference to it cannot survive a reload).
+     */
+    public int locateElmForDump(CircuitElm elm) {
+        int n = 0;
+        for (int i = 0; i < elmList.size(); i++) {
+            CircuitElm ce = elmList.get(i);
+            if (ce == elm) {
+                return ce.hasDumpLine() ? n : -1;
+            }
+            if (ce.hasDumpLine()) {
+                n++;
+            }
+        }
+        return -1;
+    }
+
     public CircuitElm getElm(int n) {
         if (n < 0 || n >= elmList.size()) {
             CirSim.console("getElm: invalid index " + n + ", size=" + elmList.size());
@@ -1843,7 +1863,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
             // See notes on do cut why we don't copy ScopeElms.
             if (ce.isSelected() && !(ce instanceof ScopeElm)) {
-                data.append(ce.dump()).append("\n");
+                // same line as the text exporter (with description); nothing for dump-less elements
+                String elmDump = CircuitElm.dumpElm(ce);
+                if (elmDump != null) {
+                    data.append(elmDump).append("\n");
+                }
             }
         }
         return data.toString();

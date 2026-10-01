@@ -1016,18 +1016,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         cirSim.setUnsavedChanges(true);
     }
 
-    void doRecover() {
-        pushUndo();
-        getActiveDocument().circuitLoader.readCircuit(undoManager().recovery);
-        cirSim.allowSave(false);
-        menuManager().recoverItem.setEnabled(false);
-
-        CircuitInfo circuitInfo = getActiveDocument().circuitInfo;
-        circuitInfo.filePath = null;
-        circuitInfo.fileName = null;
-        CirSim.changeWindowTitle(circuitInfo.isModified());
-    }
-
     void doCut() {
         circuitEditor().setMenuSelection();
         cirSim.clipboardManager.doCut();
@@ -1077,7 +1065,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         if (hasDeleted) {
             simulator.deleteUnusedScopeElms();
             cirSim.needAnalyze();
-            undoManager().writeRecoveryToStorage();
             cirSim.setUnsavedChanges(true);
         }
     }
@@ -1159,7 +1146,6 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             moveNewItems(oldSize, deltaX, deltaY);
         }
         cirSim.needAnalyze();
-        undoManager().writeRecoveryToStorage();
         cirSim.setUnsavedChanges(true);
     }
 
