@@ -1030,13 +1030,14 @@ A **content lifetime** begins when a document is created or its content is repla
 
 **Decision:** OPEN — see the resolution trigger.
 **Rationale:** The choice depends on facts not yet measured: whether a silent bind avoids visible effects (sliders dialog rebuild, flicker) and what the stepping path touches.
-**Resolution trigger:** a background-document prototype at the start of the C_AGA plan, which must pass the R1 and R2 rows of [§05_02](#SP_AGA_05_02). The plan must close this decision before any phase that implements background-document operations.
+**Resolution trigger:** a background-document prototype at the start of the C_AGA plan, which must pass the R1 and R2 checks of [§05_02](#SP_AGA_05_02) on a reduced sequence (text import, undo, a 2 s stepping loop, export) — the agent contracts of the full rows do not exist yet; the full rows are proven by the implementation ([PL_AGA](./agent-api.plan.md) Phases 8–9). The plan must close this decision before any phase that implements background-document operations.
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | DEC_04 trigger aligned with the plan's reduced prototype sequence (plan review) |
 | 2026-10-01 | Review round 5: R1 holds during calls with test rows for R1/R2 and the DEC_04 trigger tied to them; grid option consistent across sections; openFile activate/rejection/modified-flag precedence |
 | 2026-10-01 | Review round 4: §03_08 restated as requirements R1/R2 with mechanism decision DEC_04 (open), slider seeds no longer limits, modified flag on undo/redo, issue and id caps, import skip codes, model catalogue restore on rejection, document grid option for agent geometry, `openFile activate`, JSON key regeneration |
 | 2026-10-01 | Review round 3: load/undo/save routing to the target document's UI state, modified flag, 1/16 lattice for imports, import caps, alias rule, run exception and stop handling, importer reporting, side-effect-free circuit test, common argument-range rule, dedupe reuse, restoreCheckpoint definition |

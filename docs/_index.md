@@ -106,10 +106,10 @@
 
 | ID | Title | Status | Summary | Files |
 |---|---|---|---|---|
-| C_AGA | Agent API | draft | Transport-free agent operations: stable element IDs, grid-cell geometry, incremental edits, connectivity report, bounded runs/probes, diagnostics, commented checkpoints | [concept](agent-api.concept.md) · [spec](agent-api.sp.md) |
-| C_MCP | In-app MCP Server | draft | Always-on Streamable HTTP endpoint in the desktop runtime projecting the Agent API as tools/resources; per-instance registry | [concept](mcp-server.concept.md) · [spec](mcp-server.sp.md) |
-| C_MCB | MCP Bridge & CLI | draft | Stdio forwarder for stdio-only hosts, instance discovery/launch, command-line client | [concept](mcp-bridge.concept.md) · [spec](mcp-bridge.sp.md) |
-| C_AGS | Circuit Authoring Skill | draft | Agent skill: workflow checklist, references, evals | [concept](agent-skill.concept.md) · [spec](agent-skill.sp.md) |
+| C_AGA | Agent API | draft | Transport-free agent operations: stable element IDs, grid-cell geometry, incremental edits, connectivity report, bounded runs/probes, diagnostics, commented checkpoints | [concept](agent-api.concept.md) · [spec](agent-api.sp.md) · [plan](agent-api.plan.md) |
+| C_MCP | In-app MCP Server | draft | Always-on Streamable HTTP endpoint in the desktop runtime projecting the Agent API as tools/resources; per-instance registry | [concept](mcp-server.concept.md) · [spec](mcp-server.sp.md) · [plan](mcp-server.plan.md) |
+| C_MCB | MCP Bridge & CLI | draft | Stdio forwarder for stdio-only hosts, instance discovery/launch, command-line client | [concept](mcp-bridge.concept.md) · [spec](mcp-bridge.sp.md) · [plan](mcp-bridge.plan.md) |
+| C_AGS | Circuit Authoring Skill | draft | Agent skill: workflow checklist, references, evals | [concept](agent-skill.concept.md) · [spec](agent-skill.sp.md) · [plan](agent-skill.plan.md) |
 
 ## Epics
 

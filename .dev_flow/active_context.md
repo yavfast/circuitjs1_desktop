@@ -6,7 +6,7 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 | Task | Phase | Started | Contributors | Next |
 |------|-------|---------|--------------|------|
-| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | spec | 2026-10-01 | main | commit sign-off → `/dev-flow plan` |
+| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | plan → implement | 2026-10-01 | main | `/dev-flow implement`: PL_AGA P0 + PL_MCP P0 prototypes |
 
 ## Recently Completed
 
