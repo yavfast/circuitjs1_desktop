@@ -37,7 +37,7 @@ public class WireElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "W";
     }
 

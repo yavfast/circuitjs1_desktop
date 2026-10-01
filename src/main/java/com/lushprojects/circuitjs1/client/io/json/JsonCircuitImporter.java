@@ -92,7 +92,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             }
 
             // 2. Parse elements
-            int elementCount = parseElements(root, document);
+            int elementCount = parseElements(root, document, (flags & CircuitConst.RC_RETAIN) == 0);
 
             // 3. Create auto-wires from connected_to references
             int wireCount = createAutoWires(root, document);
@@ -263,7 +263,7 @@ public class JsonCircuitImporter implements CircuitImporter {
         }
     }
 
-    private int parseElements(JSONObject root, CircuitDocument document) {
+    private int parseElements(JSONObject root, CircuitDocument document, boolean keepKeys) {
         JSONValue elementsValue = root.get("elements");
         if (elementsValue == null || elementsValue.isObject() == null) {
             return 0;
@@ -304,8 +304,13 @@ public class JsonCircuitImporter implements CircuitImporter {
                 continue;
             }
 
-            // Set element ID from JSON (preserve original ID)
-            elm.setElementId(elementId);
+            // [SP_AGA_03_02] Content replacement keeps the JSON keys as element IDs; an invalid or
+            // repeated key is replaced by a generated ID (ids_regenerated) when the import settles
+            // (ImportLifecycle.finalizeCircuitLoading). A paste (RC_RETAIN) creates elements with
+            // generated IDs; the key still resolves scope/adjustable/connected_to references.
+            if (keepKeys) {
+                elm.setElementId(elementId);
+            }
 
             // Initialize element with document (important for elements that override
             // setCircuitDocument

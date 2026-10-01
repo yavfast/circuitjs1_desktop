@@ -90,6 +90,7 @@ public class ScopeManager extends BaseCirSimDelegate {
 
     void undockScope(ScopeElm newScope) {
         simulator().elmList.add(newScope);
+        newScope.getElementId(); // [SP_AGA_03_02] generated ID on entry
         newScope.setElmScope(scopes[menuScope]);
 
         int i;

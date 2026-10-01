@@ -38,8 +38,10 @@ import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Exports circuit in JSON format (version 2.0).
@@ -55,8 +57,8 @@ import java.util.Map;
 public class JsonCircuitExporter implements CircuitExporter {
 
     private final JsonCircuitFormat format;
-    private int elementCounter;
     private Map<CircuitElm, String> elementIds;
+    private Set<String> usedIds;
     private boolean includeState;
 
     public JsonCircuitExporter(JsonCircuitFormat format) {
@@ -72,8 +74,8 @@ public class JsonCircuitExporter implements CircuitExporter {
     @Override
     public String export(CircuitDocument document, boolean includeState) {
         this.includeState = includeState;
-        elementCounter = 0;
         elementIds = new HashMap<>();
+        usedIds = new HashSet<>();
 
         JSONObject root = new JSONObject();
 
@@ -113,8 +115,8 @@ public class JsonCircuitExporter implements CircuitExporter {
             return "{}";
         }
 
-        elementCounter = 0;
         elementIds = new HashMap<>();
+        usedIds = new HashSet<>();
 
         JSONObject root = new JSONObject();
 
@@ -634,35 +636,27 @@ public class JsonCircuitExporter implements CircuitExporter {
         }
     }
 
+    /**
+     * [SP_AGA_03_02] "One scheme": element keys are the document's registry IDs
+     * ({@link CircuitElm#getElementId()}), so an exported key names the same element as the
+     * scripting global and the Agent API. The registry keeps IDs unique within a document; a
+     * repeated ID (a defect) is disambiguated here so that no element is dropped from the export.
+     */
     private String generateElementId(CircuitElm elm) {
-        // Check if already has ID
         if (elementIds.containsKey(elm)) {
             return elementIds.get(elm);
         }
-
-        // Generate ID based on type and counter
-        String typeName = elm.getJsonTypeName();
-        // Shorten common names
-        String prefix;
-        switch (typeName) {
-            case "Resistor": prefix = "R"; break;
-            case "Capacitor": prefix = "C"; break;
-            case "Inductor": prefix = "L"; break;
-            case "TransistorNPN":
-            case "TransistorPNP": prefix = "Q"; break;
-            case "Diode": prefix = "D"; break;
-            case "LED": prefix = "LED"; break;
-            case "Wire": prefix = "W"; break;
-            case "Ground": prefix = "GND"; break;
-            case "VoltageSource":
-            case "DCVoltage": prefix = "V"; break;
-            case "CurrentSource": prefix = "I"; break;
-            case "OpAmp": prefix = "U"; break;
-            default: prefix = typeName.substring(0, Math.min(3, typeName.length())); break;
+        String id = elm.getElementId();
+        if (usedIds.contains(id)) {
+            String base = id;
+            int k = 2;
+            while (usedIds.contains(base + "_" + k)) {
+                k++;
+            }
+            id = base + "_" + k;
+            CirSim.console("[WARN] JSON export: repeated element ID " + base + " exported as " + id);
         }
-
-        elementCounter++;
-        String id = prefix + elementCounter;
+        usedIds.add(id);
         elementIds.put(elm, id);
         return id;
     }

@@ -47,7 +47,7 @@ public class CurrentElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "I";
     }
 

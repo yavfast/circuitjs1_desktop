@@ -51,7 +51,7 @@ public class ZenerElm extends DiodeElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "Z";
     }
 

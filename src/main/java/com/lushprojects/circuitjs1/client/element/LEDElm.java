@@ -59,7 +59,7 @@ public class LEDElm extends DiodeElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "LED";
     }
 

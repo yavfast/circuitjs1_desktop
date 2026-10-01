@@ -71,7 +71,7 @@ public class SwitchElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "SW";
     }
 

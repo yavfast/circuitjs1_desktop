@@ -1048,7 +1048,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         simulator.lastIterTime = 0;
         
         // Reset element ID counters
-        doc.resetElementIdCounters();
+        doc.resetElementIds(); // [SP_AGA_03_02] clear = content replacement
         
         needAnalyze();
         // Force redraw
@@ -1217,10 +1217,10 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         var that = this;
         var simulator = that.@com.lushprojects.circuitjs1.client.CirSim::getActiveDocument()().@com.lushprojects.circuitjs1.client.CircuitDocument::simulator;
         var elmList = simulator.@com.lushprojects.circuitjs1.client.CircuitSimulator::elmList;
-        var size = elmList.@java.util.Vector::size()();
+        var size = elmList.@java.util.ArrayList::size()();
         
         for (var i = 0; i < size; i++) {
-            var elm = elmList.@java.util.Vector::get(I)(i);
+            var elm = elmList.@java.util.ArrayList::get(I)(i);
             var elmId = elm.@com.lushprojects.circuitjs1.client.element.CircuitElm::getElementId()();
             
             if (elmId === id) {

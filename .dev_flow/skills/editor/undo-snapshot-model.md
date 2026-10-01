@@ -18,10 +18,16 @@ edit) and unpleasant scaling (O(dump-size) memory per edit).
 
 ## Key concepts
 
-**Undo record.** `UndoManager.UndoItem` holds four fields:
-`(dump: String, scale: double, tx: double, ty: double)`. The transform
-trio preserves pan/zoom across undo — otherwise undo-loading the dump
-would recenter the viewport.
+**Undo record.** `UndoManager.UndoItem` holds
+`(dump: String, scale: double, tx: double, ty: double, elementIds: String[])`.
+The transform trio preserves pan/zoom across undo — otherwise undo-loading
+the dump would recenter the viewport. `elementIds` (SP_AGA_01_10, PL_AGA
+Phase 2) are the IDs of the dumped elements in dump order
+(`CircuitDocument.getDumpedElementIds()`); `loadUndoItem` brackets the
+import with `beginElementIdRestore/endElementIdRestore`, so the import does
+not reset ID counters and gives element i `elementIds[i]`. Consecutive-equal
+dedup compares dump *and* IDs (`UndoItem.sameContent`). Later phases add
+`openMarks`, a per-document `viewTransform` and checkpoint label fields.
 
 **Stacks** (`UndoManager.java:28-32`):
 - `Vector<UndoItem> undoStack` — the history.

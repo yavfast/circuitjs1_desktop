@@ -97,7 +97,7 @@ public class TransformerElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "T";
     }
 

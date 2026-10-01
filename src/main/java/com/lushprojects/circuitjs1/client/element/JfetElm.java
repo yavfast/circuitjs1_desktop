@@ -244,7 +244,7 @@ public class JfetElm extends MosfetElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "M";
     }
 

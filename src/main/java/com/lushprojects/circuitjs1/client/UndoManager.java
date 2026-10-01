@@ -1,21 +1,45 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
+import java.util.Arrays;
 import java.util.Vector;
 
 public class UndoManager extends BaseCirSimDelegate {
 
+    /**
+     * One undo/redo snapshot: the circuit text plus the undo entry extension of [SP_AGA_01_10].
+     * Every field describes the state the entry restores and is captured from the current
+     * document when the entry is created. Implemented so far: {@code elementIds}. Still to come
+     * (PL_AGA Phases 4/6): {@code openMarks}, {@code viewTransform} (replacing the session
+     * renderer transform trio below), and the label fields {@code comment}, {@code checkpointId},
+     * {@code auto}, which the entry created by an undo/redo copies from the popped entry.
+     */
     class UndoItem {
         public String dump;
         public double scale;
         public double transform4;
         public double transform5;
+        /** IDs of the snapshot's elements in snapshot (dump) order ([SP_AGA_01_10] elementIds). */
+        public final String[] elementIds;
 
-        UndoItem(String d) {
-            dump = d;
+        /**
+         * Captures the current state of this undo manager's own document: dump and IDs both come
+         * from {@code getActiveDocument()} of the delegate, which resolves to that document even
+         * when another document is the session's active one.
+         */
+        UndoItem() {
+            CircuitDocument document = getActiveDocument();
+            dump = CircuitFormatRegistry.getDefault().createExporter().export(document);
+            elementIds = document.getDumpedElementIds();
             CircuitRenderer renderer = renderer();
             scale = renderer.transform[0];
             transform4 = renderer.transform[4];
             transform5 = renderer.transform[5];
+        }
+
+        /** True when restoring this entry would recreate {@code other}'s circuit and IDs. */
+        boolean sameContent(UndoItem other) {
+            return dump.equals(other.dump) && Arrays.equals(elementIds, other.elementIds);
         }
     }
 
@@ -59,17 +83,17 @@ public class UndoManager extends BaseCirSimDelegate {
 
     void pushUndo() {
         redoStack.removeAllElements();
-        String s = actionManager().dumpCircuit();
-        if (!undoStack.isEmpty() && s.compareTo(undoStack.lastElement().dump) == 0)
+        UndoItem item = new UndoItem();
+        if (!undoStack.isEmpty() && item.sameContent(undoStack.lastElement()))
             return;
-        undoStack.add(new UndoItem(s));
+        undoStack.add(item);
         trimToMaxDepth(undoStack);
     }
 
     void doUndo() {
         if (undoStack.isEmpty())
             return;
-        redoStack.add(new UndoItem(actionManager().dumpCircuit()));
+        redoStack.add(new UndoItem());
         UndoItem ui = undoStack.remove(undoStack.size() - 1);
         loadUndoItem(ui);
     }
@@ -77,7 +101,7 @@ public class UndoManager extends BaseCirSimDelegate {
     void doRedo() {
         if (redoStack.isEmpty())
             return;
-        undoStack.add(new UndoItem(actionManager().dumpCircuit()));
+        undoStack.add(new UndoItem());
         trimToMaxDepth(undoStack);
         UndoItem ui = redoStack.remove(redoStack.size() - 1);
         loadUndoItem(ui);
@@ -92,7 +116,17 @@ public class UndoManager extends BaseCirSimDelegate {
     }
 
     void loadUndoItem(UndoItem ui) {
-        getActiveDocument().circuitLoader.readCircuit(ui.dump, CircuitConst.RC_NO_CENTER);
+        // [SP_AGA_03_02] "Undo/redo restore": the import keeps the content lifetime (no counter
+        // reset) and gives element i the snapshot's elementIds[i], raising the counters; a count
+        // mismatch regenerates the IDs in order with an ids_regenerated warning in the session
+        // log (Phase 6: also returned in the issues of the agent undo/redo contract).
+        CircuitDocument document = getActiveDocument();
+        document.beginElementIdRestore(ui.elementIds);
+        try {
+            document.circuitLoader.readCircuit(ui.dump, CircuitConst.RC_NO_CENTER);
+        } finally {
+            document.endElementIdRestore();
+        }
         CircuitRenderer renderer = renderer();
         renderer.transform[0] = renderer.transform[3] = ui.scale;
         renderer.transform[4] = ui.transform4;

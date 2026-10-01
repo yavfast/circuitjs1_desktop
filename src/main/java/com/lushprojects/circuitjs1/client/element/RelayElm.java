@@ -124,7 +124,7 @@ public class RelayElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "K";
     }
 

@@ -3,9 +3,9 @@ package com.lushprojects.circuitjs1.client;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 public class CircuitDocument {
 
@@ -42,20 +42,136 @@ public class CircuitDocument {
      */
     private boolean agentBusy;
 
-    private final Map<String, Integer> elementTypeCounters = new HashMap<>();
+    /** [SP_AGA_03_02] Element ID counters of this document (one content lifetime, SP_AGA_04_03). */
+    private final ElementIdRegistry elementIdRegistry = new ElementIdRegistry();
 
+    /**
+     * Generates the next ID for {@code prefix} ([SP_AGA_03_02] "Generated IDs"): counter + 1,
+     * skipping IDs present in the document. Used for elements that enter the document without an
+     * ID outside an import (editor placement, scope undock) and as the lazy fallback of
+     * {@link CircuitElm#getElementId()}.
+     */
     public String nextElementId(String prefix) {
-        if (prefix == null) {
-            prefix = "";
-        }
-        Integer prev = elementTypeCounters.get(prefix);
-        int next = (prev == null) ? 1 : (prev + 1);
-        elementTypeCounters.put(prefix, next);
-        return prefix + next;
+        return elementIdRegistry.next(prefix, presentElementIds());
     }
 
-    public void resetElementIdCounters() {
-        elementTypeCounters.clear();
+    /** Raises the counter of {@code id}'s prefix to its number (no-op for IDs without a counter). */
+    public void raiseIdCounter(String id) {
+        elementIdRegistry.raise(id);
+    }
+
+    /** Starts a new content lifetime ([SP_AGA_04_03]): all ID counters reset. */
+    public void resetElementIds() {
+        elementIdRegistry.reset();
+    }
+
+    /**
+     * True between {@link #beginElementIdRestore} and {@link #endElementIdRestore}: the running
+     * import is an undo/redo restore, which keeps the content lifetime (counters are not reset).
+     */
+    public boolean isRestoringElementIds() {
+        return elementIdRegistry.hasPendingRestore();
+    }
+
+    /**
+     * Announces that the next import restores an undo/redo snapshot whose elements carry
+     * {@code ids} in element order ([SP_AGA_03_02] "Undo/redo restore").
+     */
+    void beginElementIdRestore(String[] ids) {
+        elementIdRegistry.setPendingRestore(ids != null ? ids : new String[0]);
+    }
+
+    /** Ends an undo/redo restore (drops the restore IDs if no import consumed them). */
+    void endElementIdRestore() {
+        elementIdRegistry.takePendingRestore();
+    }
+
+    /**
+     * Gives every element of the document a valid, unique ID after an import, paste or restore
+     * ([SP_AGA_03_02]). Called once per import by {@code ImportLifecycle.finalizeCircuitLoading}.
+     * <ol>
+     * <li>Undo/redo restore: element i receives the snapshot's ID i; when the counts differ all IDs
+     *     are regenerated in order.</li>
+     * <li>Every present ID that is valid and not repeated raises its counter — all of them before
+     *     any ID is generated. An invalid or repeated ID is dropped.</li>
+     * <li>Elements without an ID (text lines, pasted elements, auto-wires, dropped IDs) receive
+     *     generated IDs in element order.</li>
+     * </ol>
+     *
+     * @return one {@code ids_regenerated} message per replaced or regenerated ID set (empty when
+     *         nothing was replaced); the caller logs them
+     */
+    public List<String> settleElementIds() {
+        List<String> warnings = new ArrayList<>();
+        List<CircuitElm> elements = simulator.elmList;
+        String[] restore = elementIdRegistry.takePendingRestore();
+        if (restore != null) {
+            if (restore.length == elements.size()) {
+                for (int i = 0; i < restore.length; i++) {
+                    elements.get(i).setElementId(restore[i]);
+                }
+            } else {
+                warnings.add("undo/redo restored " + elements.size() + " elements but the snapshot holds "
+                        + restore.length + " IDs; element IDs regenerated in order");
+                for (CircuitElm elm : elements) {
+                    elm.setElementId(null);
+                }
+            }
+        }
+        Set<String> present = new HashSet<>();
+        List<CircuitElm> replaced = new ArrayList<>();
+        List<String> replacedIds = new ArrayList<>();
+        for (CircuitElm elm : elements) {
+            if (!elm.hasElementId()) {
+                continue;
+            }
+            String id = elm.getElementId();
+            if (ElementIdRegistry.isValidId(id) && present.add(id)) {
+                elementIdRegistry.raise(id);
+            } else {
+                replaced.add(elm);
+                replacedIds.add(id);
+                elm.setElementId(null);
+            }
+        }
+        for (CircuitElm elm : elements) {
+            if (!elm.hasElementId()) {
+                String id = elementIdRegistry.next(elm.getIdPrefix(), present);
+                elm.setElementId(id);
+                present.add(id);
+            }
+        }
+        for (int i = 0; i < replaced.size(); i++) {
+            String old = replacedIds.get(i);
+            warnings.add("element key '" + old + "' is " + (ElementIdRegistry.isValidId(old) ? "repeated" : "not a valid ID")
+                    + "; replaced by " + replaced.get(i).getElementId());
+        }
+        return warnings;
+    }
+
+    /** IDs currently assigned to the document's elements (elements without an ID are skipped). */
+    private Set<String> presentElementIds() {
+        Set<String> ids = new HashSet<>();
+        for (CircuitElm elm : simulator.elmList) {
+            if (elm.hasElementId()) {
+                ids.add(elm.getElementId());
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * IDs of the elements that the text dump writes, in dump order: the {@code elementIds} of an
+     * undo entry ([SP_AGA_01_10]). Element i of the restored snapshot is the i-th of them.
+     */
+    public String[] getDumpedElementIds() {
+        List<String> ids = new ArrayList<>();
+        for (CircuitElm elm : simulator.elmList) {
+            if (elm.hasDumpLine()) {
+                ids.add(elm.getElementId());
+            }
+        }
+        return ids.toArray(new String[0]);
     }
 
     public interface SimulationStateListener {

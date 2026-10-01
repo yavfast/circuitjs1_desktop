@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -154,6 +154,22 @@ class Session {
     await this.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
     await sleep(150);
   }
+  // Printable key with a keypress (element shortcuts are read from ONKEYPRESS).
+  async typeChar(ch) {
+    const vk = ch.toUpperCase().charCodeAt(0); const code = 'Key' + ch.toUpperCase();
+    await this.cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: ch, code, text: ch, unmodifiedText: ch, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+    await this.cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ch, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
+    await sleep(150);
+  }
+  // Left-button drag in viewport coordinates (press, a few moves, release).
+  async mouseDrag(x1, y1, x2, y2) {
+    const m = (type, x, y, extra = {}) => this.cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });
+    await m('mouseMoved', x1, y1, { button: 'none' });
+    await m('mousePressed', x1, y1, { clickCount: 1, buttons: 1 });
+    for (let k = 1; k <= 4; k++) await m('mouseMoved', x1 + ((x2 - x1) * k) / 4, y1 + ((y2 - y1) * k) / 4, { buttons: 1 });
+    await m('mouseReleased', x2, y2, { clickCount: 1 });
+    await sleep(200);
+  }
   markConsole() { return this.console.length; }
   consoleSince(mark) { return this.console.slice(mark); }
 }
@@ -168,6 +184,12 @@ function pageHelpers() {
     count() { return CircuitJS1.getElementCount(); },
     types() { return CircuitJS1.getElements().map((e) => e.getType()); },
     ids() { return CircuitJS1.getElementIds(); },
+    jsonTypes() { return CircuitJS1.getElements().map((e) => e.getTypeName()); },
+    // Viewport rect of the main circuit canvas (the largest canvas on the page).
+    canvasRect() {
+      const cs = Array.from(document.querySelectorAll('canvas')).sort((a, b) => b.width * b.height - a.width * a.height);
+      const r = cs[0].getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height };
+    },
     exportText() { return CircuitJS1.exportCircuit(); },
     exportJson() { return CircuitJS1.exportAsJson(); },
     exportJsonState() { return CircuitJS1.exportAsJsonWithState(); },
@@ -305,6 +327,21 @@ function countLogPatterns(lines) {
   const c = { unknown: 0, skipping: 0, error: 0 };
   for (const l of lines) for (const [k, re] of Object.entries(LOG_PATTERNS)) if (re.test(l)) c[k]++;
   return c;
+}
+// Element keys replaced by their position (#0, #1, ...), for diffs across paths that assign new IDs.
+// References to an element ("R1", "R1.pin1") are renamed with it.
+function rekeyByOrder(j) {
+  if (!j || !j.elements) return j;
+  const map = new Map(Object.keys(j.elements).map((k, i) => [k, '#' + i]));
+  const ren = (v) => {
+    if (typeof v === 'string') { const d = v.indexOf('.'); const head = d < 0 ? v : v.slice(0, d); return map.has(head) ? map.get(head) + (d < 0 ? '' : v.slice(d)) : v; }
+    if (Array.isArray(v)) return v.map(ren);
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, ren(x)]));
+    return v;
+  };
+  const r = ren({ ...j, elements: undefined });
+  r.elements = Object.fromEntries(Object.entries(j.elements).map(([k, e]) => [map.get(k), ren(e)]));
+  return r;
 }
 function safeParse(s) { try { return JSON.parse(s); } catch (e) { return { __parseError: e.message }; } }
 
@@ -645,7 +682,9 @@ async function scenarioSynth(s) {
       const J1s = fs.readFileSync(path.join(dir, t + '.J1.json'), 'utf8');
       await s.call('importText', T1);
       const J3s = await s.call('exportJson');
-      const jd3 = jsonElementDiff(safeParse(J1s), safeParse(J3s));
+      // A text load gives elements generated IDs in file order (SP_AGA_03_02), while J1 keeps the
+      // JSON key X1: compare the text leg by element order, not by key.
+      const jd3 = jsonElementDiff(rekeyByOrder(safeParse(J1s)), rekeyByOrder(safeParse(J3s)));
       rec.textLeg = { count: Object.keys(safeParse(J3s).elements || {}).length, changed: Object.values(jd3.changed).flatMap((c) => c.diffs.map((d) => d.key)), typeChanged: jd3.typeChanged };
       fs.writeFileSync(path.join(dir, t + '.J3.json'), J3s);
     } catch (e) { rec = { circuit: t, harnessError: e.message }; }
@@ -838,10 +877,120 @@ async function scenarioAgentDocs(s) {
   report('AG.agent_docs', failed.length === 0, { checks: Object.keys(out.checks).length, failed, replacement: rep, details: path.join(OUT_DIR, 'agent_docs.json') });
 }
 
+// [PL_AGA_P2] Element identity (SP_AGA_03_02 / SP_AGA_04_03) through existing user paths only.
+const resistorJson = (keys) => JSON.stringify({
+  schema: { format: 'circuitjs', version: '2.0' },
+  elements: Object.fromEntries(keys.map((k, i) => [k, { type: 'Resistor', properties: { resistance: '1 kOhm' },
+    pins: { pin1: { position: { x: 64 + 96 * i, y: 64 } }, pin2: { position: { x: 128 + 96 * i, y: 64 } } } }])),
+});
+async function scenarioAgentIds(s) {
+  const out = { checks: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const unique = (a) => new Set(a).size === a.length;
+  const jsonKeys = async () => Object.keys(JSON.parse(await s.call('exportJson')).elements || {});
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+
+  // (e) legacy text load: deterministic generated IDs in file order, same on reload
+  await s.call('loadExample', 'lrc.txt');
+  const ids0 = await s.call('ids');
+  const perPrefixInOrder = (ids) => { const c = {}; return ids.every((id) => { const m = /^([A-Za-z]+)([0-9]+)$/.exec(id); if (!m) return false; c[m[1]] = (c[m[1]] || 0) + 1; return +m[2] === c[m[1]]; }); };
+  ck('textIdsFileOrder', ids0.length > 0 && perPrefixInOrder(ids0) && unique(ids0));
+  await s.call('loadExample', 'lrc.txt');
+  ck('textReloadSameIds', same(ids0, await s.call('ids')));
+  out.lrcIds = ids0;
+
+  // (b) JSON export keys == CircuitJS1.getElementIds()
+  ck('jsonKeysEqualIds', same(await jsonKeys(), ids0));
+
+  // (a) user undo/redo with Ctrl+Z / Ctrl+Y keeps IDs
+  await s.call('focus');
+  const types0 = await s.call('types');
+  const delIdx = Math.max(0, types0.findIndex((t) => !/WireElm/.test(t)));
+  await s.call('select', ids0[delIdx], false);
+  await s.key('Delete');
+  const idsDel = await s.call('ids');
+  ck('deleteRemovedOne', same(idsDel, ids0.filter((_, i) => i !== delIdx)));
+  await s.key('KeyZ', { ctrl: true });
+  ck('undoRestoresIds', same(await s.call('ids'), ids0));
+  await s.key('KeyY', { ctrl: true });
+  ck('redoRestoresIds', same(await s.call('ids'), idsDel));
+  ck('jsonKeysAfterRedo', same(await jsonKeys(), idsDel));
+
+  // (f) letters-only prefixes: types whose name contains digits (CC2, Timer555) get no digits
+  await s.call('loadExample', 'cc2.txt');
+  let ids = await s.call('ids'); let jt = await s.call('jsonTypes');
+  const cc2 = ids.filter((_, i) => /^CC2/.test(jt[i]));
+  await s.call('loadExample', '555saw.txt');
+  const ids555 = await s.call('ids'); const jt555 = await s.call('jsonTypes');
+  const tim = ids555.filter((_, i) => jt555[i] === 'Timer555');
+  out.prefixSamples = { cc2, tim };
+  ck('lettersOnlyPrefix', cc2.length > 0 && cc2.every((id) => /^CC[0-9]+$/.test(id)) && tim.length > 0 && tim.every((id) => /^TIM[0-9]+$/.test(id))
+    && [...ids, ...ids555].every((id) => /^[A-Za-z]+[0-9]+$/.test(id)));
+  ck('jsonKeysEqualIds555', same(await jsonKeys(), ids555));
+
+  // (c) JSON import R1..R5 keeps keys; Ctrl+Z / Ctrl+Y restore them; a UI-placed resistor gets R6
+  const logMark = await s.call('logCount');
+  await s.call('importJson', resistorJson(['R1', 'R2', 'R3', 'R4', 'R5']));
+  ck('jsonImportKeepsKeys', same(await s.call('ids'), ['R1', 'R2', 'R3', 'R4', 'R5']));
+  await s.call('focus');
+  await s.call('select', 'R5', false);
+  await s.key('Delete');
+  ck('jsonDeleteR5', same(await s.call('ids'), ['R1', 'R2', 'R3', 'R4']));
+  await s.key('KeyZ', { ctrl: true });
+  ck('jsonUndoR1R5', same(await s.call('ids'), ['R1', 'R2', 'R3', 'R4', 'R5']));
+  await s.key('KeyY', { ctrl: true });
+  ck('jsonRedoR1R4', same(await s.call('ids'), ['R1', 'R2', 'R3', 'R4']));
+  await s.key('Escape');
+  await s.typeChar('r');
+  const cr = await s.call('canvasRect');
+  const px = Math.round(cr.x + cr.w * 0.6), py = Math.round(cr.y + cr.h * 0.75);
+  // A click without drag fails creation: it must not take a number from the counters
+  await s.mouseDrag(px - 200, py, px - 200, py);
+  ck('failedPlacementNoElement', (await s.call('ids')).length === 4);
+  await s.mouseDrag(px, py, px + 96, py);
+  await s.typeChar(' ');
+  const idsPlaced = await s.call('ids');
+  out.idsPlaced = idsPlaced;
+  // R5 was retired by the delete: its number is never reissued in this content lifetime
+  ck('placedResistorR6', idsPlaced.length === 5 && idsPlaced[4] === 'R6');
+  await s.key('KeyZ', { ctrl: true });
+  await s.key('KeyY', { ctrl: true });
+  ck('placedUndoRedo', same(await s.call('ids'), idsPlaced));
+
+  // Duplicate (Ctrl+A, Ctrl+D): generated IDs, all unique, originals unchanged
+  await s.key('KeyA', { ctrl: true });
+  await s.key('KeyD', { ctrl: true });
+  const idsDup = await s.call('ids');
+  out.idsDup = idsDup;
+  ck('duplicateGenerated', idsDup.length === 10 && same(idsDup.slice(0, 5), idsPlaced) && same(idsDup.slice(5), ['R7', 'R8', 'R9', 'R10', 'R11']));
+
+  // Supplied IDs raise counters before generation; invalid keys regenerated with ids_regenerated
+  await s.call('importJson', resistorJson(['Rload', 'bad key', 'R7']));
+  const idsMix = await s.call('ids');
+  out.idsMix = idsMix;
+  const logs = await s.call('logsSince', logMark);
+  ck('suppliedRaiseFirst', same(idsMix, ['Rload', 'R8', 'R7']));
+  ck('idsRegeneratedLogged', logs.some((l) => /ids_regenerated/.test(l) && /bad key/.test(l)));
+  ck('jsonKeysEqualIdsMix', same(await jsonKeys(), idsMix));
+
+  // Scripting global by registry ID: updateElementProperties (JSNI walk over elmList)
+  const upd = await s.eval(`CircuitJS1.updateElementProperties('R7', { resistance: 470 })`);
+  const r7line = String(await s.call('exportText')).split('\n').filter((l) => /^r /.test(l))[2] || '';
+  out.updateElementProperties = { upd, r7line };
+  ck('updateElementPropertiesById', upd === true && / 470$/.test(r7line));
+  ck('noPageExceptions', s.exceptions.length === exMark);
+
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_ids.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_ids', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_ids.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -882,7 +1031,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

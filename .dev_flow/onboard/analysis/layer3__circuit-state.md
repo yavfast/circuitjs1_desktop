@@ -64,11 +64,20 @@ not `CircuitInfo`.
   - `circuitLoader: CircuitLoader` (sub-unit; see below).
   - `simulationLoop: SimulationLoop` (inner class; ~60 FPS `Timer`).
   - `logBuffer: LogBuffer` (inner class; 100-line ring buffer).
-- **Per-document element-id counters:**
-  `elementTypeCounters: Map<String,Integer>` (line 30).
-  - `nextElementId(String prefix)` (line 32) returns `prefix + (++counter)`.
-  - `resetElementIdCounters()` (line 42) — called by importers before
-    re-loading.
+- **Per-document element IDs** (SP_AGA_03_02, PL_AGA Phase 2):
+  `elementIdRegistry: ElementIdRegistry` (client root; letters-only
+  per-prefix counters that never decrease within one content lifetime).
+  - `nextElementId(String prefix)` returns `prefix + n`, n = counter + 1,
+    skipping IDs present in the document.
+  - `raiseIdCounter(id)` — counter = max(counter, number of `id`).
+  - `resetElementIds()` — content replacement (`ImportLifecycle.resetCircuitState`
+    unless an undo restore is running; `CirSim.clearCircuit`).
+  - `settleElementIds()` — called by `ImportLifecycle.finalizeCircuitLoading`:
+    restored undo IDs by index, then valid unique supplied IDs raise counters,
+    then missing IDs are generated in element order; returns `ids_regenerated`
+    warnings.
+  - `begin/endElementIdRestore(ids)` — bracket of `UndoManager.loadUndoItem`;
+    `getDumpedElementIds()` — the `elementIds` of an undo entry.
 - **Simulation control:**
   - `isRunning`, `isActive`, `errorMessage`, `stopElm` (private lines 25-28).
   - `setSimRunning(boolean)` (line 106) — refuses to start when

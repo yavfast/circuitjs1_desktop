@@ -43,7 +43,7 @@ public class ResistorElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "R";
     }
 

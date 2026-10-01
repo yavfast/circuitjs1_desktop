@@ -3,7 +3,7 @@ skill: json-format
 domain: io
 topics: [json, schema-v2, circuit-element-factory, unit-parser, bounds, auto-wires]
 source: onboard
-updated: 2026-09-30
+updated: 2026-10-01
 ---
 
 # JSON v2.0 Format
@@ -38,12 +38,7 @@ round-trip.
 }
 ```
 
-**Element IDs** are generated on export by prefix rule
-(`JsonCircuitExporter.java:621`): `Resistor → R`, `Capacitor → C`,
-`Inductor → L`, `Transistor* → Q`, `Diode → D`, `LED → LED`, `Wire → W`,
-`Ground → GND`, `VoltageSource`/`DCVoltage → V`, `CurrentSource → I`,
-`OpAmp → U`; fallback is first 3 chars of type name. IDs are per-export,
-not stable across exports.
+**Element IDs** — the element keys — are the document's registry IDs (`CircuitElm.getElementId()`, SP_AGA_03_02; since PL_AGA Phase 2, replacing the exporter's own global counter `R1, C2, W3`). Import keeps valid unique keys as IDs (content replacement only; a paste generates new ones), and the keys stay stable across exports.
 
 **Values use SI-unit strings.** Exporter uses `formatWithUnit` (L667)
 emitting `"10 kOhm"`, `"1.5 uF"`, `"3.3 V"`, `"5 us"`. Importer parses

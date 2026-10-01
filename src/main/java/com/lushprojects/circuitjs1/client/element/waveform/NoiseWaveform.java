@@ -41,7 +41,9 @@ public class NoiseWaveform extends Waveform {
         final int wl = 8;
         final int xl = 10;
 
-        final int seed = elm.getElementId().hashCode();
+        // Seed from the ID once the element has one; drawing must not make an element without one
+        // (e.g. still being placed) take a number from the document's ID counters (SP_AGA_03_02).
+        final int seed = elm.hasElementId() ? elm.getElementId().hashCode() : 0;
 
         g.beginPath();
         g.setLineWidth(2.0);

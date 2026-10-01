@@ -772,6 +772,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
                 }
             } else {
                 simulator().elmList.add(dragElm);
+                dragElm.getElementId(); // [SP_AGA_03_02] a placed element gets its generated ID now
                 dragElm.draggingDone();
 
                 // Built-in sliders and control buttons live in the Sliders dialog.
@@ -932,6 +933,7 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
         newWire.drag(element.getX2(), element.getY2());
         element.drag(x, y);
         simulator().elmList.add(newWire);
+        newWire.getElementId(); // [SP_AGA_03_02] generated ID on entry
         cirSim.needAnalyze();
     }
 

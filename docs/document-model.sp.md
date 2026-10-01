@@ -30,7 +30,7 @@
 | circuitLoader | CircuitLoader | yes | new | format adapter |
 | simulationLoop | SimulationLoop | yes | new | 16 ms Timer |
 | logBuffer | LogBuffer | yes | new | 100-line ring |
-| elementTypeCounters | Map<String,Integer> | yes | {} | per-prefix id counter |
+| elementIdRegistry | ElementIdRegistry | yes | new | per-prefix element ID counters + pending undo-restore IDs (SP_AGA_03_02); reset on content replacement |
 | isRunning, isActive | boolean | — | false | loop gate |
 | errorMessage | String | — | null | stop reason |
 | stopElm | CircuitElm | — | null | offending element |

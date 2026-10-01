@@ -58,7 +58,7 @@ local UI state — lives on the document object. The shell's
   `adjustableManager`, `circuitEditor`, `circuitLoader`,
   `simulationLoop` (inner class; 16 ms `Timer`), `logBuffer` (inner;
   100-line ring), per-document element-id counters
-  (`elementTypeCounters`), and UI-state fields (`dots`, `volts`,
+  (`elementIdRegistry`, an `ElementIdRegistry`), and UI-state fields (`dots`, `volts`,
   `power`, `showValues`, `smallGrid`, `speedValue=117`,
   `currentValue=50`, `powerValue=50`, `transform[6]`).
 - **DocumentManager** — owned by `BaseCirSim`. State: `documents`,
@@ -145,9 +145,11 @@ pop + `createDocument + setActiveDocument + readCircuit` on
 `restoreLastClosedTab`. Undo stack is **reset** on restore (not
 reconstructed) — trade-off noted in backing analysis.
 
-**Element ID counters.** Per-document map `elementTypeCounters`
-(`prefix → int`); `nextElementId(prefix)` returns `prefix + (++counter)`.
-Importers call `resetElementIdCounters()` before reloading.
+**Element ID counters.** Per-document `ElementIdRegistry` (letters-only
+`prefix → int`, [SP_AGA_03_02](./agent-api.sp.md#SP_AGA_03_02));
+`nextElementId(prefix)` returns `prefix + (counter + 1)`, skipping present
+IDs. Content replacement calls `resetElementIds()`; every import ends with
+`settleElementIds()`; undo/redo restores IDs without a reset.
 
 **UI-state save/restore.** `saveUIState(menuManager, cirSim)` snapshots
 dots/volts/power toggles, scroll-bar values, and the renderer's 6-element
@@ -196,7 +198,7 @@ requires editing both this file **and** `io.json.CircuitElementFactory`.
   `setActiveDocument`, `setInitialDocument`, `restoreLastClosedTab`,
   `saveSession`, `restoreSession`, `getTabTitle`, `notifyTitleChanged`,
   `addListener`.
-- `CircuitDocument.nextElementId`, `resetElementIdCounters`,
+- `CircuitDocument.nextElementId`, `raiseIdCounter`, `resetElementIds`, `settleElementIds`,
   `setSimRunning`, `updateSimulationLoop`, `stop`, `clearError`,
   `addStateListener`, `addUpdateListener`, `saveUIState`,
   `restoreUIState`, `dispose`, pass-through getters.

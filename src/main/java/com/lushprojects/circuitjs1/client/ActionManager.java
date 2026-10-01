@@ -380,6 +380,7 @@ public class ActionManager extends BaseCirSimDelegate {
                     circuitEditor().snapGrid(circuitEditor().menuElm.getX() + 50),
                     circuitEditor().snapGrid(circuitEditor().menuElm.getY() + 50));
             simulator().elmList.add(newScope);
+            newScope.getElementId(); // [SP_AGA_03_02] generated ID on entry
             newScope.setScopeElm(circuitEditor().menuElm);
 
             // need to rebuild scopeElmArr

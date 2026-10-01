@@ -68,6 +68,11 @@ public final class ImportLifecycle {
         // Reset simulation parameters
         simulator.t = simulator.timeStepAccum = 0;
         simulator.elmList.clear();
+        // [SP_AGA_03_02] Content replacement starts a new ID lifetime (counters reset); an
+        // undo/redo restore keeps the current one.
+        if (!document.isRestoringElementIds()) {
+            document.resetElementIds();
+        }
         document.adjustableManager.reset();
         renderer.setHintType(-1);
         simulator.maxTimeStep = 5e-6;
@@ -99,6 +104,14 @@ public final class ImportLifecycle {
         CirSim cirSim = document.getCirSim();
         CircuitSimulator simulator = document.simulator;
         CircuitRenderer renderer = document.getRenderer();
+
+        // [SP_AGA_03_02] Every element gets its ID before anything else can ask for one:
+        // supplied (JSON keys) and restored (undo) IDs raise their counters first, then elements
+        // without one get generated IDs in element order (text lines, pastes, auto-wires).
+        // Phase 4: ImportReport — return these ids_regenerated warnings to the caller too.
+        for (String warning : document.settleElementIds()) {
+            CirSim.console("[WARN] ids_regenerated: " + warning);
+        }
 
         cirSim.setPowerBarEnable();
         cirSim.enableItems();

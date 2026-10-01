@@ -266,8 +266,10 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     // ==================== Element ID Methods ====================
     
     /**
-     * Get the unique ID of this element.
-     * If no ID is set, generates one automatically.
+     * Get the unique ID of this element ([SP_AGA_03_02]).
+     * IDs are assigned when the element enters the document (import, paste, undo/redo restore,
+     * editor placement); an element that has none yet gets a generated one from its document's
+     * ID registry.
      */
     public String getElementId() {
         if (elementId == null) {
@@ -277,7 +279,8 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
     
     /**
-     * Set the element ID. Used when importing from JSON or for custom naming.
+     * Set the element ID. Used by the document's ID registry (import, undo/redo restore);
+     * null clears it so that the registry generates a new one.
      * @param id The ID to set
      */
     public void setElementId(String id) {
@@ -293,7 +296,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     
     /**
      * Generate a unique ID for this element based on its type.
-     * Format: PREFIX + NUMBER (e.g., R1, C2, Q3)
+     * Format: PREFIX + NUMBER (e.g., R1, C2, LED3)
      */
     protected String generateElementId() {
         String prefix = getIdPrefix();
@@ -304,15 +307,20 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
     
     /**
-     * Get the ID prefix for this element type.
-     * Override in subclasses for custom prefixes.
+     * Prefix of generated IDs for this element type ([SP_AGA_03_02]); letters only.
+     * Override in subclasses for custom prefixes. The default is the first three letters
+     * (A-Z, digits dropped) of the JSON type name, upper-cased.
      */
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         String typeName = getJsonTypeName();
-        // Use first 2-3 chars of type name
-        return typeName.length() > 3 
-            ? typeName.substring(0, 3).toUpperCase() 
-            : typeName.toUpperCase();
+        StringBuilder sb = new StringBuilder(3);
+        for (int i = 0; typeName != null && i < typeName.length() && sb.length() < 3; i++) {
+            char c = typeName.charAt(i);
+            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+                sb.append(c);
+            }
+        }
+        return sb.length() == 0 ? "E" : sb.toString().toUpperCase();
     }
     
     // abstract int getDumpType();

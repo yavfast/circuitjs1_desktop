@@ -68,7 +68,7 @@ When this plan is complete:
 
 - [x] [Phase 0 — Background-document prototype (closes SP_AGA_DEC_04)](#PL_AGA_P0)
 - [x] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
-- [ ] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
+- [x] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
 - [ ] [Phase 3 — Catalogue](#PL_AGA_P3)
 - [ ] [Phase 4 — Geometry, edits and import](#PL_AGA_P4)
 - [ ] [Phase 5 — Connectivity, readings and diagnostics](#PL_AGA_P5)
@@ -145,7 +145,7 @@ Notes:
 - `CircuitJS1Agent` is separate from the existing `CircuitJS1` global, whose methods stay as they are (SP_AGA_06_01).
 - The live harness gets a helper `agentCall(op, args)` and an `agent_docs` scenario.
 
-### Phase 2 — Element identity and pin names [TODO]  {#PL_AGA_P2}
+### Phase 2 — Element identity and pin names [DONE]  {#PL_AGA_P2}
 
 **Depends on:** Phase 1
 **Implements:** [SP_AGA_03_02](./agent-api.sp.md#SP_AGA_03_02), [SP_AGA_04_03](./agent-api.sp.md#SP_AGA_04_03), undo extension field `elementIds` of [SP_AGA_01_10](./agent-api.sp.md#SP_AGA_01_10)

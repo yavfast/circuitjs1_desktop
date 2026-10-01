@@ -502,7 +502,7 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             if (mousePost == -1) {
                 mouseElm.getInfo(infoLines);
                 // Add element ID to the header
-                String id = mouseElm.getElementId();
+                String id = mouseElm.hasElementId() ? mouseElm.getElementId() : null; // no ID creation from draw code
                 if (id != null && !id.isEmpty()) {
                     infoLines[0] = "[" + id + "] " + Locale.LS(infoLines[0]);
                 } else {

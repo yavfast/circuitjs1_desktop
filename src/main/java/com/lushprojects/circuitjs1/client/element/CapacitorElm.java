@@ -66,7 +66,7 @@ public class CapacitorElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "C";
     }
 

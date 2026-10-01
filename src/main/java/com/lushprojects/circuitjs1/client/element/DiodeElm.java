@@ -77,7 +77,7 @@ public class DiodeElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "D";
     }
 

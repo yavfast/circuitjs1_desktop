@@ -77,7 +77,7 @@ public class VoltageElm extends CircuitElm {
     }
 
     @Override
-    protected String getIdPrefix() {
+    public String getIdPrefix() {
         return "V";
     }
 
