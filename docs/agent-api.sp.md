@@ -764,7 +764,7 @@ The protected state:
 
 **View transform source.** For the active document, the "document's own view transform" is the session renderer's transform. For a non-active document it is that document's saved view transform.
 
-**Mechanism.** How R1/R2 are achieved is [SP_AGA_DEC_04](#SP_AGA_DEC_04): a scoped silent bind of the target document, explicit per-path routing, or a hybrid of the two.
+**Mechanism.** How R1/R2 are achieved is [SP_AGA_DEC_04](#SP_AGA_DEC_04): a scoped silent bind of the target document, explicit per-path routing, or a hybrid of the two — resolved as the scoped silent bind (A).
 
 **Free-running loop.** It advances the active running document as today and skips a busy document ([§04_02](#SP_AGA_04_02)).
 
@@ -1016,7 +1016,7 @@ A **content lifetime** begins when a document is created or its content is repla
 
 ### DEC_04 — By which mechanism do background-document operations meet R1/R2?  {#SP_AGA_DEC_04}
 
-> **Status:** open
+> **Status:** resolved
 > **Date:** 2026-10-01
 
 **Question:** Many load, undo, export and rendering paths write session UI state or resolve the active document ([§03_08](#SP_AGA_03_08)). How should operations on a non-active document satisfy R1 (no disturbance of the active tab) and R2 (the target behaves as if active)?
@@ -1028,15 +1028,16 @@ A **content lifetime** begins when a document is created or its content is repla
 | B — explicit routing: give each session-coupled path a document parameter | Exact and cheap at runtime; touches many paths, and every missed path is a disturbance bug |
 | C — hybrid: A for loads, undo/redo, export and render; B only for the stepping path of runs | A's coverage where paths are many; no per-slice UI swap during runs |
 
-**Decision:** OPEN — see the resolution trigger.
-**Rationale:** The choice depends on facts not yet measured: whether a silent bind avoids visible effects (sliders dialog rebuild, flicker) and what the stepping path touches.
-**Resolution trigger:** a background-document prototype at the start of the C_AGA plan, which must pass the R1 and R2 checks of [§05_02](#SP_AGA_05_02) on a reduced sequence (text import, undo, a 2 s stepping loop, export) — the agent contracts of the full rows do not exist yet; the full rows are proven by the implementation ([PL_AGA](./agent-api.plan.md) Phases 8–9). The plan must close this decision before any phase that implements background-document operations.
+**Decision:** A — scoped silent bind for every operation, including each `run`/`render` slice. The plan adds four conditions: a field-swap bind instead of `bindDocument`, the session sliders dialog detached while bound, a hint per document, and a slice yield that waits for one active-tab frame ([PL_AGA_DEC_01](./agent-api.plan.md#PL_AGA_DEC_01)).
+**Rationale:** The prototype passed every R1 sample and the R2 comparison of the reduced sequence at 97.5 % of the active tab's idle rate and 0.6 ms per bind. C measured more background throughput but leaves stepping-time session reads unrouted ([PL_AGA Phase 0 result](./agent-api.plan.md#PL_AGA_P0)).
+**Resolved by:** the developer, 2026-10-01, after the PL_AGA Phase 0 prototype.
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | SP_AGA_DEC_04 resolved: A (scoped silent bind) with the conditions of PL_AGA_DEC_01, after the PL_AGA Phase 0 prototype |
 | 2026-10-01 | DEC_04 trigger aligned with the plan's reduced prototype sequence (plan review) |
 | 2026-10-01 | Review round 5: R1 holds during calls with test rows for R1/R2 and the DEC_04 trigger tied to them; grid option consistent across sections; openFile activate/rejection/modified-flag precedence |
 | 2026-10-01 | Review round 4: §03_08 restated as requirements R1/R2 with mechanism decision DEC_04 (open), slider seeds no longer limits, modified flag on undo/redo, issue and id caps, import skip codes, model catalogue restore on rejection, document grid option for agent geometry, `openFile activate`, JSON key regeneration |

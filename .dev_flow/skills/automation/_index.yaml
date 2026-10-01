@@ -11,3 +11,8 @@ skills:
     topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, netlist-first]
     source: research
     updated: 2026-10-01
+  - file: background-documents.md
+    skill: background-documents
+    topics: [documents, bind-document, session-state, sliders-dialog, hint, simulation-loop, agent-run, r1-r2]
+    source: prototype
+    updated: 2026-10-01

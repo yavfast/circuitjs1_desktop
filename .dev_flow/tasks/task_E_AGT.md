@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-01 22:10
+> **Last updated:** 2026-10-01 23:58
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `checkpoints`
@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document** | `epic + concepts` — [agent-automation.epic.md](../../docs/agent-automation.epic.md), [agent-api](../../docs/agent-api.concept.md), [mcp-server](../../docs/mcp-server.concept.md), [mcp-bridge](../../docs/mcp-bridge.concept.md), [agent-skill](../../docs/agent-skill.concept.md) |
-| **Pipeline phase** | `plan` |
+| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 0 and [mcp-server.plan.md](../../docs/mcp-server.plan.md) Phase 0 (prototypes) |
+| **Pipeline phase** | `implement` — PL_AGA P0 done; next PL_MCP P0 |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -44,7 +44,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 16:10 — open decision C_MCP_DEC_03 (protocol layer) — trigger: hosting prototype at the start of C_MCP planning
 
 ### Subtask: specification authoring
-> Author: `main` — Created: 16:20 — Last updated: 17:05 — Status: `in-progress`
+> Author: `main` — Created: 16:20 — Last updated: 22:40 — Status: `done`
 
 **Goal:** SP_AGA, SP_MCP, SP_MCB, SP_AGS; pass the Spec→Plan gate; clean-context review of the design unit before commit sign-off.
 
@@ -60,6 +60,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Move to plan phase
 
 **Activity:**
+- 22:40 — status flag corrected to `done` at checkpoint (the phase finished and was committed as 496d9c9; the flag had not been flipped)
 - 20:45 — review converged after 6 rounds; open by design: SP_AGA_DEC_04 (background-doc mechanism), C_MCP_DEC_03 (protocol layer) — both closed by plan-start prototypes
 - 18:10 — review round 1 FAIL; developer resolved SP_AGA_DEC_01=A, SP_MCP_DEC_01=A, new SP_MCP_DEC_03=A (circuit files only); fix pass applied across specs, concepts, epic, glossary, skills
 - 17:05 — proposed decisions for design sign-off: SP_AGA_DEC_01 (one atomic `applyEdits` batch), SP_MCP_DEC_01 (14 grouped tools)
@@ -74,11 +75,29 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Four plans written; spec-section coverage check passes
 - [x] Plan review: round 1 FAIL (4 must) → round 2 FAIL (1 must) → round 3 PASS; S1/S2 applied (confirm)
 - [x] Design sign-off and commit sign-off given by the developer (2026-10-01); new test scenarios (`agent_*` live scenarios, `tests/mcp/e2e.mjs`) approved
-- [ ] **Next:** `/dev-flow implement` starting with PL_AGA P0 and PL_MCP P0 prototypes
+- [x] Hand off to the implementation subtask
 
 **Activity:**
 - 22:10 — open by design: PL_AGA_DEC_01 (closes SP_AGA_DEC_04), PL_MCP_DEC_01 (closes C_MCP_DEC_03) — resolved by the P0 prototypes
 - 22:10 — SP_AGA_DEC_04 trigger edited in place (non-breaking) to the reduced prototype sequence
+
+### Subtask: implementation
+> Author: `main` — Created: 22:40 — Last updated: 23:58 — Status: `in-progress`
+
+**Goal:** implement PL_AGA, PL_MCP, PL_MCB, PL_AGS in plan order; one commit sign-off per plan phase.
+
+**Progress:**
+- [x] PL_AGA Phase 0 prototype built (worktree on `proto/agent-bg-doc`, scratchpad) and measured headless over 5 configurations; result in the plan's Phase 0 block; skill `automation/background-documents` created
+- [x] Developer chose A + 4 conditions; PL_AGA_DEC_01 and SP_AGA_DEC_04 `resolved`; Phase 0 `[DONE]`; scratch worktree and branch removed
+- [x] Commit sign-off for the Phase 0 record (docs + skill) — given 2026-10-01
+- [ ] **Next:** scratch branch `proto/mcp-hosting` for PL_MCP Phase 0 (SDK v1 core under Node 18.0 in three run modes, Claude Code + Inspector connect, `process.pid` in `new_instance`, close/Exit events); record in PL_MCP_DEC_01 and close C_MCP_DEC_03
+- [ ] PL_AGA Phase 1 after PL_AGA_DEC_01 is closed
+
+**Activity:**
+- 23:58 — developer resolved PL_AGA_DEC_01 = A + 4 conditions (closes SP_AGA_DEC_04)
+- 23:55 — PL_AGA P0: today's `bindDocument` starves the active tab when bound per slice (0 % rate); silent field-swap bind + sliders-dialog guard passes R1 at 97.5 %, R2 equal on all §05_02 fields given the per-document hint (condition 3); slices 23–25 ms vs the 20 ms bound (disclosed, Phase 8 proves it); pre-existing tab-switch hint leak filed in the PL_AGA backlog
+- 23:55 — P0 verified headless (harness `eval` + probe) instead of by hand in devmode — stronger evidence: every R1 field sampled per call and per slice
+- 22:40 — tree at checkpoint: branch `design/agent-mcp`, clean apart from this checkpoint's `.dev_flow/` edits; commits 496d9c9 + f48c7e0 ahead of `master`, not pushed
 
 ## Review Rounds
 
@@ -90,10 +109,10 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 | 4 | delta ∪ carry-over ∪ critical | full | working tree 2026-10-01 19:40 | FAIL (R3-M1 remainder recurring → §03_08 restated as requirements + open DEC_04; new M2 slider seeds as limits; S1–S8) | R3-M1 → 2; R4-M2, R4-S1..S8 → 1 |
 | 5 | delta ∪ carry-over ∪ critical | full | working tree 2026-10-01 20:05 | FAIL (R1 not testable; grid-pin contradiction; S1–S6) | R5-M1, R5-M2 → 1 |
 | 6 | delta ∪ carry-over | full | working tree 2026-10-01 20:30 | PASS (F1–F3 should) | — |
+| 6b | F1–F3 prescribed fixes | confirm (main, mechanical) | working tree 2026-10-01 20:45 | PASS (R1 timing bounds measurable; R1/R2 rows 2 cells; skill grid-sized parts rule present) | — |
 | P1 | plans (full) | full | working tree 2026-10-01 21:30 | FAIL (4 must, 15 should) | → 1 |
 | P2 | plans delta ∪ carry-over | full | 21:50 | FAIL (N1 must) | N1 → 1 |
 | P3 | plans delta | full | 22:05 | PASS (S1, S2 should → applied, confirm) | — |
-| 6b | F1–F3 prescribed fixes | confirm (main, mechanical) | working tree 2026-10-01 20:45 | PASS (R1 timing bounds measurable; R1/R2 rows 2 cells; skill grid-sized parts rule present) | — |
 
 **Always in scope:** SP_AGA §01_06, §02_04, §02_10, §03_02, §03_04, §03_05, §03_08, §04_01 (declared `Criticality: critical`).
 
@@ -104,6 +123,16 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 {No blockers yet.}
 
 ## Relevant Context
+
+- `{s:pin}` Resolved 2026-10-01: [PL_AGA_DEC_01](../../docs/agent-api.plan.md#PL_AGA_DEC_01) = A, scoped silent bind + 4 conditions (closes [SP_AGA_DEC_04](../../docs/agent-api.sp.md#SP_AGA_DEC_04)); skill `automation/background-documents`. Still open (blocks PL_MCP Phase 1): [PL_MCP_DEC_01](../../docs/mcp-server.plan.md#PL_MCP_DEC_01) → closes [C_MCP_DEC_03](../../docs/mcp-server.concept.md#C_MCP_DEC_03) (protocol layer). — main
+- `{s:pin}` Spec-level decisions settled by the developer: SP_AGA_DEC_01 one atomic `applyEdits` batch · SP_MCP_DEC_01 14 grouped tools · SP_MCP_DEC_03 file actions on circuit files only (.txt/.json, ≤10 MB, overwrite only empty/circuit files). — main
+- Read first on resume — main:
+  - [agent-automation.epic.md](../../docs/agent-automation.epic.md) — epic, interview-decision map, acceptance criteria
+  - plans [agent-api.plan.md](../../docs/agent-api.plan.md), [mcp-server.plan.md](../../docs/mcp-server.plan.md), [mcp-bridge.plan.md](../../docs/mcp-bridge.plan.md), [agent-skill.plan.md](../../docs/agent-skill.plan.md)
+  - specs [agent-api.sp.md](../../docs/agent-api.sp.md) (§03_08 R1/R2, §05_02 R1/R2 rows), [mcp-server.sp.md](../../docs/mcp-server.sp.md)
+  - [mcp-agent-bridge.spike.md](../../docs/mcp-agent-bridge.spike.md) — runtime facts (NW 0.64.1-mod1 = Node 18.0.0)
+  - [tests/live/README.md](../../tests/live/README.md) — harness the `agent_*` scenarios extend
+  - skills `.dev_flow/skills/automation/` — Pitfalls sections
 
 - `{s:pin}` Decisions: C_AGA_DEC_01 grid cells + import & incremental · DEC_02 per-document ID registry · DEC_03 any tab by handle · DEC_04 transactions sealed by commented checkpoints (auto-seal on user edit/save/close/idle) · C_MCP_DEC_01 server per instance + registry · DEC_02 always on, LAN, no token · DEC_03 OPEN protocol layer · C_MCB_DEC_01 stdio bridge + CLI.
 - Skills: `.dev_flow/skills/automation/` (js-api-surface, agent-mcp-surface).

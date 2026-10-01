@@ -66,7 +66,7 @@ When this plan is complete:
 
 ## Progress
 
-- [ ] [Phase 0 — Background-document prototype (closes SP_AGA_DEC_04)](#PL_AGA_P0)
+- [x] [Phase 0 — Background-document prototype (closes SP_AGA_DEC_04)](#PL_AGA_P0)
 - [ ] [Phase 1 — Foundations: results, documents, JS export](#PL_AGA_P1)
 - [ ] [Phase 2 — Element identity and pin names](#PL_AGA_P2)
 - [ ] [Phase 3 — Catalogue](#PL_AGA_P3)
@@ -80,7 +80,7 @@ When this plan is complete:
 
 ## Phases
 
-### Phase 0 — Background-document prototype [TODO]  {#PL_AGA_P0}
+### Phase 0 — Background-document prototype [DONE]  {#PL_AGA_P0}
 
 **Depends on:** none
 **Implements:** resolution of [SP_AGA_DEC_04](./agent-api.sp.md#SP_AGA_DEC_04)
@@ -89,7 +89,7 @@ When this plan is complete:
 What to do:
 - On a scratch branch `proto/agent-bg-doc`, implement the minimum to exercise option A (scoped silent bind):
   - a `withDocumentScope(doc, op)` helper that saves the active tab's UI state through the existing per-tab save/restore of `DocumentManager`;
-  - it binds the target through `BaseCirSim.bindDocument()` without listener notifications or repaint, runs `op`, then rebinds and restores.
+  - it binds the target through `BaseCirSim.bindDocument()` without listener notifications or repaint, runs `op`, then rebinds and restores (superseded: the bind must be a field swap — see the Result below).
 - Run the R1 sequence with the active tab free-running: a text import, an undo, a 2 s stepping loop in 20 ms slices, and an export. Observe:
   - the sliders dialog;
   - the menu check items;
@@ -101,6 +101,28 @@ What to do:
 - If option A shows a sliders-dialog rebuild or a rate below 50 %, try option C: A for load/undo/export/render, and direct stepping of the target simulator for runs.
 - Record the outcome in [PL_AGA_DEC_01](#PL_AGA_DEC_01) and close SP_AGA_DEC_04 (spec record → `resolved`).
 - Discard the branch after the decision. Only the decision and findings carry over.
+
+**Result (2026-10-01).** Run headless through `tests/live/harness.mjs eval` against a build of the scratch branch instead of by hand in devmode: every R1 field was sampled after each synchronous call and at every slice boundary, which hand observation could not do. Fixtures: active tab `lrc.txt` free-running (3 sliders, a hint, scopes; 7 elements instead of the 10-element reference fixture); background X `pot.txt`, then `potdivide.txt`, both with a header that differs from the active tab in every option; then undo, a 2 s run in 20 ms slices, and an export.
+
+| Configuration | R1 samples disturbed | Active-tab rate vs idle | Target steps in 2 s | Max slice |
+|---|---|---|---|---|
+| A, silent bind | 77 of 77 (sliders dialog only) | 97 % | 77 k | 25 ms |
+| A, silent bind + sliders-dialog guard | 0 | 97.5 % | 73 k | 24 ms |
+| Today's `bindDocument` + guard, 1 ms yield | 0 | **0 %** | 83 k | 25 ms |
+| Today's `bindDocument` + guard, frame-aware yield | 0 | 96.7 % | 51 k | 23 ms |
+| C (A for sync ops, direct stepping) + guard | 0 | 98.4 % | 88 k | 23 ms |
+
+Findings:
+- `BaseCirSim.bindDocument` cannot serve as the bind. It calls `setActive`, which cancels and restarts the active tab's 16 ms loop timer and resets the renderer timers. Bound per slice with a short yield, it stops the active tab's simulation completely. The bind must be a field swap with no `setActive`, listener moves or timer reset.
+- With that silent bind, the only R1 leak in the reduced sequence is the sliders dialog. `AdjustableManager` (load and undo) clears and refills the session dialog with the target's sliders. Detaching the dialog while a background document is bound removes the leak, and the target's sliders are rebuilt when its tab is activated.
+- All other R1 fields came back unchanged by saving and restoring them around the call. These are the menu check items; the time-step, speed, current and power bars; the voltage range; the transform; the hint; the window title; and the enabled state of the Undo, Redo and Save items. The swap costs 0.6 ms on average and 3 ms at most per bind.
+- The run needs a frame-aware yield: the next slice waits until the active tab has run one free-run frame. A fixed 1 ms timer sometimes ran two slices back to back.
+- Slices ran 23–25 ms against a 20 ms stepping budget, also with direct stepping. That is over the R1 bound of 20 ms plus one timestep. The excess comes from up to 3 ms of bind cost and millisecond timer granularity, because the prototype started its budget clock inside the scope. Phase 8 must start the clock at scope entry and keep a margin; its R1 row proves the bound.
+- R2: X and Y ended with equal circuit text, saved UI state, view transform, adjustables, title, modified flag and file path. The two differences trace to existing code:
+  - The renderer hint is session state. A normal tab switch carries the previous tab's hint items into Y, which logs `getElm: invalid index`. The prototype gave each document its own hint and so avoided this.
+  - Sliders-dialog position logs land in whichever document is bound. Y logs them; X logs none under the guard.
+- Session-coupled paths confirmed beyond the §03_08 list: the window title (`CirSim.changeWindowTitle`), the enabled state of the Undo, Redo and Save items, and the loop toggle inside `bindDocument`. Not exercised by the reduced sequence (Phases 8 and 9): the closed-tab dump, rendering and `openFile`.
+- Direct stepping (C) gives about 15–20 % more background throughput. But it runs element and simulator code while the session is bound to the active tab. `runCircuit` reads the speed bar through `cirSim.getIterCount()`, and session calls and console lines from element code reach the active document. A per-slice bind routes all of these to the target.
 
 ### Phase 1 — Foundations: results, documents, JS export (`client/agent/`) [TODO]  {#PL_AGA_P1}
 
@@ -269,13 +291,14 @@ What to update:
 
 - Split SP_AGA into an umbrella plus children (it is above the docs soft-split size) — return when: the next `/dev-flow audit docs` flags it, or SP_AGA grows further.
 - Agent control of adjustable sliders (values of element sliders) — return when: an eval or user request needs an agent to drive sliders.
+- Tab-switch hint leak (found by Phase 0): the renderer hint is session state, so activating a tab shows the previous tab's hint items and logs `getElm: invalid index`. Phase 8 gives each document its own hint for agent paths; the user tab switch should restore it from the same field — return when: Phase 8 adds the per-document hint field.
 - Per-element validity ranges as a declared contract (beyond element clamping) — return when: agents are seen setting physically meaningless values that elements accept.
 
 ## Design Decisions  {#PL_AGA_DEC}
 
 ### DEC_01 — Background-document mechanism (closes SP_AGA_DEC_04)  {#PL_AGA_DEC_01}
 
-> **Status:** open
+> **Status:** resolved
 > **Date:** 2026-10-01
 
 **Question:** Which of SP_AGA_DEC_04's options (A scoped silent bind, B explicit routing, C hybrid) does the implementation use?
@@ -287,12 +310,17 @@ What to update:
 | B — explicit routing | Many touched paths; no bind cost |
 | C — hybrid | Bind for loads/undo/export/render, direct stepping for runs |
 
-**Decision:** OPEN — see resolution trigger.
-**Rationale:** Needs the Phase 0 measurements.
-**Resolution trigger:** end of [Phase 0](#PL_AGA_P0); Phase 1 does not start while this is open.
+**Decision:** A for every operation, including each `run`/`render` slice, with four conditions taken from the [Phase 0 result](#PL_AGA_P0):
+1. The bind is a silent field swap, not `bindDocument`.
+2. The session sliders dialog is detached while a background document is bound.
+3. Each document gets its own hint in its saved UI state.
+4. Each slice yields until the active tab has run one free-run frame.
+**Rationale:** With these conditions A passed every R1 sample and the R2 comparison of the reduced sequence, at 97.5 % of the active tab's idle rate and 0.6 ms per bind. One helper then covers every session-coupled path, including the ones inside stepping. C measured 15–20 % more background throughput, but it leaves stepping-time session reads (speed bar, console, element calls on the session) unrouted, and none of the R1/R2 criteria rewards throughput. B was not prototyped: A's measured cost is small, and B's per-path coverage risk is the one SP_AGA_DEC_04 names.
+**Resolved by:** the developer, 2026-10-01, at the Phase 0 sign-off (recommended option accepted).
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A with four conditions); backlog: tab-switch hint leak |

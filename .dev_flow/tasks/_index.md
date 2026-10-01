@@ -17,7 +17,7 @@ headers if they drift.
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
-| [E_AGT](task_E_AGT.md) | concept | in-progress | main | 2026-10-01 |
+| [E_AGT](task_E_AGT.md) | implement | in-progress | main | 2026-10-01 |
 
 ## Recently Completed
 

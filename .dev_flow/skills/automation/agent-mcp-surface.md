@@ -35,7 +35,7 @@ Tool-design conventions recommended by the spike (prior art: circuitjs-mcp, SPIC
 
 - The simulator runs with non-convergence recovery on: source/wire loops and singular matrices arrive as `warn()` while simulation continues, not as `stop()` — map both (SP_AGA_03_06).
 - Desktop "save" (`CirSim.nodeSave`) is a browser download and "open" is a file picker — there is no path-based file seam yet (SP_AGA_03_09).
-- Many mechanisms act on the active document only (undo dump via `ActionManager.dumpCircuit`, `BaseCirSim.needAnalyze/stop`, renderer) — how background-document work meets SP_AGA_03_08 R1/R2 is decided by SP_AGA_DEC_04 (silent bind vs explicit routing vs hybrid).
+- Many mechanisms act on the active document only (undo dump via `ActionManager.dumpCircuit`, `BaseCirSim.needAnalyze/stop`, renderer) — how background-document work meets SP_AGA_03_08 R1/R2 is resolved by SP_AGA_DEC_04 as a scoped silent bind (A) — see [background-documents](background-documents.md).
 
 - The existing remote-debug channel (`server/remote-debug-server.js`: socket.io, CORS `*`; page agent uses `eval`) is a relay model only — do not expose it as the MCP path.
 - Hidden/unfocused windows throttle timers — affects agent-driven runs unless stepping is synchronous or `chromium-args` disable background throttling.
