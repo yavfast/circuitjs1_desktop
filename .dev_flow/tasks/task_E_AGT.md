@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 18:30
+> **Last updated:** 2026-10-02 19:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA and PL_MCP plans completed and committed; PL_MCB next; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA, PL_MCP and PL_MCB plans completed; PL_AGS Phase 1 committed, Phases 2–3 next, Phase 4 needs the developer; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -114,7 +114,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_MCB Phase 2 — stdio server forwarding target tools/resources unchanged (raw tools/call, revision pin), bridge_instances/select/launch, Claude Code over stdio (17 tools); review PASS 4 should + 4 prefer → fixed (HTTP-status JSON-RPC errors, serialised launch, bypass guard, idle close on switch, absolute file); app server strips the SDK "MCP error <code>: " prefix. Bridge tests 69
 - [x] PL_MCB Phase 3 — CLI `instances`/`tools`/`call`/`read`/`launch` with exit codes 0–3, one JSON document on stdout, one stderr line on errors; review FAIL (must: my own spec line stricter than needed) → code + spec aligned over two delta rounds; bridge tests 88. Backlog: `importCircuit` ~cubic in element count (2500 elements 51 s) — PL_AGA Backlog
 - [x] PL_MCB Phase 4 — tests/mcp bridge scenarios (default 12 rows, slow 120 s CLI run, clients Claude Code over stdio), mcp/bridge/README (install, options, CLI, host snippets, uninstall); review PASS 4 should + 4 prefer → fixed (harness signals only its own registered process groups, restart-after-close row, error texts with live IDs). PL_MCB plan `completed`; Claude Desktop row owed by hand
-- [ ] **Next:** PL_AGS — agent skill (docs/agent-skill.plan.md Phases 1–4)
+- [x] PL_AGS Phase 1 — skill `mcp/skill/circuitjs-circuits/` (SKILL.md + 5 references + host snippets), examples built live through the bridge CLI and re-run (766 consistency checks); review FAIL (must: post-order voltage formula implied source pin polarity) → fixed + bridge_launch-first, host security line; delta PASS. Six Agent API defects found while writing it → PL_AGA Backlog "Defect batch" (fix before PL_AGS Phase 4)
+- [ ] **Next:** PL_AGS Phase 2 — consistency checks; Phase 3 — eval set and runner; then STOP before Phase 4 (eval runs spend model usage — the developer's go-ahead is required per the plan)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

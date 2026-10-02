@@ -3,7 +3,7 @@
 > **Code:** SP_AGS
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_AGS](./agent-skill.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_MCP](./mcp-server.sp.md), [SP_MCB](./mcp-bridge.sp.md)
@@ -115,7 +115,7 @@ It must contain:
 
 ### 02_03. reference/elements.md  {#SP_AGS_02_03}
 
-- **Table.** The 25 most-used types, one row each: type, pins, geometry kind, default size, key properties with units, and one typical value.
+- **Table.** The most-used types (the required list below, 26 types), one row each: type, pins, geometry kind, default size, key properties with units, and one typical value.
 - **Required types.** The table must include the canonical catalogue names (aliases noted) of: resistor, capacitor, inductor, wire, ground, DC and AC voltage sources (`VoltageSourceDC`, `VoltageSourceAC`), current source, diode, LED, Zener (`ZenerDiode`, alias `Zener`), NPN/PNP transistors (`TransistorNPN`, `TransistorPNP`), N/P MOSFETs (`NMOS`, `PMOS`, aliases `MosfetN`, `MosfetP`), `OpAmp`, `Switch`, `Potentiometer`, `LabeledNode`, a rail, `LogicInput`, `LogicOutput`, AND/OR gates (`ANDGate`, `ORGate`, aliases `AndGate`, `OrGate`), `Inverter`, `Timer555`. `element_count` checks use canonical names only. Every name is checked against `circuitjs://catalogue` ([§05_03](#SP_AGS_05_03)), and the canonical name is the one `describeType` returns.
 - **Pointer.** A closing line points to `circuitjs://catalogue` for every other type and for exact property lists.
 
@@ -247,5 +247,6 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | PL_AGS Phase 1: the elements table covers the required list (26 types) instead of "the 25 most-used" |
 | 2026-10-01 | Review round 2: canonical names, checker reset, desktop env snippet |
 | 2026-10-01 | Review round 1: fixture document selection, canonical type names, toolsVersion compatibility, integration scenarios |

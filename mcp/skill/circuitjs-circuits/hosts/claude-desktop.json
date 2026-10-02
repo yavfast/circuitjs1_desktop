@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "circuitjs": {
+      "command": "circuitjs-mcp",
+      "args": ["--launch"],
+      "env": {
+        "CIRCUITJS_APP": "<absolute path of the app executable>"
+      }
+    }
+  }
+}
