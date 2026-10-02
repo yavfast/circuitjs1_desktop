@@ -41,7 +41,7 @@ Copy this list into your notes and tick it off:
 - [ ] 5. Clear connectivity: the connectivity delta of the reply, circuit_connectivity for the full report; 0 errors
 - [ ] 6. Operating point: circuit_run {"mode": "settle", "reset": true} with probes on the supply nets
 - [ ] 7. Run, probe, measure: circuit_run {"span", "reset": true, "recordFrom", "probes"}; check reason and issues first
-- [ ] 8. Iterate: circuit_edit {"op": "set"}; re-check the connectivity delta, re-run step 7
+- [ ] 8. Iterate: circuit_edit {"edits": [{"op": "set", "id": ..., "properties": {...}}]}; re-check the connectivity delta, re-run step 7
 - [ ] 9. Checkpoint: circuit_checkpoint {"comment": "what changed and why"}
 - [ ] 10. Report the measured values; circuit_render when the user wants to see it; circuit_file save only when asked
 ```

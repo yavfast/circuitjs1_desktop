@@ -37,7 +37,7 @@ For this plan's scope ([task_E_AGT](../.dev_flow/tasks/task_E_AGT.md)): agents t
 ## Progress
 
 - [x] [Phase 1 — Skill entry, references, host snippets](#PL_AGS_P1)
-- [ ] [Phase 2 — Consistency checks](#PL_AGS_P2)
+- [x] [Phase 2 — Consistency checks](#PL_AGS_P2)
 - [ ] [Phase 3 — Eval set and runner](#PL_AGS_P3)
 - [ ] [Phase 4 — Eval runs and results](#PL_AGS_P4)
 
@@ -72,7 +72,7 @@ What to create:
   - Checklist step 1 (clarify) names no tool.
   - Example blocks drop the non-default `flags` the app adds on import. The blocks import identically without them.
 
-### Phase 2 — Consistency checks [TODO]  {#PL_AGS_P2}
+### Phase 2 — Consistency checks [DONE]  {#PL_AGS_P2}
 
 **Depends on:** Phase 1; PL_MCB Phase 3
 **Implements:** [SP_AGS_03_02](./agent-skill.sp.md#SP_AGS_03_02), [SP_AGS_05_03](./agent-skill.sp.md#SP_AGS_05_03)
@@ -82,6 +82,43 @@ What to create:
 | Entity | Module | Purpose |
 |--------|--------|---------|
 | Consistency script | `mcp/skill/tools/check-consistency.mjs` | Catalogue names (from `circuitjs://catalogue`), example imports, issue-code coverage against the code lists parsed from `docs/agent-api.sp.md` §03_05/§03_06 and the server codes of `docs/mcp-server.sp.md` §03_03, tool coverage (from `circuitjs-mcp tools`) |
+
+**Result (2026-10-02).**
+- **Script.** `mcp/skill/tools/check-consistency.mjs` (Node ≥ 20, no dependencies).
+  - **Instance access.** The bridge CLI does the spec-named calls (`tools`, `read circuitjs://catalogue/<type>`, `call circuit_import`). The served input/output schemas, the server instructions and the full catalogue are read by direct JSON-RPC (`initialize`, `tools/list`, `resources/read`, with timeout and content-type check) at the URL of the instance the bridge selects.
+  - **Options.** `--url`, `--instance`, `--registry` and `--timeout` are passed through; `--skill <dir>` checks another skill copy; `--offline` runs the form and codes groups only. The header comment documents the options and groups.
+  - **Exit codes.** 0 pass; 1 a check failed; 2 usage error or no reachable instance (also mid-run).
+- **Groups.**
+  - `form`: SP_AGS_03_01 limits; frontmatter; whole-cell examples; half-cell lattice of every element spec; unparseable json examples.
+  - `codes`: codes parsed from SP_AGA §03_04–03_06 and SP_MCP §03_03, with a minimum count per section, diffed both ways against the `diagnostics.md` rows.
+  - `names`: every backticked snake_case word in any skill file must be one of: an issue code, a property key of some type, a tool, a schema argument or enumeration value, or a catalogue geometry. A one-word allow-list holds `connected_to`.
+  - `tools`:
+    - tool names against `circuitjs-mcp tools` plus the bridge tools;
+    - argument keys of every JSON tool call, pattern run and edit, against the served schemas;
+    - keys of shorthand calls (`circuit_run {"span", …}`) against that tool's arguments;
+    - the instance toolsVersion against the SKILL.md line (same MAJOR, MINOR ≥);
+    - non-zero counts of calls, runs, edits and shorthand.
+  - `catalogue`:
+    - the elements table: canonical name, aliases, pins, geometry, keys;
+    - every element spec's type and property keys;
+    - `set` edits resolved through the AgentCircuit of their section, otherwise against the union of all property keys;
+    - capitalised prose words, which must be types, aliases, pins, ID prefixes or example IDs.
+  - `examples`: each block parsed as `{elements: [...]}` imports into a scratch document with `ok` and 0 errors. Failures are recorded per block. A request the bridge rejects (exit 2, e.g. a -32602 for an element without `type`) fails that block. A lost instance closes the scratch document first and then exits 2. The close itself is checked, so a document left open is reported.
+- **Verify.**
+  - **Live instance.** All groups PASS: 1449 checks in 17 s.
+  - **Defects.** Eleven scratch copies, each with one defect, each fail with exit 1 and name the defect:
+    - a misspelled type in a pattern block, and one in the table;
+    - a misspelled tool;
+    - a deleted code row;
+    - a misspelled run argument, and one in a shorthand call;
+    - a half-cell coordinate with a removed wire;
+    - an over-long SKILL.md, and a link between references;
+    - a misspelled code in `simulation.md`;
+    - a misspelled key in a `set` edit;
+    - a skill line asking for toolsVersion 1.1.
+  - **Example without `type`.** A scratch copy with one element missing `type` fails with exit 1, naming the block; `circuit_documents list` afterwards shows no document left open.
+  - **Exit 2.** No instance, and an unreachable `--url`, both give exit 2. `--offline` gives exit 0, with SKIP for the live groups.
+- **Skill fix found by the script.** Checklist step 8 showed `circuit_edit {"op": "set"}`, which is not a valid argument; it now shows the `edits` form.
 
 ### Phase 3 — Eval set and runner [TODO]  {#PL_AGS_P3}
 
@@ -119,3 +156,4 @@ What to do:
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | Phase 1 done: skill entry, references, host snippets |
+| 2026-10-02 | Phase 2 done: consistency script |
