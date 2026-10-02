@@ -160,7 +160,7 @@ element right-click → SliderDialog(elm, sim)
 - Ctrl+F / menu "Find" → `SearchDialog`.
 - Element right-click → `SliderDialog(elm, sim)`.
 - `AdjustableManager` lifecycle → `SlidersDialog.addSlider/removeSlider`.
-- `ControlsDialog.updateTimeStepBar()` — external refresh when simulator adapts timestep.
+- `ControlsDialog.syncTimeStepBar()` — external refresh of the bar and label from the document's step, without the bar's command (programmatic updates never re-quantise the step).
 - `EditCompositeModelDialog.createModel` / `setModel(m)` — two entry modes.
 - Reuse: `EditDialog.parseUnits(String)` and `EditDialog.unitString(EditInfo, double)` are module-public utilities consumed by `ScopePropertiesDialog` and `SliderDialog`.
 

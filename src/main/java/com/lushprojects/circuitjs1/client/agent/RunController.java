@@ -12,6 +12,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.DocumentScope;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -36,9 +37,13 @@ import java.util.Set;
  *     session-wide slice queue ({@link Slices#afterVisibleFrame}): at most one slice of any
  *     operation per frame of a free-running visible tab (PL_AGA_DEC_01 condition 4). The
  *     document is repainted once per slice when it is the visible tab.</li>
- * <li><b>End conditions</b>, checked after every step in the spec's order: solver stop,
- *     {@code tEnd} reached ({@code span_reached}; {@code settle_timeout} in settle mode), settled,
- *     budget used up; a cancel request ends the run at the slice boundary.</li>
+ * <li><b>First sample.</b> The run's start state is sampled only when the circuit is solved
+ *     ({@link CircuitSimulator#isSolved}); after an import, an edit or a reset the first sample
+ *     follows the first timestep, so {@code samples} is {@code steps + 1} or {@code steps}.</li>
+ * <li><b>End conditions</b>, checked after every step in the spec's order: solver stop, a fired
+ *     stop-trigger element ({@code stop_trigger}), {@code tEnd} reached ({@code span_reached};
+ *     {@code settle_timeout} in settle mode), settled, budget used up; a cancel request ends the
+ *     run at the slice boundary.</li>
  * <li><b>Exceptions.</b> An exception inside a slice ends the run with {@code solver_stop} and an
  *     {@code internal_error} issue, stops the document as the free-running loop does, and is passed
  *     to the global uncaught-exception handler ([SP_AGA_03_10], RULE_ERR_004).</li>
@@ -49,7 +54,8 @@ import java.util.Set;
  * </ol>
  * Issues: the solver events present when the run started plus those raised during it, each code
  * once ([SP_AGA_03_06]); the stop issue for {@code solver_stop}; a warning with the reason's code
- * for {@code budget_exhausted}, {@code settle_timeout} and {@code cancelled}.
+ * for {@code budget_exhausted}, {@code settle_timeout} and {@code cancelled}; for
+ * {@code stop_trigger} a warning naming the element.
  */
 final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator.StepObserver {
 
@@ -74,6 +80,7 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         SETTLED("settled"),
         SETTLE_TIMEOUT("settle_timeout"),
         SOLVER_STOP("solver_stop"),
+        STOP_TRIGGER("stop_trigger"),
         BUDGET_EXHAUSTED("budget_exhausted"),
         CANCELLED("cancelled");
 
@@ -132,6 +139,8 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
     /** Solver events present at the start and raised during the run, in order. */
     private final List<CircuitSimulator.SolverEvent> events = new ArrayList<>();
     private Issue internalError;
+    /** The stop-trigger element that ended the run ({@code stop_trigger}). */
+    private CircuitElm stopTrigger;
 
     private RunController(AgentApi.Call call, AgentApi.Completion done, boolean settleMode, double span,
             double tolerance, double window, double maxSpan, int budgetMs, double recordFrom, boolean reset,
@@ -354,14 +363,20 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
                 sim.resetAction();
             }
             doc.ensureAnalysed();
+            // a trigger that fired before the run (free-running) does not end it
+            doc.takeFiredStopTrigger();
             tStart = s.t;
             tEnd = tStart + (settleMode ? maxSpan : span);
             recordStart = Double.isNaN(recordFrom) ? tStart : recordFrom;
             if (settleMode) {
                 settle = new SettleDetector(netNodes.length, window, tolerance);
             }
-            // the first sample: the state the run starts from
-            sample(s.t);
+            // [SP_AGA_02_10] First sample: the state the run starts from, only when it is solved
+            // (after an import, an edit or a reset the node voltages are not; the first timestep
+            // gives the first sample)
+            if (s.isSolved()) {
+                sample(s.t);
+            }
         }
         if (failNextSlice) {
             failNextSlice = false;
@@ -415,6 +430,13 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         }
         if (stopped()) {
             reason = Reason.SOLVER_STOP;
+            return false;
+        }
+        // [SP_AGA_02_10] Stop trigger (SP_AGA_DEC_05): the element cleared the running flag
+        CircuitElm trigger = doc.takeFiredStopTrigger();
+        if (trigger != null) {
+            stopTrigger = trigger;
+            reason = Reason.STOP_TRIGGER;
             return false;
         }
         if (t >= tEnd) {
@@ -589,6 +611,12 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             case SETTLE_TIMEOUT:
                 result.addIssue(Issue.of(IssueCode.SETTLE_TIMEOUT, "The circuit did not settle within maxSpan ("
                         + maxSpan + " s).", "Check for oscillation, or raise settle.tolerance or settle.maxSpan."));
+                break;
+            case STOP_TRIGGER:
+                String id = stopTrigger.getElementId();
+                result.addIssue(Issue.of(IssueCode.STOP_TRIGGER, "Stop trigger " + id + " stopped the simulation at t = "
+                        + CircuitElm.getTimeText(tNow) + ".", "Change or remove the stop trigger to run past its condition; reset to run again from the start.")
+                        .elements(id));
                 break;
             case CANCELLED:
                 result.addIssue(Issue.of(IssueCode.CANCELLED, "The run was cancelled by a user action on the document or its close.",

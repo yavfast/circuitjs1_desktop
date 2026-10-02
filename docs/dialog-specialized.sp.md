@@ -114,9 +114,9 @@ timeStepToPosition(ts):                              # O(22), log-space scan
     best = min_i | log10(TIME_STEP_VALUES[i]) - log10(ts) |
     return best
 
-updateTimeStepBar():                                 # called by simulator on auto-adjust
-    bar.setValue(timeStepToPosition(simulator.maxTimeStep))
-    updateLabel()
+syncTimeStepBar():                                   # tab activation, scope exit; no bar command
+    bar.setValueWithoutCommand(timeStepToPosition(simulator.maxTimeStep))
+    updateLabel()                                    # programmatic updates never set the step (SP_AGA_06_01 item 18)
 ```
 
 ### 02_04. Pattern 2 — SliderDialog rebuild-on-change  {#SP_DSP_02_04}

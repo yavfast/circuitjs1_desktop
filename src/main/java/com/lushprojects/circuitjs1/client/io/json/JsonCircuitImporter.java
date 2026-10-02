@@ -215,7 +215,8 @@ public class JsonCircuitImporter implements CircuitImporter {
             }
             if (ts > 0) {
                 simulator.maxTimeStep = simulator.timeStep = ts;
-                cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(ts));
+                // [SP_AGA_06_01 item 18] nearest bar position, without the bar's re-quantising command
+                cirSim.timeStepBar.setValueWithoutCommand(ControlsDialog.timeStepToPosition(ts));
                 cirSim.controlsDialog.updateTimeStepLabel();
             } else {
                 CirSim.console("JSON import: ignoring invalid time_step " + timeStepValue);

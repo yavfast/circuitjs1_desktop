@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 11:40
+> **Last updated:** 2026-10-02 12:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phase 1 committed; fix round next, then PL_MCP Phase 2; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phase 1 and the fix round committed; PL_MCP Phase 2 next; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -105,7 +105,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 8 — background completion + render (review FAIL: concurrent sliced ops ran back to back without a visible frame (R1) → session-wide slice queue; plus single canvas allocation, 40 Mpx cap, encode failure → render_failed, closed-doc checks, scope plot state, R2 log buffer; delta PASS, 2 prefer → spec wording by main). Spec amended by main (§02_08, §03_08 R1 slice bound / concurrent ops, R2 check row). agent_bg 39 checks; manual devmode observation of the active tab during R1 owed
 - [x] PL_AGA Phase 9 — path-based files implemented (PathFileAdapter, CircuitContentTest + `isKnownDumpType`, FileOps); review PASS 2 should + 3 prefer → fixed (spec link/dir codes per contract, own-staging-only cleanup, checked-target write, fsync before rename, no exception text in issues); delta PASS. Heading stays `[TODO]`: file rows + R1/R2 `openFile` step run in the PL_MCP Phase 4 NW.js harness (scratch NW.js CDP run 49/49). agent_files 43 checks
 - [x] PL_MCP Phase 1 — endpoint, start-up, preferences, registry (mcp/server/src, McpServerStatus, esbuild bundle, Chromium flags, unload/Exit stop); review FAIL (must: strict-schema-rejected requests never answered → socket/pending leak) → fixed with -32600, backstop timer, header/request timeouts, cancel drop, strict IPv6, early 413 + close, 0700 dir, -32602; delta PASS + 1 should/2 prefer → fixed by main (bounded echo, null id, spec HTTP statuses), verified in NW.js. Scratch NW.js driver (endpoint 62 + hostile 18 checks) in the session scratchpad — move into tests/mcp/ in PL_MCP Phase 4
-- [ ] **Next:** E_AGT fix round from the PL_AGA Backlog (first-sample 0 V without reset; configured time step lost on tab activation / text import = BL-D01, both paths; noise-RNG determinism wording; StopTrigger vs run), then PL_MCP Phase 2
+- [x] E_AGT fix round (research-spike findings): first sample only from a solved state (`CircuitSimulator.isSolved`), time-step bar set from code without its command in tab activation + text/JSON import (BL-D01; bad `$` step → 5 µs), `stop_trigger` run reason (SP_AGA_DEC_05, resolved delegated), determinism qualified; review PASS 1 should + 2 prefer → fixed, verified by local reverts. agent_run 35 checks
+- [ ] **Next:** PL_MCP Phase 2 — tools, resources and result shaping
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

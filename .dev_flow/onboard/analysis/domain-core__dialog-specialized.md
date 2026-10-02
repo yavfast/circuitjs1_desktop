@@ -40,7 +40,7 @@ Three integration patterns are visible:
 - **Log-scale time-step slider** — uses a fixed 22-entry `TIME_STEP_VALUES[]` table (1pS → 10µS, 1/2/5 per decade; `:19-28`). `positionToTimeStep` is O(1) array lookup; `timeStepToPosition` scans in log-space (`Math.log10` diff, `:89-103`) — O(n) but n=22.
 - **Stores scrollbars on `cirSim` directly**, not on itself: `cirSim.timeStepBar = ...` (`:42`), `cirSim.speedBar`, `cirSim.currentBar`, `cirSim.powerBar`, `cirSim.powerLabel`. That is the **app-wide shared registry**; other code (simulator loop) reads those refs.
 - Not modal, not autohide (`super(false, false)`, `:34`). `getOptionPrefix()` returns `"ControlsDialog"` (`:123`) so position+collapse persist.
-- `updateTimeStepBar()` is called externally when simulator adjusts timestep itself.
+- `syncTimeStepBar()` is called externally (tab activation, scope exit) to show the document's step without running the bar's command (`updateTimeStepBar()` was removed in the agent-api fix round).
 
 ### `EditCompositeModelDialog` (`EditCompositeModelDialog.java:61`)
 - **Two entry modes**: `createModel()` (`:76-122`) builds a *new* model from the current circuit via `simulator.getCircuitAsComposite()`, auto-sorts `extList` by name, validates (no two pins on same node, at least one ext pin), auto-computes `sizeX/sizeY` from pin counts per side; **alternative** `setModel(m)` edits an existing model.

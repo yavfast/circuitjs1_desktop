@@ -65,6 +65,7 @@ public enum IssueCode {
     // Run end causes
     BUDGET_EXHAUSTED("budget_exhausted", Issue.Severity.WARNING),
     SETTLE_TIMEOUT("settle_timeout", Issue.Severity.WARNING),
+    STOP_TRIGGER("stop_trigger", Issue.Severity.WARNING),
     CANCELLED("cancelled", Issue.Severity.WARNING);
 
     private final String code;

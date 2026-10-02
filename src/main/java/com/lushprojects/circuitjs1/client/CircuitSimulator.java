@@ -190,6 +190,18 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return analysisCount;
     }
 
+    /** {@link #analysisCount} of the analysis whose circuit last completed a timestep; -1: none. */
+    private int solvedAnalysis = -1;
+
+    /**
+     * [SP_AGA_02_10] First sample: whether the node voltages are a solution of the present circuit,
+     * i.e. a timestep has completed since the last analysis and the last solver reset. False after
+     * an import, an edit or a reset until the first timestep completes.
+     */
+    public boolean isSolved() {
+        return solvedAnalysis == analysisCount && nodeVoltages != null;
+    }
+
     public void warn(String message, CircuitElm ce) {
         String ls = Locale.LS(message);
         recordEvent(message, ls, false, ce);
@@ -243,6 +255,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         origRightSide = null;
         nodeVoltages = null;
         lastNodeVoltages = null;
+        solvedAnalysis = -1;
         circuitRowInfo = null;
         circuitPermute = null;
 
@@ -2010,6 +2023,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             // save last node voltages so we can restart the next iteration if necessary
             System.arraycopy(nodeVoltages, 0, lastNodeVoltages, 0, lastNodeVoltages.length);
             // console("set lastrightside at " + t + " " + lastNodeVoltages);
+            solvedAnalysis = analysisCount;
 
             if (!observer.afterStep()) {
                 break;

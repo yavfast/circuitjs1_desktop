@@ -175,7 +175,7 @@ Nets are named by their label when a labelled node is on them, `gnd` for ground,
 ### 3.4. Bounded runs, probes and measurement  {#C_AGA_03_04}
 
 - **Bounded run.** A run advances a given span of simulated time.
-  - The document's time-step settings apply; the UI speed slider and wall-clock pacing do not, so the same circuit and span produce the same result.
+  - The document's time-step settings apply; the UI speed slider and wall-clock pacing do not, so the same circuit and span produce the same result (from a reset; circuits with noise sources excepted, since they draw from the session's unseeded random generator).
   - A wall-clock budget bounds the run.
   - The run executes in slices that yield to the UI between slices, so a long run never freezes the window.
   - While a run is in progress, mutations of that document are rejected as "busy". Reads stay allowed.

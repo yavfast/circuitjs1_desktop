@@ -441,6 +441,30 @@ public class CircuitDocument {
         notifyStateChanged();
     }
 
+    /** The stop-trigger element that fired last and was not yet taken by an agent run, or null. */
+    private CircuitElm firedStopTrigger;
+
+    /**
+     * Called by a stop-trigger element whose condition held for its delay: clears the running flag
+     * (the free-running behaviour) and remembers the element, so an agent run of this document ends
+     * after the current timestep ([SP_AGA_02_10] stop trigger, SP_AGA_DEC_05).
+     */
+    public void stopTriggerFired(CircuitElm elm) {
+        firedStopTrigger = elm;
+        setSimRunning(false);
+    }
+
+    /**
+     * @return the stop-trigger element that fired since the last call, or null; the record is
+     *         cleared (an agent run takes it at its start, to drop a free-running trigger, and after
+     *         every timestep)
+     */
+    public CircuitElm takeFiredStopTrigger() {
+        CircuitElm elm = firedStopTrigger;
+        firedStopTrigger = null;
+        return elm;
+    }
+
     private void updateSimulationLoop() {
         if (isRunning && isActive) {
             simulationLoop.start();
@@ -744,8 +768,9 @@ public class CircuitDocument {
     void restoreUIState(MenuManager menuManager, CirSim cirSim) {
         applyOptionWidgets(menuManager, cirSim);
 
-        // Update time step bar to match this document's simulator
-        cirSim.controlsDialog.updateTimeStepBar();
+        // Show this document's time step on the bar without running the bar's command, which
+        // would re-quantise the step to the bar's table ([SP_AGA_06_01] item 18, audit BL-D01)
+        cirSim.controlsDialog.syncTimeStepBar();
 
         // The circuit area depends on this document's scope count. Recompute it on every activation:
         // centring does so only for a document without a saved transform, and setupScopes only

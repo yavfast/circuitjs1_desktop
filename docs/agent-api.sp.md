@@ -481,7 +481,7 @@ Input:
 Output `data`:
 | Field | Type | Description |
 |-------|------|-------------|
-| reason | `"span_reached"` \| `"settled"` \| `"settle_timeout"` \| `"solver_stop"` \| `"budget_exhausted"` \| `"cancelled"` | Why the run ended |
+| reason | `"span_reached"` \| `"settled"` \| `"settle_timeout"` \| `"solver_stop"` \| `"stop_trigger"` \| `"budget_exhausted"` \| `"cancelled"` | Why the run ended |
 | tStart, tEnd | number | Simulated time span covered (s) |
 | steps | int | Timesteps taken |
 | wallMs | int | Wall time used |
@@ -492,6 +492,9 @@ Result rules:
 - `issues` carries the solver events present when the run started plus those raised during it ([§03_06](#SP_AGA_03_06)), each code once.
 - `solver_stop` adds the stop issue (severity `error`).
 - `budget_exhausted`, `settle_timeout` and `cancelled` add a `warning` with the same code as the reason.
+- **Stop trigger.** A stop-trigger element that fires during a run ends it after that timestep with `reason = stop_trigger` and a `warning` issue `stop_trigger` naming the element; as in free-running, the document's running flag is cleared ([SP_AGA_DEC_05](#SP_AGA_DEC_05)).
+- **First sample.** Probes record only solved states: when the run starts on a circuit that is not yet solved (no timestep finished since the last analysis — after an import, an edit, a reset or an option change), the first sample is taken after the first timestep, never from unsolved node voltages; `stats.tStart` is then one step after `data.tStart`, and `samples = steps`, else `steps + 1`.
+- **Determinism.** With `reset: true`, the same circuit and arguments give the same result, except for circuits whose elements draw random numbers (noise sources), which use the session's unseeded generator.
 - An exception inside a slice ends the run with `reason = solver_stop` and stops the document as a free-running exception does (the stop issue plus an `internal_error` issue); the document needs a reset before it runs again.
 - A non-finite probe sample (NaN or infinity from the solver) is not recorded; the run adds one `solver_warning` issue naming the probe.
 - `steps` counts every timestep that advanced simulated time, forced non-converged steps included; probes sample each of them.
@@ -507,6 +510,8 @@ Processing logic:
         TRY (the whole loop below; FINALLY clear busy)
         IF args.reset: reset(doc)
         analyse doc if pending; tEnd ← now + span  (settle: now + maxSpan)
+        IF doc is solved (a timestep finished since the last analysis): FOR each probe: record(simTime, value) when simTime ≥ recordFrom
+        clear a stop-trigger record left by free-running
         LOOP:
             sliceStart ← wallNow()
             WHILE wallNow() − sliceStart < 20 ms:
@@ -514,6 +519,7 @@ Processing logic:
                 FOR each probe: record(simTime, value) when simTime ≥ recordFrom
                 collect a new solver warning, if any
                 IF doc stop state: reason ← solver_stop; EXIT LOOP
+                IF a stop-trigger element fired in this step: reason ← stop_trigger; clear doc running flag; EXIT LOOP
                 IF simTime ≥ tEnd: reason ← span_reached (settle mode: settle_timeout); EXIT LOOP
                 IF mode = settle AND settled(window, tolerance): reason ← settled; EXIT LOOP
                 IF wallNow() − runStart ≥ budgetMs: reason ← budget_exhausted; EXIT LOOP
@@ -721,7 +727,7 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 
 **Operation codes**
 - All are `error` unless marked otherwise: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `value_adjusted` (warning), `off_lattice`, `zero_length`, `id_invalid`, `id_taken`, `ids_regenerated` (warning), `scope_removed` (info), `reserved_label` (warning), `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `import_wire_skipped` (warning), `import_setting_invalid` (warning), `import_geometry_adjusted` (warning), `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`.
-- Run end causes are reported as warnings with the codes `budget_exhausted`, `settle_timeout` and `cancelled`.
+- Run end causes are reported as warnings with the codes `budget_exhausted`, `settle_timeout`, `stop_trigger` and `cancelled`.
 
 ### 03_07. Sizing caps and decimation  {#SP_AGA_03_07}
 
@@ -967,7 +973,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Aspect | Rollback approach |
 |--------|-------------------|
 | Data/state changes | Undo entry extension fields live in memory only. No file format changes: JSON element keys were already free-form IDs, and the text format is untouched |
-| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps. (17) The user's `ontimestep` hook is not called for steps of a document other than the visible one (background runs), as the `onanalyze` hook already is |
+| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps. (17) The user's `ontimestep` hook is not called for steps of a document other than the visible one (background runs), as the `onanalyze` hook already is. (18) Setting the time-step bar from code (text import, tab activation) no longer fires its command, so a document's maximum time step is kept exactly instead of being re-quantised to the bar's 1-2-5 table (capped at 10 µs); this also applies to user file loads (audit BL-D01) |
 | Artifacts | The Agent API module and its export through the clustered native boundary; no persistent artifacts |
 | Dependent modules | [SP_MCP](./mcp-server.sp.md) and [SP_AGS](./agent-skill.sp.md) depend on it; removing the Agent API removes the MCP tool set |
 | External contracts | The existing scripting global keeps its documented methods; its element IDs come from the registry (same format) |
@@ -1043,11 +1049,29 @@ A **content lifetime** begins when a document is created or its content is repla
 **Rationale:** The prototype passed every R1 sample and the R2 comparison of the reduced sequence at 97.5 % of the active tab's idle rate and 0.6 ms per bind. C measured more background throughput but leaves stepping-time session reads unrouted ([PL_AGA Phase 0 result](./agent-api.plan.md#PL_AGA_P0)).
 **Resolved by:** the developer, 2026-10-01, after the PL_AGA Phase 0 prototype.
 
+### DEC_05 — Does a stop-trigger element end an agent run?  {#SP_AGA_DEC_05}
+
+> **Status:** resolved (delegated)
+> **Date:** 2026-10-02
+
+**Question:** A stop-trigger element stops free-running when its condition holds; today it only clears the running flag, so an agent `run` (which owns stepping and ignores the flag) continues past it.
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — end the run with a new reason `stop_trigger` and clear the running flag | Matches the element's purpose; an agent can measure time-to-trigger; one more reason value |
+| B — keep running; document that stop triggers affect free-running only | No contract change; a circuit built to stop at a condition runs to the end of the span under agent control |
+
+**Decision:** A.
+**Rationale:** The element exists to stop the simulation; a run is a simulation of the same document, and the agent sees the reason and the element in the result.
+**Resolved by:** main under `Autonomy: full` (task_E_AGT), 2026-10-02, on a finding of the circuit-language research spike; presented to the developer at the next stop.
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | Fix round: `stop_trigger` run reason (SP_AGA_DEC_05), first probe sample after the first solved step, determinism qualified for noise sources, §06_01 item 18 time-step bar no longer re-quantises the maximum step |
 | 2026-10-02 | PL_AGA Phase 9: `openFile` applies the circuit test; element lines need whole-number coordinates and flags; BOM, links, parent directories, whitespace-only and over-size overwrite rules; rejected-open issues aggregated per code; review: `file_not_found`/`file_error` per contract for links and directories, save refused when the resolved target changed after the check, staging file flushed before rename and only its own staging file removed |
 | 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |
 | 2026-10-02 | PL_AGA Phase 7: `run` on an empty document is `invalid_value` naming `doc`; empty probe stats; time output digits and the shape-statistics series (§03_07); a canvas press cancels a run (§04_02); §06_01 item 17 `ontimestep` guard; review: configure current-step wording, empty configure, slice exception stops the document, non-finite samples, steps count forced steps, settle chunks, slider and legacy-script cancels |

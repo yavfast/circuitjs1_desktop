@@ -103,19 +103,11 @@ public class ControlsDialog extends Dialog {
     }
     
     /**
-     * Update time step scrollbar to match current simulator value
-     */
-    public void updateTimeStepBar() {
-        double ts = cirSim.getActiveDocument().simulator.maxTimeStep;
-        cirSim.timeStepBar.setValue(timeStepToPosition(ts));
-        updateTimeStepLabel();
-    }
-    
-    /**
-     * Shows the bound document's max time step on the bar and label without running the bar's
-     * command, which would write the (quantised) bar value back into the simulator and request an
-     * analysis. Used after a scoped background bind, where the bound document's time step itself
-     * did not change.
+     * Shows the bound document's max time step on the bar (nearest position) and the label (exact
+     * value) without running the bar's command, which would write the quantised bar value back into
+     * the simulator and request an analysis. Every programmatic bar update uses this (tab
+     * activation, after a scoped background bind; the importers move the thumb the same way); only
+     * a user moving the bar sets a table step ([SP_AGA_06_01] item 18).
      */
     public void syncTimeStepBar() {
         double ts = cirSim.getActiveDocument().simulator.maxTimeStep;

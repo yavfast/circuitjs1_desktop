@@ -592,6 +592,19 @@ async function loadStateProbe() {
   C.importFromJson(JSON.stringify(j)); C.setSimRunning(false);
   const t1 = C.exportCircuit(); load(t1);
   out.sliderRefs = [want, refTypes(t1), refTypes(C.exportCircuit())];
+  // [SP_AGA_06_01 item 18] a file's own maximum time step is kept on a text load (the time-step bar
+  // is set without running its command, which re-quantised to the 1-2-5 table capped at 10 us) and
+  // survives a text and a JSON reload: [file step, after load, after text reload, after JSON reload]
+  const stepOf = () => Number(C.exportCircuit().split('\n')[0].split(' ')[2]);
+  out.stepKept = [];
+  for (const ts of ['0.001', '0.000015625']) {
+    load('$ 1 ' + ts + ' 10 50 5\nr 64 64 128 64 0 1000\n'); const a = stepOf();
+    load(C.exportCircuit()); const b = stepOf();
+    C.importFromJson(C.exportAsJson()); C.setSimRunning(false); const c = stepOf();
+    out.stepKept.push([Number(ts), a, b, c]);
+  }
+  // a garbled `$` step (parsed as 0) falls back to the blank-circuit default 5 us
+  load('$ 1 abc 10 50 5\nr 64 64 128 64 0 1000\n'); out.badStep = stepOf();
   return out;
 }
 async function scenarioLoadState(s) {
@@ -602,7 +615,9 @@ async function scenarioLoadState(s) {
   const pass = out.dffFreshQ === 0 && out.dffSavedQ5 === 5
     && out.counter[0] !== '0,0,0,0' && out.counter[0] === out.counter[1] && out.counter[1] === out.counter[2]
     && out.boolLost.length === 0
-    && out.sliderRefs[0] !== '' && out.sliderRefs[0] === out.sliderRefs[1] && out.sliderRefs[1] === out.sliderRefs[2];
+    && out.sliderRefs[0] !== '' && out.sliderRefs[0] === out.sliderRefs[1] && out.sliderRefs[1] === out.sliderRefs[2]
+    && out.stepKept.length === 2 && out.stepKept.every((r) => r.every((x) => Math.abs(x - r[0]) <= 1e-9 * r[0]))
+    && out.badStep === 5e-6;
   report('L.load_state', pass, out);
 }
 
@@ -2242,7 +2257,7 @@ async function scenarioAgentRun(s) {
   // stats and decimation: time-weighted mean of 5(1-e^-t) over 5 tau, rise time 10->90 % = tau ln 9
   const meanExp = 5 * (1 - (1 - Math.exp(-5)) / 5);
   ck('probeStats', pv && near(Math.abs(pv.stats.mean), meanExp, 0.01) && near(pv.stats.riseTime, 0.001 * Math.log(9), 0.03)
-    && pv.stats.samples === span.data.steps + 1 && pv.series.t.length <= 200 && pv.series.t.length === pv.series.v.length
+    && pv.stats.samples === span.data.steps && pv.series.t.length <= 200 && pv.series.t.length === pv.series.v.length
     && pv.series.t.every((t, i) => i === 0 || t > pv.series.t[i - 1]) && pv.stats.frequency === undefined
     && pv.series.v.every((v) => String(Math.abs(v)).replace(/^0\.0*|\.|e.*$/g, '').length <= 6)
     && Math.max(...pv.series.v.map(Math.abs)) === Math.abs(pv.stats.max));
@@ -2253,7 +2268,29 @@ async function scenarioAgentRun(s) {
   const settle = await R({ doc: D, mode: 'settle', settle: { maxSpan: 1 }, probes: [{ element: 'R1' }] });
   out.notes.settle = settle.ok ? { reason: settle.data.reason, span: settle.data.tEnd - settle.data.tStart, steps: settle.data.steps } : settle;
   ck('runSettle', settle.ok && settle.data.reason === 'settled' && settle.data.tEnd - settle.data.tStart < 1
-    && settle.data.tEnd - settle.data.tStart >= 50 * 5e-6 && settle.data.probes[0].stats.samples === settle.data.steps + 1);
+    && settle.data.tEnd - settle.data.tStart >= 50 * 5e-6 && settle.data.probes[0].stats.samples === settle.data.steps);
+  // --- [SP_AGA_02_10 First sample] a run without reset right after an import starts on an unsolved
+  // circuit: the unsolved state (0 V) is not sampled, the first sample follows the first timestep
+  // (samples = steps); a run continuing from a solved state samples its start (samples = steps + 1)
+  const F = await mk('Run F', RC_CELLS); tabs++;
+  const f1 = await R({ doc: F, span: '0.1 ms', probes: [{ element: 'R1' }] });
+  const f2 = await R({ doc: F, span: '0.1 ms', probes: [{ element: 'R1' }] });
+  const fs1 = f1.data && f1.data.probes[0].stats, fs2 = f2.data && f2.data.probes[0].stats;
+  out.notes.firstSample = f1.ok && f2.ok ? { steps: [f1.data.steps, f2.data.steps], stats: [fs1, fs2], t: [f1.data.tStart, f1.data.tEnd, f2.data.tStart], v0: f2.data.probes[0].series.v[0] } : [f1, f2];
+  ck('firstSampleSolved', f1.ok && f1.data.reason === 'span_reached' && near(Math.abs(fs1.min), 10 / 3, 0.01) && near(Math.abs(fs1.max), 10 / 3, 0.01)
+    && fs1.samples === f1.data.steps && f2.ok && fs2.samples === f2.data.steps + 1 && near(f2.data.tStart, f1.data.tEnd, 1e-6)
+    && near(Math.abs(f2.data.probes[0].series.v[0]), 10 / 3, 0.01));
+  // --- [SP_AGA_02_10 Stop trigger] RC tau = 1 ms with a stop trigger at 2.5 V on the capacitor:
+  // the run ends at t = tau ln 2 with stop_trigger (warning naming the element), running flag cleared
+  const T = await mk('Run T', [...RC_TAU_1MS, { id: 'ST1', type: 'StopTrigger', start: { x: 4, y: 0 }, end: { x: 8, y: 0 }, properties: { trigger_voltage: '2.5 V' } }]); tabs++;
+  const tRun = await A('simControl', { doc: T, action: 'run' });
+  const st = await R({ doc: T, span: '5 ms', reset: true, probes: [{ element: 'C1' }] });
+  const stI = issue(st, 'stop_trigger');
+  const dT = await diag(T);
+  out.notes.stopTrigger = st.ok ? { reason: st.data.reason, tStart: st.data.tStart, tEnd: st.data.tEnd, steps: st.data.steps, issue: stI, final: st.data.probes[0].stats.final, runningBefore: tRun.data && tRun.data.running, runningAfter: dT.running } : st;
+  ck('runStopTrigger', st.ok && st.data.reason === 'stop_trigger' && stI && stI.severity === 'warning' && same(stI.elements, ['ST1'])
+    && near(st.data.tEnd - st.data.tStart, 0.001 * Math.LN2, 0.02) && near(Math.abs(st.data.probes[0].stats.final), 2.5, 0.02)
+    && tRun.ok && tRun.data.running === true && dT.running === false);
   // --- settle never reached: AC source -> settle_timeout after maxSpan (warning with the same code)
   const O = await mk('Run O', [
     { id: 'V1', type: 'ACVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { frequency: '1 kHz' } },
@@ -2450,9 +2487,58 @@ async function scenarioAgentRun(s) {
   await A('simControl', { action: 'stop' });
   await s.eval(`CircuitJS1.setSimRunning(false); true`);
 
+  // --- [SP_AGA_02_10 Stop trigger] a trigger fired while free-running does not end a later run:
+  // a divider with a 1 V trigger on its 6.67 V node stops the visible tab's free-run; the trigger is
+  // raised to 100 V, then a run without reset (the record is stale) -> span_reached
+  await A('importCircuit', { circuit: { elements: [...RC_CELLS, { id: 'ST1', type: 'StopTrigger', start: { x: 4, y: 0 }, end: { x: 8, y: 0 }, properties: { trigger_voltage: '1 V' } }] } });
+  await A('simControl', { action: 'run' });
+  let frStopped = false;
+  for (let k = 0; k < 30 && !frStopped; k++) { await sleep(100); frStopped = (await diag()).running === false; }
+  const raise = await A('applyEdits', { edits: [{ op: 'set', id: 'ST1', properties: { trigger_voltage: '100 V' } }] });
+  const stale = await R({ span: '1 ms' });
+  out.notes.staleTrigger = { frStopped, raise: raise.ok, reason: stale.data && stale.data.reason, steps: stale.data && stale.data.steps, issues: codes(stale) };
+  ck('staleStopTriggerIgnored', frStopped && raise.ok && stale.ok && stale.data.reason === 'span_reached' && !issue(stale, 'stop_trigger'));
+  // seal the visible document's agent transaction and put lrc.txt back, so no open transaction
+  // (its undo label) leaks into the next scenario
+  await A('checkpoint', { comment: 'stale trigger' });
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  // --- a garbled `$` max step falls back to 5 us instead of 0 (time would never advance)
+  const Z = await mk('Run Z'); tabs++;
+  const zImp = await A('importCircuit', { doc: Z, circuit: '$ 1 abc 10 50 5\n' + ODD_TEXT.split('\n').slice(1).join('\n') });
+  const zMax = (await diag(Z)).timeStep.max;
+  const zRun = await R({ doc: Z, span: '1 ms' });
+  out.notes.badStep = { imp: zImp.ok, issues: codes(zImp), max: zMax, reason: zRun.data && zRun.data.reason, steps: zRun.data && zRun.data.steps };
+  ck('badTextStepDefaulted', zImp.ok && zMax === 5e-6 && zRun.ok && zRun.data.reason === 'span_reached' && zRun.data.steps >= 190);
+
+  // --- [SP_AGA_06_01 item 18] a configured step survives tab activation: setting the time-step bar
+  // from code no longer runs its command (which re-quantised to the 1-2-5 table capped at 10 us);
+  // the bar shows the nearest position (10 us = 21); a user click on the bar still sets a table step
+  const E = await mk('Run E', RC_TAU_1MS); tabs++;
+  const eCfg = await A('simControl', { doc: E, action: 'configure', settings: { maxTimeStep: '1 ms' } });
+  const barOf = async () => JSON.parse(await s.eval('CircuitJS1Agent.debugSessionState()')).bars.timeStep;
+  const actE = await A('activateDocument', { doc: E });
+  await sleep(200);
+  const eAct = { max: (await diag(E)).timeStep.max, bar: await barOf() };
+  const actV = await A('activateDocument', { doc: V });
+  await sleep(200);
+  const eBack = (await diag(E)).timeStep.max;
+  await A('activateDocument', { doc: E });
+  await sleep(200);
+  const barRect = await s.eval(`(() => { const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('canvas') && /Time Step/.test(x.textContent));
+    const c = d && d.querySelector('canvas'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
+  // the left arrow: one position down (21 -> 20 = 5 us)
+  if (barRect) await s.mouseDrag(barRect.x + 5, barRect.y + barRect.h / 2, barRect.x + 5, barRect.y + barRect.h / 2);
+  const eUser = { max: (await diag(E)).timeStep.max, bar: await barOf() };
+  await A('activateDocument', { doc: V });
+  await sleep(200);
+  out.notes.timeStepActivation = { cfg: eCfg.ok, eAct, eBack, barRect, eUser };
+  ck('timeStepKeptOnActivation', eCfg.ok && actE.ok && actV.ok && eAct.max === 1e-3 && eAct.bar === 21 && eBack === 1e-3);
+  ck('timeStepBarUserSetsTableStep', !!barRect && eUser.bar === 20 && eUser.max === 5e-6);
+
   ck('visibleTabUnchanged', visFailed.length === 0);
   if (visFailed.length) out.notes.visFailed = visFailed.slice(0, 3);
-  for (const d of [D, O, G, N]) await A('closeDocument', { doc: d, discardChanges: true });
+  for (const d of [D, O, G, N, F, T, E, Z]) await A('closeDocument', { doc: d, discardChanges: true });
   ck('noPageExceptions', s.exceptions.length === exMark);
   if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
   } catch (e) {
@@ -3078,7 +3164,8 @@ async function scenarioAgentBackground(s) {
   const bad = [];
   const norm = (x) => ({ ...x, vis: { ...x.vis, tabCount: 0 } });
   const tabs = (label) => base.vis.tabCount + (label === 'closeDocument' ? 0 : 1);
-  for (const x of samples) if (!same(norm(x.sample), norm(base)) || x.sample.vis.tabCount !== tabs(x.label)) bad.push({ label: x.label, diff: firstDiff(x.sample, base) });
+  // the tab count differs by design: report the first other difference (or the tab count)
+  for (const x of samples) if (!same(norm(x.sample), norm(base)) || x.sample.vis.tabCount !== tabs(x.label)) bad.push({ label: x.label, diff: firstDiff(norm(x.sample), norm(base)) || { tabCount: x.sample.vis.tabCount, want: tabs(x.label) } });
   for (const x of slices) if (!same(norm(x.sample), norm(base)) || x.sample.vis.tabCount !== base.vis.tabCount + 1) bad.push({ label: x.op + ' slice', diff: firstDiff(x.sample, base) });
   out.notes.r1Disturbed = bad.slice(0, 8);
   ck('r1EverySampleUnchanged', bad.length === 0 && samples.length === 11);

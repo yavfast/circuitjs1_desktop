@@ -378,8 +378,17 @@ public class TextCircuitImporter implements CircuitImporter {
         menuManager.showValuesCheckItem.setState((flags & 16) == 0);
 
         simulator.adjustTimeStep = (flags & 64) != 0;
-        simulator.maxTimeStep = simulator.timeStep = CircuitElm.parseDouble(tokenizer.nextToken());
-        cirSim.timeStepBar.setValue(ControlsDialog.timeStepToPosition(simulator.maxTimeStep));
+        double maxStep = CircuitElm.parseDouble(tokenizer.nextToken());
+        if (!(maxStep > 0) || Double.isInfinite(maxStep)) {
+            // a missing, garbled, non-positive or infinite step would never advance time; the bar
+            // command used to overwrite it, so it falls back to the blank-circuit default instead
+            CirSim.console("Text import: ignoring invalid time step " + maxStep + "; using 5 us");
+            maxStep = 5e-6;
+        }
+        simulator.maxTimeStep = simulator.timeStep = maxStep;
+        // [SP_AGA_06_01 item 18] the bar shows the nearest position without running its command,
+        // which would re-quantise the file's own step to the bar's table (audit BL-D01)
+        cirSim.timeStepBar.setValueWithoutCommand(ControlsDialog.timeStepToPosition(simulator.maxTimeStep));
         cirSim.controlsDialog.updateTimeStepLabel();
 
         double sp = CircuitElm.parseDouble(tokenizer.nextToken());

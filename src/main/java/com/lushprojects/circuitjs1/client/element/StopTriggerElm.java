@@ -98,7 +98,8 @@ public class StopTriggerElm extends CircuitElm {
         if (triggered && simulator().t >= triggerTime + delay) {
             triggered = false;
             stopped = true;
-            circuitDocument.setSimRunning(false);
+            // clears the running flag; an agent run of the document ends with stop_trigger
+            circuitDocument.stopTriggerFired(this);
         }
     }
 
