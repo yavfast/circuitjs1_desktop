@@ -324,3 +324,9 @@ rules:
     severity: should
     file: testing.md
     summary: After npm run buildgwt, run npm run test:live (tests/live/harness.mjs) for io/element-serialization/undo/paste changes; compare with the previous run.
+  - id: RULE_TEST_007
+    title: NW.js end-to-end harness for MCP server and file changes
+    category: testing
+    severity: should
+    file: testing.md
+    summary: After npm run buildgwt, run npm run test:mcp (tests/mcp/e2e.mjs, real NW.js under Xvfb) for changes to mcp/server/**, the MCP start-up/status/dialog code, PathFileAdapter or agent/FileOps; the slow and clients groups when timeouts or host behaviour change.

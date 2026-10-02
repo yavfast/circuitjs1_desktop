@@ -54,7 +54,7 @@ When this plan is complete:
 - [x] [Phase 1 — Endpoint, start-up, preferences, registry](#PL_MCP_P1)
 - [x] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
 - [x] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
-- [ ] [Phase 4 — End-to-end harness](#PL_MCP_P4)
+- [x] [Phase 4 — End-to-end harness](#PL_MCP_P4)
 - [ ] [Phase 5 — Documentation propagation](#PL_MCP_P5)
 
 ## Phases
@@ -252,7 +252,7 @@ What to create:
   - `allbusy`.
   The page helpers find the dialog by `#mcpServerInfo` (rows `> tbody > tr`), `#mcpServerCommand` and `#mcpServerMessage`. Options submenu items are in the DOM only while the menu is open.
 
-### Phase 4 — End-to-end harness (`tests/mcp/`) [TODO]  {#PL_MCP_P4}
+### Phase 4 — End-to-end harness (`tests/mcp/`) [DONE]  {#PL_MCP_P4}
 
 **Depends on:** Phases 1–3
 **Implements:** [SP_MCP_05](./mcp-server.sp.md#SP_MCP_05) automation; PL_AGA Phase 9 file cases
@@ -264,6 +264,16 @@ What to create:
 | Harness | `tests/mcp/e2e.mjs` | Launch NW.js SDK on `target/site` with a scratch `HOME`; JSON-RPC client; scenario list mirroring SP_MCP_05 |
 | README | `tests/mcp/README.md` | Requirements (Node ≥ 22 for the harness — the app itself runs on its embedded Node 18; a display, or Xvfb on headless Linux; `npm install` in `mcp/bridge/` for the bridge rows), run commands, manual rows |
 | npm script | root `package.json` `test:mcp` | Entry point |
+
+**Result (2026-10-02).**
+- **Harness.** `tests/mcp/e2e.mjs` (Node ≥ 22), `npm run test:mcp [-- group|scenario…]`, `--list`. Per scenario: one NW.js 0.64.1 SDK launch (three for `settings`) on `target/site` with its own scratch `HOME` (plus XDG directories) and `--user-data-dir` under `OUT_DIR` (default `<tmpdir>/circuitjs-mcp-e2e`); one own Xvfb per run (`-displayfd`, stopped with SIGTERM so its lock file goes; `NW_DISPLAY=1` uses `$DISPLAY`); teardown SIGTERM → SIGKILL of the NW process group and a wait for the group to exit; the harness checks that 7311..7330 and 7400 are free at start (else exit 2) and before every scenario. One `PASS|FAIL|SKIP <ID> <title> {json}` line per row (declared per scenario; rows not completed print FAIL, also after a harness error: an unhandled rejection prints `HARNESS ERROR`, finishes the pending rows as FAIL, prints the SUMMARY and exits 2), `SUMMARY`, exit 0/1/2 as `tests/live` (Node < 22 → exit 2); a failed launch set-up ends its NW process group; `npx`/`claude` children are tracked like NW and ended on exit, SIGINT, SIGTERM and SIGHUP; NW and child processes run in their scratch directory; `results.json` in `OUT_DIR`.
+- **Rows: 64.** Default group 55 automated rows in 12 scenarios (`endpoint`, `hostile`, `portbusy`, `allbusy`, `instances`, `stale`, `tools`, `long`, `dialog`, `settings`, `files`, `bg_files`) plus 4 always-SKIP rows (`manual`); `slow` 2 rows (`hostile_slow` incomplete requests, `long120`); `clients` 3 rows (Inspector CLI; Claude Code connect; Claude Code call). Every automated SP_MCP_05_01/05_02/05_04 row and SP_MCP_05_03 "Long run while reading" has a row named by its ID; the extra rows carry the ID of the section they check (SP_MCP_01_02, 02_01, 02_02, 02_03, 02_04, 02_05, 03_01, 03_03; SP_AGA_02_14, 03_09).
+- **Results (2026-10-02, target/site of this branch).** Default: 55 PASS, 0 FAIL, 9 SKIP (the 4 manual/bridge/browser rows, the 5 not-selected slow/clients rows) in 81 s. `slow`: 2 PASS (incomplete headers closed after 29.8 s, body after 89.8 s; 120 s run answered after 120.1 s, `wallMs` 120 026, reads 32–58 ms). `clients`: 3 PASS (Inspector CLI 14/4/3; Claude Code 2.1.287 `connected`, 14 tools, a real `circuit_types` call answered with Haiku). `npm run test:mcp-unit` 25/25.
+- **Moved from the scratch drivers.** `mcp1/nw_mcp.mjs` + `nw_mcp_lib.mjs`: launch/CDP/registry/occupy helpers, the endpoint, Origin and error checks, File → Exit, port busy, all busy, two windows and the close paths, stale records, the hostile probes (slow part → `slow`), the Inspector and Claude Code checks (→ `clients`); the SDK client handshake moved into `tools`. `mcp2/nw_mcp2.mjs`: the page recorder, tool/resource/sizing rows and the invariant loop (`tools`), the 5 s long run (`long`) and the 120 s run (`slow`), the Inspector/Claude 14-tool checks (`clients`). `mcp3/nw_mcp3.mjs`: dialog helpers (`#mcpServerInfo`), listening/counter/Copy/Escape (`dialog`), the settings restarts on one profile (`settings`), the dialog part of all busy (merged into `allbusy`). `nw/nw_files.mjs`: all its file checks (49 in `files`). The R1/R2 `openFile` step is new; it uses a minimal copy of the `tests/live` `agent_bg` page helpers (`r1Sample`, slice probe, Sliders observer, `debugDocState`, `debugClosedTabs`), because `tests/live/harness.mjs` runs `main()` on import.
+- **Dropped.** `pkg_check.mjs` (packaged release flavor: no CDP in the normal flavor; stays a manual check), `clip_probe.mjs` (superseded by the Copy row), the info-only checks `render_svg_scaled_info`/`svg_large_info` (no expected outcome in SP_MCP), and the settings run's restore of the default preferences (each run uses a fresh profile).
+- **Not automated.** SP_MCP_05_01 "Runtime settings: hidden window" and SP_MCP_05_03 "Private-network agent": manual, steps and the `observed` table in `tests/mcp/README.md` (not yet observed). SP_MCP_05_03 "Bridge forwarding": SKIP until PL_MCB. SP_MCP_05_04 "Browser build": SKIP pointing to the live scenario `mcp_browser`.
+- **Σ maxPoints = 2000 worst case.** With 16 probes the decimation of SP_AGA_03_07 emits at most 2 × ⌊maxPoints/2⌋ points per probe, so 2000 points cannot all be emitted: 16 × 125 gives at most 16 × 124 = 1984, and an even split (124/126, 124/128) has different bucket counts that never fill together. The `tools` run reaches that maximum (fixed 5 µs step, 3920 samples: every probe 124 points) and asserts 1984 points and a text part of 41 798 chars ≤ 60 000. The SP_MCP_05_02 row reads "Σ `maxPoints` = 2000", which this satisfies as the request; the emitted maximum is 1984.
+- **Harness facts.** The R1 sequence needs the `checkpoint` after `importCircuit` (as `agent_bg`): without it the import and the edit share one agent transaction and `undo` empties the document. Claude Code may spend one turn on a deferred-tool search before calling an MCP tool (`--max-turns 6`); the call row checks the tool result it received, and the answer only on a `success` result. Earlier scratch runs had left 34 stale `/tmp/.X<n>-lock` files from SIGKILLed `xvfb-run` sessions; the harness's own Xvfb avoids that.
 
 ### Phase 5 — Documentation propagation [TODO]  {#PL_MCP_P5}
 
@@ -309,3 +319,4 @@ What to update:
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A, script-tag loading, no Node crypto); Shutdown row corrected to `unload`; backlog: devmode manifest quoting |
 | 2026-10-02 | Phase 1 done (Result block); devmode manifest quoting fixed and removed from the backlog |
 | 2026-10-02 | Phase 2 done (Result block); agent client and backstop timeouts reconciled (180 s / 200 s) |
+| 2026-10-02 | Phase 4 done (Result block): `tests/mcp/e2e.mjs`, `npm run test:mcp`; closes PL_AGA Phase 9 |

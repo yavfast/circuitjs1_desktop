@@ -5,7 +5,7 @@
 - Config scanned: no JUnit/TestNG dependency in `pom.xml`; `<goal>test</goal>` on the GWT plugin is present but no test sources under `src/test/java/`. `package.json` supplies `npm run check` (build verification) and `npm run devmode` (interactive dev server). There is a `tests/` directory at the project root but it is not wired into Maven.
 - Evidence source: `.dev_flow/onboard/project_structure.md`, `pom.xml:107-143`, `package.json` scripts, `layer3__simulator-core.md`.
 
-**Status:** CircuitJS1 has **no automated test harness**. All verification is today a mix of build-checks, manual devmode exercises, and round-trip circuits. Rules in this document are therefore mostly `should`, and the file documents the verification procedure as much as prescriptive rules. It is expected to expand as automated tests are introduced.
+**Status:** CircuitJS1 has no JUnit suite. Automated verification is browser-driven: `npm run test:live` (headless Chromium over the JS APIs, `tests/live/`), `npm run test:mcp` (NW.js end-to-end for the MCP server and path-based files, `tests/mcp/`) and `npm run test:mcp-unit` (node tests of the MCP server modules); the rest is build checks, manual devmode exercises and round-trip circuits. Rules in this document are therefore mostly `should`, and the file documents the verification procedure as much as prescriptive rules. It is expected to expand as automated tests are introduced.
 
 ---
 
@@ -58,6 +58,20 @@ After `npm run buildgwt`, run `npm run test:live` (`tests/live/harness.mjs`). It
 
 ### Rationale
 The 2026-09-30 audit found undo loading an empty circuit, paste dropping an element, JSON import resetting parameters/geometry of most element types, and a text writer rounding every value — none visible to a compile or an element-count check, all caught by this harness.
+
+---
+
+## Rule: NwEndToEndForMcpAndFileChanges
+
+**Category:** testing
+**Severity:** should
+**Applies to:** `mcp/server/**`, the MCP start-up and status path (`AgentJsBridge.startMcpServer`, `McpServerStatus`, `dialog/McpServerDialog`, the Options menu item), `PathFileAdapter`, `agent/FileOps`, `agent/CircuitContentTest`, the Chromium arguments in `war/package.json`
+
+### Description
+After `npm run buildgwt`, run `npm run test:mcp` (`tests/mcp/e2e.mjs`, see `tests/mcp/README.md`). It launches the real NW.js SDK binary under its own Xvfb with a scratch `HOME` and profile per launch and checks the SP_MCP_05 rows (endpoint, Origin, start-up/shutdown and registry, tools and resources with the "no circuit logic" invariant, sizing, info dialog and settings restarts) and the SP_AGA file rows (real `openFile`/`saveFile`, R1/R2 `openFile` step). Run `npm run test:mcp -- slow` when request or run timeouts change, and `-- clients` (Inspector CLI, Claude Code; auto-SKIP without them) when transport or host-facing behaviour changes. Close running CircuitJS1 instances first: ports 7311..7330 and 7400 must be free. `tests/live` cannot replace it: headless Chromium has no Node, so it runs neither the server nor the file system.
+
+### Rationale
+The server, the instance registry and the file adapter run only on the NW.js embedded Node 18.0; their defects (a dropped request that hangs, a record left after exit, a staging file left behind, a background `openFile` that disturbs the visible tab) are invisible to a GWT compile, the unit tests and the browser harness.
 
 ---
 
