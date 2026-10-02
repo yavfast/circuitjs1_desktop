@@ -3,6 +3,6 @@ domain: editor
 skills:
   - file: undo-snapshot-model.md
     skill: undo-snapshot-model
-    topics: [undo, redo, snapshot, recovery, local-storage, dedup]
+    topics: [undo, redo, snapshot, dedup, dump-index, agent-transaction, element-ids, open-marks]
     source: onboard
-    updated: 2026-04-18
+    updated: 2026-10-02

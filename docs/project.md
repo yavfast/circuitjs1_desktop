@@ -12,6 +12,7 @@
 - **Extensive Component Library:** Includes resistors, capacitors, transistors, diodes, and more.
 - **Customizable:** Supports custom components and localization.
 - **Offline Mode:** Fully functional without internet access.
+- **AI agent access:** Every desktop instance is an MCP server that agents (e.g. Claude Code) use to build, simulate and debug circuits (see [MCP server](#mcp-server-ai-agents)).
 
 ## Technology Stack
 
@@ -25,11 +26,12 @@
 
 - `src/main/java/` — Java source code for the simulation engine and desktop application.
 - `war/` — Web application resources for deployment.
+- `mcp/` — In-app MCP server sources (`mcp/server/src/`), its bundler and unit tests.
 - `docs/` — Project documentation (this file, guides, etc.).
 - `scripts/` — Development and build scripts (Node.js, shell scripts).
 - `icons/` — Application icons for various platforms.
 - `templates/` — Localization templates for different languages.
-- `tests/` — Test circuit files for simulation validation.
+- `tests/` — Test circuit files and harnesses (`tests/live/` headless Chromium, `tests/mcp/` NW.js end-to-end for the MCP server).
 - `target/` — Maven/GWT build output (compiled classes, GWT output, `target/site/`).
 
 ## Getting Started
@@ -104,6 +106,18 @@ Tip (terminal): If you want the NW.js app launcher to return immediately, run it
 ```
 
 ## Additional Information
+
+### MCP server (AI agents)
+
+Every running desktop instance starts an [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server inside the app: a Streamable HTTP endpoint at `http://<host>:<port>/mcp` with 14 `circuit_*` tools and a few resources, projected onto the Agent API (`window.CircuitJS1Agent`, [JS_API.md](./JS_API.md#circuitjs1agent-agent-api), [agent-api.sp.md](./agent-api.sp.md)). Specification: [mcp-server.sp.md](./mcp-server.sp.md); concept and decisions: [mcp-server.concept.md](./mcp-server.concept.md).
+
+- **Connect Claude Code:** `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` (use the URL the app shows).
+- **Where the URL is shown:** Options → "MCP Server..." — status, instance ID, URLs (local and LAN), tool calls in this run, and the connect command with a Copy button. The start-up log line also names the URL.
+- **Ports:** the first instance takes 7311; each further instance ("New window" is a separate process) takes the next free port up to 7330 (base port and range are preferences).
+- **Instance records:** `~/.circuitjs1/instances/<pid>-<startedAtMs>.json` (mode 0600) lists each running instance and its URLs for discovery; removed when the window closes, stale records are safe to delete.
+- **Security:** by decision [C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02) the server is always on, listens on all interfaces (`0.0.0.0`) and has **no token or other access control**. Any local program and any device on the local network that can reach the port can read and change open circuits, run simulations, and open or save `.txt`/`.json` circuit files with the user's permissions. The remaining bounds are the Origin rule — a request whose browser `Origin` header is not `localhost`, `127.0.0.1` or `[::1]` gets HTTP 403, so foreign web pages cannot call it — the restriction of file tools to circuit files, and the absence of any code-execution tool.
+- **Turning it off (rollback switch):** Options → "MCP Server..." → untick Enabled → Save → restart the app. With `mcpServerEnabled = false` the app opens no port and writes no instance record; the menu item reads "MCP Server... (off)". Setting the listening address to `127.0.0.1` limits it to the local machine. Settings apply at the next start; the preference keys are `mcpServerEnabled`, `mcpServerPort`, `mcpServerPortRange`, `mcpServerHost` ([user-preferences.sp.md](./user-preferences.sp.md)).
+- **Build and tests:** `npm run build:mcp` bundles `mcp/server/src/` into `war/scripts/mcp-server.js` (generated, git-ignored; `npm run buildgwt` and devmode run it first). `npm run test:mcp-unit` runs the server's unit checks; `npm run test:mcp` drives a real NW.js instance end to end ([tests/mcp/README.md](../tests/mcp/README.md)).
 
 ### Localization
 

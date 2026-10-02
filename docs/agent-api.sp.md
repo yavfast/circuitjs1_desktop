@@ -3,7 +3,7 @@
 > **Code:** SP_AGA
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_AGA](./agent-api.concept.md)
 > **Depends on:** [SP_DOC](./document-model.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SIM](./simulator-engine.sp.md), [SP_IOF](./io-framework.sp.md), [SP_EIC](./edit-info-contract.sp.md), [SP_FBR](./browser-file-bridge.sp.md) (existing mechanisms this spec changes or consumes)
@@ -623,7 +623,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 
 **Generated IDs**
 - A generated ID is `<idPrefix><n>`, where `n` = counter[`idPrefix`] + 1. An `n` whose ID is already present is skipped (`n` increments until free).
-- `idPrefix` is letters only: the element's own prefix where it defines one (`R`, `C`, `L`, `W`, `GND`, `V`, `I`, `D`, `LED`, `Z`, `U`, `M`, `K`, `T`, `SW`); otherwise the first three letters (A–Z, digits dropped) of the type name, upper-cased. Today's runtime default takes the first three characters, digits included (`CC2`); dropping digits is a behaviour change ([§06_01](#SP_AGA_06_01)).
+- `idPrefix` is letters only: the element's own prefix where it defines one (`R`, `C`, `L`, `W`, `GND`, `V`, `I`, `D`, `LED`, `Z`, `U`, `M`, `K`, `T`, `SW`); otherwise the first three letters (A–Z, digits dropped) of the type name, upper-cased. The runtime default before the Agent API took the first three characters, digits included (`CC2`); dropping digits is behaviour change 10 of [§06_01](#SP_AGA_06_01).
 - Within one call, every supplied or restored ID raises its counter before any ID is generated.
 
 **Counters**
@@ -663,7 +663,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 
 - **Validate first.** A whole batch, or a whole AgentCircuit import, is validated before the first change.
 - **Text and JSON imports.** Content that can only be validated by loading it is loaded after a snapshot. Any loading error restores the snapshot (circuit text, element IDs, open marks, scope views, view transform, document UI state).
-- **Import reporting.** The text and JSON importers report to their caller every item they skipped, failed or adjusted, with its line number (text) or element key/index (JSON); a line whose parsing throws counts as failed. Today they only write console messages — a behaviour change ([§06_01](#SP_AGA_06_01)). Codes and severities:
+- **Import reporting.** The text and JSON importers report to their caller every item they skipped, failed or adjusted, with its line number (text) or element key/index (JSON); a line whose parsing throws counts as failed. Before the Agent API they only wrote console messages — behaviour change 14 of [§06_01](#SP_AGA_06_01); user loads still pass no report. Codes and severities:
 
   | Item | Code | Severity |
   |---|---|---|
@@ -699,7 +699,7 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 ### 03_06. Solver and operation issue codes  {#SP_AGA_03_06}
 
 **Solver messages and codes**
-- The simulator keeps the untranslated message key of every warning and stop next to the translated text (today it stores only the translated text — a behaviour change, [§06_01](#SP_AGA_06_01)). Codes are matched by prefix on that key:
+- The simulator keeps the untranslated message key of every warning and stop next to the translated text (before the Agent API it stored only the translated text — behaviour change 11 of [§06_01](#SP_AGA_06_01)). Codes are matched by prefix on that key:
 
   | Key prefix | Code |
   |---|---|
@@ -716,7 +716,7 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 
 **Recovery mode**
 - The simulator's non-convergence recovery is enabled (fixed in code). Under it, the loop, singular-matrix, path and matrix conditions arrive as warnings while simulation continues. A stop still occurs for unrecovered failures.
-- Under recovery, a timestep that the simulator forces through without convergence raises a `convergence_failed` event naming the first non-converged element (today it writes only a console line — a behaviour change, [§06_01](#SP_AGA_06_01)). A run reports it once.
+- Under recovery, a timestep that the simulator forces through without convergence raises a `convergence_failed` event naming the first non-converged element (before the Agent API it wrote only a console line — behaviour change 12 of [§06_01](#SP_AGA_06_01)). A run reports it once.
 
 **Severities and culprit**
 - A code reached as a stop is `error`.
@@ -780,9 +780,9 @@ The protected state:
 
 **Mechanism.** How R1/R2 are achieved is [SP_AGA_DEC_04](#SP_AGA_DEC_04): a scoped silent bind of the target document, explicit per-path routing, or a hybrid of the two — resolved as the scoped silent bind (A).
 
-**Free-running loop.** It advances the active running document as today and skips a busy document ([§04_02](#SP_AGA_04_02)).
+**Free-running loop.** It advances the active running document as before and skips a busy document ([§04_02](#SP_AGA_04_02)).
 
-**Net names and readings.** These come from the target document's own analysed node data, never from the session-wide label registry (which today keeps the labels of whichever document was analysed last).
+**Net names and readings.** These come from the target document's own analysed node data, never from the session-wide label registry (which keeps the labels of whichever document was analysed last).
 
 **Tab changes.** No contract switches the visible tab except `activateDocument`, `createDocument(activate: true)`, `openFile(activate: true)` and closing the active document ([§02_02](#SP_AGA_02_02)).
 
@@ -1071,6 +1071,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | PL_AGA Phase 10 propagate: behaviour-change notes in §03_02, §03_04, §03_06 and §03_08 restated as implemented (pre-Agent-API behaviour named with its §06_01 item); the §06_01 items are documented in JS_API.md, EXPORT_CJS.md and the C_DOC, C_UND, C_IOF and C_APC concepts/specs |
 | 2026-10-02 | Fix round: `stop_trigger` run reason (SP_AGA_DEC_05), first probe sample after the first solved step, determinism qualified for noise sources, §06_01 item 18 time-step bar no longer re-quantises the maximum step |
 | 2026-10-02 | PL_AGA Phase 9: `openFile` applies the circuit test; element lines need whole-number coordinates and flags; BOM, links, parent directories, whitespace-only and over-size overwrite rules; rejected-open issues aggregated per code; review: `file_not_found`/`file_error` per contract for links and directories, save refused when the resolved target changed after the check, staging file flushed before rename and only its own staging file removed |
 | 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |

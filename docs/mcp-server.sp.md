@@ -28,14 +28,14 @@
 
 ### 01_01. Server preferences  {#SP_MCP_01_01}
 
-Stored in the user-preferences store ([SP_USR](./user-preferences.sp.md)); changes apply at the next app start.
+Stored in the user-preferences store ([SP_USR](./user-preferences.sp.md#SP_USR_01_01)), with no URL-query layer; they are read once at start-up, so changes apply at the next app start. An invalid stored value is replaced by its default for this run, a warning log line names the replaced keys, and the stored value is not rewritten.
 
 | Key | Type | Default | Constraints | Description |
 |-----|------|---------|-------------|-------------|
-| mcpServerEnabled | bool | true | — | Start the endpoint with the app ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) |
+| mcpServerEnabled | bool | true | exactly `"true"` or `"false"` | Start the endpoint with the app ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) |
 | mcpServerPort | int | 7311 | 1024..65535; `mcpServerPort + mcpServerPortRange − 1 ≤ 65535` | Base port |
-| mcpServerPortRange | int | 20 | 1..100 | Number of consecutive ports tried |
-| mcpServerHost | string | `0.0.0.0` | an IPv4/IPv6 literal or `localhost` | Listening address; the default covers loopback and the private network |
+| mcpServerPortRange | int | 20 | 1..100; `mcpServerPort + mcpServerPortRange − 1 ≤ 65535`; an invalid value falls back to 20, or to `65535 − mcpServerPort + 1` when 20 does not fit | Number of consecutive ports tried |
+| mcpServerHost | string | `0.0.0.0` | trimmed; `localhost`, an IPv4 dotted quad or an IPv6 literal without brackets or zone | Listening address; the default covers loopback and the private network |
 
 ### 01_02. Instance record  {#SP_MCP_01_02}
 
@@ -47,7 +47,7 @@ One JSON file `<instanceId>.json` in the instance directory `<user home>/.circui
 | pid | int | yes | Process ID |
 | port | int | yes | Bound port |
 | host | string | yes | Listening address |
-| urls | string[] | yes | For a wildcard `host` (`0.0.0.0`, `::`): `http://127.0.0.1:<port>/mcp` first, then one URL per non-internal IPv4 address. For a loopback `host`: its own loopback URL only. For one specific address: that address's URL only (127.0.0.1 does not answer there) |
+| urls | string[] | yes | For a wildcard `host` (`0.0.0.0`, `::`): `http://127.0.0.1:<port>/mcp` first, then one URL per non-internal IPv4 address. For a loopback `host`: one loopback URL only — `http://127.0.0.1:<port>/mcp` for `localhost` and any `127.x.x.x` address, `http://[::1]:<port>/mcp` for `::1`. For one specific address: that address's URL only (127.0.0.1 does not answer there) |
 | appVersion | string | yes | App version from the manifest |
 | startedAt | string | yes | ISO-8601 UTC |
 | title | string | yes | Window title at start |
@@ -81,10 +81,11 @@ For `circuit_render` with `format=png` the base64 PNG appears only in the image 
 ### 02_01. Endpoint behaviour  {#SP_MCP_02_01}
 
 - **Address.** `POST http://<host>:<port>/mcp`, `Content-Type: application/json`, one JSON-RPC message per request.
-- **Response.** Replies are `application/json` single responses. No server-initiated stream: `GET /mcp` and `DELETE /mcp` answer 405. Notifications from the client answer 202 with no body.
+- **Response.** Replies are `application/json` single responses. No server-initiated stream: `GET /mcp` and `DELETE /mcp` answer 405. Notifications from the client answer 202 with no body, and so does a JSON-RPC response sent by the client (the server sends no requests). `notifications/cancelled` is dropped: a call cannot be cancelled ([DEC_02](#SP_MCP_DEC_02)), and forwarding it could abort another client's request.
 - **Protocol revisions.** The endpoint serves the initialize-based revisions `2025-11-25` and `2025-06-18`. `initialize` answers with the client's requested revision when it is served, else with `2025-11-25`. The stateless `2026-07-28` revision is not served in-app ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)); serving it is a backlog item of [PL_MCP](./mcp-server.plan.md).
 - **Version header.** A request whose `MCP-Protocol-Version` header names a revision the endpoint does not serve gets HTTP 400 with a JSON-RPC error body, which lets dual-era clients fall back. A request without the header is treated as `2025-06-18`.
-- **Other requests.** Paths other than `/mcp` answer 404; a body over 16 MB answers 413; a JSON-RPC batch is rejected with `-32600`, unparseable JSON with `-32700`. `OPTIONS` preflight requests from allowed (local) origins are answered with CORS headers; other origins get the 403 of the Origin rule. HTTP status per error: 400 for `-32700` and `-32600` (and an unserved version header), 200 for errors of a well-formed request (`-32601`, `-32602`, `-32603`, tool errors). An `id` that is not a string or number is answered as `null`. Client-supplied text echoed in an error message (object keys, tool names, URIs) is cut to a bounded length.
+- **Other requests.** Paths other than `/mcp` answer 404; a body over 16 MB answers 413; a JSON-RPC batch is rejected with `-32600`, unparseable JSON with `-32700`. `OPTIONS` preflight requests from allowed (local) origins are answered with CORS headers; other origins get the 403 of the Origin rule. HTTP status per error: 400 for `-32700` and `-32600` (and an unserved version header); 200 for errors of a well-formed request (`-32601`, `-32602`, tool errors, and the `-32603` of a request that got no response within the 200 s backstop); 500 with `-32603` when the dispatch of a request fails with an exception; 503 with `-32603` "Server is shutting down" for a request still pending when the server closes, and 200 with the same error for a request that arrives after the protocol layer has closed. An `id` that is not a string or number is answered as `null`. Client-supplied text echoed in an error message (object keys, tool names, URIs) is cut to a bounded length.
+- **Timeouts.** The HTTP server closes a request whose headers do not arrive within 10 s or whose whole request does not arrive within 60 s; a long-running response is not limited by these. An asynchronous Agent API call (`run`, `render`) that never calls back ends after 180 s as an `internal_error` tool result. A request the protocol layer never answers gets `-32603` after a 200 s backstop, so every request gets exactly one reply.
 - **Sessions.** The server keeps no protocol session state and issues no `Mcp-Session-Id`. Session headers sent by clients are ignored.
 - **Capabilities.** `tools` (with `listChanged: false`) and `resources` (with `listChanged: false`, `subscribe: false`). No `prompts`, no sampling, no elicitation.
 - **Server info.** `serverInfo` = `{name: "circuitjs1", version: <appVersion>}`. `instructions` is one paragraph naming the coordinate unit (grid cells), the verify loop (connectivity report → run → measure), the skill name `circuitjs-circuits` and the `toolsVersion`.
@@ -153,13 +154,21 @@ Processing logic:
 
     FUNCTION startServer():                               # called by the app's own start-up, right after the Agent API export
                                                           # (not through the single-slot "loaded" page hook)
-        IF NOT desktop runtime OR NOT pref.mcpServerEnabled: status ← disabled; RETURN
-        IF the server script is not loaded: status ← failed("server script not loaded"); log; RETURN
-        an invalid preference value falls back to its default and logs a warning
+        read and validate the preferences (§01_01); an invalid value falls back to its default; log one warning naming the keys
+        IF the server script is not loaded (no window.CircuitJS1Mcp):
+            IF desktop runtime: status ← failed("server script not loaded (scripts/mcp-server.js)"); log; RETURN
+            ELSE: status ← disabled("no desktop runtime"); RETURN
+        IF NOT desktop runtime: status ← disabled("no desktop runtime"); log; RETURN
+        IF NOT pref.mcpServerEnabled: status ← disabled("disabled in preferences"); log; RETURN
+        status ← starting
         FOR port IN pref.mcpServerPort .. pref.mcpServerPort + pref.mcpServerPortRange − 1:
             IF listen(pref.mcpServerHost, port) succeeds: BREAK
-        IF not listening: status ← failed("no free port in range"); log; RETURN
-        write instance record (§01_02) atomically (temp file + rename), file mode user-only
+            IF the error is not EADDRINUSE or EACCES: BREAK      # a reserved port counts as busy
+        IF not listening:
+            status ← failed("no free port in range <first>..<last>")     # last error EADDRINUSE / EACCES
+                  OR failed("listen on <host> failed: <message>")        # any other error
+            log; RETURN
+        delete dead-pid instance records; write instance record (§01_02) atomically (temp file + rename), file mode user-only
         status ← listening; log "MCP server listening on <urls>"
 
     FUNCTION stopServer():                                # window close / app exit
@@ -207,8 +216,8 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
   - `circuit_connectivity`: `includeNets: false` (issues only);
   - `circuit_diagnostics`: log `limit` halved until it fits;
   - `circuit_types`: never exceeds (bounded by the catalogue);
-  - `circuit_render` with `format=svg`: when the SVG text exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use png or a lower scale".
-  - `circuit_file` with `action: export`: when the content exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use action save, or circuit_get pages".
+  - `circuit_render` with `format=svg`: when the SVG text exceeds the limit, the result is `isError` with issue `result_too_large` and hint "Use format png or a lower scale."
+  - `circuit_file` with `action: export`: when the content exceeds the limit, the result is `isError` with issue `result_too_large` and hint "Use action save, or circuit_get pages."
   The text part then starts with a note naming the reduced arguments.
 - **Fallback.** A result that still exceeds the limit after its reductions, or of a tool that is never re-executed, keeps its whole OperationResult in `structuredContent`; only its text part drops the trailing items of its largest arrays and names them in a leading note (whole items only, never mid-structure). The Agent API caps keep every measured result below this point.
 - **Resources.** Resource reads are not tool results and are not subject to this limit; `circuitjs://documents/{doc}/circuit` and example texts are returned whole.
@@ -304,7 +313,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 | Dependent modules | [SP_MCB](./mcp-bridge.sp.md) and [SP_AGS](./agent-skill.sp.md) need the endpoint; the Agent API does not depend on the server |
 | External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`): a breaking change bumps MAJOR, an addition bumps MINOR; the skill states the `toolsVersion` it supports |
 
-Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes.
+Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes. To set it, open Options → "MCP Server...", untick "Enabled", Save and restart the app: nothing listens and no instance record is written. Verified by `tests/mcp/e2e.mjs` scenario `settings`, row `disable` (checks `statusDisabled`, `noRecord`, `noPortBound`, `menuOff`).
 
 ## 07. Design Decisions  {#SP_MCP_DEC}
 
@@ -370,3 +379,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-02 | PL_MCP Phase 2: example index `menu` field and listed-paths rule; resource-read error mapping; unknown and action-inapplicable arguments are -32602, range keywords advisory; text-part fallback for results that cannot be reduced |
 | 2026-10-02 | PL_MCP Phase 1: instance-record URLs per host kind; 404/413/batch/parse errors and CORS preflight for local origins; start-up failure when the server script is missing; invalid preferences fall back with a warning; review: HTTP status per JSON-RPC error, `null` for unreadable ids, bounded echo of client text |
 | 2026-10-02 | PL_MCP Phase 3: menu text with three dots, untranslated status wire names, Copy button and empty rows without a URL, port range not edited in the dialog |
+| 2026-10-02 | PL_MCP Phase 5 propagate: start-up order (script check first) and disable/failure reasons; EACCES as a busy port; loopback URLs for `localhost`/`127.x`/`::1`; HTTP 500/503 and backstop status; receive, agent and backstop timeouts; client responses 202, `notifications/cancelled` dropped; preference constraints and fallback, no URL layer; exact size hints; how to reach the minimum safe state and its e2e check |

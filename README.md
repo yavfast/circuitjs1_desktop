@@ -26,6 +26,25 @@ You can download this program for Windows (x32, x64), Linux (x32, x64) and Mac O
 
 > If you have problems with this application, you can try to use [this offline application of the main developer](http://www.falstad.com/circuit/offline/) based on Electron.
 
+## MCP server (AI agents)
+
+Every running desktop instance is also an [MCP](https://modelcontextprotocol.io) server, so AI agents such as Claude Code can build, edit, simulate, measure and debug circuits in the open documents through 14 `circuit_*` tools. The tools map onto the Agent API (`window.CircuitJS1Agent`, see [docs/JS_API.md](docs/JS_API.md) and [docs/agent-api.sp.md](docs/agent-api.sp.md)); the server itself is specified in [docs/mcp-server.sp.md](docs/mcp-server.sp.md).
+
+**Connect Claude Code:**
+```
+claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp
+```
+
+The URL of each instance is shown in Options → "MCP Server...", together with the status, the instance ID, the LAN URLs and this command with a Copy button. The first instance listens on port 7311; further instances ("New window" starts a separate process) take the next free port up to 7330. Each running instance writes a record with its URLs to `~/.circuitjs1/instances/<pid>-<startedAtMs>.json` (user-only file, removed when the window closes; stale records are safe to delete) so that tools can find it. The browser (web) build has no server.
+
+**Security.** The server is **on by default and has no token or password**: by default it listens on all network interfaces (`0.0.0.0`), so any program on this computer and any device on your local network that can reach the port can drive the app — read and change open circuits, run simulations, and open or save `.txt`/`.json` circuit files under your user account (a save overwrites an existing file only when it is empty or is a circuit). This was a deliberate trade-off for zero-setup agent access ([C_MCP_DEC_02](docs/mcp-server.concept.md#C_MCP_DEC_02)). The only protections are: requests from web pages of other sites are rejected (a browser `Origin` header other than `localhost`, `127.0.0.1` or `[::1]` gets HTTP 403), the file tools are limited to circuit files, and no tool executes code. Use it on trusted networks only.
+
+To restrict or turn it off, open Options → "MCP Server...":
+- set the listening address to `127.0.0.1` to accept connections from this computer only, or
+- untick **Enabled**, press **Save** and **restart the app** — the app then opens no port and writes no instance record (the Options menu item reads "MCP Server... (off)").
+
+Settings apply at the next start of the app. They are stored as the preferences `mcpServerEnabled`, `mcpServerPort`, `mcpServerHost` and `mcpServerPortRange` ([docs/user-preferences.sp.md](docs/user-preferences.sp.md)).
+
 ## Building the program
 
 The tools you will need to build the project are:

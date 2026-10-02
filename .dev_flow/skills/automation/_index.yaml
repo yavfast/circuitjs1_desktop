@@ -3,7 +3,7 @@ domain: automation
 skills:
   - file: js-api-surface.md
     skill: js-api-surface
-    topics: [js-api, circuitjs1-global, jsni-bridge, element-id, scope-data, stop-message, undo, documents]
+    topics: [js-api, circuitjs1-global, jsni-bridge, element-id, scope-data, stop-message, undo, documents, circuitjs1agent, debug-diagnostics]
     source: research
     updated: 2026-10-02
   - file: agent-mcp-surface.md

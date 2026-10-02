@@ -3,11 +3,11 @@
 > **Code:** SP_USR
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_USR](./user-preferences.concept.md)
 > **Depends on specs:** SP_UTL, SP_PLT, SP_RND
-> **Used by specs:** [SP_MEN](./menus-actions.sp.md), [SP_EDI](./canvas-editor.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SCP](./scope-visualization.sp.md), [SP_EIC](./edit-info-contract.sp.md)
+> **Used by specs:** [SP_MEN](./menus-actions.sp.md), [SP_EDI](./canvas-editor.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SCP](./scope-visualization.sp.md), [SP_EIC](./edit-info-contract.sp.md), [SP_MCP](./mcp-server.sp.md)
 > **Plan:** [user-preferences.plan.md](./user-preferences.plan.md)
 
 ## 01. Data Structures  {#SP_USR_01}
@@ -32,6 +32,12 @@ Key catalog (partial):
 | `subcircuit:<name>` | string | — | CustomCompositeModel |
 | `MOD_UIScale`/`MOD_TopMenuBar`/`MOD_overlayingSidebar`/`MOD_*` | mixed | per flag | ModDialog |
 | `<prefix>.pos`/`<prefix>.collapsed` | `"x,y"`/`"1/0"` | — | Dialog.getPrefixedKey |
+| `mcpServerEnabled` | bool | "true" | McpServerStatus (written by McpServerDialog) |
+| `mcpServerPort` | int | "7311" | McpServerStatus (written by McpServerDialog) |
+| `mcpServerPortRange` | int | "20" | McpServerStatus (not edited by the dialog) |
+| `mcpServerHost` | string | "0.0.0.0" | McpServerStatus (written by McpServerDialog) |
+
+MCP server keys ([SP_MCP_01_01](./mcp-server.sp.md#SP_MCP_01_01), [C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)): `McpServerStatus.readPrefs()` owns their validation. `mcpServerEnabled` is exactly `"true"` or `"false"`; `mcpServerPort` is an integer 1024..65535; `mcpServerPortRange` is 1..100 with `port + range − 1 ≤ 65535`; `mcpServerHost` is trimmed and must be `localhost`, an IPv4 dotted quad or an IPv6 literal without brackets or zone. An invalid stored value is replaced by its default at start-up (the range by 20, or by `65535 − port + 1` when 20 does not fit), one warning log line names the replaced keys, and the stored value is not rewritten. These keys have no URL-query layer. They are read once at start-up, so a change applies at the next start. The MCP Server dialog validates enabled, port and host with the same rules and writes the three together.
 
 ### 01_02. DisplaySettings  {#SP_USR_01_02}
 
@@ -119,7 +125,7 @@ Ten instance getters each `menuManager != null && item != null && item.getState(
 - `OptionsManager.getLocalStorage()` may return `null` (private browsing).
 - `DisplaySettings` getters must null-guard `menuManager` and the item (boot-safe).
 - Callers mutating `ColorSettings.positive/negative/neutralColor` must then call `updateColorScale()` (documented in-code).
-- URL override layering: `qp.getValue(k) ?? OptionsManager.getOptionFromStorage(k, default)`.
+- URL override layering: `qp.getValue(k) ?? OptionsManager.getOptionFromStorage(k, default)`. The MCP server keys are the exception: storage → default only, validated by `McpServerStatus` ([§01_01](#SP_USR_01_01)).
 
 ## 04. State Transitions  {#SP_USR_04}
 
@@ -163,3 +169,4 @@ URL → localStorage → edit → persist pipeline:
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-02 | PL_MCP Phase 5 propagate: MCP server keys (`mcpServerEnabled`, `mcpServerPort`, `mcpServerPortRange`, `mcpServerHost`) in the key catalog with their validation and fallback; no URL layer for them. |

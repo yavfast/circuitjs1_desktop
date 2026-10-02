@@ -3,7 +3,7 @@
 > **Code:** SP_DOC
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_DOC](./document-model.concept.md)
 > **Depends on specs:** [SP_SIM](./simulator-engine.sp.md), [SP_ELB](./element-base.sp.md), [SP_IOF](./io-framework.sp.md), [SP_NET](./netlist-graph.sp.md)
@@ -31,17 +31,27 @@
 | simulationLoop | SimulationLoop | yes | new | 16 ms Timer |
 | logBuffer | LogBuffer | yes | new | 100-line ring |
 | elementIdRegistry | ElementIdRegistry | yes | new | per-prefix element ID counters + pending undo-restore IDs (SP_AGA_03_02); reset on content replacement |
+| documentNumber | int | yes | `cirSim.allocateDocumentNumber()` | session-unique, never reused; agent handle `d<n>` (SP_AGA_01_02); 0 for the scratch document |
+| displayTitle | String | — | null | tab title while the document has no file name (null → "Untitled") |
+| busyOwner | BusyOwner | — | null | agent run owning the document ([SP_AGA_04_02](./agent-api.sp.md#SP_AGA_04_02)); non-null = busy |
+| agentOrigin | boolean | — | false | true while an Agent API mutation runs; editor undo pushes suppressed (SP_AGA_04_01) |
+| openMarks | Set<String> | — | empty | PostRefs declared intentionally unconnected (SP_AGA_01_12); in memory, captured in undo entries, cleared on content replacement |
+| lastImportIssues | JSONArray | — | null | Issues of the last agent import (SP_AGA_01_11) |
+| firedStopTrigger | CircuitElm | — | null | stop-trigger element fired and not yet taken by a run |
 | isRunning, isActive | boolean | — | false | loop gate |
 | errorMessage | String | — | null | stop reason |
 | stopElm | CircuitElm | — | null | offending element |
-| dots, volts, power, showValues, smallGrid | boolean | — | true/true/false/false/false | UI toggles |
+| dots, volts, power, showValues, smallGrid | boolean | — | true/true/false/true/false | UI toggles (set by `initDefaultUIState`) |
 | speedValue, currentValue, powerValue | int | — | 117, 50, 50 | scrollbar values |
-| transform | double[6] | — | identity | renderer matrix |
+| voltageRange | double | — | 5 | voltage colour range (session `ColorSettings` holds one value) |
+| transform | double[6] | — | zeros (unset → centre on first activation) | renderer matrix |
+| hintType, hintItem1, hintItem2 | int | — | -1, 0, 0 | renderer hint (the "h" line) |
 
 Invariants:
-- Constructor package-private; only `DocumentManager.createDocument` may call.
+- Constructor package-private; only `DocumentManager.createDocument` may call (plus `createScratch`: number 0, never added, bound or shown).
 - `setSimRunning(true)` no-op while `errorMessage != null`.
-- `SimulationLoop` runs iff `isRunning && isActive`.
+- `SimulationLoop` timer is scheduled iff `isRunning && isActive`; a tick steps the circuit only while `busyOwner == null`.
+- `busyOwner` is set and cleared by the agent run only (`setAgentBusy`).
 
 ### 01_02. DocumentManager  {#SP_DOC_01_02}
 
@@ -76,9 +86,13 @@ Fields: `name: String`, `node: int`, `pos: int`, `side: int`.
 
 Processing:
     doc = new CircuitDocument(cirSim)
+        // ctor: documentNumber = cirSim.allocateDocumentNumber()
+        //       create circuitInfo, simulator, managers, simulationLoop, logBuffer
+        //       simulator.maxTimeStep = simulator.timeStep = 5e-6
+        //       simulator.minTimeStep = 50e-12      // blank-circuit defaults (SP_AGA_06_01 item 16)
+        //       initDefaultUIState(); updateSimulationLoop()
     documents.add(doc)
-    doc.initDefaultUIState()
-    notifyDocumentAdded(doc)
+    notifyDocumentAdded(doc)          // → scheduleSave()
     return doc
 
 Does **not** call `setActiveDocument`.
@@ -86,11 +100,18 @@ Does **not** call `setActiveDocument`.
 ### 02_02. DocumentManager.setActiveDocument  {#SP_DOC_02_02}
 
 Processing:
+    if doc == activeDocument: return
+    if doc not in documents: documents.add(doc); notifyDocumentAdded(doc)
     if activeDocument != null: activeDocument.saveUIState(mm, cirSim)
-    cirSim.bindDocument(doc)
-    activeDocument = doc
+    old = activeDocument; activeDocument = doc
+    cirSim.bindDocument(doc)          // old.setActive(false), doc.setActive(true), update listener, renderer timers
     doc.restoreUIState(mm, cirSim)
-    notifyActiveDocumentChanged(doc)
+        // applyOptionWidgets (toggles, bars, voltage range)
+        // controlsDialog.syncTimeStepBar()   // bar moved without its command: maxTimeStep kept exactly (SP_AGA_06_01 item 18)
+        // renderer.setCircuitArea(); applyViewState(cirSim, centreIfUnset = true)   // transform or centre, hint
+        // circuitEditor.setGrid(); cirSim.setPowerBarEnable(); adjustableManager.updateSliders()
+    if menu built: cirSim.enableUndoRedo()   // Undo/Redo state and labels follow the tab
+    notifyActiveDocumentChanged(old, doc)
     cirSim.setUnsavedChanges(doc.circuitInfo.isModified())
     cirSim.needAnalyze()
     Timer(1 ms).run { canvas.setFocus(true) }
@@ -98,33 +119,30 @@ Processing:
 ### 02_03. DocumentManager.closeDocument  {#SP_DOC_02_03}
 
 Processing:
-    tempSwitch = (doc != activeDocument)
-    if tempSwitch: activeDocument = doc; cirSim.bindDocument(doc)
-    dump = cirSim.actionManager.dumpCircuit()
+    if doc == null or doc not in documents: return
+    doc.cancelAgentRun()              // an agent run of doc ends as cancelled first
+    dump = dumpDocument(doc)          // DocumentScope.call(sim, doc, actionManager::dumpCircuit); direct when doc is active
     closedTabsHistory.push(dump)
     trim closedTabsHistory to MAX_CLOSED_TABS (drop oldest)
-    if tempSwitch: restore previous active via bindDocument
-    doc.dispose()                     // stops SimulationLoop
+    doc.dispose()                     // stops SimulationLoop, discards the open agent transaction
     documents.remove(doc)
-    notifyDocumentRemoved(doc)
+    notifyDocumentRemoved(doc)        // → scheduleSave()
     if doc was active:
         if documents.empty: createDocument + setActiveDocument
         else: setActiveDocument(nearest neighbor)
-    scheduleSave()
+
+Closing a background document never changes the visible tab.
 
 ### 02_04. saveSession / restoreSession  {#SP_DOC_02_04}
 
 `saveSession`:
     arr = []
-    for d in documents: arr.push({title, fileName?, filePath?, lastFileName?, data: dump, active: d==activeDocument})
+    for d in documents: arr.push({title, fileName?, filePath?, lastFileName?, displayTitle?, data: dumpDocument(d), active: d==activeDocument})
     localStorage["circuitjs_tabs_session"] = JSON.stringify(arr)
 
-Inactive docs require temporary active-swap (raw assignment +
-`bindDocument`, bypassing listeners) to produce `dump`.
+`dumpDocument(d)` dumps an inactive document inside `DocumentScope.call` (silent field swap, [PL_AGA_DEC_01](./agent-api.plan.md#PL_AGA_DEC_01)) with its own options, transform and hint applied to the session widgets; no listener fires and the visible tab's loop keeps running.
 
-`restoreSession`: parse JSON; reuse initial blank doc for first entry;
-`createDocument + setActiveDocument + circuitLoader.readCircuit(data)`
-for rest. Parse failure → silent fallback.
+`restoreSession`: parse JSON; reuse initial blank doc for first entry; `createDocument + setActiveDocument + circuitLoader.readCircuit(data)` for rest; then restore `fileName`, `filePath`, `lastFileName`, `displayTitle` and `notifyTitleChanged`. Parse failure → console line, returns false (start-up loads its default circuit).
 
 ### 02_05. CircuitLoader.readCircuit  {#SP_DOC_02_05}
 
@@ -132,6 +150,7 @@ Overloads:
 - `readCircuit(data, flags)` — auto-detect via
   `CircuitFormatRegistry.detectFormatOrDefault(data)` → `importer.importCircuit(data, getActiveDocument(), flags)`.
 - `readCircuit(data, formatId, flags)` — explicit format; unknown id → default.
+- `readCircuit(data, formatId, flags, report)` — `formatId` null = auto-detect; every skipped, failed or adjusted item goes to `report` (SP_AGA_03_04); null report = the other overloads.
 - `readCircuit(text)` — flags = 0.
 
 Flags: `RC_RETAIN`, `RC_SUBCIRCUITS`, `RC_NO_CENTER`, `RC_KEEP_TITLE`.
@@ -158,24 +177,70 @@ two-arg constructor subset. Handles aliases
 
 `readDescription(ce, st)` — extract `#`-prefixed trailing comment.
 
+### 02_07. DocumentManager.discardDocument  {#SP_DOC_02_07}
+
+Removes a background document created for an agent operation that then failed (a rejected `openFile` into a new document, SP_AGA_02_14).
+
+Processing:
+    if doc == null or doc == activeDocument or doc not in documents: return
+    doc.cancelAgentRun()
+    doc.dispose()
+    documents.remove(doc)
+    notifyDocumentRemoved(doc)        // no closed-tab dump
+
+### 02_08. DocumentScope.call / run  {#SP_DOC_02_08}
+
+Scoped silent bind of [SP_AGA_03_08](./agent-api.sp.md#SP_AGA_03_08) (mechanism PL_AGA_DEC_01); `run` is the `void` form.
+
+Processing:
+    FUNCTION call(sim, target, op):
+        bound = sim.getActiveDocument()
+        if target == bound: return op()
+        if target not open: throw IllegalArgumentException
+        remember sliders-detached flag, Save-item state, renderer.circuitArea, MosfetElm global flags
+        bound.saveUIState(mm, sim)
+        if sim.visibleWhileBound == null: sim.visibleWhileBound = bound   // outermost scope
+        documentManager.swapActiveSilently(target)     // fields only: no setActive, no listeners
+        try:
+            sliders.setDetached(true)
+            target.applyOptionWidgets(mm, sim); target.applyViewState(sim, true)
+            result = op()                  // user onanalyze/ontimestep skipped; console → target.logBuffer
+            renderer.setCircuitArea(); target.scopeManager.setupScopes()
+            return result
+        finally:
+            target.saveUIState(mm, sim)
+            documentManager.swapActiveSilently(bound); restore visibleWhileBound, MOSFET flags
+            renderer.circuitArea = saved; bound.applyOptionWidgets; bound.applyViewState(sim, false)
+            sim.refreshSessionWidgets(saveAllowed)   // time-step bar, power bar, Undo/Redo, edit items, Save, title
+            sliders.setDetached(saved flag)
+
+Nested scopes save and restore what was bound when they were entered. An exception from `op` propagates after the bind is undone.
+
 ## 03. Validation Rules  {#SP_DOC_03}
 
 - Constructor visibility: `CircuitDocument` ctor package-private.
 - `RC_RETAIN` preserves existing elements; default resets.
-- All `readCircuit` paths operate on `getActiveDocument()`.
+- All `readCircuit` paths operate on `getActiveDocument()` (the bound document; inside a `DocumentScope` the target).
 - `closeDocument` must never leave `documents` empty.
+- A non-visible document is bound only through `DocumentScope`; `swapActiveSilently` has no other caller.
 
 ## 04. State Transitions  {#SP_DOC_04}
 
 CircuitDocument lifecycle:
 
-    [created] --initDefaultUIState--> [ready]
+    [created] --ctor (time-step defaults, initDefaultUIState)--> [ready]
     [ready] --setSimRunning(true)--> [running]
     [running] --stop(msg,ce)--> [error]
+    [running] --stopTriggerFired(elm)--> [ready]      // firedStopTrigger = elm
     [error] --clearError--> [ready]
+    [ready|running] --setAgentBusy(run)--> [busy]     // loop ticks skip; the run steps the doc in slices
+    [busy] --run ends: setAgentBusy(null)--> [ready|running]   // running flag kept
+    [busy] --cancelAgentRun (user action, close)--> run ends as cancelled --> [ready|running]
     [ready|running|error] --dispose--> [disposed]
 
-Tab selection: `[inactive] --setActiveDocument--> [active]`.
+A run takes `firedStopTrigger` with `takeFiredStopTrigger()` (at its start, to drop a free-running trigger, and after every timestep) and ends after the current timestep when one fired.
+
+Tab selection: `[inactive] --setActiveDocument--> [active]`; `[inactive] --DocumentScope.call--> [bound, not visible] --scope exit--> [inactive]`.
 
 ## 05. Verification Criteria  {#SP_DOC_05}
 
@@ -183,7 +248,7 @@ Tab selection: `[inactive] --setActiveDocument--> [active]`.
 
 | Contract | Scenario | Expected |
 |----------|----------|----------|
-| createDocument | new tab | fires onDocumentAdded, not onActiveDocumentChanged |
+| createDocument | new tab | fires onDocumentAdded, not onActiveDocumentChanged; maxTimeStep = timeStep = 5e-6 |
 | setActiveDocument | click tab | UI state swaps, canvas refocuses |
 | closeDocument (last) | close only tab | blank doc appears |
 | restoreLastClosedTab | undo-close | prior circuit restored, undo stack empty |
@@ -196,7 +261,9 @@ Tab selection: `[inactive] --setActiveDocument--> [active]`.
 |-----------|-------------|
 | documents never empty | after every closeDocument, list size ≥ 1 |
 | only DocMgr constructs | reflection check on CircuitDocument constructor |
-| inactive tabs paused | inactive doc's SimulationLoop.isRunning() == false |
+| inactive tabs paused | inactive doc's `simulationLoop.isScheduled()` == false |
+| busy doc not free-run | a tick of a document with `isAgentBusy()` advances no time |
+| tab activation keeps step | after `setActiveDocument`, `simulator.maxTimeStep` equals the value saved with the document |
 | 1 s debounce | multiple rapid edits produce one saveSession |
 
 ### 05_03. Integration Scenarios  {#SP_DOC_05_03}
@@ -212,8 +279,9 @@ Tab selection: `[inactive] --setActiveDocument--> [active]`.
 | Case | Expected |
 |------|----------|
 | Unknown tint | createCe returns null; caller warns |
-| Corrupt localStorage JSON | silent fallback to single blank doc |
-| Close inactive tab | active doc unchanged; tab bar repaints |
+| Corrupt localStorage JSON | console line "Failed to restore session…"; `restoreSession` returns false and start-up loads its default circuit |
+| Close inactive tab | visible tab never switches (dump via `DocumentScope`); tab bar repaints |
+| discardDocument(active) | no-op |
 | restoreLastClosedTab when history empty | no-op |
 
 ## Changelog
@@ -222,3 +290,4 @@ Tab selection: `[inactive] --setActiveDocument--> [active]`.
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
 | 2026-09-30 | `unsavedChanges`/`savedFlag` merged into `CircuitInfo.modified`; undo depth cap 150; closed-tab history cap 20. |
+| 2026-10-02 | PL_AGA Phase 10 propagate: §01_01 new fields (document number, display title, agent state, voltage range, hint), corrected toggle defaults, busy invariant; §02_01 ctor time-step defaults; §02_02 restoreUIState via `syncTimeStepBar`/`applyViewState` + `enableUndoRedo`; §02_03 `cancelAgentRun` + `DocumentScope` dump replaces the temporary switch; §02_04 `displayTitle`; §02_05 report overload; new §02_07 `discardDocument`, §02_08 `DocumentScope`; §04 busy and stop-trigger transitions; §05 checks. |

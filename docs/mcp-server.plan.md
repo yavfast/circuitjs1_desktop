@@ -1,7 +1,7 @@
 # Implementation Plan: In-app MCP Server  {#PL_MCP}
 
 > **Code:** PL_MCP
-> **Status:** draft
+> **Status:** completed
 > **Created:** 2026-10-01
 > **Updated:** 2026-10-02
 >
@@ -55,7 +55,7 @@ When this plan is complete:
 - [x] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
 - [x] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
 - [x] [Phase 4 — End-to-end harness](#PL_MCP_P4)
-- [ ] [Phase 5 — Documentation propagation](#PL_MCP_P5)
+- [x] [Phase 5 — Documentation propagation](#PL_MCP_P5)
 
 ## Phases
 
@@ -275,7 +275,7 @@ What to create:
 - **Σ maxPoints = 2000 worst case.** With 16 probes the decimation of SP_AGA_03_07 emits at most 2 × ⌊maxPoints/2⌋ points per probe, so 2000 points cannot all be emitted: 16 × 125 gives at most 16 × 124 = 1984, and an even split (124/126, 124/128) has different bucket counts that never fill together. The `tools` run reaches that maximum (fixed 5 µs step, 3920 samples: every probe 124 points) and asserts 1984 points and a text part of 41 798 chars ≤ 60 000. The SP_MCP_05_02 row reads "Σ `maxPoints` = 2000", which this satisfies as the request; the emitted maximum is 1984.
 - **Harness facts.** The R1 sequence needs the `checkpoint` after `importCircuit` (as `agent_bg`): without it the import and the edit share one agent transaction and `undo` empties the document. Claude Code may spend one turn on a deferred-tool search before calling an MCP tool (`--max-turns 6`); the call row checks the tool result it received, and the answer only on a `success` result. Earlier scratch runs had left 34 stale `/tmp/.X<n>-lock` files from SIGKILLed `xvfb-run` sessions; the harness's own Xvfb avoids that.
 
-### Phase 5 — Documentation propagation [TODO]  {#PL_MCP_P5}
+### Phase 5 — Documentation propagation [DONE]  {#PL_MCP_P5}
 
 **Depends on:** Phase 4
 **Implements:** [SP_MCP_06_01](./mcp-server.sp.md#SP_MCP_06_01) (rollback switch documented)
@@ -285,6 +285,8 @@ What to update:
 - `README.md` and [docs/project.md](./project.md): an "MCP server" section with the connect command.
 - C_USR spec: the new preference keys.
 - Skill automation/agent-mcp-surface: the prototype findings.
+
+**Result (2026-10-02).** Documentation only, no code change. `README.md` and [project.md](./project.md) have an "MCP server (AI agents)" section: what the server is, the connect command `claude mcp add --transport http circuitjs <URL>`, where the URL is shown (Options → "MCP Server..."), ports 7311..7330, instance records in `~/.circuitjs1/instances/`, the security implication of the always-on, token-less LAN endpoint ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) with the Origin rule, and the rollback switch (Enabled off → Save → restart; `127.0.0.1` for local-only). [SP_USR](./user-preferences.sp.md) lists the four keys with defaults, validation, fallback and the missing URL layer; C_USR qualifies its "no central registry"/"URL wins" statements. SP_MCP brought in line with the code (start-up order with the script check first and the exact reasons, loopback URLs, HTTP 500/503/200 shutdown and backstop statuses, receive/agent/backstop timeouts, 202 for client responses, dropped `notifications/cancelled`, preference constraints, exact size hints) and §06_01 states how to reach the minimum safe state. Skill automation/agent-mcp-surface already held the prototype findings; added the negotiated revision, bundle size and start-up time, and the user-doc pointer. Verify: the minimum safe state ("`mcpServerEnabled = false` + restart → no listener, no instance record") is covered by `tests/mcp/e2e.mjs` scenario `settings`, row `disable` (checks `savedStorage`, `recordRemovedOnQuit`, `statusDisabled`, `noRecord`, `noPortBound`, `menuOff`, `dialogDisabled`), which passed in the Phase 4 run (default group 55 PASS, 2026-10-02); not re-run here. Propagate drift check (C_MCP/SP_MCP, C_USR): no remaining drift.
 
 ## Backlog
 
@@ -316,6 +318,7 @@ What to update:
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | Phase 5 done (documentation propagation, Result block); plan completed |
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A, script-tag loading, no Node crypto); Shutdown row corrected to `unload`; backlog: devmode manifest quoting |
 | 2026-10-02 | Phase 1 done (Result block); devmode manifest quoting fixed and removed from the backlog |
 | 2026-10-02 | Phase 2 done (Result block); agent client and backstop timeouts reconciled (180 s / 200 s) |

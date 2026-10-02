@@ -3,7 +3,7 @@
 > **Code:** C_USR
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-02
 > **Author:** onboard-doc-gen
 >
 > **Depends on:** [C_UTL](./util-locale-log.concept.md), C_PLT (platform/localStorage), [C_RND](./rendering-primitives.concept.md)
@@ -24,10 +24,10 @@ Every persisted user preference flows through `OptionsManager`, giving a single 
 
 ### 1.2. Design Constraints  {#C_USR_01_02}
 
-- **No central key registry.** Every key is a string literal scattered across 10+ files (known smell).
+- **No central key registry.** Every key is a string literal scattered across 10+ files (known smell). Exception: `McpServerStatus` owns and validates the four MCP server keys ([SP_USR_01_01](./user-preferences.sp.md#SP_USR_01_01)).
 - **String-valued storage.** Typed setters coerce via `String.valueOf`; readers tolerate missing keys by returning a provided default.
 - **Printable-mode is a view override, not a mutation.** `ColorSettings` getters branch on `printable` to return hard-coded B/W substitutes; setters always write the normal-mode field.
-- **Tri-layer merge.** URL wins when present, else `localStorage`, else hard-coded default.
+- **Tri-layer merge.** URL wins when present, else `localStorage`, else hard-coded default. The MCP server keys have no URL layer: storage, else default (see [SP_USR](./user-preferences.sp.md#SP_USR_01_01)).
 - **Inconsistent boolean encoding.** `OptionsManager` writes `"true"`/`"false"`; `Dialog` writes `"1"`/`"0"` for `collapsed`; `QueryParameters` accepts both.
 
 ## 2. Domain Model  {#C_USR_02}
@@ -125,3 +125,4 @@ Key consumers: `CirSim` (boot sequencer), `CircuitInfo` (URL overrides), `MenuMa
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-02 | PL_MCP Phase 5 propagate: `McpServerStatus` owns and validates the four MCP server keys, which have no URL layer. |

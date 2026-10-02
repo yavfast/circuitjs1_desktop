@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 14:30
+> **Last updated:** 2026-10-02 15:10
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA Phases 0–9 and PL_MCP Phases 0–4 committed; docs phases (PL_AGA P10, PL_MCP P5) next; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA and PL_MCP plans completed and committed; PL_MCB next; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -109,7 +109,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_MCP Phase 2 — 14 tools, schemas, validation, shaping, resources, agent-format text, `test:mcp-unit` (25); review FAIL (must: unbounded echo in resource errors) → fixed + settle unit strings, polarity text removed, cross-checks dropped; delta PASS; main bounded `type` echo and the closest-name edit distance in Java (1 MB type: 455 ms, 118-char message). Claude Code lists 14 tools and calls one; NW.js scratch driver `mcp2/nw_mcp2.mjs` (41 checks) → tests/mcp/ in Phase 4
 - [x] PL_MCP Phase 3 — Options → "MCP Server..." (+ "(off)") and McpServerDialog via DialogManager (status, ID, URLs, command + Copy, live counter, Enabled/port/address Save for next start), uk strings; review PASS 1 should (Enter saved from any focus) + 3 prefer → fixed; spec/concept aligned by main. mcp_dialog 39 checks; NW.js scratch `mcp3/nw_mcp3.mjs` 42 checks; devmode EN/UK check owed. Harness: R1 slice-bound checks got a 2 ms `SLICE_JITTER_MS` tolerance for GC/timer jitter (recurring 20.8 ms flake) and list over-bound slices by op
 - [x] PL_MCP Phase 4 — `tests/mcp/e2e.mjs` (`npm run test:mcp`: default 55 rows PASS, `slow` 2, `clients` 3 incl. Claude Code + Inspector; manual rows unobserved) consolidating the scratch drivers; closes PL_AGA Phase 9 (file rows + R1/R2 openFile step pass in NW.js); RULE_TEST_007 (should) added; review PASS 4 should + 4 prefer → fixed (teardown on setup failure, Node ≥ 22 guard, unhandled-rejection handling, child process groups, cwd)
-- [ ] **Next:** PL_AGA Phase 10 + PL_MCP Phase 5 — documentation propagation; then PL_MCB (bridge/CLI) → PL_AGS (agent skill)
+- [x] PL_AGA Phase 10 + PL_MCP Phase 5 — documentation propagation (JS_API CircuitJS1Agent + Element IDs + example drift, EXPORT_CJS, README/project MCP section with the plain no-token LAN security note, C_DOC/C_APC/C_UND/C_IOF/C_USR/SP_MCP updated, skills); review FAIL (2 must: stale lines false against code) → fixed by main. PL_AGA and PL_MCP plans `completed`. Open: C_SIM/SP_SIM lack §06_01 items 11–12 (message keys, per-document solver events)
+- [ ] **Next:** PL_MCB — stdio bridge + CLI (docs/mcp-bridge.plan.md), then PL_AGS — agent skill (docs/agent-skill.plan.md)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

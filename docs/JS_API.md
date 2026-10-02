@@ -1,6 +1,6 @@
 # CircuitJS1 JavaScript API
 
-This document describes the JavaScript API available for programmatic control of CircuitJS1 from web browsers or automation tools.
+This document describes the JavaScript API available for programmatic control of CircuitJS1 from web browsers or automation tools: the scripting global `CircuitJS1` and the Agent API global [`CircuitJS1Agent`](#circuitjs1agent-agent-api).
 
 ## Running the Application
 
@@ -58,6 +58,8 @@ npm run buildgwt
 ## Using with Chrome DevTools MCP
 
 The JavaScript API can be controlled programmatically using [Chrome DevTools MCP](https://github.com/anthropics/anthropic-cookbook/tree/main/misc/chrome_devtools_mcp) (Model Context Protocol). This enables AI assistants like Claude to directly interact with CircuitJS1.
+
+The desktop app also runs its own MCP server, which gives agents typed `circuit_*` tools over the Agent API without a browser in between — see the "MCP server" section of the [README](../README.md). The Chrome DevTools route below remains useful for development and debugging.
 
 Important: MCP can only control pages that are open inside the **Chrome instance connected to the MCP server** (agent-controlled Chrome). Opening CircuitJS1 in a different browser window, an embedded preview, or a separate Chrome profile that is not connected to MCP will not be controllable via MCP.
 
@@ -118,26 +120,22 @@ mcp_chrome-devtoo_take_snapshot()
     "elements": {
       "R1": {
         "type": "Resistor",
-        "p1": {"x": 208, "y": 112},
-        "p2": {"x": 208, "y": 272},
+        "pins": {"pin1": {"position": {"x": 208, "y": 112}}, "pin2": {"position": {"x": 208, "y": 272}}},
         "properties": {"resistance": "10 kΩ"}
       },
       "C1": {
         "type": "Capacitor",
-        "p1": {"x": 208, "y": 272},
-        "p2": {"x": 352, "y": 272},
+        "pins": {"pin1": {"position": {"x": 208, "y": 272}}, "pin2": {"position": {"x": 352, "y": 272}}},
         "properties": {"capacitance": "10 uF"}
       },
       "V1": {
-        "type": "VoltageSource",
-        "p1": {"x": 352, "y": 272},
-        "p2": {"x": 352, "y": 112},
-        "properties": {"waveform": "square", "frequency": "40 Hz", "voltage": "5 V"}
+        "type": "VoltageSourceSquare",
+        "pins": {"positive": {"position": {"x": 352, "y": 272}}, "negative": {"position": {"x": 352, "y": 112}}},
+        "properties": {"frequency": "40 Hz", "max_voltage": "5 V"}
       },
       "W1": {
         "type": "Wire",
-        "p1": {"x": 352, "y": 112},
-        "p2": {"x": 208, "y": 112}
+        "pins": {"a": {"position": {"x": 352, "y": 112}}, "b": {"position": {"x": 208, "y": 112}}}
       }
     }
   };
@@ -169,7 +167,7 @@ mcp_chrome-devtoo_take_snapshot()
 
 ## Global Object
 
-All API methods are available through the global `CircuitJS1` object that is created when the application loads.
+All API methods are available through the global `CircuitJS1` object that is created when the application loads. A second, separate global `CircuitJS1Agent` carries the Agent API — the typed, document-aware interface used by AI agents and the in-app MCP server (see [CircuitJS1Agent](#circuitjs1agent-agent-api)).
 
 ```javascript
 // Check if API is available
@@ -195,12 +193,12 @@ CircuitJS1.onupdate = function(api) {
     console.log("Time:", api.getTime());
 };
 
-// Called after circuit analysis
+// Called after circuit analysis (visible document only)
 CircuitJS1.onanalyze = function(api) {
     console.log("Circuit analyzed");
 };
 
-// Called on each time step
+// Called on each time step (visible document only)
 CircuitJS1.ontimestep = function(api) {
     // Called every simulation step
 };
@@ -210,6 +208,8 @@ CircuitJS1.onsvgrendered = function(api, svgData) {
     console.log("SVG rendered", svgData.length, "bytes");
 };
 ```
+
+Each hook is a single slot: assigning it replaces the previous handler. `onanalyze` and `ontimestep` fire only for the visible tab's document; they are not called while an agent operation works on a background document (for example a background `run`).
 
 ## Simulation Control
 
@@ -247,7 +247,7 @@ console.log("Time step:", dt, "seconds");
 ```
 
 ### setTimeStep(ts: number): void
-Set simulation time step.
+Set the current simulation time step. The value does not stick: the next circuit analysis sets the time step back to the maximum time step. To change the step of a circuit, use `setMaxTimeStep`.
 
 ```javascript
 CircuitJS1.setTimeStep(1e-6); // 1 microsecond
@@ -257,7 +257,7 @@ CircuitJS1.setTimeStep(1e-6); // 1 microsecond
 Get maximum allowed time step.
 
 ### setMaxTimeStep(ts: number): void
-Set maximum time step.
+Set the maximum time step (and the current time step to the same value).
 
 ### resetSimulation(): void
 Reset simulation time to 0 and reset all elements to initial state.
@@ -376,6 +376,18 @@ console.log("Element IDs:", ids);
 // ["R1", "R2", "C1", "V1", "GND1", ...]
 ```
 
+### Element IDs
+
+Element IDs come from one per-document registry. The same IDs are returned by `getElementIds()`, accepted by `getElementById()` and the other ID-based methods, used as the element keys of the JSON export, and used as element IDs by the Agent API.
+
+- **Form.** `^[A-Za-z][A-Za-z0-9_]{0,31}$`, unique within the document.
+- **Generated IDs.** `<prefix><n>`, numbered per prefix (`R1`, `R2`, `C1`, `W1` …); `n` is the prefix's counter plus one, skipping IDs already present. The prefix is letters only: the element's own prefix where it defines one (`R`, `C`, `L`, `W`, `GND`, `V`, `I`, `D`, `LED`, `Z`, `U`, `M`, `K`, `T`, `SW`), otherwise the first three letters of its JSON type name, upper-cased, with digits dropped (`TransistorNPN` → `TRA1`, `CC2` → `CC1`, `Timer555` → `TIM1`).
+- **Counters.** Within one circuit content they never decrease: a deleted element's number is not reissued, and every ID that enters the document (add, import, paste, undo/redo) raises its prefix's counter. Replacing the content (import, open, clear) resets the counters.
+- **Loading.** A JSON import keeps its element keys when they are valid and unique; an invalid or repeated key is replaced by a generated ID and an `ids_regenerated` warning is logged. The text format carries no IDs, so a text load numbers the elements in file order (the same file always gives the same IDs). Pasted and duplicated elements receive generated IDs.
+- **Undo/redo** restores each element's ID.
+
+Before this registry the JSON exporter numbered its keys with one global counter (`R1`, `C2`, `W3`); see [agent-api.sp.md §03_02](./agent-api.sp.md#SP_AGA_03_02) and [§06_01](./agent-api.sp.md#SP_AGA_06_01).
+
 ### getElementInfo(id: string): ElementInfo | null
 Get comprehensive information about an element by ID.
 
@@ -411,7 +423,7 @@ console.log(capProps);
 ```
 
 ### setElementProperty(id: string, property: string, value: number): boolean
-Set a property value for an element. Returns true if successful.
+Set a numeric property value for an element. Returns true if successful. Only a few element types implement it — resistor (`resistance`), capacitor (`capacitance`), transformer and tapped transformer; every other type returns false. The universal way to change element parameters is the Agent API (`applyEdits` with a `set` edit, see [CircuitJS1Agent](#circuitjs1agent-agent-api)).
 
 ```javascript
 // Change resistance of R1 to 2000 ohms
@@ -423,9 +435,7 @@ CircuitJS1.setElementProperty("C1", "capacitance", 100e-6);
 ```
 
 ### updateElementProperties(id: string, properties: object): boolean
-Update multiple properties of an element at once. This method allows updating element
-properties without creating a new object, preserving the simulation state (voltages, currents).
-Returns true if successful.
+Apply a JSON `properties` object to an element without recreating it. Returns true when the element was found. It is not a patch: the element reads its whole JSON property set from the object, so every key you omit goes back to its default value (for example, `{initial_voltage: 5}` on a 47 µF capacitor also resets its capacitance to 10 µF). Pass the complete property set from `getElementProperties`, modified. Element geometry is not recomputed, and no undo entry is pushed.
 
 ```javascript
 // Update multiple properties at once
@@ -437,11 +447,11 @@ console.log("Properties updated:", success);
 // Example: Export-Modify-Update workflow (without recreating element)
 const props = CircuitJS1.getElementProperties("C1");
 console.log("Current props:", props);
-// Modify and update
-CircuitJS1.updateElementProperties("C1", {
+// Modify and update: pass the full set, omitted keys reset to their defaults
+CircuitJS1.updateElementProperties("C1", Object.assign({}, props, {
     capacitance: 47e-6,
     initial_voltage: 5
-});
+}));
 ```
 
 **Use case: Export-Modify-Import without creating new object**
@@ -452,13 +462,13 @@ const id = "R1";
 const currentProps = CircuitJS1.getElementProperties(id);
 console.log("Before:", currentProps);
 
-// 2. Modify properties (e.g., received from external editor)
-const modifiedProps = { resistance: 10000 };
+// 2. Modify properties (e.g., received from external editor); keep the other keys
+const modifiedProps = Object.assign({}, currentProps, { resistance: 10000 });
 
 // 3. Apply changes without recreating element
 CircuitJS1.updateElementProperties(id, modifiedProps);
 
-// 4. Verify - simulation state is preserved
+// 4. Verify
 const newProps = CircuitJS1.getElementProperties(id);
 console.log("After:", newProps);
 ```
@@ -480,13 +490,13 @@ CircuitJS1.deleteElementById(id);
 
 // 3. Create new element with same ID but different position
 const circuit = {
-    "version": "2.0",
+    "schema": {"format": "circuitjs", "version": "2.0"},  // required, otherwise the import is rejected
     "elements": {
         "R1": {  // Same ID preserved
             "type": "Resistor",
             "pins": {
-                "A": {"x": 300, "y": 200},  // New position
-                "B": {"x": 400, "y": 200}
+                "pin1": {"position": {"x": 304, "y": 208}},  // New position
+                "pin2": {"position": {"x": 400, "y": 208}}
             },
             "properties": {
                 "resistance": 1000  // Use value from props if needed
@@ -602,15 +612,13 @@ const circuit = {
   "elements": {
     "R1": {
       "type": "Resistor",
-      "p1": {"x": 208, "y": 176},
-      "p2": {"x": 384, "y": 176},
+      "pins": {"pin1": {"position": {"x": 208, "y": 176}}, "pin2": {"position": {"x": 384, "y": 176}}},
       "properties": {"resistance": "1 kΩ"}
     },
     "V1": {
-      "type": "VoltageSource", 
-      "p1": {"x": 208, "y": 288},
-      "p2": {"x": 208, "y": 176},
-      "properties": {"waveform": "square", "frequency": "40 Hz", "voltage": "5 V"}
+      "type": "VoltageSourceSquare",
+      "pins": {"positive": {"position": {"x": 208, "y": 288}}, "negative": {"position": {"x": 208, "y": 176}}},
+      "properties": {"frequency": "40 Hz", "max_voltage": "5 V"}
     }
   }
 };
@@ -630,12 +638,15 @@ CircuitJS1.clearCircuit();
 console.log(CircuitJS1.getElementCount()); // 0
 ```
 
-### getCircuitAsSVG(): string
-Export circuit as SVG image.
+### getCircuitAsSVG(): void
+Render the circuit as an SVG image. The call returns `undefined`; the SVG text arrives through the `onsvgrendered` hook. On the first call of a session the vector exporter script (`canvas2svg.js`) is loaded first and the hook fires after it has loaded. The Agent API `render` contract returns the image as its own result instead.
 
 ```javascript
-const svg = CircuitJS1.getCircuitAsSVG();
-// Use SVG data for documentation or display
+CircuitJS1.onsvgrendered = function(api, svg) {
+    // Use SVG data for documentation or display
+    console.log("SVG:", svg.length, "chars");
+};
+CircuitJS1.getCircuitAsSVG();
 ```
 
 ## Scope (Oscilloscope) Access
@@ -758,6 +769,88 @@ Enable or disable save functionality.
 ```javascript
 CircuitJS1.allowSave(true);
 ```
+
+## CircuitJS1Agent (Agent API)
+
+`window.CircuitJS1Agent` is the Agent API: a transport-free interface through which agents build, edit, inspect, run, measure, debug and checkpoint circuits in **any open document**, not only the visible one. It is installed at start-up together with `CircuitJS1`, in the desktop and the browser build. The in-app MCP server maps its tools onto it (see [mcp-server.sp.md](./mcp-server.sp.md) and the "MCP server" section of the [README](../README.md)). The full contract is [agent-api.sp.md](./agent-api.sp.md) (SP_AGA); this section is an overview.
+
+### Entry points
+
+| Method | Description |
+|---|---|
+| `call(op, argsJson): string` | Runs a synchronous contract and returns its result as a JSON string. `argsJson` is a JSON object string (an object is also accepted). Calling `run` or `render` here returns `invalid_value`: they complete asynchronously |
+| `callAsync(op, argsJson, callback): void` | Runs any contract; `callback(resultJson)` is called exactly once. A synchronous contract or a rejection calls back before `callAsync` returns; an accepted `run` or `render` calls back when it ends |
+| `reportError(message): void` | Passes an unexpected exception of a JS caller (the MCP server) to the application's global uncaught-exception handler, where it is shown and logged like an application error |
+
+Every result is an OperationResult:
+
+```javascript
+{
+  ok: true,              // false: rejected, nothing was changed
+  data: { ... },         // contract output
+  issues: [              // rejection reasons (ok = false) or warnings/info; at most 50, errors first
+    { code: "dangling_post", severity: "error", message: "...", elements: ["R1"], posts: ["R1.pin2"], hint: "...", key: "..." }
+  ],
+  truncatedIssues: 0,
+  connectivity: { ... }, // mutating contracts: connectivity delta (issues added/cleared)
+  transaction: { open: true, pendingEdits: 1 }  // mutating contracts: the agent transaction
+}
+```
+
+Common rules: `doc` (a document handle `d1`, `d2` …) selects the document, and its absence means the active one; an unknown handle is `unknown_document`. Before start-up has completed every contract returns `not_ready`, and an unknown `op` is `invalid_value` with the operation list in its hint. Domain failures are results, never exceptions.
+
+### Contracts
+
+| Contract | Purpose |
+|---|---|
+| `listTypes`, `describeType` | Element catalogue: type names, aliases, pins, default size, property keys with kinds, units and defaults ([§02_01](./agent-api.sp.md#SP_AGA_02_01)) |
+| `listDocuments`, `createDocument`, `activateDocument`, `closeDocument` | Open documents by handle; only `activateDocument`, `activate: true` and closing the active document change the visible tab ([§02_02](./agent-api.sp.md#SP_AGA_02_02)) |
+| `importCircuit` | Replace a document's circuit with an agent circuit (grid-cell coordinates), a JSON v2 text or a legacy text, atomically ([§02_03](./agent-api.sp.md#SP_AGA_02_03)) |
+| `applyEdits` | Ordered, atomic batch of `add`, `move`, `delete`, `set` (a property patch), `describe`, `addScope`, `removeScope` and `markOpen` edits ([§02_04](./agent-api.sp.md#SP_AGA_02_04)) |
+| `getCircuit` | The circuit in agent form: element records with posts in cells, paged ([§02_05](./agent-api.sp.md#SP_AGA_02_05)) |
+| `getConnectivity` | Nets and connectivity issues (dangling posts, posts on wire bodies, no ground, isolated groups, source/wire loops …) ([§02_06](./agent-api.sp.md#SP_AGA_02_06)) |
+| `read` | Instant net, post and element readings at the current simulated time ([§02_07](./agent-api.sp.md#SP_AGA_02_07)) |
+| `render` (async) | SVG or PNG image of the whole circuit of one document, as the result ([§02_08](./agent-api.sp.md#SP_AGA_02_08)) |
+| `simControl` | Free-running run/stop/reset and time-step settings (`configure`) ([§02_09](./agent-api.sp.md#SP_AGA_02_09)) |
+| `run` (async) | Advance simulated time by a span or until settled, under a wall-clock budget, with probe statistics and decimated series ([§02_10](./agent-api.sp.md#SP_AGA_02_10)) |
+| `getDiagnostics` | Solver state and events, last import issues and the session log ([§02_11](./agent-api.sp.md#SP_AGA_02_11)) |
+| `checkpoint` | Seal the open agent transaction as one commented undo entry ([§02_12](./agent-api.sp.md#SP_AGA_02_12)) |
+| `getHistory`, `undo`, `redo`, `restoreCheckpoint` | Undo history with checkpoint comments, multi-step undo/redo, return to a checkpoint ([§02_13](./agent-api.sp.md#SP_AGA_02_13)) |
+| `openFile`, `saveFile`, `exportCircuit` | Path-based open/save of `.txt`/`.json` circuit files (desktop runtime only, otherwise `file_unavailable`) and export as text or JSON ([§02_14](./agent-api.sp.md#SP_AGA_02_14)) |
+
+Agent coordinates are grid cells (1 cell = 16 editor pixels, half-cell lattice); pins are named `<ElementId>.<PinName>` (for example `R1.pin1`, `V1.positive`). Issue codes and their severities are listed in [§03_05](./agent-api.sp.md#SP_AGA_03_05) and [§03_06](./agent-api.sp.md#SP_AGA_03_06).
+
+### Example
+
+```javascript
+const A = window.CircuitJS1Agent;
+const call = (op, args) => JSON.parse(A.call(op, JSON.stringify(args || {})));
+const callAsync = (op, args) => new Promise(resolve =>
+    A.callAsync(op, JSON.stringify(args || {}), r => resolve(JSON.parse(r))));
+
+// RC charging circuit in grid cells
+const imp = call("importCircuit", { circuit: { elements: [
+    { type: "VoltageSourceDC", start: {x: 0, y: 4}, end: {x: 0, y: 0}, properties: {max_voltage: "5 V"} },
+    { id: "R1", type: "Resistor", start: {x: 0, y: 0}, end: {x: 6, y: 0}, properties: {resistance: "1k"} },
+    { id: "C1", type: "Capacitor", start: {x: 6, y: 0}, end: {x: 6, y: 4}, properties: {capacitance: "1 uF"} },
+    { type: "Wire", start: {x: 6, y: 4}, end: {x: 0, y: 4} },
+    { type: "Ground", start: {x: 0, y: 4}, end: {x: 0, y: 5} }
+]}});
+console.log(imp.data.ids);                  // ["V1", "R1", "C1", "W1", "GND1"]
+console.log(call("getConnectivity").data.issues);  // []
+
+// Run 5 ms from t = 0 and probe the capacitor voltage
+const run = await callAsync("run", { span: "5 ms", reset: true, maxPoints: 20,
+                                     probes: [{ name: "vc", element: "C1" }] });
+console.log(run.data.probes[0].stats.final);  // ≈ 4.97 V
+
+// Seal the edits as one named undo entry
+call("checkpoint", { comment: "RC charging circuit" });
+```
+
+### Diagnostics (not part of the contract)
+
+`CircuitJS1Agent` also carries `debug*` functions used by the test harnesses (`tests/live/harness.mjs`, `tests/mcp/e2e.mjs`): `debugViewState`, `debugDocState`, `debugSessionState`, `debugClosedTabs`, `debugCanvasPixels`, `debugCircuitTest`, `debugMcpStatus`, `debugSetSliceProbe`, `debugSetIdleSealMs`, `debugAgentOriginPush` and the fault injectors `debugFailNextMutation`, `debugFailNextUndoLoad`, `debugFailNextRunSlice`, `debugFailNextSvgLoad`. They are not part of the Agent API contract, may change or disappear without notice, and must not be used by scripts or agents.
 
 ## Complete Example
 
@@ -882,7 +975,10 @@ CircuitJS1.getLastLogs(10)
 
 ## Notes
 
-- All API methods are synchronous
+- All `CircuitJS1` methods are synchronous; `getCircuitAsSVG` delivers its result through the `onsvgrendered` hook
+- Every `CircuitJS1` method acts on the active (visible) document only; the Agent API addresses any open document by handle
+- `setSimRunning`, `resetSimulation` and `stepSimulation` first end an agent `run` of the active document ([SP_AGA_04_02](./agent-api.sp.md#SP_AGA_04_02))
+- Element edits through `CircuitJS1` (property setters, deletes) do not push an undo entry
 - The `importFromJson()` clears the existing circuit before importing
 - Scope data arrays are circular buffers with `ptr` indicating current position
 - Time values are in seconds

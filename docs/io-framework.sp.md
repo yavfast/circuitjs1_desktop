@@ -3,7 +3,7 @@
 > **Code:** SP_IOF
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_IOF](./io-framework.concept.md)
 > **Depends on specs:** [SP_ELB](./element-base.sp.md), [SP_UTL](./util-locale-log.sp.md), [SP_MDS](./math-dsp.sp.md)
@@ -71,7 +71,7 @@ Root object shape (written by `JsonCircuitExporter`, accepted by `JsonCircuitImp
 |-----|----------|-------------|
 | schema | yes | `{ format: "circuitjs", version: "2.0" }` — gate checked by `validateSchema` |
 | simulation | yes | time steps (SI strings), display booleans, voltage range string, `current_speed`, `power_brightness`, `auto_time_step` (always written since 2026-10-02; the importer keeps the target document's setting when an older file lacks it) |
-| elements | yes | `{ "<generated-id>": ElementEntry, ... }` |
+| elements | yes | `{ "<element-id>": ElementEntry, ... }` — key = the element's registry ID `CircuitElm.getElementId()` ([SP_AGA_03_02](./agent-api.sp.md#SP_AGA_03_02)) |
 | nodes | optional | `{ "N1": { connections: ["<id>.<pin>", ...] }, ... }` for `(x,y)` where >=3 pins coincide |
 | scopes | optional | list of `{ display-flags, plot_mode, trigger?, history?, scales, manual_scale?, plots[] }` |
 | adjustables | optional | list of `{ element, edit_item, label, min_value, max_value, current_value, shared_slider? }` |
@@ -88,21 +88,25 @@ Element entry (`ElementEntry`):
 | _flags | optional | integer bitmask passed to `applyJsonFlags` |
 | state | optional | runtime state snapshot (includeState only) |
 
-ID generation prefix table (exporter):
+Element keys: the exporter writes each element's registry ID (`<prefix><n>`, counted per prefix within the document, e.g. `R1, R2, C1, W1`); it does not generate IDs itself. A repeated ID (a defect) is written as `<id>_2`, `<id>_3`, … with a `[WARN] JSON export: repeated element ID` console line, so no element is dropped. Prefixes come from `CircuitElm.getIdPrefix()`:
+
 | Element class | Prefix |
 |---------------|--------|
-| Resistor | R |
-| Capacitor | C |
-| Inductor | L |
-| Transistor* | Q |
-| Diode | D |
-| LED | LED |
-| Wire | W |
-| Ground | GND |
-| VoltageSource / DCVoltage | V |
-| CurrentSource | I |
-| OpAmp | U |
-| other | first 3 chars of type name |
+| ResistorElm | R |
+| CapacitorElm | C |
+| InductorElm | L |
+| DiodeElm / ZenerElm | D / Z |
+| LEDElm | LED |
+| WireElm | W |
+| GroundElm | GND |
+| VoltageElm (and subclasses) | V |
+| CurrentElm | I |
+| OpAmpElm | U |
+| MosfetElm / JfetElm | M |
+| SwitchElm | SW |
+| RelayElm | K |
+| TransformerElm | T |
+| other (incl. transistors → `TRA`) | first three letters of the JSON type name, digits dropped, upper-cased (`E` if none) |
 
 ### 01_05. Text format line grammar  {#SP_IOF_01_05}
 
@@ -129,6 +133,8 @@ Line dispatch (`TextCircuitImporter.processCircuitLine`):
 | `38` | `AdjustableManager.addAdjustable` |
 | `.` | `CustomCompositeModel.undumpModel` |
 | other | `CircuitElmCreator.createCe` |
+
+`$` max step: a value that does not parse to a positive finite number (garbled, ≤ 0, NaN, infinite) falls back to 5 µs with a console line. The time-step bar is moved to the nearest position with `setValueWithoutCommand`, so the file's max step is kept exactly (no re-quantisation to the bar table, [SP_AGA_06_01](./agent-api.sp.md#SP_AGA_06_01) item 18). Lines are split on single line breaks (`\r\n|\n|\r`, blank lines skipped), so reported line numbers match the source text.
 
 ### 01_06. UnitParser grammar  {#SP_IOF_01_06}
 
@@ -161,6 +167,8 @@ Invariants:
 - Every registered element class exposes a `(CircuitDocument, int x, int y)` constructor. Waveform voltage sources use lambdas that call `VoltageElm.createWithWaveform(doc, x, y, WF_*)`.
 - Multiple aliases may map to the same constructor (historical rename compat).
 - Factory registry is code-driven (manual `register(...)` call in `init()`); adding an element requires editing `io/json/CircuitElementFactory.java`.
+- `XNORGate` is not registered (there is no XNOR element; mapping it to `XorGateElm` imported an XNOR as a plain XOR); such an entry is reported as an unknown type.
+- `createDefault(jsonType, doc, x, y)` creates a default element with its placement constructor (both endpoints at `(x, y)`, no JSON properties), as the editor does before dragging; it is not added to any list; null for an unknown type or a failing constructor.
 
 ## 02. Contracts  {#SP_IOF_02}
 
@@ -228,7 +236,7 @@ Errors:
 
 Processing logic (text): reset `clearDumpedFlags` on model registries; emit options line; for each element emit `dumpModel` (if any) then `dumpElm`; emit scopes; emit `AdjustableManager.dump`; emit hint if active.
 
-Processing logic (JSON): reset `elementCounter` and `elementIds`; assign ids via prefix table; build `pinsByLocation`; emit `schema`, `simulation`, `elements`, `nodes` (coincidence >=3), `scopes`, `adjustables`; optionally emit `state`; pretty-print via `formatJson` / `isSimpleBlock`.
+Processing logic (JSON): reset `elementIds` and `usedIds`; key each element by `elm.getElementId()`, suffixing a repeated ID `_2`, `_3`, … with a console warning; build `pinsByLocation`; emit `schema`, `simulation` (`auto_time_step` always written, `true` or `false`), `elements`, `nodes` (coincidence >=3), `scopes`, `adjustables`; optionally emit `state`; pretty-print via `formatJson` / `isSimpleBlock`. `exportSimulation(doc)` returns the `simulation` object alone.
 
 ### 02_04. importCircuit  {#SP_IOF_02_04}
 
@@ -240,31 +248,41 @@ Input:
 | data | String | yes | — |
 | doc | CircuitDocument | yes | non-null |
 | flags | int | no (default 0) | OR of RC_* |
+| report | ImportReport | no (null) | overload `importCircuit(data, doc, flags, report)`; null = do not collect |
 
-Output: void; errors and warnings are logged to `CirSim.console`.
+Output: void; errors and warnings are logged to `CirSim.console` and, when a report is passed, added to it as `{code, severity, message, line | key}` ([SP_AGA_03_04](./agent-api.sp.md#SP_AGA_03_04)). The interface default ignores the report; the text and JSON importers override it. User loads pass none.
 
 Errors:
-| Code | Condition | Guidance |
-|------|-----------|----------|
-| SCHEMA_REJECT (JSON) | `schema.format != "circuitjs"` or `version` not `"2.*"` | abort import; document untouched beyond any reset already performed |
-| JSON_PARSE_FAIL | `JSONParser.parseStrict` throws | abort import |
-| UNKNOWN_ELEMENT | factory returns null for `type` | log + skip element |
-| TEXT_LINE_FAIL | any exception inside `processCircuitLine` | log `"Exception while parsing: " + line`; continue |
-| SILENT_UNIT_FAIL | `UnitParser.parse` cannot resolve | returns `0.0` — caller must use default-aware `parseValue` to detect |
+| Code | Condition | Report code (severity) | Guidance |
+|------|-----------|------------------------|----------|
+| SCHEMA_REJECT (JSON) | empty data, root not an object, `schema.format != "circuitjs"` or `version` not `"2.*"` | `import_schema_invalid` (ERROR) | abort import; document untouched beyond any reset already performed |
+| JSON_PARSE_FAIL | `JSONParser.parseStrict` throws | `import_schema_invalid` (ERROR) | abort import |
+| UNKNOWN_ELEMENT | factory returns null for `type`; JSON entry not an object or without `type`; text line of unknown type | `import_element_skipped` (ERROR) | log + skip element |
+| ELEMENT_FAIL | an exception while loading one JSON element, or later in the JSON import | `import_element_skipped` (ERROR) | log + skip element / abort |
+| TEXT_LINE_FAIL | any exception inside `processCircuitLine` | `import_element_skipped` (ERROR, at the line) | log `"Exception while parsing: " + line`; continue |
+| WIRE_TARGET_MISSING (JSON) | `connected_to` names no element or no pin | `import_wire_skipped` (WARNING) | skip that auto-wire |
+| SCOPE_LIMIT | more scopes than `getMaxScopes()` | `scope_limit` (WARNING) | ignore the rest |
+| SETTING_INVALID (JSON) | `time_step`, `min_time_step` or `voltage_range` not positive | `import_setting_invalid` (WARNING) | keep the default |
+| GEOMETRY_ADJUSTED (JSON) | single-post element without `_endpoint` takes its end point from `bounds`; `p1`/`p2` override the pin geometry | `import_geometry_adjusted` (WARNING) | apply and continue |
+| IDS_REGENERATED | invalid or repeated element ID replaced, or undo-restore count mismatch (`settleElementIds`) | `ids_regenerated` (WARNING) | generated ID used |
+| SILENT_UNIT_FAIL | `UnitParser.parse` cannot resolve | — | returns `0.0` — caller must use default-aware `parseValue` to detect |
+
+A text import with a report also records one model-catalogue restorer before each `!`, `34`, `32`, `.` line; a caller that rejects the import (`report.hasErrors()`) runs `report.restoreModels()` (newest change first) so the session catalogues are as before ([SP_AGA_06_01](./agent-api.sp.md#SP_AGA_06_01) item 15).
 
 Processing logic (text):
     FUNCTION importCircuit(data, doc, flags):
-        IF NOT (flags & RC_RETAIN): resetCircuitState()
-        parseCircuitLines(data, flags)
-        finalizeCircuitLoading(flags)
+        IF NOT (flags & RC_RETAIN): resetCircuitState()     // ImportLifecycle, see SP_IOF_04_01
+        parseCircuitLines(data, flags)                      // split on single line breaks; line numbers for the report
+        finalizeCircuitLoading(flags, report)               // settleElementIds first
 
 Processing logic (JSON):
     FUNCTION importCircuit(data, doc, flags):
         root = JSONParser.parseStrict(data)
         IF NOT validateSchema(root): RETURN
-        IF NOT (flags & RC_RETAIN): resetCircuitState()     // lighter than text variant
-        parseSimulation(root.simulation)
-        parseElements(root.elements)                        // via CircuitElementFactory
+        IF NOT (flags & RC_RETAIN): resetCircuitState()     // shared ImportLifecycle reset
+        IF flags & RC_SUBCIRCUITS: RETURN                   // JSON carries no model definitions
+        IF NOT (flags & RC_RETAIN): parseSimulation(root.simulation)   // invalid values -> import_setting_invalid
+        parseElements(root.elements)                        // via CircuitElementFactory; keys become IDs only without RC_RETAIN
         createAutoWires(root.elements)                      // synthesise WireElm by connected_to
         parseScopes(root.scopes)
         parseAdjustables(root.adjustables)                  // current_value NOT applied (flagged)
@@ -336,6 +354,8 @@ Framework objects are stateless across calls; per-export/per-import objects carr
 State diagram (registry):
     [unloaded] --class-init()--> [formats={text, json}]     // no further transitions expected
 
+`resetCircuitState` (both formats, only without `RC_RETAIN`), in order: unless an undo/redo restore or agent origin is running, end the document's agent run and seal its open agent transaction ([SP_AGA_04_01](./agent-api.sp.md#SP_AGA_04_01)); clear errors and stop state; delete the elements; unless an undo/redo restore is running, reset the element ID counters (new content lifetime) and clear the open marks; reset adjustables, time steps, menu flags, bars, voltage range and scope count. `finalizeCircuitLoading` first calls `settleElementIds` (restored and supplied IDs raise their counters, invalid or repeated IDs are dropped, the rest are generated in element order; `ids_regenerated` warnings logged and reported), then sliders, `needAnalyze`, centring unless `RC_NO_CENTER`, models in subcircuit mode, cache clears.
+
 State diagram (JSON import session):
     [idle] --parseStrict()--> [parsed]
           --validateSchema()--> [schema-ok]
@@ -354,7 +374,7 @@ Transition rules:
 | schema-ok | empty-or-retained | `flags & RC_RETAIN` == 0 | delete elements, clear adjustables, reset scope count |
 | * | aborted | parse or schema fails | log to `CirSim.console`; doc may be partially reset |
 
-Text import session transitions mirror JSON except: no schema stage; `resetCircuitState` is the heavier variant (resets menu flags, voltage range to 5V, sliders to 50/50/117, viewport controls); finalisation recentres unless `RC_NO_CENTER`, clears `AudioInputElm`/`DataInputElm` caches, updates models in subcircuit mode.
+Text import session transitions mirror JSON except: no schema stage; both use the same `resetCircuitState` and `finalizeCircuitLoading` (above); the JSON importer defers centring until after its bounds pass.
 
 ## 05. Verification Criteria  {#SP_IOF_05}
 
@@ -412,3 +432,4 @@ Text import session transitions mirror JSON except: no schema stage; `resetCircu
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initial version derived from .dev_flow/onboard/analysis/io-framework.md |
+| 2026-10-02 | PL_AGA Phase 10 propagate: JSON element keys = registry IDs (per-prefix, duplicates suffixed) and `getIdPrefix` table; `auto_time_step` always written, `exportSimulation`; `importCircuit` report overload with report-code column; JSON keys as IDs only without `RC_RETAIN`; 5 µs max-step fallback, time-step bar without its command, single-line-break split; `XNORGate` unregistered, `createDefault`; shared `resetCircuitState` steps (seal, ID reset, open marks) and `settleElementIds` in finalize; model-catalogue restore. |

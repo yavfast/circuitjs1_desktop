@@ -1,7 +1,7 @@
 # Implementation Plan: Agent API  {#PL_AGA}
 
 > **Code:** PL_AGA
-> **Status:** draft
+> **Status:** completed
 > **Created:** 2026-10-01
 > **Updated:** 2026-10-02
 >
@@ -76,7 +76,7 @@ When this plan is complete:
 - [x] [Phase 7 — Runs, probes and simulation control](#PL_AGA_P7)
 - [x] [Phase 8 — Background-document completion and render](#PL_AGA_P8)
 - [x] [Phase 9 — Path-based files](#PL_AGA_P9)
-- [ ] [Phase 10 — Documentation propagation](#PL_AGA_P10)
+- [x] [Phase 10 — Documentation propagation](#PL_AGA_P10)
 
 ## Phases
 
@@ -357,7 +357,7 @@ Notes:
   - **Extra evidence, real NW.js (not the PL_MCP Phase 4 harness).** A scratch CDP script ran NW.js 0.64.1 SDK (Node 18.0.0) under `xvfb-run` against `target/site` with fixtures in a temp directory: 46 of 46 checks passed — `saveFile` json then `openFile` with identical element IDs; title/modified/path set, transaction sealed (`auto`); `notes.md`, relative path, foreign `a.txt` and prose `notes.txt` (files untouched, byte and mtime), a link to `.md`, a directory → `file_not_allowed`; empty and blank files and circuit files overwritten; a write through a symlink keeps the link; dangling link, missing parent directory and a read-only directory → `file_error` (EACCES reason); no staging file left; `no_path`; save without path to the document's path with format from the extension; `openFile` missing (also missing directory) → `file_not_found`; `.md`, link to `.md`, directory, > 10 MB, prose → `file_not_allowed`; a known code whose parse fails and an off-lattice JSON → rejected without quoting content or keys, no document, no closed-tab entry; BOM file opens; into a handle in the background (transaction open, connectivity, title, modified cleared, visible tab unchanged), a rejected open into the handle leaves it unchanged; `activate: true` switches the tab and window title; during a background run of the document `saveFile` is served, `openFile` into it is `busy` (with `transaction`) and into `"new"` is served (class table). The release flavor (0.64.1-mod1 normal) was not run; it shares Node 18.0.0, and `fs` needs no OpenSSL.
   - **Gaps resolved in code (to confirm in the spec).** openFile applies the circuit test before loading (non-circuit → `file_not_allowed`), so a file whose lines the importer would ignore (e.g. only hints/ignored lines) or an empty file is not opened as an empty circuit. Element lines must carry four coordinates and flags as whole numbers, otherwise prose whose lines start with an element letter passes the test. A blank (whitespace-only) existing file counts as empty for overwriting. Symbolic links: followed; the real file's name must also be `.txt`/`.json`; a dangling link is `file_not_found` (open) / `file_error` (save). Missing parent directories are not created (`file_not_found` on open, `file_error` on save). An existing file > 10 MB is not overwritten (`file_not_allowed`).
 
-### Phase 10 — Documentation propagation [TODO]  {#PL_AGA_P10}
+### Phase 10 — Documentation propagation [DONE]  {#PL_AGA_P10}
 
 **Depends on:** Phase 9 (closed)
 **Implements:** [SP_AGA_06_01](./agent-api.sp.md#SP_AGA_06_01) (documented behaviour changes)
@@ -372,6 +372,9 @@ What to update:
 - C_DOC, C_UND, C_IOF and C_APC concepts/specs: the changes listed in SP_AGA_06_01.
 - Skills `automation/js-api-surface` and `editor/undo-snapshot-model`.
 
+**Result (2026-10-02).** Documentation only, no code change. [JS_API.md](./JS_API.md): a `CircuitJS1Agent (Agent API)` section (entry points `call`/`callAsync`/`reportError`, the OperationResult shape, common rules, one line per contract with links into this spec, an example checked against the build, the `debug*` harness diagnostics marked as not contract), an "Element IDs" section (registry, letters-only prefixes, per-prefix counters, load and undo rules), and the spike drift fixed: JSON examples use registered types (`VoltageSourceSquare`), `schema` and `pins.<name>.position`; `getCircuitAsSVG` returns `undefined` and answers through `onsvgrendered`; `setTimeStep` does not stick; `setElementProperty` covers four types; `updateElementProperties` resets omitted keys; hooks fire for the visible document only; scripted run/reset/step end an agent run (all checked in headless Chromium against `target/site`). [EXPORT_CJS.md](./EXPORT_CJS.md) (Ukrainian): the conformance note states registry keys with per-prefix numbering, `auto_time_step` always written, `Wire` pins `a`/`b`, and a neutral note that polar pin naming is under review (pin names unchanged; developer decision open in task_E_AGT Coordination Notes). C_DOC/SP_DOC, C_APC/SP_APC, C_UND/SP_UND, C_IOF/SP_IOF updated for the §06_01 items that touch them (scoped silent bind, busy documents, per-document hint and IDs, time-step bar without command, hooks, import reporting and model restore, undo entry extension and agent transactions, menu labels); the "today" notes of §03_02/§03_04/§03_06/§03_08 restated as implemented. Skills `automation/js-api-surface` and `editor/undo-snapshot-model` updated. Propagate drift check (C_AGA/SP_AGA, C_DOC, C_UND, C_IOF, C_APC): no remaining drift in these docs. Outside them, C_SIM/SP_SIM do not yet describe the untranslated message keys and the per-document solver event list (§06_01 items 11 and 12) — left for a later propagate of C_SIM.
+  - The backlog item "Bounded echo of client values" named this phase as its trigger; it needs a code change, so this docs-only phase did not take it up (trigger re-pointed to an audit).
+
 ## Backlog
 
 - Split SP_AGA into an umbrella plus children (it is above the docs soft-split size) — return when: the next `/dev-flow audit docs` flags it, or SP_AGA grows further.
@@ -379,7 +382,7 @@ What to update:
 - ~~Tab-switch hint leak (found by Phase 0): the renderer hint is session state, so activating a tab shows the previous tab's hint items and logs `getElm: invalid index`.~~ **Done in Phase 1:** each document keeps its hint in its saved UI state (`CircuitDocument.saveUIState`/`restoreUIState`/`applyViewState`), used by both the user tab switch and `DocumentScope`.
 - ~~Transformer endpoints rewritten by text reload (affects user undo) — return when: Phase 6 undo work or a user report.~~ **Done in Phase 6:** every undo entry captures the element endpoints and `loadUndoItem` re-applies those the reload changed (user and agent undo; `agent_history` transformer checks).
 - Agent undo label survives a legacy JS-API import: an open agent transaction on the visible document, then `CircuitJS1.importCircuit`-style content replacement, leaves `Undo: agent edits (auto)` visible (seen by the fix-round harness; not investigated) — check §04_01 "content replacement by the user" seal + undo reset on that path — return when: PL_MCP Phase 2 starts or a user report.
-- Bounded echo of client values in Agent API issue messages (found in the PL_MCP Phase 2 review): issue texts quote argument values (property names, IDs, paths, enum values) unbounded; the MCP layer clips its own error messages but passes OperationResult issues through. `type` names are clipped and the closest-name edit distance is bounded since PL_MCP Phase 2 (`Catalogue.clipName`); apply the same to the other echoing sites — return when: PL_AGA Phase 10 (docs) or an audit.
+- Bounded echo of client values in Agent API issue messages (found in the PL_MCP Phase 2 review): issue texts quote argument values (property names, IDs, paths, enum values) unbounded; the MCP layer clips its own error messages but passes OperationResult issues through. `type` names are clipped and the closest-name edit distance is bounded since PL_MCP Phase 2 (`Catalogue.clipName`); apply the same to the other echoing sites — return when: the next `/dev-flow audit` or a code phase touching issue messages (PL_AGA Phase 10 was docs-only and did not take it up).
 - Per-element validity ranges as a declared contract (beyond element clamping) — return when: agents are seen setting physically meaningless values that elements accept.
 - **[DONE] Fix round (found 2026-10-02 by the circuit-language research spike, docs/circuit-script-language.spike.md Entry 2) — return when: after PL_MCP Phase 1 is committed (queued).**
   - **Result (2026-10-02).** (1) First sample: `CircuitSimulator.isSolved()` (a timestep completed since the last analysis and solver reset); `RunController` samples the start state only when solved, so `samples = steps` after an import/edit/reset and `steps + 1` when continuing; the `agent_run` checks `probeStats`/`runSettle` were updated to the spec. (2) Time-step bar: tab activation (`restoreUIState → ControlsDialog.syncTimeStepBar`, `updateTimeStepBar` removed), text and JSON import move the thumb with `Scrollbar.setValueWithoutCommand`; the user's bar still sets table steps. (3) `StopTriggerElm` → `CircuitDocument.stopTriggerFired(elm)` (clears the running flag as before, remembers the element); a run ends with `stop_trigger` + warning naming the element. (4) Determinism: documentation only. Checks `firstSampleSolved`, `runStopTrigger`, `timeStepKeptOnActivation`, `timeStepBarUserSetsTableStep` (agent_run) and `stepKept` (loadstate) fail on HEAD 28ea470, except the guard `timeStepBarUserSetsTableStep`. Review follow-up: a non-finite or non-positive text `$` max step (formerly overwritten by the bar command) falls back to 5 µs (`badTextStepDefaulted`, loadstate `badStep`); `staleStopTriggerIgnored` covers the run-start clear of a free-run trigger record (both verified failing by a temporary local revert). BL-D01 in the audit plan is closed by main with the fix commit.
@@ -417,6 +420,7 @@ What to update:
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | Phase 10 done (documentation propagation, Result block); plan completed; backlog "Bounded echo" trigger re-pointed |
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A with four conditions); backlog: tab-switch hint leak |
 | 2026-10-01 | Phase 6 done; backlog item "Transformer endpoints rewritten by text reload" closed |
 | 2026-10-01 | Phase 1 done; backlog: tab-switch hint leak closed by the per-document hint |
