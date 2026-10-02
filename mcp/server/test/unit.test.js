@@ -449,8 +449,13 @@ test('tools/list, tools/call and resources through the SDK server', async () => 
   const bad = await send(4, 'tools/call', { name: 'circuit_edit', arguments: { edits: 'x' } });
   assert.equal(bad.error.code, -32602);
   assert.match(bad.error.message, /edits must be array/);
+  // Error messages go out without the SDK's "MCP error <code>: " prefix.
+  assert.doesNotMatch(bad.error.message, /^MCP error/);
   const unknown = await send(5, 'resources/read', { uri: 'circuitjs://nope' });
   assert.equal(unknown.error.code, RESOURCE_NOT_FOUND);
+  assert.equal(unknown.error.message, 'Resource not found: circuitjs://nope');
+  const unknownTool = await send(7, 'tools/call', { name: 'circuit_nope', arguments: {} });
+  assert.equal(unknownTool.error.message, 'Unknown tool: circuit_nope');
   const templates = await send(6, 'resources/templates/list', {});
   assert.equal(templates.result.resourceTemplates.length, 3);
   await p.close();

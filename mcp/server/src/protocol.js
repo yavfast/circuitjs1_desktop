@@ -30,6 +30,9 @@ const LATEST_REVISION = PROTOCOL_REVISIONS[0];
 // A request without the MCP-Protocol-Version header is treated as this revision.
 const DEFAULT_HEADER_REVISION = '2025-06-18';
 
+// The prefix McpError puts in front of its message (stripped once from outgoing errors).
+const SDK_ERROR_PREFIX = /^MCP error -?\d+: /;
+
 // JSON-RPC error code for an unknown resource URI (SP_MCP_02_03).
 const RESOURCE_NOT_FOUND = -32002;
 
@@ -95,6 +98,11 @@ class JsonResponseTransport {
     if (!p) return;
     this.pending.delete(message.id);
     const { jsonrpc, id, ...rest } = message; // eslint-disable-line no-unused-vars
+    if (rest.error && typeof rest.error.message === 'string') {
+      // An McpError thrown by a handler carries "MCP error <code>: " in its message, and SDK
+      // clients add that prefix again when they show the error: send the bare message.
+      rest.error = { ...rest.error, message: rest.error.message.replace(SDK_ERROR_PREFIX, '') };
+    }
     p.resolve({ jsonrpc: '2.0', id: p.clientId, ...rest });
   }
 

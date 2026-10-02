@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 15:50
+> **Last updated:** 2026-10-02 16:40
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -111,7 +111,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_MCP Phase 4 — `tests/mcp/e2e.mjs` (`npm run test:mcp`: default 55 rows PASS, `slow` 2, `clients` 3 incl. Claude Code + Inspector; manual rows unobserved) consolidating the scratch drivers; closes PL_AGA Phase 9 (file rows + R1/R2 openFile step pass in NW.js); RULE_TEST_007 (should) added; review PASS 4 should + 4 prefer → fixed (teardown on setup failure, Node ≥ 22 guard, unhandled-rejection handling, child process groups, cwd)
 - [x] PL_AGA Phase 10 + PL_MCP Phase 5 — documentation propagation (JS_API CircuitJS1Agent + Element IDs + example drift, EXPORT_CJS, README/project MCP section with the plain no-token LAN security note, C_DOC/C_APC/C_UND/C_IOF/C_USR/SP_MCP updated, skills); review FAIL (2 must: stale lines false against code) → fixed by main. PL_AGA and PL_MCP plans `completed`. Open: C_SIM/SP_SIM lack §06_01 items 11–12 (message keys, per-document solver events)
 - [x] PL_MCB Phase 1 — `mcp/bridge/` package (circuitjs-mcp, SDK 1.31 like the server), options, registry, target resolution, launch; review FAIL (must: cleanup deleted any *.json with a dead pid — same flaw found and fixed in mcp/server/src/registry.js) → fixed; delta PASS. Bridge tests 42, test:mcp-unit 26, test:mcp 55
-- [ ] **Next:** PL_MCB Phase 2 — stdio forwarding, bridge tools, launch; then Phases 3–4, then PL_AGS
+- [x] PL_MCB Phase 2 — stdio server forwarding target tools/resources unchanged (raw tools/call, revision pin), bridge_instances/select/launch, Claude Code over stdio (17 tools); review PASS 4 should + 4 prefer → fixed (HTTP-status JSON-RPC errors, serialised launch, bypass guard, idle close on switch, absolute file); app server strips the SDK "MCP error <code>: " prefix. Bridge tests 69
+- [ ] **Next:** PL_MCB Phase 3 — CLI subcommands; then Phase 4, then PL_AGS
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

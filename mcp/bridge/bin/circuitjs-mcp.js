@@ -5,10 +5,11 @@
 // Stdout carries data only (the MCP stream in stdio mode, one JSON document in CLI mode);
 // every diagnostic goes to stderr.
 //
-// [PL_MCB_P1] Options, version and help are wired. The stdio server mode arrives with
-// PL_MCB Phase 2 and the subcommands with Phase 3; until then they report a usage error.
+// [PL_MCB_P2] Options, version, help and the stdio server mode are wired. The subcommands
+// arrive with PL_MCB Phase 3; until then they report a usage error.
 
 import { parseArgs, UsageError } from '../src/options.js';
+import { runStdio } from '../src/stdio-server.js';
 import { NAME, VERSION } from '../src/version.js';
 
 const USAGE = `Usage:
@@ -56,7 +57,7 @@ function main(argv) {
   }
   const [command] = parsed.positionals;
   if (command === undefined) {
-    fail('the stdio server mode is not implemented yet (PL_MCB Phase 2).', 2);
+    runStdio(parsed.options).catch((e) => fail(`stdio server failed: ${(e && e.stack) || e}`, 3));
   } else {
     fail(`the "${command}" subcommand is not implemented yet (PL_MCB Phase 3).`, 2);
   }

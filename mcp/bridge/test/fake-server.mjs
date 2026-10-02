@@ -15,6 +15,11 @@ import http from 'node:http';
  * @param {number} [o.delayMs]       delay before each answer
  * @param {boolean} [o.hang]         accept requests but never answer
  * @param {number} [o.postStatus]    answer every POST with this HTTP status and no body (e.g. 404)
+ * @param {(msg: object) => (object|undefined|Promise<object|undefined>)} [o.handle]
+ *        answers a request first: a result object, `{error: {code, message, data?}}` for a
+ *        JSON-RPC error, `{http: {status, body}}` for a raw HTTP answer, or undefined for the
+ *        default answer
+ * @param {number} [o.port]          listen on this port (default: any free one)
  * @returns {Promise<{url: string, port: number, requests: object[], close: () => Promise<void>}>}
  */
 export async function startFakeServer(o = {}) {
@@ -37,8 +42,19 @@ export async function startFakeServer(o = {}) {
         return {};
       case 'tools/list':
         return { tools: o.tools || [] };
+      case 'tools/call':
+        // Echo: the call as structured content, in the app's result shape.
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ ok: true, data: msg.params }) }],
+          structuredContent: { ok: true, data: { name: msg.params.name, arguments: msg.params.arguments ?? null } },
+        };
       case 'resources/list':
-        return { resources: [] };
+        return { resources: o.resources || [] };
+      case 'resources/read':
+        if (msg.params && msg.params.uri === 'circuitjs://catalogue') {
+          return { contents: [{ uri: 'circuitjs://catalogue', mimeType: 'application/json', text: '{"types":[]}' }] };
+        }
+        return { error: { code: -32002, message: `Resource not found: ${msg.params && msg.params.uri}` } };
       case 'resources/templates/list':
         return { resourceTemplates: [] };
       default:
@@ -69,16 +85,22 @@ export async function startFakeServer(o = {}) {
       }
       requests.push(msg);
       if (o.hang) return;
-      const reply = () => {
+      const reply = async () => {
         if (msg.id === undefined) {
           res.writeHead(202).end();
           return;
         }
-        const result = answer(msg);
-        const out = result
-          ? { jsonrpc: '2.0', id: msg.id, result }
-          : { jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `Method not found: ${msg.method}` } };
-        res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(out));
+        let result = o.handle ? await o.handle(msg) : undefined;
+        if (result === undefined) result = answer(msg);
+        if (result && result.http) {
+          res.writeHead(result.http.status, { 'Content-Type': 'application/json' }).end(result.http.body);
+          return;
+        }
+        let out;
+        if (!result) out = { jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `Method not found: ${msg.method}` } };
+        else if (result.error) out = { jsonrpc: '2.0', id: msg.id, error: result.error };
+        else out = { jsonrpc: '2.0', id: msg.id, result };
+        if (!res.destroyed) res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(out));
       };
       if (o.delayMs) setTimeout(reply, o.delayMs);
       else reply();
@@ -88,7 +110,7 @@ export async function startFakeServer(o = {}) {
     sockets.add(s);
     s.on('close', () => sockets.delete(s));
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => server.listen(o.port || 0, '127.0.0.1', resolve));
   const port = server.address().port;
   return {
     url: `http://127.0.0.1:${port}/mcp`,

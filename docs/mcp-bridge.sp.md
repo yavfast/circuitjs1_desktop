@@ -75,10 +75,15 @@ Started as `circuitjs-mcp [options]`. It speaks MCP over stdio to the host and s
 | tools/list | Target's tools (when a target exists) followed by the bridge tools of [§02_02](#SP_MCB_02_02) |
 | tools/call of a target tool | Forward unchanged; return the target's result unchanged |
 | tools/call of a bridge tool | Handled locally |
-| resources/list, resources/templates/list, resources/read | Forward when a target exists; empty lists / -32002 otherwise |
+| resources/list, resources/templates/list, resources/read | Forward when a target exists; empty lists / -32002 otherwise. A forward that times out answers -32001; when the instance is gone, read answers -32603 and the list methods answer empty lists |
 | Any target tool while no target | Tool result `isError: true` with text `No CircuitJS1 instance. Start the app or call bridge_launch.` |
 
 When the target changes, the bridge sends `notifications/tools/list_changed` and `notifications/resources/list_changed`.
+
+Further rules:
+- **Re-resolution.** A target tool call with no target re-resolves and honours `--launch`; `tools/list` and the resource methods re-resolve without launching. `tools/list` is forwarded on every request (no cached list).
+- **Explicit URL unreachable.** With `--url`, a target tool call whose URL does not answer returns `Cannot reach <url>: <reason>. Live instances: <ids>` instead of the no-instance text.
+- **Forward failures.** A forward timeout returns `Timed out after <ms> ms` and keeps the target; a connection failure returns `Instance gone: <url>` and clears the target; JSON-RPC errors from the target pass through with their code, message and data, also when the target sends them with an HTTP error status; an HTTP error without a JSON-RPC body gives a tool result `isError` with `<url> answered HTTP <status>: <body>` (resources: -32603) and keeps the target. Launches are serialised: concurrent launch requests share one start. On a target switch, the old connection closes after its calls in flight finish. `bridge_launch` `file` must be an absolute path (-32602 otherwise).
 
 ### 02_02. Bridge tools  {#SP_MCB_02_02}
 
@@ -98,7 +103,7 @@ Errors (as `isError` results with text):
 | `bridge_launch` spawn failure | `Cannot start the app <path>: <code>.` (e.g. `EACCES`) |
 | `bridge_launch` timeout | `The app started but no instance record appeared within <ms> ms.` |
 
-`bridge_launch` (and CLI `launch`) with `file` calls the target's `circuit_file` tool with `{action: "open", path: <absolute file path>, into: "new", activate: true}` after the instance is live.
+`bridge_launch` (and CLI `launch`) with `file` calls the target's `circuit_file` tool with `{action: "open", path: <absolute file path>, into: "new", activate: true}` after the instance is live. When an instance is already live, `bridge_launch` starts nothing (a second start would be handed to the running app and never register): it uses the current target when live, else the latest instance. When the app rejects the file, the result is `isError` with `The instance <id> is running and selected, but opening <abs> failed: ` followed by the app's text; the target stays.
 
 ### 02_03. CLI subcommands  {#SP_MCB_02_03}
 
@@ -160,7 +165,7 @@ The probe is an MCP handshake against the URL, bounded at 3 s.
 
 | From | To | Condition | Side effects |
 |------|----|-----------|-------------|
-| no target | target | Resolution, `bridge_select` or `bridge_launch` succeeds | Fetch target tool list; send list_changed |
+| no target | target | Resolution, `bridge_select` or `bridge_launch` succeeds | Send list_changed (the tool list is forwarded on every `tools/list`, not fetched here) |
 | target | no target | Connection failure | Send list_changed |
 | target | target' | `bridge_select` of another instance | Send list_changed |
 
@@ -227,3 +232,4 @@ The probe is an MCP handshake against the URL, bounded at 3 s.
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Review round 1: `--app` has no PATH default, `into` argument name, CLI output wording, verification gaps |
 | 2026-10-02 | PL_MCB Phase 1: target selectors as one option, boolean env values, spawn-failure error, absolute app path, explicit-URL target without instanceId; registry record and cleanup rule, shared PID namespace |
+| 2026-10-02 | PL_MCB Phase 2: re-resolution and list forwarding, explicit-URL failure text, forward failure texts and resource error codes, `bridge_launch` with a live instance and with a rejected file |

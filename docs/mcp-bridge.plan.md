@@ -39,7 +39,7 @@ For this plan's scope ([task_E_AGT](../.dev_flow/tasks/task_E_AGT.md)): the "MCP
 ## Progress
 
 - [x] [Phase 1 — Package, options, registry and target resolution](#PL_MCB_P1)
-- [ ] [Phase 2 — Stdio forwarding, bridge tools, launch](#PL_MCB_P2)
+- [x] [Phase 2 — Stdio forwarding, bridge tools, launch](#PL_MCB_P2)
 - [ ] [Phase 3 — CLI subcommands](#PL_MCB_P3)
 - [ ] [Phase 4 — Tests and host snippets](#PL_MCB_P4)
 
@@ -80,7 +80,7 @@ What to create:
   - Errors carry `code`: Phase 2 maps them to `isError` results; Phase 3 maps them to exit 3.
   - `launch()` while an NW instance of the same app is already running may hand the launch to the running process (NW single-instance behaviour) and produce no new record → `launch_timeout`. `bridge_launch` should decide what to do when an instance is already live.
 
-### Phase 2 — Stdio forwarding, bridge tools, launch [TODO]  {#PL_MCB_P2}
+### Phase 2 — Stdio forwarding, bridge tools, launch [DONE]  {#PL_MCB_P2}
 
 **Depends on:** Phase 1; PL_MCP Phase 2
 **Implements:** [SP_MCB_02_01](./mcp-bridge.sp.md#SP_MCB_02_01), [SP_MCB_02_02](./mcp-bridge.sp.md#SP_MCB_02_02), [SP_MCB_03_03](./mcp-bridge.sp.md#SP_MCB_03_03), [SP_MCB_04_01](./mcp-bridge.sp.md#SP_MCB_04_01)
@@ -92,6 +92,59 @@ What to create:
 | Stdio server | `mcp/bridge/src/stdio-server.js` | Handshake with forwarded instructions, tool/resource mirroring, list_changed |
 | Forwarder | `mcp/bridge/src/forward.js` | Byte-for-byte forwarding, timeout, instance-gone handling; the client side pins its protocol revision to the newest one in the target record's `protocolRevisions` (never relying on the stateless revision the app may not serve), tested against the fake server |
 | Bridge tools | `mcp/bridge/src/bridge-tools.js` | `bridge_instances`, `bridge_select`, `bridge_launch` |
+
+**Result (2026-10-02).**
+- **Modules.**
+  - `src/forward.js`:
+    - `TargetConnection(resolution, {timeoutMs})`: one SDK `Client` over a `PinnedTransport`, a `StreamableHTTPClientTransport` subclass that rewrites the initialize `protocolVersion` to `pinnedRevision(record)`. That revision is the newest entry of `protocolRevisions` the SDK supports; with no record the SDK default applies, and a record with no common revision is a "Cannot reach" error. `connect(3000)` returns the handshake. `request(method, params, {signal, timeoutMs})` goes through `Client.request` with a pass-through `z.looseObject({})` result schema, so there is no output-schema validation and nothing is stripped.
+    - Errors from `request`: a timeout is `ForwardError('timeout', 'Timed out after <ms> ms')`; a socket failure (`isConnectionFailure`) is `ForwardError('gone', 'Instance gone: <url>')`; a target JSON-RPC error is rethrown by `passThroughError` with the same code, message and data (the McpError prefix is removed).
+    - `BridgeSession(opts, deps)`: `target`, `onChange(fn)`, `ensure({launch})`, `connect(resolution)`, `adopt(conn)`, `drop(conn)`, `forward(conn, method, params, o)`, `liveRecords()`, `close()`. `ensure` resolves once for concurrent callers. For an explicit URL, the probe is the connection's own handshake, so there is no second handshake. `adopt` and `drop` notify only when the target really changes. `NO_INSTANCE_TEXT`.
+  - `src/bridge-tools.js`: `BRIDGE_TOOLS` descriptors (open output schemas, annotations per SP_MCB_02_02), `BRIDGE_SENTENCE`, `isBridgeTool`, `callBridgeTool(session, name, args)`, and `launchAndOpen(session, file)` for the CLI `launch` subcommand. `launchAndOpen` throws `BridgeError` / `ForwardError` / `OpenFailed`.
+    - Argument checks: unknown argument, a value that is not a non-empty string, `bridge_select` with both or neither selector, or a non-http(s) URL is -32602.
+  - `src/stdio-server.js`: `createBridgeServer(session)` and `runStdio(opts)`, an SDK `Server` over `StdioServerTransport`.
+    - initialize resolves first (with `--launch`), then answers through `server._oninitialize` with the instructions replaced (pinned SDK internal).
+    - tools/call is registered on the base `Protocol`: the SDK `Server` wrapper re-parses results with zod, which would rebuild content blocks.
+    - list_changed is sent only after `initialized`.
+    - Shutdown on stdin end, transport close, SIGINT or SIGTERM. Diagnostics go to stderr as `circuitjs-mcp: target <url> (<source>, instance <id>)` / `no target`.
+  - `bin/circuitjs-mcp.js`: without a subcommand it runs `runStdio`; subcommands still answer "not implemented yet" (Phase 3).
+- **Behaviour the spec leaves open** (spec deviations in the phase report):
+  - Target tool calls re-resolve with `--launch` honoured. tools/list and resources/* re-resolve without launching.
+  - A resolution error on a target tool call (for example an explicit URL that does not answer) is an `isError` result with the `Cannot reach …` text (C_MCB_03_05).
+  - Resources: `resources/read` with no target is -32002 `No CircuitJS1 instance… (resource <uri>)`. A timeout is -32001 `Timed out after <ms> ms`. Instance gone is -32603 on read, and an empty list for the list methods.
+  - `bridge_launch` uses a running instance (the current target if it is live, else the latest record) and does not start the app. A second start would be handed to the running NW.js process (single instance) and register nothing.
+  - When `circuit_file` rejects the file, the result is `isError` with `The instance <id> is running and selected, but opening <abs> failed:` followed by the `circuit_file` text parts. The target stays.
+  - The target tool list is not prefetched on a transition (SP_MCB_04_01): tools/list is forwarded on every request.
+- **Tests.**
+  - `forward.test.mjs`: revision pin, failure classification, unchanged results, timeout keeps the target, gone clears it.
+  - `stdio.test.mjs`: the real program as a child process; SDK client over stdio (`test/bridge-client.mjs`).
+  - `launch-tool.test.mjs`: an executable fake app that runs `fake-server.mjs` and registers itself.
+  - `fake-server.mjs` gains tools/call echo, resources/read, `handle(msg)` and `port`.
+  - `node --test mcp/bridge/test/`: 61/61, about 4.8 s.
+- **Real app** (scratch HOME and registry, `target/site` under Xvfb, wrapper executable with its own profile per start; script outside the repo), all passed:
+  - no app: 3 tools and the "No CircuitJS1 instance" result;
+  - `bridge_launch {file: …/lrc.txt}`: launched in about 6 s, `opened {doc: "d2"}`, and the document is active with that `filePath`;
+  - tools/list = the 14 app descriptors unchanged + 3 bridge tools;
+  - transparency: `circuit_types` (one type and the list), `circuit_edit` domain error, `circuit_get`, `resources/list`, templates and read are deep-equal to direct; a -32602 is passed through with the same code and message;
+  - two windows: `bridge_instances` 2 → select the newer, then the older → `circuit_documents list` shows the selected instance's documents; list_changed on each switch;
+  - app killed mid-session: `Instance gone: <url>`, the next call re-resolves to the remaining instance and the stale record is deleted. After the last instance: gone, then "No CircuitJS1 instance", then `bridge_launch` and the next call succeed;
+  - `circuit_run budgetMs 120000` comes back through the bridge after 120.1 s (`budget_exhausted`) with the default 130 s timeout;
+  - the host saw no stdout noise;
+  - **Claude Code** 2.1.287: `claude -p --mcp-config <tmp> --strict-mcp-config` with `command: node bin/circuitjs-mcp.js --launch --app <wrapper> --registry <scratch>`. Status connected, 17 tools; `bridge_instances` and `circuit_types` called and answered.
+- **Phase 3 hooks.**
+  - CLI `call` / `tools` / `read`: `new BridgeSession(opts)` → `ensure()` (honours `--launch`) → `session.forward(conn, 'tools/call' | 'tools/list' | 'resources/read', params)`.
+  - Map errors to exit codes: `BridgeError` / `ForwardError` / null → 3; `isError` → 1; a passed-through JSON-RPC error → 2 or 3 (decide per SP_MCB_01_04).
+  - CLI `launch [<file>]` reuses `launchAndOpen`.
+  - `test/bridge-client.mjs` `raw(method, params, timeoutMs)` defaults to 20 s on the host side; pass a longer one for long runs.
+- **Review fixes (2026-10-02).**
+  - An HTTP error status from the target (SDK `StreamableHTTPError`) whose body is a JSON-RPC error passes through with code, message and data. Any other body is `ForwardError('http', '<url> answered HTTP <status>: <body>')`: an `isError` result for tools, -32603 for resources; the target is kept.
+  - `BridgeSession.launchOnce()`: one launch in flight per session, shared by the `--launch` resolution and `bridge_launch`.
+  - `ensure({launch: true})` that meets a resolution without launch resolves again when that one found nothing.
+  - A target switch closes the old connection only after its calls in flight have settled (`closeWhenIdle`).
+  - A JSON-RPC error of `circuit_file` gives the `…failed: <message>` text. The open-failure text is now one text part.
+  - `bridge_launch` `file` must be absolute (-32602).
+  - An end-to-end guard: a result with extra keys in content blocks and top-level `_meta` passes through the stdio side unchanged (it fails when tools/call is registered through the SDK `Server`).
+  - Tests: 69/69.
+  - **App server:** `mcp/server/src/protocol.js` `JsonResponseTransport.send` strips one `MCP error <code>: ` prefix from outgoing error messages (unit test). The bridge's prefix removal concerns the prefix its own SDK client adds, so it works with old and new apps. `npm run test:mcp`: 55 pass / 0 fail / 9 skip.
 
 ### Phase 3 — CLI subcommands [TODO]  {#PL_MCB_P3}
 
@@ -129,3 +182,4 @@ What to create:
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | Phase 1 done: package, options, registry reader, target resolution, launch; Result with Phase 2 hooks |
+| 2026-10-02 | Phase 2 done: stdio server, forwarder (revision pin, transparent results, timeout, instance gone), bridge tools; Result with Phase 3 hooks |
