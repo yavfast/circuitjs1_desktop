@@ -221,6 +221,11 @@ public class ActionManager extends BaseCirSimDelegate {
         if (item == "openlastclosedtab") {
             cirSim.documentManager.restoreLastClosedTab();
         }
+        if (item == "save" || item == "saveas") {
+            // [SP_AGA_04_01] any save of the document seals an open agent transaction first
+            undoManager().sealTransaction();
+            cirSim.enableUndoRedo();
+        }
         if (item == "save") {
             if (circuitInfo().filePath != null)
                 CirSim.nodeSave(circuitInfo().filePath, dumpCircuit());

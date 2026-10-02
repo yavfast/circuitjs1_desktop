@@ -146,6 +146,10 @@ public class DocumentManager {
         cirSim.bindDocument(document);
         
         document.restoreUIState(cirSim.menuManager, (CirSim)cirSim);
+        // the Undo/Redo items (enabled state, "Undo: <comment>" labels) follow the new tab
+        if (cirSim.menuManager != null && cirSim.menuManager.undoItem != null) {
+            cirSim.enableUndoRedo();
+        }
         
         notifyActiveDocumentChanged(oldDocument, document);
         

@@ -45,7 +45,7 @@ final class ImportOps {
     }
 
     static void register(AgentApi api) {
-        api.register("importCircuit", AgentApi.DocPolicy.OPTIONAL, AgentApi.BusyPolicy.REJECTED, ImportOps::importCircuit);
+        api.registerMutating("importCircuit", AgentApi.DocPolicy.OPTIONAL, AgentApi.BusyPolicy.REJECTED, ImportOps::importCircuit);
     }
 
     static OperationResult importCircuit(AgentApi.Call call) {

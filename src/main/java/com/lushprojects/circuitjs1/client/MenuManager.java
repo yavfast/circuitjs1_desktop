@@ -764,12 +764,49 @@ public class MenuManager extends BaseCirSimDelegate {
     }
 
     MenuItem menuItemWithShortcut(String icon, String text, String shortcut, MyCommand cmd) {
+        return new MenuItem(SafeHtmlUtils.fromTrustedString(shortcutItemHtml(icon, Locale.LS(text), shortcut)), cmd);
+    }
+
+    /** HTML of a menu item with an icon, a label (already escaped) and a right-aligned shortcut. */
+    private static String shortcutItemHtml(String icon, String labelHtml, String shortcut) {
         final String edithtml = "<div style=\"white-space:nowrap\"><div style=\"display:inline-block;width:100%;\"><i class=\"cirjsicon-";
         String nbsp = "&nbsp;";
         if (icon == "")
             nbsp = "";
-        String sn = edithtml + icon + "\"></i>" + nbsp + Locale.LS(text) + "</div>" + shortcut + "</div>";
-        return new MenuItem(SafeHtmlUtils.fromTrustedString(sn), cmd);
+        return edithtml + icon + "\"></i>" + nbsp + labelHtml + "</div>" + shortcut + "</div>";
+    }
+
+    /** Comments shown in the Undo/Redo items (null: plain label); avoids rebuilding unchanged items. */
+    private String undoLabelComment, redoLabelComment;
+
+    /**
+     * [SP_AGA_04_01] "Menu labels": the Undo/Redo items read {@code Undo: <comment>} /
+     * {@code Redo: <comment>} when the entry they would apply carries a comment (a sealed agent
+     * transaction), else plain {@code Undo} / {@code Redo}; the shortcut text is kept.
+     */
+    void updateUndoRedoLabels(String undoComment, String redoComment) {
+        if (undoItem == null || redoItem == null) {
+            return;
+        }
+        if (!same(undoComment, undoLabelComment)) {
+            undoLabelComment = undoComment;
+            undoItem.setHTML(SafeHtmlUtils.fromTrustedString(shortcutItemHtml("ccw",
+                    undoRedoLabel("Undo", undoComment), Locale.LS(ctrlMetaKey + "Z"))));
+        }
+        if (!same(redoComment, redoLabelComment)) {
+            redoLabelComment = redoComment;
+            redoItem.setHTML(SafeHtmlUtils.fromTrustedString(shortcutItemHtml("cw",
+                    undoRedoLabel("Redo", redoComment), Locale.LS(ctrlMetaKey + "Y"))));
+        }
+    }
+
+    private static String undoRedoLabel(String action, String comment) {
+        String label = Locale.LS(action);
+        return comment == null ? label : label + ": " + SafeHtmlUtils.htmlEscape(comment);
+    }
+
+    private static boolean same(String a, String b) {
+        return a == null ? b == null : a.equals(b);
     }
 
     MenuItem iconMenuItem(String icon, String text, Command cmd) {

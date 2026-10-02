@@ -9,6 +9,7 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.DocumentScope;
 
 /**
  * JSNI adapter (RULE_ARCH_008) exporting the Agent API as
@@ -16,8 +17,13 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
  * reportError(message)}}, separate from the {@code window.CircuitJS1} scripting global. It also
  * carries diagnostics for the live harness that are not contracts: {@code debugViewState()} (session
  * view state), {@code debugDocState(handle)} (undo/redo depth, modified flag, open marks and editor
- * grid of a document) and {@code debugFailNextMutation()} (the next importCircuit/applyEdits throws
- * after its first change, to exercise the rollback guard of SP_AGA_03_10).
+ * grid of a document, its agent transaction and Undo/Redo menu labels), {@code debugFailNextMutation()}
+ * (the next importCircuit/applyEdits throws after its first change, to exercise the rollback guard
+ * of SP_AGA_03_10) and {@code debugSetIdleSealMs(ms)} (the idle time after which an open agent
+ * transaction is sealed, 300 s by default; 0 restores it — for the idle-seal check of SP_AGA_05_04),
+ * {@code debugAgentOriginPush(handle)} (an editor undo push under agent origin, which must neither
+ * push nor seal) and {@code debugFailNextUndoLoad()} (the next undo/redo load throws after loading,
+ * to check that the stacks and the document are restored).
  * <p>
  * Every entry point is wrapped in {@code $entry}: an unexpected Java exception reaches the
  * global uncaught-exception handler (RULE_ERR_004) and the call returns {@code undefined}, which
@@ -63,6 +69,15 @@ public final class AgentJsBridge {
             }),
             debugFailNextMutation: $entry(function() {
                 @com.lushprojects.circuitjs1.client.agent.Mutation::armForcedFailure()();
+            }),
+            debugSetIdleSealMs: $entry(function(ms) {
+                @com.lushprojects.circuitjs1.client.UndoManager::setIdleSealMs(I)(ms | 0);
+            }),
+            debugAgentOriginPush: $entry(function(handle) {
+                return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugAgentOriginPush(Lcom/lushprojects/circuitjs1/client/CirSim;Ljava/lang/String;)(sim, handle == null ? null : String(handle));
+            }),
+            debugFailNextUndoLoad: $entry(function() {
+                @com.lushprojects.circuitjs1.client.UndoManager::armFailNextLoad()();
             })
         };
     }-*/;
@@ -96,7 +111,29 @@ public final class AgentJsBridge {
         o.put("openMarks", marks);
         o.put("gridSize", new JSONNumber(doc.circuitEditor.gridSize));
         o.put("agentOrigin", JSONBoolean.getInstance(doc.isAgentOrigin()));
+        o.put("transaction", AgentTransaction.toJson(doc));
         return o.toString();
+    }
+
+    /**
+     * Harness diagnostic: an editor undo push requested while the document is marked agent
+     * origin (as an editor path reused inside an agent mutation would); it must neither push nor
+     * seal ([SP_AGA_04_01]). Returns false for an unknown handle.
+     */
+    private static boolean debugAgentOriginPush(CirSim sim, String handle) {
+        final CircuitDocument doc = handle == null ? sim.getActiveDocument() : DocumentHandles.find(sim, handle);
+        if (doc == null) {
+            return false;
+        }
+        DocumentScope.run(sim, doc, () -> {
+            doc.setAgentOrigin(true);
+            try {
+                doc.circuitEditor.pushUndo();
+            } finally {
+                doc.setAgentOrigin(false);
+            }
+        });
+        return true;
     }
 
     private static void reportError(String message) {

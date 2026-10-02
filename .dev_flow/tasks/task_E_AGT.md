@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-01 23:59
+> **Last updated:** 2026-10-02 06:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 0 and [mcp-server.plan.md](../../docs/mcp-server.plan.md) Phase 0 (prototypes) |
-| **Pipeline phase** | `implement` — PL_AGA P0 + PL_MCP P0 done; next PL_AGA P1 |
+| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
+| **Pipeline phase** | `implement` (paused) — PL_AGA Phases 0–6 committed; paused at the developer's request after Phase 6; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -82,9 +82,11 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 22:10 — SP_AGA_DEC_04 trigger edited in place (non-breaking) to the reduced prototype sequence
 
 ### Subtask: implementation
-> Author: `main` — Created: 22:40 — Last updated: 23:59 — Status: `in-progress`
+> Author: `main` — Created: 22:40 — Last updated: 2026-10-02 06:30 — Status: `in-progress`
 
-**Goal:** implement PL_AGA, PL_MCP, PL_MCB, PL_AGS in plan order; one commit sign-off per plan phase.
+**Goal:** implement PL_AGA, PL_MCP, PL_MCB, PL_AGS in plan order; one commit per plan phase (Autonomy `full`: commit after review without asking, never push).
+
+**Method (per phase):** a fresh implementer subagent with role overlay [`.dev_flow/roles/implementer.ai.md`](../roles/implementer.ai.md) + a phase prompt (phase anchor, spec sections, expectations, current baseline, notes from earlier phases) → clean-context reviewer with [`.dev_flow/roles/reviewer.ai.md`](../roles/reviewer.ai.md) → fixes back to the same implementer → delta re-review by the same reviewer for any `must` or invariant breach → spec amendments by main where a review exposes a spec gap → commit. Main reads only reports.
 
 **Progress:**
 - [x] PL_AGA Phase 0 prototype built (worktree on `proto/agent-bg-doc`, scratchpad) and measured headless over 5 configurations; result in the plan's Phase 0 block; skill `automation/background-documents` created
@@ -98,9 +100,14 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 4 — geometry, edits, import, getCircuit, exportCircuit (review FAIL: grid restore, transformer rollback → fixed → delta PASS)
 - [x] PL_AGA Phase 5 — connectivity, readings, diagnostics (review PASS + follow-ups; spec: `$<k>` ranked by smallest PostRef, read null for non-finite)
 - [x] Fix — ElmGeometry aliased lead1/lead2 to point1/point2 since dde7f33 (posts of Inverter, Schmitt, DelayBuffer, Crystal, FM, StopTrigger, TestPoint displaced); verified against a dde7f33^ reference build: 342 examples 28 → 0 mismatches; review PASS
-- [ ] **Next:** PL_AGA Phase 6 — transactions and history
+- [x] PL_AGA Phase 6 — transactions and history (review PASS + 2 `should` invariant breaches → fixed; delta PASS + 4 findings → fixed: no-net sealed entry dropped by any later user push, agent call during a held drag splits the gesture (`splitGesture`), rollback reload exception-safe; delta PASS + 1 `prefer` → fixed; agent_history 34 checks, full test:live = baseline). Spec §06_01 item 16 and §04_01 no-net rule added by main
+- [ ] **Next:** paused for the developer ("Після завершення Phase 6 зроби паузу") — present the owed manual devmode checks and the Coordination Note; continue with PL_AGA Phase 7 on the developer's word
+- [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
+- 2026-10-02 06:30 — live harness launches Chromium with `--disable-extensions`: a fresh profile auto-installed KDE Plasma Integration (`/usr/share/chromium/extensions/`), whose native host raised connection-error notifications for the developer after every run
+- 2026-10-02 03:40 — checkpoint: tree has the uncommitted Phase 6 work + fix round (UndoManager, CircuitEditor, CircuitDocument, MenuManager, BaseCirSim, DocumentManager, ActionManager, CirSim, io/ImportLifecycle, agent/AgentTransaction + HistoryOps + Mutation + AgentApi + OperationResult + DocumentSnapshot + ImportOps + EditOps + AgentJsBridge, harness agent_history, README, plan, undo skill) plus spec §06_01 item 16 and the new `.dev_flow/roles/`; no subagent is running
+- 2026-10-02 — spec amendments during Phases 1–6 (non-breaking, changelog rows in SP_AGA): createDocument title range; TypeInfo defaultSize, post-less elements, English summary, unmeasurable keys omitted; catalogue built-in defaults, one-to-one English labels, readOnly keys, `add` applies TypeInfo defaults; `$<k>` ranking; read null for non-finite; netFilter range; recovering = engaged; §06_01 item 16
 - 23:59 — developer resolved PL_MCP_DEC_01 = A (SDK core, script-tag loading, no Node crypto)
 - 23:59 — PL_MCP P0: release runtime (0.64.1-mod1 normal) Node lacks OpenSSL → `require('crypto')` throws; only the script-tag load works in all 3 modes; Claude Code probes `server/discover` (2026-07-28) then falls back; a stray `"/tmp/chrome/devmode"` dir created in the repo root by the devmode run (quoted manifest arg) was removed; filed in PL_MCP backlog
 - 23:58 — developer resolved PL_AGA_DEC_01 = A + 4 conditions (closes SP_AGA_DEC_04)
@@ -127,6 +134,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 ## Coordination Notes
 
+- `proposed` (minor, Phase 6; delta reviewer: acceptable as is): when an agent `undo`/`restoreCheckpoint` auto-seals an open transaction and the following undo load then throws (`internal_error`), the seal is not rolled back — the transaction ends sealed. Recommended: leave as is (the sealed entry is a correct checkpoint of the agent's work; the failure path is exceptional). Alternative: snapshot the transaction state and restore it too. Raise with the developer at the pause. — main
+
 ## Blocking Issues
 
 {No blockers yet.}
@@ -144,4 +153,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
   - skills `.dev_flow/skills/automation/` — Pitfalls sections
 
 - `{s:pin}` Decisions: C_AGA_DEC_01 grid cells + import & incremental · DEC_02 per-document ID registry · DEC_03 any tab by handle · DEC_04 transactions sealed by commented checkpoints (auto-seal on user edit/save/close/idle) · C_MCP_DEC_01 server per instance + registry · DEC_02 always on, LAN, no token · DEC_03 OPEN protocol layer · C_MCB_DEC_01 stdio bridge + CLI.
-- Skills: `.dev_flow/skills/automation/` (js-api-surface, agent-mcp-surface).
+- Skills: `.dev_flow/skills/automation/` (js-api-surface, agent-mcp-surface, background-documents).
+- `{s:pin}` Live-harness baseline at HEAD 259b5b6 (`npm run buildgwt && npm run test:live`): PASS undo, paste, sliders, loadstate, agent_docs (23), agent_ids (22), agent_catalogue (36), agent_edit (70), agent_connect (27), agent_connect_all, agent_freerun (6), geom_posts (39); FAIL (known; numbers must not worsen) textfid lossyFields 67, roundtrip lineDiffs 23 / classChanged 23 / jsonDiffs 17 / propChanged 2, synth 176 types / notCreated Optocoupler / jsonLegLoss 55. Phase 6 adds agent_history (34). — main
+- `{s:pin}` Manual devmode checks owed (headless cannot run them; steps in each phase's Result note of agent-api.plan.md): RULE_TEST_005 tab close + hint flow (P1), editor undo + IDs (P2, P4), catalogue under Small Grid (P3), RULE_TEST_002 simulator core (P5: lrc, counter, alu74181, delta-pwm labels, onanalyze hook), undo menu labels (P6). Batch them for the developer at the pause. — main
+- Harness-only diagnostics on `CircuitJS1Agent` (not contracts; listed in the plan's JS-boundary row): debugViewState, debugDocState, debugFailNextMutation, debugSetIdleSealMs, debugAgentOriginPush, debugFailNextUndoLoad. — main

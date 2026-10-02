@@ -144,7 +144,7 @@ class Session {
 
   async key(code, { ctrl = false, shift = false } = {}) {
     const map = {
-      KeyZ: [90, 'z'], KeyY: [89, 'y'], KeyA: [65, 'a'], KeyC: [67, 'c'], KeyV: [86, 'v'], KeyD: [68, 'd'],
+      KeyZ: [90, 'z'], KeyY: [89, 'y'], KeyS: [83, 's'], KeyA: [65, 'a'], KeyC: [67, 'c'], KeyV: [86, 'v'], KeyD: [68, 'd'],
       Delete: [46, 'Delete'], Escape: [27, 'Escape'],
     };
     const [vk, key] = map[code];
@@ -1315,7 +1315,9 @@ async function scenarioAgentEdit(s) {
   out.notes.importIds = imp.data && imp.data.ids;
   ck('importAgentCircuitOk', imp.ok && same(imp.data.ids, ['V1', 'R1', 'R2', 'W1', 'GND1']) && imp.data.elements === 5);
   const dB0 = await docState(B);
-  ck('importNoUndoEntry', dB0.undo === 0 && dB0.redo === 0 && dB0.modified === true && dB0.agentOrigin === false);
+  // [PL_AGA_P6] the import opens the agent transaction: one entry (the pre-import state)
+  ck('importOneUndoEntry', dB0.undo === 1 && dB0.redo === 0 && dB0.modified === true && dB0.agentOrigin === false
+    && same(imp.transaction, { open: true, pendingEdits: 1 }));
 
   // --- getCircuit: ordering, cells, posts, concise vs full
   const gc = await A('getCircuit', { doc: B });
@@ -1466,7 +1468,8 @@ async function scenarioAgentEdit(s) {
   const gRec = rec(gnd, 'G2');
   ck('singlePostOrientation', gnd.ok && gRec.posts.length === 1 && same(gRec.posts[0].at, { x: 2, y: 8 }) && same(gRec.end, { x: 2, y: 9 }));
   await visibleSame('applyEdits');
-  ck('editsNoUndoEntry', (await docState(B)).undo === 0);
+  // [PL_AGA_P6] further edits continue the open transaction: still one entry
+  ck('editsNoNewUndoEntry', (await docState(B)).undo === 1 && (await docState(B)).transaction.open === true);
 
   // --- rejected batches leave the document unchanged and add no undo entry
   const E = (edits) => ({ doc: B, op: 'applyEdits', args: { doc: B, edits } });
@@ -2072,10 +2075,527 @@ async function scenarioAgentFreeRun(s) {
   report('AG.agent_freerun', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_freerun.json') });
 }
 
+// [PL_AGA_P6] Transactions and history (SP_AGA_01_10, SP_AGA_02_12, SP_AGA_02_13, SP_AGA_04_01):
+// SP_AGA_05_01 rows checkpoint (named, nothing), undo / redo, undo nothing, restoreCheckpoint;
+// SP_AGA_05_02 "IDs survive undo/redo", "No duplicate IDs after restore", "Grid preference of other
+// tabs has no effect" (undo/redo part), "ok=false => document unchanged" (no undo entry), "A user
+// edit never merges into an agent entry", "Agent-origin pushes never auto-seal"; SP_AGA_05_03 "User
+// undoes agent work"; SP_AGA_05_04 idle seal, checkpoint after ID-only change; plus background
+// history ops leave the visible tab unchanged and undo/redo/restore set the modified flag.
+async function scenarioAgentHistory(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const codes = (r) => ((r && r.issues) || []).map((i) => i.code);
+  const recs = (r) => (r && r.data && r.data.elements) || [];
+  const docState = (doc) => s.eval(`JSON.parse(CircuitJS1Agent.debugDocState(${JSON.stringify(doc)}))`);
+  const state = async (doc) => {
+    const t = await A('exportCircuit', { doc, format: 'text' });
+    const g = await A('getCircuit', { doc, detail: 'full', limit: 500 });
+    return { text: t.data && t.data.content, ids: recs(g).map((e) => e.id) };
+  };
+  const hist = async (doc, limit) => (await A('getHistory', limit ? { doc, limit } : { doc })).data;
+  const tx = (r) => r && r.transaction;
+  const add = (id, x, y) => ({ op: 'add', element: { ...(id ? { id } : {}), type: 'Resistor', start: { x, y }, end: { x: x + 4, y } } });
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
+  await s.eval(`CircuitJS1Agent.debugSetIdleSealMs(0); true`);
+
+  // Visible tab for the R1-style checks: lrc.txt; background documents never switch tabs
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const A0 = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const H = (await A('createDocument', { title: 'History H' })).data.doc;
+  const visBase = await s.call('visibleTab');
+  const visFailed = [];
+  // the tab count follows the background documents this scenario creates and closes
+  const noCount = (v) => ({ ...v, tabCount: 0 });
+  const visibleSame = async (label) => {
+    const v = await s.call('visibleTab');
+    if (!same(noCount(v), noCount(visBase))) visFailed.push({ label, v });
+  };
+
+  // --- checkpoint named: 3 edits, comment "add filter" -> cp1
+  const e1 = await A('applyEdits', { doc: H, edits: [add('R1', 0, 0)] });
+  const e2 = await A('applyEdits', { doc: H, edits: [add('R2', 0, 2)] });
+  const e3 = await A('applyEdits', { doc: H, edits: [{ op: 'set', id: 'R1', properties: { resistance: '2k' } }] });
+  ck('transactionCounts', same(tx(e1), { open: true, pendingEdits: 1 }) && same(tx(e2), { open: true, pendingEdits: 2 })
+    && same(tx(e3), { open: true, pendingEdits: 3 }) && (await docState(H)).undo === 1);
+  const h0 = await hist(H);
+  ck('historyOpenTransaction', h0.openTransaction === true && h0.undo.length === 1 && h0.undo[0].kind === 'agent' && h0.undo[0].position === 0);
+  const S1 = await state(H);
+  const cp1 = await A('checkpoint', { doc: H, comment: 'add filter' });
+  await visibleSame('checkpoint');
+  const h1 = await hist(H);
+  out.notes.h1 = h1;
+  ck('checkpointNamed', cp1.ok && cp1.data.checkpointId === 'cp1' && cp1.data.noChanges === false && h1.openTransaction === false
+    && h1.undo[0].comment === 'add filter' && h1.undo[0].checkpointId === 'cp1' && h1.undo[0].auto === false && h1.undo[0].kind === 'agent');
+  ck('checkpointNotMutating', cp1.transaction === undefined && cp1.connectivity === undefined);
+  // --- checkpoint nothing: no open transaction -> noChanges, stack unchanged
+  const d0 = await docState(H);
+  const cpN = await A('checkpoint', { doc: H, comment: 'nothing' });
+  const d1 = await docState(H);
+  ck('checkpointNothing', cpN.ok && cpN.data.noChanges === true && cpN.data.checkpointId === undefined && d0.undo === d1.undo && d0.redo === d1.redo);
+  // invalid comments
+  const bad = [await A('checkpoint', { doc: H, comment: '' }), await A('checkpoint', { doc: H, comment: 'x'.repeat(121) }),
+    await A('checkpoint', { doc: H, comment: 'a\nb' }), await A('checkpoint', { doc: H })];
+  ck('checkpointInvalidComment', bad.every((r) => !r.ok && codes(r)[0] === 'invalid_value'));
+
+  // --- undo / redo round trip: states and IDs equal; redo entry carries the comment
+  const u1 = await A('undo', { doc: H });
+  await visibleSame('undo');
+  const S0 = await state(H);
+  const hu = await hist(H);
+  const r1 = await A('redo', { doc: H });
+  await visibleSame('redo');
+  const S1b = await state(H);
+  const hr = await hist(H);
+  out.notes.roundTrip = { hu, hr, S0ids: S0.ids, S1, S1b };
+  ck('undoRedoRoundTrip', u1.ok && u1.data.undone === 1 && r1.ok && r1.data.redone === 1 && same(S0.ids, []) && same(S1b, S1)
+    && hu.redo[0].comment === 'add filter' && hu.redo[0].checkpointId === 'cp1' && hu.undo.length === 0
+    && hr.undo[0].comment === 'add filter' && hr.undo[0].checkpointId === 'cp1' && hr.redo.length === 0);
+
+  // --- undo nothing / redo nothing / steps range
+  const E = (await A('createDocument', {})).data.doc;
+  const un = await A('undo', { doc: E });
+  const rn = await A('redo', { doc: E });
+  const u51 = await A('undo', { doc: H, steps: 51 });
+  const uMany = await A('undo', { doc: H, steps: 5 });
+  ck('undoNothing', !un.ok && codes(un)[0] === 'nothing_to_undo' && !rn.ok && codes(rn)[0] === 'nothing_to_redo'
+    && !u51.ok && codes(u51)[0] === 'invalid_value' && !uMany.ok && codes(uMany)[0] === 'nothing_to_undo' && same(await state(H), S1));
+  await A('closeDocument', { doc: E, discardChanges: true });
+
+  // --- ok=false adds no undo entry and never opens/changes a transaction
+  const dBefore = await docState(H);
+  const rej1 = await A('applyEdits', { doc: H, edits: [add('R9', 0, 8), { op: 'set', id: 'R1', properties: { resistanse: '1k' } }] });
+  const dAfter1 = await docState(H);
+  await A('applyEdits', { doc: H, edits: [add('R3', 0, 4)] }); // opens
+  const dOpen = await docState(H);
+  const rej2 = await A('applyEdits', { doc: H, edits: [{ op: 'delete', id: 'NOPE' }] });
+  await s.eval(`CircuitJS1Agent.debugFailNextMutation(); true`);
+  const rej3 = await A('applyEdits', { doc: H, edits: [add('R10', 0, 10), add('R11', 0, 12)] });
+  const dAfter2 = await docState(H);
+  out.notes.rejected = { rej1: tx(rej1), rej2: tx(rej2), rej3: codes(rej3), dBefore, dAfter1, dOpen, dAfter2 };
+  ck('rejectedNoUndoEntry', !rej1.ok && same(tx(rej1), { open: false, pendingEdits: 0 }) && dAfter1.undo === dBefore.undo && dAfter1.redo === dBefore.redo
+    && dOpen.undo === dBefore.undo + 1 && !rej2.ok && same(tx(rej2), { open: true, pendingEdits: 1 })
+    && !rej3.ok && codes(rej3)[0] === 'internal_error' && same(tx(rej3), { open: true, pendingEdits: 1 }) && dAfter2.undo === dOpen.undo);
+
+  // --- Agent-origin pushes never auto-seal: an agent delete keeps the transaction open
+  const del = await A('applyEdits', { doc: H, edits: [{ op: 'delete', id: 'R3' }] });
+  ck('agentDeleteKeepsTransaction', del.ok && same(tx(del), { open: true, pendingEdits: 2 }) && (await hist(H)).openTransaction === true);
+  // an editor undo push under agent origin neither pushes nor seals (diagnostic reuses CircuitEditor.pushUndo)
+  const dop0 = await docState(H);
+  const dop = await s.eval(`CircuitJS1Agent.debugAgentOriginPush(${JSON.stringify(H)})`);
+  const dop1 = await docState(H);
+  ck('agentOriginPushNeverSeals', dop === true && same(dop1.transaction, { open: true, pendingEdits: 2 }) && dop1.undo === dop0.undo && dop1.redo === dop0.redo);
+  // undo seals the open transaction automatically first
+  const au = await A('undo', { doc: H });
+  const hau = await hist(H);
+  ck('undoAutoSeals', au.ok && hau.openTransaction === false && hau.redo[0].comment === 'agent edits (auto)' && hau.redo[0].auto === true
+    && hau.redo[0].checkpointId === 'cp2' && same(await state(H), S1));
+
+  // --- checkpoint after an ID-only change is not noChanges; a no-op transaction is
+  const K = (await A('createDocument', {})).data.doc;
+  await A('applyEdits', { doc: K, edits: [add('R1', 0, 0)] });
+  await A('checkpoint', { doc: K, comment: 'base' });
+  const kd0 = await docState(K);
+  await A('applyEdits', { doc: K, edits: [{ op: 'delete', id: 'R1' }] });
+  const readd = await A('applyEdits', { doc: K, edits: [add(null, 0, 0)] });
+  const cpId = await A('checkpoint', { doc: K, comment: 'renumber' });
+  await A('applyEdits', { doc: K, edits: [{ op: 'set', id: readd.data.created[0], properties: { resistance: '1k' } }] });
+  const kd1 = await docState(K);
+  const cpNoop = await A('checkpoint', { doc: K, comment: 'noop' });
+  const kd2 = await docState(K);
+  out.notes.idOnly = { created: readd.data.created, cpId: cpId.data, cpNoop: cpNoop.data, kd0, kd1, kd2 };
+  ck('checkpointIdOnlyChange', readd.ok && readd.data.created[0] === 'R2' && cpId.ok && cpId.data.noChanges === false && cpId.data.checkpointId === 'cp2'
+    && kd1.undo === kd0.undo + 2 && cpNoop.ok && cpNoop.data.noChanges === true && kd2.undo === kd0.undo + 1 && kd2.transaction.open === false);
+  await A('closeDocument', { doc: K, discardChanges: true });
+
+  // --- restoreCheckpoint with cp1, cp2 (and cp3) of document R
+  const R = (await A('createDocument', {})).data.doc;
+  await A('importCircuit', { doc: R, circuit: { elements: RC_CELLS } });
+  const R0 = await state(R);
+  await A('checkpoint', { doc: R, comment: 'import' }); // cp1 (pre-state: empty)
+  await A('applyEdits', { doc: R, edits: [add('RA', 8, 0)] });
+  const R1s = await state(R);
+  await A('checkpoint', { doc: R, comment: 'stage 1' }); // cp2 (pre-state R0)
+  await A('applyEdits', { doc: R, edits: [add('RB', 8, 2)] });
+  await A('checkpoint', { doc: R, comment: 'stage 2' }); // cp3 (pre-state R1s)
+  const R2s = await state(R);
+  const unk = await A('restoreCheckpoint', { doc: R, checkpointId: 'cp99' });
+  const rc2 = await A('restoreCheckpoint', { doc: R, checkpointId: 'cp2' });
+  await visibleSame('restoreCheckpoint');
+  const afterCp2 = await state(R);
+  const hR = await hist(R);
+  const rc1 = await A('restoreCheckpoint', { doc: R, checkpointId: 'cp1' });
+  const afterCp1 = await state(R);
+  const rc3 = await A('restoreCheckpoint', { doc: R, checkpointId: 'cp3' }); // now on the redo stack only
+  const rd = await A('redo', { doc: R, steps: 3 });
+  const afterRedo = await state(R);
+  out.notes.restore = { unk: codes(unk), rc2: rc2.data, rc1: rc1.data, rc3: codes(rc3), hR, R0, afterCp2, afterCp1: afterCp1.ids, rd: rd.data, afterRedo: afterRedo.ids };
+  ck('restoreCheckpoint', !unk.ok && codes(unk)[0] === 'unknown_checkpoint' && rc2.ok && rc2.data.undone === 2 && same(afterCp2, R0)
+    && same(hR.undo.map((e) => e.checkpointId), ['cp1']) && same(hR.redo.map((e) => e.checkpointId), ['cp2', 'cp3'])
+    && rc1.ok && rc1.data.undone === 1 && same(afterCp1.ids, []) && !rc3.ok && codes(rc3)[0] === 'unknown_checkpoint'
+    && rd.ok && rd.data.redone === 3 && same(afterRedo, R2s) && R2s.ids.length === 7);
+  void R1s;
+  await A('closeDocument', { doc: R, discardChanges: true });
+
+  // --- IDs survive undo/redo; no duplicate IDs after restore (R1..R5, undo, redo, add -> R6)
+  const J = (await A('createDocument', {})).data.doc;
+  await A('importCircuit', { doc: J, circuit: resistorJson(['R1', 'R2', 'R3', 'R4', 'R5']) });
+  const J1 = await state(J);
+  await A('checkpoint', { doc: J, comment: 'import' });
+  await A('applyEdits', { doc: J, edits: [{ op: 'set', id: 'R2', properties: { resistance: '3k' } }] });
+  const J2 = await state(J);
+  await A('checkpoint', { doc: J, comment: 'set' });
+  // a load that throws inside undo/redo puts the stacks and the document back
+  const jd0 = await docState(J);
+  await s.eval(`CircuitJS1Agent.debugFailNextUndoLoad(); true`);
+  const fu = await A('undo', { doc: J });
+  const jd1 = await docState(J);
+  const J2f = await state(J);
+  await s.call('closeDialogs');
+  ck('failedUndoLoadRestores', !fu.ok && codes(fu)[0] === 'internal_error' && /debugFailNextUndoLoad/.test(fu.issues[0].message)
+    && same(J2f, J2) && jd1.undo === jd0.undo && jd1.redo === jd0.redo && (await hist(J)).undo[0].comment === 'set');
+  const idSeq = [];
+  await A('undo', { doc: J }); idSeq.push((await state(J)).ids);
+  await A('redo', { doc: J }); idSeq.push((await state(J)).ids);
+  await A('undo', { doc: J, steps: 2 }); idSeq.push((await state(J)).ids);
+  await A('redo', { doc: J, steps: 2 }); const J2b = await state(J); idSeq.push(J2b.ids);
+  const addR = await A('applyEdits', { doc: J, edits: [add(null, 0, 8)] });
+  const five = ['R1', 'R2', 'R3', 'R4', 'R5'];
+  out.notes.ids = { idSeq, created: addR.data && addR.data.created };
+  ck('idsSurviveUndoRedo', same(J1.ids, five) && same(J2.ids, five) && same(idSeq, [five, five, [], five]) && same(J2b, J2));
+  ck('noDuplicateIdsAfterRestore', addR.ok && same(addR.data.created, ['R6']));
+  await A('closeDocument', { doc: J, discardChanges: true });
+
+  // --- Grid preference of other tabs has no effect (undo/redo part): Small Grid on in the visible tab
+  const OPTS_SMALL = '$ 3 0.000005 10.20027730826997 50 5 50 5e-11\n';
+  const G = (await A('createDocument', {})).data.doc;
+  await s.call('importText', OPTS_SMALL + 'r 64 64 128 64 0 1000\n');
+  const visSmall = await s.call('visibleTab');
+  const potRec = async () => recs(await A('getCircuit', { doc: G, detail: 'full' })).find((e) => e.type === 'Potentiometer');
+  const potAdd = await A('applyEdits', { doc: G, edits: [{ op: 'add', element: { id: 'P1', type: 'Potentiometer', start: { x: 0, y: 0 }, end: { x: 3, y: 0 } } }] });
+  const postsAdd = recs(potAdd)[0].posts.map((p) => p.at);
+  await A('checkpoint', { doc: G, comment: 'pot' });
+  await A('applyEdits', { doc: G, edits: [add('R1', 0, 6)] });
+  await A('undo', { doc: G });
+  const postsUndo = (await potRec()).posts.map((p) => p.at);
+  await A('redo', { doc: G });
+  const postsRedo = (await potRec()).posts.map((p) => p.at);
+  out.notes.grid = { postsAdd, postsUndo, postsRedo };
+  ck('gridUndoRedoKeepsPosts', potAdd.ok && same(postsUndo, postsAdd) && same(postsRedo, postsAdd)
+    && same(await s.call('visibleTab'), visSmall));
+  await A('closeDocument', { doc: G, discardChanges: true });
+  await s.call('loadExample', 'lrc.txt');
+
+  // --- Transformer endpoints survive a text reload by undo/redo (plan backlog item, agent undo)
+  const T = (await A('createDocument', {})).data.doc;
+  const trRec = async (doc) => { const e = recs(await A('getCircuit', { doc, detail: 'full' })).find((x) => x.id === 'T1'); return e && { start: e.start, end: e.end, posts: e.posts.map((p) => p.at) }; };
+  await A('applyEdits', { doc: T, edits: [{ op: 'add', element: { id: 'T1', type: 'Transformer', start: { x: 0, y: 0 } } }] });
+  const t0 = await trRec(T);
+  await A('checkpoint', { doc: T, comment: 'transformer' });
+  await A('applyEdits', { doc: T, edits: [add('R1', 0, 10)] });
+  await A('undo', { doc: T });
+  const tU = await trRec(T);
+  await A('redo', { doc: T });
+  const tR = await trRec(T);
+  out.notes.transformer = { t0, tU, tR };
+  ck('transformerAgentUndoExact', t0 && same(tU, t0) && same(tR, t0));
+  await A('closeDocument', { doc: T, discardChanges: true });
+
+  // --- idle seal (injectable timeout), and a closed document's idle timer is harmless
+  await s.eval(`CircuitJS1Agent.debugSetIdleSealMs(400); true`);
+  const I = (await A('createDocument', {})).data.doc;
+  await A('applyEdits', { doc: I, edits: [add('R1', 0, 0)] });
+  const iOpen = (await hist(I)).openTransaction;
+  await sleep(1000);
+  const hi = await hist(I);
+  const Z = (await A('createDocument', {})).data.doc;
+  await A('applyEdits', { doc: Z, edits: [add('R1', 0, 0)] });
+  await A('closeDocument', { doc: Z, discardChanges: true });
+  await sleep(700);
+  await s.eval(`CircuitJS1Agent.debugSetIdleSealMs(0); true`);
+  out.notes.idle = hi;
+  ck('idleSeal', iOpen === true && hi.openTransaction === false && hi.undo[0].comment === 'agent edits (auto)' && hi.undo[0].auto === true
+    && hi.undo[0].checkpointId === 'cp1');
+  await A('closeDocument', { doc: I, discardChanges: true });
+
+  // --- visible document V: user undoes agent work, user edit vs agent entry, saves, modified flag
+  const V = (await A('createDocument', { title: 'History V', activate: true })).data.doc;
+  await sleep(300);
+  const words = { Undo: menuTexts('Undo'), Redo: menuTexts('Redo') };
+  const labelWords = [...words.Undo, ...words.Redo];
+  const menuLabels = async () => {
+    await s.call('clickMenuPath', [menuTexts('Edit')]);
+    const t0 = await s.eval(`Array.from(document.querySelectorAll('.gwt-MenuItem')).filter((e) => e.offsetWidth > 0)
+      .map((e) => e.textContent.replace(/\\s+/g, ' ').trim()).filter((t) => ${JSON.stringify(labelWords)}.some((w) => t.startsWith(w)))`);
+    // normalise the translated action word to English for the checks
+    const labels = t0.map((x) => { for (const [en, list] of Object.entries(words)) for (const w of list) if (x.startsWith(w)) return en + x.slice(w.length); return x; });
+    await s.key('Escape');
+    await s.eval(`document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); true`);
+    await sleep(200);
+    return labels;
+  };
+  await A('importCircuit', { doc: V, circuit: { elements: RC_CELLS } });
+  await A('checkpoint', { doc: V, comment: 'add stage 1' });
+  const VS1 = await state(V);
+  await A('applyEdits', { doc: V, edits: [add('R3', 8, 0)] });
+  await A('checkpoint', { doc: V, comment: 'add stage 2' });
+  const VS2 = await state(V);
+  const lab1 = await menuLabels();
+  await s.call('focus');
+  await s.key('KeyZ', { ctrl: true });
+  const afterUserUndo = await state(V);
+  const hv = await hist(V);
+  const lab2 = await menuLabels();
+  out.notes.userUndo = { lab1, lab2, hv };
+  ck('userUndoesAgentWork', lab1.some((t) => t.startsWith('Undo: add stage 2')) && same(afterUserUndo, VS1)
+    && hv.undo[0].checkpointId === 'cp1' && hv.redo[0].comment === 'add stage 2' && hv.redo[0].checkpointId === 'cp2'
+    && lab2.some((t) => t.startsWith('Undo: add stage 1')) && lab2.some((t) => t.startsWith('Redo: add stage 2')));
+  await s.call('focus');
+  await s.key('KeyY', { ctrl: true });
+  ck('userRedoAgentWork', same(await state(V), VS2));
+
+  // A user edit never merges into an agent entry: agent edit -> user delete (real key) -> one Ctrl+Z
+  await A('applyEdits', { doc: V, edits: [add('R4', 8, 4)] });
+  const VSA = await state(V);
+  await s.call('focus');
+  await s.call('select', 'R4', false);
+  await s.key('Delete');
+  const afterUserDelete = await state(V);
+  const hd = await hist(V);
+  await s.call('focus');
+  await s.key('KeyZ', { ctrl: true });
+  const afterOneUndo = await state(V);
+  out.notes.userEdit = { hd, afterUserDelete: afterUserDelete.ids };
+  ck('userEditNeverMerges', afterUserDelete.ids.length === VSA.ids.length - 1 && hd.openTransaction === false
+    && hd.undo[0].kind === 'user' && hd.undo[0].comment === undefined && hd.undo[1].comment === 'agent edits (auto)' && hd.undo[1].auto === true
+    && same(afterOneUndo, VSA));
+
+  // A press that changes nothing (select click) does not seal: one checkpoint covers both agent edits
+  const cr = await s.call('canvasRect');
+  const cx = Math.round(cr.x + cr.w * 0.8), cy = Math.round(cr.y + cr.h * 0.3);
+  const VB = await state(V);
+  await A('applyEdits', { doc: V, edits: [add('RX1', 30, 0)] });
+  await s.call('focus');
+  await s.key('Escape');
+  await s.mouseDrag(cx, cy, cx, cy);
+  const hClick = await hist(V);
+  const a2 = await A('applyEdits', { doc: V, edits: [add('RX2', 30, 2)] });
+  const cpTwo = await A('checkpoint', { doc: V, comment: 'two edits' });
+  const rcTwo = await A('restoreCheckpoint', { doc: V, checkpointId: cpTwo.data && cpTwo.data.checkpointId });
+  const afterTwo = await state(V);
+  out.notes.selectClick = { hClick, a2: tx(a2), cpTwo: cpTwo.data, rcTwo: rcTwo.data };
+  ck('selectClickKeepsTransaction', hClick.openTransaction === true && same(tx(a2), { open: true, pendingEdits: 2 })
+    && rcTwo.ok && rcTwo.data.undone === 1 && same(afterTwo, VB));
+  await A('redo', { doc: V });
+  // A real drag (placing a resistor) seals: the agent entry sits below the user's entries
+  await A('applyEdits', { doc: V, edits: [add('RX3', 30, 4)] });
+  const VC = await state(V);
+  const placeResistor = async (y) => {
+    await s.call('focus'); await s.key('Escape'); await s.typeChar('r');
+    await s.mouseDrag(cx, y, cx + 96, y);
+    await s.typeChar(' ');
+  };
+  await placeResistor(cy);
+  const hDrag = await hist(V);
+  const placed = await state(V);
+  await s.call('focus');
+  await s.key('KeyZ', { ctrl: true });
+  await s.key('KeyZ', { ctrl: true });
+  const afterDragUndo = await state(V);
+  const autoAt = (h) => h.undo.findIndex((e) => e.comment === 'agent edits (auto)');
+  out.notes.drag = { hDrag, placed: placed.ids, afterDragUndo: afterDragUndo.ids };
+  ck('realDragSeals', placed.ids.length === VC.ids.length + 1 && hDrag.openTransaction === false && autoAt(hDrag) >= 1
+    && hDrag.undo.slice(0, autoAt(hDrag)).every((e) => e.kind === 'user' && e.comment === undefined) && same(afterDragUndo, VC));
+  // A transaction with no net change, then a user edit: the user edit gets its own entry and label
+  const rx1 = recs(await A('getCircuit', { doc: V, ids: ['RX1'], detail: 'full' }))[0];
+  await A('applyEdits', { doc: V, edits: [{ op: 'set', id: 'RX1', properties: { resistance: '2k' } }] });
+  await A('applyEdits', { doc: V, edits: [{ op: 'set', id: 'RX1', properties: { resistance: rx1.properties.resistance } }] });
+  const SN = await state(V);
+  const autoCount = (h) => h.undo.filter((e) => e.comment === 'agent edits (auto)').length;
+  const autoBefore = autoCount(await hist(V, 150));
+  await placeResistor(cy + 64);
+  const hNil = await hist(V, 150);
+  const labNil = await menuLabels();
+  await s.call('focus');
+  await s.key('KeyZ', { ctrl: true });
+  await s.key('KeyZ', { ctrl: true });
+  const afterNil = await state(V);
+  out.notes.nil = { labNil, autoBefore, autoAfter: autoCount(hNil), top: hNil.undo.slice(0, 3) };
+  ck('nilTransactionUserEditOwnEntry', same(SN, VC) && hNil.openTransaction === false && autoCount(hNil) === autoBefore
+    && hNil.undo[0].kind === 'user' && hNil.undo[1].kind === 'user' && labNil.some((t) => /^Undo(?!:)/.test(t)) && same(afterNil, SN));
+  // The same when the nil transaction was sealed earlier (idle timer, user save), not by the user's push
+  const rx1r = rx1.properties.resistance;
+  const nilSealedThen = async (seal, userEdit) => {
+    const base = await state(V);
+    const autoB = autoCount(await hist(V, 150));
+    await A('applyEdits', { doc: V, edits: [{ op: 'set', id: 'RX1', properties: { resistance: '2k' } }] });
+    await A('applyEdits', { doc: V, edits: [{ op: 'set', id: 'RX1', properties: { resistance: rx1r } }] });
+    await seal();
+    const hSealed = await hist(V, 150);
+    await userEdit();
+    const edited = await state(V);
+    const hAfter = await hist(V, 150);
+    const lab = await menuLabels();
+    await s.call('focus');
+    await s.key('KeyZ', { ctrl: true });
+    const after = await state(V);
+    const hUndone = await hist(V, 150);
+    const r = { autoB, sealed: hSealed.undo.slice(0, 2), sealedOpen: hSealed.openTransaction, after: hAfter.undo.slice(0, 2), autoAfter: autoCount(hAfter), lab, redo0: hUndone.redo[0] };
+    // the seal happened before the user edit and named the nil entry
+    r.ok = hSealed.openTransaction === false && hSealed.undo[0].comment === 'agent edits (auto)' && autoCount(hSealed) === autoB + 1
+      // the user edit changed the circuit, got its own entry and label, and the nil entry is gone
+      && edited.text !== base.text && hAfter.undo[0].kind === 'user' && hAfter.undo[0].comment === undefined && autoCount(hAfter) === autoB
+      && lab.some((t) => /^Undo(?!:)/.test(t)) && !lab.some((t) => t.startsWith('Undo: agent edits'))
+      // one Ctrl+Z reverts only the user edit, and the redo entry is the user's
+      && same(after, base) && hUndone.redo[0] && hUndone.redo[0].kind === 'user';
+    return r;
+  };
+  const nilIdle = await nilSealedThen(async () => {
+    await s.eval(`CircuitJS1Agent.debugSetIdleSealMs(300); true`);
+    // the idle time applies to transactions that continue afterwards: one more nil edit
+    await A('applyEdits', { doc: V, edits: [{ op: 'set', id: 'RX1', properties: { resistance: rx1r } }] });
+    await sleep(900);
+    await s.eval(`CircuitJS1Agent.debugSetIdleSealMs(0); true`);
+  }, async () => { await s.call('focus'); await s.call('select', 'RX2', false); await s.key('Delete'); });
+  const nilSave = await nilSealedThen(async () => {
+    await s.call('focus'); await s.key('KeyS', { ctrl: true }); await sleep(200); await s.call('closeDialogs');
+  }, async () => { await s.call('focus'); await s.call('select', 'RX2', false); await s.key('Delete'); });
+  out.notes.nilSealedEarlier = { nilIdle, nilSave };
+  ck('nilSealedEarlierUserEditOwnEntry', nilIdle.ok && nilSave.ok);
+
+
+  // Transformer endpoints survive a user undo (entry pushed by the user's delete)
+  await A('applyEdits', { doc: V, edits: [{ op: 'add', element: { id: 'T1', type: 'Transformer', start: { x: 16, y: 0 } } }] });
+  const vt0 = await trRec(V);
+  await s.call('focus');
+  await s.call('select', 'R1', false);
+  await s.key('Delete');
+  await s.call('focus');
+  await s.key('KeyZ', { ctrl: true });
+  const vtU = await trRec(V);
+  out.notes.userTransformer = { vt0, vtU };
+  ck('transformerUserUndoExact', vt0 && same(vtU, vt0) && (await state(V)).ids.includes('R1'));
+
+  // A user save seals; agent undo/redo/restore set the modified flag
+  const save = async () => { await s.call('focus'); await s.key('KeyS', { ctrl: true }); await sleep(200); return (await docState(V)).modified; };
+  await A('applyEdits', { doc: V, edits: [add('R5', 8, 8)] });
+  const m0 = await save();
+  const hs = await hist(V);
+  const mu = (await A('undo', { doc: V })).ok && (await docState(V)).modified;
+  const m1 = await save();
+  const mr = (await A('redo', { doc: V })).ok && (await docState(V)).modified;
+  const m2 = await save();
+  const mc = (await A('restoreCheckpoint', { doc: V, checkpointId: 'cp1' })).ok && (await docState(V)).modified;
+  out.notes.modified = { m0, m1, m2, mu, mr, mc, hs };
+  ck('userSaveSeals', m0 === false && hs.openTransaction === false && hs.undo[0].comment === 'agent edits (auto)');
+  ck('modifiedAfterUndoRedoRestore', m1 === false && m2 === false && mu === true && mr === true && mc === true);
+  await A('closeDocument', { doc: V, discardChanges: true });
+
+  // An agent call while the user holds the mouse button in a move-drag: the drag before the call,
+  // the agent edit and the drag after the call are three undo entries (with and without an agent
+  // transaction open at the press). A fresh visible document; screen points from its transform.
+  const D = (await A('createDocument', { title: 'History D', activate: true })).data.doc;
+  await sleep(300);
+  const raw = (type, x, y, extra = {}) => s.cdp.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', ...extra });
+  const dcr = await s.call('canvasRect');
+  const view = (await s.call('visibleTab')).view;
+  const k = dcr.w / view.canvas.width, t = view.transform;
+  const toScreen = (gx, gy) => ({ x: dcr.x + (t[0] * gx + t[4]) * k, y: dcr.y + (t[3] * gy + t[5]) * k });
+  const toCell = (sx, sy) => ({ x: Math.round(((sx - dcr.x) / k - t[4]) / t[0] / 16), y: Math.round(((sy - dcr.y) / k - t[5]) / t[3] / 16) });
+  const heldDrag = async (fx, withTx, moveId, agentId) => {
+    const c = toCell(dcr.x + dcr.w * fx, dcr.y + dcr.h * 0.35);
+    await A('applyEdits', { doc: D, edits: [add(moveId, c.x, c.y)] });
+    if (!withTx) await A('checkpoint', { doc: D, comment: 'place ' + moveId });
+    const tx0 = (await hist(D)).openTransaction;
+    const P = await state(D);
+    const at = toScreen((c.x + 2) * 16, c.y * 16); // the body of the resistor
+    await s.call('focus'); await s.key('Escape'); await s.typeChar(' ');
+    await raw('mouseMoved', at.x, at.y, { button: 'none' }); await sleep(100);
+    await raw('mousePressed', at.x, at.y, { clickCount: 1, buttons: 1 });
+    // move until the element has moved (the editor snaps to the grid)
+    let dy = 0, P1 = P;
+    for (let n = 0; n < 8 && (n < 3 || P1.text === P.text); n++) { dy += 16; await raw('mouseMoved', at.x, at.y + dy, { buttons: 1 }); await sleep(80); P1 = await state(D); }
+    const ag = await A('applyEdits', { doc: D, edits: [add(agentId, c.x, c.y - 6)] });
+    const Q = await state(D);
+    let F = Q;
+    for (let n = 0; n < 8 && (n < 3 || F.text === Q.text); n++) { dy += 16; await raw('mouseMoved', at.x, at.y + dy, { buttons: 1 }); await sleep(80); F = await state(D); }
+    await raw('mouseReleased', at.x, at.y + dy, { clickCount: 1 });
+    await sleep(200);
+    const hF = await hist(D);
+    await s.call('focus');
+    await s.key('KeyZ', { ctrl: true });
+    const U1 = await state(D);
+    const hU1 = await hist(D);
+    await s.key('KeyZ', { ctrl: true });
+    const U2 = await state(D);
+    const r = { withTx, cell: c, at, dy, tx0, ag: tx(ag), hF: hF.undo.slice(0, 3), hFopen: hF.openTransaction, hU1: hU1.undo.slice(0, 2) };
+    r.conds = {
+      setup: tx0 === withTx && ag.ok,
+      // the drag moved the element before and after the agent call
+      dragBefore: P1.text !== P.text, agentEdit: Q.ids.includes(agentId) && !P1.ids.includes(agentId), dragAfter: F.text !== Q.text,
+      // the drag after the call sealed the agent's transaction and got its own user entry
+      ownEntry: hF.openTransaction === false && hF.undo[0].kind === 'user' && hF.undo[1].comment === 'agent edits (auto)',
+      // Ctrl+Z reverts only the rest of the drag (agent edit kept), the next one only the agent edit
+      undo1: same(U1, Q) && hU1.undo[0].comment === 'agent edits (auto)', undo2: same(U2, P1),
+    };
+    r.ok = Object.values(r.conds).every(Boolean);
+    if (!r.ok) r.texts = { P: P.text, P1: P1.text, Q: Q.text, F: F.text, U1: U1.text, U2: U2.text };
+    return r;
+  };
+  const dragTx = await heldDrag(0.3, true, 'RM1', 'RY1');
+  const dragNoTx = await heldDrag(0.6, false, 'RM2', 'RY2');
+  out.notes.heldDrag = { dragTx, dragNoTx };
+  ck('agentCallDuringDragSplitsGesture', dragTx.ok && dragNoTx.ok);
+  // A rejected agent call during a drag with no transaction open leaves the drag one undo step
+  {
+    const c = toCell(dcr.x + dcr.w * 0.45, dcr.y + dcr.h * 0.7);
+    await A('applyEdits', { doc: D, edits: [add('RM3', c.x, c.y)] });
+    await A('checkpoint', { doc: D, comment: 'place RM3' });
+    const tx0 = (await hist(D)).openTransaction;
+    const P = await state(D);
+    const at = toScreen((c.x + 2) * 16, c.y * 16);
+    await s.call('focus'); await s.key('Escape'); await s.typeChar(' ');
+    await raw('mouseMoved', at.x, at.y, { button: 'none' }); await sleep(100);
+    await raw('mousePressed', at.x, at.y, { clickCount: 1, buttons: 1 });
+    let dy = 0, P1 = P;
+    for (let n = 0; n < 8 && (n < 3 || P1.text === P.text); n++) { dy += 16; await raw('mouseMoved', at.x, at.y + dy, { buttons: 1 }); await sleep(80); P1 = await state(D); }
+    const rej = await A('applyEdits', { doc: D, edits: [{ op: 'delete', id: 'NOPE' }] });
+    let F = P1;
+    for (let n = 0; n < 8 && (n < 3 || F.text === P1.text); n++) { dy += 16; await raw('mouseMoved', at.x, at.y + dy, { buttons: 1 }); await sleep(80); F = await state(D); }
+    await raw('mouseReleased', at.x, at.y + dy, { clickCount: 1 });
+    await sleep(200);
+    const hF = await hist(D);
+    await s.call('focus');
+    await s.key('KeyZ', { ctrl: true });
+    const U1 = await state(D);
+    const conds = { setup: tx0 === false && !rej.ok && same(tx(rej), { open: false, pendingEdits: 0 }),
+      moved: P1.text !== P.text && F.text !== P1.text, userTop: hF.openTransaction === false && hF.undo[0].kind === 'user',
+      oneUndo: same(U1, P) };
+    out.notes.rejectedDuringDrag = { conds, hF: hF.undo.slice(0, 3) };
+    ck('rejectedCallDuringDragOneStep', Object.values(conds).every(Boolean));
+  }
+  await A('activateDocument', { doc: A0 });
+  await A('closeDocument', { doc: D, discardChanges: true });
+  await A('closeDocument', { doc: H, discardChanges: true });
+
+  out.notes.visibleFailed = visFailed;
+  ck('backgroundHistoryKeepsVisibleTab', visFailed.length === 0);
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_history.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_history', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_history.json') });
+}
+
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -2085,8 +2605,10 @@ async function main() {
   startChild('python3', ['-m', 'http.server', String(httpPort), '--directory', SITE_DIR, '--bind', '127.0.0.1'], 'http');
   const profile = path.join(OUT_DIR, 'profile');
   fs.rmSync(profile, { recursive: true, force: true });
+  // --disable-extensions: a fresh profile would auto-install system-provided external extensions
+  // (e.g. KDE Plasma Integration, whose native host then reports a lost connection after each run)
   startChild(CHROMIUM, ['--headless=new', `--remote-debugging-port=${cdpPort}`, '--remote-debugging-address=127.0.0.1', `--user-data-dir=${profile}`,
-    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1400,900', 'about:blank'], 'chromium');
+    '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--disable-extensions', '--window-size=1400,900', 'about:blank'], 'chromium');
 
   const base = `http://127.0.0.1:${httpPort}`;
   await waitFor(async () => (await fetch(base + '/circuitjs.html')).ok, 15000, 'http server');
@@ -2116,7 +2638,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

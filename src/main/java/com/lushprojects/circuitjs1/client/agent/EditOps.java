@@ -54,7 +54,7 @@ final class EditOps {
     }
 
     static void register(AgentApi api) {
-        api.register("applyEdits", AgentApi.DocPolicy.OPTIONAL, AgentApi.BusyPolicy.REJECTED, EditOps::applyEdits);
+        api.registerMutating("applyEdits", AgentApi.DocPolicy.OPTIONAL, AgentApi.BusyPolicy.REJECTED, EditOps::applyEdits);
     }
 
     // ---------------------------------------------------------------- batch model

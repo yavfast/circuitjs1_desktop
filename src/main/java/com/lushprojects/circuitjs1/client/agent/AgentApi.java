@@ -70,11 +70,14 @@ public final class AgentApi {
     private static final class Contract {
         final DocPolicy docPolicy;
         final BusyPolicy busyPolicy;
+        /** Mutating column of the class table: the result carries {@code transaction}. */
+        final boolean mutating;
         final Handler handler;
 
-        Contract(DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
+        Contract(DocPolicy docPolicy, BusyPolicy busyPolicy, boolean mutating, Handler handler) {
             this.docPolicy = docPolicy;
             this.busyPolicy = busyPolicy;
+            this.mutating = mutating;
             this.handler = handler;
         }
     }
@@ -92,10 +95,19 @@ public final class AgentApi {
         Connectivity.register(this);
         Readings.register(this);
         DiagnosticsOps.register(this);
+        HistoryOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
-        contracts.put(op, new Contract(docPolicy, busyPolicy, handler));
+        contracts.put(op, new Contract(docPolicy, busyPolicy, false, handler));
+    }
+
+    /**
+     * Registers a mutating contract (SP_AGA_02 class table): every result, also a rejection,
+     * carries the target document's {@code transaction} state ([SP_AGA_01_08]).
+     */
+    void registerMutating(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
+        contracts.put(op, new Contract(docPolicy, busyPolicy, true, handler));
     }
 
     /**
@@ -134,6 +146,27 @@ public final class AgentApi {
                     "Use one of: " + String.join(", ", contracts.keySet()) + "."));
         }
         AgentArgs args = AgentArgs.parse(argsJson);
+        OperationResult result = dispatch(contract, op, args);
+        if (contract.mutating) {
+            // a rejection never changes the transaction; the field reflects its state
+            CircuitDocument target = targetOf(contract, args);
+            if (target != null) {
+                result.setTransaction(AgentTransaction.toJson(target));
+            }
+        }
+        return result;
+    }
+
+    /** @return the document a call addresses, or null when it names no open document */
+    private CircuitDocument targetOf(Contract contract, AgentArgs args) {
+        JSONValue docArg = args.raw("doc");
+        if (docArg != null) {
+            return docArg.isString() == null ? null : DocumentHandles.find(sim, docArg.isString().stringValue());
+        }
+        return contract.docPolicy == DocPolicy.OPTIONAL ? sim.getActiveDocument() : null;
+    }
+
+    private OperationResult dispatch(Contract contract, String op, AgentArgs args) {
         if (args.failed()) {
             return args.failure();
         }

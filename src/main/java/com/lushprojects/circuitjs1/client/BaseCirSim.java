@@ -251,10 +251,12 @@ public class BaseCirSim {
         menuManager.flipXYItem.setEnabled(canFlipXY);
     }
 
-    void enableUndoRedo() {
+    /** Refreshes the Undo/Redo items (enabled state and labels) from the bound document. */
+    public void enableUndoRedo() {
         UndoManager undoManager = getActiveDocument().undoManager;
         menuManager.redoItem.setEnabled(undoManager.hasRedoStack());
         menuManager.undoItem.setEnabled(undoManager.hasUndoStack());
+        menuManager.updateUndoRedoLabels(undoManager.getUndoComment(), undoManager.getRedoComment());
     }
 
     void enablePaste() {

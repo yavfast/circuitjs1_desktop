@@ -695,7 +695,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             clearSelection();
         }
 
-        pushUndo();
+        // [SP_AGA_04_01] a press that changes nothing must not seal an open agent transaction
+        undoManager().pushUndoForGesture();
+        cirSim.enableUndoRedo();
         initDragGridX = gridX;
         initDragGridY = gridY;
         dragging = true;
@@ -809,6 +811,9 @@ public class CircuitEditor extends BaseCirSimDelegate implements MouseDownHandle
             dragElm.delete();
         }
         dragElm = null;
+        // the gesture is over: keep its tentative entry only if it changed the circuit
+        undoManager().endGesture();
+        cirSim.enableUndoRedo();
         renderer().repaint();
     }
 

@@ -11,7 +11,8 @@ import java.util.List;
 /**
  * [SP_AGA_01_08] Result of every contract: {@code ok}, contract-specific {@code data}, issues
  * (at most {@link #MAX_ISSUES}, errors first), {@code truncatedIssues} and, on a successful
- * mutating contract, {@code connectivity}. The {@code transaction} field comes with PL_AGA Phase 6.
+ * mutating contract, {@code connectivity}; on every mutating contract (also a rejected one),
+ * {@code transaction} ({@link AgentTransaction}).
  */
 public final class OperationResult {
 
@@ -23,6 +24,8 @@ public final class OperationResult {
     private final List<Issue> issues = new ArrayList<>();
     /** [SP_AGA_01_06] ConnectivityDelta of a successful mutating contract, or null. */
     private JSONObject connectivity;
+    /** [SP_AGA_01_08] {open, pendingEdits} of the target document's transaction, or null. */
+    private JSONObject transaction;
 
     private OperationResult(boolean ok, JSONObject data) {
         this.ok = ok;
@@ -76,6 +79,12 @@ public final class OperationResult {
         return this;
     }
 
+    /** Sets the transaction state ([SP_AGA_01_08]: present on every mutating contract). */
+    public OperationResult setTransaction(JSONObject state) {
+        transaction = state;
+        return this;
+    }
+
     public boolean isOk() {
         return ok;
     }
@@ -114,6 +123,9 @@ public final class OperationResult {
         o.put("truncatedIssues", new JSONNumber(sorted.size() - n));
         if (connectivity != null) {
             o.put("connectivity", connectivity);
+        }
+        if (transaction != null) {
+            o.put("transaction", transaction);
         }
         return o;
     }

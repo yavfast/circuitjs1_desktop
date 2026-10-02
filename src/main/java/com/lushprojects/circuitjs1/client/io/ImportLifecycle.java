@@ -54,6 +54,13 @@ public final class ImportLifecycle {
         ScopeManager scopeManager = document.scopeManager;
         CircuitRenderer renderer = document.getRenderer();
 
+        // [SP_AGA_04_01] A content replacement by the user (load, import, new blank circuit) seals
+        // an open agent transaction first. Not for an undo/redo restore (the undo sealed already)
+        // nor for an agent mutation's own import or rollback (agent origin).
+        if (!document.isRestoringElementIds() && !document.isAgentOrigin()) {
+            document.undoManager.sealTransaction();
+        }
+
         // Clear any previous simulation stop/error so the newly loaded circuit can run.
         document.clearError();
         simulator.clearStopState();

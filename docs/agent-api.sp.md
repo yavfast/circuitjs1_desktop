@@ -818,6 +818,8 @@ Transition rules:
 | open | none | No agent mutation for 300 s (wall clock) | Seal with auto comment |
 | open | (dropped) | Document closed | The open transaction is discarded with the document |
 
+**Sealed transaction without net change.** When a user edit requests an undo push and the newest undo entry is a sealed agent entry (sealed by that push or earlier: idle, save, content replacement) whose state equals the state being pushed, that entry is dropped and the user edit pushes its own entry in its place, so the user edit always has its own entry and label. The dropped entry's `checkpointId` leaves the undo stack; a later `restoreCheckpoint` with it returns `unknown_checkpoint`.
+
 **Agent origin.** While an Agent API mutation executes, the document is marked *agent origin*. Undo pushes requested by editor code paths reused inside the mutation are suppressed, because the transaction already holds the pre-mutation entry, and they do not count as user edits.
 
 **Menu labels.** The undo/redo menu entries display `Undo: <comment>` or `Redo: <comment>` when the entry they would apply carries a comment.
@@ -958,7 +960,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Aspect | Rollback approach |
 |--------|-------------------|
 | Data/state changes | Undo entry extension fields live in memory only. No file format changes: JSON element keys were already free-form IDs, and the text format is untouched |
-| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import |
+| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps |
 | Artifacts | The Agent API module and its export through the clustered native boundary; no persistent artifacts |
 | Dependent modules | [SP_MCP](./mcp-server.sp.md) and [SP_AGS](./agent-skill.sp.md) depend on it; removing the Agent API removes the MCP tool set |
 | External contracts | The existing scripting global keeps its documented methods; its element IDs come from the registry (same format) |
@@ -1039,6 +1041,8 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | §04_01: a sealed agent transaction without net change is dropped by the next user edit push (PL_AGA Phase 6 review) |
+| 2026-10-01 | §06_01 item 16: blank-circuit time-step defaults for new documents (PL_AGA Phase 6) |
 | 2026-10-01 | `read` null for non-finite values, wire-only net ranking, `netFilter` range, `recovering` = engaged (PL_AGA Phase 5 review) |
 | 2026-10-01 | `$<k>` net names ranked by smallest member PostRef instead of the simulator node index (PL_AGA Phase 5: node indices follow element order and broke the round-trip rows) |
 | 2026-10-01 | Catalogue: built-in defaults from a scratch document, one-to-one English labels, slider-seed sentinels, `readOnly` keys, `add` applies TypeInfo defaults (PL_AGA Phase 3 review) |

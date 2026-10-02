@@ -18,16 +18,43 @@ edit) and unpleasant scaling (O(dump-size) memory per edit).
 
 ## Key concepts
 
-**Undo record.** `UndoManager.UndoItem` holds
-`(dump: String, scale: double, tx: double, ty: double, elementIds: String[])`.
-The transform trio preserves pan/zoom across undo — otherwise undo-loading
-the dump would recenter the viewport. `elementIds` (SP_AGA_01_10, PL_AGA
-Phase 2) are the IDs of the dumped elements in dump order
-(`CircuitDocument.getDumpedElementIds()`); `loadUndoItem` brackets the
-import with `beginElementIdRestore/endElementIdRestore`, so the import does
-not reset ID counters and gives element i `elementIds[i]`. Consecutive-equal
-dedup compares dump *and* IDs (`UndoItem.sameContent`). Later phases add
-`openMarks`, a per-document `viewTransform` and checkpoint label fields.
+**Undo record.** `UndoManager.UndoItem` holds `dump`, `viewTransform`
+(`{scale, tx, ty}` of the snapshot document's own view: the renderer
+transform while it is bound, its saved UI-state transform otherwise),
+`elementIds`, `openMarks`, the element endpoints (aligned with
+`elementIds`) and the label fields `comment`, `checkpointId`, `auto`
+(SP_AGA_01_10, PL_AGA Phases 2 and 6). `elementIds` are the IDs of the
+dumped elements in dump order (`CircuitDocument.getDumpedElementIds()`);
+`loadUndoItem` brackets the import with
+`beginElementIdRestore/endElementIdRestore`, so the import does not reset
+ID counters and gives element i `elementIds[i]`, then puts back every
+endpoint the text reload rewrote (an axis-aligned transformer's text
+constructor synthesizes the diagonal corner) and returns the
+`ids_regenerated` warning on a count mismatch. Consecutive-equal dedup
+compares dump, IDs and open marks (`UndoItem.sameContent`).
+
+**Agent transaction (PL_AGA Phase 6).** The per-document transaction state
+lives on `UndoManager` (`isTransactionOpen`, `noteAgentMutation`,
+`seal`, `sealTransaction`). Its entry is always the newest undo entry.
+Seals: `pushUndo` (user edit; agent-origin pushes return before it),
+`doUndo`/`doRedo` (user), `resetAndSeedFromCurrentCircuit` and
+`ImportLifecycle.resetCircuitState` (user content replacement),
+`CirSim.clearCircuit`, ActionManager save/saveas, the idle `Timer`
+(300 s, `CircuitJS1Agent.debugSetIdleSealMs`), agent undo/restore.
+`undo(n)`/`redo(n)` move each popped entry E to the other stack as the
+state being left plus E's labels, loading only the final state.
+A mouse press while a transaction is open pushes *tentatively*
+(`pushUndoForGesture`); `resolveTentativePush` (mouse-up via `endGesture`,
+any later push, user undo/redo) drops it when nothing changed or seals and
+pushes it. Agent mutations and history calls run inside `splitGesture`:
+while the mouse button is held (press to `endGesture`) the tentative is
+resolved before and re-armed with the post-operation state after, so the
+rest of a drag never joins the agent's transaction (no re-arm when no
+transaction is open, the state is unchanged and a user entry is on top). A user push drops the
+newest entry when it is a sealed agent entry (`checkpointId`) equal to the
+pushed state, whoever sealed it (no-net transaction). `undo/redo` restore
+both stacks and the document when the load throws (a failing rollback
+reload is logged and attached as suppressed).
 
 **Stacks** (`UndoManager.java:28-32`):
 - `Vector<UndoItem> undoStack` — the history.
@@ -41,18 +68,20 @@ dedup compares dump *and* IDs (`UndoItem.sameContent`). Later phases add
    format = text).
 3. **Consecutive-equal dedup**: if the new dump equals the last
    `undoStack.peek().dump`, skip the push.
-4. Push new `UndoItem` capturing current `renderer.transform[0/4/5]`.
+4. Push a new `UndoItem` (the view transform comes from the document's own view).
+   An open agent transaction is sealed before step 1.
 
-**Pop rule** (`doUndo`, L64; `doRedo`, L72):
+**Pop rule** (`doUndo`/`doRedo` → `undo(1)`/`redo(1)`):
 1. Push current state onto the opposite stack (so redo is always
-   available after an undo).
+   available after an undo), carrying the popped entry's labels.
 2. Pop the target stack.
 3. `loadUndoItem(item)`.
 
 **Load rule** (`loadUndoItem`, L80):
 - Calls `circuitLoader.readCircuit(dump, RC_NO_CENTER)` (so import does
   not recenter).
-- Restores `transform[0]=scale, [4]=tx, [5]=ty` explicitly.
+- Restores `viewTransform` explicitly (skipped when its scale is 0) and
+  re-applies changed element endpoints.
 
 **Who calls `pushUndo`.** Every mutating edit path snapshots before the
 mutation:

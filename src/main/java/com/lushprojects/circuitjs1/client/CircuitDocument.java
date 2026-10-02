@@ -167,7 +167,21 @@ public class CircuitDocument {
      * {@code ids} in element order ([SP_AGA_03_02] "Undo/redo restore").
      */
     void beginElementIdRestore(String[] ids) {
+        idRestoreWarning = null;
         elementIdRegistry.setPendingRestore(ids != null ? ids : new String[0]);
+    }
+
+    /** The ids_regenerated message of the last undo/redo restore, or null (see {@link #takeIdRestoreWarning}). */
+    private String idRestoreWarning;
+
+    /**
+     * @return the {@code ids_regenerated} message of the undo/redo restore that just ran (the
+     *         restored element count differed from the snapshot's ID count), or null; cleared
+     */
+    String takeIdRestoreWarning() {
+        String w = idRestoreWarning;
+        idRestoreWarning = null;
+        return w;
     }
 
     /** Ends an undo/redo restore (drops the restore IDs if no import consumed them). */
@@ -200,8 +214,9 @@ public class CircuitDocument {
                     elements.get(i).setElementId(restore[i]);
                 }
             } else {
-                warnings.add("undo/redo restored " + elements.size() + " elements but the snapshot holds "
-                        + restore.length + " IDs; element IDs regenerated in order");
+                idRestoreWarning = "undo/redo restored " + elements.size() + " elements but the snapshot holds "
+                        + restore.length + " IDs; element IDs regenerated in order";
+                warnings.add(idRestoreWarning);
                 for (CircuitElm elm : elements) {
                     elm.setElementId(null);
                 }
@@ -285,9 +300,7 @@ public class CircuitDocument {
      */
     static CircuitDocument createScratch(BaseCirSim cirSim) {
         CircuitDocument doc = new CircuitDocument(cirSim, 0);
-        // The blank-circuit simulation defaults (ImportLifecycle.resetCircuitState)
-        doc.simulator.maxTimeStep = doc.simulator.timeStep = 5e-6;
-        doc.simulator.minTimeStep = 50e-12;
+        // The blank-circuit simulation defaults (time step set by the constructor)
         doc.circuitEditor.gridSize = 16;
         doc.circuitEditor.gridMask = -16;
         doc.circuitEditor.gridRound = 7;
@@ -306,6 +319,11 @@ public class CircuitDocument {
         circuitLoader = new CircuitLoader(cirSim, this);
         simulationLoop = new SimulationLoop();
         logBuffer = new LogBuffer();
+        // The blank-circuit time-step defaults (ImportLifecycle.resetCircuitState). Without them a
+        // document created in the background dumped a zero time step, which a reload (undo/redo)
+        // turned into the time-step bar's smallest position (1e-12).
+        simulator.maxTimeStep = simulator.timeStep = 5e-6;
+        simulator.minTimeStep = 50e-12;
         initDefaultUIState();
         updateSimulationLoop();
     }
@@ -712,5 +730,7 @@ public class CircuitDocument {
 
     public void dispose() {
         simulationLoop.stop();
+        // [SP_AGA_04_01] the open agent transaction is discarded with the document
+        undoManager.discardTransaction();
     }
 }

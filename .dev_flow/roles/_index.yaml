@@ -1,0 +1,10 @@
+updated: 2026-10-01
+roles:
+  - file: implementer.ai.md
+    role: implementer
+    inherits: [implementer]
+    adds: E_AGT phase implementer — knowledge gate, settled decisions, build + live-harness verification, plan bookkeeping, report format
+  - file: reviewer.ai.md
+    role: reviewer
+    inherits: [reviewer]
+    adds: E_AGT clean-context phase reviewer — spec/plan conformance, correctness, layering rules, regression scenarios, must/should/prefer output

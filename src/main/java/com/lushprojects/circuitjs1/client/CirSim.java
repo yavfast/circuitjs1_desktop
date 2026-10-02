@@ -1019,6 +1019,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     // JSInterface - Clear circuit
     void clearCircuit() {
         CircuitDocument doc = getActiveDocument();
+        // [SP_AGA_04_01] clear replaces the content: an open agent transaction is sealed first
+        doc.undoManager.sealTransaction();
         CircuitSimulator simulator = doc.simulator;
         CircuitEditor circuitEditor = doc.circuitEditor;
         ScopeManager scopeManager = doc.scopeManager;

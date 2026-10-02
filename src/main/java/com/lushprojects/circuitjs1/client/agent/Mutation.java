@@ -23,9 +23,10 @@ import java.util.List;
  *     issues. Any other exception restores the same way, is passed to the global uncaught-exception
  *     handler (RULE_ERR_004) and gives {@code internal_error} with the exception message.</li>
  * </ol>
- * No undo entry is pushed in either case (the transaction of PL_AGA Phase 6 pushes
- * {@link Context#snapshot}'s entry when a mutation succeeds). A successful result carries the
- * ConnectivityDelta between the connectivity before and after the body ([SP_AGA_01_08]).
+ * A rejected mutation pushes no undo entry and opens no transaction. A successful one opens or
+ * continues the document's agent transaction ({@link AgentTransaction}; opening pushes
+ * {@link Context#snapshot}'s entry) and carries the ConnectivityDelta between the connectivity
+ * before and after the body ([SP_AGA_01_08]).
  */
 final class Mutation {
 
@@ -97,7 +98,8 @@ final class Mutation {
 
     /** Runs {@code body} as one guarded mutation of {@code doc}. */
     static OperationResult run(CirSim sim, CircuitDocument doc, Body body) {
-        return DocumentScope.call(sim, doc, () -> {
+        // a user gesture in progress gets its own entries before and after the agent's change
+        return DocumentScope.call(sim, doc, () -> doc.undoManager.splitGesture(() -> {
             // [SP_AGA_01_06] the delta compares the issue sets before and after the operation
             Connectivity.Report before = Connectivity.analyse(doc);
             Context ctx = new Context(sim, doc, DocumentSnapshot.capture(doc));
@@ -106,6 +108,9 @@ final class Mutation {
                 OperationResult result = CellGeometry.withPinnedGrid(doc, () -> body.apply(ctx));
                 if (result.isOk()) {
                     result.setConnectivity(Connectivity.delta(before, Connectivity.analyse(doc)));
+                    // [SP_AGA_04_01] only a successful mutation opens or continues the transaction
+                    // ([SP_AGA_03_04] "No side effects on rejection")
+                    AgentTransaction.onMutation(sim, doc, ctx.snapshot.entry);
                 }
                 return result;
             } catch (Rejected r) {
@@ -122,7 +127,7 @@ final class Mutation {
             } finally {
                 doc.setAgentOrigin(false);
             }
-        });
+        }));
     }
 
     private static void rollback(Context ctx) {
