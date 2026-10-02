@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "scenarios": [
+    {
+      "id": "rc-lowpass-1k",
+      "kind": "build",
+      "prompt": "In CircuitJS1, build an RC low-pass filter with a cut-off frequency of 1 kHz. Drive it with a sine source of 1 V amplitude at 1 kHz, and label the filter output net `out`. Check that it works, and tell me the output amplitude you measured.",
+      "checks": [
+        {
+          "type": "connectivity_clean"
+        },
+        {
+          "type": "element_count",
+          "elementType": "Resistor",
+          "min": 1
+        },
+        {
+          "type": "element_count",
+          "elementType": "Capacitor",
+          "min": 1
+        },
+        {
+          "type": "measure",
+          "probe": {
+            "net": "out"
+          },
+          "run": {
+            "span": "10 ms",
+            "recordFrom": "5 ms"
+          },
+          "stat": "peakToPeak",
+          "compare": "approx",
+          "target": 1.414,
+          "tolerance": 0.1
+        },
+        {
+          "type": "checkpoint_exists",
+          "minCount": 1
+        }
+      ]
+    },
+    {
+      "id": "led-driver-10ma",
+      "kind": "build",
+      "prompt": "In CircuitJS1, drive a red LED from a 5 V supply so that 10 mA flows through it. Verify the current in the simulator and report it.",
+      "checks": [
+        {
+          "type": "connectivity_clean"
+        },
+        {
+          "type": "measure",
+          "probe": {
+            "elementType": "LED",
+            "quantity": "current"
+          },
+          "run": {
+            "span": "10 ms"
+          },
+          "stat": "final",
+          "compare": "approx",
+          "target": 0.010,
+          "tolerance": 0.15
+        },
+        {
+          "type": "no_solver_stop"
+        }
+      ]
+    },
+    {
+      "id": "fix-broken-amp",
+      "kind": "debug",
+      "prompt": "This common-emitter amplifier in CircuitJS1 should amplify its input (a 0.1 V peak-to-peak sine at 1 kHz) at the output net `out`, but it does not work. Find what is wrong, fix it so that it amplifies, and report the measured output.",
+      "fixture": "fix-broken-amp.txt",
+      "checks": [
+        {
+          "type": "connectivity_clean"
+        },
+        {
+          "type": "measure",
+          "probe": {
+            "net": "out"
+          },
+          "run": {
+            "span": "20 ms",
+            "recordFrom": "10 ms"
+          },
+          "stat": "peakToPeak",
+          "compare": "atLeast",
+          "target": 0.5
+        },
+        {
+          "type": "no_solver_stop"
+        }
+      ]
+    },
+    {
+      "id": "tune-divider",
+      "kind": "tune",
+      "prompt": "This voltage divider in CircuitJS1 gives 3.0 V from 9 V at the net `out`. Change it so that `out` is 3.3 V within 2 %, and report the measured value.",
+      "fixture": "tune-divider.txt",
+      "checks": [
+        {
+          "type": "measure",
+          "probe": {
+            "net": "out"
+          },
+          "run": {
+            "span": "1 ms"
+          },
+          "stat": "final",
+          "compare": "approx",
+          "target": 3.3,
+          "tolerance": 0.02
+        },
+        {
+          "type": "checkpoint_exists",
+          "minCount": 1
+        }
+      ]
+    }
+  ]
+}

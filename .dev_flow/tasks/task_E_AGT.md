@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 20:15
+> **Last updated:** 2026-10-02 21:00
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA, PL_MCP and PL_MCB plans completed; PL_AGS Phase 1 committed, Phases 2–3 next, Phase 4 needs the developer; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_AGA, PL_MCP and PL_MCB plans completed; PL_AGS Phases 1–3 committed; paused before PL_AGS Phase 4 (needs the developer's go-ahead); manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -116,7 +116,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_MCB Phase 4 — tests/mcp bridge scenarios (default 12 rows, slow 120 s CLI run, clients Claude Code over stdio), mcp/bridge/README (install, options, CLI, host snippets, uninstall); review PASS 4 should + 4 prefer → fixed (harness signals only its own registered process groups, restart-after-close row, error texts with live IDs). PL_MCB plan `completed`; Claude Desktop row owed by hand
 - [x] PL_AGS Phase 1 — skill `mcp/skill/circuitjs-circuits/` (SKILL.md + 5 references + host snippets), examples built live through the bridge CLI and re-run (766 consistency checks); review FAIL (must: post-order voltage formula implied source pin polarity) → fixed + bridge_launch-first, host security line; delta PASS. Six Agent API defects found while writing it → PL_AGA Backlog "Defect batch" (fix before PL_AGS Phase 4)
 - [x] PL_AGS Phase 2 — `mcp/skill/tools/check-consistency.mjs` (form, codes, names, tools, catalogue, examples; 1449 live checks; offline mode); review FAIL ×2 (must: codes/keys outside tables unchecked; then scratch-document leak on exit) → fixed; final delta PASS
-- [ ] **Next:** PL_AGS Phase 3 — eval set and runner; then STOP before Phase 4 (eval runs spend model usage — the developer's go-ahead is required per the plan)
+- [x] PL_AGS Phase 3 — evals (4 scenarios, 2 fixtures, check.mjs reading app state only, run.mjs with temp project, restricted tools, $2/run cap, init-message isolation check, 2-of-3 rule); review PASS 5 should + 3 prefer → fixed; no real eval run
+- [ ] **Next:** PAUSED for the developer — PL_AGS Phase 4 eval runs need an explicit go-ahead (24 runs ≈ $7–30, 1–2.5 h per round, $2/run cap); before them: fix the PL_AGA Backlog "Defect batch" and decide the polar pin naming (Coordination Notes)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

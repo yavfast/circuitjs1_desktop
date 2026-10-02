@@ -38,7 +38,7 @@ For this plan's scope ([task_E_AGT](../.dev_flow/tasks/task_E_AGT.md)): agents t
 
 - [x] [Phase 1 — Skill entry, references, host snippets](#PL_AGS_P1)
 - [x] [Phase 2 — Consistency checks](#PL_AGS_P2)
-- [ ] [Phase 3 — Eval set and runner](#PL_AGS_P3)
+- [x] [Phase 3 — Eval set and runner](#PL_AGS_P3)
 - [ ] [Phase 4 — Eval runs and results](#PL_AGS_P4)
 
 ## Phases
@@ -120,7 +120,7 @@ What to create:
   - **Exit 2.** No instance, and an unreachable `--url`, both give exit 2. `--offline` gives exit 0, with SKIP for the live groups.
 - **Skill fix found by the script.** Checklist step 8 showed `circuit_edit {"op": "set"}`, which is not a valid argument; it now shows the `edits` form.
 
-### Phase 3 — Eval set and runner [TODO]  {#PL_AGS_P3}
+### Phase 3 — Eval set and runner [DONE]  {#PL_AGS_P3}
 
 **Depends on:** Phase 2
 **Implements:** [SP_AGS_01_03](./agent-skill.sp.md#SP_AGS_01_03), [SP_AGS_05_01](./agent-skill.sp.md#SP_AGS_05_01), [SP_AGS_05_02](./agent-skill.sp.md#SP_AGS_05_02)
@@ -133,6 +133,46 @@ What to create:
 | Fixtures | `evals/fixtures/fix-broken-amp.txt`, `evals/fixtures/tune-divider.txt` | Starting circuits |
 | Checker | `evals/check.mjs` | Loads fixtures into new documents, appends the document handle to prompts, evaluates checks with `reset: true` |
 | Run driver | `evals/run.mjs` | Runs `claude -p` per scenario × model × repetition, then the checker; writes `evals/results.md` |
+
+**Result (2026-10-02).**
+- **Location.** `mcp/skill/circuitjs-circuits/evals/`, the SP_AGS_01_01 layout. `check-consistency.mjs` skips `evals/`, and `run.mjs` installs the skill without it.
+- **Files.**
+  - `evals.json`: version `1.0`, the four SP_AGS_05_01 scenarios with the prompts written out.
+  - `fixtures/fix-broken-amp.txt`: the common-emitter pattern with a 0.1 V p-p input, the upper base resistor ending one cell short of the base, and no ground.
+  - `fixtures/tune-divider.txt`: 9 V over 12 kΩ / 6 kΩ = 3.0 V at `out`. Both fixtures are text exports from the app.
+- **`check.mjs`.** It reads only app state, through the bridge CLI.
+  - `prepare` loads each fixture into a new document and seals it with the checkpoint "eval fixture <id>", which `checkpoint_exists` does not count. It appends "The circuit is open in document <doc>." to the prompt, records the newest handle for scenarios without a fixture, and writes a state file.
+  - `check` evaluates the checks: every measure runs with `reset: true` and a 60 s budget, and `no_solver_stop` is evaluated after the measures. A scenario without a fixture is checked in the newest document created after `prepare`. `--doc` checks one given document.
+  - Output is per-scenario pass/fail JSON. Exit 0 all pass, 1 a check failed, 2 no instance.
+- **`run.mjs`.** It runs scenario × model (default `haiku,sonnet`) × 3 reps. Each run uses a temporary project directory, with the skill copied into `.claude/skills/`, and calls `claude -p` with:
+  - `--setting-sources project` and `--no-session-persistence`;
+  - `--strict-mcp-config --mcp-config <tmp>/mcp.json`, holding the HTTP URL of the instance the bridge selects;
+  - `--tools Read,Skill,ListMcpResourcesTool,ReadMcpResourceTool`, so no other built-in tool exists in the run;
+  - `--allowedTools` those plus the circuit tools without `circuit_file`, which is also in `--disallowedTools`;
+  - `--permission-mode dontAsk`. The CLI has no `default` mode; its choices are acceptEdits, auto, bypassPermissions, manual, dontAsk, plan;
+  - `--max-budget-usd 2` by default (`none` removes it). Claude 2.1.287 has no turn-cap flag, so the budget and a 20 min wall timeout bound each run;
+  - `--output-format stream-json`.
+
+  The `init` message is verified: tools within that set, only the `circuitjs` server and it connected, only the `circuitjs-circuits` skill, no plugin, no plugin-namespaced or user (`~/.claude/skills|commands`) command. A run that fails this is INVALID: recorded as such, and it counts as not passed. After the check, the run's documents are closed (changes discarded) unless `--keep`. The newest section of `results.md` records per-scenario counts, invalid runs, turns, tokens, cost, wall time and the releasable verdict. "Releasable: yes" is given only for a full set: all scenarios, ≥ 2 models, ≥ 3 reps. `--dry-run` prints every command and the first run's temporary config.
+- **`check.mjs` additions.** `prepare` records one baseline handle after all fixture documents exist; the newest-document pick excludes the fixture documents. `check --close` closes the checked and fixture documents.
+- **Verify.**
+  - **Hand-built correct circuits** score PASS, exit 0: RC 1 k/159 nF (`out` p-p 1.415 V), LED with 330 Ω (9.75 mA; its document found as the newest after `prepare`), the repaired amplifier (`out` p-p 3.05 V), the divider with R2 = 6.95 kΩ (3.301 V).
+  - **Hand-broken circuits** score FAIL, exit 1: RC with 1 µF and no checkpoint (0.315 V), LED with 1 kΩ (3.3 mA), the untouched amplifier fixture (dangling post; its run exhausts the budget), the untouched divider (3.0 V, no checkpoint).
+  - **SP_MCB_05_03 eval-harness row.** The checker parses the CLI output of `call circuit_connectivity`; exit 0.
+  - **`run.mjs`.** `--dry-run` printed 24 runs with the final command line. A stand-in `claude` script, which makes no model call, ran the full pipeline:
+    - with a clean `init`: two runs, FAIL, as nothing was edited; their documents were closed;
+    - with an `init` that leaks an extra skill: the run is marked INVALID in `results.md`.
+
+    A `prepare` of all scenarios followed by a check without an agent document gives "no document", not a fixture document. No real agent eval was run.
+- **Deviations.**
+  - The `measure` probe of `led-driver-10ma` is `{elementType: "LED", quantity: "current"}`, a checker extension of ProbeSpec, because the agent chooses the IDs. Zero or several LEDs fail the check.
+  - Checkpoints count only explicit agent checkpoints, excluding the fixture's.
+- **Phase 4 is pending the developer's go-ahead.** It spends model usage.
+  - **Size.** 4 scenarios × 2 models × 3 reps = 24 `claude -p` runs.
+  - **Per-run assumption.** About 15–30 turns (skill and 1–3 references read, an import, 2–6 runs, edits, a checkpoint); 20–40 k tokens of context, 0.3–1 M input tokens processed (mostly cache reads), 5–15 k output tokens.
+  - **Cost.** About $0.1–0.5 per haiku run and $0.5–2 per sonnet run: about $7–30 per full round. Wall time is 2–6 min per run, 1–2.5 h per round. Every skill iteration repeats the round.
+  - Each run is capped at $2 by default (`--max-budget-usd`), so a full round costs at most $48.
+  - **Isolation in Phase 4.** It is checked per run from `init`. If the CLI reports skills differently from the stand-in's `skills`/`slash_commands` fields, adjust `isolationProblems` after the first run.
 
 ### Phase 4 — Eval runs and results [TODO]  {#PL_AGS_P4}
 
@@ -157,3 +197,4 @@ What to do:
 | 2026-10-01 | Initial version |
 | 2026-10-02 | Phase 1 done: skill entry, references, host snippets |
 | 2026-10-02 | Phase 2 done: consistency script |
+| 2026-10-02 | Phase 3 done: eval set, checker, run driver (Phase 4 pending the go-ahead) |

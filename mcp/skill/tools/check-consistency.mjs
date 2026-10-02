@@ -114,7 +114,8 @@ function check(cond, msg) { if (cond) current.pass++; else { current.fail++; con
 // ------------------------------------------------------------------ skill text
 const posix = (p) => p.split(path.sep).join('/');
 function walk(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)])); }
-const text = Object.fromEntries(walk(opt.skill).filter((f) => f.endsWith('.md')).map((f) => [posix(path.relative(opt.skill, f)), fs.readFileSync(f, 'utf8')]));
+// evals/ (scenarios, fixtures, results) is tooling, not skill text
+const text = Object.fromEntries(walk(opt.skill).filter((f) => f.endsWith('.md') && !posix(path.relative(opt.skill, f)).startsWith('evals/')).map((f) => [posix(path.relative(opt.skill, f)), fs.readFileSync(f, 'utf8')]));
 const refs = Object.keys(text).filter((f) => f.startsWith('reference/'));
 const lineCount = (t) => t.split('\n').length - (t.endsWith('\n') ? 1 : 0);
 const lineAt = (t, i) => t.slice(0, i).split('\n').length;
@@ -362,7 +363,15 @@ else {
     for (const k of ticks(cols[3]).filter((k) => /^[a-z][a-z0-9_]*$/.test(k))) check(keys.has(k), `elements.md: ${k} is not a property of ${type}`);
   }
   // spec-named per-type reads through the bridge CLI, for the table types
-  for (const r of tableRows.slice(0, 3)) { const t = ticks(r.split(' | ')[0])[0]; if (byName.get(t) === t) check(JSON.stringify(JSON.parse(cli(['read', `circuitjs://catalogue/${t}`])[0].text).pins) === JSON.stringify(typeInfos.get(t).pins), `circuitjs-mcp read circuitjs://catalogue/${t} differs from the direct read`); }
+  for (const r of tableRows.slice(0, 3)) {
+    const t = ticks(r.split(' | ')[0])[0];
+    if (byName.get(t) !== t) continue;
+    let viaCli = null;
+    try { viaCli = JSON.parse(cli(['read', `circuitjs://catalogue/${t}`])[0].text); } catch (e) {
+      if (e instanceof Unreachable && !(e instanceof BridgeRejected)) { console.error(`check-consistency: ${e.message}`); process.exit(2); }
+    }
+    check(viaCli && JSON.stringify(viaCli.pins) === JSON.stringify(typeInfos.get(t).pins), `circuitjs-mcp read circuitjs://catalogue/${t} failed or differs from the direct read`);
+  }
   // element specs in examples and edits: type and property keys
   for (const { f, line, spec } of elementSpecs) {
     if (!check(byName.has(spec.type), `${f}:${line} ${spec.id || '?'} has unknown type ${spec.type}`)) continue;
