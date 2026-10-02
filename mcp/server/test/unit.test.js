@@ -462,3 +462,34 @@ test('the bundle contains the tool table and the agent-format text', { skip: !fs
   assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.0)'));
   assert.ok(!/require\(\s*["'](node:)?crypto["']\s*\)/.test(text));
 });
+
+test('registry cleanup touches only regular files named <pid>-<ms>.json[.tmp] whose content matches', (t) => {
+  const os = require('node:os');
+  const registry = require('../src/registry.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'circuitjs-mcp-registry-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const DEAD = 2 ** 22 + 12345; // above the Linux pid_max: never alive
+  const rec = (pid, ms, over) => JSON.stringify(Object.assign({ instanceId: `${pid}-${ms}`, pid }, over));
+  const write = (name, text) => fs.writeFileSync(path.join(dir, name), text);
+  write(`${DEAD}-1.json`, rec(DEAD, 1)); // stale record: removed
+  write(`${DEAD}-2.json.tmp`, '{'); // stale temp file: removed
+  write(`${process.pid}-3.json`, rec(process.pid, 3)); // live: kept
+  write('settings.json', rec(DEAD, 4)); // not a record name: kept
+  write(`${DEAD}-5.json.bak`, rec(DEAD, 5));
+  write(`${process.pid}-6.json`, rec(DEAD, 6, { instanceId: `${process.pid}-6` })); // content pid differs
+  write(`${DEAD}-7.json`, rec(DEAD, 8)); // instanceId differs from the name
+  write(`${DEAD}-9.json`, '{broken');
+  const outside = path.join(dir, 'outside.txt');
+  write('outside.txt', rec(DEAD, 10));
+  fs.symlinkSync(outside, path.join(dir, `${DEAD}-10.json`)); // symlink: kept
+  fs.mkdirSync(path.join(dir, `${DEAD}-11.json`)); // directory: kept
+  const removed = registry.removeDeadRecords(dir).sort();
+  assert.deepEqual(removed, [`${DEAD}-1.json`, `${DEAD}-2.json.tmp`]);
+  assert.deepEqual(fs.readdirSync(dir).sort(), [
+    `${DEAD}-10.json`, `${DEAD}-11.json`, `${DEAD}-5.json.bak`, `${DEAD}-7.json`, `${DEAD}-9.json`,
+    `${process.pid}-3.json`, `${process.pid}-6.json`, 'outside.txt', 'settings.json',
+  ].sort());
+  assert.equal(registry.parseRecordName('12-34.json.tmp').temp, true);
+  assert.equal(registry.parseRecordName('12-34.json').stem, '12-34');
+  assert.equal(registry.parseRecordName('12-34x.json'), null);
+});

@@ -1,0 +1,25 @@
+{
+  "name": "circuitjs-mcp",
+  "version": "0.1.0",
+  "description": "Stdio MCP bridge and command-line client for CircuitJS1 Desktop instances (C_MCB)",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "circuitjs-mcp": "bin/circuitjs-mcp.js"
+  },
+  "files": [
+    "bin/",
+    "src/"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "zod": "4.6.5"
+  },
+  "license": "GPL-2.0-or-later"
+}

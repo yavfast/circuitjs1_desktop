@@ -27,7 +27,7 @@
 
 ### 01_01. Options  {#SP_MCB_01_01}
 
-Options can be given as command-line flags or as environment variables. When both are set, the flag wins.
+Options can be given as command-line flags or as environment variables. When both are set, the flag wins. The two target selectors count as one option: a `--url` or `--instance` flag hides both `CIRCUITJS_MCP_URL` and `CIRCUITJS_MCP_INSTANCE`, so an inherited URL never overrides an explicit `--instance`. Boolean env values `1`, `true` and `yes` are true.
 
 | Flag | Env | Type | Default | Description |
 |------|-----|------|---------|-------------|
@@ -41,7 +41,7 @@ Options can be given as command-line flags or as environment variables. When bot
 
 ### 01_02. Target  {#SP_MCB_01_02}
 
-`{url: string, instanceId: string?, source: "explicit" | "registry" | "launched"}`; at most one per bridge process.
+`{url: string, instanceId: string?, source: "explicit" | "registry" | "launched"}`; at most one per bridge process. An explicit URL target has no `instanceId`.
 
 ### 01_03. InstanceInfo (bridge tool output)  {#SP_MCB_01_03}
 
@@ -94,7 +94,8 @@ Errors (as `isError` results with text):
 | `bridge_select` unknown instance | `Unknown instance <id>. Live instances: <ids>` |
 | `bridge_select` unreachable URL | `Cannot reach <url>: <reason>. Live instances: <ids>` |
 | `bridge_launch` without a configured app | `No app executable configured. Set --app or CIRCUITJS_APP.` |
-| `bridge_launch` app not found | `App executable not found: <path>.` |
+| `bridge_launch` app not found (absent or not a regular file) | `App executable not found: <absolute path>.` |
+| `bridge_launch` spawn failure | `Cannot start the app <path>: <code>.` (e.g. `EACCES`) |
 | `bridge_launch` timeout | `The app started but no instance record appeared within <ms> ms.` |
 
 `bridge_launch` (and CLI `launch`) with `file` calls the target's `circuit_file` tool with `{action: "open", path: <absolute file path>, into: "new", activate: true}` after the instance is live.
@@ -134,6 +135,8 @@ Processing logic:
         RETURN none
 
 The probe is an MCP handshake against the URL, bounded at 3 s.
+
+**Registry records.** Only regular files named `<pid>-<startedAtMs>.json` (and their `.json.tmp` staging files) are records; a record counts only when its content's `instanceId` equals the name stem and its `pid` equals the name's pid. Cleanup deletes a record only when that pid is not alive (a permission error counts as alive) and never touches other files, symbolic links or directories. Liveness is checked in the bridge's own process namespace, so the bridge and the app must run in the same PID namespace (not one inside a Flatpak/snap sandbox or a container and the other outside).
 
 ### 03_02. Launch  {#SP_MCB_03_02}
 
@@ -223,3 +226,4 @@ The probe is an MCP handshake against the URL, bounded at 3 s.
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Review round 1: `--app` has no PATH default, `into` argument name, CLI output wording, verification gaps |
+| 2026-10-02 | PL_MCB Phase 1: target selectors as one option, boolean env values, spawn-failure error, absolute app path, explicit-URL target without instanceId; registry record and cleanup rule, shared PID namespace |

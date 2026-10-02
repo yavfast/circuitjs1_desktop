@@ -33,15 +33,23 @@ function pidAlive(pid) {
   }
 }
 
-/** The pid encoded at the start of an instance file name (`<pid>-<startedAtMs>...`), or NaN. */
-function pidOfName(name) {
-  const m = /^(\d+)-\d+/.exec(name);
-  return m ? Number(m[1]) : NaN;
+// Only files named like an instance record are ever read or deleted: `<pid>-<startedAtMs>.json`
+// and its temp file `<pid>-<startedAtMs>.json.tmp`.
+const RECORD_NAME = /^(\d+)-(\d+)\.json(\.tmp)?$/;
+
+/** Parses an instance file name: {stem, pid, temp}, or null for any other name. */
+function parseRecordName(name) {
+  const m = RECORD_NAME.exec(name);
+  if (!m) return null;
+  return { stem: m[1] + '-' + m[2], pid: Number(m[1]), temp: m[3] !== undefined };
 }
 
 /**
- * Deletes the records (and leftover temp files) of processes that no longer exist. A record that
- * cannot be read or parsed is left alone: it is not ours to judge.
+ * Deletes the records (and leftover temp files) of processes that no longer exist. Only regular
+ * files (no symlinks) named `<pid>-<startedAtMs>.json[.tmp]` are considered. A record is deleted
+ * only when its content matches its name (`instanceId` is the name stem, `pid` the name's pid)
+ * and that pid is dead; a temp file when the pid in its name is dead. A record that cannot be
+ * read or parsed, or that does not match its name, is left alone: it is not ours to judge.
  * @returns the file names removed
  */
 function removeDeadRecords(dir) {
@@ -55,21 +63,24 @@ function removeDeadRecords(dir) {
     return removed;
   }
   for (const name of names) {
+    const parsed = parseRecordName(name);
+    if (!parsed) continue;
     const file = path.join(dir, name);
-    let pid = NaN;
-    if (name.endsWith(TEMP_SUFFIX)) {
-      pid = pidOfName(name);
-    } else if (name.endsWith(RECORD_SUFFIX)) {
+    try {
+      if (!fs.lstatSync(file).isFile()) continue;
+    } catch (e) {
+      continue;
+    }
+    if (!parsed.temp) {
+      let rec;
       try {
-        const rec = JSON.parse(fs.readFileSync(file, 'utf8'));
-        pid = rec && Number.isInteger(rec.pid) ? rec.pid : NaN;
+        rec = JSON.parse(fs.readFileSync(file, 'utf8'));
       } catch (e) {
         continue;
       }
-    } else {
-      continue;
+      if (!rec || rec.instanceId !== parsed.stem || rec.pid !== parsed.pid) continue;
     }
-    if (Number.isNaN(pid) || pidAlive(pid)) continue;
+    if (pidAlive(parsed.pid)) continue;
     try {
       fs.unlinkSync(file);
       removed.push(name);
@@ -112,4 +123,4 @@ function removeRecord(file) {
   }
 }
 
-module.exports = { instanceDir, pidAlive, removeDeadRecords, writeRecord, removeRecord };
+module.exports = { instanceDir, pidAlive, parseRecordName, removeDeadRecords, writeRecord, removeRecord };
