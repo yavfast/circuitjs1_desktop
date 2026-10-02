@@ -35,6 +35,8 @@ Every running desktop instance is also an [MCP](https://modelcontextprotocol.io)
 claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp
 ```
 
+Hosts that start only stdio servers (Claude Desktop) and shell scripts use the bridge and command-line client `circuitjs-mcp` in [mcp/bridge](mcp/bridge/README.md).
+
 The URL of each instance is shown in Options → "MCP Server...", together with the status, the instance ID, the LAN URLs and this command with a Copy button. The first instance listens on port 7311; further instances ("New window" starts a separate process) take the next free port up to 7330. Each running instance writes a record with its URLs to `~/.circuitjs1/instances/<pid>-<startedAtMs>.json` (user-only file, removed when the window closes; stale records are safe to delete) so that tools can find it. The browser (web) build has no server.
 
 **Security.** The server is **on by default and has no token or password**: by default it listens on all network interfaces (`0.0.0.0`), so any program on this computer and any device on your local network that can reach the port can drive the app — read and change open circuits, run simulations, and open or save `.txt`/`.json` circuit files under your user account (a save overwrites an existing file only when it is empty or is a circuit). This was a deliberate trade-off for zero-setup agent access ([C_MCP_DEC_02](docs/mcp-server.concept.md#C_MCP_DEC_02)). The only protections are: requests from web pages of other sites are rejected (a browser `Origin` header other than `localhost`, `127.0.0.1` or `[::1]` gets HTTP 403), the file tools are limited to circuit files, and no tool executes code. Use it on trusted networks only.

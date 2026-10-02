@@ -5,6 +5,8 @@
 // the file system: every scenario launches the NW.js SDK binary on `target/site` with its own
 // scratch HOME (instance registry) and --user-data-dir (preferences), drives the endpoint with raw
 // JSON-RPC / the MCP SDK client and the page through CDP, and tears the process group down.
+// The bridge scenarios (PL_MCB Phase 4, SP_MCB_05) run the stdio bridge mcp/bridge against
+// instances that the bridge itself starts through an app wrapper.
 //
 // Usage:  node tests/mcp/e2e.mjs [group|scenario ...] [--list]     (after `npm run buildgwt`)
 // Groups: default (no argument) | slow | clients | all.  See tests/mcp/README.md.
@@ -1449,11 +1451,360 @@ async function scenClients(R) {
   } finally { await nw.kill(); }
 }
 
+// ---------------------------------------------------------------- stdio bridge (PL_MCB Phase 4)
+// The bridge rows run the real `circuitjs-mcp` program (mcp/bridge, its own node_modules) as a
+// stdio server (SDK client of mcp/bridge/test/bridge-client.mjs) and as a CLI, against real NW.js
+// instances. The bridge starts the app itself through a wrapper executable: a scratch HOME for the
+// registry and its own profile per start, so NW.js never hands a second start to a running
+// instance (single instance per profile).
+const BRIDGE_DIR = path.join(PROJECT, 'mcp/bridge');
+const BRIDGE_BIN = path.join(BRIDGE_DIR, 'bin/circuitjs-mcp.js');
+function bridgeMissing() {
+  if (!fs.existsSync(BRIDGE_BIN)) return 'the stdio bridge (mcp/bridge, PL_MCB) is not built';
+  if (!fs.existsSync(path.join(BRIDGE_DIR, 'node_modules/@modelcontextprotocol/sdk/package.json'))) return 'bridge dependencies missing: run npm install in mcp/bridge';
+  return null;
+}
+const skipAll = (R, why) => { for (const r of Object.values(R)) r.skip(why); };
+
+/** An executable that starts NW.js like the packaged app (no arguments), with a scratch HOME. */
+function appWrapper(dir, home) {
+  const file = path.join(dir, 'CircuitSimulator.sh');
+  const q = (v) => `'${String(v).replace(/'/g, `'\\''`)}'`;
+  fs.writeFileSync(file, ['#!/bin/sh',
+    `export HOME=${q(home)} XDG_CONFIG_HOME=${q(path.join(home, '.config'))} XDG_CACHE_HOME=${q(path.join(home, '.cache'))} XDG_DATA_HOME=${q(path.join(home, '.local/share'))} DISPLAY=${q(DISPLAY)}`,
+    'unset WAYLAND_DISPLAY',
+    // started detached (bridge launch, the harness), the wrapper leads its own process group: register it
+    `echo $$ >>${q(path.join(dir, 'groups'))}`,
+    `exec ${q(NW_BIN)} --user-data-dir=${q(dir)}/udd-$$ ${q(SITE_DIR)} >>${q(dir)}/nw-$$.log 2>&1`, ''].join('\n'), { mode: 0o755 });
+  GROUP_DIRS.add(dir);
+  return file;
+}
+
+// Process groups of the instances started through an app wrapper: only the groups the wrapper
+// registered in <dir>/groups are ever signalled, never the group of whatever process owns a
+// recorded pid now (pids are reused).
+const GROUP_DIRS = new Set();
+/** The registered groups of `dir` that still exist and are ours. */
+function wrapperGroups(dir) {
+  let ids = [];
+  try { ids = fs.readFileSync(path.join(dir, 'groups'), 'utf8').split('\n').map((x) => parseInt(x, 10)).filter((g) => g > 0); } catch (e) {}
+  return [...new Set(ids)].filter((g) => {
+    if (!groupAlive(g)) return false;
+    // While a group exists its id is not reused; when its leader is alive, its command line names the scratch dir.
+    let cmd = null;
+    try { cmd = fs.readFileSync(`/proc/${g}/cmdline`, 'utf8'); } catch (e) { return true; }
+    return cmd.includes(dir);
+  });
+}
+/** Process group of a pid (from /proc), or null. */
+function pgrpOf(pid) {
+  try { const st = fs.readFileSync(`/proc/${pid}/stat`, 'utf8'); return parseInt(st.slice(st.lastIndexOf(')') + 2).split(' ')[2], 10) || null; } catch (e) { return null; }
+}
+async function stopGroup(g) {
+  signalGroup(g, 'SIGTERM');
+  for (let i = 0; i < 60 && groupAlive(g); i++) await sleep(100);
+  if (groupAlive(g)) { signalGroup(g, 'SIGKILL'); for (let i = 0; i < 50 && groupAlive(g); i++) await sleep(100); }
+}
+/** Ends the registered group that runs this instance record (no-op for any other process). */
+async function stopInstance(dir, rec) {
+  const g = pgrpOf(rec.pid);
+  if (g && wrapperGroups(dir).includes(g)) await stopGroup(g);
+}
+/** Ends every registered group of `dir`, then drops the records they left behind. */
+async function stopInstances(dir, home) {
+  for (const g of wrapperGroups(dir)) await stopGroup(g);
+  for (const r of records(home)) { if (r.rec && !pidAlive(r.rec.pid)) fs.rmSync(path.join(instDir(home), r.name), { force: true }); }
+}
+function pidAlive(pid) { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } }
+// harness exit (also abortRun and signals): end the registered groups too
+process.on('exit', () => { for (const d of GROUP_DIRS) for (const g of wrapperGroups(d)) signalGroup(g, 'SIGKILL'); });
+
+/** Runs the CLI; {code, out, err, json, ms}. */
+function bridgeCli(args, { home, stdin = '', timeout = 60000, extraEnv = {} } = {}) {
+  const env = { ...process.env, ...extraEnv };
+  for (const k of Object.keys(env)) if (k.startsWith('CIRCUITJS_') && !(k in extraEnv)) delete env[k];
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const p = spawn(process.execPath, [BRIDGE_BIN, ...args, '--registry', instDir(home)], { env, stdio: ['pipe', 'pipe', 'pipe'], detached: true, cwd: OUT_DIR });
+    liveGroups.add(p.pid);
+    let out = ''; let err = '';
+    const to = setTimeout(() => signalGroup(p.pid, 'SIGKILL'), timeout);
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('close', (code) => { clearTimeout(to); liveGroups.delete(p.pid); let json; try { json = JSON.parse(out); } catch (e) {} resolve({ code, out, err, json, ms: Date.now() - t0 }); });
+    p.stdin.end(stdin);
+  });
+}
+
+let BRIDGE_CLIENT = null;
+async function bridgeClient() {
+  if (!BRIDGE_CLIENT) BRIDGE_CLIENT = await import(pathToFileURL(path.join(BRIDGE_DIR, 'test/bridge-client.mjs')).href);
+  return BRIDGE_CLIENT;
+}
+const toolText = (r) => (r && Array.isArray(r.content) ? r.content.map((c) => c.text).join('\n') : '');
+// raw JSON-RPC through an SDK client: a pass-through result schema (no validation, no stripping)
+let PASS_SCHEMA = null;
+async function rawOf(client) {
+  if (!PASS_SCHEMA) PASS_SCHEMA = (await import(pathToFileURL(path.join(PROJECT, 'node_modules/zod/index.js')).href)).looseObject({});
+  return (method, params, timeout = 60000) => client.request({ method, params }, PASS_SCHEMA, { timeout });
+}
+async function catchRpc(fn) { try { await fn(); return null; } catch (e) { return e; } }
+
+// SP_MCB_05: stdio mode, bridge tools, CLI, invariants, integration and edge rows; SP_MCP_05_03 bridge forwarding
+async function scenBridge(R) {
+  const miss = bridgeMissing();
+  if (miss) return skipAll(R, miss);
+  const { startBridge, until } = await bridgeClient();
+  const dir = path.join(OUT_DIR, 'run', 'bridge');
+  rmrf(dir);
+  const home = path.join(dir, 'home');
+  fs.mkdirSync(instDir(home), { recursive: true, mode: 0o700 });
+  const app = appWrapper(dir, home);
+  const lrc = path.join(SITE_DIR, 'circuitjs1/circuits/lrc.txt');
+  const docsOf = async (raw) => { const r = await raw('tools/call', { name: 'circuit_documents', arguments: { action: 'list' } }); return (r.structuredContent && r.structuredContent.data && r.structuredContent.data.documents) || []; };
+  const hasLrc = (docs) => docs.some((d) => /lrc\.txt$/.test(d.filePath || ''));
+  const b = await startBridge({ args: ['--app', app, '--registry', instDir(home)] });
+  const raw = b.raw;
+  let direct = null;
+  try {
+    // --- no app yet
+    let r;
+    const tools0 = (await raw('tools/list')).tools.map((t) => t.name);
+    R.stdioNoApp.ck('onlyBridgeTools', same(tools0, ['bridge_instances', 'bridge_select', 'bridge_launch']), tools0);
+    R.stdioNoApp.ck('instructionsBridgeSentence', /circuitjs-mcp bridge/.test(b.client.getInstructions() || ''), b.client.getInstructions());
+    r = await raw('tools/call', { name: 'circuit_types', arguments: { type: 'Resistor' } });
+    R.stdioNoApp.ck('noInstanceError', r.isError === true && toolText(r) === 'No CircuitJS1 instance. Start the app or call bridge_launch.', r);
+    R.stdioNoApp.done();
+
+    r = await raw('tools/call', { name: 'bridge_select', arguments: { instanceId: 'x' } });
+    R.selectErrors.ck('unknownInstance', r.isError && toolText(r) === 'Unknown instance x. Live instances: none', r);
+    r = await raw('tools/call', { name: 'bridge_select', arguments: { url: 'http://127.0.0.1:9/mcp' } });
+    R.selectErrors.ck('unreachableUrl', r.isError && /^Cannot reach http:\/\/127\.0\.0\.1:9\/mcp: .+\. Live instances: none$/.test(toolText(r)), r);
+    const both = await catchRpc(() => raw('tools/call', { name: 'bridge_select', arguments: { instanceId: 'x', url: 'http://127.0.0.1:9/mcp' } }));
+    R.selectErrors.ck('bothGiven32602', both && both.code === -32602, both && both.message);
+    const noApp = await startBridge({ args: ['--registry', instDir(home)] });
+    try {
+      r = await noApp.raw('tools/call', { name: 'bridge_launch', arguments: {} });
+      R.selectErrors.ck('launchNoApp', r.isError && toolText(r) === 'No app executable configured. Set --app or CIRCUITJS_APP.', r);
+    } finally { await noApp.close(); }
+    R.selectErrors.done();
+
+    // --- edge rows without an instance (CLI)
+    const dead = spawnSync('sh', ['-c', 'echo $$']).stdout.toString().trim() | 0;
+    const deadRec = { instanceId: `${dead}-1700000000000`, pid: dead, port: 7399, host: '127.0.0.1', urls: ['http://127.0.0.1:7399/mcp'], appVersion: '1', startedAt: '2023-11-14T22:13:20.000Z', title: 't', protocolRevisions: ['2025-11-25'], toolsVersion: '1.0' };
+    fs.writeFileSync(path.join(instDir(home), `${deadRec.instanceId}.json`), JSON.stringify(deadRec));
+    r = await bridgeCli(['tools'], { home });
+    R.edges.ck('staleOnlyIsNoInstance', r.code === 3 && r.out === '' && /No CircuitJS1 instance/.test(r.err), r);
+    R.edges.ck('staleDeleted', records(home).length === 0, records(home));
+    R.cli.ck('toolsNoInstanceExit3', r.code === 3, r);
+    r = await bridgeCli(['tools', '--url', 'http://10.255.255.1:7311/mcp'], { home });
+    R.edges.ck('explicitUnreachable', r.code === 3 && r.out === '' && /^circuitjs-mcp: Cannot reach http:\/\/10\.255\.255\.1:7311\/mcp: .+\. Live instances: none\n$/.test(r.err) && r.ms < 10000, r);
+
+    // --- bridge_launch with a file
+    let t0 = Date.now();
+    r = await raw('tools/call', { name: 'bridge_launch', arguments: { file: lrc } }, 90000);
+    const first = r.structuredContent && r.structuredContent.target;
+    R.launch.ck('launched', !r.isError && first && first.source === 'launched' && /^\d+-\d+$/.test(first.instanceId), r);
+    R.launch.ck('openedDoc', r.structuredContent && r.structuredContent.opened && typeof r.structuredContent.opened.doc === 'string', r.structuredContent);
+    R.launch.note('launchMs', Date.now() - t0);
+    let docs = await docsOf(raw);
+    R.launch.ck('newActiveDocumentHoldsFile', docs.some((d) => d.active && d.filePath === lrc), docs);
+    await until(() => b.notes.tools >= 1, 3000).catch(() => {});
+    R.launch.ck('listChanged', b.notes.tools >= 1 && b.notes.resources >= 1, b.notes);
+    R.launch.done();
+
+    // --- with the app: catalogue and transparency
+    direct = await sdkClient(first.url, 'e2e-direct');
+    const draw = await rawOf(direct);
+    const dtools = (await draw('tools/list', {})).tools;
+    const btools = (await raw('tools/list')).tools;
+    R.stdioApp.ck('appToolsThenBridgeTools', btools.length === dtools.length + 3 && same(btools.slice(0, dtools.length), dtools) && same(btools.slice(dtools.length).map((t) => t.name), ['bridge_instances', 'bridge_select', 'bridge_launch']), btools.map((t) => t.name));
+    R.stdioApp.ck('fourteenAppTools', dtools.length === 14, dtools.length);
+    // a host that connects while the app runs gets the app's instructions, then the bridge sentence
+    const b2 = await startBridge({ args: ['--registry', instDir(home)] });
+    try {
+      const ins = b2.client.getInstructions() || '';
+      const dins = direct.getInstructions() || '';
+      R.stdioApp.ck('instructionsForwarded', dins.length > 0 && ins.startsWith(dins + '\n\n') && /toolsVersion 1\.0/.test(ins) && /circuitjs-mcp bridge/.test(ins.slice(dins.length)), clip(ins, 300));
+      R.stdioApp.ck('serverInfo', (b2.client.getServerVersion() || {}).name === 'circuitjs-mcp', b2.client.getServerVersion());
+    } finally { await b2.close(); }
+    R.stdioApp.done();
+    const cases = [
+      ['circuit_types Resistor', 'tools/call', { name: 'circuit_types', arguments: { type: 'Resistor' } }],
+      ['circuit_types list', 'tools/call', { name: 'circuit_types', arguments: {} }],
+      ['circuit_edit domain error', 'tools/call', { name: 'circuit_edit', arguments: { edits: [{ op: 'delete', id: 'X9' }] } }],
+      ['circuit_get', 'tools/call', { name: 'circuit_get', arguments: {} }],
+      ['circuit_connectivity', 'tools/call', { name: 'circuit_connectivity', arguments: {} }],
+      ['circuit_read', 'tools/call', { name: 'circuit_read', arguments: { what: 'nets' } }],
+      ['circuit_documents list', 'tools/call', { name: 'circuit_documents', arguments: { action: 'list' } }],
+      ['resources/list', 'resources/list', {}],
+      ['resources/templates/list', 'resources/templates/list', {}],
+      ['resources/read catalogue', 'resources/read', { uri: 'circuitjs://catalogue' }],
+    ];
+    for (const [label, method, params] of cases) {
+      const viaBridge = await catchRpcValue(() => raw(method, params));
+      const viaDirect = await catchRpcValue(() => draw(method, params));
+      const eq = same(viaBridge, viaDirect);
+      R.bridge.ck(label, eq, eq ? undefined : { viaBridge: clip(JSON.stringify(viaBridge), 300), viaDirect: clip(JSON.stringify(viaDirect), 300) });
+      R.transparent.ck(label, eq);
+    }
+    const eb = await catchRpc(() => raw('tools/call', { name: 'circuit_get', arguments: { nonsense: 1 } }));
+    const ed = await catchRpc(() => draw('tools/call', { name: 'circuit_get', arguments: { nonsense: 1 } }));
+    R.bridge.ck('jsonRpcErrorPassedThrough', eb && ed && eb.code === ed.code && eb.message === ed.message && same(eb.data, ed.data), { eb: eb && eb.message, ed: ed && ed.message });
+    R.bridge.done();
+    R.transparent.ck('noCircuitToolsDefined', same(btools.filter((t) => !t.name.startsWith('bridge_')), dtools));
+
+    // --- CLI rows against the instance
+    r = await bridgeCli(['call', 'circuit_types', '{"type":"Resistor"}'], { home });
+    R.cli.ck('callValidExit0', r.code === 0 && r.json && r.json.ok === true && r.json.data && r.json.data.type === 'Resistor' && r.err === '', r);
+    r = await bridgeCli(['call', 'circuit_edit', '{"edits":[{"op":"delete","id":"X9"}]}'], { home });
+    R.cli.ck('callDomainErrorExit1', r.code === 1 && r.json && r.json.ok === false && Array.isArray(r.json.issues) && r.json.issues.length > 0, r);
+    r = await bridgeCli(['call', 'circuit_get', '{'], { home });
+    R.cli.ck('callBadJsonExit2', r.code === 2 && r.out === '' && r.err.split('\n').length === 2, r);
+    r = await bridgeCli(['read', 'circuitjs://catalogue'], { home });
+    let catalogue = null; try { catalogue = JSON.parse(r.json[0].text); } catch (e) {}
+    R.cli.ck('readCatalogueExit0', r.code === 0 && catalogue && Array.isArray(catalogue.types), clip(r.out, 300));
+    r = await bridgeCli(['tools'], { home });
+    const proj = dtools.map((t) => ({ name: t.name, title: t.title ?? (t.annotations && t.annotations.title) ?? null, annotations: t.annotations ?? {} }));
+    R.transparent.ck('cliToolsEqualTargetList', r.code === 0 && same((r.json || []).filter((t) => !t.name.startsWith('bridge_')), proj), clip(r.out, 300));
+    R.transparent.done();
+    r = await bridgeCli(['call', 'circuit_connectivity'], { home });
+    R.evalRow.ck('connectivityExit0Parsed', r.code === 0 && r.json && r.json.ok === true && r.json.data !== undefined, clip(r.out, 300));
+    R.evalRow.done();
+    // stdin arguments: the same circuit into two fresh background documents
+    const grid = (n) => FILE_OPTS + '\n' + Array.from({ length: n }, (_, i) => `r ${16 * (i % 40)} ${32 * Math.floor(i / 40)} ${16 * (i % 40 + 1)} ${32 * Math.floor(i / 40)} 0 1000`).join('\n') + '\n';
+    const circuit = grid(400);
+    const mkDoc = async () => (await bridgeCli(['call', 'circuit_documents', '{"action":"create"}'], { home })).json.data.doc;
+    const dA = await mkDoc(); const dB = await mkDoc();
+    const inline = await bridgeCli(['call', 'circuit_import', JSON.stringify({ doc: dA, circuit })], { home });
+    const viaStdin = await bridgeCli(['call', 'circuit_import', '-'], { home, stdin: JSON.stringify({ doc: dB, circuit }) });
+    const norm = (j) => JSON.stringify(j).split(dA).join('D').split(dB).join('D');
+    R.edges.ck('stdinEqualsInline', inline.code === 0 && viaStdin.code === 0 && norm(inline.json) === norm(viaStdin.json) && inline.json.data.elements === 400, { inline: clip(inline.out, 200), viaStdin: clip(viaStdin.out, 200) });
+    R.edges.done();
+
+    // --- two windows: a second start of the wrapper (its own profile)
+    const startWrapper = () => spawn(app, [], { detached: true, stdio: 'ignore' }).unref();
+    startWrapper();
+    for (let i = 0; i < 120 && records(home).filter((x) => x.rec).length < 2; i++) await sleep(500);
+    fs.writeFileSync(path.join(instDir(home), `${deadRec.instanceId}.json`), JSON.stringify(deadRec));
+    r = await bridgeCli(['instances'], { home });
+    R.cli.ck('instancesTwoLiveOneStale', r.code === 0 && Array.isArray(r.json) && r.json.length === 2 && !fs.existsSync(path.join(instDir(home), `${deadRec.instanceId}.json`)), r);
+    r = await raw('tools/call', { name: 'bridge_instances', arguments: {} });
+    const inst = (r.structuredContent && r.structuredContent.instances) || [];
+    const second = inst.find((i) => i.instanceId !== first.instanceId);
+    R.twoWindows.ck('twoInstancesFirstSelected', inst.length === 2 && inst.filter((i) => i.selected).map((i) => i.instanceId).join() === first.instanceId, inst);
+    const ids = records(home).filter((x) => x.rec).map((x) => x.rec).sort((a, c) => Date.parse(a.startedAt) - Date.parse(c.startedAt) || a.instanceId.localeCompare(c.instanceId)).map((x) => x.instanceId).join(', ');
+    r = await raw('tools/call', { name: 'bridge_select', arguments: { instanceId: 'x' } });
+    R.twoWindows.ck('unknownListsBothLive', r.isError && toolText(r) === `Unknown instance x. Live instances: ${ids}`, { text: toolText(r), ids });
+    r = await bridgeCli(['tools', '--url', 'http://127.0.0.1:9/mcp'], { home });
+    R.twoWindows.ck('unreachableListsBothLive', r.code === 3 && r.err.trim().endsWith(`. Live instances: ${ids}`), { err: r.err, ids });
+    const n0 = b.notes.tools;
+    r = await raw('tools/call', { name: 'bridge_select', arguments: { instanceId: second && second.instanceId } });
+    R.twoWindows.ck('selectNewer', !r.isError && r.structuredContent.target.instanceId === (second && second.instanceId), r);
+    R.twoWindows.ck('newerHasNoLrc', !hasLrc(await docsOf(raw)));
+    r = await raw('tools/call', { name: 'bridge_select', arguments: { instanceId: first.instanceId } });
+    R.twoWindows.ck('selectOlderDocuments', !r.isError && hasLrc(await docsOf(raw)));
+    await until(() => b.notes.tools >= n0 + 2, 3000).catch(() => {});
+    R.twoWindows.ck('listChangedPerSwitch', b.notes.tools >= n0 + 2, b.notes);
+    R.twoWindows.done();
+
+    // --- app closed mid-session
+    await direct.close().catch(() => {}); direct = null;
+    // the target first (the other window keeps the registry non-empty for the re-resolution check below)
+    await stopInstance(dir, records(home).find((x) => x.rec && x.rec.instanceId === first.instanceId).rec);
+    r = await raw('tools/call', { name: 'circuit_documents', arguments: { action: 'list' } });
+    R.closed.ck('instanceGone', r.isError && toolText(r) === `Instance gone: ${first.url}`, r);
+    r = await raw('tools/call', { name: 'circuit_documents', arguments: { action: 'list' } });
+    R.closed.ck('reResolvesToTheOtherWindow', !r.isError && r.structuredContent && r.structuredContent.ok === true, r);
+    // then every instance; restart the app; the next calls reach the new instance
+    await stopInstances(dir, home);
+    r = await raw('tools/call', { name: 'circuit_documents', arguments: { action: 'list' } });
+    R.closed.ck('allClosedInstanceGone', r.isError && /^Instance gone: /.test(toolText(r)), r);
+    const before = new Set([first.instanceId, second && second.instanceId]);
+    startWrapper();
+    for (let i = 0; i < 120 && !records(home).some((x) => x.rec && !before.has(x.rec.instanceId)); i++) await sleep(500);
+    r = await raw('tools/call', { name: 'circuit_documents', arguments: { action: 'list' } });
+    R.closed.ck('restartedCallSucceeds', !r.isError && r.structuredContent && r.structuredContent.ok === true, r);
+    r = await raw('tools/call', { name: 'bridge_instances', arguments: {} });
+    const t3 = r.structuredContent && r.structuredContent.target;
+    R.closed.ck('targetIsTheNewInstance', t3 && t3.instanceId && !before.has(t3.instanceId), r.structuredContent);
+    R.closed.done();
+
+    // --- CLI launch with a file, no instance running
+    await stopInstances(dir, home);
+    t0 = Date.now();
+    r = await bridgeCli(['launch', lrc, '--app', app], { home, timeout: 90000 });
+    R.cli.ck('launchWithFileExit0', r.code === 0 && r.json && r.json.target && r.json.target.source === 'launched' && r.json.opened && typeof r.json.opened.doc === 'string', r);
+    r = await bridgeCli(['call', 'circuit_documents', '{"action":"list"}'], { home });
+    R.cli.ck('launchShowsCircuit', r.code === 0 && r.json.data.documents.some((d) => d.active && d.filePath === lrc), clip(r.out, 300));
+    R.cli.note('cliLaunchMs', Date.now() - t0);
+    R.cli.done();
+    R.stdioClean.ck('noStdoutNoise', b.errors.length === 0, b.errors.map((e) => e.message));
+    R.stdioClean.ck('diagnosticsOnStderr', /circuitjs-mcp: target /.test(b.stderr()), clip(b.stderr(), 300));
+    R.stdioClean.done();
+    fs.writeFileSync(path.join(dir, 'bridge.stderr'), b.stderr());
+  } finally {
+    if (direct) await direct.close().catch(() => {});
+    await b.close().catch(() => {});
+    await stopInstances(dir, home);
+  }
+}
+async function catchRpcValue(fn) { try { return await fn(); } catch (e) { return { rpcError: { code: e.code, message: e.message, data: e.data } }; } }
+
+// SP_MCB_05_04 run longer than the default timeout, through the CLI
+async function scenBridgeLong(R) {
+  const miss = bridgeMissing();
+  if (miss) return skipAll(R, miss);
+  const nw = await launchNw('bridge-long');
+  try {
+    const r = await bridgeCli(['call', 'circuit_run', JSON.stringify({ span: 100000, budgetMs: 120000, reset: true })], { home: nw.home, timeout: 180000 });
+    R.long.ck('exit0', r.code === 0, { code: r.code, err: r.err });
+    R.long.ck('budgetExhausted', r.json && r.json.ok === true && r.json.data && r.json.data.reason === 'budget_exhausted', clip(r.out, 300));
+    R.long.ck('longerThan120s', r.ms >= 119000, r.ms);
+    R.long.note('ms', r.ms);
+    R.long.done();
+  } finally { await nw.kill(); }
+}
+
+// SP_MCB_05_01 stdio mode in Claude Code (temporary --mcp-config, --strict-mcp-config)
+async function scenBridgeClients(R) {
+  const miss = bridgeMissing();
+  if (miss) return skipAll(R, miss);
+  if (!which('claude')) return skipAll(R, 'claude not found');
+  const nw = await launchNw('bridge-clients');
+  try {
+    const cfg = path.join(nw.dir, 'mcp.json');
+    fs.writeFileSync(cfg, JSON.stringify({ mcpServers: { circuitjs: { type: 'stdio', command: process.execPath, args: [BRIDGE_BIN, '--registry', instDir(nw.home)] } } }));
+    const cc = await runProc('claude', ['-p', 'Call the circuit_types tool with type "Resistor" and reply with the default value of its resistance property only.',
+      '--mcp-config', cfg, '--strict-mcp-config', '--no-session-persistence', '--output-format', 'stream-json', '--verbose', '--max-turns', '6', '--model', CLAUDE_MODEL,
+      '--allowedTools', 'mcp__circuitjs__circuit_types'], { timeout: 240000, cwd: nw.dir, env: Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('CIRCUITJS_'))) });
+    fs.writeFileSync(path.join(nw.dir, 'claude.jsonl'), cc.stdout || '');
+    const lines = (cc.stdout || '').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
+    const init = lines.find((m) => m.type === 'system' && m.subtype === 'init');
+    if (!init) return skipAll(R, `claude -p gave no init message (rc ${cc.status}${cc.timedOut ? ', timeout' : ''}): ${(cc.stderr || cc.stdout || '').slice(-300)}`);
+    const srv = (init.mcp_servers || []).find((x) => x.name === 'circuitjs');
+    const tools = (init.tools || []).filter((t) => t.startsWith('mcp__circuitjs__'));
+    R.claude.ck('connected', srv && srv.status === 'connected', { srv });
+    R.claude.ck('appToolsPlusBridgeTools', tools.length === 17 && ['bridge_instances', 'bridge_select', 'bridge_launch'].every((n) => tools.includes('mcp__circuitjs__' + n)), tools);
+    R.claude.note('version', init.claude_code_version);
+    R.claude.done();
+    const result = lines.find((m) => m.type === 'result');
+    const used = lines.some((m) => m.type === 'assistant' && JSON.stringify(m.message.content).includes('mcp__circuitjs__circuit_types'));
+    const toolResult = lines.some((m) => m.type === 'user' && /\\?"ok\\?":\s*true/.test(JSON.stringify(m.message && m.message.content)) && /\\?"type\\?":\s*\\?"Resistor/.test(JSON.stringify(m.message && m.message.content)));
+    if (!used && (!result || result.is_error)) R.claudeCall.skip('the model call did not run: ' + clip(String(result && (result.result || result.subtype)), 300));
+    else {
+      R.claudeCall.ck('calledTool', used, { used });
+      R.claudeCall.ck('toolResultOk', toolResult);
+      R.claudeCall.done();
+    }
+  } finally { await nw.kill(); }
+}
+
 // rows that this harness does not automate
 async function scenManual(R) {
   R.hidden.skip('MANUAL: run by the developer, record `observed` + date in tests/mcp/README.md');
   R.lan.skip('MANUAL: run by the developer, record `observed` + date in tests/mcp/README.md');
-  R.bridge.skip(fs.existsSync(path.join(PROJECT, 'mcp/bridge')) ? 'bridge rows not automated yet (PL_MCB, docs/mcp-bridge.plan.md)' : 'the stdio bridge (C_MCB / PL_MCB, docs/mcp-bridge.plan.md) is not built yet');
+  R.desktop.skip('MANUAL: run by the developer, record `observed` + date in mcp/bridge/README.md');
   R.browser.skip('covered by tests/live scenario mcp_browser (npm run test:live -- mcp_browser)');
 }
 
@@ -1538,10 +1889,24 @@ const SCENARIOS = [
     r1: ['SP_AGA_05_02', 'R1 no disturbance: background sequence with the openFile step, every sample unchanged'],
     r2: ['SP_AGA_05_02', 'R2 target as if active: the sequence with the openFile step on background X and active Y'],
   } },
+  { name: 'bridge', group: 'default', run: scenBridge, rows: {
+    stdioNoApp: ['SP_MCB_05_01', 'Stdio mode, no app: handshake ok, only the 3 bridge tools, target tools -> "No CircuitJS1 instance"'],
+    selectErrors: ['SP_MCB_05_01', 'bridge_select unknown / unreachable / both given (-32602); bridge_launch without an app'],
+    launch: ['SP_MCB_05_01', 'bridge_launch with file: app started, target set, a new active document holds the file, list_changed'],
+    stdioApp: ['SP_MCB_05_01', 'Stdio mode with the app: its 14 tools (unchanged) followed by the 3 bridge tools'],
+    bridge: ['SP_MCP_05_03', 'Bridge forwarding: any tool via the bridge = direct result'],
+    transparent: ['SP_MCB_05_02', 'Invariants: forwarding transparent; tools (stdio and CLI) minus bridge_* = the target tools/list'],
+    cli: ['SP_MCB_05_01', 'CLI: call valid 0 / domain error 1 / bad JSON 2, tools without app 3, instances 2 live + 1 stale, read catalogue, launch with file'],
+    evalRow: ['SP_MCB_05_03', 'Eval harness: call circuit_connectivity -> exit 0, JSON parsed'],
+    edges: ['SP_MCB_05_04', 'Edges: stale records only, explicit URL unreachable (no fallback), arguments from stdin = inline'],
+    twoWindows: ['SP_MCB_05_03', 'Two windows: bridge_instances -> select each -> circuit_documents of the selected instance'],
+    closed: ['SP_MCB_05_03', 'App closed mid-session: "Instance gone", the next call re-resolves'],
+    stdioClean: ['SP_MCB_02_01', 'Stdio mode: stdout carries the protocol only, diagnostics on stderr'],
+  } },
   { name: 'manual', group: 'default', always: true, run: scenManual, rows: {
     hidden: ['SP_MCP_05_01', 'Runtime settings: hidden window -> wallMs within 25 % of the visible run'],
     lan: ['SP_MCP_05_03', 'Private-network agent: LAN URL from the info dialog, circuit_types, no token'],
-    bridge: ['SP_MCP_05_03', 'Bridge forwarding: any tool via the bridge = direct result'],
+    desktop: ['SP_MCB_05_01', 'Stdio mode: Claude Desktop config with circuitjs-mcp -> app tools + 3 bridge tools'],
     browser: ['SP_MCP_05_04', 'Browser build: status disabled, no listen attempt'],
   } },
   { name: 'hostile_slow', group: 'slow', run: scenHostileSlow, rows: {
@@ -1550,10 +1915,17 @@ const SCENARIOS = [
   { name: 'long120', group: 'slow', run: (R) => scenLong(R, 120000), rows: {
     long: ['SP_MCP_05_03', 'Long run while reading (slow): circuit_run budgetMs 120000 answers, reads served meanwhile'],
   } },
+  { name: 'bridge_long', group: 'slow', run: scenBridgeLong, rows: {
+    long: ['SP_MCB_05_04', 'Bridge CLI (slow): circuit_run budgetMs 120000 completes within the 130 s default timeout'],
+  } },
   { name: 'clients', group: 'clients', run: scenClients, rows: {
     inspector: ['SP_MCP_05_01', 'Endpoint: MCP Inspector CLI -> tools/list 14, resources/list 4, templates 3'],
     claude: ['SP_MCP_05_01', 'Endpoint: Claude Code connects (claude -p, temporary --mcp-config) -> connected, 14 tools'],
     claudeCall: ['SP_MCP_05_01', 'Endpoint: Claude Code calls circuit_types through the server'],
+  } },
+  { name: 'bridge_clients', group: 'clients', run: scenBridgeClients, rows: {
+    claude: ['SP_MCB_05_01', 'Bridge: Claude Code over stdio (temporary --mcp-config) -> connected, 14 app tools + 3 bridge tools'],
+    claudeCall: ['SP_MCB_05_01', 'Bridge: Claude Code calls circuit_types through the bridge'],
   } },
 ];
 const GROUPS = ['default', 'slow', 'clients'];

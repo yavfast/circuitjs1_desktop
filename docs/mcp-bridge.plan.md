@@ -1,7 +1,7 @@
 # Implementation Plan: MCP Bridge & CLI  {#PL_MCB}
 
 > **Code:** PL_MCB
-> **Status:** draft
+> **Status:** completed
 > **Created:** 2026-10-01
 > **Updated:** 2026-10-02
 >
@@ -41,7 +41,7 @@ For this plan's scope ([task_E_AGT](../.dev_flow/tasks/task_E_AGT.md)): the "MCP
 - [x] [Phase 1 — Package, options, registry and target resolution](#PL_MCB_P1)
 - [x] [Phase 2 — Stdio forwarding, bridge tools, launch](#PL_MCB_P2)
 - [x] [Phase 3 — CLI subcommands](#PL_MCB_P3)
-- [ ] [Phase 4 — Tests and host snippets](#PL_MCB_P4)
+- [x] [Phase 4 — Tests and host snippets](#PL_MCB_P4)
 
 ## Phases
 
@@ -198,7 +198,7 @@ What to create:
 - **App performance (outside this plan).** `circuit_import` of a legacy text with N resistors on a grid (all pins dangling) takes 5.9 s for N = 1250 and 51 s for N = 2500, and runs past 130 s for N = 5000 (CLI exit 3, `Timed out after 130000 ms`). N = 60000 ended in `Instance gone` after 67 s. The growth is about cubic, so a "large" circuit on stdin is limited by the app, not by the bridge.
 - **Phase 4 hooks.** `runCli` can be driven in-process with fake streams. The e2e bridge rows can run `bin/circuitjs-mcp.js` with `--registry <scratch HOME>/.circuitjs1/instances` and `--app <wrapper>`; a wrapper that sets `HOME` and a profile per start avoids the NW single-instance hand-off.
 
-### Phase 4 — Tests and host snippets [TODO]  {#PL_MCB_P4}
+### Phase 4 — Tests and host snippets [DONE]  {#PL_MCB_P4}
 
 **Depends on:** Phase 3; [PL_MCP Phase 4](./mcp-server.plan.md#PL_MCP_P4) (the harness it extends)
 **Implements:** [SP_MCB_05](./mcp-bridge.sp.md#SP_MCB_05) automation, [SP_MCB_06_01](./mcp-bridge.sp.md#SP_MCB_06_01) (uninstall documented in the README)
@@ -210,6 +210,24 @@ What to create:
 | Unit tests | `mcp/bridge/test/*.test.mjs` + `test/fake-server.mjs` | Resolution, forwarding, timeouts, list_changed, CLI exit codes |
 | E2E rows | `tests/mcp/e2e.mjs` (extends PL_MCP harness) | Bridge against a real instance |
 | README | `mcp/bridge/README.md` | Install, options, CLI, host configuration |
+
+**Result (2026-10-02).**
+- **Unit tests.** The 88 tests of Phases 1–3 cover every automatable SP_MCB_05 row against fake endpoints (`test/fake-server.mjs`, `test/fake-app.mjs`). Phase 4 adds no unit test: there was no gap. `npm test` in `mcp/bridge/`: 88/88.
+- **End to end** (`tests/mcp/e2e.mjs`).
+  - **Scenario `bridge`** (default group, about 25 s; 12 rows) replaces the "bridge forwarding" SKIP. The bridge runs as a stdio server (SDK client of `mcp/bridge/test/bridge-client.mjs`) and as the CLI.
+    - It starts the app itself through `appWrapper(dir, home)`: a shell script that sets the scratch `HOME`/XDG/`DISPLAY` and execs NW.js with `--user-data-dir=<dir>/udd-$$`, so each start has its own profile and NW.js does not hand a second start to the running process.
+    - New helpers: `bridgeMissing()` (SKIP with "run npm install in mcp/bridge"), `bridgeCli(args, {home, stdin})` and `rawOf(client)` (pass-through zod schema).
+    - Process groups: before `exec`, the wrapper appends `$$` (its pgid as a detached group leader) to `<dir>/groups`. The harness signals only those groups, and only while each still exists and its leader's command line names the scratch dir. Instances started by `bridge_launch` or the CLI are therefore ended at teardown, and also on harness exit, abortRun and SIGINT.
+    - Teardown deletes the records the stopped instances leave behind.
+    - Rows: SP_MCB_05_01 (no app; bridge tool errors; `bridge_launch` with a file; with the app: tools and instructions; the CLI rows), SP_MCP_05_03 bridge forwarding, SP_MCB_05_02 both invariants (stdio and CLI), SP_MCB_05_03 (eval row; two windows, including the error texts listing both live IDs; app closed mid-session: Instance gone, re-resolution to the other window, then all closed, the app restarted, and the call succeeds on the new instance), SP_MCB_05_04 (stale only, explicit URL unreachable, stdin = inline), and SP_MCB_02_01 (stdout carries the protocol only).
+  - **`bridge_long`** (slow): `call circuit_run` with `budgetMs: 120000` → exit 0 after 120.5 s.
+  - **`bridge_clients`** (clients): Claude Code 2.1.287 over stdio, with a temporary `--mcp-config` (`command: node mcp/bridge/bin/circuitjs-mcp.js --registry <scratch>`) and `--strict-mcp-config` → connected, 17 tools, and a real `circuit_types` call.
+  - **`manual`** now lists the Claude Desktop row (SP_MCB_05_01) as a manual SKIP pointing to `mcp/bridge/README.md`.
+  - `npm run test:mcp` (default group): 67 pass / 0 fail / 12 skip.
+- **Docs.** `mcp/bridge/README.md` covers install, options and environment, target order, host snippets (Claude Code, Claude Desktop with the PATH note, generic stdio), bridge tools, the CLI with exit codes and examples, security, uninstall (SP_MCB_06_01), tests, and the manual Claude Desktop row (not yet observed: the developer runs it). Both install forms were checked with a scratch `--prefix`: `npm install -g --install-links ./mcp/bridge` (a copy with its dependencies) and `npm install -g ./mcp/bridge` (a link; it needs `npm install` in the folder first). `npm uninstall -g circuitjs-mcp` removes it, and `npx --prefix mcp/bridge circuitjs-mcp` runs in place. `package.json` `files` includes the README.
+  - `tests/mcp/README.md`: requirements, scenario rows and the manual row pointer.
+  - Root README: a pointer to the bridge in the MCP section.
+- **Open.** The Claude Desktop row (SP_MCB_05_01) still has to be checked by hand and recorded as `observed` with a date in the README's "Manual rows" table.
 
 ## Backlog
 
@@ -225,3 +243,4 @@ What to create:
 | 2026-10-02 | Phase 1 done: package, options, registry reader, target resolution, launch; Result with Phase 2 hooks |
 | 2026-10-02 | Phase 2 done: stdio server, forwarder (revision pin, transparent results, timeout, instance gone), bridge tools; Result with Phase 3 hooks |
 | 2026-10-02 | Phase 3 done: CLI subcommands, exit codes, stdin arguments; Result with Phase 4 hooks |
+| 2026-10-02 | Phase 4 done: e2e bridge scenarios (default, slow, clients), bridge README with host snippets and uninstall; plan completed (Claude Desktop row left to the developer) |
