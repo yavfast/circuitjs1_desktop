@@ -58,6 +58,8 @@ public final class ImportLifecycle {
         // an open agent transaction first. Not for an undo/redo restore (the undo sealed already)
         // nor for an agent mutation's own import or rollback (agent origin).
         if (!document.isRestoringElementIds() && !document.isAgentOrigin()) {
+            // [SP_AGA_04_02] a user content replacement ends an agent run of the document first
+            document.cancelAgentRun();
             document.undoManager.sealTransaction();
         }
 

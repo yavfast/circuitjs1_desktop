@@ -17,7 +17,7 @@ headers if they drift.
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
-| [E_AGT](task_E_AGT.md) | implement (paused after PL_AGA P6) | in-progress | main | 2026-10-02 |
+| [E_AGT](task_E_AGT.md) | implement (PL_AGA P8) | in-progress | main | 2026-10-02 |
 
 ## Recently Completed
 

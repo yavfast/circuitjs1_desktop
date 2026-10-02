@@ -179,6 +179,8 @@ public class Adjustable extends BaseCirSimDelegate implements Command {
         if (settingValue) {
             return;
         }
+        // [SP_AGA_04_02] a user slider change of a document an agent run owns ends the run first
+        getActiveDocument().cancelAgentRun();
         ArrayList<Adjustable> adjustables = getActiveDocument().adjustableManager.adjustables;
         for (int i = 0; i != adjustables.size(); i++) {
             Adjustable adj = adjustables.get(i);

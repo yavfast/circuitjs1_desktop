@@ -51,6 +51,27 @@ public final class AgentApi {
         OperationResult handle(Call call);
     }
 
+    /** Receives the result of an asynchronous contract; called exactly once. */
+    interface Completion {
+        void complete(OperationResult result);
+    }
+
+    /**
+     * Handler of an asynchronous contract (run, render): completes now (a rejection) or later,
+     * exactly once, through {@code done}.
+     */
+    interface AsyncHandler {
+        void handle(Call call, Completion done);
+    }
+
+    /** Decides per call whether a contract is mutating (simControl: only {@code configure}). */
+    interface MutatingWhen {
+        boolean test(AgentArgs args);
+    }
+
+    private static final MutatingWhen NEVER = args -> false;
+    private static final MutatingWhen ALWAYS = args -> true;
+
     /** One dispatched call: arguments and the resolved target document. */
     static final class Call {
         final CirSim sim;
@@ -71,14 +92,18 @@ public final class AgentApi {
         final DocPolicy docPolicy;
         final BusyPolicy busyPolicy;
         /** Mutating column of the class table: the result carries {@code transaction}. */
-        final boolean mutating;
+        final MutatingWhen mutating;
+        /** Exactly one of handler and asyncHandler is set. */
         final Handler handler;
+        final AsyncHandler asyncHandler;
 
-        Contract(DocPolicy docPolicy, BusyPolicy busyPolicy, boolean mutating, Handler handler) {
+        Contract(DocPolicy docPolicy, BusyPolicy busyPolicy, MutatingWhen mutating, Handler handler,
+                AsyncHandler asyncHandler) {
             this.docPolicy = docPolicy;
             this.busyPolicy = busyPolicy;
             this.mutating = mutating;
             this.handler = handler;
+            this.asyncHandler = asyncHandler;
         }
     }
 
@@ -96,10 +121,11 @@ public final class AgentApi {
         Readings.register(this);
         DiagnosticsOps.register(this);
         HistoryOps.register(this);
+        SimControlOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
-        contracts.put(op, new Contract(docPolicy, busyPolicy, false, handler));
+        contracts.put(op, new Contract(docPolicy, busyPolicy, NEVER, handler, null));
     }
 
     /**
@@ -107,7 +133,24 @@ public final class AgentApi {
      * carries the target document's {@code transaction} state ([SP_AGA_01_08]).
      */
     void registerMutating(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
-        contracts.put(op, new Contract(docPolicy, busyPolicy, true, handler));
+        contracts.put(op, new Contract(docPolicy, busyPolicy, ALWAYS, handler, null));
+    }
+
+    /**
+     * Registers a contract that is mutating for some calls only (simControl {@code configure}):
+     * the results of those calls carry {@code transaction} like {@link #registerMutating}.
+     */
+    void registerMutatingWhen(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, MutatingWhen when,
+            Handler handler) {
+        contracts.put(op, new Contract(docPolicy, busyPolicy, when, handler, null));
+    }
+
+    /**
+     * Registers an asynchronous contract ([SP_AGA_02] "Timing": run, render). It is served by
+     * {@link #callAsync}; a synchronous {@link #call} of it is rejected with {@code invalid_value}.
+     */
+    void registerAsync(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, AsyncHandler handler) {
+        contracts.put(op, new Contract(docPolicy, busyPolicy, NEVER, null, handler));
     }
 
     /**
@@ -122,14 +165,31 @@ public final class AgentApi {
     }
 
     /**
-     * Runs a contract and delivers its JSON result to {@code callback}. Synchronous contracts
-     * call back before this method returns; the asynchronous ones (run, render) arrive with
-     * their phases and call back when they complete.
+     * Runs a contract and delivers its JSON result to {@code callback}. Synchronous contracts,
+     * and asynchronous ones rejected by a common rule or argument check, call back before this
+     * method returns; an accepted asynchronous contract ({@code run}; {@code render} in PL_AGA
+     * Phase 8) calls back exactly once when it completes.
      */
-    public void callAsync(String op, String argsJson, ResultCallback callback) {
-        String result = call(op, argsJson);
+    public void callAsync(String op, String argsJson, final ResultCallback callback) {
+        Contract contract = op == null ? null : contracts.get(op);
+        if (contract == null || contract.asyncHandler == null || !sim.isStartupCompleted()) {
+            String result = call(op, argsJson);
+            if (callback != null) {
+                callback.onResult(result);
+            }
+            return;
+        }
+        Prepared p = prepare(contract, op, AgentArgs.parse(argsJson));
+        if (p.failure != null) {
+            deliver(callback, p.failure);
+            return;
+        }
+        contract.asyncHandler.handle(p.call, result -> deliver(callback, result));
+    }
+
+    private static void deliver(ResultCallback callback, OperationResult result) {
         if (callback != null) {
-            callback.onResult(result);
+            callback.onResult(result.toJsonString());
         }
     }
 
@@ -145,9 +205,14 @@ public final class AgentApi {
                     "Argument 'op' names no known operation: '" + op + "'.",
                     "Use one of: " + String.join(", ", contracts.keySet()) + "."));
         }
+        if (contract.asyncHandler != null) {
+            return OperationResult.failure(Issue.of(IssueCode.INVALID_VALUE,
+                    "Argument 'op': operation '" + op + "' completes asynchronously.",
+                    "Call it through CircuitJS1Agent.callAsync(op, argsJson, callback)."));
+        }
         AgentArgs args = AgentArgs.parse(argsJson);
         OperationResult result = dispatch(contract, op, args);
-        if (contract.mutating) {
+        if (contract.mutating.test(args)) {
             // a rejection never changes the transaction; the field reflects its state
             CircuitDocument target = targetOf(contract, args);
             if (target != null) {
@@ -167,8 +232,25 @@ public final class AgentApi {
     }
 
     private OperationResult dispatch(Contract contract, String op, AgentArgs args) {
+        Prepared p = prepare(contract, op, args);
+        return p.failure != null ? p.failure : contract.handler.handle(p.call);
+    }
+
+    /** Outcome of the common rules: the call for the handler, or the rejection. */
+    private static final class Prepared {
+        final Call call;
+        final OperationResult failure;
+
+        Prepared(Call call, OperationResult failure) {
+            this.call = call;
+            this.failure = failure;
+        }
+    }
+
+    /** Applies the common rules: arguments parsed, document resolved, busy policy. */
+    private Prepared prepare(Contract contract, String op, AgentArgs args) {
         if (args.failed()) {
-            return args.failure();
+            return new Prepared(null, args.failure());
         }
 
         CircuitDocument doc = null;
@@ -177,24 +259,24 @@ public final class AgentApi {
             if (docArg.isString() == null) {
                 args.invalid("doc", "must be a document handle string", "Use one of the open documents: "
                         + DocumentHandles.listOpen(sim) + ".");
-                return args.failure();
+                return new Prepared(null, args.failure());
             }
             String handle = docArg.isString().stringValue();
             doc = DocumentHandles.find(sim, handle);
             if (doc == null) {
-                return OperationResult.failure(DocumentHandles.unknown(sim, handle));
+                return new Prepared(null, OperationResult.failure(DocumentHandles.unknown(sim, handle)));
             }
         } else if (contract.docPolicy == DocPolicy.REQUIRED) {
             args.invalid("doc", "is required", "Pass one of the open documents: " + DocumentHandles.listOpen(sim) + ".");
-            return args.failure();
+            return new Prepared(null, args.failure());
         } else if (contract.docPolicy == DocPolicy.OPTIONAL) {
             doc = sim.getActiveDocument();
         }
 
         if (doc != null && contract.busyPolicy == BusyPolicy.REJECTED && doc.isAgentBusy()) {
-            return OperationResult.failure(busyIssue(doc));
+            return new Prepared(null, OperationResult.failure(busyIssue(doc)));
         }
-        return contract.handler.handle(new Call(sim, op, args, doc));
+        return new Prepared(new Call(sim, op, args, doc), null);
     }
 
     /** @return the {@code busy} issue for a document that an agent run owns */

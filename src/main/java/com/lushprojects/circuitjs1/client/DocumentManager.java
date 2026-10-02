@@ -62,6 +62,9 @@ public class DocumentManager {
         if (document == null || !documents.contains(document)) {
             return;
         }
+        // [SP_AGA_04_02] closing a document (tab close, agent closeDocument with discardChanges)
+        // ends its agent run as cancelled first
+        document.cancelAgentRun();
 
         // Save to history. A background document is dumped inside a scoped silent bind, so
         // closing it does not switch the visible tab (SP_AGA_02_02, SP_AGA_03_08).

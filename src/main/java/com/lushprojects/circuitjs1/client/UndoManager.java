@@ -244,9 +244,21 @@ public class UndoManager extends BaseCirSimDelegate {
         if (document != null && document.isAgentOrigin()) {
             return;
         }
+        // [SP_AGA_04_02] a user edit of a document an agent run owns ends the run first
+        cancelAgentRun();
         // a gesture's tentative entry goes first (it holds the state before the gesture)
         resolveTentativePush();
         pushUserEntry(new UndoItem());
+    }
+
+    /**
+     * [SP_AGA_04_02] Cancel request of a user action: an agent run that owns this undo manager's
+     * document ends (reason {@code cancelled}) before the action takes effect.
+     */
+    private void cancelAgentRun() {
+        if (circuitDocument != null) {
+            circuitDocument.cancelAgentRun();
+        }
     }
 
     /**
@@ -296,6 +308,9 @@ public class UndoManager extends BaseCirSimDelegate {
         if (document != null && document.isAgentOrigin()) {
             return;
         }
+        // every press may start an edit (the press pushes the pre-gesture state): a run of the
+        // document ends first ([SP_AGA_04_02])
+        cancelAgentRun();
         resolveTentativePush();
         gestureActive = true;
         if (transactionOpen) {
@@ -369,8 +384,12 @@ public class UndoManager extends BaseCirSimDelegate {
         pushUserEntry(t);
     }
 
-    /** User undo (menu, Ctrl+Z): seals an open agent transaction first ([SP_AGA_04_01]). */
+    /**
+     * User undo (menu, Ctrl+Z): ends an agent run of the document ([SP_AGA_04_02]) and seals an
+     * open agent transaction first ([SP_AGA_04_01]).
+     */
     void doUndo() {
+        cancelAgentRun();
         resolveTentativePush();
         sealTransaction();
         if (undoStack.isEmpty())
@@ -378,8 +397,12 @@ public class UndoManager extends BaseCirSimDelegate {
         undo(1);
     }
 
-    /** User redo (menu, Ctrl+Y): seals an open agent transaction first ([SP_AGA_04_01]). */
+    /**
+     * User redo (menu, Ctrl+Y): ends an agent run of the document ([SP_AGA_04_02]) and seals an
+     * open agent transaction first ([SP_AGA_04_01]).
+     */
     void doRedo() {
+        cancelAgentRun();
         resolveTentativePush();
         sealTransaction();
         if (redoStack.isEmpty())

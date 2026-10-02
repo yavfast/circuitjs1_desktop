@@ -147,7 +147,8 @@ public class BaseCirSim {
         activeDocument.circuitInfo.developerMode = enabled;
     }
 
-    void repaint() {
+    /** Requests a deferred repaint of the bound document on the session canvas. */
+    public void repaint() {
         renderer.repaint();
     }
 

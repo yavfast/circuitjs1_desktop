@@ -3,7 +3,7 @@ skill: time-step-control
 domain: simulator
 topics: [time-step, adaptive, frame-budget, min-time-step, reset]
 source: onboard
-updated: 2026-04-18
+updated: 2026-10-02
 ---
 
 # Time-Step Control
@@ -47,6 +47,15 @@ re-stamp. Missing this invariant is a common bug source.
 - Early-exit at L1463 skips the frame if the speed bar says "too soon".
 - Inner loop exits at L1474 when either `timeStepCount` satisfies the
   requested rate **or** 50 ms wall-clock elapsed.
+
+**Shared step loop (since PL_AGA Phase 7).** The timestep loop of
+`runCircuit` is `stepLoop(wireCurrentsEachStep, StepObserver)`; the
+frame pacing above is its `FramePacing` observer (checked after every
+completed step, also `simRunning`). Agent runs call `runSteps(observer,
+…)`: the same Newton/halving/recovery loop with no pacing, no speed bar
+and no running-flag check. The loop's early returns (stop, re-stamp after
+enabling singular-matrix stabilisers) skip the frame's trailing work
+(`lastIterTime`, delayed wire currents) as before.
 
 **Fixed-step mode.** Setting `adjustTimeStep = false` (via JS
 `setTimeStep`, UI, or loaded setup) disables halving; `subIterCount`

@@ -92,12 +92,16 @@ public class Toolbar extends HorizontalPanel {
         add(createIconButton("back-in-time", "Reset", new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
+                // [SP_AGA_04_02] a user reset ends an agent run of the document first
+                cirSim.getActiveDocument().cancelAgentRun();
                 cirSim.resetAction();
             }
         }));
         runStopButton = createIconButton("icon-play", "Start", new ClickHandler() {
             @Override
             public void onClick(ClickEvent event) {
+                // [SP_AGA_04_02] a user run/stop ends an agent run of the document first
+                cirSim.getActiveDocument().cancelAgentRun();
                 cirSim.setSimRunning(!cirSim.simIsRunning());
             }
         });

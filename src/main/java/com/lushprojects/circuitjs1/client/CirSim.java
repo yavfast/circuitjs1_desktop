@@ -1259,9 +1259,18 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         return false;
     }-*/;
 
+    // JSInterface - Run/stop: a scripted run/stop ends an agent run of the document first
+    // ([SP_AGA_04_02]); internal callers use setSimRunning directly.
+    void scriptSetSimRunning(boolean run) {
+        getActiveDocument().cancelAgentRun();
+        setSimRunning(run);
+    }
+
     // JSInterface - Reset simulation
     void resetSimulation() {
         CircuitDocument doc = getActiveDocument();
+        // [SP_AGA_04_02] a scripted reset ends an agent run of the document first
+        doc.cancelAgentRun();
         CircuitSimulator simulator = doc.simulator;
 
         // Ensure simulation is stopped.
@@ -1292,6 +1301,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     // JSInterface - Step simulation once
     void stepSimulation() {
         CircuitDocument doc = getActiveDocument();
+        // [SP_AGA_04_02] a scripted step ends an agent run of the document first
+        doc.cancelAgentRun();
         CircuitSimulator simulator = doc.simulator;
         
         // Ensure we're stopped
@@ -1506,7 +1517,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 	    var that = this;
 	    $wnd.CircuitJS1 = {
 	        // Simulation control
-	        setSimRunning: $entry(function(run) { that.@com.lushprojects.circuitjs1.client.CirSim::setSimRunning(Z)(run); } ),
+	        setSimRunning: $entry(function(run) { that.@com.lushprojects.circuitjs1.client.CirSim::scriptSetSimRunning(Z)(run); } ),
 	        isRunning: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::simIsRunning()(); } ),
 	        getTime: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTime()(); } ),
 	        getTimeStep: $entry(function() { return that.@com.lushprojects.circuitjs1.client.CirSim::getTimeStep()(); } ),
@@ -1617,7 +1628,16 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             hook($wnd.CircuitJS1);
     }-*/;
 
-    native void callTimeStepHook() /*-{
+    // The user's ontimestep hook belongs to the visible tab: skipped while an agent run steps a
+    // background document (its timesteps are not the visible circuit's), as callAnalyzeHook does.
+    void callTimeStepHook() {
+        if (visibleWhileBound != null && getActiveDocument() != visibleWhileBound) {
+            return;
+        }
+        callTimeStepHookNative();
+    }
+
+    private native void callTimeStepHookNative() /*-{
 	    var hook = $wnd.CircuitJS1.ontimestep;
 	    if (hook)
 	    	hook($wnd.CircuitJS1);

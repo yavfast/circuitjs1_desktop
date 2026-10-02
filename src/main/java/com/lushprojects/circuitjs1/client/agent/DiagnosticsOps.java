@@ -82,12 +82,7 @@ final class DiagnosticsOps {
             data.put("lastImport", lastImport != null ? lastImport : new JSONArray());
             data.put("simTime", new JSONNumber(sim.t));
             data.put("running", JSONBoolean.getInstance(doc.isRunning()));
-            JSONObject ts = new JSONObject();
-            ts.put("current", new JSONNumber(sim.timeStep));
-            ts.put("max", new JSONNumber(sim.maxTimeStep));
-            ts.put("min", new JSONNumber(sim.minTimeStep));
-            ts.put("auto", JSONBoolean.getInstance(sim.adjustTimeStep));
-            data.put("timeStep", ts);
+            data.put("timeStep", SimControlOps.timeStep(sim));
             if (wantLog) {
                 data.put("log", log(call.sim.logManager, fSince, fLimit));
             }

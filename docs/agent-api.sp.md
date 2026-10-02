@@ -194,6 +194,7 @@ ProbeStats: `{samples: int, tStart, tEnd, min, max, mean, rms, peakToPeak, final
 - `frequency` — mean rate of rising crossings of `mean`, with hysteresis of 5 % of `peakToPeak`. Absent when there are fewer than 2 crossings.
 - `dutyCycle` — fraction of recorded time with the value above `mean`. Absent when `frequency` is absent.
 - `riseTime` — time from 10 % to 90 % of the `min→max` span on the first rising transition. Absent when no such transition exists.
+- A probe that recorded no sample reports `stats: {samples: 0}` only and an empty `series`.
 
 ### 01_10. AgentTransaction, undo entry extension, CheckpointRecord  {#SP_AGA_01_10}
 
@@ -453,9 +454,9 @@ Output: `data: {running: bool, simTime: number, timeStep: {current, max, min, au
 Action rules:
 - **`run`.** Free-running advances only the active document, which is the existing tab rule. `run` on a background document sets its running flag, which takes effect when it becomes active.
 - **`reset`.** Sets simulated time to 0, clears element state and the scope views' histories, and clears the stop state.
-- **`configure`.** Changes the persistent settings, the values analysis keeps. It never changes the transient current step.
+- **`configure`.** Changes the persistent settings, the values analysis keeps. It never writes the transient current step; the analysis that follows restarts the current step at the new maximum, as after a user change.
 
-Errors: `invalid_value` (non-positive or unparseable step; `min > max`); `busy` (during a run).
+Errors: `invalid_value` (non-positive or unparseable step; `min > max`; `configure` naming no setting); `busy` (during a run).
 
 ### 02_10. run  {#SP_AGA_02_10}
 
@@ -490,8 +491,11 @@ Result rules:
 - `issues` carries the solver events present when the run started plus those raised during it ([§03_06](#SP_AGA_03_06)), each code once.
 - `solver_stop` adds the stop issue (severity `error`).
 - `budget_exhausted`, `settle_timeout` and `cancelled` add a `warning` with the same code as the reason.
+- An exception inside a slice ends the run with `reason = solver_stop` and stops the document as a free-running exception does (the stop issue plus an `internal_error` issue); the document needs a reset before it runs again.
+- A non-finite probe sample (NaN or infinity from the solver) is not recorded; the run adds one `solver_warning` issue naming the probe.
+- `steps` counts every timestep that advanced simulated time, forced non-converged steps included; probes sample each of them.
 
-Errors: `busy` (another run on the document); `invalid_value`; probe target errors as in [§02_07](#SP_AGA_02_07), checked before starting.
+Errors: `busy` (another run on the document); `invalid_value` (also naming `doc` when the document has no elements); probe target errors as in [§02_07](#SP_AGA_02_07), checked before starting.
 
 Processing logic:
 
@@ -518,7 +522,7 @@ Processing logic:
         FINALLY clear busy
         RETURN reason, times, steps, probe results
 
-`settled(window, tol)`: at least `window` seconds of simulated time have elapsed since the run started, and over the last `window` seconds every net voltage's `max − min` < `tol`.
+`settled(window, tol)`: at least `window` seconds of simulated time have elapsed since the run started, and over the last `window` seconds every net voltage's `max − min` < `tol`. The check may run over chunks of `window / 8` and cover up to one chunk more than `window` (never looser).
 
 ### 02_11. getDiagnostics  {#SP_AGA_02_11}
 
@@ -725,7 +729,8 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 - The series uses `B = ⌊maxPoints / 2⌋` buckets. Each bucket holds its min and max sample with their times.
 - When all buckets are used, adjacent buckets merge pairwise and the bucket width doubles.
 - The emitted series lists, per bucket, its min and max samples in time order, so it never exceeds `maxPoints` points and keeps the extremes of the shape.
-- Values are emitted with 6 significant digits.
+- Values are emitted with 6 significant digits; times (`t`, `tStart`, `tEnd`) with 9.
+- `frequency`, `dutyCycle` and `riseTime` are computed from a second bucket series of the same kind with 4096 buckets: exact up to 8192 samples, at bucket resolution beyond.
 
 **Other caps**
 - `getCircuit` pages at `limit`.
@@ -834,11 +839,11 @@ Transition rules:
 **Agent calls while busy.** Served or rejected (`busy`) as the contract class table of [§02](#SP_AGA_02) states.
 
 **Cancel requests.** These raise a cancel request before they take effect:
-- a user edit, user undo/redo, or a user run/stop/reset of the busy document;
+- a user edit (any canvas press counts, since the editor pushes undo on every press; a slider change counts), user undo/redo, or a user run/stop/reset of the busy document, also through the legacy `CircuitJS1` scripting calls (`stepSimulation`, `resetSimulation`, `setSimRunning`);
 - `closeDocument(discardChanges: true)`;
 - closing the tab.
 
-The user action then proceeds after the run has ended at its next slice boundary. Activating the tab is not a cancel.
+The user action then proceeds after the run has ended at its next slice boundary; user and script events arrive between slices. A legacy script call made from the user's own `ontimestep` hook during a run of the visible document is the exception: it runs inside the slice, as it already runs inside a free-running step. Activating the tab is not a cancel.
 
 ### 04_03. Element ID lifetime  {#SP_AGA_04_03}
 
@@ -960,7 +965,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Aspect | Rollback approach |
 |--------|-------------------|
 | Data/state changes | Undo entry extension fields live in memory only. No file format changes: JSON element keys were already free-form IDs, and the text format is untouched |
-| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps |
+| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps. (17) The user's `ontimestep` hook is not called for steps of a document other than the visible one (background runs), as the `onanalyze` hook already is |
 | Artifacts | The Agent API module and its export through the clustered native boundary; no persistent artifacts |
 | Dependent modules | [SP_MCP](./mcp-server.sp.md) and [SP_AGS](./agent-skill.sp.md) depend on it; removing the Agent API removes the MCP tool set |
 | External contracts | The existing scripting global keeps its documented methods; its element IDs come from the registry (same format) |
@@ -1041,6 +1046,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | PL_AGA Phase 7: `run` on an empty document is `invalid_value` naming `doc`; empty probe stats; time output digits and the shape-statistics series (§03_07); a canvas press cancels a run (§04_02); §06_01 item 17 `ontimestep` guard; review: configure current-step wording, empty configure, slice exception stops the document, non-finite samples, steps count forced steps, settle chunks, slider and legacy-script cancels |
 | 2026-10-02 | §04_01: a sealed agent transaction without net change is dropped by the next user edit push (PL_AGA Phase 6 review) |
 | 2026-10-01 | §06_01 item 16: blank-circuit time-step defaults for new documents (PL_AGA Phase 6) |
 | 2026-10-01 | `read` null for non-finite values, wire-only net ranking, `netFilter` range, `recovering` = engaged (PL_AGA Phase 5 review) |

@@ -103,8 +103,8 @@ final class DocumentsOps {
                     "Document " + DocumentHandles.of(doc) + " has unsaved changes.",
                     "Save it first, or pass discardChanges: true."));
         }
-        // A busy document closed with discardChanges ends its run as cancelled (PL_AGA Phase 7
-        // adds the run; until then no document is busy).
+        // [SP_AGA_04_02] A busy document closed with discardChanges ends its run as cancelled
+        // first (DocumentManager.closeDocument raises the cancel request, also for a tab close).
         DocumentManager dm = call.sim.documentManager;
         boolean last = dm.getDocuments().size() == 1;
         String handle = DocumentHandles.of(doc);

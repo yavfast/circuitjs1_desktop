@@ -1622,9 +1622,6 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             return;
         }
 
-        boolean debugPrint = dumpMatrix;
-        dumpMatrix = false;
-
         long stepRate = (long) (160 * cirSim.getIterCount());
         long tm = System.currentTimeMillis();
         long frameStart = tm; // Capture start time of this simulation step
@@ -1643,12 +1640,109 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         boolean delayWireProcessing = scopeManager().canDelayWireProcessing();
 
-        int timeStepCountAtFrameStart = timeStepCount;
+        FramePacing pacing = new FramePacing(stepRate, frameStart, (int) (1000 / minFrameRate), lit);
+        if (stepLoop(!delayWireProcessing, pacing)) {
+            lastIterTime = pacing.lit;
+            if (delayWireProcessing) {
+                calcWireCurrents();
+            }
+        }
+        // System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
+    }
+
+    /**
+     * Decides after every completed timestep whether {@link #stepLoop} takes another one: the
+     * wall-clock pacing of a free-running frame, or the end conditions of an agent run.
+     */
+    public interface StepObserver {
+        /**
+         * Called after a timestep completed: time advanced, elements, wire currents (when computed
+         * per step), scopes and the last node voltages are updated.
+         *
+         * @return true to take another timestep
+         */
+        boolean afterStep();
+
+        /**
+         * Called after a step forced through without convergence (non-convergence recovery): time
+         * advanced, the node voltages are the last stable solution, elements and scopes were not
+         * updated. The loop then ends the frame.
+         */
+        default void afterForcedStep() {
+        }
+    }
+
+    /**
+     * Wall-clock pacing of one free-running frame: the speed bar's step rate, at most
+     * {@code 1000 / minFrameRate} ms of computation per frame, and a stop request.
+     */
+    private final class FramePacing implements StepObserver {
+        private final long stepRate;
+        private final long frameStart;
+        private final int frameTimeLimit;
+        private final int timeStepCountAtFrameStart;
+        /** Wall time of the last completed timestep (becomes {@code lastIterTime}). */
+        long lit;
+
+        FramePacing(long stepRate, long frameStart, int frameTimeLimit, long lit) {
+            this.stepRate = stepRate;
+            this.frameStart = frameStart;
+            this.frameTimeLimit = frameTimeLimit;
+            this.timeStepCountAtFrameStart = timeStepCount;
+            this.lit = lit;
+        }
+
+        @Override
+        public boolean afterStep() {
+            long tm = System.currentTimeMillis();
+            lit = tm;
+            // Check whether enough time has elapsed to perform an *additional* iteration after
+            // those we have already completed. But limit total computation time to 50ms (20fps)
+            // by default
+            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= stepRate * (tm - lastIterTime)
+                    || (tm - frameStart > frameTimeLimit)) {
+                return false;
+            }
+            return simRunning;
+        }
+    }
+
+    /**
+     * [SP_AGA_02_10] Stepping of an agent run: takes timesteps of the analysed and stamped circuit
+     * until {@code observer} declines another one, the solver stops or a frame-ending recovery
+     * path is taken (a re-stamp after enabling the singular-matrix stabilisers, a forced
+     * non-converged step). No repaint and no wall-clock pacing: the speed bar and the running
+     * flag do not apply. The caller checks the stop state and calls again as needed.
+     *
+     * @param wireCurrentsEachStep compute wire currents after every step (a probe reads them);
+     *                             otherwise they may be computed once at the end, as a free-running
+     *                             frame does when no scope views a wire
+     */
+    public void runSteps(StepObserver observer, boolean wireCurrentsEachStep) {
+        if (circuitMatrix == null || elmList.isEmpty()) {
+            circuitMatrix = null;
+            return;
+        }
+        boolean delay = !wireCurrentsEachStep && scopeManager().canDelayWireProcessing();
+        if (stepLoop(!delay, observer) && delay) {
+            calcWireCurrents();
+        }
+    }
+
+    /**
+     * The timestep loop shared by free-running frames ({@link #runCircuit}) and agent runs
+     * ({@link #runSteps}): Newton iteration, time-step halving/doubling, non-convergence recovery
+     * and the per-step updates, until {@code observer} declines another step.
+     *
+     * @return true when the loop ended normally; false when it returned early (stop, or a
+     *         re-stamp that ends the frame), in which case the frame's trailing work is skipped
+     */
+    private boolean stepLoop(boolean wireCurrentsEachStep, StepObserver observer) {
+        boolean debugPrint = dumpMatrix;
+        dumpMatrix = false;
 
         // keep track of iterations completed without convergence issues
         int goodIterations = 100;
-
-        int frameTimeLimit = (int) (1000 / minFrameRate);
 
         for (;;) {
             if (goodIterations >= 3 && timeStep < maxTimeStep) {
@@ -1711,7 +1805,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
 
                 if (stopMessage != null) {
-                    return;
+                    return false;
                 }
 
                 if (debugPrint) {
@@ -1732,7 +1826,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                             singularStabilizersActive = true;
                             console("Enabling singular-matrix stabilizers and re-stamping circuit");
                             stampCircuit();
-                            return;
+                            return false;
                         }
 
                         int failColPre = CircuitMath.getLastLuFailColumn();
@@ -1778,7 +1872,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                                 break;
                             }
                             stop("Singular matrix!", null);
-                            return;
+                            return false;
                         }
                     }
                 }
@@ -1845,6 +1939,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                             timeStepCount++;
                         }
                         // Skip element updates/scopes for this forced step; we didn't obtain a new solution.
+                        observer.afterForcedStep();
                         break;
                     }
 
@@ -1899,7 +1994,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             for (CircuitElm circuitElm : elmArr) {
                 circuitElm.stepFinished();
             }
-            if (!delayWireProcessing) {
+            if (wireCurrentsEachStep) {
                 calcWireCurrents();
             }
             ScopeManager scopeManager = scopeManager();
@@ -1916,26 +2011,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             System.arraycopy(nodeVoltages, 0, lastNodeVoltages, 0, lastNodeVoltages.length);
             // console("set lastrightside at " + t + " " + lastNodeVoltages);
 
-            tm = System.currentTimeMillis();
-            lit = tm;
-            // Check whether enough time has elapsed to perform an *additional* iteration
-            // after
-            // those we have already completed. But limit total computation time to 50ms
-            // (20fps) by default
-            if ((long) (timeStepCount - timeStepCountAtFrameStart) * 1000 >= stepRate * (tm - lastIterTime)
-                    || (tm - frameStart > frameTimeLimit)) {
-                break;
-            }
-            if (!simRunning) {
+            if (!observer.afterStep()) {
                 break;
             }
         } // for (iter = 1; ; iter++)
-
-        lastIterTime = lit;
-        if (delayWireProcessing) {
-            calcWireCurrents();
-        }
-        // System.out.println((System.currentTimeMillis()-lastFrameTime)/(double) iter);
+        return true;
     }
 
     /**

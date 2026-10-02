@@ -3,7 +3,7 @@ skill: background-documents
 domain: automation
 topics: [documents, bind-document, session-state, sliders-dialog, hint, simulation-loop, agent-run, r1-r2]
 source: prototype
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Operating on a non-active document without disturbing the visible tab
@@ -14,7 +14,7 @@ Measured by the PL_AGA Phase 0 prototype (2026-10-01, scratch branch `proto/agen
 
 ## Key concepts
 
-- **Session vs document.** `CircuitDocument` subsystems (simulator, editor, undo, adjustables, loader) resolve through their own document. Session coupling comes from direct `cirSim.*` calls: menu check items, the bars, `ColorSettings` voltage range, renderer transform and hint, the sliders dialog, the window title, menu item enablement, and the user's `CircuitJS1.onanalyze` hook (`CirSim.callAnalyzeHook`, reached from `preStampCircuit`): `DocumentScope` records the visible document (`CirSim.visibleWhileBound`) and the hook is skipped while another document is bound (PL_AGA Phase 5). The `ontimestep` hook (`runCircuit`) is not guarded yet — background runs (Phase 7/8) must handle it.
+- **Session vs document.** `CircuitDocument` subsystems (simulator, editor, undo, adjustables, loader) resolve through their own document. Session coupling comes from direct `cirSim.*` calls: menu check items, the bars, `ColorSettings` voltage range, renderer transform and hint, the sliders dialog, the window title, menu item enablement, and the user's `CircuitJS1.onanalyze` hook (`CirSim.callAnalyzeHook`, reached from `preStampCircuit`): `DocumentScope` records the visible document (`CirSim.visibleWhileBound`) and the hook is skipped while another document is bound (PL_AGA Phase 5). The `ontimestep` hook (`CirSim.callTimeStepHook`, called after every timestep of `stepLoop`) is guarded the same way since PL_AGA Phase 7: a background run never calls it, a run of the visible document does.
 - **Scoped silent bind.** Save the active tab's UI state (`saveUIState`), swap the bound document by field (`BaseCirSim.activeDocument` and `DocumentManager.activeDocument`), apply the target's options (`applyOptionWidgets`), its transform (or `centreCircuit()` if it has none) and its hint. Then run the operation, save the target's UI state and hint, swap back and re-apply the active tab's state. Finally refresh the derived widgets: `updateTimeStepBar`, `setPowerBarEnable`, `enableUndoRedo`, `allowSave(previous)` and `changeWindowTitle`. Cost measured: 0.6 ms average, 3 ms worst per bind.
 - **`DocumentManager.dumpDocument`** is today's only background bind, and it uses the full `bindDocument`. That is fine for one synchronous dump but wrong for repeated binds.
 
@@ -22,7 +22,8 @@ Measured by the PL_AGA Phase 0 prototype (2026-10-01, scratch branch `proto/agen
 
 - Use the silent swap, never `BaseCirSim.bindDocument`/`CirSim.bindDocument`, for a background bind. `bindDocument` calls `setActive`, which stops the active tab's 16 ms `SimulationLoop` timer when the target is bound and restarts it, with a fresh 16 ms delay, on rebind. It also moves listeners, updates the toolbar run button and resets the renderer timers.
 - Detach the session `SlidersDialog` while a background document is bound. `AdjustableManager.updateSliders` (`clearSlidersDialog` + `createSliders`, reached from load, import and undo) clears the shared dialog and refills it with the target's sliders. The target's rows are rebuilt by `restoreUIState → updateSliders` when its tab is activated.
-- For a sliced run, step the target with one timestep per `runCircuit(true)` call (`simRunning=false`, `lastIterTime` pushed back). Stop at the slice budget, with the clock started at scope entry and a margin for bind cost (up to 3 ms) and millisecond timer granularity — the prototype, timing inside the scope, measured 23–25 ms slices for a 20 ms budget. Then yield until the active tab's loop has run at least one frame. A fixed `schedule(1)` sometimes ran two slices back to back.
+- A sliced run (PL_AGA Phase 7, `agent/RunController`) steps the bound target with `CircuitSimulator.runSteps(observer, wireCurrentsEachStep)` — the free-running frame's timestep loop (`stepLoop`) without wall-clock pacing, speed bar or running-flag check; the observer records probes and ends the slice at its budget: 20 ms − 3 ms margin from scope entry (bind cost up to 3 ms, millisecond timer granularity — the prototype, timing inside the scope, measured 23–25 ms for a 20 ms budget). Then it yields until the visible tab's loop has run one frame (`SimulationLoop.runAfterNextFrame`, with a fallback timer) when the visible tab is another free-running document, else through a zero-delay `Timer`. A fixed `schedule(1)` sometimes ran two slices back to back.
+- A busy document (`CircuitDocument.setAgentBusy(owner)`) is skipped by its own free-running loop, also when it is the visible tab; the run repaints it once per slice and resets `lastIterTime` at the end, so free-running resumes without catching up the run's wall time. User actions on it and its close call `cancelAgentRun()` first.
 
 ## Pitfalls
 

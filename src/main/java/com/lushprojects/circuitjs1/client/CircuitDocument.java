@@ -40,10 +40,25 @@ public class CircuitDocument {
     private String displayTitle;
 
     /**
-     * True while an agent operation that owns this document (a run, Phase 7 of PL_AGA) is in
-     * progress; contracts that are not served while busy are rejected (SP_AGA_02 class table).
+     * [SP_AGA_04_02] The agent operation that owns this document (a run) while it is in progress,
+     * else null. While set the document is <em>busy</em>: contracts that are not served while
+     * busy are rejected (SP_AGA_02 class table) and the free-running loop does not step it.
      */
-    private boolean agentBusy;
+    private BusyOwner busyOwner;
+
+    /**
+     * [SP_AGA_04_02] The owner of a busy document. A user action on the document (edit, undo/redo,
+     * run/stop/reset, content replacement) and closing it call {@link #cancel()} before they take
+     * effect.
+     */
+    public interface BusyOwner {
+        /**
+         * Requests the end of the operation with reason {@code cancelled}. Called between slices
+         * (every user event is), the operation ends at once, so the user action that follows sees
+         * an idle document; called from inside a slice, it ends at that slice's boundary.
+         */
+        void cancel();
+    }
 
     /** [SP_AGA_03_02] Element ID counters of this document (one content lifetime, SP_AGA_04_03). */
     private final ElementIdRegistry elementIdRegistry = new ElementIdRegistry();
@@ -374,12 +389,27 @@ public class CircuitDocument {
 
     /** @return true while an agent operation owns this document (see {@link #setAgentBusy}) */
     public boolean isAgentBusy() {
-        return agentBusy;
+        return busyOwner != null;
     }
 
-    /** Marks the document as owned by a running agent operation (set and cleared by the agent run). */
-    public void setAgentBusy(boolean busy) {
-        agentBusy = busy;
+    /**
+     * Marks the document as owned by a running agent operation ({@code owner}), or idle again
+     * (null). Set and cleared by the agent run only.
+     */
+    public void setAgentBusy(BusyOwner owner) {
+        busyOwner = owner;
+    }
+
+    /**
+     * [SP_AGA_04_02] Cancel request of a user action or a close: when an agent run owns this
+     * document, it ends as {@code cancelled} before the caller's action proceeds. Does nothing
+     * when the document is idle.
+     */
+    public void cancelAgentRun() {
+        BusyOwner owner = busyOwner;
+        if (owner != null) {
+            owner.cancel();
+        }
     }
 
     public String getErrorMessage() {
@@ -448,9 +478,46 @@ public class CircuitDocument {
 
         public void stop() {
             timer.cancel();
+            afterFrame.clear();
+        }
+
+        /** One-shot actions run after the next frame ({@link #runAfterNextFrame}). */
+        private final List<Runnable> afterFrame = new ArrayList<>();
+
+        /** @return true while the loop timer is scheduled (the document is running and active) */
+        public boolean isScheduled() {
+            return isRunning && isActive;
+        }
+
+        /**
+         * Runs {@code action} once, right after this loop's next frame (PL_AGA_DEC_01 condition 4:
+         * a background run's next slice waits for one free-run frame of the visible tab). The
+         * action is dropped when the loop stops before its next frame; callers keep a fallback.
+         */
+        public void runAfterNextFrame(Runnable action) {
+            afterFrame.add(action);
         }
 
         private void update() {
+            try {
+                step();
+            } finally {
+                if (!afterFrame.isEmpty()) {
+                    List<Runnable> actions = new ArrayList<>(afterFrame);
+                    afterFrame.clear();
+                    for (Runnable a : actions) {
+                        a.run();
+                    }
+                }
+            }
+        }
+
+        private void step() {
+            if (busyOwner != null) {
+                // [SP_AGA_04_02] the agent run owns stepping; it repaints the document per slice.
+                // The running flag is unchanged and takes effect again after the run.
+                return;
+            }
             if (isRunning) {
                 try {
                     // Logic copied/adapted from CircuitRenderer.updateCircuit

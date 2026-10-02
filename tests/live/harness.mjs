@@ -245,6 +245,21 @@ function pageHelpers() {
       return typeof r === 'string' ? JSON.parse(r) : { __undefined: true, type: typeof r };
     },
     agentRaw(op, argsJson) { const r = CircuitJS1Agent.call(op, argsJson); return { type: typeof r, text: r }; },
+    // Asynchronous contract (run): parsed result when the callback fires, {timeout: true} otherwise.
+    agentAsync(op, args, timeoutMs) {
+      return new Promise((resolve) => {
+        const to = setTimeout(() => resolve({ timeout: true }), timeoutMs || 30000);
+        CircuitJS1Agent.callAsync(op, JSON.stringify(args || {}), (r) => { clearTimeout(to); resolve(JSON.parse(r)); });
+      });
+    },
+    // Starts an asynchronous call without waiting; agentStarted(key) reports its callbacks.
+    agentStart(key, op, args) {
+      window.__agentRuns = window.__agentRuns || {};
+      const st = window.__agentRuns[key] = { calls: 0, result: null, startedAt: performance.now(), doneAt: null };
+      CircuitJS1Agent.callAsync(op, JSON.stringify(args || {}), (r) => { st.calls++; st.result = JSON.parse(r); st.doneAt = performance.now(); });
+      return st.calls;
+    },
+    agentStarted(key) { return (window.__agentRuns || {})[key] || null; },
     agentCallAsync(op, args) {
       return new Promise((resolve) => {
         let sync = true;
@@ -2075,6 +2090,345 @@ async function scenarioAgentFreeRun(s) {
   report('AG.agent_freerun', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_freerun.json') });
 }
 
+// [PL_AGA_P7] Runs, probes and simulation control (SP_AGA_01_09, SP_AGA_02_09, SP_AGA_02_10,
+// SP_AGA_03_07, SP_AGA_04_02): SP_AGA_05_01 rows simControl (configure, invalid), run (span,
+// settle, shorted source, forced non-convergence, budget, points cap); SP_AGA_05_03 "Run owns
+// stepping", "User interrupts a run", "Free-running during edits"; SP_AGA_05_04 closing during
+// run, settle never reached; plus a forced exception inside a slice (debugFailNextRunSlice), the
+// ontimestep hook silent for background runs, busy policy, decimation caps and the visible tab
+// unchanged by background runs.
+const RC_TAU_1MS = [
+  { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '5 V' } },
+  { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1k' } },
+  { id: 'C1', type: 'Capacitor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { capacitance: '1 uF', initial_voltage: 0 } },
+  { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+  { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+];
+async function scenarioAgentRun(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args, timeoutMs) => s.call('agentAsync', 'run', args, timeoutMs || 30000);
+  const codes = (r) => ((r && r.issues) || []).map((i) => i.code);
+  const issue = (r, code) => ((r && r.issues) || []).find((i) => i.code === code);
+  const diag = async (doc) => (await A('getDiagnostics', doc ? { doc } : {})).data;
+  const near = (a, b, rel) => Math.abs(a - b) <= rel * Math.abs(b);
+  try {
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+
+  // visible tab: lrc.txt, stopped; background documents are compared against it
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const V = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const mk = async (title, elements) => {
+    const d = (await A('createDocument', { title })).data.doc;
+    if (elements) await A('importCircuit', { doc: d, circuit: { elements } });
+    return d;
+  };
+  const B = await mk('Run B', RC_TAU_1MS);
+  let tabs = 1;
+  const vis0 = await s.call('visibleTab');
+  const visFailed = [];
+  // the tab count follows the background documents this scenario creates and closes
+  const visibleSame = async (label) => {
+    const v = await s.call('visibleTab');
+    if (!same({ ...v, tabCount: 0 }, { ...vis0, tabCount: 0 }) || v.tabCount !== vis0.tabCount + tabs - 1) visFailed.push({ label, v });
+  };
+
+  // --- simControl configure: maxTimeStep "1 us" -> timeStep.max = 1e-6 after the next analysis
+  // (the import's transaction is sealed first, so configure opens a transaction of its own)
+  await A('checkpoint', { doc: B, comment: 'rc' });
+  const cfg = await A('simControl', { doc: B, action: 'configure', settings: { maxTimeStep: '1 us' } });
+  const dCfg = await diag(B);
+  out.notes.configure = { data: cfg.data, transaction: cfg.transaction, connectivity: !!cfg.connectivity };
+  ck('configure', cfg.ok && cfg.data.timeStep.max === 1e-6 && dCfg.timeStep.max === 1e-6 && dCfg.timeStep.current === 1e-6
+    && same(cfg.transaction, { open: true, pendingEdits: 1 }) && !!cfg.connectivity);
+  await visibleSame('configure');
+  // configure joins the agent transaction: one agent undo restores the previous settings
+  const und = await A('undo', { doc: B });
+  ck('configureUndo', und.ok && (await diag(B)).timeStep.max === 5e-6);
+  // --- simControl invalid: min > max, non-positive, unparseable, no setting, unknown action
+  const tx0 = (await A('getHistory', { doc: B })).data;
+  const inv1 = await A('simControl', { doc: B, action: 'configure', settings: { minTimeStep: '2 us', maxTimeStep: '1 us' } });
+  const inv2 = await A('simControl', { doc: B, action: 'configure', settings: { maxTimeStep: 0 } });
+  const inv3 = await A('simControl', { doc: B, action: 'configure', settings: { maxTimeStep: 'fast' } });
+  const inv4 = await A('simControl', { doc: B, action: 'configure', settings: {} });
+  const inv5 = await A('simControl', { doc: B, action: 'pause' });
+  const inv6 = await A('simControl', { doc: B, action: 'configure', settings: { minTimeStep: '10 us' } });
+  const dInv = await diag(B);
+  out.notes.invalid = [inv1, inv2, inv3, inv4, inv5, inv6].map((r) => r.issues && r.issues[0] && r.issues[0].message);
+  ck('configureInvalid', [inv1, inv2, inv3, inv4, inv5, inv6].every((r) => r.ok === false && codes(r)[0] === 'invalid_value')
+    && /minTimeStep/.test(inv1.issues[0].message) && /maxTimeStep/.test(inv2.issues[0].message)
+    && dInv.timeStep.max === 5e-6 && !!inv1.transaction && !inv5.transaction
+    && (await A('getHistory', { doc: B })).data.undo.length === tx0.undo.length);
+  // --- simControl run/stop/reset on a background document: flag only, never stepped in the background
+  const sRun = await A('simControl', { doc: B, action: 'run' });
+  const tBg0 = (await diag(B)).simTime;
+  await sleep(300);
+  const tBg1 = (await diag(B)).simTime;
+  const sStop = await A('simControl', { doc: B, action: 'stop' });
+  const sReset = await A('simControl', { doc: B, action: 'reset' });
+  ck('simControlRunStopReset', sRun.ok && sRun.data.running === true && tBg1 === tBg0 && sStop.ok && sStop.data.running === false
+    && sReset.ok && sReset.data.simTime === 0 && !sRun.transaction && (await s.call('simInfo')).running === false);
+  await visibleSame('simControl');
+
+  // --- argument checks (nothing starts; the document stays idle)
+  const bad = {
+    pointsCap: await R({ doc: B, span: '1 ms', probes: [{ element: 'C1' }, { element: 'R1' }], maxPoints: 1500 }),
+    maxPointsLow: await R({ doc: B, span: '1 ms', maxPoints: 5 }),
+    probes17: await R({ doc: B, span: '1 ms', probes: Array.from({ length: 17 }, () => ({ element: 'C1' })) }),
+    budgetLow: await R({ doc: B, span: '1 ms', budgetMs: 50 }),
+    spanZero: await R({ doc: B, span: 0 }),
+    spanMissing: await R({ doc: B }),
+    spanUnit: await R({ doc: B, span: '5 parsecs' }),
+    tolerance: await R({ doc: B, mode: 'settle', settle: { tolerance: -1 } }),
+    unknownNet: await R({ doc: B, span: '1 ms', probes: [{ net: 'vout' }] }),
+    unknownElement: await R({ doc: B, span: '1 ms', probes: [{ element: 'R9' }] }),
+  };
+  out.notes.bad = Object.fromEntries(Object.entries(bad).map(([k, r]) => [k, codes(r)]));
+  ck('pointsCap', bad.pointsCap.ok === false && codes(bad.pointsCap)[0] === 'invalid_value' && /maxPoints/.test(bad.pointsCap.issues[0].message));
+  ck('runArgsInvalid', ['maxPointsLow', 'probes17', 'budgetLow', 'spanZero', 'spanMissing', 'spanUnit', 'tolerance'].every((k) => bad[k].ok === false && codes(bad[k])[0] === 'invalid_value')
+    && codes(bad.unknownNet)[0] === 'unknown_net' && codes(bad.unknownElement)[0] === 'unknown_element'
+    && (await A('listDocuments', {})).data.documents.every((d) => d.busy === false));
+  const syncRun = await A('run', { doc: B, span: '1 ms' });
+  ck('runSyncRejected', syncRun.ok === false && codes(syncRun)[0] === 'invalid_value' && /callAsync/.test(syncRun.issues[0].hint));
+
+  // --- run span: RC tau = 1 ms, span 5 ms, probe on the capacitor -> final within 1 % of 0.993 x 5 V
+  const span = await R({ doc: B, span: '5 ms', reset: true, probes: [{ name: 'vc', element: 'C1' }, { net: 'gnd' }] });
+  const pv = span.data && span.data.probes[0];
+  out.notes.span = span.ok ? { reason: span.data.reason, tStart: span.data.tStart, tEnd: span.data.tEnd, steps: span.data.steps, wallMs: span.data.wallMs, stats: pv.stats, points: pv.series.t.length } : span;
+  const fin = pv && Math.abs(pv.stats.final);
+  ck('runSpan', span.ok && span.data.reason === 'span_reached' && near(fin, 5 * (1 - Math.exp(-5)), 0.01)
+    && span.data.tEnd - span.data.tStart >= 0.005 && span.data.tEnd - span.data.tStart < 0.005 + 1e-5 && pv.unit === 'V' && pv.name === 'vc'
+    && span.data.probes[1].name === 'gnd' && span.data.probes[1].stats.max === 0);
+  // stats and decimation: time-weighted mean of 5(1-e^-t) over 5 tau, rise time 10->90 % = tau ln 9
+  const meanExp = 5 * (1 - (1 - Math.exp(-5)) / 5);
+  ck('probeStats', pv && near(Math.abs(pv.stats.mean), meanExp, 0.01) && near(pv.stats.riseTime, 0.001 * Math.log(9), 0.03)
+    && pv.stats.samples === span.data.steps + 1 && pv.series.t.length <= 200 && pv.series.t.length === pv.series.v.length
+    && pv.series.t.every((t, i) => i === 0 || t > pv.series.t[i - 1]) && pv.stats.frequency === undefined
+    && pv.series.v.every((v) => String(Math.abs(v)).replace(/^0\.0*|\.|e.*$/g, '').length <= 6)
+    && Math.max(...pv.series.v.map(Math.abs)) === Math.abs(pv.stats.max));
+  await visibleSame('run span');
+
+  // --- run settle: DC divider -> settled before maxSpan
+  const D = await mk('Run D', RC_CELLS); tabs++;
+  const settle = await R({ doc: D, mode: 'settle', settle: { maxSpan: 1 }, probes: [{ element: 'R1' }] });
+  out.notes.settle = settle.ok ? { reason: settle.data.reason, span: settle.data.tEnd - settle.data.tStart, steps: settle.data.steps } : settle;
+  ck('runSettle', settle.ok && settle.data.reason === 'settled' && settle.data.tEnd - settle.data.tStart < 1
+    && settle.data.tEnd - settle.data.tStart >= 50 * 5e-6 && settle.data.probes[0].stats.samples === settle.data.steps + 1);
+  // --- settle never reached: AC source -> settle_timeout after maxSpan (warning with the same code)
+  const O = await mk('Run O', [
+    { id: 'V1', type: 'ACVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { frequency: '1 kHz' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }]); tabs++;
+  const osc = await R({ doc: O, mode: 'settle', settle: { maxSpan: '10 ms' }, probes: [{ element: 'R2' }] });
+  const os = osc.data && osc.data.probes[0].stats;
+  out.notes.settleTimeout = osc.ok ? { reason: osc.data.reason, issues: codes(osc), stats: os } : osc;
+  ck('settleTimeout', osc.ok && osc.data.reason === 'settle_timeout' && issue(osc, 'settle_timeout') && issue(osc, 'settle_timeout').severity === 'warning'
+    && osc.data.tEnd - osc.data.tStart >= 0.01);
+  // frequency / duty cycle of the 1 kHz sine (10 periods)
+  ck('probeFrequency', os && near(os.frequency, 1000, 0.02) && near(os.dutyCycle, 0.5, 0.05) && near(os.rms, os.max / Math.SQRT2, 0.02));
+
+  // --- shorted source: issues contain source_or_wire_loop (error) naming the source
+  const G = await mk('Run G', [
+    { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }]); tabs++;
+  const sh = await R({ doc: G, span: '1 ms' });
+  const shI = issue(sh, 'source_or_wire_loop');
+  out.notes.shorted = sh.ok ? { reason: sh.data.reason, issues: sh.issues } : sh;
+  ck('runShortedSource', sh.ok && ['span_reached', 'solver_stop'].includes(sh.data.reason) && shI && shI.severity === 'error' && same(shI.elements, ['V1']));
+
+  // --- forced non-convergence: a VCVS that inverts its own output without delay
+  const N = await mk('Run N', [
+    { id: 'VCV1', type: 'VCVS', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { expression: 'a < 2.5 ? 5 : 0' } },
+    { id: 'W1', type: 'Wire', start: { x: 6, y: 0 }, end: { x: 6, y: -2 } },
+    { id: 'W2', type: 'Wire', start: { x: 6, y: -2 }, end: { x: 0, y: -2 } },
+    { id: 'W3', type: 'Wire', start: { x: 0, y: -2 }, end: { x: 0, y: 0 } },
+    { id: 'W4', type: 'Wire', start: { x: 0, y: 2 }, end: { x: 6, y: 2 } },
+    { id: 'G1', type: 'Ground', start: { x: 6, y: 2 }, end: { x: 6, y: 3 } }]); tabs++;
+  const nc = await R({ doc: N, span: '0.2 ms', budgetMs: 1000 });
+  const ncI = issue(nc, 'convergence_failed');
+  out.notes.nonConvergence = nc.ok ? { reason: nc.data.reason, steps: nc.data.steps, issues: nc.issues } : nc;
+  ck('runForcedNonConvergence', nc.ok && ncI && ncI.severity === 'error' && same(ncI.elements, ['VCV1'])
+    && codes(nc).filter((c) => c === 'convergence_failed').length === 1 && nc.data.steps > 0);
+
+  // --- budget: huge span, budgetMs = 200 -> budget_exhausted, wallMs <= 200 + one slice
+  const bud = await R({ doc: B, span: 1000, budgetMs: 200, probes: [{ element: 'C1' }] });
+  out.notes.budget = bud.ok ? { reason: bud.data.reason, wallMs: bud.data.wallMs, steps: bud.data.steps, issues: codes(bud) } : bud;
+  ck('runBudget', bud.ok && bud.data.reason === 'budget_exhausted' && bud.data.wallMs >= 200 && bud.data.wallMs <= 200 + 20 + 10
+    && issue(bud, 'budget_exhausted') && issue(bud, 'budget_exhausted').severity === 'warning'
+    && bud.data.probes[0].series.t.length <= 200);
+  await visibleSame('run budget');
+
+  // --- forced exception inside a slice: internal_error, global handler, callback fires once
+  const conMark = s.markConsole();
+  await s.eval('CircuitJS1Agent.debugFailNextRunSlice(); true');
+  await s.call('agentStart', 'forced', 'run', { doc: B, span: '1 ms', reset: true });
+  await sleep(800);
+  const fr = await s.call('agentStarted', 'forced');
+  const frRes = fr && fr.result;
+  const handlerDialog = (await s.call('dialogShowing')).some((d) => /debugFailNextRunSlice/.test(d));
+  const handlerConsole = s.consoleSince(conMark).some((c) => /debugFailNextRunSlice/.test(c.text));
+  out.notes.forced = { calls: fr && fr.calls, reason: frRes && frRes.data && frRes.data.reason, issues: frRes && frRes.issues, handlerDialog, handlerConsole };
+  ck('forcedSliceException', fr && fr.calls === 1 && frRes.ok === true && frRes.data.reason === 'solver_stop'
+    && issue(frRes, 'internal_error') && /debugFailNextRunSlice/.test(issue(frRes, 'internal_error').message)
+    && (handlerDialog || handlerConsole) && (await A('listDocuments', {})).data.documents.every((d) => d.busy === false));
+  await s.call('closeDialogs');
+  await sleep(200);
+  // stop state without reset: solver_stop with no step; reset clears it
+  const stopped = await R({ doc: B, span: '1 ms' });
+  const resumed = await R({ doc: B, span: '1 ms', reset: true });
+  ck('stopStateRun', stopped.ok && stopped.data.reason === 'solver_stop' && stopped.data.steps === 0 && codes(stopped).includes('solver_stop')
+    && resumed.ok && resumed.data.reason === 'span_reached');
+
+  // --- ontimestep hook: silent for a background run
+  await s.eval(`window.__tsCount = 0; CircuitJS1.ontimestep = function() { window.__tsCount++; }; true`);
+  const hk = await R({ doc: B, span: '0.2 ms' });
+  const bgSteps = await s.eval('window.__tsCount');
+  out.notes.timestepHook = { bgSteps, runSteps: hk.data && hk.data.steps };
+
+  // --- busy: served and rejected contracts during a run; closing during the run -> cancelled
+  await s.call('agentStart', 'long', 'run', { doc: B, span: 1000, budgetMs: 5000, probes: [{ element: 'C1' }] });
+  await sleep(150);
+  const busy = {
+    edit: await A('applyEdits', { doc: B, edits: [{ op: 'describe', id: 'R1', description: 'x' }] }),
+    sim: await A('simControl', { doc: B, action: 'stop' }),
+    run: await R({ doc: B, span: '1 ms' }),
+    undo: await A('undo', { doc: B }),
+    checkpoint: await A('checkpoint', { doc: B, comment: 'x' }),
+    read: await A('read', { doc: B, targets: [{ element: 'C1' }] }),
+    getCircuit: await A('getCircuit', { doc: B }),
+    list: await A('listDocuments', {}),
+    closeNoDiscard: await A('closeDocument', { doc: B }),
+  };
+  out.notes.busy = Object.fromEntries(Object.entries(busy).map(([k, r]) => [k, r.ok ? 'ok' : codes(r)[0]]));
+  ck('busyPolicy', ['edit', 'sim', 'run', 'undo', 'checkpoint', 'closeNoDiscard'].every((k) => busy[k].ok === false && codes(busy[k])[0] === 'busy')
+    && busy.read.ok && busy.getCircuit.ok && busy.list.data.documents.find((d) => d.doc === B).busy === true);
+  const midRun = await s.call('agentStarted', 'long');
+  const closed = await A('closeDocument', { doc: B, discardChanges: true }); tabs--;
+  await sleep(200);
+  const lr = await s.call('agentStarted', 'long');
+  out.notes.closeDuringRun = { calls: lr && lr.calls, reason: lr && lr.result && lr.result.data.reason, samples: lr && lr.result && lr.result.data.probes[0].stats.samples };
+  ck('closeDuringRun', midRun.calls === 0 && closed.ok && lr.calls === 1 && lr.result.ok && lr.result.data.reason === 'cancelled'
+    && issue(lr.result, 'cancelled') && lr.result.data.probes[0].stats.samples > 1
+    && !(await A('listDocuments', {})).data.documents.some((d) => d.doc === B));
+  await visibleSame('close during run');
+
+  // ---- visible-document runs: put an RC circuit into the visible tab and let it free-run
+  await A('importCircuit', { circuit: { elements: RC_TAU_1MS } });
+  await A('simControl', { action: 'run' });
+  await sleep(300);
+  // ontimestep fires for a run of the visible document
+  await s.eval(`window.__tsCount = 0; true`);
+  const hv = await R({ span: '0.2 ms' });
+  const fgSteps = await s.eval('window.__tsCount');
+  await s.eval(`CircuitJS1.ontimestep = null; true`);
+  out.notes.timestepHook.fgSteps = fgSteps;
+  ck('timestepHookBackgroundSilent', hk.ok && hk.data.steps > 0 && bgSteps === 0 && hv.ok && fgSteps >= hv.data.steps);
+
+  // --- Run owns stepping: the free-run loop does not step d1 during the run; free-running continues
+  const t0 = (await diag()).simTime;
+  const own = await R({ span: '20 ms' });
+  const ts = (await diag()).timeStep;
+  const advance = own.data.tEnd - own.data.tStart;
+  await sleep(300);
+  const dAfter = await diag();
+  out.notes.runOwns = { t0, tStart: own.data.tStart, tEnd: own.data.tEnd, steps: own.data.steps, dt: ts.max, after: dAfter.simTime, running: dAfter.running, wallMs: own.data.wallMs };
+  ck('runOwnsStepping', own.ok && own.data.reason === 'span_reached' && own.data.tStart >= t0
+    && Math.abs(advance - own.data.steps * ts.max) < ts.max / 2 && dAfter.running === true && dAfter.simTime > own.data.tEnd);
+
+  // --- Free-running during edits: applyEdits on the running visible document
+  const fe = await A('applyEdits', { edits: [{ op: 'add', element: { id: 'R9', type: 'Resistor', start: { x: 8, y: 0 }, end: { x: 12, y: 0 } } }] });
+  const tFe = (await diag()).simTime;
+  await sleep(300);
+  const dFe = await diag();
+  out.notes.freeRunEdits = { added: fe.connectivity && fe.connectivity.added && fe.connectivity.added.map((i) => i.code), t: [tFe, dFe.simTime] };
+  ck('freeRunningDuringEdits', fe.ok && fe.connectivity && fe.connectivity.added.some((i) => i.code === 'dangling_post' && (i.posts || []).some((p) => p.startsWith('R9')))
+    && dFe.running === true && dFe.simTime > tFe);
+
+  // --- User interrupts a run: a user Delete on the visible document ends the run cancelled; the edit applies after
+  const nBefore = await s.call('count');
+  await s.call('agentStart', 'user', 'run', { span: 1000, budgetMs: 8000, probes: [{ element: 'C1' }] });
+  await sleep(400);
+  await s.call('focus');
+  await s.call('select', 'R9', false);
+  await s.key('Delete');
+  await sleep(300);
+  const ur = await s.call('agentStarted', 'user');
+  const nAfter = await s.call('count');
+  out.notes.userInterrupt = { calls: ur && ur.calls, reason: ur && ur.result && ur.result.data.reason, samples: ur && ur.result && ur.result.data.probes[0].stats.samples, nBefore, nAfter, ids: await s.call('ids') };
+  ck('userInterruptsRun', ur && ur.calls === 1 && ur.result.ok && ur.result.data.reason === 'cancelled' && issue(ur.result, 'cancelled')
+    && ur.result.data.probes[0].stats.samples > 1 && nAfter === nBefore - 1 && !(await s.call('ids')).includes('R9')
+    && (await diag()).running === true);
+  // --- further cancel requests (SP_AGA_04_02): user undo, toolbar Reset, legacy stepSimulation, slider change
+  const cancelBy = async (key, action) => {
+    await s.call('agentStart', key, 'run', { span: 1000, budgetMs: 8000, probes: [{ element: 'C1' }] });
+    await sleep(300);
+    const before = await s.call('agentStarted', key);
+    await action();
+    await sleep(300);
+    const st = await s.call('agentStarted', key);
+    return { pending: before.calls === 0, calls: st.calls, reason: st.result && st.result.data && st.result.data.reason, tEnd: st.result && st.result.data && st.result.data.tEnd, busy: (await A('listDocuments', {})).data.documents.some((d) => d.busy) };
+  };
+  const cancelled = (r) => r.pending && r.calls === 1 && r.reason === 'cancelled' && r.busy === false;
+  await s.call('focus');
+  const cUndo = await cancelBy('undo', () => s.key('KeyZ', { ctrl: true }));
+  const nUndo = await s.call('count');
+  const cReset = await cancelBy('reset', () => s.eval(`(() => { const b = document.querySelector('.cirjsicon-back-in-time'); if (b) b.click(); return !!b; })()`));
+  const tReset = (await diag()).simTime;
+  // stop free-running by script first, so only the legacy step can move simTime past the run's tEnd
+  const cScript = await cancelBy('script', () => s.eval(`CircuitJS1.setSimRunning(false); true`));
+  const runningAfterScript = (await diag()).running;
+  const cStep = await cancelBy('step', () => s.eval(`CircuitJS1.stepSimulation(); true`));
+  const tAfterStep = (await diag()).simTime;
+  await s.eval(`CircuitJS1.setSimRunning(true); true`);
+  const runningRestored = (await diag()).running;
+  out.notes.cancels = { cUndo, nUndo, cReset, tReset, cStep, tAfterStep, cScript, runningAfterScript, runningRestored };
+  ck('cancelByUserUndo', cancelled(cUndo) && nUndo === nBefore);
+  ck('cancelByToolbarReset', cancelled(cReset) && tReset < 0.01);
+  ck('cancelByLegacyScript', cancelled(cStep) && cancelled(cScript) && runningAfterScript === false
+    && typeof cStep.tEnd === 'number' && tAfterStep > cStep.tEnd && runningRestored === true);
+  // slider change: lrc.txt has sliders; drag the first one during a run
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const sliderRect = async () => s.eval(`(() => { const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.textContent.includes('Adjustable Sliders'));
+    const c = d && d.querySelector('canvas'); if (!c) return null; const r = c.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`);
+  const sr = await sliderRect();
+  const cSlider = sr ? await (async () => {
+    await s.call('agentStart', 'slider', 'run', { span: 1000, budgetMs: 8000 });
+    await sleep(300);
+    const before = await s.call('agentStarted', 'slider');
+    await s.mouseDrag(sr.x + sr.w * 0.3, sr.y + sr.h / 2, sr.x + sr.w * 0.8, sr.y + sr.h / 2);
+    await sleep(300);
+    const st = await s.call('agentStarted', 'slider');
+    return { pending: before.calls === 0, calls: st.calls, reason: st.result && st.result.data && st.result.data.reason, busy: (await A('listDocuments', {})).data.documents.some((d) => d.busy) };
+  })() : null;
+  out.notes.cancels.slider = { rect: sr, result: cSlider };
+  ck('cancelBySlider', cSlider && cancelled(cSlider));
+  // a run left over (slider drag not delivered) must not outlive the scenario
+  await A('simControl', { action: 'stop' });
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+
+  ck('visibleTabUnchanged', visFailed.length === 0);
+  if (visFailed.length) out.notes.visFailed = visFailed.slice(0, 3);
+  for (const d of [D, O, G, N]) await A('closeDocument', { doc: d, discardChanges: true });
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  } catch (e) {
+    out.error = String(e.stack || e);
+    ck('noHarnessError', false);
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_run.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_run', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_run.json') });
+}
+
 // [PL_AGA_P6] Transactions and history (SP_AGA_01_10, SP_AGA_02_12, SP_AGA_02_13, SP_AGA_04_01):
 // SP_AGA_05_01 rows checkpoint (named, nothing), undo / redo, undo nothing, restoreCheckpoint;
 // SP_AGA_05_02 "IDs survive undo/redo", "No duplicate IDs after restore", "Grid preference of other
@@ -2595,7 +2949,7 @@ async function scenarioAgentHistory(s) {
 // ---------------------------------------------------------------- main
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -2638,7 +2992,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

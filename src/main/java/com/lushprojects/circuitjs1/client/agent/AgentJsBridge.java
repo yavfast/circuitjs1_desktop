@@ -22,8 +22,10 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
  * of SP_AGA_03_10) and {@code debugSetIdleSealMs(ms)} (the idle time after which an open agent
  * transaction is sealed, 300 s by default; 0 restores it — for the idle-seal check of SP_AGA_05_04),
  * {@code debugAgentOriginPush(handle)} (an editor undo push under agent origin, which must neither
- * push nor seal) and {@code debugFailNextUndoLoad()} (the next undo/redo load throws after loading,
- * to check that the stacks and the document are restored).
+ * push nor seal), {@code debugFailNextUndoLoad()} (the next undo/redo load throws after loading,
+ * to check that the stacks and the document are restored) and {@code debugFailNextRunSlice()} (the
+ * next slice of an agent run throws inside its document scope, to check that the run ends with
+ * {@code internal_error}, reaches the global handler and still calls back — PL_AGA Phase 7).
  * <p>
  * Every entry point is wrapped in {@code $entry}: an unexpected Java exception reaches the
  * global uncaught-exception handler (RULE_ERR_004) and the call returns {@code undefined}, which
@@ -78,6 +80,9 @@ public final class AgentJsBridge {
             }),
             debugFailNextUndoLoad: $entry(function() {
                 @com.lushprojects.circuitjs1.client.UndoManager::armFailNextLoad()();
+            }),
+            debugFailNextRunSlice: $entry(function() {
+                @com.lushprojects.circuitjs1.client.agent.RunController::armForcedFailure()();
             })
         };
     }-*/;
