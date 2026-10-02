@@ -3,7 +3,7 @@
 > **Code:** C_MCP
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-02
 > **Author:** main
 > **Owner:** app-shell maintainers (desktop runtime integration)
 > **Complexity:** medium
@@ -37,9 +37,9 @@ The circuit lives in the running application, so the application itself serves i
 - **Projection, not logic.** Each tool maps to [Agent API](./agent-api.concept.md) operations and adds no circuit logic of its own. A capability missing from the Agent API is added there, not here.
 - **Desktop runtime only.** The endpoint runs in the desktop shell's embedded server-side runtime, which the app page can already reach. A plain browser page cannot listen on a port, so a browser-only build is not an MCP target.
 - **Old embedded runtime.** The shell bundles an older server-side runtime version (Node 18.0.0 at the time of the spike; see the `automation/agent-mcp-surface` skill). Stock MCP server libraries partly do not run on it; the library core does, with a custom transport ([C_MCP_DEC_03](#C_MCP_DEC_03)). Everything the endpoint needs ships inside the application package, because the package carries no separately installed modules.
-- **Always on, private-network trust** ([C_MCP_DEC_02](#C_MCP_DEC_02)).
+- **Always on, local by default** ([C_MCP_DEC_02](#C_MCP_DEC_02)).
   - The server starts with every app instance.
-  - It is reachable from the local machine and the private network.
+  - By default it listens on loopback (`127.0.0.1`) and is reachable from the local machine only; the user opens it to the private network by setting the listening address (for example `0.0.0.0`).
   - It carries no access-control mode.
   - Two bounds remain, neither of which asks anything of agents: requests whose `Origin` header names a foreign web page are rejected (the MCP transport specification requires it, and agents do not send that header), and file actions are limited to circuit files ([SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03)).
 - **No code execution.** No tool evaluates code. The developer-facing remote-debug channel keeps that role.
@@ -88,7 +88,7 @@ App start ──► pick port ──► listen ──► write instance record  
 ### 3.2. Reachability and port selection  {#C_MCP_03_02}
 
 - **Port.** Each instance takes the first free port at or above a base port. The base port and the listening address are user preferences.
-- **Default reachability.** By default the endpoint is reachable on the local machine and the private network ([C_MCP_DEC_02](#C_MCP_DEC_02)).
+- **Default reachability.** By default the endpoint is reachable on the local machine only; private-network reachability is an explicit user setting ([C_MCP_DEC_02](#C_MCP_DEC_02)).
 - **Showing the address.** The app shows its endpoint address in its info dialog (opened from the Options menu, whose item also shows when the server is off), so the user can give it to an agent on the same or another machine.
 
 ### 3.3. Instance registry  {#C_MCP_03_03}
@@ -164,9 +164,9 @@ Several windows are several processes, because "New window" starts a new instanc
 | A — off by default, enabled by menu/launch flag, loopback only, per-run token | Smallest exposure; needs a token handover step for every host |
 | B — always on | No setup for agents; every running instance listens |
 
-**Decision:** B, with the developer's addition — always on, reachable from the local machine and the private network, and **no access-control mode** (no token). Only the specification-mandated foreign-`Origin` rejection is kept, because it costs agents nothing.
+**Decision:** B, with the developer's additions — always on and **no access-control mode** (no token); listening on loopback by default, with private-network reachability as an explicit setting of the listening address (amended 2026-10-02 by the developer: originally reachable from the private network by default). Only the specification-mandated foreign-`Origin` rejection is kept, because it costs agents nothing.
 **Rationale:** The app runs on a personal machine and a private network, where the developer sees no realistic attacker. Connecting must take no setup.
-**Consequence:** Any private-network client can edit, run, close (discarding unsaved work) and save circuits; file actions are bounded to circuit files ([SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03)), so no client can read the content of, or overwrite, files that are not circuits.
+**Consequence:** By default only programs on the local machine can reach the server. When the user sets a non-loopback listening address, any private-network client can edit, run, close (discarding unsaved work) and save circuits; file actions are bounded to circuit files ([SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03)), so no client can read the content of, or overwrite, files that are not circuits.
 **Rejected because:** A — the token handover and opt-in add friction with no benefit in the stated environment.
 
 ### DEC_03 — Which protocol layer serves MCP inside the old embedded runtime?  {#C_MCP_DEC_03}
@@ -193,3 +193,4 @@ Several windows are several processes, because "New window" starts a new instanc
 |------|--------|
 | 2026-10-01 | Initial version from the spike and the concept interview |
 | 2026-10-01 | C_MCP_DEC_03 resolved: A in-app (SDK 1.x core + custom HTTP transport), after the PL_MCP Phase 0 prototype |
+| 2026-10-02 | C_MCP_DEC_02 amended by the developer: the server listens on loopback (`127.0.0.1`) by default; private-network reachability only by setting the listening address |

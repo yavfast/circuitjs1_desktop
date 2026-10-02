@@ -117,7 +117,7 @@ circuitjs-mcp launch ./rc.txt --app /opt/circuitjs/CircuitSimulator
 
 ## Security
 
-The bridge adds no access control and needs none of its own: it reaches only what the app's MCP server already serves to every program on the machine and the local network, which has no token by design. Read the security note in the root [README](../../README.md#mcp-server-ai-agents) before you use the app on an untrusted network. The bridge reads and cleans the instance registry and starts the configured app executable; it never starts anything else.
+The bridge adds no access control and needs none of its own: it reaches only what the app's MCP server already serves to every program on the machine (and, when the app's listening address is opened to the network, to the local network), which has no token by design. Read the security note in the root [README](../../README.md#mcp-server-ai-agents) before you use the app on an untrusted network. The bridge reads and cleans the instance registry and starts the configured app executable; it never starts anything else.
 
 ## Uninstall
 

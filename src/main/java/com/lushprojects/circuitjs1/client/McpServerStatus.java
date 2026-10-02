@@ -53,7 +53,7 @@ public final class McpServerStatus {
     public static final boolean DEFAULT_ENABLED = true;
     public static final int DEFAULT_PORT = 7311;
     public static final int DEFAULT_PORT_RANGE = 20;
-    public static final String DEFAULT_HOST = "0.0.0.0";
+    public static final String DEFAULT_HOST = "127.0.0.1";
 
     /** Validated server preferences ([SP_MCP_01_01]); an invalid stored value falls back to its default. */
     public static final class Prefs {

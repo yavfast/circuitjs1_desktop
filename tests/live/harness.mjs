@@ -3738,7 +3738,7 @@ async function scenarioMcpDialog(s) {
   ck('no_urls', row(2) === '—');
   ck('counter_0', row(3) === '0');
   ck('no_command', d && d.command === '' && d.commandDisabled && d.buttons[0].disabled);
-  ck('default_settings', d && d.enabled === true && d.port === '7311' && d.host === '0.0.0.0' && before.enabled === null);
+  ck('default_settings', d && d.enabled === true && d.port === '7311' && d.host === '127.0.0.1' && before.enabled === null);
   // Enter writes only from a settings field: not right after opening, not on a focused button,
   // and an unchanged form is not written ("nothing to save")
   await s.key('Enter');
@@ -3763,12 +3763,12 @@ async function scenarioMcpDialog(s) {
     ck(`reject_${port}_${host}`, r && r.message && JSON.stringify(await s.eval('__mcpDlg.store()')) === JSON.stringify(before));
   }
   ck('reject_messages_distinct', new Set(msgs).size === 3 && !msgs.includes(e2 && e2.message));
-  await s.eval(`__mcpDlg.set('7400', '127.0.0.1')`);
+  await s.eval(`__mcpDlg.set('7400', '0.0.0.0')`);
   await s.eval('__mcpDlg.click(1)');
   const saved = await s.eval('__mcpDlg.read()');
   const stored = await s.eval('__mcpDlg.store()');
   out.notes.saved = { message: saved && saved.message, stored };
-  ck('save_stores', stored.enabled === 'true' && stored.port === '7400' && stored.host === '127.0.0.1' && stored.range === null);
+  ck('save_stores', stored.enabled === 'true' && stored.port === '7400' && stored.host === '0.0.0.0' && stored.range === null);
   ck('save_message', saved && saved.message && !msgs.includes(saved.message));
   await s.eval('__mcpDlg.clearStore()');
   await s.key('Escape');

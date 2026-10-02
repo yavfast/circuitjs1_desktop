@@ -35,7 +35,7 @@ Stored in the user-preferences store ([SP_USR](./user-preferences.sp.md#SP_USR_0
 | mcpServerEnabled | bool | true | exactly `"true"` or `"false"` | Start the endpoint with the app ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) |
 | mcpServerPort | int | 7311 | 1024..65535; `mcpServerPort + mcpServerPortRange − 1 ≤ 65535` | Base port |
 | mcpServerPortRange | int | 20 | 1..100; `mcpServerPort + mcpServerPortRange − 1 ≤ 65535`; an invalid value falls back to 20, or to `65535 − mcpServerPort + 1` when 20 does not fit | Number of consecutive ports tried |
-| mcpServerHost | string | `0.0.0.0` | trimmed; `localhost`, an IPv4 dotted quad or an IPv6 literal without brackets or zone | Listening address; the default covers loopback and the private network |
+| mcpServerHost | string | `127.0.0.1` | trimmed; `localhost`, an IPv4 dotted quad or an IPv6 literal without brackets or zone | Listening address; the default is the local machine only, `0.0.0.0` (or a LAN address) opens the server to the private network ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)) |
 
 ### 01_02. Instance record  {#SP_MCP_01_02}
 
@@ -289,7 +289,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 
 | Scenario | Preconditions | Steps | Expected result |
 |----------|--------------|-------|-----------------|
-| Private-network agent | Agent host on another machine of the LAN | Connect to the LAN URL from the info dialog; `circuit_types` | Tools usable; no token asked |
+| Private-network agent | Listening address set to `0.0.0.0` in the info dialog and the app restarted; agent host on another machine of the LAN | Connect to the LAN URL from the info dialog; `circuit_types` | Tools usable; no token asked. With the default address the LAN URL is not offered and the port does not answer from another machine |
 | Long run while reading | `circuit_run` with 5 s budget in flight | Call `circuit_get` | `circuit_get` answers before the run ends |
 | Bridge forwarding | Bridge running ([SP_MCB](./mcp-bridge.sp.md)) | Call any tool via the bridge | Same result as direct |
 
@@ -356,7 +356,7 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 > **Status:** resolved
 > **Date:** 2026-10-01
 
-**Question:** With no authentication ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)), any private-network client can call `circuit_file` with an arbitrary path. How are open/save bounded?
+**Question:** With no authentication ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)), any client that can reach the server (since 2026-10-02 only local programs by default; private-network clients once the listening address is opened) can call `circuit_file` with an arbitrary path. How are open/save bounded?
 
 **Options considered:**
 | Option | Consequence |
@@ -379,4 +379,5 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-02 | PL_MCP Phase 2: example index `menu` field and listed-paths rule; resource-read error mapping; unknown and action-inapplicable arguments are -32602, range keywords advisory; text-part fallback for results that cannot be reduced |
 | 2026-10-02 | PL_MCP Phase 1: instance-record URLs per host kind; 404/413/batch/parse errors and CORS preflight for local origins; start-up failure when the server script is missing; invalid preferences fall back with a warning; review: HTTP status per JSON-RPC error, `null` for unreadable ids, bounded echo of client text |
 | 2026-10-02 | PL_MCP Phase 3: menu text with three dots, untranslated status wire names, Copy button and empty rows without a URL, port range not edited in the dialog |
+| 2026-10-02 | Default `mcpServerHost` is `127.0.0.1` (C_MCP_DEC_02 amended by the developer); private-network agent row needs the LAN setting |
 | 2026-10-02 | PL_MCP Phase 5 propagate: start-up order (script check first) and disable/failure reasons; EACCES as a busy port; loopback URLs for `localhost`/`127.x`/`::1`; HTTP 500/503 and backstop status; receive, agent and backstop timeouts; client responses 202, `notifications/cancelled` dropped; preference constraints and fallback, no URL layer; exact size hints; how to reach the minimum safe state and its e2e check |

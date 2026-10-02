@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 21:00
+> **Last updated:** 2026-10-02 21:40
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -121,6 +121,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
+- 2026-10-02 21:30 — developer: "Обмеж MCP сервер локалхостом по дефолту" → C_MCP_DEC_02 amended: default listening address `127.0.0.1`, LAN only by setting; code, tests (e2e `loopbackOnly` proves ECONNREFUSED on LAN IPs) and docs updated; review PASS
 - 2026-10-02 11:40 — the parallel research task (`circuitjs1-desktop-f2`) reported four `run` findings by message; filed as the PL_AGA Backlog fix round; it re-pointed audit BL-D01 to that fix round (close the BL-D01 row with the fix commit)
 - 2026-10-02 10:40 — another contributor started `task_20261002_100004_circuit-lang-research` in parallel (uncommitted task file, spike, dashboard rows); E_AGT commits stage explicit paths and leave those files and the shared dashboards uncommitted
 - 2026-10-02 11:00 — §03_08 R1 slice bound refined by main under `Autonomy: full` (resolved, delegated): 20 ms plus one indivisible unit (timestep, element draw, image canvas allocation); measured outliers: 79–100 ms canvas allocation of a 39 Mpx PNG at scale 4, 22 ms first JK flip-flop draw — present to the developer

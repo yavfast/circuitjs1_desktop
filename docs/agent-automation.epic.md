@@ -22,7 +22,7 @@
 | Order | Code | Name | Status | Description |
 |-------|------|------|--------|-------------|
 | 1 | [C_AGA](./agent-api.concept.md) | Agent API | draft | Application-side operations for agents: stable element identity, grid-cell geometry, incremental edits, connectivity report, bounded runs, probes, diagnostics, checkpoints, documents |
-| 2 | [C_MCP](./mcp-server.concept.md) | In-app MCP Server | draft | Streamable HTTP endpoint inside the desktop runtime that exposes the Agent API as MCP tools and resources; always on, local and private-network reachable, one server per app instance with an instance registry |
+| 2 | [C_MCP](./mcp-server.concept.md) | In-app MCP Server | draft | Streamable HTTP endpoint inside the desktop runtime that exposes the Agent API as MCP tools and resources; always on, local machine by default (private network by setting), one server per app instance with an instance registry |
 | 3 | [C_MCB](./mcp-bridge.concept.md) | MCP Bridge & CLI | draft | The "MCP client" deliverable: stdio process that proxies stdio-only hosts to an app instance, discovers or launches instances, and doubles as a command-line client for scripts and tests |
 | 4 | [C_AGS](./agent-skill.concept.md) | Circuit Authoring Skill | draft | Agent skill (workflow checklist + references + evals) that teaches agents the grid-cell authoring model, the verify loop and the error→fix mapping |
 
@@ -51,7 +51,7 @@ The concept interview asked eight questions; each answer is recorded in the conc
 | DEC_04 | Which documents can the agent touch? | Any tab by document handle | [C_AGA_DEC_03](./agent-api.concept.md#C_AGA_DEC_03) |
 | DEC_06 | Agent edits in undo history? | Transactions sealed by commented checkpoints | [C_AGA_DEC_04](./agent-api.concept.md#C_AGA_DEC_04) |
 | DEC_07 | Several app windows? | Server per instance + instance registry | [C_MCP_DEC_01](./mcp-server.concept.md#C_MCP_DEC_01) |
-| DEC_08 | Server activation and protection? | Always on; local + private network; no access-control mode | [C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02) |
+| DEC_08 | Server activation and protection? | Always on; local machine by default, private network by setting (amended 2026-10-02); no access-control mode | [C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02) |
 
 ## Acceptance Criteria
 
@@ -70,7 +70,7 @@ The concept interview asked eight questions; each answer is recorded in the conc
 | 1 | The agent mis-places posts, which leaves floating or mid-wire contacts that the simulator silently grounds | high | high | Every edit returns the connectivity report ([C_AGA_03_03](./agent-api.concept.md#C_AGA_03_03)); the skill makes "report clean" a gate before simulating |
 | 2 | The runtime's old embedded Node cannot host the stock MCP server libraries | medium | medium | Hosting prototype before the plan; hand-rolled protocol layer as the fallback ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)) |
 | 3 | A long simulation run freezes the UI (single event loop) | medium | medium | Bounded, chunked runs that yield between slices ([C_AGA_03_04](./agent-api.concept.md#C_AGA_03_04)) |
-| 4 | A server reachable from the private network without access control is driven by an unintended client | medium | low | Accepted by the developer ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)). No code-execution tool exists, and file actions are limited to circuit files ([SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03)). Remaining exposure: such a client can edit circuits (reversible by undo), close documents discarding unsaved work, and save or overwrite circuit files |
+| 4 | A server opened to the private network (non-default listening address) without access control is driven by an unintended client | medium | low | Accepted by the developer ([C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)). No code-execution tool exists, and file actions are limited to circuit files ([SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03)). Remaining exposure: such a client can edit circuits (reversible by undo), close documents discarding unsaved work, and save or overwrite circuit files |
 | 5 | User and agent edit the same document at the same time | medium | medium | An open agent transaction is sealed when the user edits ([C_AGA_03_05](./agent-api.concept.md#C_AGA_03_05)); agents are steered to their own tab by the skill |
 
 ## Success Criteria

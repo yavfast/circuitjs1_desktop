@@ -35,7 +35,7 @@ Key catalog (partial):
 | `mcpServerEnabled` | bool | "true" | McpServerStatus (written by McpServerDialog) |
 | `mcpServerPort` | int | "7311" | McpServerStatus (written by McpServerDialog) |
 | `mcpServerPortRange` | int | "20" | McpServerStatus (not edited by the dialog) |
-| `mcpServerHost` | string | "0.0.0.0" | McpServerStatus (written by McpServerDialog) |
+| `mcpServerHost` | string | "127.0.0.1" | McpServerStatus (written by McpServerDialog) |
 
 MCP server keys ([SP_MCP_01_01](./mcp-server.sp.md#SP_MCP_01_01), [C_MCP_DEC_02](./mcp-server.concept.md#C_MCP_DEC_02)): `McpServerStatus.readPrefs()` owns their validation. `mcpServerEnabled` is exactly `"true"` or `"false"`; `mcpServerPort` is an integer 1024..65535; `mcpServerPortRange` is 1..100 with `port + range − 1 ≤ 65535`; `mcpServerHost` is trimmed and must be `localhost`, an IPv4 dotted quad or an IPv6 literal without brackets or zone. An invalid stored value is replaced by its default at start-up (the range by 20, or by `65535 − port + 1` when 20 does not fit), one warning log line names the replaced keys, and the stored value is not rewritten. These keys have no URL-query layer. They are read once at start-up, so a change applies at the next start. The MCP Server dialog validates enabled, port and host with the same rules and writes the three together.
 

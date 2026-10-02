@@ -27,7 +27,7 @@ const HEADERS_TIMEOUT_MS = 10000;
 const REQUEST_TIMEOUT_MS = 60000;
 
 // [SP_MCP_01_01] defaults
-const DEFAULT_PREFS = { enabled: true, port: 7311, portRange: 20, host: '0.0.0.0' };
+const DEFAULT_PREFS = { enabled: true, port: 7311, portRange: 20, host: '127.0.0.1' };
 
 // [SP_MCP_02_01] server instructions: one paragraph for the agent host.
 const INSTRUCTIONS =

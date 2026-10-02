@@ -290,6 +290,7 @@ What to update:
 
 ## Backlog
 
+- Instance URL for a non-`127.0.0.1` loopback host (e.g. `127.0.0.2`): SP_MCP_01_02 and `index.js` give `http://127.0.0.1:<port>/mcp`, which that host does not answer on Linux — use the host's own address — return when: a user sets such a host.
 - Serve the stateless 2026-07-28 protocol revision in-app — return when: a Node-18-compatible SDK line supports it, or a host drops the initialize-based revisions.
 - Progress notifications for long runs (SP_MCP_DEC_02 rejected B) — return when: hosts show progress to the model and an eval shows agents mis-handling long runs.
 - MCP prompts — return when: a host surfaces prompts to users and the skill cannot cover a workflow.
@@ -323,3 +324,4 @@ What to update:
 | 2026-10-02 | Phase 1 done (Result block); devmode manifest quoting fixed and removed from the backlog |
 | 2026-10-02 | Phase 2 done (Result block); agent client and backstop timeouts reconciled (180 s / 200 s) |
 | 2026-10-02 | Phase 4 done (Result block): `tests/mcp/e2e.mjs`, `npm run test:mcp`; closes PL_AGA Phase 9 |
+| 2026-10-02 | Post-plan change (C_MCP_DEC_02 amended by the developer): default listening address `127.0.0.1` instead of `0.0.0.0` (`McpServerStatus.DEFAULT_HOST`, `DEFAULT_PREFS.host`); e2e `endpoint` row `loopbackOnly` (record/URLs loopback only, LAN IPv4 refused), `settings` re-enables on `0.0.0.0:7400` and checks the LAN URL list; user docs updated |

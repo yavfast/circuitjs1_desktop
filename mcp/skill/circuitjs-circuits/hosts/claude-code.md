@@ -4,7 +4,7 @@
 
 The CircuitJS1 Desktop app is the MCP server: every running instance listens on `http://127.0.0.1:7311/mcp`, and a second instance takes the next free port up to 7330. Options → "MCP Server..." in the app shows the URL and a ready-made command.
 
-**Security.** The in-app server has no token or password and by default listens on all network interfaces (`0.0.0.0`), not only on loopback: any program on the computer and any device on the local network that reaches the port can drive the app. Read the security note in the CircuitJS1 repository's root README, section "MCP server (AI agents)" (`README.md#mcp-server-ai-agents`), and use it on trusted networks only.
+**Security.** The in-app server has no token or password. By default it listens on `127.0.0.1` only: any program on this computer can drive the app, other devices cannot connect. When the user sets the listening address to `0.0.0.0` in that dialog (Save, then restart the app), any device on the local network that reaches the port can drive the app too; do that on trusted networks only. Read the security note in the CircuitJS1 repository's root README, section "MCP server (AI agents)" (`README.md#mcp-server-ai-agents`).
 
 **Direct HTTP (recommended).** Start the app, then:
 

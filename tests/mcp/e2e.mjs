@@ -128,6 +128,17 @@ async function waitPortsFree(ports, ms) {
     await sleep(250);
   }
 }
+// Non-internal IPv4 addresses of this machine (the LAN addresses the app lists for a wildcard host)
+const lanIPv4 = () => [...new Set(Object.values(os.networkInterfaces()).flat().filter((a) => a && (a.family === 'IPv4' || a.family === 4) && !a.internal).map((a) => a.address))];
+/** Resolves 'open' when a TCP connection to host:port succeeds, else the error code (ECONNREFUSED, ...). */
+const tcpProbe = (port, host, ms = 2000) => new Promise((res) => {
+  const sock = net.connect(port, host);
+  const t = setTimeout(() => { sock.destroy(); res('timeout'); }, ms);
+  sock.once('connect', () => { clearTimeout(t); sock.destroy(); res('open'); });
+  sock.once('error', (e) => { clearTimeout(t); res(e.code || String(e)); });
+});
+// Wildcard helpers: on Linux a wildcard bind conflicts with a 127.0.0.1 listener on the same port
+// (and the other way round), so these detect and occupy the app's port whatever its listening address.
 async function occupy(ports, host = '0.0.0.0') {
   const servers = [];
   for (const p of ports) await new Promise((res, rej) => { const s = net.createServer(); s.once('error', rej); s.listen(p, host, () => { servers.push(s); res(); }); });
@@ -472,9 +483,20 @@ async function scenEndpoint(R) {
     R.record.note('runtime', await nw.ev('({node: process.versions.node, nw: process.versions.nw, flavor: process.versions["nw-flavor"]})'));
     R.record.ck('listening', st.state === 'listening' && st.port === BASE && st.urls[0] === `http://127.0.0.1:${st.port}/mcp`, st);
     const r = recs[0] && recs[0].rec;
-    R.record.ck('oneRecord0600', recs.length === 1 && recs[0].mode === '600' && r.pid === pid && r.instanceId.startsWith(pid + '-') && r.port === st.port && r.host === '0.0.0.0'
+    R.record.ck('oneRecord0600', recs.length === 1 && recs[0].mode === '600' && r.pid === pid && r.instanceId.startsWith(pid + '-') && r.port === st.port && r.host === '127.0.0.1'
       && r.urls[0] === st.urls[0] && r.appVersion === appVersion() && typeof r.title === 'string' && /^\d{4}-\d\d-\d\dT.*Z$/.test(r.startedAt)
       && same(r.protocolRevisions, ['2025-11-25', '2025-06-18']) && r.toolsVersion === '1.0' && recs[0].name === r.instanceId + '.json', recs);
+    // [SP_MCP_01_01] default listening address 127.0.0.1: loopback URL only, and the port does not
+    // answer on the machine's LAN addresses (C_MCP_DEC_02 as amended 2026-10-02)
+    const L = R.loopbackOnly;
+    L.ck('statusHost', st.host === '127.0.0.1' && same(st.urls, [`http://127.0.0.1:${st.port}/mcp`]), st);
+    L.ck('recordUrls', r && r.host === '127.0.0.1' && same(r.urls, [`http://127.0.0.1:${st.port}/mcp`]), r);
+    L.ck('loopbackOpen', (await tcpProbe(st.port, '127.0.0.1')) === 'open');
+    const lan = lanIPv4();
+    L.note('lan', lan);
+    for (const ip of lan) L.ck(`lanRefused_${ip}`, (await tcpProbe(st.port, ip)) === 'ECONNREFUSED');
+    if (!lan.length) L.note('lanRefused', 'NOT PROVEN: no LAN IPv4 address on this machine (only the record/status host checks ran)');
+    L.done();
     R.record.ck('dir0700', (fs.statSync(instDir(nw.home)).mode & 0o777).toString(8) === '700');
     const logs = await logsOf(nw);
     R.record.ck('loggedListening', logs.some((l) => l.includes('MCP server listening on ' + st.urls[0])), logs.slice(-5));
@@ -511,7 +533,6 @@ async function scenEndpoint(R) {
     H.ck('equalIdsConcurrent', a.json.result.tools && b.json.result.resources && a.json.id === 1 && b.json.id === 1, { a: a.json, b: b.json });
     x = await fetch(url.replace('/mcp', '/other'), { method: 'POST', body: '{}' });
     H.ck('otherPath404', x.status === 404);
-    if (st.urls[1]) { x = await mcpPost(st.urls[1], { jsonrpc: '2.0', id: 10, method: 'ping' }); H.ck('lanUrl', x.status === 200, x); } else H.note('lanUrl', 'no LAN address');
     H.done();
 
     x = await mcpPost(url, { jsonrpc: '2.0', id: 4, method: 'ping' }, { Origin: 'http://example.com' });
@@ -704,7 +725,7 @@ async function scenStale(R) {
   fs.mkdirSync(idir, { recursive: true });
   // a dead pid: a shell that has exited
   const dead = spawnSync('sh', ['-c', 'echo $$'], { cwd: dir }).stdout.toString().trim() | 0;
-  const rec = (pid, port) => ({ instanceId: `${pid}-1700000000000`, pid, port, host: '0.0.0.0', urls: [`http://127.0.0.1:${port}/mcp`], appVersion: '1.3.2', startedAt: '2023-11-14T22:13:20.000Z', title: 't', protocolRevisions: ['2025-11-25'], toolsVersion: '1.0' });
+  const rec = (pid, port) => ({ instanceId: `${pid}-1700000000000`, pid, port, host: '127.0.0.1', urls: [`http://127.0.0.1:${port}/mcp`], appVersion: '1.3.2', startedAt: '2023-11-14T22:13:20.000Z', title: 't', protocolRevisions: ['2025-11-25'], toolsVersion: '1.0' });
   fs.writeFileSync(path.join(idir, `${dead}-1700000000000.json`), JSON.stringify(rec(dead, 7399)));
   fs.writeFileSync(path.join(idir, `${dead}-1700000000001.json.tmp`), '{');
   fs.writeFileSync(path.join(idir, `${process.pid}-1700000000000.json`), JSON.stringify(rec(process.pid, 7398))); // live: this harness
@@ -963,9 +984,9 @@ async function scenDialog(R) {
     const cmd = `claude mcp add --transport http circuitjs ${st.urls[0]}`;
     L.ck('status', dlgRow(d, 0) === 'listening', d && d.rows);
     L.ck('instanceId', dlgRow(d, 1) === st.instanceId, [dlgRow(d, 1), st.instanceId]);
-    L.ck('urls', dlgRow(d, 2) === st.urls.join('\n') && /^http:\/\/127\.0\.0\.1:\d+\/mcp$/.test(st.urls[0]), [dlgRow(d, 2), st.urls]);
+    L.ck('urls', dlgRow(d, 2) === st.urls.join('\n') && st.urls.length === 1 && /^http:\/\/127\.0\.0\.1:\d+\/mcp$/.test(st.urls[0]), [dlgRow(d, 2), st.urls]); // default host: loopback URL only
     L.ck('commandLine', d && d.command === cmd && !d.commandDisabled, d && d.command);
-    L.ck('settingsDefaults', d && d.enabled === true && d.port === String(BASE) && d.host === '0.0.0.0', d);
+    L.ck('settingsDefaults', d && d.enabled === true && d.port === String(BASE) && d.host === '127.0.0.1', d);
     L.done();
     const C = R.counter;
     C.ck('counter0', dlgRow(d, 3) === '0', dlgRow(d, 3));
@@ -1023,13 +1044,13 @@ async function scenSettings(R) {
       R.reject.ck(`${port}/${host}`, d && d.message && same(stored, before) && (re.test(d.message) || /[А-Яа-яІіЇїЄє]/.test(d.message)), { msg: d && d.message, stored });
     }
     R.reject.done();
-    await nw.ev(`__M3.set(false, '7311', '0.0.0.0')`);
+    await nw.ev(`__M3.set(false, '7311', '127.0.0.1')`);
     await nw.ev(`__M3.click(${JSON.stringify(T.save)})`);
     const d = await readDlg(nw);
     const stored = await nw.ev('__M3.store()');
     const D = R.disable;
     D.ck('savedMessage', d && (/next start/.test(d.message) || /наступного запуску/.test(d.message)), d && d.message);
-    D.ck('savedStorage', stored.enabled === 'false' && stored.port === '7311' && stored.host === '0.0.0.0', stored);
+    D.ck('savedStorage', stored.enabled === 'false' && stored.port === '7311' && stored.host === '127.0.0.1', stored);
     D.ck('stillListeningUntilRestart', (await nw.status()).state === 'listening' && dlgRow(d, 0) === 'listening');
     await nw.ev(`__M3.click(${JSON.stringify(T.close)})`);
   } finally { R.disable.ck('gracefulQuit', await nw.quit()); }
@@ -1050,28 +1071,33 @@ async function scenSettings(R) {
     D.ck('dialogDisabled', dlgRow(d, 0) === 'disabled' && dlgRow(d, 1) === '—' && dlgRow(d, 2) === '—' && d.command === '' && d.commandDisabled
       && d.buttons.some((b) => T.copy.includes(b.text) && b.disabled) && d.enabled === false, d);
     D.done();
-    // re-enable on another base port and a loopback host; Enter in a settings field saves
-    await nw.ev(`__M3.set(true, '7400', '127.0.0.1')`);
+    // re-enable on another base port, opened to the network (0.0.0.0); Enter in a settings field saves
+    await nw.ev(`__M3.set(true, '7400', '0.0.0.0')`);
     await nw.ev('__M3.focusPort()');
     await pressKey(nw, 'Enter', 'Enter', 13);
     await sleep(300);
     const d2 = await readDlg(nw);
     const stored = await nw.ev('__M3.store()');
-    R.reenable.ck('enterSaves', d2 && stored.enabled === 'true' && stored.port === '7400' && stored.host === '127.0.0.1', { stored, msg: d2 && d2.message });
+    R.reenable.ck('enterSaves', d2 && stored.enabled === 'true' && stored.port === '7400' && stored.host === '0.0.0.0', { stored, msg: d2 && d2.message });
     if (d2) await nw.ev(`__M3.click(${JSON.stringify(T.close)})`);
   } finally { await nw.quit(); }
-  // 3) restart: listening on 127.0.0.1:7400 only, menu without "(off)"
+  // 3) restart: listening on 0.0.0.0:7400 (loopback URL first, then one per LAN address; a LAN
+  // URL answers), menu without "(off)"
   nw = await launchNw('settings3', { home, udd });
   try {
     await prepDialog(nw);
     const st = await nw.status();
     const E = R.reenable;
-    E.ck('listening7400', st.state === 'listening' && st.port === ALT_PORT && st.urls.length === 1 && st.urls[0] === `http://127.0.0.1:${ALT_PORT}/mcp`, st);
+    const wantUrls = [`http://127.0.0.1:${ALT_PORT}/mcp`].concat(lanIPv4().map((ip) => `http://${ip}:${ALT_PORT}/mcp`));
+    E.ck('listening7400', st.state === 'listening' && st.port === ALT_PORT && st.host === '0.0.0.0' && same(st.urls, wantUrls), { st, wantUrls });
+    const rec = records(home);
+    E.ck('recordWildcard', rec.length === 1 && rec[0].rec.host === '0.0.0.0' && same(rec[0].rec.urls, wantUrls), rec);
+    if (st.urls[1]) { const x = await mcpPost(st.urls[1], { jsonrpc: '2.0', id: 10, method: 'ping' }); E.ck('lanUrl', x.status === 200, x); } else E.note('lanUrl', 'no LAN address');
     const item = await menuItem(nw);
     E.ck('menuOn', item && T.mcp.includes(item), item);
     await openDialog(nw);
     const d = await readDlg(nw);
-    E.ck('dialog', dlgRow(d, 0) === 'listening' && d.command === `claude mcp add --transport http circuitjs http://127.0.0.1:${ALT_PORT}/mcp` && d.port === '7400' && d.host === '127.0.0.1', d);
+    E.ck('dialog', dlgRow(d, 0) === 'listening' && d.command === `claude mcp add --transport http circuitjs http://127.0.0.1:${ALT_PORT}/mcp` && d.port === '7400' && d.host === '0.0.0.0' && dlgRow(d, 2) === wantUrls.join('\n'), d);
     E.done();
   } finally { await nw.quit(); }
 }
@@ -1812,7 +1838,8 @@ async function scenManual(R) {
 const SCENARIOS = [
   { name: 'endpoint', group: 'default', run: scenEndpoint, rows: {
     record: ['SP_MCP_01_02', 'Instance record: one 0600 record in a 0700 directory, listening logged'],
-    handshake: ['SP_MCP_02_01', 'Endpoint: initialize revisions, discover fallback, error codes, equal ids, paths, LAN URL'],
+    handshake: ['SP_MCP_02_01', 'Endpoint: initialize revisions, discover fallback, error codes, equal ids, paths'],
+    loopbackOnly: ['SP_MCP_01_01', 'Default listening address 127.0.0.1: status/record host and URLs loopback only; the port refuses connections on the LAN IPv4 addresses'],
     originForeign: ['SP_MCP_05_01', 'Origin rule: foreign web page -> 403'],
     originNone: ['SP_MCP_05_01', 'Origin rule: no origin -> 200'],
     originLocal: ['SP_MCP_03_01', 'Origin rule: "null" -> 403; localhost, 127.0.0.1, [::1] origins -> 200'],
@@ -1871,7 +1898,7 @@ const SCENARIOS = [
   { name: 'settings', group: 'default', run: scenSettings, rows: {
     reject: ['SP_MCP_02_04', 'Info dialog: invalid port/host rejected with a message, nothing stored'],
     disable: ['SP_MCP_05_01', 'Info dialog: disable -> untick Enabled, Save, restart -> disabled; no port bound; no instance record'],
-    reenable: ['SP_MCP_02_04', 'Info dialog: re-enable on 127.0.0.1:7400 (Enter saves), restart -> listening on that URL only'],
+    reenable: ['SP_MCP_02_04', 'Info dialog: re-enable on 0.0.0.0:7400 (Enter saves), restart -> 127.0.0.1 URL then the LAN URLs (record and dialog); a LAN URL answers'],
   } },
   { name: 'files', group: 'default', run: scenFiles, rows: {
     saveJson: ['SP_AGA_05_01', 'saveFile: json -> file loads back via openFile with identical element IDs'],
