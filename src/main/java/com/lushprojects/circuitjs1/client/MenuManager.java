@@ -171,6 +171,8 @@ public class MenuManager extends BaseCirSimDelegate {
         fileMenuBar.addItem(iconMenuItem("exit", "Exit",
                 new Command() {
                     public void execute() {
+                        // [SP_MCP_04_01] remove the MCP instance record before closing (unload does it too)
+                        ((CirSim) cirSim).stopMcpServer();
                         CirSim.executeJS("nw.Window.get().close(true)");
                     }
                 }));

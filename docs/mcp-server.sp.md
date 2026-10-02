@@ -47,7 +47,7 @@ One JSON file `<instanceId>.json` in the instance directory `<user home>/.circui
 | pid | int | yes | Process ID |
 | port | int | yes | Bound port |
 | host | string | yes | Listening address |
-| urls | string[] | yes | `http://127.0.0.1:<port>/mcp` first, then one URL per non-internal IPv4 address when `host` is not loopback |
+| urls | string[] | yes | For a wildcard `host` (`0.0.0.0`, `::`): `http://127.0.0.1:<port>/mcp` first, then one URL per non-internal IPv4 address. For a loopback `host`: its own loopback URL only. For one specific address: that address's URL only (127.0.0.1 does not answer there) |
 | appVersion | string | yes | App version from the manifest |
 | startedAt | string | yes | ISO-8601 UTC |
 | title | string | yes | Window title at start |
@@ -84,6 +84,7 @@ For `circuit_render` with `format=png` the base64 PNG appears only in the image 
 - **Response.** Replies are `application/json` single responses. No server-initiated stream: `GET /mcp` and `DELETE /mcp` answer 405. Notifications from the client answer 202 with no body.
 - **Protocol revisions.** The endpoint serves the initialize-based revisions `2025-11-25` and `2025-06-18`. `initialize` answers with the client's requested revision when it is served, else with `2025-11-25`. The stateless `2026-07-28` revision is not served in-app ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)); serving it is a backlog item of [PL_MCP](./mcp-server.plan.md).
 - **Version header.** A request whose `MCP-Protocol-Version` header names a revision the endpoint does not serve gets HTTP 400 with a JSON-RPC error body, which lets dual-era clients fall back. A request without the header is treated as `2025-06-18`.
+- **Other requests.** Paths other than `/mcp` answer 404; a body over 16 MB answers 413; a JSON-RPC batch is rejected with `-32600`, unparseable JSON with `-32700`. `OPTIONS` preflight requests from allowed (local) origins are answered with CORS headers; other origins get the 403 of the Origin rule. HTTP status per error: 400 for `-32700` and `-32600` (and an unserved version header), 200 for errors of a well-formed request (`-32601`, `-32602`, `-32603`, tool errors). An `id` that is not a string or number is answered as `null`. Client-supplied text echoed in an error message (object keys, tool names, URIs) is cut to a bounded length.
 - **Sessions.** The server keeps no protocol session state and issues no `Mcp-Session-Id`. Session headers sent by clients are ignored.
 - **Capabilities.** `tools` (with `listChanged: false`) and `resources` (with `listChanged: false`, `subscribe: false`). No `prompts`, no sampling, no elicitation.
 - **Server info.** `serverInfo` = `{name: "circuitjs1", version: <appVersion>}`. `instructions` is one paragraph naming the coordinate unit (grid cells), the verify loop (connectivity report → run → measure), the skill name `circuitjs-circuits` and the `toolsVersion`.
@@ -153,6 +154,8 @@ Processing logic:
     FUNCTION startServer():                               # called by the app's own start-up, right after the Agent API export
                                                           # (not through the single-slot "loaded" page hook)
         IF NOT desktop runtime OR NOT pref.mcpServerEnabled: status ← disabled; RETURN
+        IF the server script is not loaded: status ← failed("server script not loaded"); log; RETURN
+        an invalid preference value falls back to its default and logs a warning
         FOR port IN pref.mcpServerPort .. pref.mcpServerPort + pref.mcpServerPortRange − 1:
             IF listen(pref.mcpServerHost, port) succeeds: BREAK
         IF not listening: status ← failed("no free port in range"); log; RETURN
@@ -361,3 +364,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Review round 3: SVG size rule, resources exempt from the tool-result limit, required `doc` for activate/close |
 | 2026-10-01 | Review round 1: named protocol revisions and header/session handling, `toolsVersion`, annotation corrections, resource shape, settings in the info dialog, start-up trigger, Chromium arguments, sizing rules, error reporting via the global handler, file-rule decision DEC_03, verification gaps |
+| 2026-10-02 | PL_MCP Phase 1: instance-record URLs per host kind; 404/413/batch/parse errors and CORS preflight for local origins; start-up failure when the server script is missing; invalid preferences fall back with a warning; review: HTTP status per JSON-RPC error, `null` for unreadable ids, bounded echo of client text |

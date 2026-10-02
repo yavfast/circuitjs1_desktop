@@ -3,7 +3,7 @@
 > **Code:** PL_MCP
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_MCP](./mcp-server.concept.md)
 > **Specification:** [SP_MCP](./mcp-server.sp.md)
@@ -30,7 +30,7 @@ When this plan is complete:
 | Bundling | esbuild (root `devDependency`) → one file `war/scripts/mcp-server.js` (git-ignored, generated) | The NW package ships `target/site` only, without `node_modules`; `war/` content reaches `target/site` through the existing Maven resource copy |
 | Build integration | New step in `scripts/dev_n_build.js` running the bundle before the GWT/site copy for `buildgwt`, `buildall`, `fullrebuild` and devmode | One build path; `npm run buildgwt` stays the single gate (RULE_TEST_001) |
 | HTTP | Node built-in `http` module | No express/hono (Node 18.0 incompatibility of the stock SDK transport) |
-| MCP protocol layer | SDK 1.x core (`Server`) + own JSON-response Streamable HTTP transport; bundle loaded by `<script src="scripts/mcp-server.js">` in the page context; no Node `crypto` (Web Crypto for session ids) — [PL_MCP_DEC_01](#PL_MCP_DEC_01) | Ran in all three run modes and connected Claude Code and the Inspector ([Phase 0](#PL_MCP_P0)) |
+| MCP protocol layer | SDK 1.x core (`Server`) + own JSON-response Streamable HTTP transport; bundle loaded by `<script src="scripts/mcp-server.js">` in the page context; no Node `crypto` (the server issues no session ids; should an id ever be needed, Web Crypto of the page context) — [PL_MCP_DEC_01](#PL_MCP_DEC_01) | Ran in all three run modes and connected Claude Code and the Inspector ([Phase 0](#PL_MCP_P0)) |
 | Java side | Start trigger in the existing `client/agent/AgentJsBridge.java`; server status kept in a session object `McpServerStatus` on `CirSim` (client root), which the dialog reads; preferences through `OptionsManager.getOptionFromStorage`/`setOptionInStorage`; dialog `dialog/McpServerDialog.java` | RULE_ARCH_008 (no new JSNI file), RULE_ARCH_001/002 (the dialog reaches status through `CirSim`, not `agent/`), RULE_STRUCT_003 |
 | Instance registry | `<home>/.circuitjs1/instances/<instanceId>.json`, mode 0600, write via temp + rename | SP_MCP_01_02 |
 | End-to-end tests | `tests/mcp/e2e.mjs` (Node ≥ 22): launches the NW.js SDK binary on `target/site` with a scratch `HOME` directory, waits for the instance record, drives the endpoint with raw JSON-RPC | Headless Chromium has no Node, so only a real NW.js run exercises the server |
@@ -51,7 +51,7 @@ When this plan is complete:
 ## Progress
 
 - [x] [Phase 0 — Hosting prototype (closes C_MCP_DEC_03)](#PL_MCP_P0)
-- [ ] [Phase 1 — Endpoint, start-up, preferences, registry](#PL_MCP_P1)
+- [x] [Phase 1 — Endpoint, start-up, preferences, registry](#PL_MCP_P1)
 - [ ] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
 - [ ] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
 - [ ] [Phase 4 — End-to-end harness](#PL_MCP_P4)
@@ -104,7 +104,7 @@ Findings:
 - **Fallback.** Step 4 (a hand-written layer) was not needed.
 - **Unrelated defect.** `scripts/devmode/package.json` passes `--user-data-dir=\"/tmp/chrome/devmode\"` with literal quotes, so NW creates a `"/tmp/chrome/devmode"` directory relative to the launch directory. It is filed in the Backlog.
 
-### Phase 1 — Endpoint, start-up, preferences, registry (`mcp/server/src/`) [TODO]  {#PL_MCP_P1}
+### Phase 1 — Endpoint, start-up, preferences, registry (`mcp/server/src/`) [DONE]  {#PL_MCP_P1}
 
 **Depends on:** Phase 0; PL_AGA Phase 1 (`CircuitJS1Agent` exists)
 **Implements:** [SP_MCP_01_01](./mcp-server.sp.md#SP_MCP_01_01), [SP_MCP_01_02](./mcp-server.sp.md#SP_MCP_01_02), [SP_MCP_02_01](./mcp-server.sp.md#SP_MCP_02_01), [SP_MCP_02_05](./mcp-server.sp.md#SP_MCP_02_05), [SP_MCP_02_06](./mcp-server.sp.md#SP_MCP_02_06), [SP_MCP_03_01](./mcp-server.sp.md#SP_MCP_03_01), [SP_MCP_03_03](./mcp-server.sp.md#SP_MCP_03_03), [SP_MCP_04](./mcp-server.sp.md#SP_MCP_04)
@@ -124,6 +124,44 @@ What to create / change:
 | Status | `McpServerStatus.java` (client root, session object on `CirSim`; client root because the L2 dialog reads it — a stateful session object, not a utility) | Status, reason, URLs, call counter; updated by the server through `AgentJsBridge` |
 | Chromium args | `war/package.json` and `scripts/devmode/package.json` | SP_MCP_02_06 flags |
 | Shutdown | Window `unload` handler with synchronous `fs`, plus the File → Exit command before `close(true)` | `stop()` removes the record on every exit path. Phase 0 measured: `unload` fires on both a window-manager close and `close(true)`, Node `process` `exit` fires on neither, and a `close` listener alone misses `close(true)` and would block closing |
+
+**Result (2026-10-02).**
+- **Modules.** `mcp/server/src/` holds `index.js` (entry, lifecycle, instance record content, URLs, instructions), `http.js` (HTTP rules), `protocol.js` (SDK `Server` + `JsonResponseTransport`), `registry.js` and `agent.js`. `mcp/server/build.js` (esbuild 0.28.2) writes `war/scripts/mcp-server.js`: IIFE, `platform: node`, target `node18.0`/`chrome101`, unminified 1.8 MB, built in about 0.2 s. The build fails when the bundle contains `require("crypto")`. Root devDependencies are pinned exactly: `@modelcontextprotocol/sdk` 1.31.0, `zod` 4.6.5, `esbuild` 0.28.2. `npm run build:mcp` builds the bundle alone; `scripts/dev_n_build.js` runs it first in `buildGWT` (and so in `buildall`, `fullrebuild`) and in devmode.
+- **Loading and start.** `war/circuitjs.html` loads `<script src="scripts/mcp-server.js">` before the GWT selection script. The script registers `window.CircuitJS1Mcp = {start, stop, status, TOOLS_VERSION, PROTOCOL_REVISIONS}`. It requires the Node built-ins (`http`, `os`, `fs`, `path`, `buffer`) lazily, inside functions, so a browser build loads it without error. The desktop runtime is detected through `globalThis.require` and `globalThis.process.versions.node`; a bare `typeof require` is always true after esbuild's shim. Start-up: `CirSim` → `setupJSInterface()` → `AgentJsBridge.startMcpServer(sim)`. That method calls `McpServerStatus.readPrefs()` (an invalid stored value falls back to its default, with a warning) and then `CircuitJS1Mcp.start(CircuitJS1Agent, prefs, onStatus)`. The status callback updates `CirSim.mcpServerStatus` and logs `MCP server listening on <urls> (instance <id>)`, `MCP server failed: <reason>` (warning) or `MCP server disabled: <reason>`. A desktop page without the bundle is `failed: server script not loaded`.
+- **Phase 2 hooks.**
+  - `createProtocol({appVersion, instructions, tools, resources, onToolCall})` takes two providers. `tools` is `{list(), call(name, args, extra)}`; `resources` is `{list(), templates(), read(uri)}`.
+  - Phase 1 passes empty providers. `tools/list` and `resources/list` return `[]`; an unknown tool is -32602, an unknown URI -32002 (`RESOURCE_NOT_FOUND`); `McpError`/`ErrorCode` are re-exported.
+  - `index.js` creates `createAgentClient(CircuitJS1Agent)`. Its `.call(op, args, {timeoutMs})` resolves to the parsed OperationResult. It always uses `callAsync`. A synchronous contract that did not call back, or that returned `undefined` or unparseable text, becomes `internal_error`. `run`/`render` have a 300 s safety timeout. `.reportError(message)` reaches the global handler. Phase 2 builds `tools.js`/`resources.js` over this client and passes them to `createProtocol`.
+- **Phase 3 hooks.** `McpServerStatus` (client root, `CirSim.mcpServerStatus`) provides:
+  - `getState()`, `describe()` (`listening` / `failed: <reason>` / `disabled`), `getInstanceId()`, `getUrls()` and `getToolCalls()`;
+  - `PREF_*` keys and defaults, `readPrefs()`, `isValidPort`, `isValidPortRange` and `isValidHost` for "Save".
+  The counter counts every `tools/call` the protocol layer handles, unknown tools included. Each change reaches Java through the status callback, with no log line.
+- **Phase 4 hooks.** The scratch NW.js driver (`<session scratchpad>/mcp1/nw_mcp.mjs`, outside the repo) has `launchNw` (Xvfb, CDP, scratch `HOME` and profile), `mcpPost`, `records` and `occupy(ports)`. Diagnostic: `CircuitJS1Agent.debugMcpStatus()`. `CircuitJS1Mcp.status()` also returns `recordFile`, `removedRecords` and `registryError`.
+- **Transport facts.**
+  - All HTTP clients share one SDK `Server`. Client JSON-RPC ids are replaced by internal ids (`mcp-<n>`) and put back on the reply, so equal ids of concurrent clients cannot collide. `notifications/cancelled` is dropped before the SDK (cancellation is not supported), so no client can abort another client's request.
+  - Every request gets exactly one reply (review fix):
+    - a message the SDK's strict `isJSONRPCRequest` rejects (extra top-level key, `params` not an object, `_meta` not an object) is answered -32600 / HTTP 400 instead of being dropped by the SDK; invalid notifications are ignored (202);
+    - the served methods' params are checked against the SDK request schemas first: -32602 `Invalid params for <method>: params.<field> (<reason>)`, also for `initialize` without params;
+    - a backstop of `PENDING_TIMEOUT_MS` = 200 s answers -32603 and drops the pending entry. It is longer than the agent client's asynchronous timeout of 180 s, which is above the 120 s run budget cap;
+    - the HTTP server has `headersTimeout` 10 s and `requestTimeout` 60 s for incomplete requests, which do not limit a long response;
+    - a declared `Content-Length` over 16 MB gets 413 before the body is read; a streamed body that exceeds it gets 413 too, both with `Connection: close` and the socket destroyed.
+  - `initialize` is normalised before the SDK handler sees it: the requested revision is kept when it is 2025-11-25 or 2025-06-18; anything else gets 2025-11-25. The SDK alone would also accept 2025-03-26 and older.
+  - Check order: Origin (403, empty body) → path (404) → `OPTIONS` (204, CORS headers for local origins) → not `POST` (405 with `Allow`) → version header (absent = 2025-06-18; unserved → 400 with a -32600 body) → body over 16 MB (413) → not JSON (-32700, HTTP 400) → not one request object, batch arrays included (-32600, HTTP 400) → a client response (202) → a notification (202, empty body) → a request (200, JSON).
+- **Registry.** `instanceId` = `<pid>-<startedAtMs>`. The directory and the file are set to 0700 and 0600 by `chmod` after creation, because the umask masks the creation modes and an older directory may be wider, through `<id>.json.tmp` + rename. Start-up deletes the records and temp files of dead pids (`process.kill(pid, 0)`; EPERM counts as alive). Unparseable files are left alone. The record is removed by the `unload` listener (synchronous `fs`) and by File → Exit (`CirSim.stopMcpServer()` before `close(true)`). `stop()` is idempotent and also destroys open sockets: Node 18.0 has no `closeAllConnections`.
+- **URLs.** `127.0.0.1` first, then the non-internal IPv4 addresses, for a wildcard host (`0.0.0.0`, `::`). A loopback host gets only its loopback URL. A host set to one specific address gets only that address's URL, because `127.0.0.1` does not answer there (a spec gap, see the report).
+- **Runtime settings.** Both manifests carry the three SP_MCP_02_06 flags. The devmode `--user-data-dir` quoting is fixed, which closes that backlog item.
+- **Verified** with NW.js 0.64.1 SDK flavor (Node 18.0.0) under Xvfb, with a scratch `HOME`:
+  - endpoint rows, Origin rows and errors (30 checks);
+  - port busy (7311 taken → 7312, and the record says 7312) and all ports busy (`failed: no free port in range 7311..7330`, logged, no record, app usable);
+  - two windows (`new_instance`) → two records with distinct ports; `close()` of one → one record, port released; `close(true)` → none;
+  - stale records (dead-pid record and temp file deleted; live-pid, unparseable and foreign files kept; logged);
+  - clients: the SDK client (negotiated 2025-11-25, server `circuitjs1` 1.3.2), MCP Inspector CLI 2.9.0 (`tools/list`, `resources/list`) and Claude Code 2.1.287 (`claude -p --mcp-config <tmp> --strict-mcp-config` → `connected`);
+  - browser build: live scenario `mcp_browser`.
+  - hostile input (review round 1, 18 checks): the strict-schema cases answered within 3 s, also three at once; -32602 for params (initialize without params, wrong `protocolVersion` type, `resources/read` without `uri`, `tools/call` without `name`); 400 cancellations for every plausible internal id leave 30 concurrent requests answered; declared and streamed 413 with the connection closed; incomplete headers and an incomplete body closed by the server; the server keeps answering afterwards.
+  Phase 4 moves these probes into `tests/mcp/e2e.mjs`: the endpoint, Origin and error rows, port busy and all busy, two windows and the close paths, stale records, the strict-schema, params, cancellation and 413 probes, and the incomplete-request probes (slow, about 100 s, which can be an opt-in group). The real-client checks (SDK client, Inspector CLI, Claude Code with a temporary `--mcp-config`) stay optional, because they need network or credentials.
+  - packaged: `npm run build` (0.64.1-mod1 normal flavor, bundle in `package.nw/scripts/`) wrote a 0600 record (`appVersion` 1.3.2), answered `initialize` (2025-11-25), a notification with 202 and `tools/list`, and rejected a foreign Origin with 403. No Node-crypto error.
+  Not run: removal of the packaged record on close (the normal flavor has no CDP and Xvfb has no window manager), and devmode.
+  A window-manager close was approximated by `nw.Window.get().close()`, which fires the NW `close` event and then `unload`, as Phase 0 measured; no window manager runs under Xvfb.
 
 ### Phase 2 — Tools, resources and result shaping [TODO]  {#PL_MCP_P2}
 
@@ -181,7 +219,6 @@ What to update:
 
 - Serve the stateless 2026-07-28 protocol revision in-app — return when: a Node-18-compatible SDK line supports it, or a host drops the initialize-based revisions.
 - Progress notifications for long runs (SP_MCP_DEC_02 rejected B) — return when: hosts show progress to the model and an eval shows agents mis-handling long runs.
-- Devmode manifest quoting (found by Phase 0): `scripts/devmode/package.json` `--user-data-dir=\"/tmp/chrome/devmode\"` keeps the quotes, so NW creates a `"/tmp/chrome/devmode"` directory relative to the launch directory — return when: Phase 1 edits `scripts/devmode/package.json` for the SP_MCP_02_06 flags.
 - MCP prompts — return when: a host surfaces prompts to users and the skill cannot cover a workflow.
 
 ## Design Decisions  {#PL_MCP_DEC}
@@ -199,7 +236,7 @@ What to update:
 | A — SDK v1 core + custom transport (bundled) | Upstream keeps protocol handling current; bundle size; depends on loading under Node 18.0 |
 | B — self-written layer | No dependency; we follow spec changes ourselves |
 
-**Decision:** A — SDK 1.x core (`Server`) with our own JSON-response Streamable HTTP transport over `http`, serving revision 2025-11-25 and the older ones the SDK supports. The bundle is loaded by a `<script src="scripts/mcp-server.js">` that registers a global in the page context. It must contain no `require("crypto")`; session ids come from Web Crypto.
+**Decision:** A — SDK 1.x core (`Server`) with our own JSON-response Streamable HTTP transport over `http`, serving revisions 2025-11-25 and 2025-06-18 (SP_MCP_02_01). The bundle is loaded by a `<script src="scripts/mcp-server.js">` that registers a global in the page context. It must contain no `require("crypto")`. The stateless server issues no session ids; any id it ever needs comes from Web Crypto of the page context.
 **Rationale:** In [Phase 0](#PL_MCP_P0) A ran in all three run modes on Node 18.0.0, and both Claude Code and the Inspector connected to the release runtime. The only blocker found, the missing Node crypto in the release runtime, came from our own code and has a one-line fix. B's own costs (revision fallback, headers, schema validation) stay with upstream under A. The bundle (0.9 MB minified) and start-up (under 0.3 s) are acceptable.
 **Resolved by:** the developer, 2026-10-01, at the Phase 0 sign-off (recommended option accepted).
 
@@ -209,3 +246,4 @@ What to update:
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A, script-tag loading, no Node crypto); Shutdown row corrected to `unload`; backlog: devmode manifest quoting |
+| 2026-10-02 | Phase 1 done (Result block); devmode manifest quoting fixed and removed from the backlog |

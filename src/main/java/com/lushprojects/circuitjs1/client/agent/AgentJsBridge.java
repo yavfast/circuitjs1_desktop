@@ -7,10 +7,13 @@ import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONBoolean;
 import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONObject;
+import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
+import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.DocumentScope;
+import com.lushprojects.circuitjs1.client.McpServerStatus;
 
 /**
  * JSNI adapter (RULE_ARCH_008) exporting the Agent API as
@@ -40,6 +43,11 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
  * global uncaught-exception handler (RULE_ERR_004) and the call returns {@code undefined}, which
  * callers map to {@code internal_error}. {@code reportError} lets a JS caller (the MCP server)
  * pass its own unexpected exception to the same handler.
+ * <p>
+ * PL_MCP Phase 1: {@link #startMcpServer} / {@link #stopMcpServer} start and stop the in-app MCP
+ * server ({@code window.CircuitJS1Mcp} of {@code scripts/mcp-server.js}) and route its status
+ * into {@link McpServerStatus}; {@code debugMcpStatus()} returns that status as JSON (harness
+ * diagnostic).
  */
 public final class AgentJsBridge {
 
@@ -112,9 +120,105 @@ public final class AgentJsBridge {
             // PL_AGA Phase 9 diagnostic: the circuit-content test of SP_AGA_03_09 on a string
             debugCircuitTest: $entry(function(text) {
                 return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugCircuitTest(Ljava/lang/String;)(text == null ? null : String(text));
+            }),
+            // PL_MCP Phase 1 diagnostic: the MCP server status kept by the app (McpServerStatus)
+            debugMcpStatus: $entry(function() {
+                return sim.@com.lushprojects.circuitjs1.client.CirSim::mcpServerStatus.@com.lushprojects.circuitjs1.client.McpServerStatus::toJson()();
             })
         };
     }-*/;
+
+    /**
+     * [SP_MCP_02_05] startServer, called by the app's own start-up right after the Agent API
+     * export (not through the single-slot loaded hook). Reads and validates the preferences of
+     * [SP_MCP_01_01] and hands them to {@code CircuitJS1Mcp.start}, which decides
+     * disabled / listening / failed and reports through {@link #onMcpStatus}.
+     */
+    public static void startMcpServer(CirSim sim) {
+        McpServerStatus.Prefs prefs = McpServerStatus.readPrefs();
+        if (!prefs.invalidKeys.isEmpty()) {
+            sim.logManager.logWarning("MCP server: invalid preference value replaced by its default: "
+                    + String.join(", ", prefs.invalidKeys));
+        }
+        startMcpServerNative(sim, prefs.enabled, prefs.port, prefs.portRange, prefs.host);
+    }
+
+    private static native void startMcpServerNative(CirSim sim, boolean enabled, int port, int portRange,
+            String host) /*-{
+        var mcp = $wnd.CircuitJS1Mcp;
+        if (!mcp || typeof mcp.start !== 'function') {
+            var desktop = typeof $wnd.require === 'function' && typeof $wnd.process === 'object' && $wnd.process !== null;
+            @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::onMcpScriptMissing(Lcom/lushprojects/circuitjs1/client/CirSim;Z)(sim, desktop);
+            return;
+        }
+        var onStatus = $entry(function(status) {
+            @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::onMcpStatus(Lcom/lushprojects/circuitjs1/client/CirSim;Ljava/lang/String;)(sim, JSON.stringify(status));
+        });
+        var started = mcp.start($wnd.CircuitJS1Agent, {enabled: enabled, port: port, portRange: portRange, host: host}, onStatus);
+        if (started && typeof started.then === 'function') {
+            // an unexpected exception of the server start goes to the global handler (RULE_ERR_004)
+            started.then(null, $entry(function(e) {
+                @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::reportError(Ljava/lang/String;)('MCP server start: ' + (e && e.stack ? e.stack : e));
+            }));
+        }
+    }-*/;
+
+    /**
+     * [SP_MCP_02_05] stopServer: closes the listener and deletes the instance record. The server
+     * also stops itself on window {@code unload}; the File → Exit command calls this first.
+     */
+    public static native void stopMcpServer() /*-{
+        var mcp = $wnd.CircuitJS1Mcp;
+        if (mcp && typeof mcp.stop === 'function')
+            mcp.stop();
+    }-*/;
+
+    /** No server script on the page: a browser build is disabled; a desktop build lacks its bundle. */
+    private static void onMcpScriptMissing(CirSim sim, boolean desktop) {
+        if (desktop) {
+            sim.mcpServerStatus.set(McpServerStatus.State.FAILED, "server script not loaded (scripts/mcp-server.js)");
+            sim.logManager.logWarning("MCP server failed: " + sim.mcpServerStatus.getReason());
+        } else {
+            sim.mcpServerStatus.set(McpServerStatus.State.DISABLED, "no desktop runtime");
+        }
+    }
+
+    /** Status callback of the server: updates {@link McpServerStatus} and logs the transitions. */
+    private static void onMcpStatus(CirSim sim, String json) {
+        JSONValue v = JSONParser.parseStrict(json);
+        JSONObject s = v == null ? null : v.isObject();
+        if (s == null) {
+            return;
+        }
+        McpServerStatus status = sim.mcpServerStatus;
+        McpServerStatus.State previous = status.update(s);
+        McpServerStatus.State state = status.getState();
+        if (state == previous) {
+            return; // e.g. a tool-call count change
+        }
+        switch (state) {
+        case LISTENING:
+            sim.log("MCP server listening on " + String.join(", ", status.getUrls())
+                    + " (instance " + status.getInstanceId() + ")");
+            JSONArray removed = s.get("removedRecords") == null ? null : s.get("removedRecords").isArray();
+            if (removed != null && removed.size() > 0) {
+                sim.log("MCP server: removed " + removed.size() + " stale instance record(s)");
+            }
+            JSONString registryError = s.get("registryError") == null ? null : s.get("registryError").isString();
+            if (registryError != null) {
+                sim.logManager.logWarning("MCP server: instance record not written: " + registryError.stringValue());
+            }
+            break;
+        case FAILED:
+            sim.logManager.logWarning("MCP server failed: " + status.getReason());
+            break;
+        case DISABLED:
+            sim.log("MCP server disabled: " + status.getReason());
+            break;
+        default:
+            break;
+        }
+    }
 
     /** Harness diagnostic: observes every run/render slice boundary ({@link Slices}); null removes it. */
     private static void setSliceProbe(final JavaScriptObject fn) {

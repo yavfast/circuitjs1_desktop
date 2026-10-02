@@ -3,7 +3,7 @@ skill: js-api-surface
 domain: automation
 topics: [js-api, circuitjs1-global, jsni-bridge, element-id, scope-data, stop-message, undo, documents]
 source: research
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # `CircuitJS1` JS API — real behaviour vs. the docs
@@ -38,6 +38,7 @@ updated: 2026-10-01
 - **Measurement.** `getNodeVoltage(label)` returns 0 for an unknown label. The static `LabeledNodeElm.labelList` is only a scratch map of one wire-closure pass (it holds the labels of whichever document was analysed last); since PL_AGA Phase 5 `getNodeVoltage` and the agent's nets/readings resolve labels from the document's own label elements (`getNode(0)`). `getScopeData` returns min/max per pixel bucket in a ring buffer with no time axis (bucket = `maxTimeStep*speed`, `ScopePlot.java:~130`).
 - **Displaced posts (geometry refactor `dde7f33`, fixed).** From `dde7f33` until the fix `ElmGeometry` started with `lead1 == point1` / `lead2 == point2` (same objects), so an element whose `setPoints`/`draw` interpolates into `getLead1()`/`getLead2()` moved its own posts (Inverter, Crystal, Schmitt, InvertingSchmitt, DelayBuffer, TestPoint, StopTrigger, FM source). Leads are now always separate objects (copied by value from the posts on each geometry update); `geom_posts` in `tests/live/harness.mjs` guards it. Do not reintroduce a lead that is a post object.
 - **SVG.** `getCircuitAsSVG()` returns `undefined`; the result arrives only through the `onsvgrendered` hook, which is skipped on the first call while `canvas2svg.js` loads.
+- **`window.CircuitJS1Mcp`** (since PL_MCP Phase 1) is the in-app MCP server's global from `scripts/mcp-server.js`. It is not a scripting API: the app calls `start`; `status()` and `stop()` are for diagnostics. In a browser build it reports `disabled` (`no desktop runtime`). The app-side copy of the status is `CircuitJS1Agent.debugMcpStatus()`.
 - **Hooks are single-slot** (`onupdate`, `ontimestep`, `onsvgrendered`) — competing bridges overwrite each other. `onanalyze` and `ontimestep` fire only for the visible tab's document: they are skipped while an agent operation has a background document bound (PL_AGA Phases 5 and 7).
 - **Delete via API** skips the scope cleanup, `setUnsavedChanges` and `mouseElm/menuElm` clearing that `CircuitEditor.doDelete` performs; no API mutation calls `pushUndo`.
 

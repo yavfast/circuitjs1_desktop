@@ -60,6 +60,7 @@ import com.google.gwt.user.client.ui.MenuBar;
 import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
+import com.lushprojects.circuitjs1.client.agent.AgentJsBridge;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
 import com.lushprojects.circuitjs1.client.dialog.SlidersDialog;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -86,6 +87,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     public ControlsDialog controlsDialog;
     public SlidersDialog slidersDialog;
+    /** Session state of the in-app MCP server (PL_MCP); updated through AgentJsBridge. */
+    public final McpServerStatus mcpServerStatus = new McpServerStatus();
 
     public Label powerLabel;
     public Scrollbar speedBar;
@@ -145,6 +148,11 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     native String decompress(String dump) /*-{
         return $wnd.LZString.decompressFromEncodedURIComponent(dump);
     }-*/;
+
+    /** [SP_MCP_02_05] Stops the in-app MCP server (listener and instance record); File → Exit calls it. */
+    public void stopMcpServer() {
+        AgentJsBridge.stopMcpServer();
+    }
 
     public static void executeJS(String js) {
         ScriptInjector.fromString(js)
@@ -370,6 +378,8 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
             }
         });
         setupJSInterface();
+        // [SP_MCP_02_05] the in-app MCP server starts right after the Agent API export
+        AgentJsBridge.startMcpServer(this);
 
         resetAction();
         setSimRunning(circuitInfo.running);

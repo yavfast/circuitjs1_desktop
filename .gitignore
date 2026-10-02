@@ -28,3 +28,6 @@ out/
 
 *.log
 __pycache__/
+
+# Generated in-app MCP server bundle (mcp/server/build.js)
+war/scripts/mcp-server.js

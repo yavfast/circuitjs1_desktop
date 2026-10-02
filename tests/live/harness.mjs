@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | mcp_browser | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -3506,9 +3506,45 @@ async function scenarioAgentFiles(s) {
     sweep: out.notes.sweep && { known: out.notes.sweep.known, unknown: out.notes.sweep.unknown }, details: path.join(OUT_DIR, 'agent_files.json') });
 }
 
+// mcp_browser: the in-app MCP server in the browser build (PL_MCP Phase 1, SP_MCP_05_04 "Browser
+// build"). circuitjs.html loads scripts/mcp-server.js in every build; without the desktop runtime
+// the server must report `disabled` and attempt no listen, with no page exception or console error
+// from the bundle, and the app's own status (McpServerStatus, through the diagnostic
+// CircuitJS1Agent.debugMcpStatus()) must agree. The listening rows run in NW.js (PL_MCP Phase 4).
+async function scenarioMcpBrowser(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const page = await s.eval(`(() => ({
+    loaded: typeof window.CircuitJS1Mcp === 'object' && typeof window.CircuitJS1Mcp.start === 'function',
+    server: window.CircuitJS1Mcp ? window.CircuitJS1Mcp.status() : null,
+    app: JSON.parse(CircuitJS1Agent.debugMcpStatus()),
+    script: !!document.querySelector('script[src="scripts/mcp-server.js"]'),
+    hasNode: typeof window.require === 'function' || typeof window.process === 'object',
+  }))()`);
+  out.notes.page = page;
+  ck('script_tag', page.script);
+  ck('bundle_loaded', page.loaded);
+  ck('no_node_runtime', !page.hasNode);
+  ck('server_disabled', page.server && page.server.state === 'disabled' && page.server.reason === 'no desktop runtime'
+    && !page.server.port && !(page.server.urls && page.server.urls.length));
+  ck('app_status_disabled', page.app.state === 'disabled' && page.app.reason === 'no desktop runtime' && page.app.port === 0 && page.app.urls.length === 0);
+  ck('toolsVersion', page.server && page.server.toolsVersion === '1.0');
+  const bad = (t) => /mcp-server|CircuitJS1Mcp/.test(t);
+  const errs = s.console.filter((c) => (c.type === 'error' || c.type === 'log:error') && bad(c.text)).map((c) => c.text.slice(0, 300));
+  const exc = s.exceptions.filter(bad).map((e) => e.slice(0, 300));
+  out.notes.errors = errs; out.notes.exceptions = exc;
+  ck('no_errors', errs.length === 0 && exc.length === 0);
+  // a second start in the browser build stays disabled and still attempts nothing
+  const again = await s.eval(`CircuitJS1Mcp.start(CircuitJS1Agent, {enabled: true, port: 7311, portRange: 20, host: '0.0.0.0'}, null).then((st) => st)`);
+  ck('restart_disabled', again && again.state === 'disabled');
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'mcp_browser.json'), JSON.stringify(out, null, 2));
+  report('MCP.mcp_browser', failed.length === 0, { checks: Object.keys(out.checks).length, failed, state: page.app.state });
+}
+
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'mcp_browser'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -3551,7 +3587,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, mcp_browser: scenarioMcpBrowser, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -80,6 +80,12 @@ function cleanGWTCache() {
     }
 }
 
+// [PL_MCP_P1] The in-app MCP server bundle (war/scripts/mcp-server.js, generated) is built before
+// every GWT build and devmode, so the Maven resource copy and the devmode server ship it.
+function buildMcpServer() {
+    require('../mcp/server/build.js').buildMcpServer();
+}
+
 const nw_version = '0.64.1-mod1';
 //const nw_version = '0.20.0';
 
@@ -228,6 +234,7 @@ function checkSteps(logSteps=true){
 
 function runDevmode(){
 
+    buildMcpServer();
     return Promise.all([
 
         async function(){
@@ -285,6 +292,7 @@ function buildGWT(){
     cleanTargetDirectory();
     cleanGWTCache();
 
+    buildMcpServer();
     console.log('Starting GWT build with full cleanup...');
     return Promise.all([
         mvn.execute(['clean', 'install'], { 'skipTests': true }).then(() => {

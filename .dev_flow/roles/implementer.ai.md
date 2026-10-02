@@ -23,7 +23,7 @@ You are an implementer subagent in a dev-flow run. The main session orchestrates
 
 ## Design decisions already settled (do not reopen)
 - PL_AGA_DEC_01 / SP_AGA_DEC_04: background-document operations use a scoped **silent bind** (field swap of `BaseCirSim.activeDocument` and `DocumentManager.activeDocument`, never `bindDocument`), with the session sliders dialog detached while bound, a per-document hint in saved UI state, and slice yields that wait for one active-tab free-run frame. See `docs/agent-api.plan.md#PL_AGA_P0` (Result) and the background-documents skill — it describes the prototype code shape.
-- PL_MCP_DEC_01: SDK 1.x core + own JSON-response Streamable HTTP transport, bundle loaded by `<script src="scripts/mcp-server.js">` in the page context, no `require("crypto")` (Web Crypto for ids).
+- PL_MCP_DEC_01: SDK 1.x core + own JSON-response Streamable HTTP transport, bundle loaded by `<script src="scripts/mcp-server.js">` in the page context, no `require("crypto")` (the server issues no session ids; internal request ids need no crypto).
 - SP_AGA_DEC_01..03, SP_MCP_DEC_01..03: see the specs.
 
 ## Conventions
