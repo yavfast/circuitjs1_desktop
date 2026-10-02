@@ -118,6 +118,106 @@ public class Scope extends BaseCirSimDelegate {
     private static int cursorUnits;
     private static Scope cursorScope;
 
+    // [SP_AGA_02_08] Offscreen draw (agent render, CircuitRenderer.OffscreenImage): while one is drawn,
+    // every scope it draws keeps its live state. A scope saves the fields a draw writes when it is
+    // first touched and gets them back at the end; its graph is never reset, its time base and
+    // trigger capture never advance, and its plot does not fade. The scopes the visible tab shows
+    // therefore look the same on the next frame as without the offscreen draw.
+    private static java.util.List<Scope> offscreenTouched;
+    private DrawState offscreenSaved;
+
+    /** The scope fields a draw writes (a draw never writes its plots' sample buffers). */
+    private static final class DrawState {
+        final Rectangle rect;
+        final int alphaCounter, selectedPlot, textY, drawOx, drawOy;
+        final double[] scale;
+        final boolean[] reduceRange;
+        final double gridStepX, gridStepY, maxValue, minValue, scaleX, scaleY;
+        final boolean drawGridLines, somethingSelected, showNegative;
+        /** {@code plotOffset} and {@code gridMult} of every plot (drawPlot writes them). */
+        final double[] plotOffset, gridMult;
+
+        DrawState(Scope s) {
+            int n = s.plots == null ? 0 : s.plots.size();
+            plotOffset = new double[n];
+            gridMult = new double[n];
+            for (int i = 0; i < plotOffset.length; i++) {
+                plotOffset[i] = s.plots.get(i).plotOffset;
+                gridMult[i] = s.plots.get(i).gridMult;
+            }
+            rect = s.rect;
+            alphaCounter = s.alphaCounter;
+            selectedPlot = s.selectedPlot;
+            textY = s.textY;
+            drawOx = s.draw_ox;
+            drawOy = s.draw_oy;
+            scale = java.util.Arrays.copyOf(s.scale, s.scale.length);
+            reduceRange = java.util.Arrays.copyOf(s.reduceRange, s.reduceRange.length);
+            gridStepX = s.gridStepX;
+            gridStepY = s.gridStepY;
+            maxValue = s.maxValue;
+            minValue = s.minValue;
+            scaleX = s.scaleX;
+            scaleY = s.scaleY;
+            drawGridLines = s.drawGridLines;
+            somethingSelected = s.somethingSelected;
+            showNegative = s.showNegative;
+        }
+
+        void restore(Scope s) {
+            s.rect = rect;
+            s.alphaCounter = alphaCounter;
+            s.selectedPlot = selectedPlot;
+            s.textY = textY;
+            s.draw_ox = drawOx;
+            s.draw_oy = drawOy;
+            System.arraycopy(scale, 0, s.scale, 0, scale.length);
+            System.arraycopy(reduceRange, 0, s.reduceRange, 0, reduceRange.length);
+            s.gridStepX = gridStepX;
+            s.gridStepY = gridStepY;
+            s.maxValue = maxValue;
+            s.minValue = minValue;
+            s.scaleX = scaleX;
+            s.scaleY = scaleY;
+            s.drawGridLines = drawGridLines;
+            s.somethingSelected = somethingSelected;
+            s.showNegative = showNegative;
+            for (int i = 0; s.plots != null && i < plotOffset.length && i < s.plots.size(); i++) {
+                s.plots.get(i).plotOffset = plotOffset[i];
+                s.plots.get(i).gridMult = gridMult[i];
+            }
+        }
+    }
+
+    /** Starts an offscreen draw (see {@link #endOffscreenDraw()}); not nested. */
+    static void beginOffscreenDraw() {
+        offscreenTouched = new java.util.ArrayList<>();
+    }
+
+    /** Ends an offscreen draw: every scope it touched gets its live draw state back. */
+    static void endOffscreenDraw() {
+        java.util.List<Scope> touched = offscreenTouched;
+        offscreenTouched = null;
+        if (touched != null) {
+            for (Scope s : touched) {
+                s.offscreenSaved.restore(s);
+                s.offscreenSaved = null;
+            }
+        }
+    }
+
+    /** @return true while an offscreen image is drawn; saves this scope's draw state on first use */
+    private boolean offscreen() {
+        if (offscreenTouched == null) {
+            return false;
+        }
+        if (offscreenSaved == null) {
+            offscreenSaved = new DrawState(this);
+            offscreenTouched.add(this);
+        }
+        return true;
+    }
+
     // Trigger/timebase (time-domain only)
     private boolean triggerEnabled = false;
     private int triggerMode = TRIG_MODE_AUTO;
@@ -782,6 +882,11 @@ public class Scope extends BaseCirSimDelegate {
     }
 
     public void setRect(Rectangle r) {
+        if (offscreen()) {
+            // an offscreen draw places the scope in the image only: no graph reset, rect restored
+            this.rect = r;
+            return;
+        }
         int w = this.rect.width;
         this.rect = r;
         if (this.rect.width != w) {
@@ -1163,9 +1268,13 @@ public class Scope extends BaseCirSimDelegate {
         graphics.translate(rect.x, rect.y);
         graphics.clipRect(0, 0, rect.width, rect.height);
 
-        alphaCounter++;
+        // an offscreen draw does not fade the live plot image
+        boolean offscreen = offscreen();
+        if (!offscreen) {
+            alphaCounter++;
+        }
 
-        if (alphaCounter > 2) {
+        if (alphaCounter > 2 && !offscreen) {
             // fade out plot
             alphaCounter = 0;
             imageContext.setGlobalAlpha(0.01);
@@ -1274,9 +1383,10 @@ public class Scope extends BaseCirSimDelegate {
         if (plots.isEmpty()) {
             return;
         }
+        boolean offscreen = offscreen();
 
-        // reset if timestep changed
-        if (scopeTimeStep != simulator().maxTimeStep) {
+        // reset if timestep changed (the next live draw does it; an offscreen draw never resets)
+        if (!offscreen && scopeTimeStep != simulator().maxTimeStep) {
             scopeTimeStep = simulator().maxTimeStep;
             resetGraph();
         }
@@ -1293,7 +1403,10 @@ public class Scope extends BaseCirSimDelegate {
         graphics.translate(rect.x, rect.y);
         graphics.clipRect(0, 0, rect.width, rect.height);
 
-        updateTimeBaseForDraw();
+        if (!offscreen) {
+            // an offscreen draw shows the time base of the last live draw (no trigger capture)
+            updateTimeBaseForDraw();
+        }
 
         if (showFFT) {
             drawFFTVerticalGridLines(graphics);
@@ -1364,6 +1477,10 @@ public class Scope extends BaseCirSimDelegate {
         graphics.restore();
 
         drawCursor(graphics);
+
+        if (offscreen) {
+            return;
+        }
 
         if (plots.get(0).ptr > 5 && !manualScale) {
             for (int i = 0; i != UNITS_COUNT; i++) {

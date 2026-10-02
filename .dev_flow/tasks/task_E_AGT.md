@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 08:30
+> **Last updated:** 2026-10-02 11:00
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–7 committed; Phase 8 next; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed; Phase 9 next; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -102,10 +102,12 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Fix — ElmGeometry aliased lead1/lead2 to point1/point2 since dde7f33 (posts of Inverter, Schmitt, DelayBuffer, Crystal, FM, StopTrigger, TestPoint displaced); verified against a dde7f33^ reference build: 342 examples 28 → 0 mismatches; review PASS
 - [x] PL_AGA Phase 6 — transactions and history (review PASS + 2 `should` invariant breaches → fixed; delta PASS + 4 findings → fixed: no-net sealed entry dropped by any later user push, agent call during a held drag splits the gesture (`splitGesture`), rollback reload exception-safe; delta PASS + 1 `prefer` → fixed; agent_history 34 checks, full test:live = baseline). Spec §06_01 item 16 and §04_01 no-net rule added by main
 - [x] PL_AGA Phase 7 — runs, probes, simControl (review PASS 4 should + 4 prefer → fixed: exactly-once completion on result/collect exceptions, cancel checked inside a slice, legacy script and slider cancels, stop checked first, forced steps counted; delta PASS 2 prefer → fixed by main: legacy cancel check asserts the action ran, §04_02 ontimestep re-entrancy exception). Spec amended by main (§02_09, §02_10, §01_09, §03_07, §04_02, §06_01 item 17). agent_run 29 checks; RULE_TEST_002 devmode check owed
-- [ ] **Next:** PL_AGA Phase 8 — background-document completion and render
+- [x] PL_AGA Phase 8 — background completion + render (review FAIL: concurrent sliced ops ran back to back without a visible frame (R1) → session-wide slice queue; plus single canvas allocation, 40 Mpx cap, encode failure → render_failed, closed-doc checks, scope plot state, R2 log buffer; delta PASS, 2 prefer → spec wording by main). Spec amended by main (§02_08, §03_08 R1 slice bound / concurrent ops, R2 check row). agent_bg 39 checks; manual devmode observation of the active tab during R1 owed
+- [ ] **Next:** PL_AGA Phase 9 — path-based files
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
+- 2026-10-02 11:00 — §03_08 R1 slice bound refined by main under `Autonomy: full` (resolved, delegated): 20 ms plus one indivisible unit (timestep, element draw, image canvas allocation); measured outliers: 79–100 ms canvas allocation of a 39 Mpx PNG at scale 4, 22 ms first JK flip-flop draw — present to the developer
 - 2026-10-02 06:40 — developer: "Продовжуй реалізацію наступних фаз" — pause lifted without running the owed manual checks (they stay owed); Coordination Note left as implemented (recommended); continuing PL_AGA Phase 7 onwards under `Autonomy: full`
 - 2026-10-02 06:30 — live harness launches Chromium with `--disable-extensions`: a fresh profile auto-installed KDE Plasma Integration (`/usr/share/chromium/extensions/`), whose native host raised connection-error notifications for the developer after every run
 - 2026-10-02 03:40 — checkpoint: tree has the uncommitted Phase 6 work + fix round (UndoManager, CircuitEditor, CircuitDocument, MenuManager, BaseCirSim, DocumentManager, ActionManager, CirSim, io/ImportLifecycle, agent/AgentTransaction + HistoryOps + Mutation + AgentApi + OperationResult + DocumentSnapshot + ImportOps + EditOps + AgentJsBridge, harness agent_history, README, plan, undo skill) plus spec §06_01 item 16 and the new `.dev_flow/roles/`; no subagent is running
@@ -156,6 +158,6 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 - `{s:pin}` Decisions: C_AGA_DEC_01 grid cells + import & incremental · DEC_02 per-document ID registry · DEC_03 any tab by handle · DEC_04 transactions sealed by commented checkpoints (auto-seal on user edit/save/close/idle) · C_MCP_DEC_01 server per instance + registry · DEC_02 always on, LAN, no token · DEC_03 OPEN protocol layer · C_MCB_DEC_01 stdio bridge + CLI.
 - Skills: `.dev_flow/skills/automation/` (js-api-surface, agent-mcp-surface, background-documents).
-- `{s:pin}` Live-harness baseline at HEAD 259b5b6 (`npm run buildgwt && npm run test:live`): PASS undo, paste, sliders, loadstate, agent_docs (23), agent_ids (22), agent_catalogue (36), agent_edit (70), agent_connect (27), agent_connect_all, agent_freerun (6), geom_posts (39); FAIL (known; numbers must not worsen) textfid lossyFields 67, roundtrip lineDiffs 23 / classChanged 23 / jsonDiffs 17 / propChanged 2, synth 176 types / notCreated Optocoupler / jsonLegLoss 55. Phase 6 adds agent_history (34); Phase 7 adds agent_run (29). — main
-- `{s:pin}` Manual devmode checks owed (headless cannot run them; steps in each phase's Result note of agent-api.plan.md): RULE_TEST_005 tab close + hint flow (P1), editor undo + IDs (P2, P4), catalogue under Small Grid (P3), RULE_TEST_002 simulator core (P5: lrc, counter, alu74181, delta-pwm labels, onanalyze hook), undo menu labels (P6), RULE_TEST_002 after the stepping changes (P7: analog, digital, subcircuit example). Batch them for the developer at the pause. — main
+- `{s:pin}` Live-harness baseline at HEAD 259b5b6 (`npm run buildgwt && npm run test:live`): PASS undo, paste, sliders, loadstate, agent_docs (23), agent_ids (22), agent_catalogue (36), agent_edit (70), agent_connect (27), agent_connect_all, agent_freerun (6), geom_posts (39); FAIL (known; numbers must not worsen) textfid lossyFields 67, roundtrip lineDiffs 23 / classChanged 23 / jsonDiffs 17 / propChanged 2, synth 176 types / notCreated Optocoupler / jsonLegLoss 55. Phase 6 adds agent_history (34); Phase 7 adds agent_run (29); Phase 8 adds agent_bg (39). — main
+- `{s:pin}` Manual devmode checks owed (headless cannot run them; steps in each phase's Result note of agent-api.plan.md): RULE_TEST_005 tab close + hint flow (P1), editor undo + IDs (P2, P4), catalogue under Small Grid (P3), RULE_TEST_002 simulator core (P5: lrc, counter, alu74181, delta-pwm labels, onanalyze hook), undo menu labels (P6), RULE_TEST_002 after the stepping changes (P7: analog, digital, subcircuit example), active tab during the R1 sequence (P8). Batch them for the developer at the pause. — main
 - Harness-only diagnostics on `CircuitJS1Agent` (not contracts; listed in the plan's JS-boundary row): debugViewState, debugDocState, debugFailNextMutation, debugSetIdleSealMs, debugAgentOriginPush, debugFailNextUndoLoad. — main

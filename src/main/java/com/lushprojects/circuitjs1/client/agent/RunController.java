@@ -29,11 +29,12 @@ import java.util.Set;
  *     accepted call to the end: the free-running loop skips it, contracts not served while busy
  *     are rejected, and a user action or a close calls {@link #cancel()}.</li>
  * <li><b>Slices.</b> Each slice binds the document through {@code DocumentScope} and takes
- *     timesteps ({@link CircuitSimulator#runSteps}) until {@link #SLICE_MS} minus
- *     {@link #SLICE_MARGIN_MS} after the scope was entered (the margin covers the unbind and timer
- *     granularity), or an end condition holds; after every step the probes record. Between
- *     slices the run yields: when the visible tab is another document that free-runs, until that
- *     tab has run one frame (PL_AGA_DEC_01 condition 4); otherwise through a zero-delay timer. The
+ *     timesteps ({@link CircuitSimulator#runSteps}) until {@link Slices#SLICE_MS} minus
+ *     {@link Slices#SLICE_MARGIN_MS} after the slice started, just before the scope is entered (the
+ *     margin covers the bind and unbind, timer granularity and engine pauses), or an end condition
+ *     holds; after every step the probes record. Between slices the run yields through the
+ *     session-wide slice queue ({@link Slices#afterVisibleFrame}): at most one slice of any
+ *     operation per frame of a free-running visible tab (PL_AGA_DEC_01 condition 4). The
  *     document is repainted once per slice when it is the visible tab.</li>
  * <li><b>End conditions</b>, checked after every step in the spec's order: solver stop,
  *     {@code tEnd} reached ({@code span_reached}; {@code settle_timeout} in settle mode), settled,
@@ -51,13 +52,6 @@ import java.util.Set;
  * for {@code budget_exhausted}, {@code settle_timeout} and {@code cancelled}.
  */
 final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator.StepObserver {
-
-    /** Nominal slice length (ms), measured from scope entry ([SP_AGA_03_08] R1 timing). */
-    static final int SLICE_MS = 20;
-    /** Part of the slice kept free for the unbind and timer granularity (ms). */
-    static final int SLICE_MARGIN_MS = 3;
-    /** Longest wait for the visible tab's next frame before the next slice runs anyway (ms). */
-    static final int FRAME_WAIT_FALLBACK_MS = 50;
 
     static final int MAX_PROBES = 16;
     static final int DEFAULT_MAX_POINTS = 200;
@@ -133,27 +127,11 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
     private boolean inSlice;
     private boolean cancelRequested;
     private boolean finished;
-    /** Invalidates pending continuations (frame callback, fallback timer) once one has fired. */
-    private int generation;
     private SettleDetector settle;
     private double recordStart;
     /** Solver events present at the start and raised during the run, in order. */
     private final List<CircuitSimulator.SolverEvent> events = new ArrayList<>();
     private Issue internalError;
-
-    private final Timer sliceTimer = new Timer() {
-        @Override
-        public void run() {
-            slice();
-        }
-    };
-
-    private final Timer fallbackTimer = new Timer() {
-        @Override
-        public void run() {
-            resume(generation);
-        }
-    };
 
     private RunController(AgentApi.Call call, AgentApi.Completion done, boolean settleMode, double span,
             double tolerance, double window, double maxSpan, int budgetMs, double recordFrom, boolean reset,
@@ -289,7 +267,7 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             return;
         }
         doc.setAgentBusy(run);
-        run.sliceTimer.schedule(0);
+        Slices.afterVisibleFrame(call.sim, doc, run::slice);
     }
 
     private static boolean present(JSONObject o, String key) {
@@ -320,8 +298,9 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             finish();
             return;
         }
-        // the slice budget starts at scope entry, so the bind cost counts ([SP_AGA_03_08] R1)
-        sliceDeadline = Duration.currentTimeMillis() + SLICE_MS - SLICE_MARGIN_MS;
+        // the slice budget starts before the scope entry, so the bind cost counts ([SP_AGA_03_08] R1)
+        Slices.begin("run", doc);
+        sliceDeadline = Slices.deadline();
         Throwable failure = null;
         inSlice = true;
         try {
@@ -330,6 +309,7 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             failure = t;
         } finally {
             inSlice = false;
+            Slices.end("run", doc);
         }
         try {
             collectEvents();
@@ -483,27 +463,9 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         return doc.simulator.getStopMessage() != null || doc.getErrorMessage() != null;
     }
 
+    /** PL_AGA_DEC_01 condition 4: the next slice runs after one frame of another free-running visible tab. */
     private void scheduleNextSlice() {
-        final int gen = ++generation;
-        CircuitDocument visible = sim.getActiveDocument();
-        if (visible != doc && visible.simulationLoop.isScheduled() && !visible.isAgentBusy()) {
-            // PL_AGA_DEC_01 condition 4: the visible tab runs one free-run frame first
-            visible.simulationLoop.runAfterNextFrame(() -> resume(gen));
-            fallbackTimer.schedule(FRAME_WAIT_FALLBACK_MS);
-        } else {
-            sliceTimer.schedule(0);
-        }
-    }
-
-    /** Continuation after the visible tab's frame (or the fallback): the next slice, once. */
-    private void resume(int gen) {
-        if (finished || gen != generation) {
-            return;
-        }
-        generation++;
-        fallbackTimer.cancel();
-        // a task boundary after the frame, so the browser can paint and take input
-        sliceTimer.schedule(0);
+        Slices.afterVisibleFrame(sim, doc, this::slice);
     }
 
     // ---------------------------------------------------------------- cancel and completion
@@ -530,10 +492,8 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         if (finished) {
             return;
         }
+        // a pending slice continuation finds the run finished and does nothing
         finished = true;
-        generation++;
-        sliceTimer.cancel();
-        fallbackTimer.cancel();
         OperationResult result = null;
         Throwable failure = null;
         try {

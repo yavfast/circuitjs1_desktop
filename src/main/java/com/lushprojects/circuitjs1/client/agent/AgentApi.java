@@ -122,6 +122,7 @@ public final class AgentApi {
         DiagnosticsOps.register(this);
         HistoryOps.register(this);
         SimControlOps.register(this);
+        RenderOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {
@@ -167,8 +168,8 @@ public final class AgentApi {
     /**
      * Runs a contract and delivers its JSON result to {@code callback}. Synchronous contracts,
      * and asynchronous ones rejected by a common rule or argument check, call back before this
-     * method returns; an accepted asynchronous contract ({@code run}; {@code render} in PL_AGA
-     * Phase 8) calls back exactly once when it completes.
+     * method returns; an accepted asynchronous contract ({@code run}, {@code render}) calls back
+     * exactly once when it completes.
      */
     public void callAsync(String op, String argsJson, final ResultCallback callback) {
         Contract contract = op == null ? null : contracts.get(op);

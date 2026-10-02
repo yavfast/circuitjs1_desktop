@@ -15,8 +15,10 @@ import java.util.function.Supplier;
  *     {@code bindDocument}, which restarts the visible tab's loop timer.</li>
  * <li>Detach the session sliders dialog, so the target's slider rebuilds cannot touch it.</li>
  * <li>Apply the target's options, its view transform (or centre it when it has none) and hint.</li>
- * <li>Run the operation. The user's {@code onanalyze} hook is not called while a document other
- *     than the visible tab is bound.</li>
+ * <li>Run the operation. The user's {@code onanalyze} and {@code ontimestep} hooks are not called
+ *     while a document other than the visible tab is bound. After a successful operation the
+ *     target's scope panel is laid out as the visible tab's next frame would lay it out
+ *     ({@code ScopeManager.setupScopes}), so scopes it created get their sample buffers.</li>
  * <li>Save the target's UI state and hint, swap back, re-apply the bound document's options,
  *     transform, hint and circuit area, re-attach the sliders dialog and refresh the derived
  *     session widgets (time-step bar, power bar, Undo/Redo, edit items, Save item, window title).
@@ -30,7 +32,8 @@ import java.util.function.Supplier;
  * <p>
  * It lives at the client root so user paths (closed-tab dump, session save) use it without
  * importing the agent package; the agent contracts call it from {@code client/agent/}.
- * Phase 8 of PL_AGA completes the session-coupled path list and adds rendering.
+ * PL_AGA Phase 8 audited the session-coupled path list of [SP_AGA_03_08] against it (plan
+ * Phase 8 result); offscreen rendering ({@code CircuitRenderer.renderOffscreen}) runs inside it.
  */
 public final class DocumentScope {
 
@@ -75,7 +78,14 @@ public final class DocumentScope {
             }
             target.applyOptionWidgets(mm, sim);
             target.applyViewState(sim, true);
-            return op.get();
+            T result = op.get();
+            // As the visible tab's next frame would: lay the target's scope panel out, which also
+            // allocates the sample buffers of scopes the operation created (a text import adds
+            // plots without them, and a run would step into them). The circuit area it sizes from
+            // the target's scope count is put back below.
+            renderer.setCircuitArea();
+            target.scopeManager.setupScopes();
+            return result;
         } finally {
             try {
                 target.saveUIState(mm, sim);

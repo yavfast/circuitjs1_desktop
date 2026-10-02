@@ -25,6 +25,7 @@ package com.lushprojects.circuitjs1.client;
 // or https://github.com/sharpie7/circuitjs1/blob/master/INTERNALS.md
 
 import com.google.gwt.json.client.JSONArray;
+import com.google.gwt.json.client.JSONBoolean;
 import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
@@ -56,6 +57,7 @@ import com.google.gwt.user.client.Window.ClosingEvent;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
 import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.MenuBar;
+import com.google.gwt.user.client.ui.MenuItem;
 import com.google.gwt.user.client.ui.RootLayoutPanel;
 import com.google.gwt.user.client.ui.RootPanel;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
@@ -65,6 +67,9 @@ import com.lushprojects.circuitjs1.client.element.ExtVoltageElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
 import com.lushprojects.circuitjs1.client.ui.tabs.TabBarPanel;
 import com.lushprojects.circuitjs1.client.util.Locale;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @SuppressWarnings("deprecation")
 public class CirSim extends BaseCirSim implements NativePreviewHandler {
@@ -705,6 +710,73 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
         return o.toString();
     }
 
+    /**
+     * Diagnostic snapshot of the session UI that [SP_AGA_03_08] R1 protects, for the live harness
+     * (not an API contract): menu check items, the mode check marks, the time-step, speed, current
+     * and power bars, voltage range and printable colour mode, enabled state and labels of the
+     * Edit and Save items, and the visible tab's mouse mode. Read-only.
+     *
+     * @return a JSON object string
+     */
+    public String getSessionStateJson() {
+        MenuManager mm = menuManager;
+        JSONObject o = new JSONObject();
+        JSONObject checks = new JSONObject();
+        CheckboxMenuItem[] items = { mm.dotsCheckItem, mm.voltsCheckItem, mm.powerCheckItem, mm.smallGridCheckItem,
+                mm.crossHairCheckItem, mm.showValuesCheckItem, mm.conductanceCheckItem, mm.euroResistorCheckItem,
+                mm.euroGatesCheckItem, mm.printableCheckItem, mm.conventionCheckItem, mm.noEditCheckItem,
+                mm.mouseWheelEditCheckItem, mm.toolbarCheckItem, mm.mouseModeCheckItem };
+        String[] names = { "dots", "volts", "power", "smallGrid", "crossHair", "showValues", "conductance",
+                "euroResistor", "euroGates", "printable", "convention", "noEdit", "mouseWheelEdit", "toolbar",
+                "mouseMode" };
+        for (int i = 0; i < items.length; i++) {
+            if (items[i] != null) {
+                checks.put(names[i], JSONBoolean.getInstance(items[i].getState()));
+            }
+        }
+        o.put("checks", checks);
+        JSONArray modes = new JSONArray();
+        for (int i = 0; i < mm.mainMenuItems.size(); i++) {
+            if (mm.mainMenuItems.get(i).getState()) {
+                modes.set(modes.size(), new JSONNumber(i));
+            }
+        }
+        o.put("modeChecks", modes);
+        JSONObject bars = new JSONObject();
+        bars.put("speed", new JSONNumber(speedBar.getValue()));
+        bars.put("current", new JSONNumber(currentBar.getValue()));
+        bars.put("power", new JSONNumber(powerBar.getValue()));
+        bars.put("timeStep", new JSONNumber(timeStepBar.getValue()));
+        bars.put("powerEnabled", JSONBoolean.getInstance(powerBar.enabled));
+        o.put("bars", bars);
+        o.put("voltageRange", new JSONNumber(ColorSettings.get().getVoltageRange()));
+        o.put("printableColors", JSONBoolean.getInstance(ColorSettings.get().isPrintable()));
+        JSONObject menu = new JSONObject();
+        MenuItem[] mis = { mm.undoItem, mm.redoItem, mm.cutItem, mm.copyItem, mm.pasteItem, mm.flipXItem,
+                mm.flipYItem, mm.flipXYItem, mm.saveFileItem };
+        String[] mnames = { "undo", "redo", "cut", "copy", "paste", "flipX", "flipY", "flipXY", "save" };
+        for (int i = 0; i < mis.length; i++) {
+            if (mis[i] != null) {
+                menu.put(mnames[i], new JSONString((mis[i].isEnabled() ? "on " : "off ") + mis[i].getText()));
+            }
+        }
+        o.put("menu", menu);
+        o.put("mouseMode", new JSONString(String.valueOf(getActiveDocument().circuitEditor.mouseModeStr)));
+        return o.toString();
+    }
+
+    /**
+     * Diagnostic for the live harness (not an API contract): renders the visible tab now and returns
+     * the session canvas as a PNG data URL, for pixel comparisons around agent operations.
+     */
+    public String getCanvasPixelsForDebug() {
+        if (renderer.getCanvas() == null) {
+            return null;
+        }
+        renderer.render();
+        return renderer.getCanvas().toDataUrl("image/png");
+    }
+
     private static JSONObject rectJson(Rectangle r) {
         JSONObject o = new JSONObject();
         o.put("x", new JSONNumber(r.x));
@@ -852,24 +924,71 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     }
 
     boolean loadedCanvas2SVG = false;
+    /** Callbacks waiting for the canvas2svg load in progress (null while no load runs). */
+    private List<Runnable[]> canvas2SvgWaiters;
+    /** Harness diagnostic: the next canvas2svg load requests a missing file (PL_AGA Phase 8). */
+    private static boolean failNextCanvas2SvgLoad;
+
+    /** Arms {@link #loadCanvas2Svg} to fail its next load (harness diagnostic, not a contract). */
+    public static void armCanvas2SvgLoadFailure() {
+        failNextCanvas2SvgLoad = true;
+    }
+
+    /**
+     * Loads the vector exporter {@code canvas2svg.js} once, asynchronously, and then calls
+     * {@code onLoaded}; when it cannot be loaded, {@code onFailed} (no alert — the user path shows
+     * its own). Requests made during a load wait for it; a failed load is retried by the next
+     * request. With the exporter already loaded, {@code onLoaded} runs at once.
+     */
+    public void loadCanvas2Svg(Runnable onLoaded, Runnable onFailed) {
+        boolean forceFailure = failNextCanvas2SvgLoad;
+        failNextCanvas2SvgLoad = false;
+        if (loadedCanvas2SVG && !forceFailure) {
+            onLoaded.run();
+            return;
+        }
+        if (canvas2SvgWaiters != null) {
+            canvas2SvgWaiters.add(new Runnable[] { onLoaded, onFailed });
+            return;
+        }
+        canvas2SvgWaiters = new ArrayList<>();
+        canvas2SvgWaiters.add(new Runnable[] { onLoaded, onFailed });
+        String url = forceFailure ? "canvas2svg-missing.js" : "canvas2svg.js";
+        ScriptInjector.fromUrl(url).setCallback(new Callback<Void, Exception>() {
+            public void onFailure(Exception reason) {
+                finish(false);
+            }
+
+            public void onSuccess(Void result) {
+                loadedCanvas2SVG = true;
+                finish(true);
+            }
+
+            private void finish(boolean ok) {
+                List<Runnable[]> waiters = canvas2SvgWaiters;
+                canvas2SvgWaiters = null;
+                for (Runnable[] w : waiters) {
+                    try {
+                        (ok ? w[0] : w[1]).run();
+                    } catch (Throwable t) {
+                        // one failing waiter must not starve the others (shown as before, RULE_ERR_004)
+                        GWT.reportUncaughtException(t);
+                    }
+                }
+            }
+        }).inject();
+    }
 
     boolean initializeSVGScriptIfNecessary(final String followupAction) {
         // load canvas2svg if we haven't already
         if (!loadedCanvas2SVG) {
-            ScriptInjector.fromUrl("canvas2svg.js").setCallback(new Callback<Void, Exception>() {
-                public void onFailure(Exception reason) {
-                    Window.alert("Can't load canvas2svg.js.");
+            loadCanvas2Svg(() -> {
+                if (followupAction.equals("doExportAsSVG")) {
+                    doExportAsSVG();
+                } else if (followupAction.equals("doExportAsSVGFromAPI")) {
+                    doExportAsSVGFromAPI();
                 }
-
-                public void onSuccess(Void result) {
-                    loadedCanvas2SVG = true;
-                    if (followupAction.equals("doExportAsSVG")) {
-                        doExportAsSVG();
-                    } else if (followupAction.equals("doExportAsSVGFromAPI")) {
-                        doExportAsSVGFromAPI();
-                    }
-                }
-            }).inject();
+            }, () -> Window.alert("Can't load canvas2svg.js."));
             return false;
         }
         return true;
@@ -895,11 +1014,11 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
     public static final int CAC_SVG = 2;
 
     // create SVG context using canvas2svg
-    native static Context2d createSVGContext(int w, int h) /*-{
+    public native static Context2d createSVGContext(int w, int h) /*-{
 	    return new C2S(w, h);
 	}-*/;
 
-    native static String getSerializedSVG(Context2d context) /*-{
+    public native static String getSerializedSVG(Context2d context) /*-{
 	    return context.getSerializedSvg();
 	}-*/;
 

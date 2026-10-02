@@ -107,6 +107,11 @@ public class DocumentManager {
         cirSim.enableUndoRedo();
     }
 
+    /** @return the closed-tab dumps, oldest first (live-harness diagnostic for [SP_AGA_03_08] R2) */
+    public List<String> getClosedTabDumps() {
+        return new ArrayList<>(closedTabsHistory);
+    }
+
     public boolean hasClosedTabs() {
         return !closedTabsHistory.isEmpty();
     }

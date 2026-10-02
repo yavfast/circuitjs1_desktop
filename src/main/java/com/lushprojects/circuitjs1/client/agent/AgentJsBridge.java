@@ -1,6 +1,7 @@
 package com.lushprojects.circuitjs1.client.agent;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.CanvasElement;
 import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONBoolean;
@@ -26,6 +27,13 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
  * to check that the stacks and the document are restored) and {@code debugFailNextRunSlice()} (the
  * next slice of an agent run throws inside its document scope, to check that the run ends with
  * {@code internal_error}, reaches the global handler and still calls back — PL_AGA Phase 7).
+ * PL_AGA Phase 8 adds {@code debugSetSliceProbe(fn)} ({@code fn(op, doc, phase)} before and after
+ * every run/render slice, to sample the R1 state and time the slices), {@code debugSessionState()}
+ * (the session UI that R1 protects), {@code debugCanvasPixels()} (renders the visible tab now and
+ * returns its canvas as a PNG data URL), {@code debugClosedTabs()} (the closed-tab dumps) and
+ * {@code debugFailNextSvgLoad()} (the next load of the vector exporter fails, for
+ * {@code render_failed}); {@code debugDocState} also returns the document's UI state, title and
+ * file name/path.
  * <p>
  * Every entry point is wrapped in {@code $entry}: an unexpected Java exception reaches the
  * global uncaught-exception handler (RULE_ERR_004) and the call returns {@code undefined}, which
@@ -83,8 +91,74 @@ public final class AgentJsBridge {
             }),
             debugFailNextRunSlice: $entry(function() {
                 @com.lushprojects.circuitjs1.client.agent.RunController::armForcedFailure()();
+            }),
+            // PL_AGA Phase 8 diagnostics (R1/R2 checks and render)
+            debugSetSliceProbe: $entry(function(fn) {
+                @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::setSliceProbe(Lcom/google/gwt/core/client/JavaScriptObject;)(typeof fn === 'function' ? fn : null);
+            }),
+            debugSessionState: $entry(function() {
+                return sim.@com.lushprojects.circuitjs1.client.CirSim::getSessionStateJson()();
+            }),
+            debugCanvasPixels: $entry(function() {
+                return sim.@com.lushprojects.circuitjs1.client.CirSim::getCanvasPixelsForDebug()();
+            }),
+            debugClosedTabs: $entry(function() {
+                return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugClosedTabs(Lcom/lushprojects/circuitjs1/client/CirSim;)(sim);
+            }),
+            debugFailNextSvgLoad: $entry(function() {
+                @com.lushprojects.circuitjs1.client.CirSim::armCanvas2SvgLoadFailure()();
             })
         };
+    }-*/;
+
+    /** Harness diagnostic: observes every run/render slice boundary ({@link Slices}); null removes it. */
+    private static void setSliceProbe(final JavaScriptObject fn) {
+        Slices.setProbe(fn == null ? null : (op, doc, phase) -> invokeSliceProbe(fn, op, doc, phase));
+    }
+
+    private static native void invokeSliceProbe(JavaScriptObject fn, String op, String doc, String phase) /*-{
+        fn(op, doc, phase);
+    }-*/;
+
+    /** Harness diagnostic: the closed-tab dumps, oldest first, as a JSON array string. */
+    private static String debugClosedTabs(CirSim sim) {
+        JSONArray a = new JSONArray();
+        for (String dump : sim.documentManager.getClosedTabDumps()) {
+            a.set(a.size(), new JSONString(dump));
+        }
+        return a.toString();
+    }
+
+    /** Receives the base64 PNG of {@link #encodePng}, or null when the encoder gave no data. */
+    interface Base64Callback {
+        void onEncoded(String base64);
+    }
+
+    /**
+     * [SP_AGA_02_08] Encodes a detached canvas as PNG off the event loop ({@code canvas.toBlob},
+     * then a {@code FileReader}); a browser without {@code toBlob} encodes synchronously. The
+     * callback runs once, on a task of its own, through {@code $entry}.
+     */
+    static native void encodePng(CanvasElement canvas, Base64Callback callback) /*-{
+        var done = $entry(function(text) {
+            callback.@com.lushprojects.circuitjs1.client.agent.AgentJsBridge.Base64Callback::onEncoded(Ljava/lang/String;)(text);
+        });
+        var fromUrl = function(url) {
+            var comma = url ? url.indexOf(',') : -1;
+            return comma < 0 ? null : url.substring(comma + 1);
+        };
+        if (typeof canvas.toBlob !== 'function') {
+            var url = canvas.toDataURL('image/png');
+            setTimeout(function() { done(fromUrl(url)); }, 0);
+            return;
+        }
+        canvas.toBlob(function(blob) {
+            if (!blob) { done(null); return; }
+            var reader = new FileReader();
+            reader.onload = function() { done(fromUrl(reader.result)); };
+            reader.onerror = function() { done(null); };
+            reader.readAsDataURL(blob);
+        }, 'image/png');
     }-*/;
 
     private static AgentApi.ResultCallback wrapCallback(final JavaScriptObject fn) {
@@ -117,6 +191,15 @@ public final class AgentJsBridge {
         o.put("gridSize", new JSONNumber(doc.circuitEditor.gridSize));
         o.put("agentOrigin", JSONBoolean.getInstance(doc.isAgentOrigin()));
         o.put("transaction", AgentTransaction.toJson(doc));
+        // [SP_AGA_03_08] R2 fields: the document's own UI state (with file name and path) and title
+        o.put("ui", doc.getUIStateJson());
+        o.put("title", new JSONString(sim.documentManager.getTabTitle(doc)));
+        JSONArray logs = new JSONArray();
+        for (String line : doc.logBuffer.getLogs()) {
+            logs.set(logs.size(), new JSONString(line));
+        }
+        o.put("logCount", new JSONNumber(logs.size()));
+        o.put("logs", logs);
         return o.toString();
     }
 

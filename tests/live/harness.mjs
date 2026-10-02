@@ -310,6 +310,41 @@ function pageHelpers() {
         view: JSON.parse(CircuitJS1Agent.debugViewState()),
       };
     },
+    // [PL_AGA_P8] SP_AGA_03_08 R1 sample: what the user sees of the visible tab plus the session UI
+    // (menu check items, bars, voltage range, colours, Edit/Save items, mouse mode), the toolbar
+    // Run/Stop button and the visible document's run state.
+    r1Sample() {
+      const btn = document.querySelector('.icon-stop, .icon-play');
+      const info = CircuitJS1.getSimInfo();
+      return { vis: H.visibleTab(), session: JSON.parse(CircuitJS1Agent.debugSessionState()), runButton: btn ? (btn.classList.contains('icon-stop') ? 'stop' : 'play') : null,
+        running: info.running, stopMessage: info.stopMessage || '' };
+    },
+    simTime() { return CircuitJS1.getSimInfo().time; },
+    // Slice probe (CircuitJS1Agent.debugSetSliceProbe): per slice its op, wall time from before the
+    // scope entry to after its exit, the visible tab's simulated time at its start and an R1 sample
+    // at its end.
+    startSliceProbe() {
+      const st = window.__slices = { list: [], begin: 0, visT: 0 };
+      CircuitJS1Agent.debugSetSliceProbe((op, doc, phase) => {
+        const now = performance.now();
+        if (phase === 'begin') { st.begin = now; st.visT = CircuitJS1.getSimInfo().time; return; }
+        st.list.push({ op, doc, ms: now - st.begin, at: st.begin, visT: st.visT, sample: H.r1Sample() });
+      });
+      return true;
+    },
+    stopSliceProbe() { CircuitJS1Agent.debugSetSliceProbe(null); return (window.__slices || { list: [] }).list; },
+    // DOM mutations inside the Sliders dialog (a rebuild or a visible redraw of its rows)
+    startSlidersObserver() {
+      const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.textContent.includes('Adjustable Sliders')) || document.body;
+      const st = window.__sliderMut = { count: 0, found: d !== document.body };
+      st.obs = new MutationObserver((recs) => { st.count += recs.length; });
+      st.obs.observe(d, { subtree: true, childList: true, attributes: true, characterData: true });
+      return st.found;
+    },
+    stopSlidersObserver() { const st = window.__sliderMut; if (!st) return null; st.obs.disconnect(); return { count: st.count, found: st.found }; },
+    docState(handle) { const r = CircuitJS1Agent.debugDocState(handle); return r ? JSON.parse(r) : null; },
+    closedTabs() { return JSON.parse(CircuitJS1Agent.debugClosedTabs()); },
+    canvasPixels() { return CircuitJS1Agent.debugCanvasPixels(); },
   };
   window.__H = H;
   return true;
@@ -2947,9 +2982,335 @@ async function scenarioAgentHistory(s) {
 }
 
 // ---------------------------------------------------------------- main
+// [PL_AGA_P8] Background-document completion and render (SP_AGA_03_08, SP_AGA_02_08):
+// SP_AGA_05_02 R1 and R2 (without the openFile step, Phase 9), "Background operations never switch
+// tabs"; SP_AGA_05_01 rows `run` background document and `render` png background; SP_AGA_05_03
+// "Agent builds while user watches"; plus render arguments, render_failed without an alert, a
+// render served while busy, and a pixel comparison of the visible tab around offscreen renders.
+// Reference fixture of the visible tab: a 10-element RC circuit with its own small grid, sliders,
+// hint, scopes and bar settings.
+const R1_REF_FIXTURE = '$ 3 0.000005 14.235633750745258 37 7 43 5e-11\n' +
+  'r 176 80 384 80 0 10\ns 384 80 448 80 0 1 false\nw 176 80 176 352 0\nc 384 352 176 352 0 0.000015 -9.86 -10\n' +
+  'l 384 80 384 352 0 1 0.03 0\nv 448 352 448 80 0 0 40 5 0 0 0.5\nr 384 352 448 352 0 100\n' +
+  'r 448 80 528 80 0 220\nc 528 80 528 352 0 0.00001 0 0\nw 528 352 448 352 0\n' +
+  'o 4 64 0 4099 20 0.05 0 2 4 3\no 3 64 0 4099 20 0.05 1 2 3 3\n' +
+  '38 3 0 0.000001 0.000101 Capacitance\n38 4 0 0.01 1.01 Inductance\n38 0 0 1 101 Resistance\nh 1 4 3\n';
+// Background fixture: a header that differs from the reference in every option, its own hint,
+// sliders (a pot and an adjustable) and a scope.
+const R1_BG_FIXTURE = '$ 12 0.00001 5.0 60 3 70 1e-10\n' +
+  '174 320 352 384 96 1 1000.0 0.5 Resistance\nv 240 352 240 96 0 0 40.0 5.0 0.0 0.0 0.5\nw 240 96 320 96 0\nw 240 352 320 352 0\n' +
+  'r 384 224 480 224 0 470\nc 480 224 480 352 0 0.000001 0 0\nw 480 352 320 352 0\ng 320 352 320 400 0 0\n' +
+  'o 5 64 0 4099 5 0.05 0 2 5 3\n38 4 0 10 1000 Rload\nh 2 4 5\n';
+async function scenarioAgentBackground(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const AA = (op, args, timeoutMs) => s.call('agentAsync', op, args, timeoutMs || 30000);
+  const codes = (r) => ((r && r.issues) || []).map((i) => i.code);
+  // first differing path of two values (for the notes)
+  const firstDiff = (a, b, p = '') => {
+    if (same(a, b)) return null;
+    if (a && b && typeof a === 'object' && typeof b === 'object') {
+      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { const d = firstDiff(a[k], b[k], p + '.' + k); if (d) return d; }
+    }
+    return { path: p, a: JSON.stringify(a).slice(0, 200), b: JSON.stringify(b).slice(0, 200) };
+  };
+  try {
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const alertMark = s.dialogs.length;
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+  // ---------------------------------------------------------------- R1 (active tab free-running)
+  await s.call('importText', R1_REF_FIXTURE);
+  await sleep(300);
+  const V = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  await s.eval(`CircuitJS1.setSimRunning(true); true`);
+  await sleep(600);
+  const base = await s.call('r1Sample');
+  out.notes.base = { options: base.vis.options, sliders: base.vis.sliders, hint: base.vis.view.hint, smallGrid: base.session.checks.smallGrid, bars: base.session.bars };
+  ck('refFixture', base.vis.count === 10 && base.session.checks.smallGrid === true && base.vis.sliders.sliders === 3 && base.vis.view.hint === '1 4 3' && base.running === true);
+  await sleep(500);
+  ck('baselineStable', same(await s.call('r1Sample'), base));
+  const samples = [];
+  const sample = async (label) => { samples.push({ label, sample: await s.call('r1Sample') }); };
+  const observed = await s.call('startSlidersObserver');
+  // idle baseline of the visible tab's simulated time per wall second
+  const rate = async (ms) => { const t0 = await s.call('simTime'); const w0 = Date.now(); await sleep(ms); return ((await s.call('simTime')) - t0) / ((Date.now() - w0) / 1000); };
+  const idleRate = await rate(2000);
+  // the sequence on background document X
+  const X = (await A('createDocument', { title: 'R1 X' })).data.doc;
+  await sample('createDocument');
+  const imp = await A('importCircuit', { doc: X, format: 'text', circuit: R1_BG_FIXTURE });
+  await sample('importCircuit');
+  const cp = await A('checkpoint', { doc: X, comment: 'imported' });
+  await sample('checkpoint');
+  const ed = await A('applyEdits', { doc: X, edits: [{ op: 'add', element: { id: 'R9', type: 'Resistor', start: { x: 40, y: 0 }, end: { x: 44, y: 0 } } }] });
+  await sample('applyEdits');
+  const un = await A('undo', { doc: X });
+  await sample('undo');
+  ck('sequenceOk', imp.ok && cp.ok && ed.ok && un.ok);
+  await s.call('startSliceProbe');
+  const tRun0 = await s.call('simTime'); const wRun0 = Date.now();
+  const run = await AA('run', { doc: X, span: 1000, budgetMs: 2000, probes: [{ element: 'C1' }] });
+  const runRate = ((await s.call('simTime')) - tRun0) / ((Date.now() - wRun0) / 1000);
+  out.notes.run = { ok: run.ok, reason: run.data && run.data.reason, steps: run.data && run.data.steps, wallMs: run.data && run.data.wallMs, issues: codes(run) };
+  await sample('run');
+  const png = await AA('render', { doc: X });
+  await sample('render png');
+  const svg = await AA('render', { doc: X, format: 'svg', includeScopes: true });
+  await sample('render svg');
+  const slices = await s.call('stopSliceProbe');
+  const exT = await A('exportCircuit', { doc: X, format: 'text' });
+  await sample('exportCircuit text');
+  const exJ = await A('exportCircuit', { doc: X, format: 'json' });
+  await sample('exportCircuit json');
+  // "Agent builds while user watches": X holds the circuit and its run results
+  const xCirc = await A('getCircuit', { doc: X });
+  ck('agentBuildsWhileUserWatches', run.ok && run.data && run.data.reason === 'budget_exhausted' && run.data.steps > 0
+    && run.data.probes && run.data.probes[0].stats && run.data.probes[0].stats.samples > 1 && xCirc.ok && xCirc.data.elements.length === 8);
+  const cl = await A('closeDocument', { doc: X, discardChanges: true });
+  await sample('closeDocument');
+  const mut = await s.call('stopSlidersObserver');
+  ck('asyncOk', png.ok && svg.ok && exT.ok && exJ.ok && cl.ok);
+  // every sample equals the pre-call state (synchronous calls and every slice boundary)
+  // the tab count follows X (one more tab from createDocument to closeDocument); all else is equal
+  const bad = [];
+  const norm = (x) => ({ ...x, vis: { ...x.vis, tabCount: 0 } });
+  const tabs = (label) => base.vis.tabCount + (label === 'closeDocument' ? 0 : 1);
+  for (const x of samples) if (!same(norm(x.sample), norm(base)) || x.sample.vis.tabCount !== tabs(x.label)) bad.push({ label: x.label, diff: firstDiff(x.sample, base) });
+  for (const x of slices) if (!same(norm(x.sample), norm(base)) || x.sample.vis.tabCount !== base.vis.tabCount + 1) bad.push({ label: x.op + ' slice', diff: firstDiff(x.sample, base) });
+  out.notes.r1Disturbed = bad.slice(0, 8);
+  ck('r1EverySampleUnchanged', bad.length === 0 && samples.length === 11);
+  ck('r1SlidersNotRebuilt', observed && mut && mut.count === 0);
+  out.notes.sliderMutations = mut;
+  // timing: slices, frames between slices, rate
+  const runSlices = slices.filter((x) => x.op === 'run');
+  const renderSlices = slices.filter((x) => x.op === 'render');
+  const ms = slices.map((x) => x.ms);
+  const stepMs = run.data && run.data.steps ? (runSlices.reduce((a, x) => a + x.ms, 0) / run.data.steps) : 0;
+  let noFrame = 0;
+  for (let i = 1; i < slices.length; i++) if (!(slices[i].visT > slices[i - 1].visT)) noFrame++;
+  out.notes.timing = {
+    idleRate, runRate, rateRatio: runRate / idleRate, slices: slices.length, runSlices: runSlices.length, renderSlices: renderSlices.length,
+    maxSliceMs: Math.max(...ms), meanSliceMs: ms.reduce((a, b) => a + b, 0) / ms.length, maxRenderSliceMs: Math.max(...renderSlices.map((x) => x.ms)),
+    over20: slices.filter((x) => x.ms > 20).map((x) => ({ op: x.op, ms: x.ms, index: slices.indexOf(x) })), stepMs, msList: ms.map((x) => +x.toFixed(1)), steps: run.data && run.data.steps, slicesWithoutFrameBefore: noFrame,
+  };
+  ck('r1RateAtLeastHalf', idleRate > 0 && runRate / idleRate >= 0.5);
+  ck('r1SliceBound', slices.length > 10 && Math.max(...ms) <= 20 + stepMs);
+  ck('r1FrameBetweenSlices', noFrame === 0);
+  // SP_AGA_05_01 run background document: completes, active tab unchanged (also every slice)
+  ck('runBackgroundDocument', run.ok && run.data.reason === 'budget_exhausted' && bad.filter((b) => /run/.test(b.label)).length === 0);
+  // Background operations never switch tabs (edit, run, render): the visible tab stayed V
+  ck('backgroundNeverSwitchesTabs', samples.every((x) => x.sample.vis.activeTitle === base.vis.activeTitle)
+    && (await A('listDocuments', {})).data.documents.find((d) => d.active).doc === V);
+  // SP_AGA_05_01 render png background: width/height cover the circuit bounds + 1-cell margin
+  const ext = (els) => {
+    const pts = els.flatMap((e) => [e.start, e.end].filter(Boolean));
+    const xs = pts.map((p) => p.x); const ys = pts.map((p) => p.y);
+    return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  };
+  const e = ext(xCirc.data.elements);
+  out.notes.renderPng = png.data && { width: png.data.width, height: png.data.height, cellsW: e.w, cellsH: e.h, bytes: png.data.content.length };
+  ck('renderPngBackground', png.ok && png.data.format === 'png' && png.data.width >= (e.w + 2) * 16 && png.data.height >= (e.h + 2) * 16
+    && png.data.width <= (e.w + 2) * 16 + 160 && png.data.height <= (e.h + 2) * 16 + 160 && /^iVBORw0KGgo/.test(png.data.content));
+  ck('renderSvgBackground', svg.ok && svg.data.format === 'svg' && /^<svg/.test(svg.data.content) && svg.data.height > png.data.height);
+  // ---------------------------------------------------------------- R1 with concurrent operations
+  // Two background runs and renders at the same time: the session-wide slice queue releases at most
+  // one slice per active-tab frame, round robin.
+  {
+    const C1 = (await A('createDocument', { title: 'R1 C1' })).data.doc;
+    const C2 = (await A('createDocument', { title: 'R1 C2' })).data.doc;
+    await A('importCircuit', { doc: C1, format: 'text', circuit: R1_BG_FIXTURE });
+    await A('importCircuit', { doc: C2, format: 'text', circuit: R1_BG_FIXTURE });
+    const baseC = await s.call('r1Sample');
+    await s.call('startSliceProbe');
+    const t0 = await s.call('simTime'); const w0 = Date.now();
+    await s.call('agentStart', 'cc1', 'run', { doc: C1, span: 1000, budgetMs: 1500, probes: [{ element: 'C1' }] });
+    await s.call('agentStart', 'cc2', 'run', { doc: C2, span: 1000, budgetMs: 1500 });
+    const cr = [await AA('render', { doc: C1 }), await AA('render', { doc: C2, format: 'svg', includeScopes: true }), await AA('render', { doc: C1, scale: 2 })];
+    await waitFor(async () => (await s.call('agentStarted', 'cc1')).calls === 1 && (await s.call('agentStarted', 'cc2')).calls === 1, 10000, 'concurrent runs');
+    const ccRate = ((await s.call('simTime')) - t0) / ((Date.now() - w0) / 1000);
+    const cs = await s.call('stopSliceProbe');
+    const r1c = (await s.call('agentStarted', 'cc1')).result; const r2c = (await s.call('agentStarted', 'cc2')).result;
+    let ccNoFrame = 0;
+    for (let i = 1; i < cs.length; i++) if (!(cs[i].visT > cs[i - 1].visT)) ccNoFrame++;
+    const ccStep = Math.max(r1c.data.steps ? cs.filter((x) => x.op === 'run' && x.doc === C1).reduce((a, x) => a + x.ms, 0) / r1c.data.steps : 0,
+      r2c.data.steps ? cs.filter((x) => x.op === 'run' && x.doc === C2).reduce((a, x) => a + x.ms, 0) / r2c.data.steps : 0);
+    const ccBad = cs.filter((x) => !same(norm(x.sample), norm(baseC)) || x.sample.vis.tabCount !== baseC.vis.tabCount);
+    // interleaving: switches between operations (doc+op) in the slice order
+    let switches = 0;
+    for (let i = 1; i < cs.length; i++) if (cs[i].doc + cs[i].op !== cs[i - 1].doc + cs[i - 1].op) switches++;
+    const ccMs = cs.map((x) => x.ms);
+    out.notes.concurrent = { slices: cs.length, run1: cs.filter((x) => x.op === 'run' && x.doc === C1).length, run2: cs.filter((x) => x.op === 'run' && x.doc === C2).length,
+      render: cs.filter((x) => x.op === 'render').length, switches, noFrame: ccNoFrame, maxSliceMs: Math.max(...ccMs), stepMs: ccStep, rate: ccRate, rateRatio: ccRate / idleRate,
+      runs: [r1c.data.reason, r2c.data.reason], disturbed: ccBad.slice(0, 3).map((x) => firstDiff(x.sample, baseC)) };
+    ck('r1ConcurrentFrameBetweenSlices', cs.length > 20 && ccNoFrame === 0 && switches > 10);
+    ck('r1ConcurrentSliceBound', Math.max(...ccMs) <= 20 + ccStep);
+    ck('r1ConcurrentRate', ccRate / idleRate >= 0.5);
+    ck('r1ConcurrentUnchanged', ccBad.length === 0 && cr.every((r) => r.ok) && r1c.ok && r2c.ok);
+    await A('closeDocument', { doc: C1, discardChanges: true });
+    await A('closeDocument', { doc: C2, discardChanges: true });
+  }
+
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+
+  // ---------------------------------------------------------------- R2 (X in background vs Y active)
+  const seq = async (d) => {
+    const r = [];
+    r.push(await A('importCircuit', { doc: d, format: 'text', circuit: R1_BG_FIXTURE }));
+    r.push(await A('checkpoint', { doc: d, comment: 'imported' }));
+    r.push(await A('applyEdits', { doc: d, edits: [{ op: 'add', element: { id: 'R9', type: 'Resistor', start: { x: 40, y: 0 }, end: { x: 44, y: 0 } } }, { op: 'set', id: 'R1', properties: { resistance: '680' } }] }));
+    r.push(await A('undo', { doc: d }));
+    r.push(await A('applyEdits', { doc: d, edits: [{ op: 'set', id: 'R1', properties: { resistance: '330' } }] }));
+    r.push(await AA('run', { doc: d, span: '20 ms', probes: [{ element: 'C1' }] }));
+    r.push(await AA('render', { doc: d }));
+    r.push(await A('exportCircuit', { doc: d, format: 'text' }));
+    return r;
+  };
+  const r2State = async (d) => {
+    const st = await s.call('docState', d);
+    const text = (await A('exportCircuit', { doc: d, format: 'text' })).data.content;
+    const listed = (await A('listDocuments', {})).data.documents.find((x) => x.doc === d);
+    return { text, ui: st.ui, title: st.title, modified: st.modified, undo: st.undo, redo: st.redo, logCount: st.logCount, listedTitle: listed && listed.title, listedModified: listed && listed.modified };
+  };
+  const RX = (await A('createDocument', { title: 'R2' })).data.doc;
+  const seqX = await seq(RX);
+  const stX = await r2State(RX);
+  const RY = (await A('createDocument', { title: 'R2' })).data.doc;
+  await A('activateDocument', { doc: RY });
+  await sleep(200);
+  const seqY = await seq(RY);
+  const stY = await r2State(RY);
+  ck('r2SequencesOk', seqX.every((r) => r.ok) && seqY.every((r) => r.ok));
+  out.notes.r2Seq = { x: seqX.map((r) => r.ok || codes(r)), y: seqY.map((r) => r.ok || codes(r)) };
+  out.notes.r2Diff = firstDiff({ ...stX, text: null }, { ...stY, text: null });
+  if (stX.text !== stY.text) out.notes.r2TextDiff = lineDiff(stX.text.split('\n'), stY.text.split('\n'));
+  out.notes.r2X = { ui: stX.ui, title: stX.title, modified: stX.modified };
+  // Known difference: the auto-range scales of a scope (fields 5 and 6 of an `o` line) are written by
+  // the draws of the visible tab, so Y's change with its frames; a background document's scopes keep
+  // theirs until drawn. Every other token must be equal.
+  const maskScopeScales = (t) => t.split('\n').map((l) => { const f = l.split(' '); if (f[0] === 'o' && f.length > 6) { f[5] = f[6] = '*'; } return f.join(' '); }).join('\n');
+  ck('r2CircuitText', maskScopeScales(stX.text) === maskScopeScales(stY.text));
+  out.notes.r2ScopeScalesEqual = stX.text === stY.text;
+  ck('r2UiState', same(stX.ui, stY.ui));
+  ck('r2TitleModifiedPath', stX.title === stY.title && stX.modified === stY.modified && stX.modified === true && stX.ui.filePath === stY.ui.filePath);
+  ck('r2UndoDepth', stX.undo === stY.undo && stX.redo === stY.redo);
+  // The per-document log buffer is in the R2 list. Known difference (Phase 0): lines of the session
+  // UI ("Save option: SlidersDialog.*", written when the visible tab's Sliders dialog is rebuilt)
+  // land in the bound document, so only Y has them; every other line must be equal.
+  const domainLogs = (l) => l.filter((x) => !/^Save option: SlidersDialog\./.test(x));
+  const logsX = (await s.call('docState', RX)).logs; const logsY = (await s.call('docState', RY)).logs;
+  ck('r2LogBuffer', same(domainLogs(logsX), domainLogs(logsY)) && domainLogs(logsX).length > 0);
+  if (!same(logsX, logsY)) out.notes.r2Logs = { x: logsX, y: logsY };
+  const closedBefore = (await s.call('closedTabs')).length;
+  await A('closeDocument', { doc: RX, discardChanges: true });
+  await A('closeDocument', { doc: RY, discardChanges: true });
+  const closed = await s.call('closedTabs');
+  // the closed-tab history keeps the newest 20 dumps (DocumentManager.MAX_CLOSED_TABS)
+  ck('r2ClosedTabDump', closed.length === Math.min(20, closedBefore + 2) && maskScopeScales(closed[closed.length - 1]) === maskScopeScales(closed[closed.length - 2]));
+  if (closed[closed.length - 1] !== closed[closed.length - 2]) out.notes.closedDiff = lineDiff(closed[closed.length - 2].split('\n'), closed[closed.length - 1].split('\n'));
+  await A('activateDocument', { doc: V });
+  await sleep(300);
+
+  // ---------------------------------------------------------------- pixels of the visible tab
+  // The visible tab is stopped, has a selection and a hint; offscreen renders of a background and
+  // of the visible document itself must not change one pixel of its next frame.
+  await s.call('select', 'R1', false);
+  // background P first: its first scope exit re-derives the Edit items from the visible tab's
+  // selection (the scripting select call leaves them stale), so the baseline below is current
+  const P = (await A('createDocument', { title: 'Pixels' })).data.doc;
+  await A('importCircuit', { doc: P, format: 'text', circuit: R1_BG_FIXTURE });
+  await AA('run', { doc: P, span: '5 ms' });
+  await sleep(200);
+  const pixA = await s.call('canvasPixels');
+  const pixB = await s.call('canvasPixels');
+  const visSess0 = await s.call('r1Sample');
+  const text0 = await s.call('exportText');
+  const pr = [];
+  pr.push(await AA('render', { doc: P, includeScopes: true }));
+  pr.push(await AA('render', { doc: P, format: 'svg', includeScopes: true, scale: 0.5 }));
+  pr.push(await AA('render', { includeScopes: true, scale: 2 }));
+  pr.push(await AA('render', { format: 'svg', includeScopes: true }));
+  const vis1 = await AA('render', {});
+  const vis2 = await AA('render', {});
+  await sleep(200);
+  const pixC = await s.call('canvasPixels');
+  ck('pixelControlStable', pixA === pixB);
+  ck('pixelsUnchangedAfterRenders', pr.every((r) => r.ok) && pixC === pixA);
+  const visSess1 = await s.call('r1Sample');
+  const text1 = await s.call('exportText');
+  const tabless = (x) => x;
+  out.notes.sessionAfterRenders = { diff: firstDiff(tabless(visSess1), visSess0), text: text1 === text0 ? null : lineDiff(text0.split('\n'), text1.split('\n')) };
+  ck('sessionUnchangedAfterRenders', same(tabless(visSess1), visSess0) && text1 === text0);
+  ck('renderDeterministic', vis1.ok && vis2.ok && vis1.data.content === vis2.data.content);
+  // the same with an in-circuit scope element (ScopeElm) and a running history in the visible tab
+  await s.call('loadExample', 'multivib-a.txt');
+  await s.eval(`CircuitJS1.setSimRunning(true); true`);
+  await sleep(1500);
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+  await sleep(200);
+  const pixD = await s.call('canvasPixels');
+  const pixE = await s.call('canvasPixels');
+  const sr = [await AA('render', { includeScopes: true }), await AA('render', { format: 'svg', scale: 3 }), await AA('render', { doc: P })];
+  await sleep(200);
+  const pixF = await s.call('canvasPixels');
+  ck('pixelsScopeElmUnchanged', pixD === pixE && sr.every((r) => r.ok) && pixF === pixD);
+  out.notes.pixels = { control: pixA === pixB, after: pixC === pixA, scopeElmControl: pixD === pixE, scopeElmAfter: pixF === pixD };
+
+  // ---------------------------------------------------------------- render contract details
+  ck('renderSyncRejected', codes(await A('render', {})).includes('invalid_value'));
+  const badArgs = [await AA('render', { format: 'jpg' }), await AA('render', { scale: 0.1 }), await AA('render', { scale: 5 }), await AA('render', { includeScopes: 'yes' }), await AA('render', { doc: 'd999' })];
+  out.notes.badArgs = badArgs.map((r) => codes(r));
+  ck('renderBadArgs', badArgs.slice(0, 4).every((r) => !r.ok && codes(r)[0] === 'invalid_value') && codes(badArgs[4])[0] === 'unknown_document');
+  // scale changes the size proportionally
+  const s1 = await AA('render', { doc: P }); const s2 = await AA('render', { doc: P, scale: 2 });
+  ck('renderScale', s1.ok && s2.ok && Math.abs(s2.data.width - 2 * s1.data.width) <= 2 && Math.abs(s2.data.height - 2 * s1.data.height) <= 2);
+  // an empty document: a blank 2 x 2 cell image
+  const E = (await A('createDocument', { title: 'Empty' })).data.doc;
+  const re = await AA('render', { doc: E });
+  ck('renderEmpty', re.ok && re.data.width === 32 && re.data.height === 32);
+  // too large: a 300-cell wire at scale 4
+  await A('importCircuit', { doc: E, circuit: { elements: [{ id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 300, y: 0 } }] } });
+  const big = await AA('render', { doc: E, scale: 4 });
+  ck('renderTooLarge', !big.ok && codes(big)[0] === 'invalid_value' && /scale/.test(big.issues[0].message));
+  // render_failed: the vector exporter cannot load; no alert; png and a later svg still work
+  await s.eval(`CircuitJS1Agent.debugFailNextSvgLoad(); true`);
+  const rf = await AA('render', { doc: P, format: 'svg' });
+  const rfPng = await AA('render', { doc: P });
+  const rfSvg = await AA('render', { doc: P, format: 'svg' });
+  out.notes.renderFailed = { codes: codes(rf), hint: rf.issues && rf.issues[0] && rf.issues[0].hint };
+  ck('renderFailedNoAlert', !rf.ok && codes(rf)[0] === 'render_failed' && /png/.test(rf.issues[0].hint) && rfPng.ok && rfSvg.ok && s.dialogs.length === alertMark);
+  // served while the document is busy with a run
+  await s.call('agentStart', 'busyRun', 'run', { doc: P, span: 1000, budgetMs: 1500 });
+  await sleep(100);
+  const busyRender = await AA('render', { doc: P });
+  const busyEdit = await A('applyEdits', { doc: P, edits: [{ op: 'describe', id: 'R1', description: 'x' }] });
+  await waitFor(async () => (await s.call('agentStarted', 'busyRun')).calls === 1, 10000, 'busy run end');
+  out.notes.busy = { render: busyRender.ok || codes(busyRender), edit: codes(busyEdit), run: (await s.call('agentStarted', 'busyRun')).result };
+  ck('renderServedWhileBusy', busyRender.ok && codes(busyEdit).includes('busy'));
+  // a document closed before its draw: unknown_document, one callback
+  const closedRender = await s.eval(`new Promise((resolve) => { let n = 0; let res = null;
+    CircuitJS1Agent.callAsync('render', JSON.stringify({ doc: ${JSON.stringify(P)} }), (r) => { n++; res = JSON.parse(r); });
+    CircuitJS1Agent.call('closeDocument', JSON.stringify({ doc: ${JSON.stringify(P)}, discardChanges: true }));
+    setTimeout(() => resolve({ n, codes: res && res.issues.map((i) => i.code) }), 500); })`);
+  ck('renderClosedDocument', closedRender.n === 1 && closedRender.codes && closedRender.codes[0] === 'unknown_document');
+  await A('closeDocument', { doc: E, discardChanges: true });
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((x) => x.slice(0, 600));
+  } catch (e) {
+    out.error = e.stack || e.message;
+    ck('harnessError', false);
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_bg.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_bg', failed.length === 0, { checks: Object.keys(out.checks).length, failed, timing: out.notes.timing && {
+    rateRatio: +out.notes.timing.rateRatio.toFixed(3), maxSliceMs: +out.notes.timing.maxSliceMs.toFixed(2), slices: out.notes.timing.slices }, details: path.join(OUT_DIR, 'agent_bg.json') });
+}
+
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -2992,7 +3353,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

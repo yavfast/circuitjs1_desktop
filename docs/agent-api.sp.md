@@ -438,10 +438,11 @@ Input: `doc?`, `format: "svg" | "png" = "png"`, `scale: number = 1` (0.25..4), `
 
 Output: `data: {format, width: int, height: int, content: string}`.
 - **Content.** SVG text, or PNG as base64.
-- **Area.** Drawn offscreen for the given document. It covers the circuit bounds plus a 1-cell margin, whatever the viewport or the active tab.
+- **Area.** Drawn offscreen for the given document. It covers the circuit bounds (element endpoints and bounding boxes, so labels are not clipped) plus a 1-cell margin, whatever the viewport or the active tab. An empty document gives a blank 32×32 image.
+- **Look.** The session's printable colours, no current dots, the target's selection highlight as it is. Drawing an image never changes a scope's graph, time base, trigger or scale.
 - **Completion.** Asynchronous: the first SVG render loads the vector exporter and then completes. A load failure produces an issue and never a modal alert.
 
-Errors: `render_failed` (the vector exporter could not load; `hint`: retry with `png`).
+Errors: `render_failed` (the vector exporter could not load; `hint`: retry with `png`); `invalid_value` naming `scale` (the image would exceed 16384 px on a side or 40 megapixels in area); `render_failed` also when the browser cannot encode the image (no dialog); `unknown_document` (the document was closed while rendering).
 
 ### 02_09. simControl  {#SP_AGA_02_09}
 
@@ -745,7 +746,7 @@ Every contract acts on its resolved document only, whether or not that document 
 
 **Requirement R1 — no disturbance of the active tab.** An operation on a non-active document leaves the following unchanged at every repaint during the call and after it, apart from the active document's own free-running progress. Timing bounds on that progress:
 - **Synchronous contracts.** The call's only effect on the active tab is its own execution time on the single event loop.
-- **`run` and `render`.** At least one active-tab free-run frame passes between consecutive slices, and no slice exceeds 20 ms plus one timestep. During a background `run` on the reference fixture (a 10-element RC circuit), the active tab's simulated time per wall second stays at or above 50 % of its idle baseline.
+- **`run` and `render`.** At least one active-tab free-run frame passes between consecutive slices, also between slices of different concurrent operations (a `run` and a `render`, or runs on two documents), and no slice exceeds 20 ms plus one indivisible unit of work: one timestep for `run`; one element's draw or the image canvas allocation for `render`. A unit that alone exceeds the bound (a pathological timestep, a very large image) is not split, and the slice is the only one that exceeds it, except that a `render` restarted because the document's element list changed between its slices allocates again when the image size changed. The completion of an operation (result encoding and the reply, measured at a few milliseconds) runs as one task after the last slice. During a background `run` on the reference fixture (a 10-element RC circuit), the active tab's simulated time per wall second stays at or above 50 % of its idle baseline.
 - **Sliders dialog.** It is never rebuilt or visibly redrawn by the call.
 
 The protected state:
@@ -928,7 +929,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Agent-origin pushes never auto-seal | An agent `delete` that reuses editor delete code leaves the transaction open |
 | Background operations never switch tabs | Edit, run and render a non-active document; the active tab is unchanged |
 | R1 — no disturbance | Setup: the active tab free-runs the reference fixture with its own small-grid, sliders, hint and bar settings. On a background document, one after another: `importCircuit`, `applyEdits`, `undo`, `run` (2 s), `render`, `exportCircuit`, `openFile` into it, `closeDocument`. Sample the R1 list after each synchronous call and at every slice boundary of `run`/`render`. Pass: every sample equals the pre-call value; the active tab's simulated time per wall second during the `run` is ≥ 50 % of its idle baseline; no sliders-dialog rebuild is observed |
-| R2 — target as if active | Apply the same operation sequence to background document X and to an identical document Y while Y is active. Pass: X and Y end with equal circuit text, saved UI state, view transform, adjustables, hint, title, modified flag and file path |
+| R2 — target as if active | Apply the same operation sequence to background document X and to an identical document Y while Y is active. Pass: X and Y end with equal circuit text, saved UI state, view transform, adjustables, hint, title, modified flag and file path. Known difference: a scope's auto-range scales (fields 5–6 of an `o` line) are rewritten whenever the visible tab draws, so the check masks them; the log buffer is compared without the `Save option: SlidersDialog.*` lines, which the visible tab's sliders dialog writes into its own document's log; a `run` in the sequence uses a simulated `span` so both documents step identically |
 | No 0-V fallback | `read`/probe of a missing net never returns a value |
 | Pin names unique | For every catalogue type, `pins` has no duplicates |
 | Grid preference of other tabs has no effect | With Small Grid on in the active tab, `applyEdits add` of a potentiometer in a background document without the small-grid option gives the same posts as with it off; undo/redo and reload keep those posts |
@@ -1046,6 +1047,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |
 | 2026-10-02 | PL_AGA Phase 7: `run` on an empty document is `invalid_value` naming `doc`; empty probe stats; time output digits and the shape-statistics series (§03_07); a canvas press cancels a run (§04_02); §06_01 item 17 `ontimestep` guard; review: configure current-step wording, empty configure, slice exception stops the document, non-finite samples, steps count forced steps, settle chunks, slider and legacy-script cancels |
 | 2026-10-02 | §04_01: a sealed agent transaction without net change is dropped by the next user edit push (PL_AGA Phase 6 review) |
 | 2026-10-01 | §06_01 item 16: blank-circuit time-step defaults for new documents (PL_AGA Phase 6) |

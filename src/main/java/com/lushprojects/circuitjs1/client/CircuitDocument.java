@@ -1,6 +1,11 @@
 package com.lushprojects.circuitjs1.client;
 
 import com.google.gwt.json.client.JSONArray;
+import com.google.gwt.json.client.JSONBoolean;
+import com.google.gwt.json.client.JSONNull;
+import com.google.gwt.json.client.JSONNumber;
+import com.google.gwt.json.client.JSONObject;
+import com.google.gwt.json.client.JSONString;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import java.util.ArrayList;
@@ -684,6 +689,38 @@ public class CircuitDocument {
         hintType = cirSim.renderer.getHintType();
         hintItem1 = cirSim.renderer.getHintItem1();
         hintItem2 = cirSim.renderer.getHintItem2();
+    }
+
+    /**
+     * Diagnostic for the live harness (not an API contract): this document's own UI state as
+     * [SP_AGA_03_08] R2 compares it — options, bars, voltage range, view transform, hint, file name
+     * and path. For the bound document they are the session widgets' values (its saved state is
+     * refreshed from them first), for any other document its saved UI state.
+     */
+    public JSONObject getUIStateJson() {
+        CirSim sim = getCirSim();
+        if (sim.getActiveDocument() == this) {
+            saveUIState(sim.menuManager, sim);
+        }
+        JSONObject o = new JSONObject();
+        o.put("dots", JSONBoolean.getInstance(dots));
+        o.put("volts", JSONBoolean.getInstance(volts));
+        o.put("power", JSONBoolean.getInstance(power));
+        o.put("showValues", JSONBoolean.getInstance(showValues));
+        o.put("smallGrid", JSONBoolean.getInstance(smallGrid));
+        o.put("speed", new JSONNumber(speedValue));
+        o.put("current", new JSONNumber(currentValue));
+        o.put("powerBar", new JSONNumber(powerValue));
+        o.put("voltageRange", new JSONNumber(voltageRange));
+        JSONArray t = new JSONArray();
+        for (int i = 0; i < 6; i++) {
+            t.set(i, new JSONNumber(transform[i]));
+        }
+        o.put("transform", t);
+        o.put("hint", new JSONString(hintType + " " + hintItem1 + " " + hintItem2));
+        o.put("fileName", circuitInfo.fileName == null ? JSONNull.getInstance() : new JSONString(circuitInfo.fileName));
+        o.put("filePath", circuitInfo.filePath == null ? JSONNull.getInstance() : new JSONString(circuitInfo.filePath));
+        return o;
     }
 
     /**
