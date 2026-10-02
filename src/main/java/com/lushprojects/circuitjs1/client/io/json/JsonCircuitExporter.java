@@ -178,10 +178,9 @@ public class JsonCircuitExporter implements CircuitExporter {
         sim.put("current_speed", new JSONNumber(cirSim.currentBar.getValue()));
         sim.put("power_brightness", new JSONNumber(cirSim.powerBar.getValue()));
 
-        // Auto time step
-        if (simulator.adjustTimeStep) {
-            sim.put("auto_time_step", JSONBoolean.getInstance(true));
-        }
+        // Auto time step: written also when off, because the importer keeps the target
+        // document's own setting when the key is absent (SP_MCP_05_01 circuit round trip)
+        sim.put("auto_time_step", JSONBoolean.getInstance(simulator.adjustTimeStep));
 
         // Circuit hint (text format 'h' line); items are element indices, as in the text format
         CircuitRenderer renderer = document.getRenderer();

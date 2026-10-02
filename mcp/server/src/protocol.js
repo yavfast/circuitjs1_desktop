@@ -249,4 +249,5 @@ module.exports = {
   PENDING_TIMEOUT_MS,
   McpError,
   ErrorCode,
+  clip,
 };

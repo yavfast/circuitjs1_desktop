@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 12:30
+> **Last updated:** 2026-10-02 12:45
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phase 1 and the fix round committed; PL_MCP Phase 2 next; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phases 1–2 and the fix round committed; PL_MCP Phase 3 next; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -106,7 +106,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 9 — path-based files implemented (PathFileAdapter, CircuitContentTest + `isKnownDumpType`, FileOps); review PASS 2 should + 3 prefer → fixed (spec link/dir codes per contract, own-staging-only cleanup, checked-target write, fsync before rename, no exception text in issues); delta PASS. Heading stays `[TODO]`: file rows + R1/R2 `openFile` step run in the PL_MCP Phase 4 NW.js harness (scratch NW.js CDP run 49/49). agent_files 43 checks
 - [x] PL_MCP Phase 1 — endpoint, start-up, preferences, registry (mcp/server/src, McpServerStatus, esbuild bundle, Chromium flags, unload/Exit stop); review FAIL (must: strict-schema-rejected requests never answered → socket/pending leak) → fixed with -32600, backstop timer, header/request timeouts, cancel drop, strict IPv6, early 413 + close, 0700 dir, -32602; delta PASS + 1 should/2 prefer → fixed by main (bounded echo, null id, spec HTTP statuses), verified in NW.js. Scratch NW.js driver (endpoint 62 + hostile 18 checks) in the session scratchpad — move into tests/mcp/ in PL_MCP Phase 4
 - [x] E_AGT fix round (research-spike findings): first sample only from a solved state (`CircuitSimulator.isSolved`), time-step bar set from code without its command in tab activation + text/JSON import (BL-D01; bad `$` step → 5 µs), `stop_trigger` run reason (SP_AGA_DEC_05, resolved delegated), determinism qualified; review PASS 1 should + 2 prefer → fixed, verified by local reverts. agent_run 35 checks
-- [ ] **Next:** PL_MCP Phase 2 — tools, resources and result shaping
+- [x] PL_MCP Phase 2 — 14 tools, schemas, validation, shaping, resources, agent-format text, `test:mcp-unit` (25); review FAIL (must: unbounded echo in resource errors) → fixed + settle unit strings, polarity text removed, cross-checks dropped; delta PASS; main bounded `type` echo and the closest-name edit distance in Java (1 MB type: 455 ms, 118-char message). Claude Code lists 14 tools and calls one; NW.js scratch driver `mcp2/nw_mcp2.mjs` (41 checks) → tests/mcp/ in Phase 4
+- [ ] **Next:** PL_MCP Phase 3 — menu item and info dialog
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
@@ -143,6 +144,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 ## Coordination Notes
 
+- `proposed` (developer decision, found in PL_MCP Phase 2): JSON/agent pin names of polar elements look swapped — `VoltageElm.getJsonPinNames` = {positive, negative} for posts {0, 1}, but `getVoltageDiff = V(post1) − V(post0)` and a +5 V DC source measures +5 V on post 1 ("negative"). Same naming in `CurrentElm` and `PolarCapacitorElm` (polarity not yet checked). The names are part of the user JSON v2 format (`"V1.positive"` in connections/nodes, EXPORT_CJS) and of agent pin names (SP_AGA_03_02), so swapping them changes how existing JSON files resolve pins. Options: A — swap the names and keep importing the old meaning for files whose `schema.version` is 2.0 (bump to 2.1); B — keep the JSON names, give agents corrected aliases; C — keep as is and document (agents misled). Recommended: A after checking all three elements. The agent-format text avoids stating polarity meanwhile. — main
 - `proposed` (minor, Phase 6; delta reviewer: acceptable as is): when an agent `undo`/`restoreCheckpoint` auto-seals an open transaction and the following undo load then throws (`internal_error`), the seal is not rolled back — the transaction ends sealed. Recommended: leave as is (the sealed entry is a correct checkpoint of the agent's work; the failure path is exceptional). Alternative: snapshot the transaction state and restore it too. Raise with the developer at the pause. — main
 
 ## Blocking Issues

@@ -45,7 +45,7 @@ final class CatalogueOps {
         Catalogue.TypeInfo info = cat.find(type);
         if (info == null) {
             return OperationResult.failure(Issue.of(IssueCode.UNKNOWN_TYPE,
-                    "Argument 'type' names no catalogue type or alias: '" + type + "'.",
+                    "Argument 'type' names no catalogue type or alias: '" + Catalogue.clipName(type) + "'.",
                     "Closest names: " + String.join(", ", cat.closestNames(type, Catalogue.HINT_NAMES))
                             + ". listTypes shows every type."));
         }

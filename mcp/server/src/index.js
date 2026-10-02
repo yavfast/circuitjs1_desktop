@@ -15,6 +15,8 @@
 const { createProtocol, PROTOCOL_REVISIONS } = require('./protocol.js');
 const { createRequestHandler, MCP_PATH } = require('./http.js');
 const { createAgentClient } = require('./agent.js');
+const { createTools } = require('./tools.js');
+const { createResources } = require('./resources.js');
 const registry = require('./registry.js');
 
 // [SP_MCP_06_01] Version of the tool and resource contract; the skill names the one it supports.
@@ -176,11 +178,13 @@ async function start(agentBridge, prefs, onStatus) {
   }
   emit(Object.assign(base, { state: 'starting', reason: null, host: p.host, port: null, urls: [], instanceId: null }));
 
-  // Phase 2 builds the tool table and the resources over this client (createProtocol tools/resources)
+  // [SP_MCP_02_02] [SP_MCP_02_03] the tool table and the resources over the Agent API client
   const agent = createAgentClient(agentBridge);
   protocol = createProtocol({
     appVersion: appVersion(),
     instructions: INSTRUCTIONS,
+    tools: createTools(agent),
+    resources: createResources({ agent }),
     onToolCall: () => emit({ toolCalls: (state.toolCalls || 0) + 1 }),
   });
   const handler = createRequestHandler({

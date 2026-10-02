@@ -52,7 +52,7 @@ When this plan is complete:
 
 - [x] [Phase 0 — Hosting prototype (closes C_MCP_DEC_03)](#PL_MCP_P0)
 - [x] [Phase 1 — Endpoint, start-up, preferences, registry](#PL_MCP_P1)
-- [ ] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
+- [x] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
 - [ ] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
 - [ ] [Phase 4 — End-to-end harness](#PL_MCP_P4)
 - [ ] [Phase 5 — Documentation propagation](#PL_MCP_P5)
@@ -131,7 +131,7 @@ What to create / change:
 - **Phase 2 hooks.**
   - `createProtocol({appVersion, instructions, tools, resources, onToolCall})` takes two providers. `tools` is `{list(), call(name, args, extra)}`; `resources` is `{list(), templates(), read(uri)}`.
   - Phase 1 passes empty providers. `tools/list` and `resources/list` return `[]`; an unknown tool is -32602, an unknown URI -32002 (`RESOURCE_NOT_FOUND`); `McpError`/`ErrorCode` are re-exported.
-  - `index.js` creates `createAgentClient(CircuitJS1Agent)`. Its `.call(op, args, {timeoutMs})` resolves to the parsed OperationResult. It always uses `callAsync`. A synchronous contract that did not call back, or that returned `undefined` or unparseable text, becomes `internal_error`. `run`/`render` have a 300 s safety timeout. `.reportError(message)` reaches the global handler. Phase 2 builds `tools.js`/`resources.js` over this client and passes them to `createProtocol`.
+  - `index.js` creates `createAgentClient(CircuitJS1Agent)`. Its `.call(op, args, {timeoutMs})` resolves to the parsed OperationResult. It always uses `callAsync`. A synchronous contract that did not call back, or that returned `undefined` or unparseable text, becomes `internal_error`. `run`/`render` have a safety timeout (`ASYNC_TIMEOUT_MS`, 180 s since the Phase 1 review; the earlier 300 s note is superseded, see the Phase 2 Result). `.reportError(message)` reaches the global handler. Phase 2 builds `tools.js`/`resources.js` over this client and passes them to `createProtocol`.
 - **Phase 3 hooks.** `McpServerStatus` (client root, `CirSim.mcpServerStatus`) provides:
   - `getState()`, `describe()` (`listening` / `failed: <reason>` / `disabled`), `getInstanceId()`, `getUrls()` and `getToolCalls()`;
   - `PREF_*` keys and defaults, `readPrefs()`, `isValidPort`, `isValidPortRange` and `isValidHost` for "Save".
@@ -163,7 +163,7 @@ What to create / change:
   Not run: removal of the packaged record on close (the normal flavor has no CDP and Xvfb has no window manager), and devmode.
   A window-manager close was approximated by `nw.Window.get().close()`, which fires the NW `close` event and then `unload`, as Phase 0 measured; no window manager runs under Xvfb.
 
-### Phase 2 — Tools, resources and result shaping [TODO]  {#PL_MCP_P2}
+### Phase 2 — Tools, resources and result shaping [DONE]  {#PL_MCP_P2}
 
 **Depends on:** Phase 1; PL_AGA Phases 2–9 (implemented)
 **Implements:** [SP_MCP_01_03](./mcp-server.sp.md#SP_MCP_01_03), [SP_MCP_01_04](./mcp-server.sp.md#SP_MCP_01_04), [SP_MCP_02_02](./mcp-server.sp.md#SP_MCP_02_02), [SP_MCP_02_03](./mcp-server.sp.md#SP_MCP_02_03), [SP_MCP_03_02](./mcp-server.sp.md#SP_MCP_03_02), [SP_MCP_03_04](./mcp-server.sp.md#SP_MCP_03_04)
@@ -177,6 +177,38 @@ What to create:
 | Resources | `mcp/server/src/resources.js` | Catalogue, documents, examples (from `circuits/setuplist.txt` in the package), `agent-format` text |
 | Agent format text | `mcp/server/agent-format.md` (bundled as a string) | Coordinate model, ElementSpec, edit ops, issue codes |
 | Shaping | `mcp/server/src/shaping.js` | Text part, PNG image part, size limit and the per-tool shrink rules, `result_too_large`; an `undefined` or unparseable return from `CircuitJS1Agent` becomes an `internal_error` result |
+
+**Result (2026-10-02).**
+- **Modules.** `mcp/server/src/` gains:
+  - `tools.js`: the 14 descriptors (name, title, agent-facing description of 600–1100 chars with the default `doc` rule and one example, input and output schemas, annotations of the SP_MCP_02_02 table, `openWorldHint: false`), the mapping to the SP_AGA contracts and the per-tool reductions;
+  - `schemas.js`: CellPoint, ElementSpec, the eight Edit variants (`oneOf` by `op`), ProbeSpec, AgentCircuit, Issue and `operationResult(dataFields)`;
+  - `validate.js`: the argument check of SP_MCP_03_02;
+  - `shaping.js`: text part, PNG image part, `result_too_large`, `internal_error`, last-resort text shortening;
+  - `resources.js`: the four fixed resources and three templates.
+  `mcp/server/agent-format.md` is bundled as a string (esbuild `.md` text loader in `build.js`). `index.js` passes `createTools(agent)` and `createResources({agent})` to `createProtocol`. The bundle is 1.9 MB unminified.
+- **Mapping.** Arguments pass to the contract under their SP_AGA names; only the grouping arguments (`action`; `type` of `circuit_types`) are consumed. `circuit_sim` passes `action` to `simControl`. `doc` passes through on every tool; session-scoped contracts validate it.
+- **Validation** (SP_MCP_03_02). Types, required fields, enumerations, unknown arguments (`additionalProperties: false` at the top level), an argument that the chosen action does not take, and the action-specific required arguments (`doc` for `activate`/`close`, `checkpointId` for `restore`, `path` for `open`, `settings` for `configure`) are -32602 naming the field; `span`/`settle` per run mode are left to the Agent API, for example `Invalid arguments for tool circuit_edit: edits[0].op must be one of add, move, …`. Range keywords in the schemas (minimum, maximum, maxItems, pattern) inform the agent but are not enforced: the Agent API answers them as `invalid_value` results with a hint.
+- **Output schemas** are open: nothing inside `data` is required and nested objects allow other fields. The SDK client validates `structuredContent` against `outputSchema` with ajv, also for `isError` results.
+- **Shaping.** See SP_MCP_01_04 and 03_04. A reduced read-only result's text starts with a note line, for example `[result reduced to fit the 60000-character limit: called with detail="concise" instead of "full", limit=125 instead of 500; continue at offset 125]`; `structuredContent` is the effective call's OperationResult. Fallbacks, when nothing more can be reduced or for a tool that is never re-executed (mutations, runs): the text part alone halves its largest arrays and names them in the note, and `structuredContent` keeps the whole result. This was not reached by any measured result.
+- **Resources.** `circuitjs://examples` reads `circuitjs1/setuplist.txt` and the example files by `fetch` relative to the page (cached index, the same paths as `CircuitLoader`); entries are `{path, title, menu}`, and `circuitjs://examples/{path}` serves listed paths only. The document circuit resource reads `getCircuit` at `detail: full` in pages of 500. An Agent API rejection of a resource read is -32002 for `unknown_type`/`unknown_document`, else -32603 with the issue.
+- **Timeouts (reconciled).** Agent client `ASYNC_TIMEOUT_MS` = 180 s: a run ends within `budgetMs` (≤ 120 s) plus one slice, with 60 s margin for queued slices and renders. Protocol backstop `PENDING_TIMEOUT_MS` = 200 s. Both are below the hosts' 300 s response timeout, and a unit check asserts the order. Measured: `circuit_run` with `budgetMs: 120000` answered after 120.09 s (`budget_exhausted`, `wallMs` 120027), and reads from a second client during it took 56–336 ms.
+- **Behaviour change outside `mcp/`.** `JsonCircuitExporter` now always writes `simulation.auto_time_step`, also `false`. Before, the key was written only when on, and the importer keeps the target document's own setting when the key is absent. So the SP_MCP_05_01 circuit round trip from the start-up document (auto off, from its example) into a new document (auto on) differed in that one setting.
+- **Verified.** NW.js 0.64.1 SDK flavor under Xvfb, scratch `HOME`, scratch driver `<session scratchpad>/mcp2/nw_mcp2.mjs`. A page recorder wraps `CircuitJS1Agent.callAsync`, and every tool result is compared with the Agent API call the server made. 49 checks passed:
+  - endpoint: SDK client 14 tools, 4 resources, 3 templates; Inspector CLI `tools/list` 14, `resources/list` 4, templates 3; Claude Code 2.1.287 (`claude -p --mcp-config <tmp> --strict-mcp-config`): `connected`, 14 `mcp__circuitjs__*` tools, and a real `circuit_types` call answered (Haiku);
+  - circuit_edit: domain error `isError` with `unknown_property`; schema error -32602 without an Agent API call;
+  - circuit_render png: image part (PNG signature) and `"<image>"` in the text and `structuredContent`;
+  - resources: `catalogue/Resistor` TypeInfo, unknown URI and unknown type -32002, examples index (336 entries) and `ohms.txt`, a path outside the index -32002, agent-format, documents, d1 → d2 round trip equal;
+  - file rule: `save /etc/x.conf` → `file_not_allowed`; save and open of a `.json` path;
+  - invariants over the 39 tool results of the run: `structuredContent` = the effective OperationResult (render png apart; `result_too_large` rejections apart), `isError` ⇔ `ok = false`, text ≤ 60 000;
+  - sizing on `alu74181.txt` (413 elements): `circuit_get` full/500 (120 074 chars) → concise/500 → /250 → /125, 33 945 chars, note, `nextOffset` 125; `circuit_connectivity` 18 125; `circuit_get` default 48 209; JSON export 230 092 → `result_too_large`; SVG at scale 2 → `result_too_large`; `circuit_run` with 16 probes at `maxPoints` 125 → 23 366 chars (1024 points; 2000 points would be about 46 000);
+  - SP_MCP_05_03 long run: a 5 s run in flight, three `circuit_get` calls from a second client answered in 15–346 ms before it ended.
+  Pure-JS checks: `npm run test:mcp-unit` (`node --test mcp/server/test/`, 24 tests) covers the catalogue, schemas compiled with strict ajv, the mapping of all 27 tool/action forms, validation messages, shaping and reductions with a fake agent, resources, the timeout order and a pass through the SDK server.
+- **Phase 4 hooks.** These scratch checks move into `tests/mcp/e2e.mjs`:
+  - the page recorder and the invariant loop (no circuit logic, `isError` ⇔ `ok`, text limit);
+  - the tool rows (edit domain and schema errors, render png/svg, file rule, save/open), the resource rows (catalogue, unknown, round trip, templates, examples) and the sizing rows on `alu74181.txt`;
+  - the long-run reads.
+  The 120 s run is slow (opt-in group). The Inspector and Claude Code checks stay optional (network, credentials).
+- **Review round 1 (2026-10-02).** Error replies bound echoed text: URIs at 200 chars, Agent API and exception messages at 300 (resources, agent client, HTTP layer, tool exceptions; unit test with a 1 MB URI). `settle.tolerance`/`window`/`maxSpan` accept unit strings like `span`. The `circuit_run` span/settle mode checks moved back to the Agent API. The `circuit_types` text says a given `doc` must be open. The agent-format text no longer states a probe polarity formula and qualifies step halving with `autoTimeStep`. Rechecked: `npm run test:mcp-unit` 25/25, `mcp_browser` 8, NW tools and long checks 41/41.
 
 ### Phase 3 — Menu item and info dialog [TODO]  {#PL_MCP_P3}
 
@@ -247,3 +279,4 @@ What to update:
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Phase 0 done; DEC_01 resolved by the developer (A, script-tag loading, no Node crypto); Shutdown row corrected to `unload`; backlog: devmode manifest quoting |
 | 2026-10-02 | Phase 1 done (Result block); devmode manifest quoting fixed and removed from the backlog |
+| 2026-10-02 | Phase 2 done (Result block); agent client and backstop timeouts reconciled (180 s / 200 s) |

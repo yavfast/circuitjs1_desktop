@@ -187,7 +187,7 @@ function createRequestHandler(opts) {
         }
       }, (e) => {
         if (opts.onError) opts.onError(e);
-        reply(res, 500, jsonRpcError(msg.id, -32603, 'Internal error: ' + (e && e.message ? e.message : e)), cors);
+        reply(res, 500, jsonRpcError(msg.id, -32603, 'Internal error: ' + String(e && e.message ? e.message : e).slice(0, 300)), cors);
       });
     });
   };

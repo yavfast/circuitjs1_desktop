@@ -8,10 +8,12 @@
 const ASYNC_OPS = new Set(['run', 'render']);
 
 // Upper bound for an asynchronous contract that never calls back (an exception before the
-// handler started is swallowed by the GWT $entry wrapper). Runs are capped at 120 s by the
-// Agent API (SP_AGA_03_07); renders are sliced and normally take well under a second. Stays
-// below the protocol layer's backstop (protocol.js PENDING_TIMEOUT_MS), so the caller gets this
-// internal_error result rather than a bare JSON-RPC error.
+// handler started is swallowed by the GWT $entry wrapper). Runs end within their budgetMs
+// (at most 120 s, SP_AGA_02_10) plus one slice and the queue of concurrent slices; the 60 s
+// margin covers that, and renders, which are sliced and normally take well under a second.
+// Stays below the protocol layer's backstop (protocol.js PENDING_TIMEOUT_MS, 200 s), so the
+// caller gets this internal_error result rather than a bare JSON-RPC error, and both stay below
+// the hosts' 300 s response timeout (SP_MCP_DEC_02).
 const ASYNC_TIMEOUT_MS = 180000;
 
 /** An OperationResult (SP_AGA_01_08) with one internal_error issue, shaped like the Java side's. */
@@ -65,7 +67,7 @@ function createAgentClient(bridge) {
       try {
         bridge.callAsync(op, argsJson, (resultJson) => finish(parseResult(op, resultJson)));
       } catch (e) {
-        finish(internalError(`The Agent API threw for '${op}': ${e && e.message ? e.message : e}`));
+        finish(internalError(`The Agent API threw for '${op}': ${String(e && e.message ? e.message : e).slice(0, 300)}`));
         return;
       }
       if (done) return;
@@ -93,4 +95,4 @@ function createAgentClient(bridge) {
   return { call, reportError };
 }
 
-module.exports = { createAgentClient, parseResult, internalError, ASYNC_OPS };
+module.exports = { createAgentClient, parseResult, internalError, ASYNC_OPS, ASYNC_TIMEOUT_MS };

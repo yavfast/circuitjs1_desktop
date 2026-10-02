@@ -94,7 +94,7 @@ final class AgentCircuitConverter {
         spec.type = cat.find(ts.stringValue());
         if (spec.type == null) {
             issues.add(Issue.of(IssueCode.UNKNOWN_TYPE, "Argument '" + where + ".type' names no catalogue type or alias: '"
-                    + ts.stringValue() + "'.", "Closest names: " + String.join(", ",
+                    + Catalogue.clipName(ts.stringValue()) + "'.", "Closest names: " + String.join(", ",
                             cat.closestNames(ts.stringValue(), Catalogue.HINT_NAMES)) + ".").elements(spec.subject));
             return null;
         }

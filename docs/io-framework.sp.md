@@ -70,7 +70,7 @@ Root object shape (written by `JsonCircuitExporter`, accepted by `JsonCircuitImp
 | Key | Required | Description |
 |-----|----------|-------------|
 | schema | yes | `{ format: "circuitjs", version: "2.0" }` — gate checked by `validateSchema` |
-| simulation | yes | time steps (SI strings), display booleans, voltage range string, `current_speed`, `power_brightness`, optional `auto_time_step` |
+| simulation | yes | time steps (SI strings), display booleans, voltage range string, `current_speed`, `power_brightness`, `auto_time_step` (always written since 2026-10-02; the importer keeps the target document's setting when an older file lacks it) |
 | elements | yes | `{ "<generated-id>": ElementEntry, ... }` |
 | nodes | optional | `{ "N1": { connections: ["<id>.<pin>", ...] }, ... }` for `(x,y)` where >=3 pins coincide |
 | scopes | optional | list of `{ display-flags, plot_mode, trigger?, history?, scales, manual_scale?, plots[] }` |

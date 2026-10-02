@@ -1,10 +1,10 @@
 ---
 skill: agent-mcp-surface
 domain: automation
-topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells, nw-flavor, node-crypto, script-loading, shutdown-events, instance-registry, mcp-server-status]
+topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells, nw-flavor, node-crypto, script-loading, shutdown-events, instance-registry, mcp-server-status, tool-catalogue, result-shaping, output-schema, resources]
 source: research
 updated: 2026-10-02
-verified: prototype PL_MCP Phase 0 (2026-10-01); implementation PL_MCP Phase 1 (2026-10-02)
+verified: prototype PL_MCP Phase 0 (2026-10-01); implementation PL_MCP Phases 1–2 (2026-10-02)
 ---
 
 # Hosting an MCP server in the app & designing tools for circuit agents
@@ -23,6 +23,8 @@ Findings of [docs/mcp-agent-bridge.spike.md](../../../docs/mcp-agent-bridge.spik
 - **Hosts.** Claude Code connects to Streamable HTTP directly (`claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp`, no auth header — [C_MCP_DEC_02](../../../docs/mcp-server.concept.md#C_MCP_DEC_02)); default tool-output cap 25k tokens (SP_MCP keeps text parts ≤ 60 000 chars); images render inline. Claude Desktop config is stdio-only → needs a stdio bridge (`mcp-remote` or our own).
 - **Exposure policy (developer decision [C_MCP_DEC_02](../../../docs/mcp-server.concept.md#C_MCP_DEC_02), overrides the spike's security floor).** Always on, reachable from localhost and the private network, no token / access-control mode. Kept: foreign-`Origin` rejection (spec MUST, invisible to agents) and no code-execution tool. Do not reintroduce tokens or opt-in without the developer.
 - **In-app server (PL_MCP Phase 1, [Result](../../../docs/mcp-server.plan.md#PL_MCP_P1)).** Sources are in `mcp/server/src/` (`index`, `http`, `protocol`, `registry`, `agent`). `mcp/server/build.js` bundles them into `war/scripts/mcp-server.js`, which is generated and git-ignored; `npm run build:mcp` runs it alone, and `buildGWT` and devmode run it first. The bundle registers `window.CircuitJS1Mcp.{start, stop, status}`. `CirSim` start-up calls `AgentJsBridge.startMcpServer` right after `setupJSInterface()`. The status flows back into the session object `CirSim.mcpServerStatus` (`McpServerStatus`, client root), which also holds the four preference keys and their validation. `CircuitJS1Agent.debugMcpStatus()` exposes it. Instance records live in `~/.circuitjs1/instances/<pid>-<startedAtMs>.json`.
+- **Tools and resources (PL_MCP Phase 2, [Result](../../../docs/mcp-server.plan.md#PL_MCP_P2)).** `tools.js` holds the 14 descriptors and maps each call to one SP_AGA contract with the SP_AGA argument names (only `action` and `circuit_types` `type` are consumed); `schemas.js` the input/output JSON Schemas; `validate.js` the -32602 check (types, required, enums, unknown and action-inapplicable arguments; ranges are left to the Agent API); `shaping.js` the text/image parts, `result_too_large` and the 60 000-char limit; `resources.js` the resources. `mcp/server/agent-format.md` is the agent-facing format text, bundled as a string (esbuild `.md` text loader) and served as `circuitjs://docs/agent-format`: keep it in step with SP_AGA when contracts change. Unit checks: `npm run test:mcp-unit` (`node --test mcp/server/test/`, fake agent, no browser).
+- **Timeouts.** Agent client 180 s (`agent.js` `ASYNC_TIMEOUT_MS`) < protocol backstop 200 s (`protocol.js` `PENDING_TIMEOUT_MS`) < the hosts' 300 s response timeout; a 120 s `budgetMs` run answers in ~120.1 s.
 - **Instances.** "New window" is a separate NW process (`ActionManager.java:215`, `new_instance: true`) → each instance needs its own port + a discovery record.
 
 ## Usage in this project
@@ -55,6 +57,11 @@ Tool-design conventions recommended by the spike (prior art: circuitjs-mcp, SPIC
 - The existing remote-debug channel (`server/remote-debug-server.js`: socket.io, CORS `*`; page agent uses `eval`) is a relay model only — do not expose it as the MCP path.
 - Hidden/unfocused windows throttle timers — affects agent-driven runs unless stepping is synchronous or `chromium-args` disable background throttling.
 - A CDP sidecar (as in `tests/live/harness.mjs`) works but needs `--remote-debugging-port`, an unauthenticated control surface.
+
+- **The SDK client validates `structuredContent` against the tool's `outputSchema` (ajv), also for `isError` results.** Keep output schemas open: nothing inside `data` required, no `additionalProperties: false`, nullable values untyped. Avoid non-standard keywords (`discriminator`) in input schemas: hosts forward them to the model API.
+- **Verifying "tools add no circuit logic".** Wrap `CircuitJS1Agent.callAsync` in the page (the server holds that same object and looks the method up per call) to record `(op, args, result)`; each tool's `structuredContent` must equal the last recorded result of its call (scratch `mcp2/nw_mcp2.mjs`, moves to `tests/mcp/e2e.mjs` in Phase 4).
+- **Claude Code names MCP tools `mcp__<server>__<tool>`.** A scripted check needs `--allowedTools mcp__circuitjs__<tool>` in `-p` mode; the `init` stream message lists the tools and the server status.
+- **Package files from the page.** Read `circuitjs1/setuplist.txt` and `circuitjs1/circuits/*` with `fetch` relative to `document.baseURI` (works in all run modes; `fs` paths fail in devmode). The JSON exporter omitted `auto_time_step` when off and the importer keeps the target's setting when the key is absent, which broke document round trips into a new document; since Phase 2 the key is always written.
 
 ## References
 

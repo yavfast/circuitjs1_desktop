@@ -3,7 +3,7 @@
 > **Code:** SP_MCP
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-02
 >
 > **Concept:** [C_MCP](./mcp-server.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_USR](./user-preferences.sp.md)
@@ -129,11 +129,11 @@ Every tool description contains these points, all stated in the tool text:
 | `circuitjs://catalogue/{type}` | application/json | TypeInfo | describeType |
 | `circuitjs://documents` | application/json | Document list | listDocuments |
 | `circuitjs://documents/{doc}/circuit` | application/json | `{elements: ElementRecord[], simulation, scopes}` of the document at full detail, all pages; importable unchanged through `circuit_import` | getCircuit (`detail: full`, all pages) |
-| `circuitjs://examples` | application/json | `{path, title}[]` of the bundled example circuits | example index of the app package |
-| `circuitjs://examples/{path}` | text/plain | Example circuit text (legacy format) | bundled example file |
+| `circuitjs://examples` | application/json | `{path, title, menu}[]` of the bundled example circuits (`menu`: the Circuits submenu path) | example index of the app package |
+| `circuitjs://examples/{path}` | text/plain | Example circuit text (legacy format); only paths listed in the index | bundled example file |
 | `circuitjs://docs/agent-format` | text/markdown | Coordinate model, ElementSpec, edit ops, issue codes | text shipped with the app |
 
-`resources/list` lists the fixed URIs. `resources/templates/list` lists the templates. An unknown URI returns JSON-RPC error -32002 (resource not found).
+`resources/list` lists the fixed URIs. `resources/templates/list` lists the templates. An unknown URI returns JSON-RPC error -32002 (resource not found), as do an unknown type, an unknown document and an example path not in the index; any other rejection of the mapped Agent API call is -32603 carrying the issue.
 
 ### 02_04. Server info for the user  {#SP_MCP_02_04}
 
@@ -181,6 +181,8 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 ### 03_02. Argument validation  {#SP_MCP_03_02}
 
 - Arguments are validated against `inputSchema` before mapping. Type, required-field and enum violations are JSON-RPC errors -32602 with a message naming the field.
+- Unknown arguments, an argument that the chosen `action` does not take, and an action's own required arguments (`doc` for `circuit_documents` `activate`/`close`, `checkpointId` for `restore`, `path` for `open`, `settings` for `configure`) are -32602 too.
+- Range keywords in the schemas (minimum, maximum, item counts, patterns) inform the agent and are not enforced by the server: ranges belong to the domain validation below.
 - Domain validation (lattice, IDs, property keys, value formats) is left to the Agent API and comes back as `isError` tool results.
 
 ### 03_03. Error mapping  {#SP_MCP_03_03}
@@ -208,6 +210,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
   - `circuit_render` with `format=svg`: when the SVG text exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use png or a lower scale".
   - `circuit_file` with `action: export`: when the content exceeds the limit, the result is `isError` with issue `result_too_large` and hint "use action save, or circuit_get pages".
   The text part then starts with a note naming the reduced arguments.
+- **Fallback.** A result that still exceeds the limit after its reductions, or of a tool that is never re-executed, keeps its whole OperationResult in `structuredContent`; only its text part drops the trailing items of its largest arrays and names them in a leading note (whole items only, never mid-structure). The Agent API caps keep every measured result below this point.
 - **Resources.** Resource reads are not tool results and are not subject to this limit; `circuitjs://documents/{doc}/circuit` and example texts are returned whole.
 - **Structure.** A result is never cut mid-structure.
 
@@ -364,4 +367,5 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-01 | Initial version |
 | 2026-10-01 | Review round 3: SVG size rule, resources exempt from the tool-result limit, required `doc` for activate/close |
 | 2026-10-01 | Review round 1: named protocol revisions and header/session handling, `toolsVersion`, annotation corrections, resource shape, settings in the info dialog, start-up trigger, Chromium arguments, sizing rules, error reporting via the global handler, file-rule decision DEC_03, verification gaps |
+| 2026-10-02 | PL_MCP Phase 2: example index `menu` field and listed-paths rule; resource-read error mapping; unknown and action-inapplicable arguments are -32602, range keywords advisory; text-part fallback for results that cannot be reduced |
 | 2026-10-02 | PL_MCP Phase 1: instance-record URLs per host kind; 404/413/batch/parse errors and CORS preflight for local origins; start-up failure when the server script is missing; invalid preferences fall back with a warning; review: HTTP status per JSON-RPC error, `null` for unreadable ids, bounded echo of client text |
