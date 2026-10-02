@@ -3,7 +3,7 @@ skill: text-format
 domain: io
 topics: [falstad, text-format, dump-type, options-line, scope-line, hint-line]
 source: onboard
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # Legacy Text Format
@@ -104,7 +104,10 @@ subcircuit mode, `AudioInputElm.clearCache()`,
 2. Override `dump()` if extra fields are needed: call `super.dump()` and
    append via `dumpValues(...)`.
 3. Add a case to `CircuitElmCreator.createCe(...)` to construct the
-   element from the tokenizer.
+   element from the tokenizer, **and the same code to
+   `CircuitElmCreator.isKnownDumpTypeId`** (the agent's circuit-content
+   test, SP_AGA_03_09; `npm run test:live agent_files` sweeps codes
+   0..1023 and fails when the two disagree).
 4. Round-trip verify with `npm run buildgwt` + `npm run test:live` (RULE_TEST_006).
 
 ## Pitfalls
@@ -132,7 +135,17 @@ subcircuit mode, `AudioInputElm.clearCache()`,
 7. **Numbers in the dump must be lossless.** `CircuitElm.dumpValue(double)` writes whole numbers as integers and everything else with `Double.toString` (shortest round-trip form). Until 2026-09-30 it rounded to 4 decimals / 6 digits and `formatNumber` dropped the sign of values in (-1, 0) — every save, undo step and paste corrupted values. `npm run test:live textfid` checks this.
 8. **The options line needs its own newline.** `ActionManager.dumpOptions()` returns `$ …` without `\n`; a caller that appends element lines must add it (the copy/duplicate path glued the first element onto the options line and dropped it).
 9. **Booleans: match the reader.** `dumpValues` writes a `boolean` as `1`/`0`; a field read with `Boolean.parseBoolean` (the upstream form, `"true"`/`"false"`) must be passed as `String.valueOf(b)` and read with `CircuitElm.parseBool` (accepts both). Mismatch flips the flag on every save **and every undo** (Counter `invertreset`, Fuse/MotorProtectionSwitch `blown`, Monostable `retriggerable`, Triac `state` — fixed 2026-10-01).
-10. **References in dump lines are indices among dumped lines.** Use `CircuitSimulator.locateElmForDump`, not `elmList.indexOf`; elements whose `hasDumpLine()` is false are skipped by the exporter (2026-10-01).
+10. **"Is this text a circuit?" is not `canImport`.** The agent file rules
+    (SP_AGA_03_09) use `agent/CircuitContentTest`: every non-empty line must
+    be a recognised line type (first token normalised by
+    `CircuitElmCreator.dumpTypeId`, the importer's own normalisation:
+    numeric token → `parseInt`, else first char code, so `34`/`"`,
+    `38`/`&` are the same code), element lines must carry four
+    coordinates and flags as whole numbers, and at least one element or
+    options line must exist. Prose lines often start with an element
+    letter (`T`, `S`, `r`, `t`, `w`), so the first token alone accepts
+    prose (PL_AGA Phase 9).
+11. **References in dump lines are indices among dumped lines.** Use `CircuitSimulator.locateElmForDump`, not `elmList.indexOf`; elements whose `hasDumpLine()` is false are skipped by the exporter (2026-10-01).
 
 ## References
 

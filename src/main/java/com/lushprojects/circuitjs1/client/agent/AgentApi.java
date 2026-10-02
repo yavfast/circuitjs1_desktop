@@ -123,6 +123,7 @@ public final class AgentApi {
         HistoryOps.register(this);
         SimControlOps.register(this);
         RenderOps.register(this);
+        FileOps.register(this);
     }
 
     void register(String op, DocPolicy docPolicy, BusyPolicy busyPolicy, Handler handler) {

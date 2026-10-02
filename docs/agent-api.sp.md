@@ -586,7 +586,7 @@ Rules:
 - **File access.** `openFile` and `saveFile` access the file system through a new path-based read/write adapter ([§03_09](#SP_AGA_03_09)) and obey the file rules there.
 - **Opening into a document.** `openFile` with a handle behaves as `importCircuit` into that document (agent transaction). With `"new"` it creates a document, loads the file like a user load (the undo history is reset and seeded with the loaded state) and opens no transaction.
 - **After a successful `openFile`.** The document's file path and title are set, and its modified flag is cleared; this clear is applied last and takes precedence over the common modified-flag rule.
-- **Rejected `openFile`.** A file whose content fails to load (any `error` import issue, [§03_04](#SP_AGA_03_04)) is rejected: with `into: "new"` no document is created and the visible tab does not change; with a handle the document is unchanged. Issues follow the no-content-disclosure rule of [§03_09](#SP_AGA_03_09).
+- **Rejected `openFile`.** A file whose content is not a circuit ([§03_09](#SP_AGA_03_09) circuit test: `file_not_allowed`) or fails to load (any `error` import issue, [§03_04](#SP_AGA_03_04)) is rejected: with `into: "new"` no document is created and the visible tab does not change; with a handle the document is unchanged. Issues follow the no-content-disclosure rule of [§03_09](#SP_AGA_03_09).
 - **Before saving.** `saveFile` seals the open transaction automatically.
 - **After a successful `saveFile`.** The file path and title are set, and the modified flag is cleared.
 
@@ -785,16 +785,17 @@ The protected state:
 [SP_AGA_DEC_03](#SP_AGA_DEC_03), [SP_MCP_DEC_03](./mcp-server.sp.md#SP_MCP_DEC_03).
 - **Adapter.** Path-based reads and writes go through one new adapter for the desktop runtime's file system. It is placed with the existing file-bridge adapters (RULE_ARCH_008). Without the desktop runtime every file contract returns `file_unavailable`.
 - **Allowed files.** `path` must be absolute and end in `.txt` or `.json` (case-insensitive). Otherwise: `file_not_allowed`.
-- **Reading.** `openFile` reads at most 10 MB. A larger file is rejected with `file_not_allowed`.
+- **Reading.** `openFile` reads at most 10 MB. A larger file is rejected with `file_not_allowed`. A leading byte-order mark is dropped.
+- **Links and directories.** Symbolic links are followed; the resolved file must also end in `.txt` or `.json`. A dangling link or a missing parent directory gives `file_not_found` for `openFile` and `file_error` for `saveFile`; parent directories are never created. `saveFile` writes to the path it checked: when the resolved target changed between the overwrite check and the write, the save is refused with `file_error`.
 - **Circuit test.** A file's content *is a circuit* when:
   - JSON: it parses as JSON and passes the JSON circuit schema validation (`schema.format = "circuitjs"`, `schema.version` starting with `2.`);
-  - text: every non-empty line is a line type the text importer recognizes — options (`$`), a known element dump type, scope, hint, adjustable, model, or the lines it deliberately ignores (`%`, `?`, `B`) — with zero unknown lines, and at least one element or options line is present.
+  - text: every non-empty line is a line type the text importer recognizes — options (`$`), a known element dump type, scope, hint, adjustable, model, or the lines it deliberately ignores (`%`, `?`, `B`) — with zero unknown lines, and at least one element or options line is present. An element line also carries four whole-number coordinates and whole-number flags after its dump type, so a prose line that happens to start with a dump-type letter is not an element line.
   - The test is a side-effect-free parse: it creates no elements and no documents and writes no model catalogue.
 
   Format detection by first character alone is not a circuit test.
-- **Overwriting.** `saveFile` may overwrite an existing file only when the file is empty or its content is a circuit. Otherwise: `file_not_allowed`.
-- **No content disclosure.** A rejected or failed `openFile` returns issues with codes, line numbers and counts only; issue text never quotes file content.
-- **Writing.** The adapter writes to a staging file in the same directory and then renames it over the target.
+- **Overwriting.** `saveFile` may overwrite an existing file only when the file is empty (whitespace only counts as empty) or its content is a circuit. Otherwise, and for an existing file over 10 MB: `file_not_allowed`.
+- **No content disclosure.** A rejected or failed `openFile` returns one issue per code and severity with counts and line numbers only; issue text never quotes file content and names no element keys.
+- **Writing.** The adapter writes to a staging file in the same directory, flushes it to disk, and then renames it over the target; on failure it removes only a staging file it created itself.
 
 ### 03_10. Error reporting  {#SP_AGA_03_10}
 
@@ -1047,6 +1048,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-02 | PL_AGA Phase 9: `openFile` applies the circuit test; element lines need whole-number coordinates and flags; BOM, links, parent directories, whitespace-only and over-size overwrite rules; rejected-open issues aggregated per code; review: `file_not_found`/`file_error` per contract for links and directories, save refused when the resolved target changed after the check, staging file flushed before rename and only its own staging file removed |
 | 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |
 | 2026-10-02 | PL_AGA Phase 7: `run` on an empty document is `invalid_value` naming `doc`; empty probe stats; time output digits and the shape-statistics series (§03_07); a canvas press cancels a run (§04_02); §06_01 item 17 `ontimestep` guard; review: configure current-step wording, empty configure, slice exception stops the document, non-finite samples, steps count forced steps, settle chunks, slider and legacy-script cancels |
 | 2026-10-02 | §04_01: a sealed agent transaction without net change is dropped by the next user edit push (PL_AGA Phase 6 review) |

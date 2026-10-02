@@ -3,7 +3,7 @@ skill: agent-mcp-surface
 domain: automation
 topics: [mcp, nw-js-runtime, node-version, streamable-http, stdio-bridge, tool-design, agent-skill, grid-cells, nw-flavor, node-crypto, script-loading, shutdown-events]
 source: research
-updated: 2026-10-01
+updated: 2026-10-02
 verified: prototype PL_MCP Phase 0 (2026-10-01)
 ---
 
@@ -42,7 +42,7 @@ Tool-design conventions recommended by the spike (prior art: circuitjs-mcp, SPIC
 - **New window.** `new_instance: true` gives a separate renderer process with its own `process.pid` under the same NW browser process (same `ppid`). Each window runs its own server on the next free port.
 - **Paths.** `process.cwd()` and `nw.__dirname` are the package root: `target/site`, `package.nw`, or `scripts/devmode/` in devmode. `nw.App.startPath` is the launch directory.
 - The simulator runs with non-convergence recovery on: source/wire loops and singular matrices arrive as `warn()` while simulation continues, not as `stop()` — map both (SP_AGA_03_06).
-- Desktop "save" (`CirSim.nodeSave`) is a browser download and "open" is a file picker — there is no path-based file seam yet (SP_AGA_03_09).
+- Desktop "save" (`CirSim.nodeSave`) is a browser download and "open" is a file picker. The path-based seam is `PathFileAdapter` (client root, JSNI, since PL_AGA Phase 9): sync `fs` via `nw.require`, availability detected per call (a plain browser → `file_unavailable`), staging file + rename in the target's directory, symlinks followed (the real name must be `.txt`/`.json` too), no parent directories created. Headless Chromium has no Node `fs`; real file checks run in NW.js (`xvfb-run -a node_modules/nw/nwjs/nw --remote-debugging-port=<p> --user-data-dir=<tmp> target/site` + CDP works for a scripted check; Node there is 18.0.0).
 - Many mechanisms act on the active document only (undo dump via `ActionManager.dumpCircuit`, `BaseCirSim.needAnalyze/stop`, renderer) — how background-document work meets SP_AGA_03_08 R1/R2 is resolved by SP_AGA_DEC_04 as a scoped silent bind (A) — see [background-documents](background-documents.md).
 
 - The existing remote-debug channel (`server/remote-debug-server.js`: socket.io, CORS `*`; page agent uses `eval`) is a relay model only — do not expose it as the MCP path.

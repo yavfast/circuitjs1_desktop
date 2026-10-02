@@ -85,6 +85,19 @@ public final class OperationResult {
         return this;
     }
 
+    /**
+     * @return a result equal to this one (ok, issues, connectivity, transaction) with other
+     *         contract data — for a contract that reuses another one's processing
+     *         (openFile into a handle runs the importCircuit processing)
+     */
+    OperationResult withData(JSONObject newData) {
+        OperationResult r = new OperationResult(ok, newData);
+        r.issues.addAll(issues);
+        r.connectivity = connectivity;
+        r.transaction = transaction;
+        return r;
+    }
+
     public boolean isOk() {
         return ok;
     }

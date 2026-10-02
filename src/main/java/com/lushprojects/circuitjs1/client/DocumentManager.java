@@ -95,6 +95,22 @@ public class DocumentManager {
         }
     }
 
+    /**
+     * Removes a background document that was created for an operation which then failed
+     * (a rejected agent {@code openFile} into a new document, [SP_AGA_02_14]): unlike
+     * {@link #closeDocument} it keeps no closed-tab dump, since the document never held content
+     * of its own. The active document cannot be discarded.
+     */
+    public void discardDocument(CircuitDocument document) {
+        if (document == null || document == activeDocument || !documents.contains(document)) {
+            return;
+        }
+        document.cancelAgentRun();
+        document.dispose();
+        documents.remove(document);
+        notifyDocumentRemoved(document);
+    }
+
     public void restoreLastClosedTab() {
         if (closedTabsHistory.isEmpty()) {
             return;

@@ -33,7 +33,8 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
  * returns its canvas as a PNG data URL), {@code debugClosedTabs()} (the closed-tab dumps) and
  * {@code debugFailNextSvgLoad()} (the next load of the vector exporter fails, for
  * {@code render_failed}); {@code debugDocState} also returns the document's UI state, title and
- * file name/path.
+ * file name/path. PL_AGA Phase 9 adds {@code debugCircuitTest(text)} (the side-effect-free circuit
+ * test of SP_AGA_03_09 with its line counts).
  * <p>
  * Every entry point is wrapped in {@code $entry}: an unexpected Java exception reaches the
  * global uncaught-exception handler (RULE_ERR_004) and the call returns {@code undefined}, which
@@ -107,6 +108,10 @@ public final class AgentJsBridge {
             }),
             debugFailNextSvgLoad: $entry(function() {
                 @com.lushprojects.circuitjs1.client.CirSim::armCanvas2SvgLoadFailure()();
+            }),
+            // PL_AGA Phase 9 diagnostic: the circuit-content test of SP_AGA_03_09 on a string
+            debugCircuitTest: $entry(function(text) {
+                return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugCircuitTest(Ljava/lang/String;)(text == null ? null : String(text));
             })
         };
     }-*/;
@@ -119,6 +124,14 @@ public final class AgentJsBridge {
     private static native void invokeSliceProbe(JavaScriptObject fn, String op, String doc, String phase) /*-{
         fn(op, doc, phase);
     }-*/;
+
+    /**
+     * Harness diagnostic: the [SP_AGA_03_09] circuit test of {@code text} as a JSON string
+     * ({@code circuit}, {@code kind} and the line counts of {@link CircuitContentTest.Result}).
+     */
+    private static String debugCircuitTest(String text) {
+        return CircuitContentTest.test(text).toJson().toString();
+    }
 
     /** Harness diagnostic: the closed-tab dumps, oldest first, as a JSON array string. */
     private static String debugClosedTabs(CirSim sim) {

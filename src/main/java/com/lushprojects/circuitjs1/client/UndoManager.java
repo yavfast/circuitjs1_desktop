@@ -163,7 +163,7 @@ public class UndoManager extends BaseCirSimDelegate {
      * Intended for use after opening/loading a circuit so Undo applies to edits within the
      * loaded circuit (and doesn't jump back to a previous/empty pre-load state).
      */
-    void resetAndSeedFromCurrentCircuit() {
+    public void resetAndSeedFromCurrentCircuit() {
         // a user load replaces the content: the open transaction is sealed first ([SP_AGA_04_01])
         sealTransaction();
         tentative = null;

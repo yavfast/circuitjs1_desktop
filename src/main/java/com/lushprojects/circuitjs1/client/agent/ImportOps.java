@@ -7,6 +7,7 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
+import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.ElementIdRegistry;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
@@ -74,13 +75,7 @@ final class ImportOps {
                 call.args.invalid("circuit", "is empty", "Pass the circuit text.");
                 return call.args.failure();
             }
-            if (text.trim().startsWith("{")) {
-                checkJsonText(text, issues);
-                formatId = "json";
-            } else {
-                checkLegacyText(text, issues);
-                formatId = "text";
-            }
+            formatId = checkString(text, issues);
             content = text;
         } else {
             call.args.invalid("circuit", "must be an AgentCircuit object or a circuit string",
@@ -98,6 +93,45 @@ final class ImportOps {
         return result;
     }
 
+    /**
+     * The pre-load checks of a JSON v2 or legacy text circuit string (lattice and range,
+     * [SP_AGA_03_01]); found problems are appended to {@code issues}.
+     *
+     * @return the format the string is loaded with: {@code "json"} or {@code "text"}
+     */
+    static String checkString(String text, List<Issue> issues) {
+        if (text.trim().startsWith("{")) {
+            checkJsonText(text, issues);
+            return "json";
+        }
+        checkLegacyText(text, issues);
+        return "text";
+    }
+
+    /**
+     * Loads a JSON v2 or legacy text circuit string into {@code doc} exactly as
+     * {@code importCircuit} does (pre-load checks, then one guarded {@link Mutation} that opens
+     * or continues the agent transaction); used by {@code openFile} into a handle. The issues
+     * are not kept for {@code lastImport}: the caller does that ({@link #keepLastImport}).
+     */
+    static OperationResult importString(CirSim sim, CircuitDocument doc, final String text) {
+        List<Issue> issues = new ArrayList<>();
+        final String formatId = checkString(text, issues);
+        if (!issues.isEmpty()) {
+            return OperationResult.failure(issues);
+        }
+        return Mutation.run(sim, doc, ctx -> load(ctx, text, formatId, null, null));
+    }
+
+    /** @return the Issues of every item of an importer report, in report order */
+    static List<Issue> issuesOf(ImportReport report) {
+        List<Issue> issues = new ArrayList<>();
+        for (ImportReport.Item item : report.getItems()) {
+            issues.add(toIssue(item));
+        }
+        return issues;
+    }
+
     private static OperationResult load(Mutation.Context ctx, String content, String formatId,
             AgentCircuitConverter.Converted agent, Catalogue cat) {
         CircuitDocument doc = ctx.doc;
@@ -107,10 +141,7 @@ final class ImportOps {
         doc.circuitLoader.readCircuit(content, formatId, 0, report);
         ctx.checkForcedFailure("after the load of importCircuit");
 
-        List<Issue> issues = new ArrayList<>();
-        for (ImportReport.Item item : report.getItems()) {
-            issues.add(toIssue(item));
-        }
+        List<Issue> issues = issuesOf(report);
         if (report.hasErrors()) {
             throw new Mutation.Rejected(issues);
         }
@@ -327,7 +358,7 @@ final class ImportOps {
     }
 
     /** Keeps the issues of this import on the document ([SP_AGA_01_11] lastImport). */
-    private static void keepLastImport(CircuitDocument doc, OperationResult result) {
+    static void keepLastImport(CircuitDocument doc, OperationResult result) {
         JSONArray list = new JSONArray();
         for (Issue i : result.getIssues()) {
             list.set(list.size(), i.toJson());

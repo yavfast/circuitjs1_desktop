@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -3308,9 +3308,207 @@ async function scenarioAgentBackground(s) {
     rateRatio: +out.notes.timing.rateRatio.toFixed(3), maxSliceMs: +out.notes.timing.maxSliceMs.toFixed(2), slices: out.notes.timing.slices }, details: path.join(OUT_DIR, 'agent_bg.json') });
 }
 
+// agent_files: path-based files in the browser build (PL_AGA Phase 9, SP_AGA_02_14 / §03_09).
+// Headless Chromium has no Node file system, so (a) every file contract (openFile, saveFile)
+// returns file_unavailable for every argument form, before any argument check, without creating
+// a document or touching the visible tab; (b) the side-effect-free circuit-content test, through
+// the diagnostic CircuitJS1Agent.debugCircuitTest(text): prose, empty, JSON circuit and JSON
+// non-circuits, every bundled example (all circuits), options-only, model-only, scope/hint/
+// adjustable-only and ignored-only lines, unknown and delimiter-only lines, numeric aliases of
+// the model prefixes; it changes no document and no model catalogue; (c) the dump-type predicate
+// CircuitElmCreator.isKnownDumpType agrees with CircuitElmCreator.createCe for every code 0..1023:
+// an importCircuit of each code's line reports "unknown element type" exactly for the codes the
+// predicate rejects. The real file rows run in the NW.js harness of PL_MCP Phase 4.
+async function scenarioAgentFiles(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const CT = async (text) => JSON.parse(await s.eval(`CircuitJS1Agent.debugCircuitTest(${JSON.stringify(text)})`));
+  try {
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const alertMark = s.dialogs.length;
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const docs0 = (await A('listDocuments', {})).data.documents;
+  const V = docs0.find((d) => d.active).doc;
+  const B = (await A('createDocument', {})).data.doc;
+  await A('importCircuit', { doc: B, format: 'text', circuit: '$ 1 0.000005 10 50 5 50 5e-11\nr 0 0 64 0 0 100\n' });
+  const vis0 = await s.call('visibleTab');
+  const text0 = await s.call('exportText');
+  const docsBefore = (await A('listDocuments', {})).data.documents;
+
+  // ---------------------------------------------------------------- (a) file_unavailable
+  const fileCalls = [
+    ['openFile', { path: '/tmp/a.txt' }],
+    ['openFile', { path: '/tmp/a.json', into: 'new', activate: true }],
+    ['openFile', { path: '/tmp/a.txt', into: B }],
+    ['openFile', { path: '/tmp/a.txt', into: V, activate: true }],
+    ['openFile', {}],
+    ['openFile', { path: 'relative.txt' }],
+    ['openFile', { path: '/tmp/notes.md' }],
+    ['openFile', { path: 42, into: 7 }],
+    ['saveFile', {}],
+    ['saveFile', { doc: B }],
+    ['saveFile', { path: '/tmp/x.json' }],
+    ['saveFile', { doc: B, path: '/tmp/x.txt', format: 'json' }],
+    ['saveFile', { path: '/tmp/notes.md', format: 'xml' }],
+  ];
+  out.notes.unavailable = [];
+  let allUnavailable = true;
+  for (const [op, args] of fileCalls) {
+    const r = await A(op, args);
+    const ok = r && r.ok === false && r.issues.length === 1 && r.issues[0].code === 'file_unavailable' && r.issues[0].severity === 'error';
+    if (!ok) { allUnavailable = false; out.notes.unavailable.push({ op, args, r }); }
+  }
+  ck('everyFileContractUnavailable', allUnavailable);
+  // the common rules still come first: an unknown doc is unknown_document
+  const ud = await A('saveFile', { doc: 'd999' });
+  ck('saveFileUnknownDocFirst', ud.ok === false && ud.issues[0].code === 'unknown_document');
+  const docsAfter = (await A('listDocuments', {})).data.documents;
+  ck('unavailableNoDocument', same(docsAfter, docsBefore));
+  ck('unavailableVisibleUnchanged', same(await s.call('visibleTab'), vis0) && (await s.call('exportText')) === text0);
+  const stB = JSON.parse(await s.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(B)})`));
+  ck('unavailableTransactionUnchanged', stB.transaction && stB.transaction.open === true && stB.modified === true);
+
+  // ---------------------------------------------------------------- (b) circuit test
+  const opts = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11';
+  const cases = {
+    empty: ['', false],
+    blank: ['  \n\t\n\r\n', false],
+    prose: ['Meeting notes for Tuesday\nTalk to the team about the circuit simulator\nremember: buy resistors and a soldering iron\n', false],
+    proseElementLetters: ['This is my note\nso it starts with letters\nthat are element types\n', false],
+    optionsOnly: [opts + '\n', true],
+    optionsCrLf: [opts + '\r\nr 0 0 64 0 0 100\r\nw 64 0 64 64 0\r\n', true],
+    elementOnly: ['r 0 0 64 0 0 100\n', true],
+    numericElement: ['174 0 0 64 0 1 1000 0.5 Resistance\n', true],
+    modelOnly: ['32 early 0 1e-13 0 0 1.5 0 0 2 1 1 0.02 0 1\n34 mydiode 0 1e-14 1 0 0 0 1e-9 0 0 0 0\n! black 0 G1,P1 Go Operator 11\\q11\n. mysub 0 1 2 3\n', false],
+    modelAliasOnly: ['" mydiode 0 1e-14 1\n& 14 5 0 100 Duty\n', false],
+    modelsWithOptions: [opts + '\n32 early 0 1e-13 0 0 1.5 0 0 2 1 1 0.02 0 1\n34 mydiode 0 1e-14 1\n', true],
+    auxOnly: ['o 2 32 0 4102 5 0.000390625 0 2 2 3\nh 2 7 5\n38 14 5 0 100 Duty\\sCycle\n', false],
+    ignoredOnly: ['% 1 2 3\n? 4 5\nB 6 7\n', false],
+    ignoredWithElement: ['% 1 2 3\n? 4 5\nB 6 7\nr 0 0 64 0 0 100\n', true],
+    unknownLine: [opts + '\nr 0 0 64 0 0 100\nHello there\n', false],
+    unknownCode: [opts + '\n999 0 0 64 0 0\n', false],
+    elementShortFields: [opts + '\nr 0 0 64\n', false],
+    delimiterOnlyLine: [opts + '\n+ +\n', false],
+    jsonNonCircuit: ['{"a": 1, "elements": {}}', false],
+    jsonOtherFormat: ['{"schema": {"format": "other", "version": "2.0"}, "elements": {}}', false],
+    jsonOldVersion: ['{"schema": {"format": "circuitjs", "version": "1.0"}, "elements": {}}', false],
+    jsonArray: ['[1, 2, 3]', false],
+    jsonBroken: ['{"schema": {"format": "circuitjs", "version": "2.0"}, "elements": {', false],
+  };
+  out.notes.cases = {};
+  for (const [name, [text, expect]] of Object.entries(cases)) {
+    const r = await CT(text);
+    out.notes.cases[name] = r;
+    ck('ct_' + name, r.circuit === expect);
+  }
+  ck('ct_kinds', out.notes.cases.optionsOnly.kind === 'text' && out.notes.cases.prose.kind === null);
+  ck('ct_unknownLineNumber', out.notes.cases.unknownLine.firstUnknownLine === 3 && out.notes.cases.unknownLine.unknownLines === 1);
+  ck('ct_modelCounts', out.notes.cases.modelOnly.modelLines === 4 && out.notes.cases.modelAliasOnly.modelLines === 1
+    && out.notes.cases.modelAliasOnly.auxLines === 1 && out.notes.cases.auxOnly.auxLines === 3 && out.notes.cases.ignoredOnly.ignoredLines === 3);
+  // JSON circuits: the export of a loaded example, and a minimal schema-only document
+  const jsonExport = await s.call('exportJson');
+  const rj = await CT(jsonExport);
+  ck('ct_jsonExport', rj.circuit === true && rj.kind === 'json');
+  const rjMin = await CT('{"schema": {"format": "circuitjs", "version": "2.1"}}');
+  ck('ct_jsonSchemaOnly', rjMin.circuit === true && rjMin.kind === 'json');
+  const agentJson = await A('exportCircuit', { doc: B, format: 'json' });
+  ck('ct_jsonAgentExport', (await CT(agentJson.data.content)).kind === 'json');
+  // every bundled example is a circuit (raw file text as fetched)
+  const names = listAllCircuits();
+  const corpus = await s.eval(`(async () => {
+    const names = ${JSON.stringify(names)}; const bad = [];
+    for (const n of names) {
+      const t = await (await fetch('/circuitjs1/circuits/' + n, { cache: 'no-store' })).text();
+      const r = JSON.parse(CircuitJS1Agent.debugCircuitTest(t));
+      if (!r.circuit || r.kind !== 'text') bad.push({ n, r });
+    }
+    return { count: names.length, bad: bad.slice(0, 10), badCount: bad.length };
+  })()`);
+  out.notes.corpus = corpus;
+  ck('ct_corpusAllCircuits', corpus.count > 300 && corpus.badCount === 0);
+  // side-effect free: no document, element, undo entry or model catalogue changed
+  const modelProbe = '34 p9probe 0 7.77e-7 0.5 1 0 0.01\n' + opts + '\nd 0 0 64 0 2 p9probe\n';
+  await CT(modelProbe);
+  ck('ct_noSideEffects', same((await A('listDocuments', {})).data.documents, docsBefore)
+    && (await s.call('exportText')) === text0
+    && same(JSON.parse(await s.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(B)})`)).undo, stB.undo));
+  // the probe's diode model was not registered: a document using its name gets other parameters
+  const C = (await A('createDocument', {})).data.doc;
+  await A('importCircuit', { doc: C, format: 'text', circuit: opts + '\nd 0 0 64 0 2 p9probe\n' });
+  const cText = (await A('exportCircuit', { doc: C, format: 'text' })).data.content;
+  ck('ct_noModelRegistered', !/7\.77e-7/i.test(cText));
+  // positive control: a real import of the probe registers the model and exports it
+  await A('importCircuit', { doc: C, format: 'text', circuit: modelProbe });
+  ck('ct_modelProbeControl', /7\.77e-7/i.test((await A('exportCircuit', { doc: C, format: 'text' })).data.content));
+  await A('closeDocument', { doc: C, discardChanges: true });
+
+  // ---------------------------------------------------------------- (c) dump-type predicate vs createCe
+  const SPECIAL = new Set([36, 111, 104, 38, 37, 63, 66, 34, 32, 33, 46]); // $ o h & % ? B " space ! .
+  const known = [], unknown = [];
+  const sweep = await s.eval(`(() => {
+    const SPECIAL = new Set(${JSON.stringify([...SPECIAL])}); const known = [], unknown = [];
+    for (let c = 0; c <= 1023; c++) {
+      if (SPECIAL.has(c)) continue;
+      const r = JSON.parse(CircuitJS1Agent.debugCircuitTest(c + ' 0 0 64 0 0'));
+      (r.elementLines === 1 ? known : unknown).push(c);
+    }
+    return { known, unknown };
+  })()`);
+  known.push(...sweep.known); unknown.push(...sweep.unknown);
+  out.notes.sweep = { known: known.length, unknown: unknown.length };
+  // char-token form gives the same classification as the numeric form
+  const charForm = await s.eval(`(() => {
+    const bad = [];
+    for (let c = 33; c < 127; c++) {
+      const ch = String.fromCharCode(c); if (/[0-9+]/.test(ch) || ${JSON.stringify([...SPECIAL])}.includes(c)) continue;
+      const a = JSON.parse(CircuitJS1Agent.debugCircuitTest(ch + ' 0 0 64 0 0')).elementLines;
+      const b = JSON.parse(CircuitJS1Agent.debugCircuitTest(c + ' 0 0 64 0 0')).elementLines;
+      if (a !== b) bad.push(c);
+    }
+    return bad;
+  })()`);
+  ck('sweep_charFormEqualsNumeric', charForm.length === 0);
+  const S = (await A('createDocument', {})).data.doc;
+  const unknownMsgLines = (r) => (r.issues || []).filter((i) => /unknown element type/.test(i.message)).map((i) => +/^Line (\d+):/.exec(i.message)[1]);
+  const mismatches = [];
+  const runChunks = async (codes, expectUnknown) => {
+    for (let i = 0; i < codes.length; i += 40) {
+      const chunk = codes.slice(i, i + 40);
+      const text = opts + '\n' + chunk.map((c) => c + ' 0 0 64 0 0').join('\n') + '\n';
+      const r = await A('importCircuit', { doc: S, format: 'text', circuit: text });
+      const lines = new Set(unknownMsgLines(r));
+      chunk.forEach((c, k) => { const isUnknown = lines.has(k + 2); if (isUnknown !== expectUnknown) mismatches.push({ code: c, predicate: expectUnknown ? 'unknown' : 'known', importer: isUnknown ? 'unknown' : 'created' }); });
+      if (r.truncatedIssues) mismatches.push({ chunk: i, truncated: r.truncatedIssues });
+    }
+  };
+  await runChunks(known, false);
+  await runChunks(unknown, true);
+  await s.call('closeDialogs');
+  out.notes.sweep.mismatches = mismatches.slice(0, 20);
+  ck('sweep_predicateEqualsCreateCe', known.length > 100 && mismatches.length === 0);
+  await A('closeDocument', { doc: S, discardChanges: true });
+  await A('closeDocument', { doc: B, discardChanges: true });
+
+  ck('visibleUnchangedAtEnd', (await s.call('exportText')) === text0);
+  ck('noPageException', s.exceptions.length === exMark);
+  ck('noAlert', s.dialogs.length === alertMark);
+  } catch (e) {
+    out.notes.error = e.stack || e.message;
+    ck('noHarnessError', false);
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_files.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('AG.agent_files', failed.length === 0, { checks: Object.keys(out.checks).length, failed, corpus: out.notes.corpus && out.notes.corpus.count,
+    sweep: out.notes.sweep && { known: out.notes.sweep.known, unknown: out.notes.sweep.unknown }, details: path.join(OUT_DIR, 'agent_files.json') });
+}
+
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -3353,7 +3551,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

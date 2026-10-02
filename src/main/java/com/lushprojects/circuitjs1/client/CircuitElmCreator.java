@@ -253,6 +253,59 @@ public class CircuitElmCreator {
         return null;
     }
 
+    /**
+     * [SP_AGA_03_09] The line type code of a text-format line's first token, normalised exactly as
+     * the text importer does it ({@code TextCircuitImporter.processCircuitLine}): a token starting
+     * with a digit is read as a decimal number ({@link CircuitElm#parseInt}, 0 when it is not one),
+     * any other token gives the code of its first character. So {@code "34"} and {@code "\""},
+     * {@code "38"} and {@code "&"} give the same code.
+     */
+    public static int dumpTypeId(String token) {
+        int typeId = token.charAt(0);
+        if (typeId >= '0' && typeId <= '9') {
+            typeId = CircuitElm.parseInt(token);
+        }
+        return typeId;
+    }
+
+    /**
+     * [SP_AGA_03_09] Whether {@link #createCe} creates an element for this first token of a text
+     * line, without creating one (side-effect free; for the circuit-content test). Only element
+     * dump types count: options, scope, hint, adjustable, model and ignored lines are told apart
+     * by the text importer before it reaches {@code createCe}.
+     */
+    public static boolean isKnownDumpType(String token) {
+        if (token == null || token.isEmpty()) {
+            return false;
+        }
+        return isKnownDumpTypeId(dumpTypeId(token));
+    }
+
+    /**
+     * The case labels of {@link #createCe}, which must be kept equal to them (the live harness
+     * scenario {@code agent_files} sweeps every code through a real import to check it).
+     */
+    static boolean isKnownDumpTypeId(int tint) {
+        switch (tint) {
+            case 'A': case 'I': case 'L': case 'M': case 'O': case 'R': case 'S': case 'T': case 'a': case 'b':
+            case 'c': case 'd': case 'f': case 'g': case 'i': case 'j': case 'l': case 'm': case 'n': case 'p':
+            case 'r': case 's': case 't': case 'v': case 'w': case 'x': case 'z': case 150: case 151: case 152:
+            case 153: case 154: case 155: case 156: case 157: case 158: case 159: case 160: case 161: case 162:
+            case 163: case 164: case 165: case 166: case 167: case 168: case 169: case 170: case 171: case 172:
+            case 173: case 174: case 175: case 176: case 177: case 178: case 179: case 180: case 181: case 182:
+            case 183: case 184: case 185: case 186: case 187: case 188: case 189: case 193: case 194: case 195:
+            case 196: case 197: case 200: case 201: case 203: case 206: case 207: case 208: case 209: case 210:
+            case 211: case 212: case 213: case 214: case 215: case 216: case 350: case 368: case 370: case 374:
+            case 400: case 401: case 402: case 403: case 404: case 405: case 406: case 407: case 408: case 409:
+            case 410: case 411: case 412: case 413: case 414: case 415: case 416: case 417: case 418: case 419:
+            case 420: case 421: case 422: case 423: case 424: case 425: case 426: case 427: case 428: case 429:
+            case 430:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public static void readDescription(CircuitElm ce, StringTokenizer st) {
         // After all element parameters are processed, check if there are remaining
         // tokens

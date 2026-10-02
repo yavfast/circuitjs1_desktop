@@ -3,7 +3,7 @@ skill: element-authoring
 domain: elements
 topics: [circuit-elm, chip-elm, composite-elm, dump, json, factory, recipe]
 source: onboard
-updated: 2026-04-18
+updated: 2026-10-02
 ---
 
 # Authoring a New Circuit Element
@@ -71,7 +71,9 @@ constructors:
 **Registration in both formats (RULE_ARCH_004, RULE_ARCH_005).**
 1. **Text format:** `CircuitElmCreator` (at the root package) dispatches
    on `getDumpType()` to the reconstruction constructor. Add a case
-   there.
+   there, and the same code to `isKnownDumpTypeId` (side-effect-free
+   predicate of the agent circuit-content test; the live scenario
+   `agent_files` checks that both agree).
 2. **JSON format:** `io/json/CircuitElementFactory.init()` has an
    explicit `register("JsonName", YourElm::new)` call for every type
    (~150 entries, `CircuitElementFactory.java:65-288`). `init()` is

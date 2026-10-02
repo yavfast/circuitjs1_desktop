@@ -75,6 +75,21 @@ public class CircuitInfo extends BaseCirSimDelegate {
         return filePath;
     }
 
+    /** @return the name of the document's file, or null when it has none */
+    public String getFileName() {
+        return fileName;
+    }
+
+    /**
+     * Sets the document's file path and name, as a path-based open or save does
+     * ([SP_AGA_02_14]); no UI refresh (the caller refreshes the title through
+     * {@code CirSim.setUnsavedChanges}).
+     */
+    public void setFile(String path, String name) {
+        filePath = path;
+        fileName = name;
+    }
+
     /** @return true if this document has changes that were not saved/exported yet */
     public boolean isModified() {
         return modified;

@@ -55,8 +55,10 @@ import com.lushprojects.circuitjs1.client.io.ImportReport;
  */
 public class TextCircuitImporter implements CircuitImporter {
 
-    /** Token delimiters of a circuit line. */
-    private static final String DELIMITERS = " +\t\n\r\f";
+    /** Token delimiters of a circuit line (also used by the circuit-content test, SP_AGA_03_09). */
+    public static final String DELIMITERS = " +\t\n\r\f";
+    /** Line breaks the text is split on, one line each (also used by the circuit-content test). */
+    public static final String LINE_BREAKS = "\r\n|\n|\r";
 
     private final TextCircuitFormat format;
 
@@ -135,7 +137,7 @@ public class TextCircuitImporter implements CircuitImporter {
     private void parseCircuitLines(String data, CircuitDocument document, 
                                    boolean isSubcircuitMode, int flags) {
         // Split on single line breaks so that reported line numbers match the source text
-        String[] lines = data.split("\r\n|\n|\r");
+        String[] lines = data.split(LINE_BREAKS);
 
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
@@ -158,11 +160,8 @@ public class TextCircuitImporter implements CircuitImporter {
                                     boolean isSubcircuitMode, int flags) {
         String type = tokenizer.nextToken();
         
-        // Convert digit characters to numbers
-        int typeId = type.charAt(0);
-        if (typeId >= '0' && typeId <= '9') {
-            typeId = CircuitElm.parseInt(type);
-        }
+        // Convert digit characters to numbers (shared with the circuit-content test, SP_AGA_03_09)
+        int typeId = CircuitElmCreator.dumpTypeId(type);
 
         try {
             // In subcircuit mode, only process composite model definitions
