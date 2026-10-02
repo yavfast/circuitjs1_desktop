@@ -288,6 +288,8 @@ public class ActionManager extends BaseCirSimDelegate {
         }
         if (menu == "options" && item == "other")
             circuitEditor().doEditOptions();
+        if (menu == "options" && item == "mcpserver")
+            dialogManager.showMcpServerDialog();
         if (item == "devtools")
             CirSim.toggleDevTools();
         if (item == "remotedebug") {

@@ -80,6 +80,7 @@ public final class McpServerStatus {
     private int port;
     private final List<String> urls = new ArrayList<>();
     private int toolCalls;
+    private final List<Runnable> listeners = new ArrayList<>();
 
     /** Reads the server preferences from storage and validates them. */
     public static Prefs readPrefs() {
@@ -227,6 +228,7 @@ public final class McpServerStatus {
                 }
             }
         }
+        fireChanged();
         return previous;
     }
 
@@ -234,6 +236,29 @@ public final class McpServerStatus {
     public void set(State state, String reason) {
         this.state = state;
         this.reason = reason;
+        fireChanged();
+    }
+
+    /**
+     * [SP_MCP_02_04] Registers a listener run after every status change, the tool-call count
+     * included (the Options menu item text, the open info dialog).
+     */
+    public void addListener(Runnable listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    /** Removes a listener added by {@link #addListener}; unknown listeners are ignored. */
+    public void removeListener(Runnable listener) {
+        listeners.remove(listener);
+    }
+
+    private void fireChanged() {
+        // a copy: a listener may remove itself (a dialog closing)
+        for (Runnable l : new ArrayList<>(listeners)) {
+            l.run();
+        }
     }
 
     private static String stringOf(JSONObject o, String key) {
@@ -280,6 +305,18 @@ public final class McpServerStatus {
             return state.wire() + ": " + reason;
         }
         return state.wire();
+    }
+
+    /**
+     * [SP_MCP_02_04] The copyable connect command
+     * {@code claude mcp add --transport http circuitjs <first URL>}, or null without a URL (the
+     * server is not listening).
+     */
+    public String getConnectCommand() {
+        if (urls.isEmpty()) {
+            return null;
+        }
+        return "claude mcp add --transport http circuitjs " + urls.get(0);
     }
 
     /** The status as JSON (harness diagnostic {@code CircuitJS1Agent.debugMcpStatus()}). */

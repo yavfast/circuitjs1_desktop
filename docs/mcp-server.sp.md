@@ -137,15 +137,15 @@ Every tool description contains these points, all stated in the tool text:
 
 ### 02_04. Server info for the user  {#SP_MCP_02_04}
 
-The Options menu has an item "MCP Server…" that opens an info dialog through the dialog router. The dialog shows:
-- status (`listening` or `failed: <reason>` or `disabled`);
+The Options menu has an item "MCP Server..." (three dots, as every other menu item) that opens an info dialog through the dialog router. The dialog shows:
+- status (`listening` or `failed: <reason>` or `disabled`), shown untranslated: these are the wire names of [§04_01](#SP_MCP_04_01), also used in the log;
 - instance ID;
 - the `urls` of the instance record;
-- one copyable command line `claude mcp add --transport http circuitjs <first URL>`;
-- the count of handled tool calls in this run;
+- one copyable command line `claude mcp add --transport http circuitjs <first URL>` (read-only text with a Copy button that writes the system clipboard only); without a URL (any state but `listening`) the instance ID and URL rows show "—", and the command box and Copy are empty and disabled;
+- the count of handled tool calls in this run (0 when the server is disabled or failed; the last count after it stops);
 - editable settings: an "Enabled" checkbox, the base port and the listening address. "Save" writes them to the preferences ([§01_01](#SP_MCP_01_01)) and states that they apply at the next start.
 
-The menu item text is "MCP Server…", followed by "(off)" when the server is disabled.
+The menu item text is "MCP Server...", followed by "(off)" when the server is disabled. The port range is not edited in the dialog; the base port is validated against the stored range.
 
 ### 02_05. Start-up and shutdown  {#SP_MCP_02_05}
 
@@ -369,3 +369,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-01 | Review round 1: named protocol revisions and header/session handling, `toolsVersion`, annotation corrections, resource shape, settings in the info dialog, start-up trigger, Chromium arguments, sizing rules, error reporting via the global handler, file-rule decision DEC_03, verification gaps |
 | 2026-10-02 | PL_MCP Phase 2: example index `menu` field and listed-paths rule; resource-read error mapping; unknown and action-inapplicable arguments are -32602, range keywords advisory; text-part fallback for results that cannot be reduced |
 | 2026-10-02 | PL_MCP Phase 1: instance-record URLs per host kind; 404/413/batch/parse errors and CORS preflight for local origins; start-up failure when the server script is missing; invalid preferences fall back with a warning; review: HTTP status per JSON-RPC error, `null` for unreadable ids, bounded echo of client text |
+| 2026-10-02 | PL_MCP Phase 3: menu text with three dots, untranslated status wire names, Copy button and empty rows without a URL, port range not edited in the dialog |

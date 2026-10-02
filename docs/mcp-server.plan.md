@@ -53,7 +53,7 @@ When this plan is complete:
 - [x] [Phase 0 — Hosting prototype (closes C_MCP_DEC_03)](#PL_MCP_P0)
 - [x] [Phase 1 — Endpoint, start-up, preferences, registry](#PL_MCP_P1)
 - [x] [Phase 2 — Tools, resources and result shaping](#PL_MCP_P2)
-- [ ] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
+- [x] [Phase 3 — Menu item and info dialog](#PL_MCP_P3)
 - [ ] [Phase 4 — End-to-end harness](#PL_MCP_P4)
 - [ ] [Phase 5 — Documentation propagation](#PL_MCP_P5)
 
@@ -210,7 +210,7 @@ What to create:
   The 120 s run is slow (opt-in group). The Inspector and Claude Code checks stay optional (network, credentials).
 - **Review round 1 (2026-10-02).** Error replies bound echoed text: URIs at 200 chars, Agent API and exception messages at 300 (resources, agent client, HTTP layer, tool exceptions; unit test with a 1 MB URI). `settle.tolerance`/`window`/`maxSpan` accept unit strings like `span`. The `circuit_run` span/settle mode checks moved back to the Agent API. The `circuit_types` text says a given `doc` must be open. The agent-format text no longer states a probe polarity formula and qualifies step halving with `autoTimeStep`. Rechecked: `npm run test:mcp-unit` 25/25, `mcp_browser` 8, NW tools and long checks 41/41.
 
-### Phase 3 — Menu item and info dialog [TODO]  {#PL_MCP_P3}
+### Phase 3 — Menu item and info dialog [DONE]  {#PL_MCP_P3}
 
 **Depends on:** Phases 1–2
 **Implements:** [SP_MCP_02_04](./mcp-server.sp.md#SP_MCP_02_04)
@@ -222,6 +222,35 @@ What to create:
 | McpServerDialog | `dialog/McpServerDialog.java` | Status, instance ID, URLs, copyable command line, call counter, editable settings with Save |
 | Menu item | `MenuManager.java` (Options menu) + `ActionManager.java` | "MCP Server…" / "(off)" |
 | Status channel | `AgentJsBridge.java` → `McpServerStatus` | Server status/counter callback into Java |
+
+**Result (2026-10-02).**
+- **Code.**
+  - `dialog/McpServerDialog` (extends `Dialog`, option prefix `mcp.server`) is opened only by `DialogManager.showMcpServerDialog()`, from `ActionManager` `options`/`mcpserver`. It shows status (`McpServerStatus.describe()`), instance ID, URLs and the call counter (both `—` unless `listening`), a read-only command box with `McpServerStatus.getConnectCommand()` = `claude mcp add --transport http circuitjs <first URL>` and a Copy button (empty and disabled without a URL), and the settings Enabled / Base port / Listening address with Save and Close.
+  - Save validates with `isValidPort`, `isValidPortRange` (against the stored range, which the dialog does not edit) and `isValidHost`. An invalid value shows a message and nothing is stored. A valid Save writes `mcpServerEnabled`, `mcpServerPort` and `mcpServerHost`, says "Saved. The settings apply at the next start of the app." and changes nothing at run time. An unchanged form (valid stored values) writes nothing ("Nothing to save: the settings are unchanged."). Enter saves only while the focus is in a settings field (the dialog stays open); Enter right after opening or on a focused button writes nothing. Escape closes. The command box text is set only when the command changes, so a per-call status change keeps a selection.
+  - The dialog imports only `McpServerStatus`, `OptionsManager` (already a `Dialog` dependency) and `Locale`. Copy is a `Consumer<String>` that `DialogManager` binds to the new `ClipboardManager.copyText`: the system clipboard only, so the internal circuit clipboard used by Paste stays untouched. It tries `$doc.execCommand('copy')` first, then `navigator.clipboard`.
+  - Status channel: the callback already flowed through `AgentJsBridge` (Phase 1). What was added is `McpServerStatus.addListener/removeListener`, fired by `update()` and `set()`. The open dialog listens (counter live) and unregisters in `hide`.
+  - Menu: `MenuManager.mcpServerItem` (Options, after "Remote Debug...") reads "MCP Server..." plus " (off)" when the state is `disabled`. It follows the status through a listener, because the status arrives after the menu is built. `CheckboxAlignedMenuItem.setAlignedText` keeps the item's alignment.
+  - Strings: all labels and messages go through `Locale.LS`. `locale_uk.txt` gains 17 keys; "(off)" and "Copy" already existed. The status values (`listening`, `failed: <reason>`, `disabled`) stay untranslated: they are the SP_MCP_04_01 wire names, also in the log and in `debugMcpStatus`.
+- **Verified** with NW.js 0.64.1 SDK flavor under Xvfb, scratch `HOME` and profile, Ukrainian UI locale (scratch driver `<session scratchpad>/mcp3/nw_mcp3.mjs`, 42/42):
+  - listening: the dialog shows status, ID and the three URLs as in `debugMcpStatus`, and the command line with `http://127.0.0.1:7311/mcp`;
+  - counter: `initialize` + 3 `tools/call` while open → 3 (live); closed, one more call, reopened → 4;
+  - Copy: a CDP mouse click puts the command line on the clipboard (`nw.Clipboard`);
+  - Close and Escape close it; the listener is removed;
+  - invalid settings rejected with nothing stored: port 80, `abc`, 65530 (range 20), host `999.1.1.1`, `example.com`;
+  - disable: untick, Save → message, keys stored, still `listening`. Graceful quit removes the record. Restart on the same profile → `disabled` (`disabled in preferences`), no record, 7311 free, menu "Сервер MCP... (вимк)", dialog `disabled` / `—` / empty command line;
+  - re-enable on `127.0.0.1:7400` with Enter, restart → listening on that URL only, menu without "(off)";
+  - all 20 ports busy → menu without "(off)", dialog `failed: no free port in range 7311..7330`.
+  Browser build: live scenario `mcp_dialog` (39 checks, Enter-focus rows included), including side pages `?lang=en` and `?lang=uk` that compare every dialog string with its key and its `locale_uk.txt` translation.
+- **Not run (manual).** The devmode check of RULE_STYLE_003:
+  1. `npm run devmode`.
+  2. Open `http://127.0.0.1:8888/circuitjs.html?lang=en`, then Options → "MCP Server...". Check every label, both buttons and the Save messages: port 80, then a valid Save.
+  3. Repeat with `?lang=uk`.
+  4. Look for clipped text in the Ukrainian labels.
+- **Phase 4 hooks.** Move the `nw_mcp3.mjs` rows into `tests/mcp/e2e.mjs`:
+  - `listening`: dialog content, counter, Copy;
+  - `settings`: rejects, disable → restart → disabled → re-enable → restart, all on one `--user-data-dir`, with a graceful `nw.App.quit()` between launches;
+  - `allbusy`.
+  The page helpers find the dialog by `#mcpServerInfo` (rows `> tbody > tr`), `#mcpServerCommand` and `#mcpServerMessage`. Options submenu items are in the DOM only while the menu is open.
 
 ### Phase 4 — End-to-end harness (`tests/mcp/`) [TODO]  {#PL_MCP_P4}
 

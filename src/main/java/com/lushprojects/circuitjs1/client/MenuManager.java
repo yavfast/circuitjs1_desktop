@@ -32,6 +32,8 @@ public class MenuManager extends BaseCirSimDelegate {
     // MenuItem importFromDropboxItem;
     MenuItem undoItem, redoItem, cutItem, copyItem, pasteItem, selectAllItem, optionsItem, flipXItem, flipYItem,
             flipXYItem, modItem;
+    /** [SP_MCP_02_04] Options → "MCP Server..." (+ " (off)" while the server is disabled) */
+    CheckboxAlignedMenuItem mcpServerItem;
     MenuBar optionsMenuBar;
 
     public CheckboxMenuItem dotsCheckItem;
@@ -348,8 +350,21 @@ public class MenuManager extends BaseCirSimDelegate {
         m.addItem(modItem = new CheckboxAlignedMenuItem("Modification Setup...", new MyCommand("options", "modsetup")));
         modItem.addStyleName("modItem");
         m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Remote Debug..."), new MyCommand("options", "remotedebug")));
+        m.addItem(mcpServerItem = new CheckboxAlignedMenuItem(mcpServerItemText(cirSim.mcpServerStatus),
+                new MyCommand("options", "mcpserver")));
+        // the server reports asynchronously after start-up: follow its state
+        cirSim.mcpServerStatus.addListener(() -> mcpServerItem.setAlignedText(mcpServerItemText(cirSim.mcpServerStatus)));
         if (CirSim.isElectron())
             m.addItem(new CheckboxAlignedMenuItem(Locale.LS("Toggle Dev Tools"), new MyCommand("options", "devtools")));
+    }
+
+    /** [SP_MCP_02_04] "MCP Server...", followed by "(off)" when the server is disabled. */
+    static String mcpServerItemText(McpServerStatus status) {
+        String text = Locale.LS("MCP Server...");
+        if (status.getState() == McpServerStatus.State.DISABLED) {
+            text += " " + Locale.LS("(off)");
+        }
+        return text;
     }
 
     // this is called twice, once for the Draw menu, once for the right mouse popup

@@ -60,6 +60,46 @@ public class ClipboardManager {
     }
 
     /**
+     * Copies a plain text (for example a command line shown in a dialog) to the system clipboard
+     * only; the internal circuit clipboard used by Paste is left unchanged. Call from a user
+     * gesture (a button click): the synchronous copy command is tried first, the asynchronous
+     * Clipboard API second.
+     */
+    public void copyText(String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        copyTextToSystemClipboard(text);
+    }
+
+    // the page document ($doc), where the dialogs live, not the module frame's document
+    private static native boolean copyTextToSystemClipboard(String text) /*-{
+        var d = $doc;
+        var ta = d.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-999999px';
+        ta.style.top = '-999999px';
+        d.body.appendChild(ta);
+        var ok = false;
+        try {
+            ta.focus();
+            ta.select();
+            ok = d.execCommand('copy');
+        } finally {
+            // the off-screen textarea never stays, also when the copy command throws
+            d.body.removeChild(ta);
+        }
+        var nav = $wnd.navigator;
+        if (!ok && nav.clipboard && nav.clipboard.writeText) {
+            nav.clipboard.writeText(text)['catch'](function(err) {
+                console.error('Failed to copy to system clipboard: ', err);
+            });
+        }
+        return ok;
+    }-*/;
+
+    /**
      * Get data from clipboard (internal only for synchronous access)
      */
     public String getClipboard() {

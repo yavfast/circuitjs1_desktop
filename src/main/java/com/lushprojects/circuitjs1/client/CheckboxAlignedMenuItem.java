@@ -29,4 +29,9 @@ public class CheckboxAlignedMenuItem extends MenuItem {
         super(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + "&nbsp;</div>" + s), cmd);
     }
 
+    /** Replaces the item text, keeping the checkbox-column alignment of the constructor. */
+    public void setAlignedText(String s) {
+        setHTML(SafeHtmlUtils.fromTrustedString(CheckboxMenuItem.checkBoxHtml + "&nbsp;</div>" + s));
+    }
+
 }

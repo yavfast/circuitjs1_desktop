@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 12:45
+> **Last updated:** 2026-10-02 13:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phase 6 (transactions and history) |
-| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phases 1–2 and the fix round committed; PL_MCP Phase 3 next; manual devmode checks owed |
+| **Pipeline phase** | `implement` — PL_AGA Phases 0–8 committed, Phase 9 committed (file rows pending PL_MCP P4); PL_MCP Phases 1–3 and the fix round committed; PL_MCP Phase 4 next; manual devmode checks owed |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -107,7 +107,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_MCP Phase 1 — endpoint, start-up, preferences, registry (mcp/server/src, McpServerStatus, esbuild bundle, Chromium flags, unload/Exit stop); review FAIL (must: strict-schema-rejected requests never answered → socket/pending leak) → fixed with -32600, backstop timer, header/request timeouts, cancel drop, strict IPv6, early 413 + close, 0700 dir, -32602; delta PASS + 1 should/2 prefer → fixed by main (bounded echo, null id, spec HTTP statuses), verified in NW.js. Scratch NW.js driver (endpoint 62 + hostile 18 checks) in the session scratchpad — move into tests/mcp/ in PL_MCP Phase 4
 - [x] E_AGT fix round (research-spike findings): first sample only from a solved state (`CircuitSimulator.isSolved`), time-step bar set from code without its command in tab activation + text/JSON import (BL-D01; bad `$` step → 5 µs), `stop_trigger` run reason (SP_AGA_DEC_05, resolved delegated), determinism qualified; review PASS 1 should + 2 prefer → fixed, verified by local reverts. agent_run 35 checks
 - [x] PL_MCP Phase 2 — 14 tools, schemas, validation, shaping, resources, agent-format text, `test:mcp-unit` (25); review FAIL (must: unbounded echo in resource errors) → fixed + settle unit strings, polarity text removed, cross-checks dropped; delta PASS; main bounded `type` echo and the closest-name edit distance in Java (1 MB type: 455 ms, 118-char message). Claude Code lists 14 tools and calls one; NW.js scratch driver `mcp2/nw_mcp2.mjs` (41 checks) → tests/mcp/ in Phase 4
-- [ ] **Next:** PL_MCP Phase 3 — menu item and info dialog
+- [x] PL_MCP Phase 3 — Options → "MCP Server..." (+ "(off)") and McpServerDialog via DialogManager (status, ID, URLs, command + Copy, live counter, Enabled/port/address Save for next start), uk strings; review PASS 1 should (Enter saved from any focus) + 3 prefer → fixed; spec/concept aligned by main. mcp_dialog 39 checks; NW.js scratch `mcp3/nw_mcp3.mjs` 42 checks; devmode EN/UK check owed. Harness: R1 slice-bound checks got a 2 ms `SLICE_JITTER_MS` tolerance for GC/timer jitter (recurring 20.8 ms flake) and list over-bound slices by op
+- [ ] **Next:** PL_MCP Phase 4 — end-to-end harness `tests/mcp/` (moves the scratch NW.js checks of Phases 1–3 in; closes PL_AGA Phase 9 file rows + R1/R2 openFile step)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
@@ -165,6 +166,6 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 - `{s:pin}` Decisions: C_AGA_DEC_01 grid cells + import & incremental · DEC_02 per-document ID registry · DEC_03 any tab by handle · DEC_04 transactions sealed by commented checkpoints (auto-seal on user edit/save/close/idle) · C_MCP_DEC_01 server per instance + registry · DEC_02 always on, LAN, no token · DEC_03 OPEN protocol layer · C_MCB_DEC_01 stdio bridge + CLI.
 - Skills: `.dev_flow/skills/automation/` (js-api-surface, agent-mcp-surface, background-documents).
-- `{s:pin}` Live-harness baseline at HEAD 259b5b6 (`npm run buildgwt && npm run test:live`): PASS undo, paste, sliders, loadstate, agent_docs (23), agent_ids (22), agent_catalogue (36), agent_edit (70), agent_connect (27), agent_connect_all, agent_freerun (6), geom_posts (39); FAIL (known; numbers must not worsen) textfid lossyFields 67, roundtrip lineDiffs 23 / classChanged 23 / jsonDiffs 17 / propChanged 2, synth 176 types / notCreated Optocoupler / jsonLegLoss 55. Phase 6 adds agent_history (34); Phase 7 adds agent_run (29); Phase 8 adds agent_bg (39); Phase 9 adds agent_files (43); PL_MCP Phase 1 adds mcp_browser (8). `agent_bg` R1 slice-bound checks are sensitive to host load (one 23.1 ms slice at load ≈ 20; reruns 16 ms) — rerun alone before treating as a regression. — main
-- `{s:pin}` Manual devmode checks owed (headless cannot run them; steps in each phase's Result note of agent-api.plan.md): RULE_TEST_005 tab close + hint flow (P1), editor undo + IDs (P2, P4), catalogue under Small Grid (P3), RULE_TEST_002 simulator core (P5: lrc, counter, alu74181, delta-pwm labels, onanalyze hook), undo menu labels (P6), RULE_TEST_002 after the stepping changes (P7: analog, digital, subcircuit example), active tab during the R1 sequence (P8). Batch them for the developer at the pause. — main
+- `{s:pin}` Live-harness baseline at HEAD 259b5b6 (`npm run buildgwt && npm run test:live`): PASS undo, paste, sliders, loadstate, agent_docs (23), agent_ids (22), agent_catalogue (36), agent_edit (70), agent_connect (27), agent_connect_all, agent_freerun (6), geom_posts (39); FAIL (known; numbers must not worsen) textfid lossyFields 67, roundtrip lineDiffs 23 / classChanged 23 / jsonDiffs 17 / propChanged 2, synth 176 types / notCreated Optocoupler / jsonLegLoss 55. Phase 6 adds agent_history (34); Phase 7 adds agent_run (29); Phase 8 adds agent_bg (39); Phase 9 adds agent_files (43); PL_MCP Phase 1 adds mcp_browser (8); Phase 3 adds mcp_dialog (39). `agent_bg` R1 slice-bound checks are sensitive to host load (one 23.1 ms slice at load ≈ 20; reruns 16 ms) — rerun alone before treating as a regression. — main
+- `{s:pin}` Manual devmode checks owed (headless cannot run them; steps in each phase's Result note of agent-api.plan.md): RULE_TEST_005 tab close + hint flow (P1), editor undo + IDs (P2, P4), catalogue under Small Grid (P3), RULE_TEST_002 simulator core (P5: lrc, counter, alu74181, delta-pwm labels, onanalyze hook), undo menu labels (P6), MCP info dialog EN/UK strings (PL_MCP P3), RULE_TEST_002 after the stepping changes (P7: analog, digital, subcircuit example), active tab during the R1 sequence (P8). Batch them for the developer at the pause. — main
 - Harness-only diagnostics on `CircuitJS1Agent` (not contracts; listed in the plan's JS-boundary row): debugViewState, debugDocState, debugFailNextMutation, debugSetIdleSealMs, debugAgentOriginPush, debugFailNextUndoLoad. — main

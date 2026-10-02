@@ -16,6 +16,7 @@ import com.lushprojects.circuitjs1.client.dialog.ExportAsUrlDialog;
 import com.lushprojects.circuitjs1.client.dialog.HelpDialog;
 import com.lushprojects.circuitjs1.client.dialog.ImportFromTextDialog;
 import com.lushprojects.circuitjs1.client.dialog.LicenseDialog;
+import com.lushprojects.circuitjs1.client.dialog.McpServerDialog;
 import com.lushprojects.circuitjs1.client.dialog.ModDialog;
 import com.lushprojects.circuitjs1.client.dialog.ScopePropertiesDialog;
 import com.lushprojects.circuitjs1.client.dialog.SearchDialog;
@@ -97,6 +98,13 @@ public class DialogManager extends BaseCirSimDelegate {
     void showSearchDialog() {
         CirSim cirSim = (CirSim) this.cirSim;
         activeDialog = new SearchDialog(cirSim);
+        activeDialog.show();
+    }
+
+    /** [SP_MCP_02_04] the MCP server info dialog (Options → "MCP Server..."). */
+    void showMcpServerDialog() {
+        CirSim cirSim = (CirSim) this.cirSim;
+        activeDialog = new McpServerDialog(cirSim.mcpServerStatus, cirSim.clipboardManager::copyText);
         activeDialog.show();
     }
 

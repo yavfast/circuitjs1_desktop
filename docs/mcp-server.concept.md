@@ -89,7 +89,7 @@ App start ──► pick port ──► listen ──► write instance record  
 
 - **Port.** Each instance takes the first free port at or above a base port. The base port and the listening address are user preferences.
 - **Default reachability.** By default the endpoint is reachable on the local machine and the private network ([C_MCP_DEC_02](#C_MCP_DEC_02)).
-- **Showing the address.** The app shows its endpoint address in its menu and info dialog, so the user can give it to an agent on the same or another machine.
+- **Showing the address.** The app shows its endpoint address in its info dialog (opened from the Options menu, whose item also shows when the server is off), so the user can give it to an agent on the same or another machine.
 
 ### 3.3. Instance registry  {#C_MCP_03_03}
 
