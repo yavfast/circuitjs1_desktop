@@ -60,8 +60,10 @@ Exit codes:
 |------|---------|
 | 0 | Success (`call`: result not `isError`) |
 | 1 | `call` returned `isError: true` |
-| 2 | Usage error (unknown subcommand, bad JSON arguments) |
-| 3 | No reachable instance / connection error / timeout |
+| 2 | Usage error (unknown subcommand, bad JSON arguments), also a JSON-RPC error from the app that means a bad request (`-32600`, `-32601`, `-32602`, `-32002`) |
+| 3 | No reachable instance / connection error / timeout / any other JSON-RPC error |
+
+On exit 2 or 3 stdout stays empty and stderr carries one line (an option error ends with `; run "circuitjs-mcp --help" for usage`). Two debug-only exceptions: `CIRCUITJS_MCP_DEBUG=1` appends the stack trace to an unexpected-error line, and `call <tool> -` on an interactive terminal first prints `reading arguments from stdin (end with Ctrl-D)`.
 
 ## 02. Contracts  {#SP_MCB_02}
 
@@ -124,6 +126,13 @@ Grammar:
 | call | Resolve target (honours `--launch`); call one tool | §01_04 |
 | read | Resolve target; read one resource | resource contents |
 | launch | Start the app (and open `file`); wait for its record | `Target` (+ `{doc}`) |
+
+Details:
+- `read` prints the resource `contents` array unchanged.
+- `tools` lists the target's tools only (no bridge tools); `title` falls back to `annotations.title`, then `null`.
+- `instances` marks as `selected` the instance the options would resolve to; it always exits 0 and prints `[]` when there is none.
+- `--launch` applies to `call` only; `call bridge_*` runs that bridge tool inside the CLI process.
+- `launch <file>` resolves a relative path against the CLI's working directory; a rejected file exits 1 with the app's result on stdout and the "…failed:" text on stderr.
 
 ## 03. Validation Rules  {#SP_MCB_03}
 
@@ -233,3 +242,4 @@ The probe is an MCP handshake against the URL, bounded at 3 s.
 | 2026-10-01 | Review round 1: `--app` has no PATH default, `into` argument name, CLI output wording, verification gaps |
 | 2026-10-02 | PL_MCB Phase 1: target selectors as one option, boolean env values, spawn-failure error, absolute app path, explicit-URL target without instanceId; registry record and cleanup rule, shared PID namespace |
 | 2026-10-02 | PL_MCB Phase 2: re-resolution and list forwarding, explicit-URL failure text, forward failure texts and resource error codes, `bridge_launch` with a live instance and with a rejected file |
+| 2026-10-02 | PL_MCB Phase 3: exit codes for app JSON-RPC errors, empty stdout on exit 2/3, CLI subcommand details |

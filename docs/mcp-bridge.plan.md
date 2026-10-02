@@ -40,7 +40,7 @@ For this plan's scope ([task_E_AGT](../.dev_flow/tasks/task_E_AGT.md)): the "MCP
 
 - [x] [Phase 1 — Package, options, registry and target resolution](#PL_MCB_P1)
 - [x] [Phase 2 — Stdio forwarding, bridge tools, launch](#PL_MCB_P2)
-- [ ] [Phase 3 — CLI subcommands](#PL_MCB_P3)
+- [x] [Phase 3 — CLI subcommands](#PL_MCB_P3)
 - [ ] [Phase 4 — Tests and host snippets](#PL_MCB_P4)
 
 ## Phases
@@ -146,7 +146,7 @@ What to create:
   - Tests: 69/69.
   - **App server:** `mcp/server/src/protocol.js` `JsonResponseTransport.send` strips one `MCP error <code>: ` prefix from outgoing error messages (unit test). The bridge's prefix removal concerns the prefix its own SDK client adds, so it works with old and new apps. `npm run test:mcp`: 55 pass / 0 fail / 9 skip.
 
-### Phase 3 — CLI subcommands [TODO]  {#PL_MCB_P3}
+### Phase 3 — CLI subcommands [DONE]  {#PL_MCB_P3}
 
 **Depends on:** Phase 2
 **Implements:** [SP_MCB_01_04](./mcp-bridge.sp.md#SP_MCB_01_04), [SP_MCB_02_03](./mcp-bridge.sp.md#SP_MCB_02_03)
@@ -156,6 +156,47 @@ What to create:
 | Entity | Module | Purpose |
 |--------|--------|---------|
 | CLI | `mcp/bridge/src/cli.js` | Grammar, stdout JSON, exit codes 0–3, `--help`, `--version` |
+
+**Result (2026-10-02).**
+- **Module.** `src/cli.js`: `runCli(parsed, {stdin, writeOut, writeErr, prog}, deps)` → exit code. It has one `BridgeSession` per invocation, closed at the end, and the constants `EXIT_OK` 0, `EXIT_TOOL_ERROR` 1, `EXIT_USAGE` 2, `EXIT_UNREACHABLE` 3. `bin/circuitjs-mcp.js` passes the process streams and exits once stdout is flushed, so an idle HTTP socket cannot keep the process alive. `--help` lists the grammar, the options, the output rule and the exit codes.
+- **Subcommands.**
+  - `instances`: `InstanceInfo[]`; `selected` marks the instance the options would resolve to (`--url` by URL, `--instance`, else the latest). Always exit 0; `[]` when none.
+  - `tools`: the target's tools as `{name, title, annotations}`, following `nextCursor`. `title` falls back to `annotations.title`, then null. Bridge tools are not listed.
+  - `call <tool> [<json> | -]`: arguments default to `{}` and must be a JSON object (stdin for `-`). Only `call` honours `--launch`. Bridge tool names run in-process through `callBridgeTool`.
+  - `read <uri>`: prints the result's `contents` array unchanged.
+  - `launch [<file>]`: `launchAndOpen(session, path.resolve(file))`. A relative file resolves against the CLI's cwd. Prints `{target, opened?: {doc}}`. A rejected file exits 1, prints the `circuit_file` result as `call` would, and writes the "…is running and selected, but opening … failed: …" text to stderr.
+- **Exit codes and errors.**
+  - **0 / 1:** 1 when the result is `isError`; its `structuredContent` (or `{content}`) is still printed.
+  - **2:** usage errors (unknown subcommand, wrong operand count, bad option, bad JSON or non-object arguments), checked before any connection. A target JSON-RPC error -32600/-32601/-32602/-32002 also exits 2: the request was wrong.
+  - **3:** no instance, `BridgeError`, `ForwardError` (timeout, gone, HTTP), and any other JSON-RPC error.
+  - On exit 2/3 stdout stays empty and stderr holds one line, `circuitjs-mcp: <text>`. A JSON-RPC error reads `<tool or uri>: <message> (JSON-RPC <code>)`; the no-instance text is `No CircuitJS1 instance. Start the app, or pass --launch (with --app), or run "circuitjs-mcp launch".`.
+- **Tests.**
+  - `test/cli.test.mjs` (12) runs the program as a child process against fake endpoints: valid, domain error, no `structuredContent`, bad JSON / usage (7 forms), JSON-RPC 2 vs 3, timeout, 1.2 MB arguments on stdin vs inline, `tools` none / paged, `instances` 2 live + 1 stale, `read` / unknown / unreachable `--url`, a bridge tool via `call`, `launch` with a relative file (and a second `launch` reuses the app), `launch` rejected file, `call --launch`.
+  - `test/fake-app.mjs` now holds the executable fake app shared with `launch-tool.test.mjs`.
+  - `node --test mcp/bridge/test/`: 81/81, about 13 s.
+- **Real app** (scratch HOME and registry, Xvfb; script outside the repo). Every SP_MCB_05_01 CLI row passed:
+  - `tools` without app → 3;
+  - `launch /abs/lrc.txt --app <wrapper>` → 0, Target + `{doc}`; the active document is lrc.txt;
+  - `call circuit_types '{"type":"Resistor"}'` → 0, OperationResult with TypeInfo;
+  - `circuit_edit` delete X9 → 1, issues on stdout;
+  - `circuit_get '{'` → 2, and an argument the app rejects → 2;
+  - `read circuitjs://catalogue` → 0;
+  - `instances` with 2 live + 1 stale → 2 entries, the stale record deleted.
+
+  Also passed:
+  - SP_MCB_05_02: `tools` (14) equals the target's `tools/list` projection;
+  - SP_MCB_05_03 eval row: `call circuit_connectivity` → 0, JSON parsed;
+  - SP_MCB_05_04: a 2500-element `circuit_import -` (64 KB) on stdin equals the inline result; `circuit_run budgetMs 120000` → 0 after 120.5 s.
+- **Review fixes (2026-10-02).**
+  - Every diagnostic is one stderr line: option errors read `<message>; run "circuitjs-mcp --help" for usage`, and newlines inside messages are folded.
+  - An unexpected error prints `unexpected error: <message>`; `CIRCUITJS_MCP_DEBUG=1` adds the stack (listed in `--help`).
+  - `read` without a `contents` array → exit 3 `<uri>: malformed resources/read result`.
+  - A tool name already at the start of a message is not repeated.
+  - An interactive stdin (`-` on a TTY) first prints `reading arguments from stdin (end with Ctrl-D)`.
+  - `tools` paging stops on a repeated cursor or after 100 pages (exit 3).
+  - New tests: connection lost mid-call → 3 `Instance gone`; -32600 / -32601 → 2; a 4 MB `structuredContent` arrives complete; `call bridge_launch` with a relative file → 2; one-line stderr on exit 2/3. 88/88 pass.
+- **App performance (outside this plan).** `circuit_import` of a legacy text with N resistors on a grid (all pins dangling) takes 5.9 s for N = 1250 and 51 s for N = 2500, and runs past 130 s for N = 5000 (CLI exit 3, `Timed out after 130000 ms`). N = 60000 ended in `Instance gone` after 67 s. The growth is about cubic, so a "large" circuit on stdin is limited by the app, not by the bridge.
+- **Phase 4 hooks.** `runCli` can be driven in-process with fake streams. The e2e bridge rows can run `bin/circuitjs-mcp.js` with `--registry <scratch HOME>/.circuitjs1/instances` and `--app <wrapper>`; a wrapper that sets `HOME` and a profile per start avoids the NW single-instance hand-off.
 
 ### Phase 4 — Tests and host snippets [TODO]  {#PL_MCB_P4}
 
@@ -183,3 +224,4 @@ What to create:
 | 2026-10-01 | Initial version |
 | 2026-10-02 | Phase 1 done: package, options, registry reader, target resolution, launch; Result with Phase 2 hooks |
 | 2026-10-02 | Phase 2 done: stdio server, forwarder (revision pin, transparent results, timeout, instance gone), bridge tools; Result with Phase 3 hooks |
+| 2026-10-02 | Phase 3 done: CLI subcommands, exit codes, stdin arguments; Result with Phase 4 hooks |

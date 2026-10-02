@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 16:40
+> **Last updated:** 2026-10-02 17:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
@@ -112,7 +112,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGA Phase 10 + PL_MCP Phase 5 — documentation propagation (JS_API CircuitJS1Agent + Element IDs + example drift, EXPORT_CJS, README/project MCP section with the plain no-token LAN security note, C_DOC/C_APC/C_UND/C_IOF/C_USR/SP_MCP updated, skills); review FAIL (2 must: stale lines false against code) → fixed by main. PL_AGA and PL_MCP plans `completed`. Open: C_SIM/SP_SIM lack §06_01 items 11–12 (message keys, per-document solver events)
 - [x] PL_MCB Phase 1 — `mcp/bridge/` package (circuitjs-mcp, SDK 1.31 like the server), options, registry, target resolution, launch; review FAIL (must: cleanup deleted any *.json with a dead pid — same flaw found and fixed in mcp/server/src/registry.js) → fixed; delta PASS. Bridge tests 42, test:mcp-unit 26, test:mcp 55
 - [x] PL_MCB Phase 2 — stdio server forwarding target tools/resources unchanged (raw tools/call, revision pin), bridge_instances/select/launch, Claude Code over stdio (17 tools); review PASS 4 should + 4 prefer → fixed (HTTP-status JSON-RPC errors, serialised launch, bypass guard, idle close on switch, absolute file); app server strips the SDK "MCP error <code>: " prefix. Bridge tests 69
-- [ ] **Next:** PL_MCB Phase 3 — CLI subcommands; then Phase 4, then PL_AGS
+- [x] PL_MCB Phase 3 — CLI `instances`/`tools`/`call`/`read`/`launch` with exit codes 0–3, one JSON document on stdout, one stderr line on errors; review FAIL (must: my own spec line stricter than needed) → code + spec aligned over two delta rounds; bridge tests 88. Backlog: `importCircuit` ~cubic in element count (2500 elements 51 s) — PL_AGA Backlog
+- [ ] **Next:** PL_MCB Phase 4 — tests and host snippets (tests/mcp bridge rows); then PL_AGS
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

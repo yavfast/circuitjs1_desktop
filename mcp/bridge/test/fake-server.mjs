@@ -17,8 +17,8 @@ import http from 'node:http';
  * @param {number} [o.postStatus]    answer every POST with this HTTP status and no body (e.g. 404)
  * @param {(msg: object) => (object|undefined|Promise<object|undefined>)} [o.handle]
  *        answers a request first: a result object, `{error: {code, message, data?}}` for a
- *        JSON-RPC error, `{http: {status, body}}` for a raw HTTP answer, or undefined for the
- *        default answer
+ *        JSON-RPC error, `{http: {status, body}}` for a raw HTTP answer, `{destroy: true}` to drop
+ *        the connection without an answer, or undefined for the default answer
  * @param {number} [o.port]          listen on this port (default: any free one)
  * @returns {Promise<{url: string, port: number, requests: object[], close: () => Promise<void>}>}
  */
@@ -92,6 +92,10 @@ export async function startFakeServer(o = {}) {
         }
         let result = o.handle ? await o.handle(msg) : undefined;
         if (result === undefined) result = answer(msg);
+        if (result && result.destroy) {
+          req.socket.destroy(); // the app went away mid-request
+          return;
+        }
         if (result && result.http) {
           res.writeHead(result.http.status, { 'Content-Type': 'application/json' }).end(result.http.body);
           return;
