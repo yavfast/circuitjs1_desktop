@@ -7,6 +7,7 @@ import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.ElementIdRegistry;
 import com.lushprojects.circuitjs1.client.Scope;
+import com.lushprojects.circuitjs1.client.io.json.JsonCircuitFormat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -339,7 +340,7 @@ final class AgentCircuitConverter {
         JSONObject root = new JSONObject();
         JSONObject schema = new JSONObject();
         schema.put("format", new JSONString("circuitjs"));
-        schema.put("version", new JSONString("2.0"));
+        schema.put("version", new JSONString(JsonCircuitFormat.FORMAT_VERSION));
         root.put("schema", schema);
         if (simulation != null) {
             root.put("simulation", simulation);

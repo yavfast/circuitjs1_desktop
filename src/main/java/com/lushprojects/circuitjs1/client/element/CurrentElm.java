@@ -158,9 +158,19 @@ public class CurrentElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_DEC_06] current enters the source at post 0 and leaves at post 1 (the arrow head)
     @Override
     public String[] getJsonPinNames() {
-        return new String[] { "positive", "negative" };
+        return new String[] { "in", "out" };
+    }
+
+    // [SP_AGA_DEC_06] JSON 2.0 names, with the post each one placed
+    private static final java.util.Map<String, Integer> LEGACY_PIN_ALIASES =
+            jsonPinAliasMap("positive", "negative");
+
+    @Override
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return LEGACY_PIN_ALIASES;
     }
 
     @Override

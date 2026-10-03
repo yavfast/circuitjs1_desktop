@@ -13,7 +13,8 @@
 > - Ключі елементів у `elements` — це ID елементів із реєстру ID документа (ті самі ID, що повертають `CircuitJS1.getElementIds()` і Agent API): форма `^[A-Za-z][A-Za-z0-9_]{0,31}$`, нумерація окремо для кожного префікса (`R1`, `R2`, `C1`, `W1`, `GND1`; транзистор — `TRA1`). Раніше експортер нумерував ключі одним спільним лічильником (`R1`, `C2`, `W3`). Імпорт (заміна вмісту) зберігає ключі як ID, якщо вони відповідають формі й унікальні; інакше генерується новий ID із попередженням `ids_regenerated` у журналі. Вставка JSON (paste) створює елементи з новими ID. Правила — [agent-api.sp.md §03_02](./agent-api.sp.md#SP_AGA_03_02).
 > - `simulation.auto_time_step` записується завжди, також зі значенням `false`; якщо ключа немає, імпорт залишає поточне налаштування документа.
 > - Піни провідника `Wire` називаються `a`/`b` (не `pin1`/`pin2`, як у прикладі нижче).
-> - Відповідність назв пінів полярних елементів (`positive`/`negative` джерел напруги й струму, піни полярного конденсатора) фактичній полярності елемента зараз на розгляді; назви пінів у файлах не змінюються, а приклади нижче не слід читати як опис полярності.
+> - **Версія 2.1 (2026-10-03, [SP_AGA_DEC_06](./agent-api.sp.md#SP_AGA_DEC_06)): назви пінів полярних елементів відповідають їхній фактичній полярності.** Двовивідні джерела напруги (`VoltageSourceDC`, `VoltageSourceAC`, `VoltageSourceSquare` та інші форми сигналу) — `minus` (пін 0), `plus` (пін 1; на ньому напруга вища на `voltage`); джерело струму `CurrentSource` — `in` (пін 0), `out` (пін 1, вістря стрілки: струм виходить із джерела тут, тож на навантаженні `out` — вищий кінець); омметр `OhmMeter` — `com`, `probe` (пін 1, «червоний» щуп); операційний підсилювач `OpAmp` — завжди `in-`, `in+`, `out` незалежно від `swap_inputs` (прапорець лише дзеркалить малюнок). Полярний конденсатор (`positive` = пін 0, `negative`) не змінився. Експортер пише `"version": "2.1"`; імпорт приймає будь-яку `2.x`.
+> - **Файли 2.0 зі старими назвами завантажуються як раніше.** Імпорт читає застарілі назви як псевдоніми з їхнім старим значенням: для джерел напруги й струму `positive` → пін 0, `negative` → пін 1; для омметра `probe+` → пін 0, `probe-` → пін 1. (Тобто в старих файлах `positive` джерела напруги насправді був мінусовим виводом.) Старі збірки читають файли 2.1 через запасний шлях «за порядком ключів» — експортер пише піни в порядку виводів. Псевдоніми діють лише для імпорту JSON; в Agent API (`PostRef`) старі назви дають `unknown_post`.
 > - `scopes[].label` — підпис осцилографа; `adjustables[].shared_slider` — індекс спільного повзунка; визначення моделей (діоди, транзистори, custom logic, підсхеми) у JSON поки не зберігаються.
 
 ## Основні принципи
@@ -32,7 +33,7 @@
 ```json
 {
   "schema": {
-    "version": "2.0",
+    "version": "2.1",
     "name": "Назва схеми",
     "description": "Опис схеми",
     "created": "2025-11-26",
@@ -237,7 +238,7 @@ B --|                     |-- B
     "pins": {
       "pin1": {
         "position": {"x": 277, "y": 177},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "pin2": {
         "position": {"x": 323, "y": 223},
@@ -286,7 +287,7 @@ B --|                     |-- B
   "N1": {
     "label": "Вузол живлення",
     "position": {"x": 400, "y": 200},
-    "connections": ["R1.pin2", "C1.pin1", "V1.positive"]
+    "connections": ["R1.pin2", "C1.pin1", "V1.plus"]
   }
 }
 ```
@@ -326,7 +327,7 @@ B --|                     |-- B
     "pins": {
       "pin1": {
         "position": {"x": 100, "y": 200},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "pin2": {
         "position": {"x": 200, "y": 200},
@@ -373,7 +374,7 @@ B --|                     |-- B
     "pins": {
       "anode": {
         "position": {"x": 400, "y": 200},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "cathode": {
         "position": {"x": 400, "y": 300},
@@ -417,13 +418,13 @@ B --|                     |-- B
       "voltage": "12 V"
     },
     "pins": {
-      "positive": {
-        "position": {"x": 100, "y": 100},
-        "connected_to": "R1.pin1"
-      },
-      "negative": {
+      "minus": {
         "position": {"x": 100, "y": 200},
         "connected_to": "GND1"
+      },
+      "plus": {
+        "position": {"x": 100, "y": 100},
+        "connected_to": "R1.pin1"
       }
     }
   }
@@ -442,13 +443,13 @@ B --|                     |-- B
       "frequency": "1 kHz"
     },
     "pins": {
-      "positive": {
-        "position": {"x": 200, "y": 100},
-        "connected_to": "C1.pin1"
-      },
-      "negative": {
+      "minus": {
         "position": {"x": 200, "y": 200},
         "connected_to": "GND1"
+      },
+      "plus": {
+        "position": {"x": 200, "y": 100},
+        "connected_to": "C1.pin1"
       }
     }
   }
@@ -464,7 +465,7 @@ B --|                     |-- B
     "pins": {
       "pin": {
         "position": {"x": 100, "y": 400},
-        "connected_to": "V1.negative"
+        "connected_to": "V1.minus"
       }
     }
   }
@@ -565,7 +566,7 @@ B --|                     |-- B
       },
       "emitter": {
         "position": {"x": 550, "y": 250},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       }
     }
   }
@@ -620,7 +621,7 @@ B --|                     |-- B
       },
       "source": {
         "position": {"x": 750, "y": 250},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       }
     }
   }
@@ -667,7 +668,7 @@ B --|                     |-- B
     "pins": {
       "pin1": {
         "position": {"x": 200, "y": 400},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "pin2": {
         "position": {"x": 300, "y": 400},
@@ -691,7 +692,7 @@ B --|                     |-- B
     "pins": {
       "terminal1": {
         "position": {"x": 400, "y": 400},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "wiper": {
         "position": {"x": 450, "y": 450},
@@ -719,7 +720,7 @@ B --|                     |-- B
     "pins": {
       "primary_1": {
         "position": {"x": 100, "y": 500},
-        "connected_to": "V1.positive"
+        "connected_to": "V1.plus"
       },
       "primary_2": {
         "position": {"x": 100, "y": 600},
@@ -762,7 +763,7 @@ B --|                     |-- B
 ```json
 {
   "schema": {
-    "version": "2.0",
+    "version": "2.1",
     "name": "Мультивібратор",
     "description": "Класичний мультивібратор на двох NPN транзисторах",
     "created": "2025-11-26",
@@ -784,12 +785,12 @@ B --|                     |-- B
     "N_VCC": {
       "label": "VCC",
       "position": {"x": 300, "y": 100},
-      "connections": ["V1.positive", "R1.pin1", "R2.pin1"]
+      "connections": ["V1.plus", "R1.pin1", "R2.pin1"]
     },
     "N_GND": {
       "label": "GND",
       "position": {"x": 300, "y": 500},
-      "connections": ["V1.negative", "Q1.emitter", "Q2.emitter"]
+      "connections": ["V1.minus", "Q1.emitter", "Q2.emitter"]
     }
   },
 
@@ -801,15 +802,15 @@ B --|                     |-- B
         "voltage": "9 V"
       },
       "pins": {
-        "positive": {
-          "label": "+",
-          "position": {"x": 100, "y": 100},
-          "connected_to": "N_VCC"
-        },
-        "negative": {
+        "minus": {
           "label": "-",
           "position": {"x": 100, "y": 500},
           "connected_to": "N_GND"
+        },
+        "plus": {
+          "label": "+",
+          "position": {"x": 100, "y": 100},
+          "connected_to": "N_VCC"
         }
       }
     },
@@ -1331,7 +1332,7 @@ B --|                     |-- B
 ```json
 {
   "schema": {
-    "version": "2.0",
+    "version": "2.1",
     "include_state": true,
     ...
   }
@@ -1446,7 +1447,7 @@ B --|                     |-- B
 ```json
 {
   "schema": {
-    "version": "2.0",
+    "version": "2.1",
     "name": "RC фільтр",
     "include_state": true
   },

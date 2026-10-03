@@ -3,10 +3,10 @@ skill: json-format
 domain: io
 topics: [json, schema-v2, circuit-element-factory, unit-parser, bounds, auto-wires]
 source: onboard
-updated: 2026-10-01
+updated: 2026-10-03
 ---
 
-# JSON v2.0 Format
+# JSON v2 Format (written as 2.1)
 
 ## Context
 
@@ -23,7 +23,7 @@ round-trip.
 
 ```json
 {
-  "schema":      { "format": "circuitjs", "version": "2.0" },
+  "schema":      { "format": "circuitjs", "version": "2.1" },
   "simulation":  { "time_step": "5 us", "max_time_step": "5 us",
                    "voltage_range": "5 V", "current_speed": 50,
                    "power_brightness": 50, "auto_time_step": true, ... },
@@ -92,6 +92,8 @@ with `"2."`. No semver range; future `3.x` rejects.
   `UnitParser` from `io/json/` breaks those elements — it is an
   intentional downstream dependency.
 
+**Pin names are part of the format.** `CircuitElm.applyJsonPinPositions` places posts by pin name (key order only as a fallback), so renaming a pin changes how files load. Renamed pins keep their old names as import aliases via `CircuitElm.getJsonPinAliases()`: since 2.1 (2026-10-03, SP_AGA_DEC_06) voltage sources are `minus`/`plus`, current sources `in`/`out`, the ohmmeter `com`/`probe`; 2.0 `positive`/`negative` and `probe+`/`probe-` load as post 0/1 with their old meaning. Op-amps (`in-`/`in+` now constant) have no alias. Readers accept any `2.x`.
+
 ## Pitfalls
 
 1. **Every exported property must be applied back** (RULE_ARCH_010). The factory builds elements with the `(doc, x, y)` constructor and then calls `applyJsonProperties`; the base is a no-op. Until 2026-09-30 ~70 classes exported keys nobody read (labeled-node names, chip bits, expressions, model names). A static "has an apply override" check is not enough — single keys can still be missed; verify with `npm run test:live` roundtrip. (`current_value` of adjustables needs no restore: the slider takes the element's restored value.)
@@ -128,7 +130,7 @@ with `"2."`. No semver range; future `3.x` rejects.
 
 - `.dev_flow/onboard/analysis/io-framework.md` §"io-json",
   §"CircuitElementFactory creation rules", §"Issues / Questions"
-- `docs/EXPORT_CJS.md` — full JSON v2.0 spec
+- `docs/EXPORT_CJS.md` — full JSON v2 spec
 - `src/main/java/com/lushprojects/circuitjs1/client/io/json/JsonCircuitExporter.java`
   L54, L67, L621, L667
 - `src/main/java/com/lushprojects/circuitjs1/client/io/json/JsonCircuitImporter.java`

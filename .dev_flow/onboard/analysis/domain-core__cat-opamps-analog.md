@@ -346,8 +346,9 @@ From the lifecycle contract described in `domain-core__element-base.md`:
   with their parent; the distinguishing state is a flag or a constructor
   parameter, not a new dump type.
 - **JSON pin names.** Every element overrides `getJsonPinNames()` with a
-  canonical labelled list — `OpAmp` swaps `in-`/`in+` depending on
-  `FLAG_SWAP` (OpAmpElm.java:326-331).
+  canonical labelled list — `OpAmp` is constant `in-`, `in+`, `out`;
+  `FLAG_SWAP` mirrors the drawing only, post 0 stays the inverting input
+  (SP_AGA_DEC_06, 2026-10-03; it used to swap the names).
 - **Start/end JSON anchors.** OpAmpElm overrides both
   `getJsonStartPoint()` / `getJsonEndPoint()` (line 333-345) because
   `point1` is the body anchor, not a pin — referenced in the

@@ -48,7 +48,7 @@ import java.util.Set;
  * 
  * JSON structure:
  * {
- *   "schema": { "format": "circuitjs", "version": "2.0" },
+ *   "schema": { "format": "circuitjs", "version": "2.1" },
  *   "simulation": { ... simulation parameters ... },
  *   "elements": { ... element definitions ... },
  *   "scopes": [ ... scope configurations ... ]

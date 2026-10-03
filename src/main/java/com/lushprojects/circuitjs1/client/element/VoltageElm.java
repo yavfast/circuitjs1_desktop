@@ -302,9 +302,19 @@ public class VoltageElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_DEC_06] the solver drives post 1 `voltage` above post 0 (V(post 1) - V(post 0) = v)
     @Override
     public String[] getJsonPinNames() {
-        return new String[] { "positive", "negative" };
+        return new String[] { "minus", "plus" };
+    }
+
+    // [SP_AGA_DEC_06] JSON 2.0 names, with the post each one placed
+    private static final java.util.Map<String, Integer> LEGACY_PIN_ALIASES =
+            jsonPinAliasMap("positive", "negative");
+
+    @Override
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return LEGACY_PIN_ALIASES;
     }
 
     @Override

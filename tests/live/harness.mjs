@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | pin_names | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -3598,6 +3598,125 @@ async function scenarioAgentFiles(s) {
     sweep: out.notes.sweep && { known: out.notes.sweep.known, unknown: out.notes.sweep.unknown }, details: path.join(OUT_DIR, 'agent_files.json') });
 }
 
+// pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_03_02 "Polar names",
+// §01_09 source voltage sign; io-framework "Pin-name aliases"), on a background document. Each
+// source drives a 1 kOhm load from `start` (grounded) to `end`: a DC source reads +5 V at `plus`
+// and 0 V at `minus`, a 10 mA current source leaves at `out` (+10 V), the ohmmeter's `probe` is
+// the high post; an op-amp's `in-` is the inverting input with and without `swap_inputs`. A JSON
+// 2.0 file written with the superseded names (`positive`/`negative`, `probe+`/`probe-`, pin keys
+// in reverse order so the key-order fallback cannot hide a missing alias) loads with the same
+// polarity as before; a new export is version 2.1 with the new names; superseded names in
+// PostRefs give `unknown_post`; the catalogue lists the new names. The 2.0 file's `state.pins`
+// under the old names restores the right post voltages (read before any run), and a file with
+// both old and new pin keys is placed by the new names.
+async function scenarioPinNames(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 30000);
+  const codes = (list) => (list || []).map((i) => i.code);
+  const near = (v, x, tol) => typeof v === 'number' && Math.abs(v - x) <= (tol || 1e-3);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const doc = (await A('createDocument', { title: 'Pin names' })).data.doc;
+  const values = async (targets) => {
+    const r = await A('read', { doc, targets });
+    return r.ok ? Object.fromEntries(r.data.values.map((v) => [v.name, v.value])) : { __issues: codes(r.issues) };
+  };
+  // X1 from start (0,4) (grounded) to end (0,0); R1 from end back to ground
+  const loop = (spec) => [
+    { id: 'X1', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, ...spec },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1 kOhm' } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+  ];
+  const cases = {
+    dc: { spec: { type: 'VoltageSourceDC', properties: { max_voltage: '5 V' } }, names: ['minus', 'plus'], old: ['positive', 'negative'], high: 5 },
+    cur: { spec: { type: 'CurrentSource', properties: { current: '10 mA' } }, names: ['in', 'out'], old: ['positive', 'negative'], high: 10 },
+    ohm: { spec: { type: 'OhmMeter' }, names: ['com', 'probe'], old: ['probe+', 'probe-'], high: 10 },
+  };
+  for (const [k, c] of Object.entries(cases)) {
+    const imp = await A('importCircuit', { doc, circuit: { elements: loop(c.spec) } });
+    const run = await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+    const g = await A('getCircuit', { doc });
+    const x1 = ((g.data && g.data.elements) || []).find((e) => e.id === 'X1');
+    const v = await values([{ name: 'p0', post: 'X1.' + c.names[0] }, { name: 'p1', post: 'X1.' + c.names[1] },
+      { name: 'vElm', element: 'X1', quantity: 'voltage' }, { name: 'load', post: 'R1.pin1' }]);
+    out.notes[k] = { posts: x1 && x1.posts.map((p) => p.pin + '@' + p.at.x + ',' + p.at.y), v, run: run.ok };
+    ck(k + '_names', imp.ok && x1 && same(x1.posts.map((p) => p.pin), c.names));
+    ck(k + '_polarity', near(v.p0, 0) && near(v.p1, c.high) && near(v.load, c.high));
+    if (k === 'dc') ck('dc_voltageSign', near(v.vElm, 5));
+    if (k === 'cur') ck('cur_voltageSign', near(v.vElm, 10));
+    // superseded names are not PostRefs
+    const oldRef = await A('read', { doc, targets: [{ post: 'X1.' + c.old[0] }] });
+    ck(k + '_oldPostRef_unknown', !oldRef.ok && codes(oldRef.issues).includes('unknown_post'));
+    // a new export: version 2.1, new names
+    const ex = await A('exportCircuit', { doc, format: 'json' });
+    const j = JSON.parse(ex.data.content);
+    out.notes[k].exportPins = Object.keys(j.elements.X1.pins);
+    ck(k + '_export21', j.schema.version === '2.1' && same(Object.keys(j.elements.X1.pins).filter((p) => !p.startsWith('_')), c.names));
+    // the same circuit as a JSON 2.0 file with the superseded names, X1 pin keys in reverse order
+    const ren = { [c.names[0]]: c.old[0], [c.names[1]]: c.old[1] };
+    const oldJ = JSON.parse(ex.data.content);
+    oldJ.schema.version = '2.0';
+    const p = oldJ.elements.X1.pins;
+    oldJ.elements.X1.pins = Object.fromEntries(Object.keys(p).reverse().map((n) => [ren[n] || n, p[n]]));
+    const fixRef = (r) => { const d = r.indexOf('.'); return d > 0 && r.slice(0, d) === 'X1' && ren[r.slice(d + 1)] ? 'X1.' + ren[r.slice(d + 1)] : r; };
+    for (const e of Object.values(oldJ.elements)) for (const pin of Object.values(e.pins || {})) if (Array.isArray(pin.connected_to)) pin.connected_to = pin.connected_to.map(fixRef);
+    // saved state under the old names: a marker voltage on post 1 (not the solved value)
+    const mark = c.high / 2 + 0.123;
+    oldJ.elements.X1.state = { pins: { [c.old[0]]: { v: 0 }, [c.old[1]]: { v: mark } } };
+    const imp2 = await A('importCircuit', { doc, circuit: JSON.stringify(oldJ) });
+    const vs = await values([{ name: 'p0', post: 'X1.' + c.names[0] }, { name: 'p1', post: 'X1.' + c.names[1] }]);
+    out.notes[k].old20state = vs;
+    ck(k + '_json20_stateAlias', imp2.ok && near(vs.p1, mark) && near(vs.p0, 0));
+    await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+    const v2 = await values([{ name: 'p1', post: 'X1.' + c.names[1] }, { name: 'load', post: 'R1.pin1' }]);
+    out.notes[k].old20 = { pins: Object.keys(oldJ.elements.X1.pins), v: v2, ok: imp2.ok };
+    ck(k + '_json20_oldNames', imp2.ok && near(v2.p1, c.high) && near(v2.load, c.high));
+    // both name sets in one file, the old ones first and pointing the other way: new names win
+    const mixJ = JSON.parse(ex.data.content);
+    const q = mixJ.elements.X1.pins;
+    mixJ.elements.X1.pins = { [c.old[0]]: { position: q[c.names[1]].position }, [c.old[1]]: { position: q[c.names[0]].position }, ...q };
+    const imp3 = await A('importCircuit', { doc, circuit: JSON.stringify(mixJ) });
+    await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+    const v3 = await values([{ name: 'p1', post: 'X1.' + c.names[1] }, { name: 'load', post: 'R1.pin1' }]);
+    out.notes[k].mixed = { pins: Object.keys(mixJ.elements.X1.pins), v: v3 };
+    ck(k + '_mixedNames_newWin', imp3.ok && near(v3.p1, c.high) && near(v3.load, c.high));
+  }
+  // op-amp: +1 V on `in-`, `in+` grounded -> output at the negative rail, with and without swap_inputs
+  for (const swap of [false, true]) {
+    const k = 'opamp_swap_' + swap;
+    const oa = { id: 'OA1', type: 'OpAmp', start: { x: 0, y: 0 }, end: { x: 8, y: 0 }, properties: { swap_inputs: swap } };
+    await A('importCircuit', { doc, circuit: { elements: [oa] } });
+    const posts = Object.fromEntries((((await A('getCircuit', { doc })).data.elements || [])[0].posts).map((p) => [p.pin, p.at]));
+    const o = posts.out;
+    const imp = await A('importCircuit', { doc, circuit: { elements: [oa,
+      { id: 'VP', type: 'Rail', start: posts['in-'], end: { x: posts['in-'].x - 2, y: posts['in-'].y }, properties: { max_voltage: '1 V' } },
+      { id: 'G1', type: 'Ground', start: posts['in+'], end: { x: posts['in+'].x - 2, y: posts['in+'].y } },
+      { id: 'RL', type: 'Resistor', start: o, end: { x: o.x + 4, y: o.y }, properties: { resistance: '10 kOhm' } },
+      { id: 'G2', type: 'Ground', start: { x: o.x + 4, y: o.y }, end: { x: o.x + 4, y: o.y + 1 } }] } });
+    await R({ doc, span: '10 ms', reset: true, maxPoints: 10 });
+    const v = await values([{ name: 'out', post: 'OA1.out' }, { name: 'inm', post: 'OA1.in-' }]);
+    out.notes[k] = { posts, v };
+    ck(k + '_inMinusInverting', imp.ok && near(v.inm, 1) && v.out < -10);
+  }
+  // catalogue
+  const want = { VoltageSourceDC: ['minus', 'plus'], VoltageSourceAC: ['minus', 'plus'], VoltageSourceSquare: ['minus', 'plus'],
+    CurrentSource: ['in', 'out'], OhmMeter: ['com', 'probe'], OpAmp: ['in-', 'in+', 'out'], PolarCapacitor: ['positive', 'negative'], Rail: ['output'] };
+  const cat = {};
+  for (const t of Object.keys(want)) { const d = await A('describeType', { type: t }); cat[t] = d.ok ? d.data.pins : codes(d.issues); }
+  out.notes.catalogue = cat;
+  ck('catalogue', Object.keys(want).every((t) => same(cat[t], want[t])));
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('noExceptions', s.exceptions.length === exMark);
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'pin_names.json'), JSON.stringify(out, null, 2));
+  report('AG.pin_names', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
+}
+
 // mcp_browser: the in-app MCP server in the browser build (PL_MCP Phase 1, SP_MCP_05_04 "Browser
 // build"). circuitjs.html loads scripts/mcp-server.js in every build; without the desktop runtime
 // the server must report `disabled` and attempt no listen, with no page exception or console error
@@ -3819,7 +3938,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -3863,7 +3982,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

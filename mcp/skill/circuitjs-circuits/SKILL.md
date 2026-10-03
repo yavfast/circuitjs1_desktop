@@ -25,7 +25,7 @@ This skill is for building, checking, simulating and repairing analog and digita
 - **Every circuit gets an explicit `Ground`.**
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
-- **Measure, never assume.** Values, polarity and signs come from `circuit_run` / `circuit_read`, not from pin names or memory.
+- **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`); confirm with a read when a result looks wrong.
 - **Checkpoint with a comment** (`circuit_checkpoint`) after each logical change.
 - **Never fix the user's unrelated issues unasked**: report them.
 

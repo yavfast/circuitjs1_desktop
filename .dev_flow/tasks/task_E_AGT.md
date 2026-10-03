@@ -2,10 +2,10 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-02 21:40
+> **Last updated:** 2026-10-03 10:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
-> **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push
+> **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
 
 ## Current Work Item
 
@@ -117,7 +117,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGS Phase 1 — skill `mcp/skill/circuitjs-circuits/` (SKILL.md + 5 references + host snippets), examples built live through the bridge CLI and re-run (766 consistency checks); review FAIL (must: post-order voltage formula implied source pin polarity) → fixed + bridge_launch-first, host security line; delta PASS. Six Agent API defects found while writing it → PL_AGA Backlog "Defect batch" (fix before PL_AGS Phase 4)
 - [x] PL_AGS Phase 2 — `mcp/skill/tools/check-consistency.mjs` (form, codes, names, tools, catalogue, examples; 1449 live checks; offline mode); review FAIL ×2 (must: codes/keys outside tables unchecked; then scratch-document leak on exit) → fixed; final delta PASS
 - [x] PL_AGS Phase 3 — evals (4 scenarios, 2 fixtures, check.mjs reading app state only, run.mjs with temp project, restricted tools, $2/run cap, init-message isolation check, 2-of-3 rule); review PASS 5 should + 3 prefer → fixed; no real eval run
-- [ ] **Next:** PAUSED for the developer — PL_AGS Phase 4 eval runs need an explicit go-ahead (24 runs ≈ $7–30, 1–2.5 h per round, $2/run cap); before them: fix the PL_AGA Backlog "Defect batch" and decide the polar pin naming (Coordination Notes)
+- [x] Polar pin-name fix (SP_AGA_DEC_06): measured every polar element; new correct names with import aliases, JSON 2.1, live scenario `pin_names` (27 checks, fails on HEAD); review PASS (1 should → swapped op-amp exception documented)
+- [ ] **Next:** PL_AGA defect batch (5 remaining items) → PL_AGS Phase 4 eval runs (go-ahead given 2026-10-03)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
@@ -155,7 +156,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 
 ## Coordination Notes
 
-- `proposed` (developer decision, found in PL_MCP Phase 2): JSON/agent pin names of polar elements look swapped — `VoltageElm.getJsonPinNames` = {positive, negative} for posts {0, 1}, but `getVoltageDiff = V(post1) − V(post0)` and a +5 V DC source measures +5 V on post 1 ("negative"). Same naming in `CurrentElm` and `PolarCapacitorElm` (polarity not yet checked). The names are part of the user JSON v2 format (`"V1.positive"` in connections/nodes, EXPORT_CJS) and of agent pin names (SP_AGA_03_02), so swapping them changes how existing JSON files resolve pins. Options: A — swap the names and keep importing the old meaning for files whose `schema.version` is 2.0 (bump to 2.1); B — keep the JSON names, give agents corrected aliases; C — keep as is and document (agents misled). Recommended: A after checking all three elements. The agent-format text avoids stating polarity meanwhile. — main
+- ~~`proposed`: polar pin names swapped~~ **resolved 2026-10-03** by the developer ("make them correct") → SP_AGA_DEC_06: sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp constant `in-`/`in+`; JSON 2.1 with import aliases for 2.0 names. — main
 - `proposed` (minor, Phase 6; delta reviewer: acceptable as is): when an agent `undo`/`restoreCheckpoint` auto-seals an open transaction and the following undo load then throws (`internal_error`), the seal is not rolled back — the transaction ends sealed. Recommended: leave as is (the sealed entry is a correct checkpoint of the agent's work; the failure path is exceptional). Alternative: snapshot the transaction state and restore it too. Raise with the developer at the pause. — main
 
 ## Blocking Issues

@@ -112,7 +112,7 @@ mcp_chrome-devtoo_take_snapshot()
 () => {
   // Load test circuit (RC circuit with voltage source)
   const circuit = {
-    "schema": {"format": "circuitjs", "version": "2.0"},
+    "schema": {"format": "circuitjs", "version": "2.1"},
     "simulation": {
       "time_step": "5 us",
       "voltage_range": "5 V"
@@ -130,7 +130,7 @@ mcp_chrome-devtoo_take_snapshot()
       },
       "V1": {
         "type": "VoltageSourceSquare",
-        "pins": {"positive": {"position": {"x": 352, "y": 272}}, "negative": {"position": {"x": 352, "y": 112}}},
+        "pins": {"minus": {"position": {"x": 352, "y": 272}}, "plus": {"position": {"x": 352, "y": 112}}},
         "properties": {"frequency": "40 Hz", "max_voltage": "5 V"}
       },
       "W1": {
@@ -490,7 +490,7 @@ CircuitJS1.deleteElementById(id);
 
 // 3. Create new element with same ID but different position
 const circuit = {
-    "schema": {"format": "circuitjs", "version": "2.0"},  // required, otherwise the import is rejected
+    "schema": {"format": "circuitjs", "version": "2.1"},  // required, otherwise the import is rejected
     "elements": {
         "R1": {  // Same ID preserved
             "type": "Resistor",
@@ -569,7 +569,7 @@ CircuitJS1.importCircuit(circuitText, false);
 ```
 
 ### exportAsJson(): string
-Export circuit in JSON format (version 2.0) without simulation state.
+Export circuit in JSON format (version 2.1) without simulation state.
 
 ```javascript
 const jsonData = CircuitJS1.exportAsJson();
@@ -577,7 +577,7 @@ console.log(JSON.parse(jsonData));
 ```
 
 ### exportAsJsonWithState(): string
-Export circuit in JSON format (version 2.0) including simulation state (pin voltages, currents, internal element states).
+Export circuit in JSON format (version 2.1) including simulation state (pin voltages, currents, internal element states).
 
 This method includes additional `state` field for each element containing:
 - `pins`: Object with pin names as keys, each containing `v` (voltage) and `i` (current into node)
@@ -601,10 +601,12 @@ console.log('Collector current:', transistorState.ic);
 ### importFromJson(json: string): void
 Import circuit from JSON format (recommended). Supports importing simulation state if present.
 
+Any `2.x` schema version is accepted. Files written as 2.0 with the superseded polar pin names (`positive`/`negative` of voltage and current sources, `probe+`/`probe-` of the ohmmeter) load with their old meaning; see [EXPORT_CJS.md](./EXPORT_CJS.md) (version 2.1 note).
+
 ```javascript
 // Create circuit programmatically
 const circuit = {
-  "schema": {"format": "circuitjs", "version": "2.0"},
+  "schema": {"format": "circuitjs", "version": "2.1"},
   "simulation": {
     "time_step": "5 us",
     "voltage_range": "5 V"
@@ -617,7 +619,7 @@ const circuit = {
     },
     "V1": {
       "type": "VoltageSourceSquare",
-      "pins": {"positive": {"position": {"x": 208, "y": 288}}, "negative": {"position": {"x": 208, "y": 176}}},
+      "pins": {"minus": {"position": {"x": 208, "y": 288}}, "plus": {"position": {"x": 208, "y": 176}}},
       "properties": {"frequency": "40 Hz", "max_voltage": "5 V"}
     }
   }
@@ -818,7 +820,7 @@ Common rules: `doc` (a document handle `d1`, `d2` …) selects the document, and
 | `getHistory`, `undo`, `redo`, `restoreCheckpoint` | Undo history with checkpoint comments, multi-step undo/redo, return to a checkpoint ([§02_13](./agent-api.sp.md#SP_AGA_02_13)) |
 | `openFile`, `saveFile`, `exportCircuit` | Path-based open/save of `.txt`/`.json` circuit files (desktop runtime only, otherwise `file_unavailable`) and export as text or JSON ([§02_14](./agent-api.sp.md#SP_AGA_02_14)) |
 
-Agent coordinates are grid cells (1 cell = 16 editor pixels, half-cell lattice); pins are named `<ElementId>.<PinName>` (for example `R1.pin1`, `V1.positive`). Issue codes and their severities are listed in [§03_05](./agent-api.sp.md#SP_AGA_03_05) and [§03_06](./agent-api.sp.md#SP_AGA_03_06).
+Agent coordinates are grid cells (1 cell = 16 editor pixels, half-cell lattice); pins are named `<ElementId>.<PinName>` (for example `R1.pin1`, `V1.plus`; a two-post voltage source has `minus`/`plus`, a current source `in`/`out` — [§03_02](./agent-api.sp.md#SP_AGA_03_02) "Polar names"). Issue codes and their severities are listed in [§03_05](./agent-api.sp.md#SP_AGA_03_05) and [§03_06](./agent-api.sp.md#SP_AGA_03_06).
 
 ### Example
 
@@ -860,7 +862,7 @@ window.oncircuitjsloaded = function(api) {
     
     // Import a simple RC circuit using JSON format
     const circuit = {
-      "schema": {"format": "circuitjs", "version": "2.0"},
+      "schema": {"format": "circuitjs", "version": "2.1"},
       "simulation": {
         "time_step": "5 us",
         "voltage_range": "5 V",

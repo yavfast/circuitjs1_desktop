@@ -30,9 +30,9 @@ The only post is at `start`; `end` only orients the symbol and its lead. Ground,
 
 ### `two_point`: posts at the two points
 
-Post 0 is at `start` and post 1 at `end`: resistors, capacitors, inductors, wires, diodes, LEDs, sources, switches and the inverter. For resistors, wires, diodes and LEDs the pin names (`pin1`/`pin2`, `a`/`b`, `anode`/`cathode`) follow post order, so a diode drawn from `start` to `end` conducts from `start` to `end`. For sources and polarised capacitors the pin names say nothing reliable about polarity (next paragraph).
+Post 0 is at `start` and post 1 at `end`: resistors, capacitors, inductors, wires, diodes, LEDs, sources, switches and the inverter. The pin names follow post order (`pin1`/`pin2`, `a`/`b`, `anode`/`cathode`, `minus`/`plus`, `in`/`out`), so a diode drawn from `start` to `end` conducts from `start` to `end`.
 
-**Polarity of sources and polarised parts.** Do not infer which terminal of a voltage source, current source or polarised capacitor is positive from its pin names. Check it once on a known case: place the source with a resistor to ground, then `circuit_read` the net at its `end` (or probe it in a short `circuit_run`). In every pattern of this skill a source runs from `start` on the ground side to `end` on the supply side, and that orientation gives the stated positive values. Probe sign conventions of `current` and `power` the same way before relying on a sign.
+**Polarity of sources and polarised parts.** The pin names state it: a voltage source's `plus` (post 1, at `end`) is its positive terminal; a current source drives its current out of `out` (post 1, at `end`); a polarised capacitor's `positive` is post 0 (at `start`). In every pattern of this skill a source runs from `start` on the ground side to `end` on the supply side, which gives the stated positive values. Still read the circuit once (`circuit_read` the net at the source's `plus`) when a result looks wrong, and check the sign conventions of `current` and `power` on a known case before relying on a sign.
 
 ### `derived`: posts computed from the two points
 

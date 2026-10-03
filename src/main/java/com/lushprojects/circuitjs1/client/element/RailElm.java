@@ -145,4 +145,10 @@ public class RailElm extends VoltageElm {
     public String[] getJsonPinNames() {
         return new String[] { "output" };
     }
+
+    // single post: the two-post source aliases of VoltageElm do not apply
+    @Override
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return java.util.Collections.emptyMap();
+    }
 }

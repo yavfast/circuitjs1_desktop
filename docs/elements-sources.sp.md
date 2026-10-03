@@ -32,7 +32,7 @@
 | SweepElm | CircuitElm (not VoltageElm) | 1 | 1 | — (custom phase accumulator) | 170 | minF, maxF, maxV, sweepTime, FLAG_LOG=1, FLAG_BIDIR=2 | SweepElm.java:30-310 |
 
 Fixed structural contract from `VoltageElm`:
-- Posts: 2; Pin names: `{positive, negative}`.
+- Posts: 2; Pin names: `{minus, plus}` (post 1 is driven `voltage` above post 0; [SP_AGA_DEC_06](./agent-api.sp.md#SP_AGA_DEC_06); JSON 2.0 `positive`/`negative` are import aliases for post 0/1). `CurrentElm`: `{in, out}` (current leaves at `out`); `OhmMeterElm`: `{com, probe}`; `RailElm` and subclasses: `{output}`.
 - `getVoltageSourceCount() == 1`; dump type `'v'` (118);
   `getIdPrefix() == "V"`.
 - Voltage-diff convention: `V(1) − V(0)`; power: `-Vd · I`.

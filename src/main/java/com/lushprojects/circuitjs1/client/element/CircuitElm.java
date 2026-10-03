@@ -1668,6 +1668,43 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     /**
+     * [SP_AGA_DEC_06] Superseded JSON pin names that the JSON importer still reads, mapped to the
+     * post index they named. Used only where a JSON file's {@code pins} / {@code state.pins} map
+     * is read and the current pin name is absent; agent PostRefs never use these aliases.
+     *
+     * @return alias name to post index (0-based); empty by default
+     */
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return java.util.Collections.emptyMap();
+    }
+
+    /** Builds a {@link #getJsonPinAliases()} map from old names listed in post order. */
+    protected static java.util.Map<String, Integer> jsonPinAliasMap(String... namesByPost) {
+        java.util.Map<String, Integer> map = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < namesByPost.length; i++) {
+            map.put(namesByPost[i], i);
+        }
+        return java.util.Collections.unmodifiableMap(map);
+    }
+
+    /**
+     * Looks up the entry of a post in a JSON map keyed by pin name: the current name first, then
+     * any {@link #getJsonPinAliases() alias} of that post.
+     */
+    private <T> T jsonPinEntry(java.util.Map<String, T> map, int postIndex, String name) {
+        T value = map.get(name);
+        if (value != null) {
+            return value;
+        }
+        for (java.util.Map.Entry<String, Integer> alias : getJsonPinAliases().entrySet()) {
+            if (alias.getValue() == postIndex && map.containsKey(alias.getKey())) {
+                return map.get(alias.getKey());
+            }
+        }
+        return null;
+    }
+
+    /**
      * Returns the position of a specific pin/post.
      * Used for JSON export to get absolute coordinates.
      * 
@@ -1813,7 +1850,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             String[] keys = jsonStatePinKeys(pinsArr);
             for (int k = 0; k < pinsArr.length; k++) {
                 Pin pin = pinsArr[k];
-                Object pinObj = pins.get(keys[k]);
+                Object pinObj = jsonPinEntry(pins, pin.getIndex(), keys[k]);
                 if (!(pinObj instanceof java.util.Map)) {
                     continue;
                 }
@@ -1910,7 +1947,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             // Get first pin position - only if no _startpoint
             // _startpoint means point1 doesn't correspond to any pin (e.g., OpAmp)
             if (!hasStartpoint) {
-                java.util.Map<String, Integer> pin1 = pins.get(pinArr[0].getName());
+                java.util.Map<String, Integer> pin1 = jsonPinEntry(pins, 0, pinArr[0].getName());
                 if (pin1 != null) {
                     Integer px = pin1.get("x");
                     Integer py = pin1.get("y");
@@ -1924,7 +1961,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             // Get second pin position - only if no _endpoint
             // _endpoint means point2 doesn't correspond to any pin (e.g., Transistor, MOSFET)
             if (!hasEndpoint) {
-                java.util.Map<String, Integer> pin2 = pins.get(pinArr[1].getName());
+                java.util.Map<String, Integer> pin2 = jsonPinEntry(pins, 1, pinArr[1].getName());
                 if (pin2 != null) {
                     Integer px = pin2.get("x");
                     Integer py = pin2.get("y");
@@ -1938,7 +1975,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
             setEndpoints(x1, y1, x3, y3);
         } else if (pinArr.length == 1) {
             // Single-terminal elements
-            java.util.Map<String, Integer> pin1 = pins.get(pinArr[0].getName());
+            java.util.Map<String, Integer> pin1 = jsonPinEntry(pins, 0, pinArr[0].getName());
             if (pin1 != null) {
                 Integer px = pin1.get("x");
                 Integer py = pin1.get("y");

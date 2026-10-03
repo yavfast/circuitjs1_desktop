@@ -331,11 +331,9 @@ public class OpAmpElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_DEC_06] post 0 is the inverting input whatever FLAG_SWAP (which only mirrors the drawing)
     @Override
     public String[] getJsonPinNames() {
-        if ((flags & FLAG_SWAP) != 0) {
-            return new String[] { "in+", "in-", "out" };
-        }
         return new String[] { "in-", "in+", "out" };
     }
 

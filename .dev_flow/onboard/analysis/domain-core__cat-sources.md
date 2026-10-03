@@ -53,7 +53,7 @@ type of the object.
 
 ### Fixed structural contract from VoltageElm
 
-- **Posts:** 2 (inherited default). Pin names: `{ "positive", "negative" }` (line 298-300).
+- **Posts:** 2 (inherited default). Pin names: `{ "minus", "plus" }` — post 1 is driven `voltage` above post 0 (SP_AGA_DEC_06, 2026-10-03; was `{ "positive", "negative" }`, which named post 0 "positive"). `getJsonPinAliases()` keeps `positive`→0, `negative`→1 for JSON 2.0 import. `CurrentElm`: `{ "in", "out" }`; `OhmMeterElm`: `{ "com", "probe" }`.
 - **Voltage sources:** 1 (`getVoltageSourceCount() == 1`, line 215).
 - **Dump type:** `'v'` (118). `getIdPrefix()` → `"V"` (line 80).
 - **Voltage-diff convention:** `V(1) − V(0)` (line 223-225).

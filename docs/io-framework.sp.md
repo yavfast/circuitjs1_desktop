@@ -69,7 +69,7 @@ Root object shape (written by `JsonCircuitExporter`, accepted by `JsonCircuitImp
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| schema | yes | `{ format: "circuitjs", version: "2.0" }` — gate checked by `validateSchema` |
+| schema | yes | `{ format: "circuitjs", version: "2.1" }` (written since 2026-10-03; `2.0` files still read) — gate checked by `validateSchema` |
 | simulation | yes | time steps (SI strings), display booleans, voltage range string, `current_speed`, `power_brightness`, `auto_time_step` (always written since 2026-10-02; the importer keeps the target document's setting when an older file lacks it) |
 | elements | yes | `{ "<element-id>": ElementEntry, ... }` — key = the element's registry ID `CircuitElm.getElementId()` ([SP_AGA_03_02](./agent-api.sp.md#SP_AGA_03_02)) |
 | nodes | optional | `{ "N1": { connections: ["<id>.<pin>", ...] }, ... }` for `(x,y)` where >=3 pins coincide |
@@ -344,6 +344,7 @@ Processing logic:
 - Text importer wraps each line in try/catch; per-line parse failures are logged but do not abort the document.
 - JSON importer logs and continues on: malformed root, missing element `type`, unknown element type, bounds / pin / property application errors.
 - JSON `schema.version` check does not support ranges — future `3.x` bump requires code change.
+- **Pin-name aliases (2.1, [SP_AGA_DEC_06](./agent-api.sp.md#SP_AGA_DEC_06)).** Polar pins were renamed to their real polarity (voltage sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`). The importer keeps reading the old names with their old meaning: `positive`→post 0, `negative`→post 1 for voltage and current sources; `probe+`→post 0, `probe-`→post 1 for the ohmmeter. Old builds read 2.1 files through the key-order fallback (unknown names place posts in key order). Exception: op-amps with `swap_inputs` had `in+`/`in-` crossed in 2.0; their geometry is unaffected (placed by start/end points), but saved `state.pins` input voltages of such 2.0 files are read crossed.
 
 ## 04. State Transitions  {#SP_IOF_04}
 

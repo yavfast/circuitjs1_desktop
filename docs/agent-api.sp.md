@@ -3,7 +3,7 @@
 > **Code:** SP_AGA
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-02
+> **Updated:** 2026-10-03
 >
 > **Concept:** [C_AGA](./agent-api.concept.md)
 > **Depends on:** [SP_DOC](./document-model.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SIM](./simulator-engine.sp.md), [SP_IOF](./io-framework.sp.md), [SP_EIC](./edit-info-contract.sp.md), [SP_FBR](./browser-file-bridge.sp.md) (existing mechanisms this spec changes or consumes)
@@ -177,7 +177,7 @@ ProbeSpec, used by `run` and by instant readings (`read`):
 | quantity | `"voltage"` \| `"current"` \| `"power"` | with `element` | `"voltage"` | — | Element quantity as the element defines it |
 
 Element quantities follow the element's own definitions:
-- `voltage` is the voltage difference the element reports: post 0 minus post 1 for two-post elements, and the element's own definition for others.
+- `voltage` is the voltage difference the element reports, as its type defines it: for most two-post elements post 0 minus post 1; for voltage and current sources post 1 minus post 0 (`plus` minus `minus`, `out` minus `in`).
 - `current` is the element's reported current.
 - `power` is the element's reported power.
 - An element that defines no such quantity yields `invalid_value` naming the element type.
@@ -616,6 +616,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 - Characters outside `[A-Za-z0-9_~+-]` become `_`, and an empty name becomes `pin<i>` (1-based).
 - A name that repeats within the element gets `_<k>` on its k-th occurrence, for k ≥ 2 (for example `Q`, `Q_2`).
 - The same names appear in TypeInfo, ElementRecord, PostRef and issues.
+- Polar names state the real polarity ([SP_AGA_DEC_06](#SP_AGA_DEC_06)): two-post voltage sources `minus`, `plus` (post 1 is driven `voltage` above post 0); current sources `in`, `out` (the current leaves the source at `out`, the arrow head); the ohmmeter `com`, `probe`; op-amps `in-`, `in+`, `out` whatever `swap_inputs` (which moves the drawing, not the electrical role). The superseded names (`positive`/`negative` of sources, `probe+`/`probe-`) are not accepted in PostRefs. Op-amps are the exception: an op-amp with `swap_inputs` used the same two names with crossed meaning, so an old reference `in+` now names the real non-inverting input instead of failing.
 
 **ID form**
 - A supplied `id` must match the ElementId pattern, otherwise `id_invalid`. It must be unused in the document, otherwise `id_taken`.
@@ -1066,12 +1067,31 @@ A **content lifetime** begins when a document is created or its content is repla
 **Rationale:** The element exists to stop the simulation; a run is a simulation of the same document, and the agent sees the reason and the element in the result.
 **Resolved by:** main under `Autonomy: full` (task_E_AGT), 2026-10-02, on a finding of the circuit-language research spike; presented to the developer at the next stop.
 
+### DEC_06 — What are the pin names of polar elements?  {#SP_AGA_DEC_06}
+
+> **Status:** resolved (delegated)
+> **Date:** 2026-10-03
+
+**Question:** Voltage sources named post 0 `positive` and post 1 `negative`, but the solver drives post 1 above post 0 (a +5 V DC source measures +5 V at `negative`); the ohmmeter's `probe+`/`probe-` were swapped the same way; op-amps with `swap_inputs` named the inverting input `in+`. The names are part of the JSON v2 format, whose importer places posts by pin name.
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — swap the existing names | Same words, but every existing JSON 2.0 file flips its sources unless the importer knows the file version |
+| B — new names that differ from the old ones, old names kept as import aliases with their old meaning | Correct names; old files load unchanged in new builds; new files load correctly in old builds through the key-order fallback; old PostRefs fail loudly with `unknown_post` instead of meaning the wrong terminal |
+| C — keep the names and document the trap | Agents and users keep misreading polarity |
+
+**Decision:** B. Voltage sources `minus`/`plus`, current sources `in`/`out`, the ohmmeter `com`/`probe`, op-amps always `in-`/`in+`/`out`; the polarised capacitor (`positive`/`negative`, verified correct) is unchanged. The JSON importer maps `positive`→post 0 and `negative`→post 1 for voltage and current sources, `probe+`→post 0 and `probe-`→post 1 for the ohmmeter. Op-amps get no alias (the old and new names are the same words): a 2.0 file's swapped op-amp keeps its geometry (placed by `_startpoint`/`_endpoint`), but its saved `state.pins` input voltages are read crossed — a transient initial-state difference only. JSON files are written as schema version `2.1` (readers accept any `2.x`).
+**Rationale:** Correct names without a silent meaning change for any file or agent reference.
+**Resolved by:** main under the developer's instruction "Назви пінів потрібно зробити як буде правильно" (2026-10-03), after measurement of every polar element.
+
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | PL_AGA Phase 10 propagate: behaviour-change notes in §03_02, §03_04, §03_06 and §03_08 restated as implemented (pre-Agent-API behaviour named with its §06_01 item); the §06_01 items are documented in JS_API.md, EXPORT_CJS.md and the C_DOC, C_UND, C_IOF and C_APC concepts/specs |
+| 2026-10-03 | Polar pin names corrected (SP_AGA_DEC_06): sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp inputs fixed; source `voltage` sign stated |
 | 2026-10-02 | Fix round: `stop_trigger` run reason (SP_AGA_DEC_05), first probe sample after the first solved step, determinism qualified for noise sources, §06_01 item 18 time-step bar no longer re-quantises the maximum step |
 | 2026-10-02 | PL_AGA Phase 9: `openFile` applies the circuit test; element lines need whole-number coordinates and flags; BOM, links, parent directories, whitespace-only and over-size overwrite rules; rejected-open issues aggregated per code; review: `file_not_found`/`file_error` per contract for links and directories, save refused when the resolved target changed after the check, staging file flushed before rename and only its own staging file removed |
 | 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |

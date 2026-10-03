@@ -3,7 +3,7 @@ skill: element-authoring
 domain: elements
 topics: [circuit-elm, chip-elm, composite-elm, dump, json, factory, recipe]
 source: onboard
-updated: 2026-10-02
+updated: 2026-10-03
 ---
 
 # Authoring a New Circuit Element
@@ -119,7 +119,14 @@ constructors:
 5. **JSON alias drift.** Historical renames (`MosfetN`/`NMosfet`) are
    handled by registering multiple factory keys mapped to the same
    constructor. If you rename an element class, add an alias — do not
-   remove the old key.
+   remove the old key. **Pin names are part of the JSON format too:**
+   `applyJsonPinPositions` places posts by pin name (key order is only a
+   fallback). When a `getJsonPinNames()` name changes, list the old name
+   in `getJsonPinAliases()` (name → post index; `jsonPinAliasMap(...)`)
+   so older files load unchanged, and pick new names that differ from the
+   old ones — swapping the meaning of an existing name silently flips old
+   files (SP_AGA_DEC_06: sources `minus`/`plus`, `in`/`out`). Aliases are
+   import-only; agent PostRefs use the current names.
 6. **No `java.io.*`, no reflection** (RULE_STYLE_002). Use
    `StringTokenizer` for parsing, GWT JSON for JSON.
 7. **User-visible strings via `Locale.LS`** (RULE_STYLE_003) for info

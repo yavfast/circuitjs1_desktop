@@ -82,8 +82,18 @@ public class OhmMeterElm extends CurrentElm {
         return "OhmMeter";
     }
 
+    // [SP_AGA_DEC_06] the test current leaves at post 1, so `probe` is the high (red) probe
     @Override
     public String[] getJsonPinNames() {
-        return new String[] { "probe+", "probe-" };
+        return new String[] { "com", "probe" };
+    }
+
+    // [SP_AGA_DEC_06] JSON 2.0 names, with the post each one placed
+    private static final java.util.Map<String, Integer> LEGACY_PIN_ALIASES =
+            jsonPinAliasMap("probe+", "probe-");
+
+    @Override
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return LEGACY_PIN_ALIASES;
     }
 }

@@ -122,7 +122,7 @@ Errors left by a successful edit do not reject it: fix them with further edits b
 | `maxPoints` | 200 | series points per probe, 10..2000; Σ over probes ≤ 2000 |
 | `reset` | false | reset to initial conditions first |
 
-ProbeSpec: exactly one of `{net}`, `{post}` or `{element, quantity}` (`voltage` default, `current`, `power`: the quantity the element reports, as its type defines it; check the sign with a known case before relying on it), plus an optional `name`.
+ProbeSpec: exactly one of `{net}`, `{post}` or `{element, quantity}` (`voltage` default, `current`, `power`: the quantity the element reports, as its type defines it — `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source; check the sign of `current` and `power` with a known case before relying on it), plus an optional `name`.
 
 Result `data`: `{reason, tStart, tEnd, steps, wallMs, probes: [{name, unit, stats, series: {t, v}}]}`.
 - `reason`: `span_reached`, `settled`, `settle_timeout`, `solver_stop`, `stop_trigger`, `budget_exhausted`, `cancelled`. Every reason is `ok: true`. `budget_exhausted`, `settle_timeout`, `stop_trigger` and `cancelled` add a warning with that code; `solver_stop` adds the stop issue (an error), and a document stopped by the solver needs `reset: true` before it runs again.
