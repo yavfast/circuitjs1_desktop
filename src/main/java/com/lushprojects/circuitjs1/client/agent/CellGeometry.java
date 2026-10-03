@@ -5,6 +5,8 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
+import com.lushprojects.circuitjs1.client.Point;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -133,5 +135,67 @@ final class CellGeometry {
         } finally {
             editor.setGrid();
         }
+    }
+
+    /**
+     * [SP_AGA_03_01] "Collapsed posts" and "End kept": checks an element just placed by
+     * {@code add}, a {@code move} with start and end, or an AgentCircuit import.
+     * <ul>
+     * <li>Posts that the type keeps on distinct points at its default placement and that now
+     *     coincide (a box element given a zero-width or zero-height box) give {@code zero_length}
+     *     (error): the call is rejected.</li>
+     * <li>A supplied end that the element replaced by one of its own (it derives its size from
+     *     its properties or snaps it to its axis) gives {@code value_adjusted} (warning) with the
+     *     effective end, since input geometry is never adjusted silently.</li>
+     * </ul>
+     *
+     * @param end the end the call supplied, in cells, or null (default size, or a move by start)
+     * @return the error, or null; the warning, if any, is added to {@code warnings} (also when an
+     *         error is returned: the caller rejects with {@link #rejection})
+     */
+    static Issue checkPlacement(CircuitElm elm, Catalogue.TypeInfo type, double[] end, String subject,
+            List<Issue> warnings) {
+        int n = elm.getPostCount();
+        Point[] posts = new Point[n];
+        for (int i = 0; i < n; i++) {
+            posts[i] = elm.getPost(i);
+        }
+        int distinct = Catalogue.distinctPoints(posts);
+        // the replaced end is reported also when the call is rejected for collapsed posts
+        if (end != null && (toCells(elm.getX2()) != end[0] || toCells(elm.getY2()) != end[1])) {
+            warnings.add(Issue.of(IssueCode.VALUE_ADJUSTED, subject + ".end is " + pointText(elm.getX2(), elm.getY2())
+                    + " instead of the requested (" + num(end[0]) + ", " + num(end[1]) + ").",
+                    "The element derives its end from its own size rules; use the effective end and read the posts from the record.")
+                    .elements(subject));
+        }
+        if (type != null && type.postsDistinct && n > 1 && distinct < n) {
+            return Issue.of(IssueCode.ZERO_LENGTH, "The geometry of " + subject + " puts its " + n + " posts on "
+                    + distinct + (distinct == 1 ? " point" : " points") + " (start " + pointText(elm.getX(), elm.getY())
+                    + ", end " + pointText(elm.getX2(), elm.getY2()) + ").",
+                    "Give an end that spans the element along its axis, e.g. start + defaultSize (" + num(type.dx) + ", "
+                            + num(type.dy) + ") from describeType; a box element needs a width and a height.")
+                    .elements(subject).at(toCells(elm.getX()), toCells(elm.getY()));
+        }
+        return null;
+    }
+
+    /** @return the issues of a placement rejection: the error first, then the warnings so far */
+    static List<Issue> rejection(Issue error, List<Issue> warnings) {
+        List<Issue> all = new java.util.ArrayList<>();
+        all.add(error);
+        for (Issue w : warnings) {
+            if (w.getCode() == IssueCode.VALUE_ADJUSTED) {
+                all.add(w);
+            }
+        }
+        return all;
+    }
+
+    private static String pointText(int xPx, int yPx) {
+        return "(" + num(toCells(xPx)) + ", " + num(toCells(yPx)) + ")";
+    }
+
+    private static String num(double v) {
+        return v == Math.rint(v) ? String.valueOf((long) v) : String.valueOf(v);
     }
 }

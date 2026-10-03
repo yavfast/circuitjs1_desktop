@@ -137,7 +137,7 @@ final class FileOps {
         final CirSim sim = call.sim;
         final String content = file.text;
         List<Issue> pre = new ArrayList<>();
-        final String formatId = ImportOps.checkString(content, pre);
+        final String formatId = ImportOps.checkString(content, pre, null);
         if (!pre.isEmpty()) {
             return withoutContent(OperationResult.failure(pre));
         }

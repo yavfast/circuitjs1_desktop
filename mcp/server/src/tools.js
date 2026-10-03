@@ -86,7 +86,8 @@ const TOOLS = [
       '{type, aliases, pins, geometry, summary} of every type, narrowed by `filter` (case-insensitive ' +
       'substring of name, alias or summary). With `type` (a name or alias): its TypeInfo - pins in post ' +
       'order, geometry (single | two_point | derived), defaultSize and derivedPostsAtDefault in grid cells ' +
-      '(1 cell = 16 px), property keys with kind, default and unit, defaultFlags. Use it before ' +
+      '(1 cell = 16 px), property keys with kind, default and unit (model keys: choices), defaultFlags, ' +
+      'quantities (element quantities a probe accepts). Use it before ' +
       'circuit_import or circuit_edit to learn pin names and property keys. The catalogue is the same for ' +
       'all documents: a given `doc` must be open but does not change the answer. Example: {"type": "Resistor"} or {"filter": "mosfet"}.',
     inputSchema: inputSchema({
@@ -98,6 +99,7 @@ const TOOLS = [
       type: S.STRING, aliases: { type: 'array', items: S.STRING }, dumpCode: S.STRING, idPrefix: S.STRING,
       geometry: S.STRING, pins: { type: 'array', items: S.STRING }, defaultSize: S.OBJECT,
       derivedPostsAtDefault: S.OBJECT, properties: S.ARRAY_OF_OBJECTS, defaultFlags: S.INT,
+      quantities: { type: 'array', items: S.STRING },
     }, 'listTypes: {types}; describeType: TypeInfo.'),
     annotations: hints(true, false, true, 'Element catalogue'),
     map(args, name) {

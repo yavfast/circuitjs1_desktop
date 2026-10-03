@@ -47,8 +47,10 @@ CircuitJS1 runs a transient simulation only: it steps time with a fixed maximum 
 - **Periodic signals.** Record at least 3–5 periods; `frequency` needs at least two rising crossings.
 - **Probes.** At most 16 per run.
   - Forms: `{"net": "out"}`, `{"post": "R1.pin2"}` or `{"element": "C1", "quantity": "voltage" | "current" | "power"}`.
+  - Element quantities exist only for types whose TypeInfo `quantities` lists them (two-post parts, transistors; not transformers, chips or op-amps); probe posts or nets of the others.
   - Give a `name` when two probes would get the same default name (two quantities of one element).
 - **`maxPoints`.** Series points per probe: 10..2000 (default 200), and at most 2000 summed over all probes of a run. The series keeps the minimum and maximum of every time bucket, so peaks survive decimation. Statistics always use every sample.
+- **Comparing two series point by point.** Every probe samples every step, but a decimated series keeps each probe's own min and max times per bucket, so two probes' `series.t` differ in values and in length once the recorded window has more samples than `maxPoints`. For phase or "B while A is low" questions record a window short enough that its steps (window / time step) are at most `maxPoints` of each probe: then the series are raw and every probe has the same `t`. Otherwise compare per-probe `stats`, or interpolate each series on its own times.
 - **Signs.** An element's `voltage`, `current` and `power` are the values the element reports, as its type defines them. `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source, so a source reads its own positive value. Check the sign of `current` and `power` on a known case before relying on it (e.g. a source with `start` on ground and a resistor load). A BJT's `current` is its collector current, a MOSFET's its drain current.
 
 ## Operating point
@@ -73,6 +75,9 @@ CircuitJS1 runs a transient simulation only: it steps time with a fixed maximum 
 | Settled value | `final` of a settle run, or of a span run longer than 5 τ | divider: 3.000 V |
 | RMS, average power | `rms` of a voltage or current probe; `mean` of a `power` probe | — |
 | Frequency response | one run per frequency (edit the source `frequency`), gain from `peakToPeak` ratios | RLC: 2.0 V at 1 kHz, 1.20 V at 900 Hz |
+| Efficiency | `mean` of the load's `power` over −`mean` of the source's `power`, over a window after start-up; first check that the switching node oscillates in that window (`frequency` present, `peakToPeak` as expected) and that the output capacitor's `mean` power is near 0 | — |
+
+**Self-oscillating converters can burst.** A blocking oscillator may run in bursts (squegging): one burst charges the gate coupling capacitor and the switch stays off for many milliseconds. A fixed window can then fall into an off phase, and an efficiency computed from it is meaningless (the output capacitor discharging into the load looks like gain). Probe the switching node and the gate with every efficiency run and reject windows without steady oscillation.
 
 A step input for rise-time tests: a `VoltageSourceSquare` with `max_voltage` = `dc_offset` = V/2 steps between 0 and V; at a low `frequency` the first half-period is the step.
 

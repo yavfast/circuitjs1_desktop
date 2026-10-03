@@ -97,6 +97,7 @@ The `concise` detail level omits `properties` that equal the type defaults and o
 | pins | PinName[] | Pin names in post order at the default configuration (configurable elements may change them; see ElementRecord.posts) |
 | defaultSize | {dx: number, dy: number} | `end − start` of a freshly placed element, in cells. "Freshly placed" means created by an editor drag of 4 cells to the right from (0, 0), or of (4, 4) when the element is not created by the horizontal drag; elements that size themselves (text, transformers) report their own resulting size |
 | derivedPostsAtDefault | map<PinName, CellPoint> | For `derived`: each pin's offset from `start` when placed with `defaultSize` |
+| quantities | string[] | `voltage`, `current`, `power` when `{element, quantity}` probes and readings are accepted for the type, else empty |
 | properties | PropertyInfo[] | Editable properties ([§03_03](#SP_AGA_03_03) for the key source) |
 | defaultFlags | int | Flags of a freshly placed element (after the default placement drag, which can set orientation bits) |
 
@@ -104,6 +105,8 @@ PropertyInfo:
 - **Shape.** `{key: string, kind: "quantity" | "number" | "bool" | "text", default: number | string | bool, unit: string?, label: string?, sliderMin: number?, sliderMax: number?, readOnly: bool?}`.
 - **`kind`.** It is `"quantity"` when the default is a unit string. `unit` is then its unit suffix (`Ohm`, `F`, `H`, `V`, `A`, `Hz`, `s`, …).
 - **`label`, `sliderMin`, `sliderMax`.** These come from the matching editable-parameter entry ([§02_01](#SP_AGA_02_01)). Matching is one-to-one: a key whose default equals the value of exactly one entry gets that entry, and an entry matched by more than one key is given to none of them; `bool` keys are not matched. `label` is the entry's English name (untranslated, markup removed). `sliderMin`/`sliderMax` are the slider seeds of that entry — a hint of a typical range, never a validity limit; they are omitted when the entry has sliders disabled or carries a degenerate pair (min = max, including (−1, −1) and (0, 0)).
+- **`choices`.** `string[]?` — for a key that names a session model (diode, zener, transistor `model`), the names accepted now ([§03_03](#SP_AGA_03_03) Model names).
+- **Element-declared `label`.** An element may declare a key's label when its dialog row shows a derived value (a transformer's dialog shows N1/N2 while `ratio` stores N2/N1); such a key gets no slider seeds.
 - **`readOnly`.** `true` for a key the element exports but derives from its geometry or state rather than applying it from the property (for example a transformer's orientation keys, or a LogicInput's `state`, which follows `position`). `set` of a read-only key is `invalid_value`; an import accepts read-only keys and ignores them, so a circuit read with `getCircuit` re-imports unchanged.
 - **Defaults.** They are the element's built-in defaults: the catalogue is measured against a session scratch document with default options, with the element classes' remembered last-used values (model names, gate options, ground symbol and similar) at their initial values. They never reflect the user's latest choices in the editor. Text defaults are in English (an element placed by `add` in a localized UI keeps English default texts such as slider captions). `add` applies these defaults to every property its spec does not give ([§02_04](#SP_AGA_02_04)).
 
@@ -438,8 +441,8 @@ Input: `doc?`, `format: "svg" | "png" = "png"`, `scale: number = 1` (0.25..4), `
 
 Output: `data: {format, width: int, height: int, content: string}`.
 - **Content.** SVG text, or PNG as base64.
-- **Area.** Drawn offscreen for the given document. It covers the circuit bounds (element endpoints and bounding boxes, so labels are not clipped) plus a 1-cell margin, whatever the viewport or the active tab. An empty document gives a blank 32×32 image.
-- **Look.** The session's printable colours, no current dots, the target's selection highlight as it is. Drawing an image never changes a scope's graph, time base, trigger or scale.
+- **Area.** Drawn offscreen for the given document. It covers the circuit bounds (element endpoints, bounding boxes and every drawn text, so labels are not clipped) plus a 1-cell margin, whatever the viewport or the active tab. An empty document gives a blank 32×32 image.
+- **Look.** Printable colours on white, whatever the session's Printable option, no current dots, the target's selection highlight as it is. Drawing an image never changes a scope's graph, time base, trigger or scale.
 - **Completion.** Asynchronous: the first SVG render loads the vector exporter and then completes. A load failure produces an issue and never a modal alert.
 
 Errors: `render_failed` (the vector exporter could not load; `hint`: retry with `png`); `invalid_value` naming `scale` (the image would exceed 16384 px on a side or 40 megapixels in area); `render_failed` also when the browser cannot encode the image (no dialog); `unknown_document` (the document was closed while rendering).
@@ -604,6 +607,8 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 
 - **Lattice.** Coordinates are within ±4096. In `add`, `move` and `by` they are multiples of 0.5; in `importCircuit` and `openFile` content they are multiples of 1/16 (whole pixels). A coordinate off the lattice that applies is `off_lattice` (error); fractional pixel values in JSON v2 text are detected as `off_lattice` before any conversion to whole pixels.
 - **Zero length.** `end = start` gives `zero_length` (error).
+- **Collapsed posts.** An `add`, a `move` with `start` and `end`, or an AgentCircuit import that puts an element's posts on fewer distinct points than its default placement gives `zero_length` (error).
+- **Replaced end.** When the element replaces a supplied `end` with its own (CustomTransformer, potentiometer, SCR, triac), the edit applies and reports `value_adjusted` (warning) with the effective end.
 - **No adjustment.** Input geometry is never snapped or rounded.
 - **Pinned grid size.** Geometry computation inside Agent API operations runs with the editor grid size pinned to the target document's own grid option — 16, or 8 when that document's options select the small grid — (with its mask and rounding values) and restored afterwards; the catalogue is always measured at 16. An import pins the option the loaded content selects: after its options line for legacy text, `display.small_grid` for JSON v2, and 16 for AgentCircuit or JSON without that setting. TypeInfo `defaultSize` and `derivedPostsAtDefault` describe 16-grid documents only; ElementRecord `posts` is authoritative. The user's current display preference of another tab never applies, and the document's own option is the one a later reload applies, so posts do not move on undo or reload. The element classes that size themselves from the editor grid size are the potentiometer, SCR, triac, tapped transformer, transmission line, wattmeter and real op-amp (its rail posts) elements; the pin applies to every element class, so a class that starts reading the grid size later is covered too. User paths (user undo, reload) keep today's behaviour and size those elements by the user's grid preference.
 
@@ -616,7 +621,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 - Characters outside `[A-Za-z0-9_~+-]` become `_`, and an empty name becomes `pin<i>` (1-based).
 - A name that repeats within the element gets `_<k>` on its k-th occurrence, for k ≥ 2 (for example `Q`, `Q_2`).
 - The same names appear in TypeInfo, ElementRecord, PostRef and issues.
-- Polar names state the real polarity ([SP_AGA_DEC_06](#SP_AGA_DEC_06)): two-post voltage sources `minus`, `plus` (post 1 is driven `voltage` above post 0); current sources `in`, `out` (the current leaves the source at `out`, the arrow head); the ohmmeter `com`, `probe`; op-amps `in-`, `in+`, `out` whatever `swap_inputs` (which moves the drawing, not the electrical role). The superseded names (`positive`/`negative` of sources, `probe+`/`probe-`) are not accepted in PostRefs. Op-amps are the exception: an op-amp with `swap_inputs` used the same two names with crossed meaning, so an old reference `in+` now names the real non-inverting input instead of failing.
+- Polar names state the real polarity ([SP_AGA_DEC_06](#SP_AGA_DEC_06)): two-post voltage sources `minus`, `plus` (post 1 is driven `voltage` above post 0); current sources `in`, `out` (the current leaves the source at `out`, the arrow head); the ohmmeter `com`, `probe`; the transformer `p1`, `s1`, `p2`, `s2` (windings p1–p2 and s1–s2, `p1`/`s1` in phase; JSON 2.0 `pri1`, `pri2`, `sec1`, `sec2` are import aliases of posts 0..3); op-amps `in-`, `in+`, `out` whatever `swap_inputs` (which moves the drawing, not the electrical role). The superseded names (`positive`/`negative` of sources, `probe+`/`probe-`) are not accepted in PostRefs. Op-amps are the exception: an op-amp with `swap_inputs` used the same two names with crossed meaning, so an old reference `in+` now names the real non-inverting input instead of failing.
 
 **ID form**
 - A supplied `id` must match the ElementId pattern, otherwise `id_invalid`. It must be unused in the document, otherwise `id_taken`.
@@ -656,6 +661,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
   - A value is either a number or a string that parses fully as a number with an optional SI prefix and an optional unit suffix matching `unit`. Matching is case-sensitive, except that `Ohm` and `Ω` are both accepted for resistance.
   - The same string may be wrapped in one pair of double quotes (`"\"10 ms\""`, as some agent hosts double-encode number-or-string arguments); the quotes are dropped. This rule covers every number-or-string argument (properties, run `span`/`recordFrom`/`settle`, time steps).
   - Anything else is `invalid_value`. The parser's "0 on failure" result is never taken as a value.
+- **Model names.** A `model` value must name a session catalogue entry or a model defined by a model line of the same text content; otherwise `invalid_value` naming the key, `hint` listing the available names, and the name is never registered. `openFile` loads such a file and reports `value_adjusted` (warning) per element instead, the element keeping its fallback model (an `openFile` + `saveFile` round trip therefore writes the fallback model's name); user file loads are unchanged.
 - **`bool` and `text` values.** `bool` takes `true`/`false` only. `text` takes strings of at most 1000 chars.
 - **Ranges.** The Agent API declares no validity ranges of its own. A value the element itself clamps or adjusts is applied as adjusted and reported with `value_adjusted` (warning) carrying the effective value; slider seeds are never used as limits.
 
@@ -670,6 +676,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
   | Item | Code | Severity |
   |---|---|---|
   | Element the factory cannot create; unknown or unparseable line | `import_element_skipped` | error (rejects the import) |
+  | Element naming an unknown model ([§03_03](#SP_AGA_03_03)) | `invalid_value` (importCircuit) / `value_adjusted` (openFile) | error / warning |
   | Scope beyond the 20 slots | `scope_limit` | warning |
   | Auto-wire whose target is missing | `import_wire_skipped` | warning |
   | Invalid simulation setting (kept at its default) | `import_setting_invalid` | warning |
@@ -1095,6 +1102,7 @@ A **content lifetime** begins when a document is created or its content is repla
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | PL_AGA Phase 10 propagate: behaviour-change notes in §03_02, §03_04, §03_06 and §03_08 restated as implemented (pre-Agent-API behaviour named with its §06_01 item); the §06_01 items are documented in JS_API.md, EXPORT_CJS.md and the C_DOC, C_UND, C_IOF and C_APC concepts/specs |
+| 2026-10-03 | Live-verify fixes: TypeInfo `quantities`, PropertyInfo `choices` and element-declared labels; collapsed posts and replaced ends (§03_01); transformer pin names `p1/s1/p2/s2`; model names (§03_03, §03_04); render area includes text and always uses printable colours on white |
 | 2026-10-03 | §03_03: unit strings may be wrapped in one pair of double quotes (eval finding) |
 | 2026-10-03 | Defect batch: §03_05 codes `ground_path_no_resistance`, `wire_loop`, `current_source_no_path`; BJT/FET `current` and BJT `voltage`; `set` reports only writable keys; LogicInput `state` read-only; §06_01 items 19–21 |
 | 2026-10-03 | Polar pin names corrected (SP_AGA_DEC_06): sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp inputs fixed; source `voltage` sign stated |

@@ -673,7 +673,8 @@ public class TappedTransformerElm extends CircuitElm {
     public void setEditValue(int n, EditInfo ei) {
         if (n == 0 && ei.value > 0)
             inductance = ei.value;
-        if (n == 1 && ratio > 0)
+        // the row shows N1/N2; a non-positive entry would make the stored N2/N1 infinite or negative
+        if (n == 1 && ei.value > 0)
             ratio = 1 / ei.value;
         if (n == 2 && ei.value > 0 && ei.value < 1)
             couplingCoef = ei.value;
@@ -769,6 +770,15 @@ public class TappedTransformerElm extends CircuitElm {
 
         boolean trap = getJsonBoolean(props, "trapezoidal", isTrapezoidal());
         if (trap) flags &= ~Inductor.FLAG_BACK_EULER; else flags |= Inductor.FLAG_BACK_EULER;
+    }
+
+    // [SP_AGA_01_05] the dialog row shows N1/N2 (1/ratio); the stored key is N2/N1 (whole secondary)
+    @Override
+    public String getJsonPropertyLabel(String key) {
+        if ("ratio".equals(key)) {
+            return "Turns ratio N2/N1 (whole secondary turns per primary turn; tap at the middle)";
+        }
+        return super.getJsonPropertyLabel(key);
     }
 
     @Override

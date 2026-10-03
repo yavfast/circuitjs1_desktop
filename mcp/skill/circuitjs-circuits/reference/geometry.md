@@ -16,7 +16,9 @@
 - **Axes.** x grows to the right, y grows **downwards** (a part "above" another has a smaller y).
 - **Half-cell lattice.** In `add`, `move` and `by` every coordinate must be a multiple of 0.5. Anything else is rejected with `off_lattice`; input is never rounded or snapped.
 - **Whole cells for new parts.** Put every `start` and `end` you write on whole cells. Half cells exist for circuits drawn by hand: imports accept any multiple of 1/16 cell, so an example circuit read back can show values such as `12.5`. Copy them unchanged; do not "fix" them.
-- **Zero length.** `end` equal to `start` is rejected with `zero_length`. Leave `end` out to get the type's default size.
+- **Derived posts may sit on half cells.** Some derived parts compute posts off the whole-cell grid even from whole-cell points: a `CustomTransformer` with a primary and three secondary sections (`description` `"1:100,40+40"`) at `start` y = 0 has posts at y = −2.5, −4.5 and −6.5. Wire to the `posts` of the reply as they are; a half-cell wire end is fine.
+- **Zero length.** `end` equal to `start` is rejected with `zero_length`. So is an `end` that would put the posts of a multi-post part on one point (a transformer or box given no width or height). Leave `end` out to get the type's default size.
+- **Ends a part sets itself.** Some parts keep their own end: a `CustomTransformer` takes its height from its `description`, a `Potentiometer`, `SCR` or `Triac` snaps its end onto its axis or its length step (`end` (6, 1) becomes (6, 0)). When the reply's `end` differs from the one you gave, a `value_adjusted` warning names the effective end; read the posts from the reply.
 
 ## Defining points
 

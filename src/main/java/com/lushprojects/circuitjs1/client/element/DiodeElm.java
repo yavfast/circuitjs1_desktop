@@ -43,6 +43,10 @@ public class DiodeElm extends CircuitElm {
     String modelName;
     DiodeModel model;
     static String lastModelName = "default";
+    /** Model name of the last setup that named no catalogue entry, else null. */
+    private String unresolvedModelName;
+    /** Model name before a JSON load set an unresolved one (what dropUnresolvedModel returns to). */
+    private String fallbackModelName;
     boolean hasResistance;
     int diodeEndNode;
 
@@ -87,6 +91,8 @@ public class DiodeElm extends CircuitElm {
 
     void setup() {
 //	CirSim.console("setting up for model " + modelName + " " + model);
+        // [SP_AGA_03_03] remembered before the fallback below replaces or registers the name
+        unresolvedModelName = DiodeModel.hasModel(modelName) ? null : modelName;
         model = DiodeModel.getModelWithNameOrCopy(modelName, model);
         modelName = model.name;   // in case we couldn't find that model
         diode.setup(model);
@@ -321,6 +327,38 @@ public class DiodeElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_03_03] "Model names": `model` names a diode model of the session catalogue
+    @Override
+    public String getJsonModelCatalogue(String key) {
+        return "model".equals(key) ? "diode" : super.getJsonModelCatalogue(key);
+    }
+
+    @Override
+    public String getUnresolvedModelName() {
+        return unresolvedModelName;
+    }
+
+    @Override
+    public boolean retryUnresolvedModel() {
+        if (unresolvedModelName == null || !DiodeModel.hasModel(unresolvedModelName)) {
+            return unresolvedModelName == null;
+        }
+        modelName = unresolvedModelName;
+        setup();
+        return true;
+    }
+
+    @Override
+    public void dropUnresolvedModel() {
+        if (unresolvedModelName == null || fallbackModelName == null) {
+            return;
+        }
+        DiodeModel.removeFallback(unresolvedModelName, model);
+        modelName = fallbackModelName;
+        model = null;
+        setup();
+    }
+
     // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
     @Override
     public java.util.Map<String, Object> getJsonConditionalProperties() {
@@ -334,8 +372,10 @@ public class DiodeElm extends CircuitElm {
         super.applyJsonProperties(properties);
         String model = getJsonString(properties, "model", "default");
         if (model != null && !model.isEmpty()) {
+            String before = modelName;
             modelName = model;
             setup();
+            fallbackModelName = unresolvedModelName != null ? before : null;
         }
     }
 

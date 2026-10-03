@@ -44,6 +44,8 @@ final class AgentCircuitConverter {
         String subject;
         Catalogue.TypeInfo type;
         double x1, y1, x2, y2;
+        /** True when the spec gave its end (else x2/y2 are start + the default size). */
+        boolean endGiven;
         /** Given properties in the element's JSON value format (read-only keys dropped). */
         final LinkedHashMap<String, Object> given = new LinkedHashMap<>();
         Integer flags;
@@ -104,6 +106,7 @@ final class AgentCircuitConverter {
         JSONValue ev = o.get("end");
         if (ev != null && ev.isNull() == null) {
             end = CellGeometry.readPoint(ev, where + ".end", lattice, issues, spec.subject);
+            spec.endGiven = true;
         } else if (start != null) {
             end = new double[] { start[0] + spec.type.dx, start[1] + spec.type.dy };
             if (Math.max(Math.abs(end[0]), Math.abs(end[1])) > CellGeometry.MAX_CELLS) {
@@ -180,6 +183,14 @@ final class AgentCircuitConverter {
                 issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + key + "' " + problem[0] + ".",
                         info.unit != null ? "Use a number or a string such as \"4.7k" + info.unit + "\"."
                                 : "Use a " + info.kind + " value (describeType lists the kinds).").elements(subject));
+                continue;
+            }
+            if (info.modelCatalogue != null && !ModelNames.exists(info.modelCatalogue, String.valueOf(value))) {
+                // [SP_AGA_03_03] "Model names": rejected before the element's fallback registers it
+                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + key + "' names no "
+                        + ("transistor".equals(info.modelCatalogue) ? "transistor" : "diode") + " model of the session: '"
+                        + Catalogue.clipName(String.valueOf(value)) + "'.", ModelNames.hint(info.modelCatalogue))
+                        .elements(subject));
                 continue;
             }
             out.put(key, value);

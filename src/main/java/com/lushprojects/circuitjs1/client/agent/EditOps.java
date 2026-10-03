@@ -546,6 +546,11 @@ final class EditOps {
                     applyExplicitFlags(elm, spec.flags, warnings);
                 }
                 reportAdjusted(id, spec.type, spec.given, null, PropertyValues.current(elm), warnings);
+                Issue collapsed = CellGeometry.checkPlacement(elm, spec.type,
+                        spec.endGiven ? new double[] { spec.x2, spec.y2 } : null, id, warnings);
+                if (collapsed != null) {
+                    throw new Mutation.Rejected(CellGeometry.rejection(collapsed, warnings));
+                }
             } else if (e instanceof MoveEdit) {
                 MoveEdit mv = (MoveEdit) e;
                 CircuitElm elm = byId.get(mv.id);
@@ -557,6 +562,11 @@ final class EditOps {
                     elm.setEndpoints(CellGeometry.toPx(mv.start[0]), CellGeometry.toPx(mv.start[1]),
                             CellGeometry.toPx(mv.end[0]), CellGeometry.toPx(mv.end[1]));
                     elm.setPoints();
+                    Issue collapsed = CellGeometry.checkPlacement(elm, cat.find(elm.getJsonTypeName()), mv.end, mv.id,
+                            warnings);
+                    if (collapsed != null) {
+                        throw new Mutation.Rejected(CellGeometry.rejection(collapsed, warnings));
+                    }
                 }
                 touched.add(mv.id);
             } else if (e instanceof DeleteEdit) {

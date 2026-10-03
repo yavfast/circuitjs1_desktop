@@ -92,7 +92,7 @@ with `"2."`. No semver range; future `3.x` rejects.
   `UnitParser` from `io/json/` breaks those elements — it is an
   intentional downstream dependency.
 
-**Pin names are part of the format.** `CircuitElm.applyJsonPinPositions` places posts by pin name (key order only as a fallback), so renaming a pin changes how files load. Renamed pins keep their old names as import aliases via `CircuitElm.getJsonPinAliases()`: since 2.1 (2026-10-03, SP_AGA_DEC_06) voltage sources are `minus`/`plus`, current sources `in`/`out`, the ohmmeter `com`/`probe`; 2.0 `positive`/`negative` and `probe+`/`probe-` load as post 0/1 with their old meaning. Op-amps (`in-`/`in+` now constant) have no alias. Readers accept any `2.x`.
+**Pin names are part of the format.** `CircuitElm.applyJsonPinPositions` places posts by pin name (key order only as a fallback), so renaming a pin changes how files load. Renamed pins keep their old names as import aliases via `CircuitElm.getJsonPinAliases()`: since 2.1 (2026-10-03, SP_AGA_DEC_06) voltage sources are `minus`/`plus`, current sources `in`/`out`, the ohmmeter `com`/`probe`, the transformer `p1`/`s1`/`p2`/`s2` (2.0 `pri1`..`sec2` → posts 0..3); 2.0 `positive`/`negative` and `probe+`/`probe-` load as post 0/1 with their old meaning. Op-amps (`in-`/`in+` now constant) have no alias. Readers accept any `2.x`.
 
 ## Pitfalls
 

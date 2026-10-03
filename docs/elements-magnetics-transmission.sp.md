@@ -32,6 +32,20 @@
 Legend: posts = `getPostCount()`; v-src = `getVoltageSourceCount()`;
 int.nodes = `getInternalNodeCount()`.
 
+Windings and JSON pin names (post order; 2026-10-03, measured in the live scenario
+`verify_defects`):
+- `TransformerElm`: windings are posts 0–2 (primary, L1 = `inductance`) and 1–3
+  (secondary, L2 = L1·ratio²); pins `p1`, `s1`, `p2`, `s2`. `p1`/`s1` are the
+  in-phase ends (open secondary: V(s1) − V(s2) = k·ratio·(V(p1) − V(p2))).
+  `FLAG_REVERSE` (`reverse_polarity`) swaps the drawn positions of posts 1 and 3
+  only, so `s1` stays the in-phase end. The JSON 2.0 names `pri1`, `pri2`,
+  `sec1`, `sec2` (posts 0..3, which put `pri2` on the secondary) are import
+  aliases (`getJsonPinAliases`).
+- `TappedTransformerElm`: primary posts 0–1, secondary halves 2–3 and 3–4; pins
+  `pri1`, `pri2`, `sec1`, `tap`, `sec2` (unchanged; `pri1`/`sec1` in phase).
+- `CustomTransformerElm`: generic `pin1`…`pinN` in node order (the description
+  defines the windings).
+
 Shared traits:
 - None of the transformers use the `Inductor` helper — they inline the
   companion-model inversion. Only `Inductor.FLAG_BACK_EULER` (= 2) is
@@ -155,7 +169,7 @@ Where `lenSteps = (int)(delay / maxTimeStep)`, clamped to
 | Parameter | Rule | Source |
 |---|---|---|
 | `inductance` (all transformers) | > 0 | edit setter reject |
-| `ratio` | > 0; stored as `1/ei.value` | edit setter reject |
+| `ratio` | > 0; stored value is N2/N1 (secondary turns per primary turn: L2 = L1·ratio²); the dialog row shows N1/N2 and stores `1/ei.value` (TappedTransformer: `ratio` is the whole secondary, each half has L1·ratio²/4) | edit setter reject (TappedTransformer rejected 0 only from 2026-10-03; before, it tested the old `ratio` instead of the entry) |
 | `couplingCoef` | strictly `0 < k < 1`; import clamps out-of-range to `0.99` | `TransformerElm:602`, `TappedTransformerElm:678`, `CustomTransformerElm:151-153, 1151-1153` |
 | winding `resistance` | >= 0; if 0 → stamp `1e8` conductance stub | `:487-489` |
 | `description` (Custom) | non-empty, no `n==0` token, ≤1 `:` separator; fallback on import reject | `:484-523, 1169-1173` |

@@ -357,6 +357,14 @@ public class JsonCircuitImporter implements CircuitImporter {
                 continue;
             }
 
+            // [SP_AGA_03_03] "Model names": JSON carries no model definitions; the element fell
+            // back (a copy of its previous model registered under the name)
+            if (report != null && elm.getUnresolvedModelName() != null) {
+                report.addUnresolvedModel("element " + elementId, elm.getUnresolvedModelName(), 0, elementId);
+                // agent loads register nothing: the next element with that name is reported too
+                elm.dropUnresolvedModel();
+            }
+
             // A single-post element without _endpoint takes its end point from the informational
             // bounds (CircuitElementFactory): geometry adjusted from bounds (SP_AGA_03_04)
             JSONValue pinsForBounds = elementJson.get("pins");

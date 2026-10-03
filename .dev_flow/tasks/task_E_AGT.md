@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-03 17:00
+> **Last updated:** 2026-10-03 19:00
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -122,6 +122,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGS Phase 4 eval runs — 3 rounds × 24 runs (haiku, sonnet), round 3 releasable: every scenario 3/3 on both models, skill loaded 24/24; ≈ $8.80 (+ ≤ $2 one killed run) under the $60 ceiling; skill description/checklist reworded (version 1.0), SP_AGS_01_02 updated; run.mjs isolation allowlist pinned per CLI version; review PASS. Phase stays [TODO] only for the manual Claude Desktop row
 - [x] Quoted number-or-string arguments (eval finding): unit-string parser drops one pair of surrounding quotes (SP_AGA §03_03); agent_defects 22; review PASS
 - [x] Verify (live, developer request 2026-10-03): an agent built a JFET Armstrong step-up converter through the MCP tools only — 65.7 % at 0.1 V / 100 kΩ (3.24 V out), starts from 25 mV (step) / 44.5 mV (ramp), continuous up to ~0.15 V; tools sufficient; 2 HIGH + 2 medium + 1 low defects and 6 skill gaps → PL_AGA Backlog "Defect batch from the live JFET DC-DC verify"
+- [x] Fix round for the live-verify defects (developer: fix every found defect right away): transformer pins `p1/s1/p2/s2` (+ aliases), ratio label N2/N1 in the catalogue (dialog was right), model names validated with `choices` (agent paths; user loads unchanged), collapsed posts / replaced ends reported, offscreen render printable on white with text bounds, skill gaps closed; `verify_defects` 44 (30 fail on HEAD); reviews PASS
 - [ ] **Next:** epic E_AGT implementation complete — remaining: the developer's manual checks (Relevant Context list), optional backlog items, push/merge on the developer's word
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 

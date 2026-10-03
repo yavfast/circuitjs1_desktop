@@ -719,9 +719,35 @@ public class TransformerElm extends CircuitElm {
         return props;
     }
 
+    /**
+     * Pin names by post index. The windings are posts 0-2 (primary, inductance L) and 1-3
+     * (secondary, L * ratio^2), so the names are p1/p2 and s1/s2; p1 and s1 are the in-phase
+     * (dotted) ends: with the secondary open, V(s1) - V(s2) = coupling * ratio * (V(p1) - V(p2)).
+     * reverse_polarity moves s1 and s2 in the drawing (swaps the positions of posts 1 and 3); the
+     * names follow the posts, so s1 stays the in-phase end.
+     */
     @Override
     public String[] getJsonPinNames() {
-        return new String[] { "pri1", "pri2", "sec1", "sec2" };
+        return new String[] { "p1", "s1", "p2", "s2" };
+    }
+
+    // JSON 2.0 names, with the post each one placed: they named posts 0..3 in post order,
+    // which put pri1/pri2 on different windings (SP_AGA_DEC_06 pattern: aliases, no reused words)
+    private static final java.util.Map<String, Integer> LEGACY_PIN_ALIASES =
+            jsonPinAliasMap("pri1", "pri2", "sec1", "sec2");
+
+    @Override
+    public java.util.Map<String, Integer> getJsonPinAliases() {
+        return LEGACY_PIN_ALIASES;
+    }
+
+    // [SP_AGA_01_05] the dialog row shows N1/N2 (1/ratio); the stored key is N2/N1
+    @Override
+    public String getJsonPropertyLabel(String key) {
+        if ("ratio".equals(key)) {
+            return "Turns ratio N2/N1 (secondary turns per primary turn; 10 steps up 1:10)";
+        }
+        return super.getJsonPropertyLabel(key);
     }
 
     /**

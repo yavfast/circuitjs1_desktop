@@ -1605,6 +1605,53 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     /**
+     * [SP_AGA_01_05] Catalogue label of a property whose value is not the value of any
+     * edit-dialog row — the row shows a value derived from it (a transformer's dialog shows N1/N2
+     * for the stored N2/N1) — or null to let the catalogue match the key to its row by value. A
+     * key with a label here gets no slider seeds (the row's range is in the row's units).
+     */
+    public String getJsonPropertyLabel(String key) {
+        return null;
+    }
+
+    /**
+     * [SP_AGA_03_03] "Model names": the session model catalogue whose entry the text property
+     * {@code key} names — {@code "diode"}, {@code "zener"} (diode models with a breakdown
+     * voltage) or {@code "transistor"} — or null when the key is no model reference.
+     */
+    public String getJsonModelCatalogue(String key) {
+        return null;
+    }
+
+    /**
+     * [SP_AGA_03_03] The model name this element was given that names no catalogue entry at the
+     * time it was set up (it simulates with a fallback model: the default, or a copy registered
+     * under that name), or null. A text import with a report rejects such an element.
+     */
+    public String getUnresolvedModelName() {
+        return null;
+    }
+
+    /**
+     * [SP_AGA_03_03] Retries an unresolved model name after the whole content is read (a model
+     * line may follow the element). Never creates a catalogue entry.
+     *
+     * @return true when the element now uses the model it was given
+     */
+    public boolean retryUnresolvedModel() {
+        return false;
+    }
+
+    /**
+     * [SP_AGA_03_03] Agent loads with a report: forgets the catalogue entry the fallback
+     * registered under the unresolved name (a JSON load copies the previous model under it) and
+     * goes back to the model the element had before, so the name stays unknown to the session.
+     * User loads never call it.
+     */
+    public void dropUnresolvedModel() {
+    }
+
+    /**
      * Legacy text-format dump type of this element ({@code "r"}, {@code "403"}), or null for an
      * element that has no dump type (a drawing helper such as a standalone composite chip).
      */

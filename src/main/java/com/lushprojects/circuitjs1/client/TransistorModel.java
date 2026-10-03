@@ -79,6 +79,26 @@ public class TransistorModel implements Editable, Comparable<TransistorModel>, S
         return lm;
     }
 
+    /**
+     * [SP_AGA_03_03] "Model names": true when the session catalogue holds an entry with this
+     * name (built-in, internal, or loaded from a model line); never creates one.
+     */
+    public static boolean hasModel(String name) {
+        createModelMap();
+        return name != null && modelMap.containsKey(name);
+    }
+
+    /**
+     * [SP_AGA_03_03] Removes the entry {@code name} when it is {@code fallback}, a non-built-in
+     * copy an element's fallback registered for a name the catalogue lacked.
+     */
+    public static void removeFallback(String name, TransistorModel fallback) {
+        createModelMap();
+        if (fallback != null && !fallback.builtIn && modelMap.get(name) == fallback) {
+            modelMap.remove(name);
+        }
+    }
+
     public static TransistorModel getModelWithNameOrCopy(String name, TransistorModel oldmodel) {
         createModelMap();
         TransistorModel lm = modelMap.get(name);
@@ -148,6 +168,7 @@ public class TransistorModel implements Editable, Comparable<TransistorModel>, S
     }
 
     public static Vector<TransistorModel> getModelList() {
+        createModelMap();
         Vector<TransistorModel> vector = new Vector<TransistorModel>();
         Iterator<Map.Entry<String, TransistorModel>> it = modelMap.entrySet().iterator();
         while (it.hasNext()) {

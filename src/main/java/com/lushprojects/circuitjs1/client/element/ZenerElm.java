@@ -137,4 +137,10 @@ public class ZenerElm extends DiodeElm {
         keys.add("zener_voltage");
         return keys;
     }
+
+    // [SP_AGA_03_03] "Model names": the user's zener menu lists models with a breakdown voltage
+    @Override
+    public String getJsonModelCatalogue(String key) {
+        return "model".equals(key) ? "zener" : super.getJsonModelCatalogue(key);
+    }
 }

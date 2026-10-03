@@ -125,8 +125,11 @@ constructors:
    in `getJsonPinAliases()` (name → post index; `jsonPinAliasMap(...)`)
    so older files load unchanged, and pick new names that differ from the
    old ones — swapping the meaning of an existing name silently flips old
-   files (SP_AGA_DEC_06: sources `minus`/`plus`, `in`/`out`). Aliases are
-   import-only; agent PostRefs use the current names.
+   files (SP_AGA_DEC_06: sources `minus`/`plus`, `in`/`out`; 2026-10-03:
+   Transformer `p1`/`s1`/`p2`/`s2` for `pri1`..`sec2`, which named posts in
+   post order across the windings). Aliases are import-only; agent PostRefs
+   use the current names. Name pins after what the stamps connect (check
+   `getConnection`/`stamp`), not after the post order.
 6. **No `java.io.*`, no reflection** (RULE_STYLE_002). Use
    `StringTokenizer` for parsing, GWT JSON for JSON.
 7. **User-visible strings via `Locale.LS`** (RULE_STYLE_003) for info
@@ -134,6 +137,13 @@ constructors:
    / `getVoltageText` / etc. (RULE_STYLE_004).
 8. **Do not `new *Dialog` directly** (RULE_ARCH_003). Use
    `Editable.getEditInfo(n)` / `setEditValue(n, ei)` contract.
+9. **Agent catalogue hooks.** The catalogue labels a JSON key by matching its
+   default to an edit-dialog row's value; when the row shows a derived value
+   (a transformer row shows N1/N2 = 1/`ratio`) the match is wrong by
+   coincidence — override `getJsonPropertyLabel(key)`. A text key that names a
+   shared model declares `getJsonModelCatalogue(key)` and reports
+   `getUnresolvedModelName()` from its `setup()` (DiodeElm, TransistorElm), so
+   agent paths reject unknown names instead of registering them.
 
 ## References
 

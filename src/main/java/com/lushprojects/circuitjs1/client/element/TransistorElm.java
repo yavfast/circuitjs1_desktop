@@ -99,6 +99,8 @@ public class TransistorElm extends CircuitElm {
     }
 
     void setup() {
+        // [SP_AGA_03_03] remembered before the fallback below replaces or registers the name
+        unresolvedModelName = TransistorModel.hasModel(modelName) ? null : modelName;
         model = TransistorModel.getModelWithNameOrCopy(modelName, model);
         modelName = model.name;   // in case we couldn't find that model
         vcrit = vt * Math.log(vt / (Math.sqrt(2) * model.satCur));
@@ -774,6 +776,43 @@ public class TransistorElm extends CircuitElm {
         return props;
     }
 
+    /** Model name of the last setup that named no catalogue entry, else null. */
+    private String unresolvedModelName;
+    /** Model name before a JSON load set an unresolved one (what dropUnresolvedModel returns to). */
+    private String fallbackModelName;
+
+    // [SP_AGA_03_03] "Model names": `model` names a transistor model of the session catalogue
+    @Override
+    public String getJsonModelCatalogue(String key) {
+        return "model".equals(key) ? "transistor" : super.getJsonModelCatalogue(key);
+    }
+
+    @Override
+    public String getUnresolvedModelName() {
+        return unresolvedModelName;
+    }
+
+    @Override
+    public boolean retryUnresolvedModel() {
+        if (unresolvedModelName == null || !TransistorModel.hasModel(unresolvedModelName)) {
+            return unresolvedModelName == null;
+        }
+        modelName = unresolvedModelName;
+        setup();
+        return true;
+    }
+
+    @Override
+    public void dropUnresolvedModel() {
+        if (unresolvedModelName == null || fallbackModelName == null) {
+            return;
+        }
+        TransistorModel.removeFallback(unresolvedModelName, model);
+        modelName = fallbackModelName;
+        model = null;
+        setup();
+    }
+
     // [SP_AGA_03_03] keys getJsonProperties() writes only when they differ from these defaults
     @Override
     public java.util.Map<String, Object> getJsonConditionalProperties() {
@@ -789,8 +828,10 @@ public class TransistorElm extends CircuitElm {
         beta = getJsonDouble(properties, "beta", 100);
         String model = getJsonString(properties, "model", "default");
         if (model != null && !model.isEmpty()) {
+            String before = modelName;
             modelName = model;
             setup();
+            fallbackModelName = unresolvedModelName != null ? before : null;
         }
     }
 

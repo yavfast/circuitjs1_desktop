@@ -75,7 +75,7 @@ final class ImportOps {
                 call.args.invalid("circuit", "is empty", "Pass the circuit text.");
                 return call.args.failure();
             }
-            formatId = checkString(text, issues);
+            formatId = checkString(text, issues, cat);
             content = text;
         } else {
             call.args.invalid("circuit", "must be an AgentCircuit object or a circuit string",
@@ -88,7 +88,7 @@ final class ImportOps {
             keepLastImport(doc, rejected);
             return rejected;
         }
-        OperationResult result = Mutation.run(call.sim, doc, ctx -> load(ctx, content, formatId, agent, cat));
+        OperationResult result = Mutation.run(call.sim, doc, ctx -> load(ctx, content, formatId, agent, cat, true));
         keepLastImport(doc, result);
         return result;
     }
@@ -97,11 +97,13 @@ final class ImportOps {
      * The pre-load checks of a JSON v2 or legacy text circuit string (lattice and range,
      * [SP_AGA_03_01]); found problems are appended to {@code issues}.
      *
+     * @param cat the catalogue for the model-name check of agent JSON content ([SP_AGA_03_03]),
+     *            or null for a user file (no model-name check)
      * @return the format the string is loaded with: {@code "json"} or {@code "text"}
      */
-    static String checkString(String text, List<Issue> issues) {
+    static String checkString(String text, List<Issue> issues, Catalogue cat) {
         if (text.trim().startsWith("{")) {
-            checkJsonText(text, issues);
+            checkJsonText(text, issues, cat);
             return "json";
         }
         checkLegacyText(text, issues);
@@ -116,11 +118,11 @@ final class ImportOps {
      */
     static OperationResult importString(CirSim sim, CircuitDocument doc, final String text) {
         List<Issue> issues = new ArrayList<>();
-        final String formatId = checkString(text, issues);
+        final String formatId = checkString(text, issues, null);
         if (!issues.isEmpty()) {
             return OperationResult.failure(issues);
         }
-        return Mutation.run(sim, doc, ctx -> load(ctx, text, formatId, null, null));
+        return Mutation.run(sim, doc, ctx -> load(ctx, text, formatId, null, null, false));
     }
 
     /** @return the Issues of every item of an importer report, in report order */
@@ -132,10 +134,17 @@ final class ImportOps {
         return issues;
     }
 
+    /**
+     * @param strictModels agent content (importCircuit): an unresolved model name rejects the
+     *                     import; a user file (openFile) loads with a warning ([SP_AGA_03_03])
+     */
     private static OperationResult load(Mutation.Context ctx, String content, String formatId,
-            AgentCircuitConverter.Converted agent, Catalogue cat) {
+            AgentCircuitConverter.Converted agent, Catalogue cat, boolean strictModels) {
         CircuitDocument doc = ctx.doc;
         final ImportReport report = new ImportReport();
+        if (strictModels) {
+            report.strictModels();
+        }
         // Model catalogue entries changed by a text import go back before the snapshot reload
         ctx.onRollback(report::restoreModels);
         doc.circuitLoader.readCircuit(content, formatId, 0, report);
@@ -157,6 +166,12 @@ final class ImportOps {
                 if (spec.flags != null) {
                     // explicit flags win over the TypeInfo defaults of property-backed bits
                     EditOps.applyExplicitFlags(elm, spec.flags, issues);
+                }
+                // [SP_AGA_03_01] collapsed posts reject the import; a replaced end is reported
+                Issue collapsed = CellGeometry.checkPlacement(elm, spec.type,
+                        spec.endGiven ? new double[] { spec.x2, spec.y2 } : null, elm.getElementId(), issues);
+                if (collapsed != null) {
+                    throw new Mutation.Rejected(CellGeometry.rejection(collapsed, issues));
                 }
                 Map<String, Object> after = PropertyValues.current(elm);
                 for (Map.Entry<String, Object> p : spec.given.entrySet()) {
@@ -196,7 +211,7 @@ final class ImportOps {
      * coordinates within range in every pin position and {@code p1}/{@code p2} ([SP_AGA_03_01]:
      * fractional pixels are {@code off_lattice}, never truncated).
      */
-    private static void checkJsonText(String text, List<Issue> issues) {
+    private static void checkJsonText(String text, List<Issue> issues, Catalogue cat) {
         JSONValue parsed;
         try {
             parsed = JSONParser.parseStrict(text);
@@ -240,6 +255,32 @@ final class ImportOps {
             // bounds feed the geometry of single-post elements without _endpoint (factory)
             JSONObject b = e.get("bounds") == null ? null : e.get("bounds").isObject();
             checkPixel(b, "elements." + key + ".bounds", issues, subject, "left", "top", "right", "bottom");
+            if (cat != null) {
+                checkModelNames(e, key, cat, issues, subject);
+            }
+        }
+    }
+
+    /**
+     * [SP_AGA_03_03] "Model names": a JSON element's model-reference property must name an entry
+     * of the session catalogue (JSON v2 carries no model definitions); checked before loading, so
+     * the element's fallback never registers the name.
+     */
+    private static void checkModelNames(JSONObject e, String key, Catalogue cat, List<Issue> issues, String subject) {
+        JSONString type = e.get("type") == null ? null : e.get("type").isString();
+        Catalogue.TypeInfo info = type == null ? null : cat.find(type.stringValue());
+        JSONObject props = e.get("properties") == null ? null : e.get("properties").isObject();
+        if (info == null || props == null) {
+            return; // an unknown type is reported by the importer (import_element_skipped)
+        }
+        for (Catalogue.PropertyInfo p : info.properties) {
+            JSONString v = p.modelCatalogue == null || props.get(p.key) == null ? null : props.get(p.key).isString();
+            if (v != null && !v.stringValue().isEmpty() && !ModelNames.exists(p.modelCatalogue, v.stringValue())) {
+                issues.add(CellGeometry.withSubject(Issue.of(IssueCode.INVALID_VALUE, "Property 'elements." + key
+                        + ".properties." + p.key + "' names no " + ("transistor".equals(p.modelCatalogue) ? "transistor" : "diode")
+                        + " model of the session: '" + Catalogue.clipName(v.stringValue()) + "'.",
+                        ModelNames.hint(p.modelCatalogue)), subject));
+            }
         }
     }
 
@@ -329,7 +370,8 @@ final class ImportOps {
         Issue issue = Issue.of(code, severity, message, hintFor(code));
         // only element-scoped items name an element; a setting key ("time_step") is no ElementId
         boolean elementScoped = code == IssueCode.IMPORT_ELEMENT_SKIPPED || code == IssueCode.IMPORT_WIRE_SKIPPED
-                || code == IssueCode.IMPORT_GEOMETRY_ADJUSTED || code == IssueCode.IDS_REGENERATED;
+                || code == IssueCode.IMPORT_GEOMETRY_ADJUSTED || code == IssueCode.IDS_REGENERATED
+                || code == IssueCode.INVALID_VALUE || code == IssueCode.VALUE_ADJUSTED;
         if (elementScoped && item.key != null && ElementIdRegistry.isValidId(item.key)) {
             issue.elements(item.key);
         }
@@ -352,6 +394,10 @@ final class ImportOps {
                 return "Give the geometry once, by the pins or by p1/p2.";
             case IDS_REGENERATED:
                 return "Use unique keys matching ^[A-Za-z][A-Za-z0-9_]{0,31}$.";
+            case INVALID_VALUE:
+                return "Name a model of the session (describeType lists the key's choices) or define it with a model line in the same content.";
+            case VALUE_ADJUSTED:
+                return "The element simulates with a fallback model; define the model in the file or choose one of describeType's choices.";
             default:
                 return "See the issue message.";
         }

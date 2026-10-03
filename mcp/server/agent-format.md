@@ -13,7 +13,7 @@ How an agent describes, edits, checks and measures circuits through the `circuit
 - All coordinates are **grid cells**: 1 cell = 16 editor pixels, whatever the user's grid setting. x grows to the right, y grows **downwards**. Range ±4096.
 - **Authoring lattice: half cells.** In `add`, `move` and `by` every coordinate is a multiple of 0.5. Anything else is `off_lattice`; input is never snapped or rounded.
 - **Imports** accept any multiple of 1/16 cell (whole pixels), so a circuit read back with `circuit_get` re-imports unchanged. Legacy example circuits drawn at odd pixels read as fractional cells; that is exact, not an error.
-- `end = start` is `zero_length`.
+- `end = start` is `zero_length`; so is an `end` that puts the posts of a multi-post element on one point (a box element with no width or height). An element that sets its own end (a `CustomTransformer` takes its height from `description`; a potentiometer, SCR or triac snaps the end onto its axis) applies it and reports `value_adjusted` with the effective end. Derived posts may lie on half cells even for whole-cell points: wire to the record's `posts`.
 - Two posts connect when they are at the **same point**. A post lying on the middle of a wire does not connect (`post_on_wire_body`): end the wire at the post, or split it into two wires that meet there.
 
 ## 3. Element types (`circuit_types`)
@@ -25,7 +25,8 @@ How an agent describes, edits, checks and measures circuits through the `circuit
   - `derived`: posts computed from the two points (transistors, op-amps, chips). `derivedPostsAtDefault` gives each pin's offset from `start` at `defaultSize`.
 - `pins` are in post order. Pin names are unique per element (a repeated name gets `_2`, `_3`: `Q`, `Q_2`).
 - `defaultSize` (`end − start` of a freshly placed element) and `derivedPostsAtDefault` describe 16-grid documents. The `posts` of an element record are always authoritative: read them back after placing.
-- `properties`: `{key, kind, default, unit?, label?, sliderMin?, sliderMax?, readOnly?}`. `kind` is `quantity` (a unit string such as `"1 kOhm"`), `number`, `bool` or `text`. Slider values are typical-range hints, never limits.
+- `properties`: `{key, kind, default, unit?, label?, sliderMin?, sliderMax?, readOnly?, choices?}`. `kind` is `quantity` (a unit string such as `"1 kOhm"`), `number`, `bool` or `text`. Slider values are typical-range hints, never limits. `choices` (diode and transistor `model`) lists the model names the app holds now; any other name is `invalid_value` (a legacy text import may define more with its model lines).
+- `quantities`: the element quantities (`voltage`, `current`, `power`) an `{element, quantity}` probe or reading accepts — all three or none (transformers, chips and op-amps have none: probe their posts or nets).
 - Named nets: a `LabeledNode` with the same `label` text joins its net with every other node of that text. `Ground` defines `gnd`.
 
 ## 4. ElementSpec (input) and ElementRecord (output)
@@ -134,7 +135,7 @@ Result `data`: `{reason, tStart, tEnd, steps, wallMs, probes: [{name, unit, stat
 - **Start state.** A fresh import starts from the state saved in the circuit; `reset: true` from initial conditions; a run without `reset` continues where the last run (or free-running) left off (`tStart` = previous `tEnd`). Name the start of every experiment: pass `reset` explicitly.
 - **Determinism.** With `reset: true`, the same circuit and arguments give the same result, except for circuits with noise sources (unseeded). Draw Monte Carlo values yourself and apply them with `set` edits.
 - `stats`: `{samples, tStart, tEnd, min, max, mean, rms, peakToPeak, final, frequency?, dutyCycle?, riseTime?}`; `mean` and `rms` are time-weighted. `frequency` counts rising crossings of `mean` (5 % hysteresis) and is absent with fewer than 2 crossings; `dutyCycle` is absent with it; `riseTime` (10 %→90 % of min→max on the first rising transition) is absent when there is none. A probe with no sample has `stats: {samples: 0}`.
-- `series` keeps the minimum and maximum of each time bucket, so it never exceeds `maxPoints` and keeps the extremes. Values carry 6 significant digits, times 9.
+- `series` keeps the minimum and maximum of each time bucket, so it never exceeds `maxPoints` and keeps the extremes. Values carry 6 significant digits, times 9. While the recorded window has at most `maxPoints` samples (steps) per probe the series is raw and all probes share the same `t`; beyond that each probe keeps its own min/max times, so series of different probes differ in times and length: record a short window to compare waveforms point by point.
 - Solver problems during a run (`convergence_failed`, `singular_matrix`, …) are issues of a successful result: read them before trusting a waveform. A non-finite sample is dropped with a `solver_warning`.
 - Runs on one document are exclusive (`busy`); a user edit of that document cancels the run (`cancelled`, with the partial data).
 - The time step is the document's (`circuit_sim configure` sets it, in seconds or unit strings); with `autoTimeStep` it halves only on Newton failure (there is no error control), so accuracy rests on the step you choose.
@@ -154,15 +155,15 @@ Instant values at the current simulated time, without stepping: `targets` of 1..
 ## 9. Rendering (`circuit_render`)
 
 - `format`: `png` (default; the image is a separate image part, `data.content` reads `"<image>"`) or `svg` (text).
-- `scale`: 0.25..4. The image covers every element and its labels plus a 1-cell margin, at 16 px per cell times `scale`. An image over 16384 px on a side or 40 megapixels is `invalid_value` naming `scale`. An empty document gives a blank 32 × 32 image.
-- Printable colours, no current dots; drawing never changes a scope's graph. `includeScopes: true` adds the scope panels.
+- `scale`: 0.25..4. The image covers every element and every text it draws (value labels included) plus a 1-cell margin, at 16 px per cell times `scale`. An image over 16384 px on a side or 40 megapixels is `invalid_value` naming `scale`. An empty document gives a blank 32 × 32 image.
+- Printable colours on a white background (whatever the user's Printable option), no current dots; drawing never changes a scope's graph. `includeScopes: true` adds the scope panels.
 - An SVG text over the tool-result limit is `result_too_large`: use `png` or a lower `scale`. If the vector exporter cannot load, `render_failed`: retry with `png`.
 
 ## 10. History and checkpoints
 
 - All successful agent mutations since the last checkpoint form one open **transaction**: one undo entry for the user. `transaction: {open, pendingEdits}` is on every mutating result.
 - `circuit_checkpoint {comment}` seals it as a named entry (the user sees "Undo: <comment>") and returns `checkpointId`; with nothing changed, `noChanges: true`.
-- The transaction is also sealed automatically (comment "agent edits (auto)") by a user edit of the same document, any save, `undo`, `restore`, and 300 s without agent mutations.
+- The transaction is also sealed automatically (comment "agent edits (auto)") by a user edit of the same document, any save, `undo`, `restore`, and 300 s without agent mutations. A checkpoint after such a seal has nothing to seal (`noChanges: true`) and cannot rename the auto entry: checkpoint right after the edits, before long measurement runs.
 - `circuit_history`: `list`, `undo` / `redo` (`steps`), `restore` (`checkpointId`: back to the state before that checkpoint). Element IDs survive undo and redo; a deleted ID's number is not reused.
 
 ## 11. Files (`circuit_file`)

@@ -79,6 +79,10 @@ public final class Catalogue {
         boolean hasSlider;
         double sliderMin, sliderMax;
         boolean readOnly;
+        /** True when the element declared the label (no edit-row matching, no slider seeds). */
+        boolean declaredLabel;
+        /** Session model catalogue the text value names ({@link ModelNames}), or null. */
+        String modelCatalogue;
 
         JSONObject toJson() {
             JSONObject o = new JSONObject();
@@ -97,6 +101,10 @@ public final class Catalogue {
             }
             if (readOnly) {
                 o.put("readOnly", JSONBoolean.getInstance(true));
+            }
+            if (modelCatalogue != null) {
+                // [SP_AGA_03_03] "Model names": the names accepted now (the catalogue can grow)
+                o.put("choices", stringArray(ModelNames.list(modelCatalogue)));
             }
             return o;
         }
@@ -117,6 +125,10 @@ public final class Catalogue {
         final List<PropertyInfo> properties = new ArrayList<>();
         int defaultFlags;
         String summary;
+        /** Element quantities a probe or reading accepts ([SP_AGA_02_07]): all three or none. */
+        boolean definesQuantities;
+        /** True when the posts of the default placement are on distinct points ([SP_AGA_03_01]). */
+        boolean postsDistinct;
 
         /** @return the property with this key, or null */
         PropertyInfo property(String key) {
@@ -192,6 +204,7 @@ public final class Catalogue {
             }
             o.put("properties", props);
             o.put("defaultFlags", new JSONNumber(defaultFlags));
+            o.put("quantities", definesQuantities ? stringArray(Readings.QUANTITIES) : new JSONArray());
             return o;
         }
     }
@@ -366,6 +379,8 @@ public final class Catalogue {
             posts[i] = elm.getPost(i);
         }
         info.geometry = geometryOf(posts, x1, y1, elm.getX2(), elm.getY2());
+        info.postsDistinct = distinctPoints(posts) == postCount;
+        info.definesQuantities = Readings.definesQuantities(elm);
         if ("derived".equals(info.geometry)) {
             for (int i = 0; i < postCount; i++) {
                 if (posts[i] != null) {
@@ -408,6 +423,24 @@ public final class Catalogue {
         return "derived";
     }
 
+    /** @return the number of distinct points among {@code posts} (null posts not counted) */
+    static int distinctPoints(Point[] posts) {
+        int n = 0;
+        for (int i = 0; i < posts.length; i++) {
+            if (posts[i] == null) {
+                continue;
+            }
+            boolean seen = false;
+            for (int j = 0; j < i && !seen; j++) {
+                seen = posts[j] != null && posts[j].x == posts[i].x && posts[j].y == posts[i].y;
+            }
+            if (!seen) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     private static boolean at(Point p, int x, int y) {
         return p != null && p.x == x && p.y == y;
     }
@@ -428,6 +461,12 @@ public final class Catalogue {
                 continue;
             }
             p.readOnly = readOnly.contains(p.key);
+            String label = elm.getJsonPropertyLabel(p.key);
+            if (label != null) {
+                p.label = label;
+                p.declaredLabel = true;
+            }
+            p.modelCatalogue = elm.getJsonModelCatalogue(p.key);
             info.properties.add(p);
         }
         matchEditEntries(info.properties, editEntries(elm));
@@ -509,7 +548,7 @@ public final class Catalogue {
         Map<PropertyInfo, EditInfo> candidate = new HashMap<>();
         Map<EditInfo, Integer> claims = new HashMap<>();
         for (PropertyInfo p : props) {
-            if ("bool".equals(p.kind)) {
+            if ("bool".equals(p.kind) || p.declaredLabel) {
                 continue;
             }
             EditInfo match = null;

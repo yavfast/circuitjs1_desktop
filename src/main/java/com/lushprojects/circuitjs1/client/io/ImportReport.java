@@ -29,6 +29,10 @@ public final class ImportReport {
     public static final String SETTING_INVALID = "import_setting_invalid";
     public static final String GEOMETRY_ADJUSTED = "import_geometry_adjusted";
     public static final String IDS_REGENERATED = "ids_regenerated";
+    /** [SP_AGA_03_03] "Model names": an element names a model the session and the content lack. */
+    public static final String INVALID_VALUE = "invalid_value";
+    /** The same on a lenient load (the element simulates with a fallback model). */
+    public static final String VALUE_ADJUSTED = "value_adjusted";
 
     public enum Severity {
         ERROR, WARNING, INFO
@@ -55,6 +59,36 @@ public final class ImportReport {
 
     private final List<Item> items = new ArrayList<>();
     private final List<Runnable> modelRestorers = new ArrayList<>();
+    private boolean strictModels;
+
+    /**
+     * [SP_AGA_03_03] "Model names": an element naming a model that neither the session catalogue
+     * nor the loaded content defines is an error (agent content) instead of a warning (a user
+     * file opened by the agent, which loads as the user's load does).
+     *
+     * @return this report
+     */
+    public ImportReport strictModels() {
+        strictModels = true;
+        return this;
+    }
+
+    /**
+     * Reports an element whose model name resolved to no catalogue entry: {@link #INVALID_VALUE}
+     * (error) on a strict report, else {@link #VALUE_ADJUSTED} (warning).
+     *
+     * @param where "line 12" or "element D1" (start of the message)
+     * @param line  1-based text line, or 0
+     * @param key   JSON element key, or null
+     */
+    public void addUnresolvedModel(String where, String modelName, int line, String key) {
+        String message = where + ": model '" + modelName + "' is neither in the session model catalogue nor defined by the content";
+        if (strictModels) {
+            items.add(new Item(INVALID_VALUE, Severity.ERROR, message, line, key));
+        } else {
+            items.add(new Item(VALUE_ADJUSTED, Severity.WARNING, message + "; it simulates with a fallback model", line, key));
+        }
+    }
 
     /** Adds an item reported at a text line (1-based). */
     public void addAtLine(String code, Severity severity, String message, int line) {

@@ -40,7 +40,7 @@ final class Readings {
     /** Maximum number of targets of one read. */
     static final int MAX_TARGETS = 100;
 
-    private static final String[] QUANTITIES = { "voltage", "current", "power" };
+    static final String[] QUANTITIES = { "voltage", "current", "power" };
 
     private Readings() {
     }

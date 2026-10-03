@@ -66,6 +66,9 @@ public class TextCircuitImporter implements CircuitImporter {
     private ImportReport report;
     /** 1-based number of the line being processed (for the report). */
     private int lineNumber;
+    /** Elements of this load whose model name was unresolved when created, with their lines. */
+    private final java.util.List<CircuitElm> unresolvedModels = new java.util.ArrayList<>();
+    private final java.util.List<Integer> unresolvedLines = new java.util.ArrayList<>();
 
     public TextCircuitImporter(TextCircuitFormat format) {
         this.format = format;
@@ -98,7 +101,20 @@ public class TextCircuitImporter implements CircuitImporter {
 
         // Parse circuit data
         boolean isSubcircuitMode = (flags & RC_SUBCIRCUITS) != 0;
+        unresolvedModels.clear();
+        unresolvedLines.clear();
         parseCircuitLines(data, document, isSubcircuitMode, flags);
+        // [SP_AGA_03_03] "Model names": a model defined anywhere in the content resolves; only
+        // names neither the session nor the content define are reported (a report is given)
+        for (int i = 0; i < unresolvedModels.size(); i++) {
+            CircuitElm elm = unresolvedModels.get(i);
+            String name = elm.getUnresolvedModelName();
+            if (!elm.retryUnresolvedModel() && report != null) {
+                report.addUnresolvedModel("line " + unresolvedLines.get(i), name, unresolvedLines.get(i), null);
+            }
+        }
+        unresolvedModels.clear();
+        unresolvedLines.clear();
 
         // Finalize loading
         ImportLifecycle.finalizeCircuitLoading(document, flags, report);
@@ -327,6 +343,12 @@ public class TextCircuitImporter implements CircuitImporter {
             reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
                     "line " + lineNumber + ": unknown element type");
             return;
+        }
+
+        // [SP_AGA_03_03] "Model names": decided after the last line (a model line may follow)
+        if (report != null && element.getUnresolvedModelName() != null) {
+            unresolvedModels.add(element);
+            unresolvedLines.add(lineNumber);
         }
 
         // Parse description from remaining tokens

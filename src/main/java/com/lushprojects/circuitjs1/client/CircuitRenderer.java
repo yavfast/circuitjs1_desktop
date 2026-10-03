@@ -816,8 +816,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
      * <p>
      * <b>Session state.</b> What a step reads or writes is restored exactly at its end, so the
      * visible tab does not change by a pixel: the view transform (values, not the array), the Show
-     * Current item (images are drawn without current dots), the printable colour mode, the
-     * current-dot multiplier (0 while drawing, so no element's dot position advances) and the live
+     * Current item (images are drawn without current dots), the printable colour mode (images
+     * always use the printable palette on a white background, as the user's Print does, whatever
+     * the session's Printable option), the current-dot multiplier (0 while drawing, so no element's dot position advances) and the live
      * draw state of every scope drawn (see {@code Scope.beginOffscreenDraw}).
      */
     public final class OffscreenImage {
@@ -835,6 +836,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         private Canvas canvas;
         private Context2d context;
         private Graphics graphics;
+        /** Graphics of the measure pass: records the extent of the text drawn ([SP_AGA_02_08]). */
+        private Graphics measureGraphics;
         /** Next element of the measure pass; equal to the list size once it is complete. */
         private int measured;
         /** Next element to draw into the image. */
@@ -858,6 +861,14 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         }
 
         private void startMeasure() {
+            if (measureContext == null) {
+                Canvas c = Canvas.createIfSupported();
+                c.setCoordinateSpaceWidth(1);
+                c.setCoordinateSpaceHeight(1);
+                measureContext = c.getContext2d();
+            }
+            measureGraphics = new Graphics(measureContext);
+            measureGraphics.trackTextExtent();
             elms = new ArrayList<>(simulator().elmList);
             measured = 0;
             next = 0;
@@ -873,6 +884,16 @@ public class CircuitRenderer extends BaseCirSimDelegate {
          */
         private boolean layout() {
             area = offscreenBounds();
+            // labels drawn outside the elements' bounding boxes (value labels): the measure pass
+            // drew at OFFSCREEN_MARGIN with scale 1, so device = circuit + margin
+            double[] text = measureGraphics.getTextExtent();
+            if (area != null && text != null) {
+                int x1 = Math.min(area.x, (int) Math.floor(text[0]) - OFFSCREEN_MARGIN);
+                int y1 = Math.min(area.y, (int) Math.floor(text[1]) - OFFSCREEN_MARGIN);
+                int x2 = Math.max(area.x + area.width, (int) Math.ceil(text[2]) - OFFSCREEN_MARGIN);
+                int y2 = Math.max(area.y + area.height, (int) Math.ceil(text[3]) - OFFSCREEN_MARGIN);
+                area = new Rectangle(x1, y1, x2 - x1, y2 - y1);
+            }
             scopes.clear();
             panel = null;
             ScopeManager sm = scopeManager();
@@ -993,7 +1014,8 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         /** Fills background bands until the deadline; {@code one}: a single band (the allocation). */
         private void fillBands(double deadline, boolean one) {
             int band = Math.max(1, OFFSCREEN_FILL_BAND_PIXELS / Math.max(1, width));
-            graphics.setColor(cirSim.menuManager.printableCheckItem.getState() ? Color.white : Color.black);
+            // [SP_AGA_02_08] printable colours: white background
+            graphics.setColor(Color.white);
             do {
                 int rows = Math.min(band, height - filledRows);
                 graphics.fillRect(0, filledRows, width, rows);
@@ -1008,23 +1030,18 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             double[] savedTransform = Arrays.copyOf(transform, 6);
             boolean savedDots = mm.dotsCheckItem.getState();
             boolean savedPrintable = cs.isPrintable();
+            boolean savedPrintableItem = mm.printableCheckItem.getState();
             double savedCurrentMult = currentMult;
-            Context2d ctx;
-            if (measure) {
-                if (measureContext == null) {
-                    Canvas c = Canvas.createIfSupported();
-                    c.setCoordinateSpaceWidth(1);
-                    c.setCoordinateSpaceHeight(1);
-                    measureContext = c.getContext2d();
-                }
-                ctx = measureContext;
-            } else {
-                ctx = context;
-            }
-            Graphics g = measure ? new Graphics(ctx) : graphics;
+            Context2d ctx = measure ? measureContext : context;
+            Graphics g = measure ? measureGraphics : graphics;
             Scope.beginOffscreenDraw();
             try {
-                cs.setPrintable(mm.printableCheckItem.getState());
+                // [SP_AGA_02_08] printable colours, as the user's Print (drawCircuitInContext):
+                // the item too, for the draws that read it (seven-segment background, scope plots)
+                if (!savedPrintableItem) {
+                    mm.printableCheckItem.setState(true);
+                }
+                cs.setPrintable(true);
                 mm.dotsCheckItem.setState(false);
                 currentMult = 0;
 
@@ -1094,6 +1111,9 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 Scope.endOffscreenDraw();
                 System.arraycopy(savedTransform, 0, transform, 0, 6);
                 mm.dotsCheckItem.setState(savedDots);
+                if (!savedPrintableItem) {
+                    mm.printableCheckItem.setState(false);
+                }
                 cs.setPrintable(savedPrintable);
                 currentMult = savedCurrentMult;
             }

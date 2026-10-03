@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | pin_names | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -3921,6 +3921,272 @@ async function scenarioAgentDefects(s) {
   fs.writeFileSync(path.join(OUT_DIR, 'agent_defects.json'), JSON.stringify(out, null, 2));
   report('AG.agent_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
 }
+// verify_defects: the defect batch of the live JFET DC-DC verify (docs/agent-api.plan.md Backlog,
+// 2026-10-03), mostly on a background document. (1) Transformer pins name the windings: p1-p2 is
+// the primary, s1-s2 the secondary, p1/s1 the in-phase ends (a 1 V step on p1 gives +ratio V on
+// s1, also with reverse_polarity, which moves s1 in the drawing); JSON 2.0 names load as aliases,
+// old names are no PostRefs. (2) Transformer/TappedTransformer `ratio` (N2/N1) carries its own
+// TypeInfo label and no N1/N2 slider seeds. (3) A model name the session does not hold is
+// invalid_value on add/set/AgentCircuit/JSON/text import (a text model line defines one), is never
+// registered, and the TypeInfo lists the model choices; user loads are unchanged. (4) Geometry
+// that collapses posts is zero_length; an end an element replaces is value_adjusted. (5) render
+// uses printable colours and keeps value labels inside the image. (6) TypeInfo.quantities agrees
+// with the element probes `read` accepts.
+async function scenarioVerifyDefects(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const AA = (op, args) => s.call('agentAsync', op, args, 60000);
+  const codes = (list) => (list || []).map((i) => i.code);
+  const near = (v, x, tol) => typeof v === 'number' && Math.abs(v - x) <= tol;
+  const at = (p, dx, dy) => ({ x: p.x + dx, y: p.y + dy });
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const vis0 = await s.call('visibleTab');
+  const doc = (await A('createDocument', { title: 'Verify defects' })).data.doc;
+  const recOf = async (id) => ((await A('getCircuit', { doc, detail: 'full' })).data.elements || []).find((e) => e.id === id);
+  const postsOf = async (id) => { const r = await recOf(id); return r ? Object.fromEntries(r.posts.map((p) => [p.pin, p.at])) : {}; };
+  const values = async (targets) => {
+    const r = await A('read', { doc, targets });
+    return r.ok ? Object.fromEntries(r.data.values.map((v) => [v.name, v.value])) : { __issues: codes(r.issues) };
+  };
+
+  // (1) Transformer pin names follow the windings; (2) the ratio label
+  const tT = await A('describeType', { type: 'Transformer' });
+  const tTap = await A('describeType', { type: 'TappedTransformer' });
+  out.notes.pins = { Transformer: tT.data.pins, TappedTransformer: tTap.data.pins };
+  ck('xfPinNames', same(tT.data.pins, ['p1', 's1', 'p2', 's2']));
+  ck('tappedPinNamesKept', same(tTap.data.pins, ['pri1', 'pri2', 'sec1', 'tap', 'sec2']));
+  const xf = (rev) => ({ id: 'T1', type: 'Transformer', start: { x: 0, y: 0 }, end: { x: 4, y: 0 },
+    properties: { inductance: '1 H', ratio: 2, coupling: 0.999, reverse_polarity: rev } });
+  let xfJson = null;
+  for (const rev of [false, true]) {
+    const k = 'rev' + rev;
+    await A('importCircuit', { doc, circuit: { elements: [xf(rev)] } });
+    const P = await postsOf('T1');
+    if (!P.p1 || !P.s1 || !P.p2 || !P.s2) { ck('xfInPhase_' + k, false); out.notes[k] = { posts: P }; continue; }
+    // a 1 V step on p1 (p2 grounded); s2 grounded, s1 loaded by 1 MOhm: V(s1) = coupling * ratio * 1 V
+    const imp = await A('importCircuit', { doc, circuit: { elements: [xf(rev),
+      { id: 'V1', type: 'Rail', start: P.p1, end: at(P.p1, -2, 0), properties: { max_voltage: '1 V' } },
+      { id: 'G1', type: 'Ground', start: P.p2, end: at(P.p2, 0, 1) },
+      { id: 'G2', type: 'Ground', start: P.s2, end: at(P.s2, 0, P.s2.y > P.s1.y ? 1 : -1) },
+      { id: 'RL', type: 'Resistor', start: P.s1, end: at(P.s1, 4, 0), properties: { resistance: '1 MOhm' } },
+      { id: 'G3', type: 'Ground', start: at(P.s1, 4, 0), end: at(P.s1, 4, 1) }] } });
+    const run = await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+    const v = await values([{ name: 'p1', post: 'T1.p1' }, { name: 's1', post: 'T1.s1' }, { name: 's2', post: 'T1.s2' }]);
+    out.notes[k] = { posts: P, imp: imp.ok ? imp.connectivity.errorCount : codes(imp.issues), run: run.ok && run.data.reason, v };
+    ck('xfInPhase_' + k, imp.ok && run.ok && near(v.p1, 1, 1e-9) && near(v.s1, 2 * 0.999, 0.02) && near(v.s2, 0, 1e-9));
+    ck('xfReverseMovesS1_' + k, rev ? same(P.s1, { x: 4, y: 2 }) && same(P.s2, { x: 4, y: 0 }) : same(P.s1, { x: 4, y: 0 }) && same(P.s2, { x: 4, y: 2 }));
+    if (!rev) xfJson = (await A('exportCircuit', { doc, format: 'json' })).data.content;
+  }
+  const oldRef = await A('read', { doc, targets: [{ post: 'T1.pri2' }] });
+  ck('xfOldPostRefUnknown', !oldRef.ok && codes(oldRef.issues).includes('unknown_post'));
+  if (xfJson) {
+    const j = JSON.parse(xfJson);
+    const keys = Object.keys(j.elements.T1.pins).filter((p) => !p.startsWith('_'));
+    out.notes.exportPins = keys;
+    ck('xfExportNames', same(keys, ['p1', 's1', 'p2', 's2']));
+    // the same circuit as a JSON 2.0 file: the old names in post order, references rewritten, a
+    // marker voltage on post 1 (old `pri2`) in state.pins
+    const ren = { p1: 'pri1', s1: 'pri2', p2: 'sec1', s2: 'sec2' };
+    const oldJ = JSON.parse(xfJson);
+    oldJ.schema.version = '2.0';
+    const p = oldJ.elements.T1.pins;
+    oldJ.elements.T1.pins = Object.fromEntries(Object.keys(p).map((n) => [ren[n] || n, p[n]]));
+    const fixRef = (r) => { const d = r.indexOf('.'); return d > 0 && r.slice(0, d) === 'T1' && ren[r.slice(d + 1)] ? 'T1.' + ren[r.slice(d + 1)] : r; };
+    for (const e of Object.values(oldJ.elements)) for (const pin of Object.values(e.pins || {})) {
+      if (Array.isArray(pin.connected_to)) pin.connected_to = pin.connected_to.map(fixRef);
+      else if (typeof pin.connected_to === 'string') pin.connected_to = fixRef(pin.connected_to);
+    }
+    oldJ.elements.T1.state = { pins: { pri1: { v: 0 }, pri2: { v: 0.777 }, sec1: { v: 0 }, sec2: { v: 0 } } };
+    const imp2 = await A('importCircuit', { doc, circuit: JSON.stringify(oldJ) });
+    const vs = await values([{ name: 's1', post: 'T1.s1' }]);
+    out.notes.json20 = { ok: imp2.ok, issues: codes(imp2.issues), state: vs };
+    ck('xfJson20StateAlias', imp2.ok && near(vs.s1, 0.777, 1e-9));
+    await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+    const v2 = await values([{ name: 's1', post: 'T1.s1' }]);
+    out.notes.json20.run = v2;
+    ck('xfJson20Loads', imp2.ok && near(v2.s1, 2 * 0.999, 0.02));
+  } else {
+    ck('xfExportNames', false);
+  }
+  const ratioOf = (d) => d.ok && d.data.properties.find((q) => q.key === 'ratio');
+  out.notes.ratio = { Transformer: ratioOf(tT), TappedTransformer: ratioOf(tTap) };
+  ck('xfRatioLabel', ratioOf(tT) && /N2\/N1/.test(ratioOf(tT).label) && ratioOf(tT).sliderMin === undefined);
+  ck('tappedRatioLabel', ratioOf(tTap) && /N2\/N1/.test(ratioOf(tTap).label) && ratioOf(tTap).sliderMin === undefined);
+
+  // (3) model names
+  const modelOf = (d) => d.ok && d.data.properties.find((q) => q.key === 'model');
+  const dD = await A('describeType', { type: 'Diode' });
+  const dZ = await A('describeType', { type: 'ZenerDiode' });
+  const dQ = await A('describeType', { type: 'TransistorNPN' });
+  out.notes.choices = { diode: modelOf(dD) && modelOf(dD).choices, zener: modelOf(dZ) && modelOf(dZ).choices, npn: modelOf(dQ) && modelOf(dQ).choices };
+  ck('diodeModelChoices', modelOf(dD) && Array.isArray(modelOf(dD).choices)
+    && ['default', 'spice-default', '1N4148', '1N4004', '1N5711', '1N5712'].every((n) => modelOf(dD).choices.includes(n)));
+  ck('zenerModelChoices', modelOf(dZ) && Array.isArray(modelOf(dZ).choices) && modelOf(dZ).choices.includes('default-zener') && !modelOf(dZ).choices.includes('default'));
+  ck('transistorModelChoices', modelOf(dQ) && Array.isArray(modelOf(dQ).choices) && modelOf(dQ).choices.includes('default'));
+  const diode = (id, model, x) => ({ id, type: 'Diode', start: { x, y: 0 }, end: { x: x + 4, y: 0 }, properties: model ? { model } : {} });
+  await A('importCircuit', { doc, circuit: { elements: [diode('D1', '1N5711', 0)] } });
+  const bad = {};
+  const addBad = await A('applyEdits', { doc, edits: [{ op: 'add', element: diode('D2', 'nonexistent_model', 8) }] });
+  const addIssue = (addBad.issues || [])[0] || {};
+  bad.add = { codes: codes(addBad.issues), msg: addIssue.message, hint: addIssue.hint };
+  ck('diodeAddUnknownModelRejected', !addBad.ok && codes(addBad.issues).includes('invalid_value') && /model/.test(bad.add.msg) && /1N4148/.test(bad.add.hint));
+  const setBad = await A('applyEdits', { doc, edits: [{ op: 'set', id: 'D1', properties: { model: 'BAT54' } }] });
+  bad.set = codes(setBad.issues);
+  ck('diodeSetUnknownModelRejected', !setBad.ok && codes(setBad.issues).includes('invalid_value') && ((await recOf('D1')) || {}).properties.model === '1N5711');
+  const setOk = await A('applyEdits', { doc, edits: [{ op: 'set', id: 'D1', properties: { model: '1N4148' } }] });
+  ck('diodeSetKnownModel', setOk.ok && ((await recOf('D1')) || {}).properties.model === '1N4148');
+  const impBad = await A('importCircuit', { doc, circuit: { elements: [diode('D1', 'schottky', 0)] } });
+  bad.agentImport = codes(impBad.issues);
+  ck('diodeAgentImportUnknownModelRejected', !impBad.ok && codes(impBad.issues).includes('invalid_value'));
+  await A('importCircuit', { doc, circuit: { elements: [diode('D1', '1N4148', 0)] } });
+  const jsonText = (await A('exportCircuit', { doc, format: 'json' })).data.content.replace('"1N4148"', '"xyz_model"');
+  const impJson = await A('importCircuit', { doc, circuit: jsonText });
+  bad.json = codes(impJson.issues);
+  ck('diodeJsonImportUnknownModelRejected', jsonText.includes('xyz_model') && !impJson.ok && codes(impJson.issues).includes('invalid_value'));
+  const impText = await A('importCircuit', { doc, circuit: '$ 1 0.000005 10 50 5 50\nd 0 0 64 0 2 BAT54X\n' });
+  bad.text = { codes: codes(impText.issues), msg: ((impText.issues || [])[0] || {}).message };
+  ck('diodeTextImportUnknownModelRejected', !impText.ok && codes(impText.issues).includes('invalid_value'));
+  const impText2 = await A('importCircuit', { doc, circuit: '$ 1 0.000005 10 50 5 50\n34 vd_model 0 1e-14 0 1 0 0\nd 0 0 64 0 2 vd_model\n' });
+  const dText = impText2.ok && (await A('getCircuit', { doc, detail: 'full' })).data.elements[0];
+  bad.textDefined = { ok: impText2.ok, issues: codes(impText2.issues), model: dText && dText.properties.model };
+  ck('diodeTextModelLineDefines', impText2.ok && dText && dText.properties.model === 'vd_model');
+  // a model line after the element that uses it is "in the same content"
+  const impText3 = await A('importCircuit', { doc, circuit: '$ 1 0.000005 10 50 5 50\nd 0 0 64 0 2 vd2_model\n34 vd2_model 0 1e-14 0 1 0 0\n' });
+  const dText3 = impText3.ok && (await A('getCircuit', { doc, detail: 'full' })).data.elements[0];
+  bad.textDefinedAfter = { ok: impText3.ok, issues: codes(impText3.issues), model: dText3 && dText3.properties.model };
+  ck('diodeTextModelLineAfterDefines', impText3.ok && dText3 && dText3.properties.model === 'vd2_model' && codes(impText3.issues).length === 0);
+  // accepted set = choices: a zener takes only breakdown models, a transistor no internal model
+  const zc = (modelOf(dZ) && modelOf(dZ).choices) || [];
+  await A('importCircuit', { doc, circuit: { elements: [{ id: 'Z1', type: 'ZenerDiode', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }] } });
+  const zSet = {};
+  for (const m of ['default', 'spice-default', ...zc]) zSet[m] = (await A('applyEdits', { doc, edits: [{ op: 'set', id: 'Z1', properties: { model: m } }] })).ok;
+  bad.zenerSet = zSet;
+  ck('zenerAcceptedEqualsChoices', zc.length > 0 && zSet.default === false && zSet['spice-default'] === false && zc.every((m) => zSet[m] === true));
+  const qc = (modelOf(dQ) && modelOf(dQ).choices) || [];
+  await A('importCircuit', { doc, circuit: { elements: [{ id: 'Q1', type: 'TransistorNPN', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }] } });
+  const qSet = {};
+  for (const m of ['xlm324v2-qpi', ...qc]) qSet[m] = (await A('applyEdits', { doc, edits: [{ op: 'set', id: 'Q1', properties: { model: m } }] })).ok;
+  bad.npnSet = qSet;
+  ck('transistorAcceptedEqualsChoices', qc.length > 0 && qSet['xlm324v2-qpi'] === false && qc.every((m) => qSet[m] === true));
+  const qBad = await A('applyEdits', { doc, edits: [{ op: 'add', element: { id: 'Q9', type: 'TransistorNPN', start: { x: 20, y: 0 }, end: { x: 24, y: 0 }, properties: { model: 'nonexistent_bjt' } } }] });
+  bad.bjt = codes(qBad.issues);
+  ck('transistorUnknownModelRejected', !qBad.ok && codes(qBad.issues).includes('invalid_value'));
+  out.notes.models = bad;
+  const after = { diode: modelOf(await A('describeType', { type: 'Diode' })), npn: modelOf(await A('describeType', { type: 'TransistorNPN' })) };
+  const typos = ['nonexistent_model', 'BAT54', 'schottky', 'xyz_model', 'BAT54X'];
+  ck('noTypoRegistered', after.diode && Array.isArray(after.diode.choices) && typos.every((t) => !after.diode.choices.includes(t))
+    && after.npn && Array.isArray(after.npn.choices) && !after.npn.choices.includes('nonexistent_bjt'));
+
+  // (4) geometry: collapsed posts and replaced ends
+  await A('importCircuit', { doc, circuit: { elements: [{ id: 'CT1', type: 'CustomTransformer', start: { x: 4, y: 0 } }] } });
+  const ct0 = await recOf('CT1');
+  const mvZero = await A('applyEdits', { doc, edits: [{ op: 'move', id: 'CT1', start: { x: 4, y: 0 }, end: { x: 4, y: -10 } }] });
+  const ct1 = await recOf('CT1');
+  out.notes.ctZero = { codes: codes(mvZero.issues), msg: ((mvZero.issues || [])[0] || {}).message };
+  ck('ctZeroWidthRejected', !mvZero.ok && codes(mvZero.issues).includes('zero_length') && ct0 && ct1 && same(ct0.posts, ct1.posts));
+  // the end the element replaced is still reported on the rejection
+  ck('ctZeroWidthKeepsEndWarning', !mvZero.ok && codes(mvZero.issues)[0] === 'zero_length' && codes(mvZero.issues).includes('value_adjusted'));
+  const mvEnd = await A('applyEdits', { doc, edits: [{ op: 'move', id: 'CT1', start: { x: 4, y: 0 }, end: { x: 8, y: -8 } }] });
+  const adj = (mvEnd.issues || []).find((i) => i.code === 'value_adjusted');
+  out.notes.ctEnd = { ok: mvEnd.ok, issues: (mvEnd.issues || []).map((i) => i.code + ': ' + i.message), end: mvEnd.ok && mvEnd.data.elements[0].end };
+  ck('ctEndAdjustedWarned', mvEnd.ok && adj && /CT1\.end/.test(adj.message) && mvEnd.data.elements[0].end.y !== -8);
+  const xfZero = await A('applyEdits', { doc, edits: [{ op: 'add', element: { id: 'T9', type: 'Transformer', start: { x: 20, y: 0 }, end: { x: 20, y: 5 } } }] });
+  out.notes.xfZero = codes(xfZero.issues);
+  ck('xfCollapsedRejected', !xfZero.ok && codes(xfZero.issues).includes('zero_length'));
+  const impZero = await A('importCircuit', { doc, circuit: { elements: [{ id: 'CT1', type: 'CustomTransformer', start: { x: 4, y: 0 }, end: { x: 4, y: -10 } }] } });
+  ck('ctImportCollapsedRejected', !impZero.ok && codes(impZero.issues).includes('zero_length'));
+  const pot = await A('applyEdits', { doc, edits: [{ op: 'add', element: { id: 'P9', type: 'Potentiometer', start: { x: 30, y: 0 }, end: { x: 36, y: 1 } } }] });
+  out.notes.pot = { ok: pot.ok, issues: (pot.issues || []).map((i) => i.code + ': ' + i.message) };
+  ck('potEndAdjustedWarned', pot.ok && codes(pot.issues).includes('value_adjusted'));
+
+  // sweep: every type added at start + defaultSize (end given) is never rejected for geometry;
+  // which types replace that end; (6) TypeInfo.quantities agrees with an element `read`
+  const types = (await A('listTypes', {})).data.types.map((t) => t.type);
+  const sweep = { rejected: [], adjusted: [], quantityMismatch: [], noQuantities: [], typesWithQuantities: 0 };
+  for (const type of types) {
+    const d = await A('describeType', { type });
+    if (!d.ok) continue;
+    await A('importCircuit', { doc, circuit: { elements: [] } });
+    const end = { x: d.data.defaultSize.dx, y: d.data.defaultSize.dy };
+    if (end.x === 0 && end.y === 0) end.x = 1;
+    const add = await A('applyEdits', { doc, edits: [{ op: 'add', element: { id: 'X1', type, start: { x: 0, y: 0 }, end } }] });
+    if (!add.ok) { sweep.rejected.push(type + ':' + codes(add.issues).join(',')); continue; }
+    if (codes(add.issues).includes('value_adjusted')) sweep.adjusted.push(type);
+    const q = d.data.quantities;
+    if (!Array.isArray(q)) { sweep.noQuantities.push(type); continue; }
+    if (q.length) sweep.typesWithQuantities++;
+    const rd = await A('read', { doc, targets: [{ element: 'X1', quantity: 'power' }] });
+    if (rd.ok !== (q.length === 3)) sweep.quantityMismatch.push(type + ':' + q.length + '/' + rd.ok);
+  }
+  out.notes.sweep = sweep;
+  ck('sweepNoGeometryRejection', sweep.rejected.every((r) => !/zero_length/.test(r)));
+  ck('sweepAdjustedOnlyDerivedEnds', sweep.adjusted.every((t) => ['CustomTransformer'].includes(t)));
+  ck('quantitiesListed', sweep.noQuantities.length === 0 && sweep.typesWithQuantities > 50);
+  ck('quantitiesMatchRead', sweep.quantityMismatch.length === 0);
+  ck('quantitiesTransformer', same(tT.data.quantities, []) && same((await A('describeType', { type: 'Resistor' })).data.quantities, ['voltage', 'current', 'power']));
+
+  // (5) render: printable colours (white background), value labels inside the image
+  const session0 = await s.eval('CircuitJS1Agent.debugSessionState()');
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'VoltageSourceDC', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '100 mV' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  const inkOf = async (b64) => s.eval(`(async () => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + ${JSON.stringify(b64)}; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    let minX = 1e9, minY = 1e9, maxX = -1, maxY = -1, ink = 0;
+    for (let y = 0; y < c.height; y++) for (let i = 0; i < c.width; i++) {
+      const o = (y * c.width + i) * 4;
+      if (d[o] < 250 || d[o + 1] < 250 || d[o + 2] < 250) { ink++; minX = Math.min(minX, i); maxX = Math.max(maxX, i); minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+    }
+    return { w: c.width, h: c.height, bg: Array.from(d.slice(0, 4)), ink, minX, minY, maxX, maxY };
+  })()`);
+  const rp = await AA('render', { doc });
+  const px = rp.ok ? await inkOf(rp.data.content) : null;
+  out.notes.render = px;
+  ck('renderPrintableWhite', px && same(px.bg, [255, 255, 255, 255]) && px.ink > 100);
+  ck('renderLabelsNotCropped', px && px.minX >= 8 && px.minY >= 8 && px.maxX <= px.w - 9 && px.maxY <= px.h - 9);
+  ck('renderSessionUnchanged', (await s.eval('CircuitJS1Agent.debugSessionState()')) === session0);
+  // the circuit of the JFET verify run (outside the repository): re-rendered next to the old image
+  const conv = '/tmp/circuitjs1_desktop/jfet_dcdc/converter.json';
+  if (fs.existsSync(conv)) {
+    const ci = await A('importCircuit', { doc, circuit: fs.readFileSync(conv, 'utf8') });
+    const cr = ci.ok ? await AA('render', { doc, scale: 2 }) : null;
+    if (cr && cr.ok) {
+      fs.writeFileSync(path.join(path.dirname(conv), 'converter_fixed.png'), Buffer.from(cr.data.content, 'base64'));
+      out.notes.converter = { size: [cr.data.width, cr.data.height], ink: await inkOf(cr.data.content) };
+    } else {
+      out.notes.converter = { import: codes(ci.issues), render: cr && codes(cr.issues) };
+    }
+  }
+
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('visibleTabUnchanged', same(vis0, await s.call('visibleTab')));
+
+  // user loads are unchanged: an unknown model name loads with the fallback model, as before
+  const saved = await s.call('exportText');
+  const userText = await s.call('importText', '$ 1 0.000005 10 50 5 50\nd 0 0 64 0 2 user_text_model\n');
+  const userJson = JSON.parse(xfJson || '{"schema":{"format":"circuitjs","version":"2.1"},"elements":{}}');
+  userJson.elements = { D1: { type: 'Diode', properties: { model: 'user_json_model' }, pins: { anode: { position: { x: 0, y: 0 } }, cathode: { position: { x: 64, y: 0 } } } } };
+  const userJsonCount = await s.call('importJson', JSON.stringify(userJson));
+  const userExport = await s.call('exportJson');
+  out.notes.userLoads = { text: userText, json: userJsonCount };
+  ck('userLoadsUnchanged', userText === 1 && userJsonCount === 1 && /user_json_model/.test(userExport));
+  await s.call('importText', saved);
+  ck('noExceptions', s.exceptions.length === exMark);
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'verify_defects.json'), JSON.stringify(out, null, 2));
+  report('AG.verify_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
+}
+
 // 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
 const TIMER_SQUARE_HZ = 239.521;
 const TIMER_SQUARE_DUTY = 0.507567;
@@ -4146,7 +4412,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -4190,7 +4456,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

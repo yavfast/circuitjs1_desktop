@@ -70,15 +70,15 @@ All are errors (the call was rejected) unless marked otherwise.
 | `unknown_net` | error | A probe on a misspelt label, or on a `$k` name that changed after an edit | Probe a labelled net, or re-read the net names | `circuit_connectivity` → `nets` |
 | `unknown_property` | error | A key the type does not have; the hint lists the valid keys | Use a listed key | `circuit_types {"type": "..."}` → `properties` |
 | `unknown_checkpoint` | error | A `checkpointId` that is not in the undo stack (already undone or never made) | Pick one from the list | `circuit_history {"action": "list"}` |
-| `invalid_value` | error | A unit string that does not parse (`"4.7 kOhms"`; units are case-sensitive), an argument out of range (`budgetMs`, `scale`, Σ `maxPoints` > 2000), two probes with the same name, a `set` of a read-only key, a run on an empty document | Follow the message and hint: fix the value, name each probe, add elements first | The same call again |
-| `value_adjusted` | warning | The element clamped or overrode the value (e.g. a `Transformer` `coupling` above 1 is clamped); the message carries the effective value | Use the effective value, or set the controlling key | `circuit_get {"ids": [...], "detail": "full"}` |
+| `invalid_value` | error | A unit string that does not parse (`"4.7 kOhms"`; units are case-sensitive), an argument out of range (`budgetMs`, `scale`, Σ `maxPoints` > 2000), two probes with the same name, a `set` of a read-only key, a run on an empty document, a diode or transistor `model` the app does not hold (the hint lists the available ones), an element probe on a type without `quantities` | Follow the message and hint: fix the value, name each probe, add elements first | The same call again |
+| `value_adjusted` | warning | The element clamped or overrode the value (e.g. a `Transformer` `coupling` above 1 is clamped), or replaced the `end` you gave by its own (`CustomTransformer`, `Potentiometer`); the message carries the effective value | Use the effective value or end, or set the controlling key | `circuit_get {"ids": [...], "detail": "full"}` |
 
 ### Geometry and IDs
 
 | Code | Severity | Typical cause | Fix | Confirm with |
 |---|---|---|---|---|
 | `off_lattice` | error | A coordinate in `add`/`move`/`by` that is not a multiple of 0.5 cell, or an imported one not a multiple of 1/16 | Use whole cells for new parts | The same edit again |
-| `zero_length` | error | `end` equal to `start` | Omit `end` (default size) or give another point | The same edit again |
+| `zero_length` | error | `end` equal to `start`, or an `end` that puts a multi-post part's posts on one point (a box with no width or height) | Omit `end` (default size) or give an end that spans the part (`defaultSize` of `circuit_types`) | The same edit again |
 | `id_invalid` | error | An ID that does not match `^[A-Za-z][A-Za-z0-9_]{0,31}$` (starts with a digit, has `-` or spaces) | Use letters, digits and `_` | The same edit again |
 | `id_taken` | error | An `add` with an ID already in the document (often a repeated batch) | Choose another ID, or omit `id`; check whether the first batch was already applied | `circuit_get` |
 | `ids_regenerated` | warning | Imported JSON keys that are not valid or unique IDs; an undo whose element count changed | Re-read the IDs before using them | `circuit_get` |

@@ -20,13 +20,13 @@ This skill is for building, checking, simulating and repairing analog and digita
 
 ## Golden rules
 
-- **Coordinates are grid cells** (1 cell = 16 px, x right, y down); put every new part on whole cells.
+- **Coordinates are grid cells** (1 cell = 16 px, x right, y down); put every new part on whole cells (derived posts may still land on half cells: wire to the reply's `posts`).
 - **Work in a new document** (`circuit_documents` `create`) unless the user names a document to change.
 - **Every circuit gets an explicit `Ground`.**
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
 - **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`); confirm with a read when a result looks wrong.
-- **Checkpoint with a comment** (`circuit_checkpoint`) after each logical change.
+- **Checkpoint with a comment** (`circuit_checkpoint`) right after each logical change, before long measuring: after 300 s without edits your edits are sealed as "agent edits (auto)", and a later checkpoint only returns `noChanges`.
 - **Never fix the user's unrelated issues unasked**: report them.
 
 ## Workflow checklist

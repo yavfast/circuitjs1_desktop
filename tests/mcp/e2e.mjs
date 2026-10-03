@@ -1232,6 +1232,26 @@ async function scenFiles(R) {
     OR.ck('bomOpens', obom.ok && obom.data.elements === 1, obom);
     OR.done();
 
+    // [SP_AGA_03_03] "Model names": a user file naming models neither the session nor the file
+    // defines opens (lenient), one value_adjusted per element naming the model; nothing is
+    // registered, so an agent add of that name stays invalid_value
+    const OM = R.openModels;
+    fs.writeFileSync(P('um.txt'), FILE_OPTS + '\nd 0 0 64 0 2 mystery_txt\nd 0 64 64 64 2 mystery_txt\n');
+    fs.writeFileSync(P('um.json'), JSON.stringify({ schema: { format: 'circuitjs', version: '2.1' }, elements: {
+      D1: { type: 'Diode', properties: { model: 'mystery_json' }, pins: { anode: { position: { x: 0, y: 0 } }, cathode: { position: { x: 64, y: 0 } } } },
+      D2: { type: 'Diode', properties: { model: 'mystery_json' }, pins: { anode: { position: { x: 0, y: 64 } }, cathode: { position: { x: 64, y: 64 } } } } } }));
+    for (const [f, name] of [['um.txt', 'mystery_txt'], ['um.json', 'mystery_json']]) {
+      const n1 = await nDocs();
+      const om = await A('openFile', { path: P(f) });
+      const warns = (om.issues || []).filter((i) => i.code === 'value_adjusted' && i.message.includes(name));
+      OM.ck(f + ':opensWithWarnings', om.ok && om.data && om.data.elements === 2 && (await nDocs()) === n1 + 1 && warns.length === 2, om);
+      const D = om.data && om.data.doc;
+      const add = D && await A('applyEdits', { doc: D, edits: [{ op: 'add', element: { id: 'D9', type: 'Diode', start: { x: 0, y: 8 }, end: { x: 4, y: 8 }, properties: { model: name } } }] });
+      const choices = ((await A('describeType', { type: 'Diode' })).data.properties.find((p) => p.key === 'model') || {}).choices || [];
+      OM.ck(f + ':notRegistered', add && !add.ok && code0(add) === 'invalid_value' && !choices.includes(name), { add, choices });
+    }
+    OM.done();
+
     // into a background handle: transaction, file state, visible tab unchanged; rejected; activate
     const OI = R.openInto;
     const vis1 = await vis();
@@ -1908,6 +1928,7 @@ const SCENARIOS = [
     openMissing: ['SP_AGA_05_01', 'openFile: missing -> file_not_found (also missing directory, dangling link)'],
     saveRules: ['SP_AGA_03_09', 'saveFile: overwrite rules, symlinks, write errors, no staging file left, no_path, format, seal'],
     openRules: ['SP_AGA_03_09', 'openFile: rejections without disclosure, no document or closed-tab entry; BOM file opens'],
+    openModels: ['SP_AGA_03_03', 'openFile: unknown model names (text, JSON) open with one value_adjusted per element; nothing registered'],
     openInto: ['SP_AGA_02_14', 'openFile: into a background handle (visible tab unchanged), rejected into handle, activate'],
     staging: ['SP_AGA_02_14', 'saveFile: a foreign staging name (EEXIST) refused and left; fresh save reports its bytes'],
     busy: ['SP_AGA_02_14', 'Busy policy during a run: saveFile served, openFile into it busy, into new served'],

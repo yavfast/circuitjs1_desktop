@@ -183,7 +183,52 @@ public class Graphics {
 
     public void drawString(String s, int x, int y) {
         context.fillText(s, x, y);
+        if (textExtent != null) {
+            addTextExtent(context, s, x, y, textExtent);
+        }
     }
+
+    /**
+     * {minX, minY, maxX, maxY} in device pixels of the strings drawn since
+     * {@link #trackTextExtent()}, or null when not tracking.
+     */
+    private double[] textExtent;
+
+    /**
+     * [SP_AGA_02_08] Starts recording the device-pixel extent of every string drawn through this
+     * wrapper (its ink box under the context's current transform, alignment and baseline). The
+     * offscreen image measures with it, so labels drawn outside an element's bounding box (value
+     * labels) are not cropped.
+     */
+    public void trackTextExtent() {
+        textExtent = new double[] { Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY };
+    }
+
+    /** @return {minX, minY, maxX, maxY} in device pixels of the tracked strings, or null when none */
+    public double[] getTextExtent() {
+        return textExtent == null || textExtent[0] > textExtent[2] ? null : textExtent;
+    }
+
+    private static native void addTextExtent(Context2d ctx, String s, double x, double y, double[] ext) /*-{
+        var m = ctx.measureText(s);
+        var l = x - (m.actualBoundingBoxLeft || 0), r = x + (m.actualBoundingBoxRight || m.width);
+        var t = y - (m.actualBoundingBoxAscent || 0), b = y + (m.actualBoundingBoxDescent || 0);
+        var tr = ctx.getTransform ? ctx.getTransform() : null;
+        var xs = [l, r, r, l], ys = [t, t, b, b];
+        for (var i = 0; i < 4; i++) {
+            var px = xs[i], py = ys[i];
+            if (tr) {
+                var qx = tr.a * px + tr.c * py + tr.e;
+                py = tr.b * px + tr.d * py + tr.f;
+                px = qx;
+            }
+            if (px < ext[0]) ext[0] = px;
+            if (py < ext[1]) ext[1] = py;
+            if (px > ext[2]) ext[2] = px;
+            if (py > ext[3]) ext[3] = py;
+        }
+    }-*/;
 
     public double measureWidth(String s) {
         return context.measureText(s).getWidth();
