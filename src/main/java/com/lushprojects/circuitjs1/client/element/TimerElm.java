@@ -168,6 +168,32 @@ public class TimerElm extends ChipElm {
         simulator().stampResistor(out ? getNode(N_VCC) : ground, getNode(N_OUT), 1);
     }
 
+    /*
+     * Internal conduction paths, for the simulator's ground closure (findUnconnectedNodes) and
+     * path searches. ChipElm declares none, which made a 555 output that drives only a label an
+     * isolated node (tied to ground through 100 MOhm, reported as isolated_group). Paths that
+     * always exist: the Vcc-ctl-ground divider (stamp) and the output, which doStep connects to
+     * Vcc or to ground through 1 ohm in every state. The discharge pin conducts only while the
+     * output is low, so it is not declared (a node it alone holds still needs the 100 MOhm tie).
+     */
+    @Override
+    public boolean getConnection(int n1, int n2) {
+        return isAlwaysConnected(n1, n2) || isAlwaysConnected(n2, n1);
+    }
+
+    private boolean isAlwaysConnected(int a, int b) {
+        if (a == N_VCC && (b == N_CTL || b == N_OUT)) {
+            return true;
+        }
+        return hasGroundPin() && a == N_GND && (b == N_CTL || b == N_OUT);
+    }
+
+    @Override
+    public boolean hasGroundConnection(int n) {
+        // without a ground pin the chip's ground is node 0
+        return !hasGroundPin() && (n == N_CTL || n == N_OUT);
+    }
+
     public int getPostCount() {
         return hasGroundPin() ? 8 : hasReset() ? 7 : 6;
     }

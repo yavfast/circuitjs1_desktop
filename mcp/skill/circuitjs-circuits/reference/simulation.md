@@ -49,7 +49,7 @@ CircuitJS1 runs a transient simulation only: it steps time with a fixed maximum 
   - Forms: `{"net": "out"}`, `{"post": "R1.pin2"}` or `{"element": "C1", "quantity": "voltage" | "current" | "power"}`.
   - Give a `name` when two probes would get the same default name (two quantities of one element).
 - **`maxPoints`.** Series points per probe: 10..2000 (default 200), and at most 2000 summed over all probes of a run. The series keeps the minimum and maximum of every time bucket, so peaks survive decimation. Statistics always use every sample.
-- **Signs.** An element's `voltage`, `current` and `power` are the values the element reports, as its type defines them. `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source, so a source reads its own positive value. Check the sign of `current` and `power` on a known case before relying on it (e.g. a source with `start` on ground and a resistor load). A BJT `current` reads 0: probe a series resistor.
+- **Signs.** An element's `voltage`, `current` and `power` are the values the element reports, as its type defines them. `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source, so a source reads its own positive value. Check the sign of `current` and `power` on a known case before relying on it (e.g. a source with `start` on ground and a resistor load). A BJT's `current` is its collector current, a MOSFET's its drain current.
 
 ## Operating point
 

@@ -108,6 +108,11 @@ public class CurrentElm extends CircuitElm {
         broken = b;
     }
 
+    /** @return true when the last analysis found no current path (stamped as 100 MOhm instead) */
+    public boolean isBroken() {
+        return broken;
+    }
+
     // we defer stamping current sources until we can tell if they have a current
     // path or not
     public void stamp() {

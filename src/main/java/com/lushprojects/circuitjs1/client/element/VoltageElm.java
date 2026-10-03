@@ -85,13 +85,15 @@ public class VoltageElm extends CircuitElm {
         return 'v';
     }
 
-    public String dump() {
+    @Override
+    protected int getDumpFlags() {
         // set flag so we know if duty cycle is correct for pulse waveforms
-        if (waveformInstance.isPulse()) {
-            flags |= Waveform.FLAG_PULSE_DUTY;
-        } else {
-            flags &= ~Waveform.FLAG_PULSE_DUTY;
-        }
+        int f = super.getDumpFlags();
+        return waveformInstance.isPulse() ? f | Waveform.FLAG_PULSE_DUTY : f & ~Waveform.FLAG_PULSE_DUTY;
+    }
+
+    public String dump() {
+        flags = getDumpFlags();
 
         return dumpValues(dumpTypeToken(), getX(), getY(), getX2(), getY2(), flags, waveform, waveformInstance.frequency, waveformInstance.maxVoltage, waveformInstance.bias, waveformInstance.phaseShift, waveformInstance.dutyCycle);
         // VarRailElm adds text at the end

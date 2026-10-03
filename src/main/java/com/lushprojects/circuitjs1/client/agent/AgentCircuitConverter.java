@@ -169,7 +169,8 @@ final class AgentCircuitConverter {
                 if (!acceptReadOnly) {
                     issues.add(Issue.of(IssueCode.INVALID_VALUE, "Property '" + key + "' of " + type.type
                             + " is read-only (" + where + ").",
-                            "It follows the element's geometry or state; change those instead.").elements(subject));
+                            "It follows the element's geometry or another property; set the controlling key instead (writable keys: "
+                                    + type.writableKeys() + ").").elements(subject));
                 }
                 continue;
             }

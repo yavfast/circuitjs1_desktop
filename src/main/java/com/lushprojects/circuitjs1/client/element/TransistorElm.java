@@ -208,6 +208,16 @@ public class TransistorElm extends CircuitElm {
         return 3;
     }
 
+    /**
+     * The element's reported current is the collector current (positive into the collector of an
+     * NPN in forward-active mode, negative for a PNP), as MosfetElm reports its drain current.
+     * The base current field {@code current} is never set for a transistor.
+     */
+    @Override
+    public double getCurrent() {
+        return ic;
+    }
+
     public double getPower() {
         return (getNodeVoltage(0) - getNodeVoltage(2)) * ib + (getNodeVoltage(1) - getNodeVoltage(2)) * ic;
     }

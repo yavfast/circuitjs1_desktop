@@ -389,11 +389,15 @@ public abstract class ChipElm extends CircuitElm {
         primeClockAfterLoad = false;
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump carries the logic-high voltage token only when it is not the default 5 V
+        int f = super.getDumpFlags();
+        return highVoltage == 5 ? f & ~FLAG_CUSTOM_VOLTAGE : f | FLAG_CUSTOM_VOLTAGE;
+    }
+
     public String dump() {
-        if (highVoltage == 5)
-            flags &= ~FLAG_CUSTOM_VOLTAGE;
-        else
-            flags |= FLAG_CUSTOM_VOLTAGE;
+        flags = getDumpFlags();
 
         Object[] values = new Object[getPostCount() + 2];
         if (needsBits())

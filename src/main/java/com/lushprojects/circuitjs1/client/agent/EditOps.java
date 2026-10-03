@@ -37,8 +37,9 @@ import java.util.Set;
  * {@code set} is merge-then-apply with full read-back (steps 1-5 of SP_AGA_02_04): merged =
  * exported properties ⊕ declared conditional properties at their current values ⊕ patch;
  * applied through the element's JSON property application; geometry and nodes re-run; every key
- * read back, a patched key whose value differs from the request or an unpatched key whose value
- * changed is reported as {@code value_adjusted}. A property that selects another canonical type
+ * read back, a patched key whose value differs from the request or an unpatched writable key whose
+ * value changed is reported as {@code value_adjusted} (a read-only key follows another key or the
+ * geometry, so its change is not reported). A property that selects another canonical type
  * changes the record's {@code type}; the ID stays.
  */
 final class EditOps {
@@ -742,7 +743,7 @@ final class EditOps {
             return;
         }
         for (Map.Entry<String, Object> b : before.entrySet()) {
-            if (patch.containsKey(b.getKey()) || !isScalar(b.getValue())) {
+            if (patch.containsKey(b.getKey()) || !isScalar(b.getValue()) || isReadOnly(type, b.getKey())) {
                 continue;
             }
             Object effective = after.get(b.getKey());
@@ -750,6 +751,12 @@ final class EditOps {
                 warnings.add(adjusted(id, b.getKey(), effective, "the previous " + PropertyValues.display(b.getValue())));
             }
         }
+    }
+
+    /** A read-only key follows the geometry or another key: its change is the expected consequence. */
+    private static boolean isReadOnly(Catalogue.TypeInfo type, String key) {
+        Catalogue.PropertyInfo p = type == null ? null : type.property(key);
+        return p != null && p.readOnly;
     }
 
     private static boolean isScalar(Object v) {

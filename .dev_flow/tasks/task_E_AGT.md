@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-03 10:30
+> **Last updated:** 2026-10-03 11:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -118,7 +118,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] PL_AGS Phase 2 — `mcp/skill/tools/check-consistency.mjs` (form, codes, names, tools, catalogue, examples; 1449 live checks; offline mode); review FAIL ×2 (must: codes/keys outside tables unchecked; then scratch-document leak on exit) → fixed; final delta PASS
 - [x] PL_AGS Phase 3 — evals (4 scenarios, 2 fixtures, check.mjs reading app state only, run.mjs with temp project, restricted tools, $2/run cap, init-message isolation check, 2-of-3 rule); review PASS 5 should + 3 prefer → fixed; no real eval run
 - [x] Polar pin-name fix (SP_AGA_DEC_06): measured every polar element; new correct names with import aliases, JSON 2.1, live scenario `pin_names` (27 checks, fails on HEAD); review PASS (1 should → swapped op-amp exception documented)
-- [ ] **Next:** PL_AGA defect batch (5 remaining items) → PL_AGS Phase 4 eval runs (go-ahead given 2026-10-03)
+- [x] PL_AGA defect batch — BJT current = collector current, static `ground_path_no_resistance`/`wire_loop` + new `current_source_no_path`, 555 internal paths in the ground closure (17 false isolated_group gone across examples), LogicInput `state` read-only, flags stable from construction (`getDumpFlags`; text dump byte-identical); live `agent_defects` 19 (13 fail on HEAD); spec §03_05/§01_09/§02_04/§01_05/§06_01 19–21 by main; review PASS
+- [ ] **Next:** PL_AGS Phase 4 eval runs (go-ahead given 2026-10-03)
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

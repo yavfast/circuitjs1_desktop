@@ -46,12 +46,12 @@ The most-used types of the catalogue. Names are the canonical names that `circui
 - **Rail.** A single-post source between its post and ground: the cleanest supply. Put it at the top with `end` 2 cells above `start`.
 - **Capacitor.** `initial_voltage` defaults to 1 mV, not 0; `reset: true` starts from it. Use `PolarCapacitor` (`max_reverse_voltage`; `positive` is post 0 at `start`) only when reverse-voltage behaviour matters.
 - **Diodes.** Measured: the `default` diode drops 0.57 V at 10 mA, the `default-led` (red) 1.78 V at 9.8 mA. The Zener voltage follows the model: the built-in `default-zener` is 5.6 V (5.61 V measured at 6.4 mA), and `zener_voltage` cannot be set. Other built-in diode models include `1N4148`, `1N4004`, `1N5711`. Another Zener voltage needs a custom model, which properties cannot create: say so and offer 5.6 V or a different topology.
-- **Transistors.** The BJT `current` probe reads 0. Measure a transistor's current through the resistor in series with it (collector or emitter resistor). `power` works.
+- **Transistors.** A BJT's `current` is its collector current: positive into `collector` for a conducting NPN, negative for a PNP. A MOSFET's `current` is its drain current. `power` is the whole device's dissipation.
 - **MOSFETs.** `beta` is the transconductance parameter (A/V²); `body_diode` adds the drain-source diode.
 - **OpAmp.** An ideal op-amp with internal output limits `min_output`..`max_output` (±15 V by default) and no supply pins: no rails needed. `OpAmpReal` adds `V+`/`V-` supply pins.
 - **Switch.** `state` is `"closed"` (conducting, the default) or `"open"`.
-- **LogicInput.** Set the level with `position`: `1` high, `0` low (the default). `state` follows `position`: a `set` of `state` alone is put back, with a `value_adjusted` warning.
-- **Gates and the 555.** Gate outputs drive their own logic levels (`high_voltage`). Give a chip output a load or a part to drive: a 555 `out` that only carries a label is an `isolated_group` error. Tie the 555 `ctl` to ground through 10 nF and `rst` to the supply.
+- **LogicInput.** Set the level with `position`: `1` high, `0` low (the default). `state` is read-only (it follows `position`).
+- **Gates and the 555.** Gate outputs drive their own logic levels (`high_voltage`). A chip output may drive only a label. Tie the 555 `ctl` to ground through 10 nF and `rst` to the supply.
 - **Potentiometer.** `position` 0..1 moves the wiper; a grid-sized part (the geometry reference explains).
 - **LabeledNode.** A `label` is a net name. `gnd`, texts starting with `$` and texts starting with `label:` are reserved.
 - **IDs.** Give your own IDs (`R1`, `C_in`); generated ones use the type's prefix (`R`, `C`, `GND`, `TRA`, `U`, `TIM`…).

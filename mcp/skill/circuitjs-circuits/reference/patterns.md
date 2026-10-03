@@ -131,7 +131,7 @@ An NPN stage on a 12 V rail: divider bias R1 = 47 kΩ / R2 = 10 kΩ, collector r
 - **Expected DC.** V_B ≈ 12 · 10k/57k = 2.1 V, I_E ≈ (V_B − 0.6 V)/(RE1 + RE2) ≈ 1.4 mA, V_C ≈ 12 − RC·I_E ≈ 5.7 V (measured `out` mean 5.695 V).
 - **Expected gain.** |A_v| ≈ RC/(RE1 + r_e) with r_e = 26 mV/I_E ≈ 19 Ω: 4.7k/239 ≈ 19.7, inverted. Measured: `out` peakToPeak 4.020 V over `in` 0.200 V = 20.1.
 - **Run.** `{"span": "60 ms", "recordFrom": "40 ms", "reset": true, "probes": [{"net": "in"}, {"net": "out"}]}`; the coupling and bypass capacitors settle within about 30 ms.
-- **Checks.** The transistor's `current` probe reads 0: measure I_C as the current of `RC`. If `out` sits near 12 V the transistor is off (check bias); near the emitter voltage it is saturated.
+- **Checks.** The transistor's `current` probe reads I_C (positive, the same as the current of `RC`). If `out` sits near 12 V the transistor is off (check bias); near the emitter voltage it is saturated.
 
 ## 6. Inverting op-amp stage
 

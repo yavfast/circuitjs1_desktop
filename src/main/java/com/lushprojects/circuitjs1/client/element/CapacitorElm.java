@@ -90,8 +90,14 @@ public class CapacitorElm extends CircuitElm {
         return 'c';
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump always carries the series-resistance token
+        return super.getDumpFlags() | FLAG_RESISTANCE;
+    }
+
     public String dump() {
-        flags |= FLAG_RESISTANCE;
+        flags = getDumpFlags();
         return dumpValues(super.dump(), capacitance, voltDiff, initialVoltage, seriesResistance);
     }
 

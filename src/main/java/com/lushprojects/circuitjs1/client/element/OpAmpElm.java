@@ -88,8 +88,14 @@ public class OpAmpElm extends CircuitElm {
         gain = ((flags & FLAG_LOWGAIN) != 0) ? 1000 : 100000;
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump always carries the gain token
+        return super.getDumpFlags() | FLAG_GAIN;
+    }
+
     public String dump() {
-        flags |= FLAG_GAIN;
+        flags = getDumpFlags();
         return dumpValues(super.dump(), maxOut, minOut, gbw, getNodeVoltage(0), getNodeVoltage(1), gain);
     }
 

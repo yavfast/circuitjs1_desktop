@@ -45,7 +45,7 @@ ElementSpec, for `circuit_import` and the `add` edit:
 Property values:
 - `quantity` and `number`: a number, or a string that parses fully as a number with an optional SI prefix (`f p n u μ m k K M G T`) and an optional unit matching the property's `unit` (case-sensitive; `Ohm` and `Ω` both work): `4700`, `"4.7k"`, `"10 uF"`, `"5 V"`. Anything else is `invalid_value`.
 - `bool`: `true` / `false`. `text`: a string ≤ 1000 chars.
-- A key not in the type's list is `unknown_property`; the hint lists the valid keys. A `readOnly` key cannot be `set` (it follows the geometry); imports ignore it.
+- A key not in the type's list is `unknown_property`; the hint lists the valid keys. A `readOnly` key cannot be `set` (it follows the geometry or another key, e.g. a `LogicInput`'s `state` follows `position`); imports ignore it.
 - A value the element clamps or adjusts is applied as adjusted and reported as a `value_adjusted` warning carrying the effective value.
 
 ElementRecord, returned by `circuit_get` and the edit results: `{id, type, start, end, posts, properties, flags, description?}`.
@@ -99,6 +99,9 @@ Every successful mutation returns `connectivity: {added, cleared, errorCount, wa
 | `post_on_wire_body` | error | a post lies inside a wire segment without being connected to it |
 | `isolated_group` | error | nodes with no path to ground (the simulator would tie them through 100 MΩ) |
 | `source_or_wire_loop` | error | a voltage source or wire loop with no resistance |
+| `ground_path_no_resistance` | error | a rail or logic input connected to ground with no resistance |
+| `wire_loop` | warning | a loop made only of wires (only wire currents are approximated) |
+| `current_source_no_path` | warning | a current source with no current path (open, or in series with another current source): it drives no current |
 | `overlapping_elements` | warning | two equal elements on the same points, or overlapping collinear wires |
 | `no_ground` | warning | no ground element (`implicitGround` tells whether one was assumed) |
 | `bad_connection` | warning | a post touches another element's body |
@@ -122,7 +125,7 @@ Errors left by a successful edit do not reject it: fix them with further edits b
 | `maxPoints` | 200 | series points per probe, 10..2000; Σ over probes ≤ 2000 |
 | `reset` | false | reset to initial conditions first |
 
-ProbeSpec: exactly one of `{net}`, `{post}` or `{element, quantity}` (`voltage` default, `current`, `power`: the quantity the element reports, as its type defines it — `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source; check the sign of `current` and `power` with a known case before relying on it), plus an optional `name`.
+ProbeSpec: exactly one of `{net}`, `{post}` or `{element, quantity}` (`voltage` default, `current`, `power`: the quantity the element reports, as its type defines it — `voltage` is post 0 minus post 1 for most two-post elements, but `plus` minus `minus` for a voltage source and `out` minus `in` for a current source; a BJT's `current` is its collector current, a MOSFET's its drain current; check the sign of `current` and `power` with a known case before relying on it), plus an optional `name`.
 
 Result `data`: `{reason, tStart, tEnd, steps, wallMs, probes: [{name, unit, stats, series: {t, v}}]}`.
 - `reason`: `span_reached`, `settled`, `settle_timeout`, `solver_stop`, `stop_trigger`, `budget_exhausted`, `cancelled`. Every reason is `ok: true`. `budget_exhausted`, `settle_timeout`, `stop_trigger` and `cancelled` add a warning with that code; `solver_stop` adds the stop issue (an error), and a document stopped by the solver needs `reset: true` before it runs again.

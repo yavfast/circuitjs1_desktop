@@ -25,6 +25,7 @@ public enum IssueCode {
     ISOLATED_GROUP("isolated_group", Issue.Severity.ERROR),
     BAD_CONNECTION("bad_connection", Issue.Severity.WARNING),
     SINGLE_LABEL("single_label", Issue.Severity.INFO),
+    CURRENT_SOURCE_NO_PATH("current_source_no_path", Issue.Severity.WARNING),
 
     // Operation codes
     NOT_READY("not_ready", Issue.Severity.ERROR),

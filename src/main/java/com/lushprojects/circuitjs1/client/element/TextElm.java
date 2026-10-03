@@ -84,8 +84,14 @@ public class TextElm extends GraphicElm {
         lines.add(sb.toString());
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump always writes the escaped text
+        return super.getDumpFlags() | FLAG_ESCAPE;
+    }
+
     public String dump() {
-        flags |= FLAG_ESCAPE;
+        flags = getDumpFlags();
         return dumpValues(super.dump(), size, CustomLogicModel.escape(text));
         // return super.dump() + " " + size + " " + text;
     }

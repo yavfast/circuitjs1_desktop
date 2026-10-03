@@ -107,8 +107,14 @@ public class DiodeElm extends CircuitElm {
         return 'd';
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump always carries the model name
+        return super.getDumpFlags() | FLAG_MODEL;
+    }
+
     public String dump() {
-        flags |= FLAG_MODEL;
+        flags = getDumpFlags();
 /*	if (modelName == null) {
 	    sim.console("model name is null??");
 	    modelName = "default";

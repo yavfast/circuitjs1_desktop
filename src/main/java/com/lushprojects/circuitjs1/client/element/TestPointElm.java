@@ -92,9 +92,16 @@ public class TestPointElm extends CircuitElm {
         // lead1 handled by geom
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump carries the label token only for a label other than the default "TP"
+        int f = super.getDumpFlags();
+        return !label.equals("TP") ? (f | FLAG_LABEL) : (f & ~FLAG_LABEL);
+    }
+
     public String dump() {
         boolean writeLabel = (!label.equals("TP"));
-        flags = (writeLabel) ? (flags | FLAG_LABEL) : (flags & ~FLAG_LABEL);
+        flags = getDumpFlags();
         Object[] values = new Object[2];
         values[0] = meter;
         if (writeLabel)

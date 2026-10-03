@@ -53,8 +53,14 @@ public class LabeledNodeElm extends CircuitElm {
         }
     }
 
+    @Override
+    protected int getDumpFlags() {
+        // the dump always writes the escaped label text
+        return super.getDumpFlags() | FLAG_ESCAPE;
+    }
+
     public String dump() {
-        flags |= FLAG_ESCAPE;
+        flags = getDumpFlags();
         return dumpValues(super.dump(), escape(text));
     }
 

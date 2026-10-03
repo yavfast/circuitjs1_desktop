@@ -130,8 +130,20 @@ public final class Catalogue {
 
         /** @return the property keys in catalogue order, comma-separated (for hints) */
         String propertyKeys() {
+            return keys(false);
+        }
+
+        /** @return the keys {@code set} accepts (read-only keys left out), comma separated */
+        String writableKeys() {
+            return keys(true);
+        }
+
+        private String keys(boolean writableOnly) {
             StringBuilder sb = new StringBuilder();
             for (PropertyInfo p : properties) {
+                if (writableOnly && p.readOnly) {
+                    continue;
+                }
                 if (sb.length() > 0) {
                     sb.append(", ");
                 }
@@ -342,7 +354,7 @@ public final class Catalogue {
         place(elm);
         // Flags of the freshly placed element: a placement drag may set orientation bits
         // (tri-state flip, transformer vertical), and the default posts are measured with them.
-        info.defaultFlags = elm.flags;
+        info.defaultFlags = elm.getJsonFlags();
         int x1 = elm.getX(), y1 = elm.getY();
         info.dx = (elm.getX2() - x1) / (double) CELL_PX;
         info.dy = (elm.getY2() - y1) / (double) CELL_PX;

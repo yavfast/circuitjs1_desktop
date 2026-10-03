@@ -18,27 +18,28 @@ Every issue has `code`, `severity`, `message`, `hint` and, where known, the `ele
 |---|---|---|---|---|
 | `dangling_post` | error (warning on one-post elements) | A wire end or part post misses every other post by a cell or half a cell; a post placed on a wire body; a pin you did not wire (e.g. a 555 `ctl`) | Move the post onto the other post (read `posts` from `circuit_get`), add the missing wire, or `markOpen` a post that stays unconnected on purpose | `connectivity.cleared` of the edit; `circuit_connectivity` |
 | `post_on_wire_body` | error | A T-junction drawn by ending a part on the middle of a wire | Split the wire into two wires that meet at the post, or end the wire there | `circuit_connectivity` |
-| `isolated_group` | error | A part or subcircuit with no path to ground: missing ground wire, an input coupled only through a capacitor, a chip output that drives only a label | Connect the group to ground or to the rest of the circuit (add a load or bias resistor); `markOpen` its posts if it is unused | `circuit_connectivity` (`implicitGround`, issues) |
+| `isolated_group` | error | A part or subcircuit with no path to ground: missing ground wire, an input coupled only through a capacitor | Connect the group to ground or to the rest of the circuit (add a load or bias resistor); `markOpen` its posts if it is unused | `circuit_connectivity` (`implicitGround`, issues) |
 | `source_or_wire_loop` | error | A voltage source shorted by a wire, two voltage sources in parallel, or a loop of sources and wires without resistance; runs go on but currents are meaningless (a shorted 5 V source reads 5e12 A) | Remove the short, or add a series `Resistor` | `circuit_connectivity`; a short `circuit_run` with `reset: true` without this issue |
 | `overlapping_elements` | warning | The same part added twice on the same points (a repeated `add`), or collinear wires that overlap | Delete the duplicate; shorten the overlapping wire | `circuit_get` |
 | `no_ground` | warning | No `Ground` element: the simulator assumes ground at the first voltage source's post, so voltages may be referenced to a node you did not choose | Add a `Ground` at the reference node | `circuit_connectivity` → `implicitGround: false` |
 | `bad_connection` | warning | A post touches another element's body without meeting a post (usually with `post_on_wire_body`) | Move the post onto the other element's post, or away from its body | `circuit_connectivity` |
 | `reserved_label` | warning | A label text `gnd`, starting with `$` or with `label:` | Rename the label | `circuit_connectivity` net names |
+| `current_source_no_path` | warning | A `CurrentSource` in series with another current source, or left open (e.g. on the unselected throw of a switch): the simulator puts 100 MΩ in its place, so it drives no current | Give it a resistive return path; of two current sources in series, replace one by a `Resistor` | `circuit_connectivity` |
 | `single_label` | info | A label used by only one node: normal for a probe label | Nothing, unless you meant to join two places (check the spelling) | — |
 
 ## Solver issues
 
-They appear in run results, in `circuit_diagnostics` (`events`, `stop`, `warning`) and, for loops, in the connectivity report. The simulator recovers from most of them and keeps running, so a run can end with `span_reached` and still carry them: treat the run's numbers as invalid while any error below is present. The culprit element is in `elements`.
+They appear in run results, in `circuit_diagnostics` (`events`, `stop`, `warning`) and, for loops and paths found when the circuit is analysed (`source_or_wire_loop`, `ground_path_no_resistance`, `wire_loop`), in the connectivity report. The simulator recovers from most of them and keeps running, so a run can end with `span_reached` and still carry them: treat the run's numbers as invalid while any error below is present. The culprit element is in `elements`.
 
 | Code | Severity | Typical cause | Fix | Confirm with |
 |---|---|---|---|---|
 | `singular_matrix` | error | A node whose voltage the circuit does not fix, or fixes twice: ideal parts in conflict, a subcircuit joined to the rest only through ideal sources | Clear the connectivity errors first; give every node a resistive DC path; add a small series resistance between ideal parts | `circuit_run` with `reset: true` and no solver issues |
 | `source_or_wire_loop` | error | As in the connectivity table | As above | As above |
-| `ground_path_no_resistance` | error | A `Rail` or `LogicInput` connected to ground through wires (or voltage sources) only; the connectivity report does not show it, a run does | Remove the short, or add a series resistance | `circuit_run` with `reset: true` |
+| `ground_path_no_resistance` | error | A `Rail` or `LogicInput` connected to ground through wires (or voltage sources) only | Remove the short, or add a series resistance | `circuit_connectivity` |
 | `convergence_failed` | error | A nonlinear part (diode, transistor, MOSFET, gate) far outside sensible values, a time step too large for a fast edge, an unbounded positive-feedback loop | Check the named element's values and its bias; reduce the time step (`circuit_sim configure`); add series resistance at switching nodes | `circuit_diagnostics` (`recovering: false`, no event) after a reset run |
 | `analysis_failed` | error | The circuit could not be analysed (an element threw while building the matrix) | Read the message and `circuit_diagnostics {"log": {"since": 0}}`; replace or delete the named element | `circuit_run` with `reset: true` |
 | `matrix_error` | error | A degenerate matrix met while simplifying it: the same family of causes as `singular_matrix`, or extreme values (0 Ω, 0 F) | As for `singular_matrix`; use realistic, non-zero values | `circuit_run` with `reset: true` |
-| `wire_loop` | warning | A loop made only of wires: node voltages stay valid, only the wire currents are approximated | Remove the redundant wire if wire currents matter | `circuit_run` with `reset: true` |
+| `wire_loop` | warning | A loop made only of wires: node voltages stay valid, only the wire currents are approximated | Remove the redundant wire if wire currents matter | `circuit_connectivity` |
 | `solver_stop` | error | Any other stop of the solver; also an exception during a run (with `internal_error`) | Read the message and the stop issue in `circuit_diagnostics`; fix, then run with `reset: true` (a stopped document does not run without it) | `circuit_diagnostics` → `stopped: false` |
 | `solver_warning` | warning | Any other solver warning; also a probe sample that was not finite (dropped) | Read the message; check the named probe and element | The next run |
 
@@ -70,7 +71,7 @@ All are errors (the call was rejected) unless marked otherwise.
 | `unknown_property` | error | A key the type does not have; the hint lists the valid keys | Use a listed key | `circuit_types {"type": "..."}` → `properties` |
 | `unknown_checkpoint` | error | A `checkpointId` that is not in the undo stack (already undone or never made) | Pick one from the list | `circuit_history {"action": "list"}` |
 | `invalid_value` | error | A unit string that does not parse (`"4.7 kOhms"`; units are case-sensitive), an argument out of range (`budgetMs`, `scale`, Σ `maxPoints` > 2000), two probes with the same name, a `set` of a read-only key, a run on an empty document | Follow the message and hint: fix the value, name each probe, add elements first | The same call again |
-| `value_adjusted` | warning | The element clamped or overrode the value (e.g. `LogicInput` `state` follows `position`); the message carries the effective value | Use the effective value, or set the controlling key | `circuit_get {"ids": [...], "detail": "full"}` |
+| `value_adjusted` | warning | The element clamped or overrode the value (e.g. a `Transformer` `coupling` above 1 is clamped); the message carries the effective value | Use the effective value, or set the controlling key | `circuit_get {"ids": [...], "detail": "full"}` |
 
 ### Geometry and IDs
 
@@ -124,7 +125,7 @@ All are errors (the call was rejected) unless marked otherwise.
 - **Source off.** The source is at 0: check `max_voltage`, a `LogicInput` at `position: 0`, a `Switch` at `"open"`.
 - **Polarity.** A diode, LED or source drawn the other way round: compare with a pattern, or `circuit_read` both ends.
 - **Window.** The probe records from `recordFrom`: check `stats.samples` and `tStart`/`tEnd`.
-- **Element probe.** A BJT `current` probe always reads 0: probe the series resistor.
+- **Current source idle.** A `current_source_no_path` warning: the source has no return path and drives 0 A.
 
 **An oscillator that never starts.**
 - **Start state.** A run with `reset: true` starts from initial conditions, which can be a balanced state that never tips; a fresh import starts from the state saved in the circuit instead. Compare both, and break the symmetry (a slightly different value in one branch, an initial capacitor voltage).

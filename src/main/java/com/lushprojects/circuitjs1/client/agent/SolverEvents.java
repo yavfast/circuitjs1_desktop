@@ -14,7 +14,8 @@ import java.util.Set;
  * warning and stop since its last analysis as an ordered event list with the untranslated
  * message key ({@link CircuitSimulator#getSolverEvents()}); this class maps the keys to codes by
  * prefix, gives the severities and names the culprit element. {@code Diagnostics.events}, the
- * {@code source_or_wire_loop} connectivity rule and (PL_AGA Phase 7) the run's issues read it.
+ * {@code source_or_wire_loop}, {@code ground_path_no_resistance} and {@code wire_loop} connectivity
+ * rules and (PL_AGA Phase 7) the run's issues read it.
  */
 final class SolverEvents {
 
@@ -132,7 +133,7 @@ final class SolverEvents {
         return e == null ? null : toIssue(e);
     }
 
-    private static String hintFor(IssueCode code) {
+    static String hintFor(IssueCode code) {
         switch (code) {
             case SINGULAR_MATRIX:
                 return "Check for floating parts, ideal sources in parallel or a missing ground; getConnectivity lists them.";

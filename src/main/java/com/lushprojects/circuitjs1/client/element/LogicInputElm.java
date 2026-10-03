@@ -227,6 +227,16 @@ public class LogicInputElm extends SwitchElm {
         return props;
     }
 
+    // [SP_AGA_01_05] "position" is the level; the inherited switch key "state" (closed = 0,
+    // open = 1) is exported for older readers but only follows it: applyJsonProperties applies
+    // "position" after it, so a "state" alone could not change the level
+    @Override
+    public java.util.Set<String> getJsonReadOnlyProperties() {
+        java.util.Set<String> keys = super.getJsonReadOnlyProperties();
+        keys.add("state");
+        return keys;
+    }
+
     @Override
     public java.util.Map<String, Object> getJsonConditionalProperties() {
         java.util.Map<String, Object> props = super.getJsonConditionalProperties();

@@ -329,7 +329,7 @@ Each element has these methods:
 - `getInfo()` - Get element info array (varies by element)
 - `getVoltageDiff()` - Voltage across element
 - `getVoltage(postIndex)` - Voltage at specific post
-- `getCurrent()` - Current through element
+- `getCurrent()` - Current through element; for a BJT the collector current (positive into the collector, so negative for a PNP), for a MOSFET/JFET the drain current (since 2026-10-03; a BJT returned 0 before)
 - `getPower()` - Power dissipation/consumption
 - `getLabelName()` - Label if present
 - `getPostCount()` - Number of connection posts

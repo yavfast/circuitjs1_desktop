@@ -420,7 +420,7 @@ test('document circuit resource: full detail, all pages, importable shape', asyn
 
 test('agent-format text names the current SP_AGA rules', () => {
   for (const s of ['grid cells', '0.5', '1/16', 'stop_trigger', 'First sample', 'Determinism', '40 megapixels', '16384',
-    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'toolsVersion 1.0']) {
+    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'toolsVersion 1.0']) {
     assert.ok(AGENT_FORMAT.includes(s), s);
   }
   for (const t of TOOLS) {

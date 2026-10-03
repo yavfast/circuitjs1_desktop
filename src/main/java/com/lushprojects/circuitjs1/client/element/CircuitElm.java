@@ -1886,10 +1886,21 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     /**
-     * Returns the flags for this element.
-     * Used for JSON export to preserve element state.
+     * Returns the flags for this element as the text dump writes them ({@link #getDumpFlags()}).
+     * Used for JSON export to preserve element state, and as the flags of Agent API records and
+     * TypeInfo.defaultFlags ([SP_AGA_01_04], [SP_AGA_01_05]): equal before and after a dump.
      */
     public int getJsonFlags() {
+        return getDumpFlags();
+    }
+
+    /**
+     * The flags as dump() writes them. An element whose text line carries format bits derived
+     * from its state (a series-resistance token, an escaped text, a model name, a custom logic
+     * voltage) overrides this and assigns the result to {@code flags} in dump(), so the stored
+     * flags no longer depend on whether the element has been dumped yet.
+     */
+    protected int getDumpFlags() {
         return flags;
     }
 

@@ -10,8 +10,10 @@ import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.CurrentElm;
 import com.lushprojects.circuitjs1.client.element.GroundElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
+import com.lushprojects.circuitjs1.client.element.OhmMeterElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
@@ -527,6 +529,47 @@ final class Connectivity {
                 issue.elements(culprit.getElementId());
             }
             issues.add(issue);
+        }
+
+        // ground_path_no_resistance / wire_loop: also found by the analysis itself (rail or logic
+        // input validation, wire-current ordering), so they are static like source_or_wire_loop
+        Set<String> seen = new HashSet<>();
+        for (CircuitSimulator.SolverEvent e : sim.getSolverEvents()) {
+            IssueCode code = SolverEvents.codeOf(e.key, e.stop);
+            if (code != IssueCode.GROUND_PATH_NO_RESISTANCE && code != IssueCode.WIRE_LOOP) {
+                continue;
+            }
+            String culprit = e.culprit != null ? e.culprit.getElementId() : null;
+            if (!seen.add(code + "|" + culprit)) {
+                continue;
+            }
+            String message = code == IssueCode.WIRE_LOOP
+                    ? "The last analysis found a loop made only of wires" + (culprit != null ? " at " + culprit : "")
+                            + "; wire currents are approximated."
+                    : "The last analysis found a path with no resistance from " + (culprit != null ? culprit : "a rail or logic input")
+                            + " to ground.";
+            Issue issue = Issue.of(code, SolverEvents.severityOf(code, e.stop), message, SolverEvents.hintFor(code));
+            if (culprit != null) {
+                issue.elements(culprit);
+            }
+            issues.add(issue);
+        }
+
+        // current_source_no_path: a current source the analysis found without a current path
+        // (open, or in series with another current source) is replaced by 100 MOhm and drives
+        // no current. A warning: the rest of the circuit simulates correctly (a source on an
+        // unselected switch throw is legitimate). An ohmmeter with open probes is a valid reading.
+        if (nets.analysed) {
+            for (CircuitElm elm : elms) {
+                if (elm instanceof CurrentElm && !(elm instanceof OhmMeterElm) && ((CurrentElm) elm).isBroken()) {
+                    String id = elm.getElementId();
+                    issues.add(Issue.of(IssueCode.CURRENT_SOURCE_NO_PATH, "Current source " + id
+                            + " has no current path (an open circuit, or in series with another current source); the"
+                            + " simulator replaces it with 100 MOhm, so it drives no current.",
+                            "Close its loop through a resistive path; for two current sources in series, replace one by a resistor.")
+                            .elements(id));
+                }
+            }
         }
         return implicitGround;
     }

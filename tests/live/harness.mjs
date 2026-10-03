@@ -3717,6 +3717,197 @@ async function scenarioPinNames(s) {
   report('AG.pin_names', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
 }
 
+// agent_defects: the defect batch found while writing the agent skill (docs/agent-api.plan.md
+// Backlog, PL_AGS Phase 1), on a background document. (1) a BJT's element `current` is its
+// collector current; (2) ground_path_no_resistance and wire_loop are connectivity issues, and a
+// current source without a current path (two in series) is `current_source_no_path`; (3) a 555
+// output that drives only a label is not an isolated group (TimerElm declares its internal paths);
+// (4) LogicInput `state` is read-only, `position` sets the level; (5) TypeInfo.defaultFlags equals
+// the flags of a record after add, AgentCircuit import, JSON and text round trips (format bits
+// that dump() sets are part of the flags from the start).
+async function scenarioAgentDefects(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const codes = (list) => (list || []).map((i) => i.code);
+  const near = (v, x, rel) => typeof v === 'number' && Math.abs(v - x) <= Math.abs(x) * (rel || 1e-3);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const vis0 = await s.call('visibleTab');
+  const doc = (await A('createDocument', { title: 'Defects' })).data.doc;
+  const conn = async () => { const r = await A('getConnectivity', { doc, includeNets: false }); return r.ok ? r.data.issues : []; };
+  const postsOf = async (id) => Object.fromEntries(((await A('getCircuit', { doc })).data.elements.find((e) => e.id === id).posts).map((p) => [p.pin, p.at]));
+  const at = (p, dx, dy) => ({ x: p.x + dx, y: p.y + dy });
+
+  // (1) BJT current: common emitter, NPN and PNP; the collector resistor carries I_C
+  for (const t of ['TransistorNPN', 'TransistorPNP']) {
+    await A('importCircuit', { doc, circuit: { elements: [{ id: 'Q1', type: t, start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }] } });
+    const P = await postsOf('Q1');
+    const npn = t === 'TransistorNPN';
+    // NPN: base from +5 V through 100k, collector to +10 V through 1k, emitter grounded.
+    // PNP: emitter at +10 V, base to ground through 100k, collector to ground through 1k.
+    const els = [{ id: 'Q1', type: t, start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'RB', type: 'Resistor', start: at(P.base, -4, 0), end: P.base, properties: { resistance: '100k' } },
+      { id: 'RC', type: 'Resistor', start: P.collector, end: at(P.collector, 0, -4), properties: { resistance: '1k' } }];
+    if (npn) {
+      els.push({ id: 'V1', type: 'Rail', start: at(P.base, -4, 0), end: at(P.base, -6, 0), properties: { max_voltage: '5 V' } },
+        { id: 'V2', type: 'Rail', start: at(P.collector, 0, -4), end: at(P.collector, 0, -6), properties: { max_voltage: '10 V' } },
+        { id: 'G1', type: 'Ground', start: P.emitter, end: at(P.emitter, 0, 1) });
+    } else {
+      els.push({ id: 'G1', type: 'Ground', start: at(P.base, -4, 0), end: at(P.base, -4, 1) },
+        { id: 'G2', type: 'Ground', start: at(P.collector, 0, -4), end: at(P.collector, 0, -5) },
+        { id: 'V2', type: 'Rail', start: P.emitter, end: at(P.emitter, 0, 2), properties: { max_voltage: '10 V' } });
+    }
+    const imp = await A('importCircuit', { doc, circuit: { elements: els } });
+    const run = await R({ doc, span: '1 ms', reset: true, maxPoints: 10, probes: [{ element: 'Q1', quantity: 'current', name: 'iq' }, { element: 'RC', quantity: 'current', name: 'irc' }] });
+    const f = run.ok ? Object.fromEntries(run.data.probes.map((p) => [p.name, p.stats.final])) : {};
+    const rd = await A('read', { doc, targets: [{ element: 'Q1', quantity: 'current', name: 'iq' }] });
+    const iqRead = rd.ok ? rd.data.values[0].value : null;
+    // RC current runs pin1 (collector) -> pin2: NPN draws I_C into the collector (irc < 0)
+    out.notes[t] = { imp: imp.ok, errors: imp.ok ? imp.connectivity.errorCount : codes(imp.issues), f, iqRead };
+    const k = npn ? 'npn' : 'pnp';
+    ck(k + 'CurrentIsCollector', imp.ok && Math.abs(f.irc) > 1e-3 && near(f.iq, -f.irc, 1e-3) && (npn ? f.iq > 0 : f.iq < 0));
+    ck(k + 'CurrentRead', near(iqRead, f.iq, 1e-3));
+  }
+
+  // (2) static solver-found issues
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 } },
+    { id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'G1', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } }] } });
+  let iss = await conn();
+  out.notes.railToGround = iss.map((i) => i.code + ':' + i.severity + ':' + (i.elements || []).join(','));
+  ck('groundPathStatic', iss.some((i) => i.code === 'ground_path_no_resistance' && i.severity === 'error' && (i.elements || []).includes('V1')));
+  const loopEls = [
+    { id: 'V1', type: 'VoltageSourceDC', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'W3', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 8, y: 0 } },
+    { id: 'W4', type: 'Wire', start: { x: 8, y: 0 }, end: { x: 8, y: 4 } },
+    { id: 'W5', type: 'Wire', start: { x: 8, y: 4 }, end: { x: 4, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }];
+  const impLoop = await A('importCircuit', { doc, circuit: { elements: loopEls } });
+  iss = await conn();
+  out.notes.wireLoop = iss.map((i) => i.code + ':' + i.severity);
+  ck('wireLoopStatic', iss.some((i) => i.code === 'wire_loop' && i.severity === 'warning')
+    && impLoop.ok && codes(impLoop.connectivity.added).includes('wire_loop'));
+  // two current sources in series (1 mA, 2 mA) into R1: both broken, 0 A everywhere
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'I1', type: 'CurrentSource', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { current: '1 mA' } },
+    { id: 'I2', type: 'CurrentSource', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { current: '2 mA' } },
+    { id: 'R1', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  iss = await conn();
+  out.notes.currentSeries = iss.map((i) => i.code + ':' + i.severity + ':' + (i.elements || []).join(','));
+  const noPath = iss.filter((i) => i.code === 'current_source_no_path' && i.severity === 'warning').map((i) => i.elements.join(','));
+  ck('currentSourcesInSeries', noPath.includes('I1') && noPath.includes('I2'));
+  // controls: one current source into a resistor; an ohmmeter with open probes (a valid R = inf)
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'I1', type: 'CurrentSource', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { current: '1 mA' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+    { id: 'OM1', type: 'OhmMeter', start: { x: 10, y: 4 }, end: { x: 10, y: 0 } },
+    { id: 'G2', type: 'Ground', start: { x: 10, y: 4 }, end: { x: 10, y: 5 } }] } });
+  await A('applyEdits', { doc, edits: [{ op: 'markOpen', posts: ['OM1.probe'] }] });
+  iss = await conn();
+  out.notes.currentControls = iss.map((i) => i.code + ':' + (i.elements || []).join(','));
+  const rd1 = await A('read', { doc, targets: [{ post: 'I1.out' }] });
+  ck('currentSourceControls', !codes(iss).includes('current_source_no_path') && rd1.ok);
+
+  // (3) 555 output driving only a label (Vcc on a rail, ground pin grounded)
+  await A('importCircuit', { doc, circuit: { elements: [{ id: 'T1', type: 'Timer555', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }] } });
+  const T = await postsOf('T1');
+  const t555 = [{ id: 'T1', type: 'Timer555', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'V1', type: 'Rail', start: T.Vcc, end: at(T.Vcc, 0, -2), properties: { max_voltage: '5 V' } },
+    { id: 'G1', type: 'Ground', start: T.gnd, end: at(T.gnd, 0, 1) },
+    { id: 'L1', type: 'LabeledNode', start: T.out, end: at(T.out, 2, 0), properties: { label: 'q' } }];
+  await A('importCircuit', { doc, circuit: { elements: t555 } });
+  iss = await conn();
+  const groups = iss.filter((i) => i.code === 'isolated_group').map((i) => i.posts.join(','));
+  out.notes.timerLabel = groups;
+  ck('timerOutLabelNotIsolated', !groups.some((g) => g.includes('T1.out') || g.includes('L1.node')));
+  ck('timerCtlNotIsolated', !groups.some((g) => g.includes('T1.ctl')));
+  // control: the trigger input still has no path (a real floating input)
+  ck('timerInputsStillIsolated', groups.some((g) => g.includes('T1.tr')));
+  // the same 555 without a ground pin
+  await A('applyEdits', { doc, edits: [{ op: 'set', id: 'T1', properties: { has_ground_pin: false } }, { op: 'delete', id: 'G1' }] });
+  iss = await conn();
+  const groups2 = iss.filter((i) => i.code === 'isolated_group').map((i) => i.posts.join(','));
+  out.notes.timerLabelNoGnd = groups2;
+  ck('timerNoGroundPinOutNotIsolated', !groups2.some((g) => g.includes('T1.out') || g.includes('T1.ctl')));
+  // behaviour unchanged: 555square.txt oscillates at the frequency of the pre-fix build
+  const sq = await s.eval(`__H.fetchText('/circuitjs1/circuits/555square.txt')`);
+  await A('importCircuit', { doc, circuit: sq });
+  const sqRun = await R({ doc, span: '40 ms', recordFrom: '10 ms', reset: true, maxPoints: 10, probes: [{ post: 'TIM1.out', name: 'out' }] });
+  const sqStats = sqRun.ok ? sqRun.data.probes[0].stats : null;
+  out.notes.square = sqStats && { f: sqStats.frequency, duty: sqStats.dutyCycle, max: sqStats.max, min: sqStats.min, issues: codes(sqRun.issues) };
+  ck('timerSquareUnchanged', sqStats && near(sqStats.frequency, TIMER_SQUARE_HZ, 1e-4) && near(sqStats.dutyCycle, TIMER_SQUARE_DUTY, 1e-4));
+
+  // (4) LogicInput: position is the level, state is read-only
+  const li = await A('describeType', { type: 'LogicInput' });
+  const liProp = (k) => li.ok && li.data.properties.find((p) => p.key === k);
+  ck('logicInputStateReadOnly', liProp('state') && liProp('state').readOnly === true && liProp('position') && !liProp('position').readOnly);
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'SW1', type: 'LogicInput', start: { x: 0, y: 0 }, end: { x: 2, y: 0 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  const setState = await A('applyEdits', { doc, edits: [{ op: 'set', id: 'SW1', properties: { state: 'open' } }] });
+  out.notes.setState = { ok: setState.ok, issues: (setState.issues || []).map((i) => i.code + ': ' + i.message + ' / ' + i.hint) };
+  ck('logicInputSetStateRejected', !setState.ok && codes(setState.issues).includes('invalid_value')
+    && setState.issues.some((i) => /position/.test(i.hint)));
+  const setPos = await A('applyEdits', { doc, edits: [{ op: 'set', id: 'SW1', properties: { position: 1 } }] });
+  await R({ doc, span: '1 ms', reset: true, maxPoints: 10 });
+  const vOut = await A('read', { doc, targets: [{ post: 'SW1.output' }] });
+  const liRec = (await A('getCircuit', { doc, detail: 'full' })).data.elements.find((e) => e.id === 'SW1');
+  out.notes.setPosition = { ok: setPos.ok, issues: codes(setPos.issues), v: vOut.ok && vOut.data.values[0].value, props: liRec.properties };
+  ck('logicInputPositionSetsLevel', setPos.ok && !codes(setPos.issues).includes('value_adjusted') && vOut.ok && near(vOut.data.values[0].value, 5, 1e-6) && liRec.properties.state === 'open');
+
+  // (5) flags: TypeInfo.defaultFlags = add = AgentCircuit import = JSON and text round trips, for every type
+  const types = (await A('listTypes', {})).data.types.map((t) => t.type);
+  const flagBad = []; let flagTypes = 0;
+  for (const type of types) {
+    const d = await A('describeType', { type });
+    if (!d.ok) continue;
+    const def = d.data.defaultFlags;
+    const flagsOf = async () => { const g = await A('getCircuit', { doc, detail: 'full' }); return g.ok && g.data.elements.length === 1 ? g.data.elements[0].flags : null; };
+    await A('importCircuit', { doc, circuit: { elements: [] } });
+    const add = await A('applyEdits', { doc, edits: [{ op: 'add', element: { id: 'X1', type, start: { x: 0, y: 0 } } }] });
+    if (!add.ok) continue;
+    flagTypes++;
+    const fAdd = await flagsOf();
+    const imp = await A('importCircuit', { doc, circuit: { elements: [{ id: 'X1', type, start: { x: 0, y: 0 } }] } });
+    const fImp = imp.ok ? await flagsOf() : 'rejected';
+    // concise records omit flags equal to the default (read before the text leg: a text load may
+    // give an equivalent class, e.g. Clock -> Rail with the clock bit)
+    const conc = await A('getCircuit', { doc });
+    const concFlags = conc.ok && conc.data.elements.length === 1 ? conc.data.elements[0].flags : 'none';
+    const exJ = await A('exportCircuit', { doc, format: 'json' });
+    const fJson = (await A('importCircuit', { doc, circuit: exJ.data.content })).ok ? await flagsOf() : 'rejected';
+    const exT = await A('exportCircuit', { doc, format: 'text' });
+    const fText = (await A('importCircuit', { doc, circuit: exT.data.content })).ok ? await flagsOf() : 'rejected';
+    // a type the text format does not carry as one element line (CustomCompositeChip, Scope) skips that leg
+    const legs = fText === null ? [fAdd, fImp, fJson] : [fAdd, fImp, fJson, fText];
+    if (!legs.every((f) => f === def) || concFlags !== undefined) flagBad.push({ type, def, fAdd, fImp, fJson, fText, concFlags });
+  }
+  out.notes.flags = { types: flagTypes, bad: flagBad };
+  ck('flagsStable', flagTypes > 100 && flagBad.length === 0);
+
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('visibleTabUnchanged', JSON.stringify(vis0) === JSON.stringify(await s.call('visibleTab')));
+  ck('noExceptions', s.exceptions.length === exMark);
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_defects.json'), JSON.stringify(out, null, 2));
+  report('AG.agent_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
+}
+// 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
+const TIMER_SQUARE_HZ = 239.521;
+const TIMER_SQUARE_DUTY = 0.507567;
+
 // mcp_browser: the in-app MCP server in the browser build (PL_MCP Phase 1, SP_MCP_05_04 "Browser
 // build"). circuitjs.html loads scripts/mcp-server.js in every build; without the desktop runtime
 // the server must report `disabled` and attempt no listen, with no page exception or console error
@@ -3938,7 +4129,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -3982,7 +4173,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }
