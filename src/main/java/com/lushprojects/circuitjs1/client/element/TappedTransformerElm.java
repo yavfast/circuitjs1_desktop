@@ -60,7 +60,9 @@ public class TappedTransformerElm extends CircuitElm {
         // Fixed nominal size on creation (no resize while adding).
         int nominalLen = 32;
         int nominalSpacing = 16;
-        spacing = nominalSpacing;
+        // the editor minimum applies to a new element here (and to resizing in movePoint), not in
+        // setPoints(), so a loaded spacing is drawn as saved
+        spacing = max(minSpacing(), nominalSpacing);
         tapPos = nominalSpacing;
         setEndpoints(getX(), getY(), getX() + nominalLen, getY());
         setPoints();
@@ -75,8 +77,14 @@ public class TappedTransformerElm extends CircuitElm {
         curcount = new double[4];
         current[0] = parseDouble(st.nextToken());
         current[1] = parseDouble(st.nextToken());
-        current[2] = parseDouble(st.nextToken());
-        couplingCoef = parseDouble(st.nextToken(), .99);
+        // Legacy lines (e.g. the ringmod.txt example) end after the second current: the third
+        // current and the coupling coefficient are optional, as in the original reader (the
+        // try/catch around them was lost in eb72ca5 and such lines were dropped on load).
+        couplingCoef = .99;
+        if (st.hasMoreTokens())
+            current[2] = parseDouble(st.nextToken());
+        if (st.hasMoreTokens())
+            couplingCoef = parseDouble(st.nextToken(), .99);
         primaryResistance = 0.1;
         secondaryResistance1 = 0.1;
         secondaryResistance2 = 0.1;
@@ -434,7 +442,10 @@ public class TappedTransformerElm extends CircuitElm {
     public void setPoints() {
         super.setPoints();
         flip = hasFlag(FLAG_FLIP) ? -1 : 1;
-        int hs = max(minSpacing(), spacing) * flip;
+        // A loaded spacing is kept: a legacy line without the spacing field has the original
+        // 32 px (secondary 64 px tall, tap at 32 px), which the editor minimum of 4 grid cells
+        // (since a593884) doubled, so the wires of such files (ringmod.txt) missed the posts.
+        int hs = max(8, spacing) * flip;
         spacing = abs(hs);
         int segMin = minTapSeg();
         tapPos = max(segMin, min(max(segMin, 2 * spacing - segMin), tapPos));
@@ -749,6 +760,10 @@ public class TappedTransformerElm extends CircuitElm {
         props.put("secondary_resistance_1", getJsonUnitText(secondaryResistance1, "Ohm"));
         props.put("secondary_resistance_2", getJsonUnitText(secondaryResistance2, "Ohm"));
         props.put("trapezoidal", isTrapezoidal());
+        // drawing size in editor pixels: the primary and the whole secondary are 2 * spacing long,
+        // the tap sits tap_position from sec1 (the text format saves both too)
+        props.put("spacing", spacing);
+        props.put("tap_position", tapPos);
         return props;
     }
 
@@ -770,6 +785,13 @@ public class TappedTransformerElm extends CircuitElm {
 
         boolean trap = getJsonBoolean(props, "trapezoidal", isTrapezoidal());
         if (trap) flags &= ~Inductor.FLAG_BACK_EULER; else flags |= Inductor.FLAG_BACK_EULER;
+
+        // An omitted key keeps the current shape (the default of a new element, or the shape
+        // applyJsonPinPositions read from the pins of a file written before these keys existed);
+        // given keys win over the pins. setPoints() clamps the tap into the secondary.
+        spacing = max(8, getJsonInt(props, "spacing", spacing));
+        tapPos = max(0, getJsonInt(props, "tap_position", tapPos));
+        setPoints();
     }
 
     // [SP_AGA_01_05] the dialog row shows N1/N2 (1/ratio); the stored key is N2/N1 (whole secondary)
@@ -778,12 +800,50 @@ public class TappedTransformerElm extends CircuitElm {
         if ("ratio".equals(key)) {
             return "Turns ratio N2/N1 (whole secondary turns per primary turn; tap at the middle)";
         }
+        if ("spacing".equals(key)) {
+            return "Coil spacing in editor pixels (16 per cell): primary and secondary are 2 x spacing long; new parts use 64";
+        }
+        if ("tap_position".equals(key)) {
+            return "Tap position in editor pixels from sec1 along the secondary (kept within the secondary)";
+        }
         return super.getJsonPropertyLabel(key);
     }
 
     @Override
     public String[] getJsonPinNames() {
         return new String[] { "pri1", "pri2", "sec1", "tap", "sec2" };
+    }
+
+    /**
+     * Spacing and tap position are not JSON properties: they are read back from the drawn posts
+     * (pri1-pri2 is 2 * spacing, sec1-tap is the tap position), so a JSON round trip keeps the
+     * shape of a circuit whose spacing differs from the default (e.g. the legacy 32 px).
+     */
+    @Override
+    public void applyJsonPinPositions(java.util.Map<String, java.util.Map<String, Integer>> pins) {
+        super.applyJsonPinPositions(pins);
+        if (pins == null)
+            return;
+        String[] names = getJsonPinNames();
+        int coil = jsonPinDistance(pins, 0, names[0], 1, names[1]);
+        if (coil >= 16)
+            spacing = coil / 2;
+        int tap = jsonPinDistance(pins, 2, names[2], 3, names[3]);
+        if (tap > 0)
+            tapPos = tap;
+        setPoints();
+    }
+
+    /** @return the rounded distance between two JSON pin positions, or -1 when one is missing */
+    private int jsonPinDistance(java.util.Map<String, java.util.Map<String, Integer>> pins, int ia, String na, int ib,
+            String nb) {
+        java.util.Map<String, Integer> a = jsonPinEntry(pins, ia, na);
+        java.util.Map<String, Integer> b = jsonPinEntry(pins, ib, nb);
+        if (a == null || b == null || a.get("x") == null || a.get("y") == null || b.get("x") == null || b.get("y") == null)
+            return -1;
+        double dx = b.get("x") - a.get("x");
+        double dy = b.get("y") - a.get("y");
+        return (int) Math.round(Math.sqrt(dx * dx + dy * dy));
     }
 
     @Override

@@ -144,6 +144,10 @@ final class CellGeometry {
      * <li>Posts that the type keeps on distinct points at its default placement and that now
      *     coincide (a box element given a zero-width or zero-height box) give {@code zero_length}
      *     (error): the call is rejected.</li>
+     * <li>A supplied end that is neither horizontal nor vertical from the start of an element
+     *     the editor places only on an axis ({@link CircuitElm#isAxisBound}) gives
+     *     {@code not_axis_aligned} (error): such an element would be drawn rotated, with its
+     *     derived posts off the lattice.</li>
      * <li>A supplied end that the element replaced by one of its own (it derives its size from
      *     its properties or snaps it to its axis) gives {@code value_adjusted} (warning) with the
      *     effective end, since input geometry is never adjusted silently.</li>
@@ -155,6 +159,15 @@ final class CellGeometry {
      */
     static Issue checkPlacement(CircuitElm elm, Catalogue.TypeInfo type, double[] end, String subject,
             List<Issue> warnings) {
+        if (end != null && elm.isAxisBound() && end[0] != toCells(elm.getX()) && end[1] != toCells(elm.getY())) {
+            String hint = "This type is placed only horizontally or vertically: give an end on the row or column of start";
+            if (type != null) {
+                hint += ", e.g. start + defaultSize (" + num(type.dx) + ", " + num(type.dy) + ") from describeType";
+            }
+            return Issue.of(IssueCode.NOT_AXIS_ALIGNED, "The end " + pointText(CellGeometry.toPx(end[0]), CellGeometry.toPx(end[1]))
+                    + " of " + subject + " is neither horizontal nor vertical from its start " + pointText(elm.getX(), elm.getY()) + ".",
+                    hint + ".").elements(subject).at(toCells(elm.getX()), toCells(elm.getY()));
+        }
         int n = elm.getPostCount();
         Point[] posts = new Point[n];
         for (int i = 0; i < n; i++) {

@@ -825,6 +825,17 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     }
 
     /**
+     * True when the editor places this element only horizontally or vertically: its
+     * start-end line is the drawing axis (the editor drag and endpoint moves snap it to an
+     * axis). The Agent API rejects a diagonal start/end for such an element
+     * ([SP_AGA_03_01] not_axis_aligned). An element whose end is the corner of a resize box
+     * (a diagonal end is legitimate) overrides this to return false.
+     */
+    public boolean isAxisBound() {
+        return noDiagonal;
+    }
+
+    /**
      * Called while creating an element when {@link #isFixedSizeOnCreate()} is true.
      * Default behavior is to translate the element so its first point follows the cursor.
      */
@@ -1738,7 +1749,7 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
      * Looks up the entry of a post in a JSON map keyed by pin name: the current name first, then
      * any {@link #getJsonPinAliases() alias} of that post.
      */
-    private <T> T jsonPinEntry(java.util.Map<String, T> map, int postIndex, String name) {
+    protected <T> T jsonPinEntry(java.util.Map<String, T> map, int postIndex, String name) {
         T value = map.get(name);
         if (value != null) {
             return value;

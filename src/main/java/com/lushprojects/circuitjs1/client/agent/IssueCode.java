@@ -40,6 +40,7 @@ public enum IssueCode {
     VALUE_ADJUSTED("value_adjusted", Issue.Severity.WARNING),
     OFF_LATTICE("off_lattice", Issue.Severity.ERROR),
     ZERO_LENGTH("zero_length", Issue.Severity.ERROR),
+    NOT_AXIS_ALIGNED("not_axis_aligned", Issue.Severity.ERROR),
     ID_INVALID("id_invalid", Issue.Severity.ERROR),
     ID_TAKEN("id_taken", Issue.Severity.ERROR),
     IDS_REGENERATED("ids_regenerated", Issue.Severity.WARNING),

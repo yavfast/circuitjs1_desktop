@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -2083,6 +2083,282 @@ async function scenarioGeomPosts(s) {
   fs.writeFileSync(path.join(OUT_DIR, 'geom_posts.json'), JSON.stringify(out, null, 2));
   const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
   report('geom_posts', !failed.length, { checks: Object.keys(out.checks).length, failed, examples: out.examples, details: path.join(OUT_DIR, 'geom_posts.json') });
+}
+
+// xfmr_draw: transformer drawings keep the core between the windings and the coils facing it.
+// Since dde7f33 (geometry refactor) CustomTransformer interpolated its core along point1-point2
+// after moving point2 to the handle corner, so the core ran diagonally across the box and the
+// primary coil (and its label) turned away from it; Transformer took its coil bulge sign from the
+// diagonal handle box instead of the winding axis, so a flipped horizontal transformer drew its
+// coils facing outwards. Each case is rendered (Agent API `render`, PNG) with the 2-D canvas
+// calls recorded in device coordinates; the checks are geometric, not pixel comparisons:
+// coil half-arcs lie on exactly two winding lines, every arc bulges towards the other winding,
+// exactly two straight core lines lie between the windings, parallel to them and within their
+// span. Posts must stay where the dde7f33..60b9b21 builds put them (positions are saved in files).
+const XFMR_OPTIONS = '$ 1 0.000005 10.20027730826997 50 5 50 5e-11';
+const XFMR_CT = '0.000047 0.98 1:40\\p40,100 0';
+const XFMR_T = '4 1 0 0 0.99';
+const XFMR_P = '4 1 0 0 0 0.99 64 32'; // spacing 64 / tap 32: what the editor saves on the 16 px grid
+const XFMR_DRAW_CASES = [
+  // CustomTransformer (406): primary on the start side, stacks drawn from the start y outwards
+  ['ct_conv', `406 128 128 192 24 0 ${XFMR_CT}`, 'pin1=128,128 pin2=128,24 pin3=192,128 pin4=192,96 pin5=192,64 pin6=192,56 pin7=192,24'],
+  ['ct_conv_rev', `406 192 128 128 24 0 ${XFMR_CT}`, 'pin1=192,128 pin2=192,24 pin3=128,128 pin4=128,96 pin5=128,64 pin6=128,56 pin7=128,24'],
+  ['ct_conv_flip', `406 128 24 192 128 1 ${XFMR_CT}`, 'pin1=128,24 pin2=128,128 pin3=192,24 pin4=192,56 pin5=192,88 pin6=192,96 pin7=192,128'],
+  ['ct_conv_flip_rev', `406 192 24 128 128 1 ${XFMR_CT}`, 'pin1=192,24 pin2=192,128 pin3=128,24 pin4=128,56 pin5=128,88 pin6=128,96 pin7=128,128'],
+  ['ct_default', '406 160 192 192 160 0 1 0.99 1,1:1 0', 'pin1=160,192 pin2=160,184 pin3=160,168 pin4=160,152 pin5=192,192 pin6=192,152'],
+  ['ct_2w_small', '406 160 192 192 176 0 1 0.99 1:2 0', 'pin1=160,192 pin2=160,176 pin3=192,192 pin4=192,176'],
+  ['ct_2w_long', '406 160 192 288 128 0 1 0.99 1:2 0', 'pin1=160,192 pin2=160,128 pin3=288,192 pin4=288,128'],
+  ['ct_4w', '406 160 256 256 96 0 1 0.99 1,2:3,4 0', 'pin1=160,256 pin2=160,180 pin3=160,164 pin4=160,96 pin5=256,256 pin6=256,180 pin7=256,172 pin8=256,96'],
+  ['ct_taps', '406 160 256 224 128 0 1 0.99 1\\p1:2\\p2\\p2 0', 'pin1=160,256 pin2=160,213 pin3=160,127 pin4=224,256 pin5=224,213 pin6=224,170 pin7=224,127'],
+  ['ct_neg', '406 160 256 224 160 0 1 0.99 1:-2 0', 'pin1=160,256 pin2=160,160 pin3=224,256 pin4=224,160'],
+  // Transformer (T): horizontal and vertical (flag 8), editor flips (flag 16 / mirrored ends), reverse polarity (flag 4)
+  ['t_h', `T 160 160 224 192 0 ${XFMR_T}`, 'p1=160,160 s1=224,160 p2=160,192 s2=224,192'],
+  ['t_h_flipx', `T 224 160 160 192 0 ${XFMR_T}`, 'p1=224,160 s1=160,160 p2=224,192 s2=160,192'],
+  ['t_h_flipy', `T 160 192 224 160 16 ${XFMR_T}`, 'p1=160,192 s1=224,192 p2=160,160 s2=224,160'],
+  ['t_h_rot180', `T 224 192 160 160 16 ${XFMR_T}`, 'p1=224,192 s1=160,192 p2=224,160 s2=160,160'],
+  ['t_h_up_noflip', `T 160 192 224 160 0 ${XFMR_T}`, 'p1=160,192 s1=224,192 p2=160,224 s2=224,224'],
+  ['t_h_big', `T 160 160 288 224 0 ${XFMR_T}`, 'p1=160,160 s1=288,160 p2=160,224 s2=288,224'],
+  ['t_h_rev', `T 160 160 224 192 4 ${XFMR_T}`, 'p1=160,160 s1=224,192 p2=160,192 s2=224,160'],
+  ['t_h_rev_flipx', `T 224 160 160 192 4 ${XFMR_T}`, 'p1=224,160 s1=160,192 p2=224,192 s2=160,160'],
+  ['t_v', `T 160 160 192 224 8 ${XFMR_T}`, 'p1=160,160 s1=160,224 p2=192,160 s2=192,224'],
+  ['t_v_flipx', `T 192 160 160 224 24 ${XFMR_T}`, 'p1=192,160 s1=192,224 p2=160,160 s2=160,224'],
+  ['t_v_flipy', `T 160 224 192 160 8 ${XFMR_T}`, 'p1=160,224 s1=160,160 p2=192,224 s2=192,160'],
+  ['t_v_rev', `T 160 160 192 224 12 ${XFMR_T}`, 'p1=160,160 s1=192,224 p2=192,160 s2=160,224'],
+  // TappedTransformer (169): horizontal, reversed, flipped (flag 1), vertical
+  ['p_h', `169 160 192 224 192 0 ${XFMR_P}`, 'pri1=160,192 pri2=160,320 sec1=224,192 tap=224,224 sec2=224,320'],
+  ['p_h_rev', `169 224 192 160 192 0 ${XFMR_P}`, 'pri1=224,192 pri2=224,64 sec1=160,192 tap=160,160 sec2=160,64'],
+  ['p_h_flip', `169 160 192 224 192 1 ${XFMR_P}`, 'pri1=160,192 pri2=160,64 sec1=224,192 tap=224,160 sec2=224,64'],
+  ['p_v', `169 192 160 192 224 0 ${XFMR_P}`, 'pri1=192,160 pri2=64,160 sec1=192,224 tap=160,224 sec2=64,224'],
+  ['p_v_rev', `169 192 224 192 160 0 ${XFMR_P}`, 'pri1=192,224 pri2=320,224 sec1=192,160 tap=224,160 sec2=320,160'],
+  // legacy lines: no third current / coupling / spacing (original 32 px spacing, tap at 32 px), and a
+  // Transformer without the coupling coefficient; the readers dropped them from eb72ca5
+  ['p_legacy', '169 160 192 224 192 0 4 1 0 0', 'pri1=160,192 pri2=160,256 sec1=224,192 tap=224,224 sec2=224,256'],
+  ['p_legacy_k', '169 224 192 160 192 0 4 1 0 0 0 0.99', 'pri1=224,192 pri2=224,128 sec1=160,192 tap=160,160 sec2=160,128'],
+  ['t_legacy', 'T 160 160 224 192 0 4 1 0 0', 'p1=160,160 s1=224,160 p2=160,192 s2=224,192'],
+];
+// Transformer posts of every bundled example that has one (reference: the 60b9b21 build)
+const XFMR_EXAMPLE_POSTS = {
+  'joule-thief.txt': ['p1=288,192 s1=336,224 p2=288,224 s2=336,192'],
+  'tesla.txt': ['p1=240,256 s1=320,256 p2=240,304 s2=320,304', 'p1=464,256 s1=528,256 p2=464,304 s2=528,304'],
+  'longdist.txt': ['p1=160,128 s1=240,128 p2=160,160 s2=240,160', 'p1=432,128 s1=496,128 p2=432,160 s2=496,160'],
+  'transformerdown.txt': ['p1=272,192 s1=352,192 p2=272,224 s2=352,224'],
+  'transformerdc.txt': ['p1=272,192 s1=352,192 p2=272,224 s2=352,224'],
+  'transformerup.txt': ['p1=272,192 s1=352,192 p2=272,224 s2=352,224'],
+  'transformer.txt': ['p1=272,192 s1=352,192 p2=272,224 s2=352,224'],
+  // legacy 169 lines without the third current and the coupling (dropped on load from eb72ca5 until fixed)
+  'ringmod.txt': ['pri1=144,144 pri2=144,208 sec1=208,144 tap=208,176 sec2=208,208', 'pri1=496,208 pri2=496,144 sec1=432,208 tap=432,176 sec2=432,144'],
+};
+
+// Page side: records stroked paths and arcs of every 2-D canvas in device coordinates.
+function xfmrRecorderInstall() {
+  const P = CanvasRenderingContext2D.prototype;
+  if (window.__xfmrRec) return true;
+  const orig = { beginPath: P.beginPath, moveTo: P.moveTo, lineTo: P.lineTo, arc: P.arc, stroke: P.stroke };
+  const rec = window.__xfmrRec = { on: false, byCanvas: new Map(), orig };
+  const tp = (ctx, x, y) => { const m = ctx.getTransform(); return [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]; };
+  const cur = (ctx) => { if (!ctx.__xp) ctx.__xp = { segs: [], arcs: [] }; return ctx.__xp; };
+  P.beginPath = function () { if (rec.on) this.__xp = { segs: [], arcs: [] }; return orig.beginPath.apply(this, arguments); };
+  P.moveTo = function (x, y) { if (rec.on) cur(this).last = tp(this, x, y); return orig.moveTo.apply(this, arguments); };
+  P.lineTo = function (x, y) {
+    if (rec.on) { const c = cur(this); const p = tp(this, x, y); if (c.last) c.segs.push([c.last, p]); c.last = p; }
+    return orig.lineTo.apply(this, arguments);
+  };
+  P.arc = function (x, y, r, a0, a1) {
+    if (rec.on) {
+      const c = cur(this); const mid = (a0 + a1) / 2;
+      c.arcs.push({ sweep: Math.abs(a1 - a0), center: tp(this, x, y), apex: tp(this, x + r * Math.cos(mid), y + r * Math.sin(mid)),
+        chordA: tp(this, x + r * Math.cos(a0), y + r * Math.sin(a0)), chordB: tp(this, x + r * Math.cos(a1), y + r * Math.sin(a1)) });
+      c.last = tp(this, x + r * Math.cos(a1), y + r * Math.sin(a1));
+    }
+    return orig.arc.apply(this, arguments);
+  };
+  P.stroke = function () {
+    if (rec.on && this.__xp) {
+      const key = this.canvas.width + 'x' + this.canvas.height;
+      if (!rec.byCanvas.has(key)) rec.byCanvas.set(key, []);
+      rec.byCanvas.get(key).push({ segs: this.__xp.segs.slice(), arcs: this.__xp.arcs.slice() });
+      this.__xp.segs = []; this.__xp.arcs = [];
+    }
+    return orig.stroke.apply(this, arguments);
+  };
+  return true;
+}
+
+// Geometric checks of one recorded drawing (device coordinates; uniform scale, no rotation).
+function xfmrAnalyze(paths, scale) {
+  const tol = 1.5 * scale;
+  const arcs = []; const lines = [];
+  for (const p of paths) {
+    const half = p.arcs.filter((a) => Math.abs(a.sweep - Math.PI) < 1e-6);
+    if (half.length) arcs.push(...half);
+    else if (!p.arcs.length) lines.push(...p.segs);
+  }
+  if (!arcs.length) return { ok: false, why: 'no coil arcs' };
+  const chord = (a) => [a.chordB[0] - a.chordA[0], a.chordB[1] - a.chordA[1]];
+  const vertical = arcs.every((a) => Math.abs(chord(a)[0]) < 0.01 * Math.abs(chord(a)[1]));
+  const horizontal = arcs.every((a) => Math.abs(chord(a)[1]) < 0.01 * Math.abs(chord(a)[0]));
+  if (vertical === horizontal) return { ok: false, why: 'coil chords not all horizontal or all vertical' };
+  const perp = (pt) => (vertical ? pt[0] : pt[1]); const along = (pt) => (vertical ? pt[1] : pt[0]);
+  // winding lines: clusters of arc-center perpendicular coordinates
+  const lanes = [];
+  for (const a of arcs) { const v = perp(a.center); if (!lanes.some((l) => Math.abs(l - v) < tol)) lanes.push(v); }
+  lanes.sort((x, y) => x - y);
+  if (lanes.length !== 2) return { ok: false, why: 'coil arcs on ' + lanes.length + ' winding lines', lanes };
+  const [lo, hi] = lanes; const mid = (lo + hi) / 2;
+  const outward = arcs.filter((a) => Math.sign(perp(a.apex) - perp(a.center)) !== Math.sign(mid - perp(a.center))).length;
+  const aMin = Math.min(...arcs.map((a) => Math.min(along(a.chordA), along(a.chordB))));
+  const aMax = Math.max(...arcs.map((a) => Math.max(along(a.chordA), along(a.chordB))));
+  // core: straight lines with both ends strictly between the winding lines
+  const inner = lines.filter(([p, q]) => [p, q].every((pt) => perp(pt) > lo + tol && perp(pt) < hi - tol));
+  const core = inner.map(([p, q]) => ({ parallel: Math.abs(perp(p) - perp(q)) < 0.5 * scale, at: perp(p),
+    from: Math.min(along(p), along(q)), to: Math.max(along(p), along(q)) }));
+  const coreOk = core.length === 2 && core.every((c) => c.parallel && c.from >= aMin - tol && c.to <= aMax + tol && (c.to - c.from) >= 0.5 * (aMax - aMin))
+    && Math.abs(core[0].at - core[1].at) > 0.5 * scale;
+  return { ok: outward === 0 && coreOk, windings: vertical ? 'vertical' : 'horizontal', arcs: arcs.length, outward, coreLines: core.length,
+    coreOk, core: core.map((c) => [Math.round(c.at), Math.round(c.from), Math.round(c.to)]), lanes: lanes.map(Math.round), span: [Math.round(aMin), Math.round(aMax)] };
+}
+
+async function scenarioXfmrDraw(s) {
+  const out = { checks: {}, cases: {}, examples: {}, mismatches: [] };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.eval(`(${xfmrRecorderInstall.toString()})()`);
+  const scale = 2;
+  const pins = () => s.eval(`(() => {
+    const j = JSON.parse(CircuitJS1.exportAsJson());
+    return Object.values(j.elements || {}).filter((e) => /Transformer$/.test(e.type)).map((e) => Object.entries(e.pins || {})
+      .filter(([n]) => n[0] !== '_').map(([n, p]) => n + '=' + p.position.x + ',' + p.position.y).join(' '));
+  })()`);
+  for (const [name, line, expectedPins] of XFMR_DRAW_CASES) {
+    await s.call('importText', `${XFMR_OPTIONS}\n${line}\n`);
+    const got = await pins();
+    await s.eval(`(() => { window.__xfmrRec.byCanvas.clear(); window.__xfmrRec.on = true; return true; })()`);
+    const r = await s.call('agentAsync', 'render', { scale }, 30000);
+    const key = r && r.ok ? `${r.data.width}x${r.data.height}` : '';
+    const recorded = await s.eval(`(() => { const rec = window.__xfmrRec; rec.on = false; return rec.byCanvas.get(${JSON.stringify(key)}) || []; })()`);
+    const a = xfmrAnalyze(recorded, scale);
+    a.rendered = !!(r && r.ok); a.posts = got.length === 1 && got[0] === expectedPins;
+    out.cases[name] = a;
+    if (!ck(name + '.draw', a.rendered && a.ok)) out.mismatches.push({ case: name, ...a });
+    if (!ck(name + '.posts', a.posts)) out.mismatches.push({ case: name, expected: expectedPins, got });
+  }
+  // posts of the transformers in the bundled examples are unchanged
+  // and every element line of those examples loads (none is dropped by its reader)
+  for (const [ex, expected] of Object.entries(XFMR_EXAMPLE_POSTS)) {
+    await s.call('loadExample', ex);
+    const got = await pins();
+    const lines = await s.eval(`(async () => (await window.__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(ex)}))
+      .split('\\n').filter((l) => l.trim() && !/^(\\$|o|h|%|\\?|!|&|38|#) /.test(l.trim() + ' ')).length)()`);
+    const loaded = await s.call('count');
+    out.examples[ex] = { posts: got, elementLines: lines, loaded };
+    if (!ck('example_' + ex, JSON.stringify(got) === JSON.stringify(expected))) out.mismatches.push({ example: ex, expected, got });
+    if (!ck('loadsAll_' + ex, loaded === lines)) out.mismatches.push({ example: ex, elementLines: lines, loaded });
+  }
+  // Agent API: getCircuit -> importCircuit keeps the tapped transformer shape (spacing and
+  // tap_position are JSON properties); a new part keeps the editor minimum of 64 px
+  const A = (op, args) => s.call('agentCall', op, args);
+  const postsOf = (g) => ((g && g.data && g.data.elements) || []).map((e) => e.id + ':' + e.type + ':'
+    + e.posts.map((p) => p.pin + '@' + p.at.x + ',' + p.at.y).join(' ')).sort().join('\n');
+  const netsOf = (g) => {
+    const nets = {};
+    for (const e of (g && g.data && g.data.elements) || []) for (const p of e.posts) (nets[p.net] = nets[p.net] || []).push(e.id + '.' + p.pin);
+    return Object.values(nets).map((l) => l.sort().join(',')).sort().join('|');
+  };
+  await s.call('loadExample', 'ringmod.txt');
+  const g1 = await A('getCircuit', { detail: 'full', limit: 500 });
+  const nd = await A('createDocument', {});
+  const B = nd.data && nd.data.doc;
+  const reimp = await A('importCircuit', { doc: B, circuit: { elements: g1.data.elements } });
+  const g2 = await A('getCircuit', { doc: B, detail: 'full', limit: 500 });
+  out.agentRoundTrip = { imported: reimp.ok, codes: (reimp.issues || []).map((i) => i.code),
+    tapped: ((g1.data && g1.data.elements) || []).filter((e) => e.type === 'TappedTransformer').map((e) => e.properties) };
+  ck('agentRoundTrip_ringmod_posts', reimp.ok && out.agentRoundTrip.tapped.length === 2 && postsOf(g1) === postsOf(g2));
+  ck('agentRoundTrip_ringmod_nets', reimp.ok && netsOf(g1) === netsOf(g2));
+  if (B) await A('closeDocument', { doc: B, discardChanges: true });
+  await s.call('importText', `${XFMR_OPTIONS}\n`);
+  const add = await A('applyEdits', { edits: [{ op: 'add', element: { id: 'TAP1', type: 'TappedTransformer', start: { x: 10, y: 10 }, end: { x: 12, y: 10 } } }] });
+  const tp = (r) => { const e = r && r.data && r.data.elements && r.data.elements.find((x) => x.id === 'TAP1'); return e ? e.posts.map((p) => p.pin + '@' + p.at.x + ',' + p.at.y).join(' ') : null; };
+  out.newPlacement = tp(add);
+  ck('newTappedKeepsEditorMinimum', out.newPlacement === 'pri1@10,10 pri2@10,18 sec1@12,10 tap@12,12 sec2@12,18');
+  const setSp = await A('applyEdits', { edits: [{ op: 'set', id: 'TAP1', properties: { spacing: 32 } }] });
+  const after = await A('getCircuit', { detail: 'full', limit: 500 });
+  out.setSpacing = { ok: setSp.ok, codes: (setSp.issues || []).map((i) => i.code), posts: tp(after) };
+  ck('setSpacingReshapes', setSp.ok && out.setSpacing.posts === 'pri1@10,10 pri2@10,14 sec1@12,10 tap@12,12 sec2@12,14');
+  await s.eval(`(() => { const rec = window.__xfmrRec; if (rec) { const P = CanvasRenderingContext2D.prototype; Object.assign(P, rec.orig); delete window.__xfmrRec; } return true; })()`);
+  ck('noPageException', s.exceptions.length === exMark);
+  fs.writeFileSync(path.join(OUT_DIR, 'xfmr_draw.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('xfmr_draw', !failed.length, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'xfmr_draw.json') });
+}
+
+// agent_axis: [SP_AGA_03_01] "Axis-bound elements". An element the editor places only horizontally
+// or vertically (CircuitElm.isAxisBound: noDiagonal, except the transformers whose end is a resize-box
+// corner) rejects a diagonal start/end with not_axis_aligned on add, move with start and end, and
+// AgentCircuit import; before, the agent API accepted it and the element was drawn rotated with its
+// derived posts off the lattice (a TappedTransformer at (10,12)-(14,14) put pri2 at (6.4375, 19.125)).
+const AXIS_BOUND_TYPES = ['ADC', 'ANDGate', 'AnalogSwitch', 'AnalogSwitch2', 'CC2', 'CC2Neg', 'CCCS', 'CCVS', 'Comparator', 'Counter', 'Counter2',
+  'CrossSwitch', 'CustomCompositeChip', 'CustomLogic', 'DAC', 'DFlipFlop', 'DPDTSwitch', 'DarlingtonNPN', 'DarlingtonPNP', 'DeMultiplexer',
+  'DecimalDisplay', 'DelayBuffer', 'FullAdder', 'HalfAdder', 'Inverter', 'InvertingSchmitt', 'JKFlipFlop', 'LEDArray', 'Latch', 'MBBSwitch',
+  'Monostable', 'Multiplexer', 'NJFET', 'NMOS', 'NandGate', 'NorGate', 'ORGate', 'OTA', 'OpAmp', 'OpAmpReal', 'PISOShiftRegister', 'PJFET',
+  'PMOS', 'PhaseComparator', 'Relay', 'RelayCoil', 'RelayContact', 'RingCounter', 'SIPOShiftRegister', 'SPDTSwitch', 'SRAM', 'Schmitt',
+  'SequenceGenerator', 'SevenSegment', 'SevenSegmentDecoder', 'TFlipFlop', 'TappedTransformer', 'TimeDelayRelay', 'Timer555', 'TransistorNPN',
+  'TransistorPNP', 'TransmissionLine', 'TriStateBuffer', 'Triode', 'UnijunctionTransistor', 'VCCS', 'VCO', 'VCVS', 'XORGate'];
+
+async function scenarioAgentAxis(s) {
+  const out = { checks: {}, types: {}, mismatches: [] };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const A = (op, args) => s.call('agentCall', op, args);
+  const codes = (r) => (r.issues || []).map((i) => i.code);
+  const clear = () => s.call('importText', '$ 1 0.000005 10.20027730826997 50 5 50 5e-11\n');
+  const count = () => s.call('count');
+  // (1) every type with an axis-aligned default size, placed with a diagonal end
+  const types = (await A('listTypes', {})).data.types.map((t) => t.type);
+  const seenBound = [];
+  for (const t of types) {
+    const d = await A('describeType', { type: t });
+    const ds = d.ok && d.data.defaultSize;
+    if (!ds || (ds.dx !== 0) === (ds.dy !== 0)) continue; // no size, or a diagonal box by default
+    const end = ds.dy === 0 ? { x: 20 + ds.dx, y: 22 } : { x: 22, y: 20 + ds.dy };
+    await clear();
+    const r = await A('applyEdits', { edits: [{ op: 'add', element: { type: t, start: { x: 20, y: 20 }, end } }] });
+    const bound = AXIS_BOUND_TYPES.includes(t);
+    const rejected = r.ok === false && codes(r)[0] === 'not_axis_aligned' && (await count()) === 0;
+    if (rejected) seenBound.push(t);
+    const ok = bound ? rejected : r.ok === true && !codes(r).includes('not_axis_aligned');
+    out.types[t] = { bound, ok: r.ok, codes: codes(r) };
+    if (!ok) out.mismatches.push({ type: t, bound, result: { ok: r.ok, codes: codes(r) } });
+  }
+  ck('everyAxisBoundTypeRejectsDiagonal', AXIS_BOUND_TYPES.every((t) => seenBound.includes(t)));
+  ck('otherTypesAcceptDiagonal', out.mismatches.every((m) => m.bound));
+  // (2) TappedTransformer: horizontal and vertical ends apply; move with a diagonal end is rejected
+  await clear();
+  const h = await A('applyEdits', { edits: [{ op: 'add', element: { id: 'TAP1', type: 'TappedTransformer', start: { x: 10, y: 10 }, end: { x: 12, y: 10 } } },
+    { op: 'add', element: { id: 'TAP2', type: 'TappedTransformer', start: { x: 30, y: 10 }, end: { x: 30, y: 12 } } }] });
+  ck('tappedAxisAddApplies', h.ok === true);
+  const before = await s.call('exportText');
+  const mv = await A('applyEdits', { edits: [{ op: 'move', id: 'TAP1', start: { x: 10, y: 10 }, end: { x: 14, y: 14 } }] });
+  ck('tappedDiagonalMoveRejected', mv.ok === false && codes(mv)[0] === 'not_axis_aligned' && (await s.call('exportText')) === before);
+  const mvAxis = await A('applyEdits', { edits: [{ op: 'move', id: 'TAP1', start: { x: 10, y: 20 }, end: { x: 13, y: 20 } }] });
+  ck('tappedAxisMoveApplies', mvAxis.ok === true);
+  const mvBy = await A('applyEdits', { edits: [{ op: 'move', id: 'TAP2', by: { dx: 1, dy: 1 } }] });
+  ck('moveByUnaffected', mvBy.ok === true);
+  // (3) AgentCircuit import: a diagonal TappedTransformer rejects the import; box-cornered transformers do not
+  const beforeImp = await s.call('exportText');
+  const imp = await A('importCircuit', { circuit: { elements: [{ type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { type: 'TappedTransformer', start: { x: 10, y: 12 }, end: { x: 14, y: 14 } }] } });
+  ck('importDiagonalRejected', imp.ok === false && codes(imp).includes('not_axis_aligned') && (await s.call('exportText')) === beforeImp);
+  out.importIssue = (imp.issues || [])[0] || null;
+  ck('issueNamesElementAndHint', !!(out.importIssue && out.importIssue.elements && out.importIssue.elements.length && /defaultSize/.test(out.importIssue.hint || '')));
+  const box = await A('importCircuit', { circuit: { elements: [{ type: 'Transformer', start: { x: 0, y: 0 }, end: { x: 4, y: 2 } },
+    { type: 'CustomTransformer', start: { x: 10, y: 8 }, end: { x: 12, y: 6 } }] } });
+  ck('transformerBoxImportApplies', box.ok === true && !codes(box).includes('not_axis_aligned'));
+  ck('noPageException', s.exceptions.length === exMark);
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_axis.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('AG.agent_axis', !failed.length, { checks: Object.keys(out.checks).length, failed, axisBound: seenBound.length, mismatches: out.mismatches.length, details: path.join(OUT_DIR, 'agent_axis.json') });
 }
 
 // agent_freerun: headless approximation of RULE_TEST_002 after the simulator-core changes of
@@ -4412,7 +4688,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -4456,7 +4732,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -1150,6 +1150,7 @@ B --|                     |-- B
 | Switch | `state`, `momentary` |
 | Potentiometer | `resistance`, `wiper_position` |
 | Transformer | `primary_inductance`, `turns_ratio` |
+| TappedTransformer | `primary_inductance`, `ratio`, `coupling_coefficient`, `spacing`, `tap_position` (пікселі редактора: первинна й уся вторинна мають довжину 2 × `spacing`, відвід — `tap_position` від `sec1`; без ключів форма береться з позицій пінів) |
 | TextLabel | `text`, `font_size` |
 
 ### Інші примітки

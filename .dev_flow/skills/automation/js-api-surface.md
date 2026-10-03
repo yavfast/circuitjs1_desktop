@@ -27,7 +27,7 @@ updated: 2026-10-02
 ## Pitfalls
 
 - **Pin names can repeat** within one element (chips: D/JK flip-flops have two `Q` texts) — `elementId.pinName` is not unique without a disambiguation rule.
-- **Grid-sized elements**: PotElm, SCRElm, TriacElm, TappedTransformerElm, TransLineElm, WattmeterElm size from `circuitEditor().gridSize` (8 under Small Grid) — geometry differs with the user's preference.
+- **Grid-sized elements**: PotElm, SCRElm, TriacElm, TappedTransformerElm, TransLineElm, WattmeterElm size from `circuitEditor().gridSize` (8 under Small Grid) — geometry differs with the user's preference. TappedTransformerElm takes the grid minimum (4 cells) only when created or resized; a loaded spacing is drawn as saved (a legacy `169` line without the spacing field keeps the original 32 px), and JSON import reads spacing and tap back from the `pri1`-`pri2` and `sec1`-`tap` pin distances.
 - **Conditional JSON properties**: some elements export keys only when non-default (CapacitorElm `initial_voltage`, `series_resistance`, `back_euler`), so a fresh instance's `getJsonProperties()` is not the full key set.
 
 - **Import always replaces.** `importFromJson` / `importCircuit` run with flags=0 → `ImportLifecycle.resetCircuitState` wipes the circuit and resets UI sliders; no append path is reachable for JSON. Both return `void`; import problems (unknown type, bad pin, missing `schema`) appear only as log lines. The Agent API `importCircuit` passes an `ImportReport` and returns them as issues with codes (`import_element_skipped`, `import_schema_invalid`, …; SP_AGA_03_04).

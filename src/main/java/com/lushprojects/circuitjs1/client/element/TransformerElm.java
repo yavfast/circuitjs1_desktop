@@ -35,6 +35,9 @@ public class TransformerElm extends CircuitElm {
     double current[], curcount[];
     Point dots[];
     int width, polarity, flip;
+    // direction sign of the rendered winding axis, set by setPoints(); the geometry's own
+    // dsign follows the diagonal handle corner (x2, y2) and differs when the box is flipped
+    int axisDsign = 1;
     public static final int FLAG_REVERSE = 4;
     public static final int FLAG_VERTICAL = 8;
     public static final int FLAG_FLIP = 16;
@@ -77,7 +80,11 @@ public class TransformerElm extends CircuitElm {
         curcount = new double[2];
         current[0] = parseDouble(st.nextToken());
         current[1] = parseDouble(st.nextToken());
-        couplingCoef = parseDouble(st.nextToken(), .99);
+        // the coupling coefficient is optional in legacy lines (the original reader caught its
+        // absence; eb72ca5 lost that and dropped such a transformer on load)
+        couplingCoef = .99;
+        if (st.hasMoreTokens())
+            couplingCoef = parseDouble(st.nextToken(), .99);
         primaryResistance = 0.1;
         secondaryResistance = 0.1;
         if (st.hasMoreTokens()) {
@@ -99,6 +106,12 @@ public class TransformerElm extends CircuitElm {
     @Override
     public String getIdPrefix() {
         return "T";
+    }
+
+    // the end is the corner of the resize box, not a point on the drawing axis
+    @Override
+    public boolean isAxisBound() {
+        return false;
     }
 
     @Override
@@ -275,7 +288,8 @@ public class TransformerElm extends CircuitElm {
 
     public void draw(Graphics g) {
         int i;
-        int dsign = getDsign();
+        // the coils bulge relative to the axis setPoints() laid them out on (see axisDsign)
+        int dsign = axisDsign;
         for (i = 0; i != 4; i++) {
             setVoltageColor(g, getNodeVoltage(i));
             drawThickLine(g, ptEnds[i], ptCoil[i]);
@@ -370,6 +384,7 @@ public class TransformerElm extends CircuitElm {
             dn = 1;
         }
         int dsign = (ady == 0) ? sign(adx) : sign(ady);
+        axisDsign = dsign;
 
         if (ptEnds == null)
             ptEnds = newPointArray(4);

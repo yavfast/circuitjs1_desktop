@@ -41,7 +41,7 @@ CellPoint fields:
 | x | number | yes | — | within ±4096; `add`/`move`: multiple of 0.5; import: multiple of 1/16 | column |
 | y | number | yes | — | within ±4096; `add`/`move`: multiple of 0.5; import: multiple of 1/16 | row |
 
-Conversions: input `px = cell × 16` (exact). Output `cell = px / 16`, exact — a multiple of 1/16, because editor coordinates are whole pixels. Import accepts every value it can produce, so a circuit read with `getCircuit` re-imports unchanged; agent-authored edits stay on the half-cell lattice.
+Conversions: input `px = cell × 16` (exact). Output `cell = px / 16`, exact — a multiple of 1/16, because editor coordinates are whole pixels. Import accepts every value it can produce, so a circuit read with `getCircuit` re-imports unchanged — except an axis-bound element that a legacy file draws diagonally, which re-import rejects with `not_axis_aligned` ([§03_01](#SP_AGA_03_01)); agent-authored edits stay on the half-cell lattice.
 
 ### 01_02. ElementId, DocumentHandle, PostRef, CheckpointId, NetName  {#SP_AGA_01_02}
 
@@ -607,6 +607,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 
 - **Lattice.** Coordinates are within ±4096. In `add`, `move` and `by` they are multiples of 0.5; in `importCircuit` and `openFile` content they are multiples of 1/16 (whole pixels). A coordinate off the lattice that applies is `off_lattice` (error); fractional pixel values in JSON v2 text are detected as `off_lattice` before any conversion to whole pixels.
 - **Zero length.** `end = start` gives `zero_length` (error).
+- **Axis-bound elements.** For an element the editor places only horizontally or vertically (`noDiagonal`; Transformer and CustomTransformer excepted, their `end` being a box corner), an `add`, a `move` with `start` and `end`, or an AgentCircuit import whose `end` is neither on the row nor on the column of `start` gives `not_axis_aligned` (error). Elements the editor lets the user place diagonally (for example the wattmeter and three-phase motor) stay accepted; their posts then lie off the lattice.
 - **Collapsed posts.** An `add`, a `move` with `start` and `end`, or an AgentCircuit import that puts an element's posts on fewer distinct points than its default placement gives `zero_length` (error).
 - **Replaced end.** When the element replaces a supplied `end` with its own (CustomTransformer, potentiometer, SCR, triac), the edit applies and reports `value_adjusted` (warning) with the effective end.
 - **No adjustment.** Input geometry is never snapped or rounded.
@@ -738,7 +739,7 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 - The culprit element is in `elements` when the simulator names one.
 
 **Operation codes**
-- All are `error` unless marked otherwise: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `value_adjusted` (warning), `off_lattice`, `zero_length`, `id_invalid`, `id_taken`, `ids_regenerated` (warning), `scope_removed` (info), `reserved_label` (warning), `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `import_wire_skipped` (warning), `import_setting_invalid` (warning), `import_geometry_adjusted` (warning), `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`.
+- All are `error` unless marked otherwise: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `value_adjusted` (warning), `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `ids_regenerated` (warning), `scope_removed` (info), `reserved_label` (warning), `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `import_wire_skipped` (warning), `import_setting_invalid` (warning), `import_geometry_adjusted` (warning), `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`.
 - Run end causes are reported as warnings with the codes `budget_exhausted`, `settle_timeout`, `stop_trigger` and `cancelled`.
 
 ### 03_07. Sizing caps and decimation  {#SP_AGA_03_07}
@@ -1102,6 +1103,7 @@ A **content lifetime** begins when a document is created or its content is repla
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | PL_AGA Phase 10 propagate: behaviour-change notes in §03_02, §03_04, §03_06 and §03_08 restated as implemented (pre-Agent-API behaviour named with its §06_01 item); the §06_01 items are documented in JS_API.md, EXPORT_CJS.md and the C_DOC, C_UND, C_IOF and C_APC concepts/specs |
+| 2026-10-03 | Axis-bound elements: new code `not_axis_aligned` (§03_01, code list) |
 | 2026-10-03 | Live-verify fixes: TypeInfo `quantities`, PropertyInfo `choices` and element-declared labels; collapsed posts and replaced ends (§03_01); transformer pin names `p1/s1/p2/s2`; model names (§03_03, §03_04); render area includes text and always uses printable colours on white |
 | 2026-10-03 | §03_03: unit strings may be wrapped in one pair of double quotes (eval finding) |
 | 2026-10-03 | Defect batch: §03_05 codes `ground_path_no_resistance`, `wire_loop`, `current_source_no_path`; BJT/FET `current` and BJT `voltage`; `set` reports only writable keys; LogicInput `state` read-only; §06_01 items 19–21 |

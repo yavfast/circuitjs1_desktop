@@ -13,7 +13,7 @@ How an agent describes, edits, checks and measures circuits through the `circuit
 - All coordinates are **grid cells**: 1 cell = 16 editor pixels, whatever the user's grid setting. x grows to the right, y grows **downwards**. Range ±4096.
 - **Authoring lattice: half cells.** In `add`, `move` and `by` every coordinate is a multiple of 0.5. Anything else is `off_lattice`; input is never snapped or rounded.
 - **Imports** accept any multiple of 1/16 cell (whole pixels), so a circuit read back with `circuit_get` re-imports unchanged. Legacy example circuits drawn at odd pixels read as fractional cells; that is exact, not an error.
-- `end = start` is `zero_length`; so is an `end` that puts the posts of a multi-post element on one point (a box element with no width or height). An element that sets its own end (a `CustomTransformer` takes its height from `description`; a potentiometer, SCR or triac snaps the end onto its axis) applies it and reports `value_adjusted` with the effective end. Derived posts may lie on half cells even for whole-cell points: wire to the record's `posts`.
+- `end = start` is `zero_length`; so is an `end` that puts the posts of a multi-post element on one point (a box element with no width or height). An element that sets its own end (a `CustomTransformer` takes its height from `description`; a potentiometer, SCR or triac snaps the end onto its axis) applies it and reports `value_adjusted` with the effective end. An element the editor places only horizontally or vertically (transistors, gates, chips, op-amps, the tapped transformer, ...) rejects an `end` that is neither on the row nor on the column of `start` with `not_axis_aligned`; `Transformer` and `CustomTransformer` take a diagonal `end` (the corner of their box). Derived posts may lie on half cells even for whole-cell points: wire to the record's `posts`.
 - Two posts connect when they are at the **same point**. A post lying on the middle of a wire does not connect (`post_on_wire_body`): end the wire at the post, or split it into two wires that meet there.
 
 ## 3. Element types (`circuit_types`)
@@ -190,7 +190,7 @@ Tool results stay within 60 000 characters of text:
 
 ## 13. Issue codes
 
-Operation errors: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `off_lattice`, `zero_length`, `id_invalid`, `id_taken`, `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`, `result_too_large` (server).
+Operation errors: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`, `result_too_large` (server).
 
 Warnings and info: `value_adjusted`, `ids_regenerated`, `import_wire_skipped`, `import_setting_invalid`, `import_geometry_adjusted`, `scope_limit` (import), `reserved_label`, `scope_removed` (info); run ends `budget_exhausted`, `settle_timeout`, `stop_trigger`, `cancelled`.
 

@@ -79,6 +79,7 @@ All are errors (the call was rejected) unless marked otherwise.
 |---|---|---|---|---|
 | `off_lattice` | error | A coordinate in `add`/`move`/`by` that is not a multiple of 0.5 cell, or an imported one not a multiple of 1/16 | Use whole cells for new parts | The same edit again |
 | `zero_length` | error | `end` equal to `start`, or an `end` that puts a multi-post part's posts on one point (a box with no width or height) | Omit `end` (default size) or give an end that spans the part (`defaultSize` of `circuit_types`) | The same edit again |
+| `not_axis_aligned` | error | A diagonal `end` (neither on the row nor on the column of `start`) for a part the editor places only horizontally or vertically (transistor, gate, chip, op-amp, tapped transformer, ...) | Give `end` = `start` + `defaultSize` of `circuit_types`, or omit `end` | The same edit again |
 | `id_invalid` | error | An ID that does not match `^[A-Za-z][A-Za-z0-9_]{0,31}$` (starts with a digit, has `-` or spaces) | Use letters, digits and `_` | The same edit again |
 | `id_taken` | error | An `add` with an ID already in the document (often a repeated batch) | Choose another ID, or omit `id`; check whether the first batch was already applied | `circuit_get` |
 | `ids_regenerated` | warning | Imported JSON keys that are not valid or unique IDs; an undo whose element count changed | Re-read the IDs before using them | `circuit_get` |

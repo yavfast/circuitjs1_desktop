@@ -247,6 +247,12 @@ public class CustomTransformerElm extends CircuitElm {
         }
     }
 
+    // the end is the corner of the resize box, not a point on the drawing axis
+    @Override
+    public boolean isAxisBound() {
+        return false;
+    }
+
     @Override
     public boolean isFixedSizeOnCreate() {
         return true;
@@ -818,12 +824,18 @@ public class CustomTransformerElm extends CircuitElm {
             thick = 1;
         geom().setEndpoints(getX(), getY(), getX2(), getY() - thick * flip);
 
+        // The core is laid out on the rendered (horizontal) axis, like the nodes above. Since
+        // the geometry refactor (dde7f33) setEndpoints() also moves point2 to the handle corner
+        // (x2, y - thick), so interpolating along point1-point2 here drew the core diagonally
+        // across the box and turned the primary coil and its label away from it.
+        Point axisP1 = new Point(getX(), getY());
+        Point axisP2 = new Point(getX2(), getY());
         if (ptCore == null)
             ptCore = newPointArray(4);
         for (int i = 0; i != 4; i += 2) {
             double h = (i == 2) ? maxWidth * flip * dsign : 0;
-            interpPoint(geom().getPoint1(), geom().getPoint2(), ptCore[i], cd, h);
-            interpPoint(geom().getPoint1(), geom().getPoint2(), ptCore[i + 1], 1 - cd, h);
+            interpPoint(axisP1, axisP2, ptCore[i], cd, h);
+            interpPoint(axisP1, axisP2, ptCore[i + 1], 1 - cd, h);
         }
 
         if (needDots) {

@@ -144,6 +144,15 @@ constructors:
    shared model declares `getJsonModelCatalogue(key)` and reports
    `getUnresolvedModelName()` from its `setup()` (DiodeElm, TransistorElm), so
    agent paths reject unknown names instead of registering them.
+10. **Handle box ≠ drawing axis.** Elements that keep a resize-handle corner in
+   `(x2, y2)` but draw on an axis-aligned line (Transformer, CustomTransformer)
+   must not read `geom().getPoint2()` / `getDsign()` for drawing: every
+   `geom().setEndpoints(...)` moves `point2` to the handle corner and recomputes
+   `dsign` from it (before `dde7f33` the old code changed only the `y2` field).
+   Interpolate along local axis points and keep the axis `dsign` in a field
+   that `setPoints()` sets for `draw()`. A `dde7f33` regression drew the
+   CustomTransformer core diagonally and the coils of flipped horizontal
+   transformers facing outwards; `xfmr_draw` in `tests/live` guards it.
 
 ## References
 
