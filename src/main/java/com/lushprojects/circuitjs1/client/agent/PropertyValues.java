@@ -97,7 +97,8 @@ final class PropertyValues {
     }
 
     /**
-     * Parses {@code <number>[ ][prefix][unit]} fully; {@code unit} may be null (no unit allowed).
+     * Parses {@code <number>[ ][prefix][unit]} fully, optionally inside one pair of double quotes;
+     * {@code unit} may be null (no unit allowed).
      *
      * @return the value, or null when the string is not of that form
      */
@@ -106,6 +107,11 @@ final class PropertyValues {
             return null;
         }
         String s = text.trim();
+        // [SP_AGA_03_03] one pair of surrounding double quotes is tolerated: agent hosts sometimes send a
+        // number-or-string argument JSON-encoded twice ("\"10 ms\"")
+        if (s.length() >= 2 && s.charAt(0) == '"' && s.charAt(s.length() - 1) == '"') {
+            s = s.substring(1, s.length() - 1).trim();
+        }
         int i = 0;
         int n = s.length();
         if (i < n && (s.charAt(i) == '+' || s.charAt(i) == '-')) {

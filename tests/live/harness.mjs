@@ -3897,6 +3897,23 @@ async function scenarioAgentDefects(s) {
   out.notes.flags = { types: flagTypes, bad: flagBad };
   ck('flagsStable', flagTypes > 100 && flagBad.length === 0);
 
+  // (6) number-or-string arguments double-encoded by agent hosts ("\"10 ms\"") are read without the
+  // quotes (SP_AGA §03_03); anything else inside the quotes is still invalid_value
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'VoltageSourceDC', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '5 V' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '"2k"' } },
+    { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { resistance: '1k' } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+  const q = await R({ doc, reset: true, span: '"1 ms"', recordFrom: '"0.5 ms"', probes: [{ name: 'mid', post: 'R2.' + (await A('describeType', { type: 'Resistor' })).data.pins[0] }] });
+  const qBad = await R({ doc, reset: true, span: '"1 parsec"' });
+  const r1 = (await A('getCircuit', { doc, ids: ['R1'] })).data.elements[0];
+  out.notes.quoted = { ok: q.ok, reason: q.data && q.data.reason, mid: q.ok && q.data.probes[0].stats.final, bad: codes(qBad.issues), r1: r1 && r1.properties };
+  ck('quotedSpanAccepted', q.ok && q.data.reason === 'span_reached' && near(q.data.tEnd - q.data.tStart, 1e-3, 0.02));
+  // R1 = 2k over R2 = 1k from 5 V: the mid node reads 5/3 V only if the quoted "2k" was applied
+  ck('quotedPropertyAccepted', r1 && /^2 ?k/.test(String(r1.properties && r1.properties.resistance)) && q.ok && near(q.data.probes[0].stats.final, 5 / 3, 1e-3));
+  ck('quotedJunkRejected', !qBad.ok && codes(qBad.issues).includes('invalid_value'));
+
   await A('closeDocument', { doc, discardChanges: true });
   ck('visibleTabUnchanged', JSON.stringify(vis0) === JSON.stringify(await s.call('visibleTab')));
   ck('noExceptions', s.exceptions.length === exMark);

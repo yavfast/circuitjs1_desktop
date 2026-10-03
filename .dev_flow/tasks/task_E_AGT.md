@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-03 14:30
+> **Last updated:** 2026-10-03 15:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -120,7 +120,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Polar pin-name fix (SP_AGA_DEC_06): measured every polar element; new correct names with import aliases, JSON 2.1, live scenario `pin_names` (27 checks, fails on HEAD); review PASS (1 should → swapped op-amp exception documented)
 - [x] PL_AGA defect batch — BJT current = collector current, static `ground_path_no_resistance`/`wire_loop` + new `current_source_no_path`, 555 internal paths in the ground closure (17 false isolated_group gone across examples), LogicInput `state` read-only, flags stable from construction (`getDumpFlags`; text dump byte-identical); live `agent_defects` 19 (13 fail on HEAD); spec §03_05/§01_09/§02_04/§01_05/§06_01 19–21 by main; review PASS
 - [x] PL_AGS Phase 4 eval runs — 3 rounds × 24 runs (haiku, sonnet), round 3 releasable: every scenario 3/3 on both models, skill loaded 24/24; ≈ $8.80 (+ ≤ $2 one killed run) under the $60 ceiling; skill description/checklist reworded (version 1.0), SP_AGS_01_02 updated; run.mjs isolation allowlist pinned per CLI version; review PASS. Phase stays [TODO] only for the manual Claude Desktop row
-- [ ] **Next:** fix the quoted `number|string` argument defect (PL_AGA Backlog); then the epic is complete apart from the owed manual checks
+- [x] Quoted number-or-string arguments (eval finding): unit-string parser drops one pair of surrounding quotes (SP_AGA §03_03); agent_defects 22; review PASS
+- [ ] **Next:** epic E_AGT implementation complete — remaining: the developer's manual checks (Relevant Context list), optional backlog items, push/merge on the developer's word
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**

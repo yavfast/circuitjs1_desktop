@@ -470,7 +470,7 @@ Input:
 |-----------|------|----------|-------------|
 | doc | DocumentHandle? | no | — |
 | mode | `"span"` \| `"settle"` | no (`"span"`) | — |
-| span | number \| string | for `span` | > 0 s; unit strings allowed (`"20 ms"`) |
+| span | number \| string | for `span` | > 0 s; unit strings allowed (`"20 ms"`, also inside one pair of quotes — [§03_03](#SP_AGA_03_03)) |
 | settle | {tolerance: number = 1e-4, window: number?, maxSpan: number = 1} | for `settle` | `tolerance` > 0 (V); `window` (s) default = 50 × max time step; `maxSpan` (s) > 0 |
 | budgetMs | int | no (10000) | 100..120000 |
 | probes | ProbeSpec[] | no | ≤ 16 |
@@ -654,6 +654,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
 - **Unknown keys.** Keys outside the type's PropertyInfo list are rejected with `unknown_property`; `hint` lists the valid keys.
 - **`quantity` and `number` values.**
   - A value is either a number or a string that parses fully as a number with an optional SI prefix and an optional unit suffix matching `unit`. Matching is case-sensitive, except that `Ohm` and `Ω` are both accepted for resistance.
+  - The same string may be wrapped in one pair of double quotes (`"\"10 ms\""`, as some agent hosts double-encode number-or-string arguments); the quotes are dropped. This rule covers every number-or-string argument (properties, run `span`/`recordFrom`/`settle`, time steps).
   - Anything else is `invalid_value`. The parser's "0 on failure" result is never taken as a value.
 - **`bool` and `text` values.** `bool` takes `true`/`false` only. `text` takes strings of at most 1000 chars.
 - **Ranges.** The Agent API declares no validity ranges of its own. A value the element itself clamps or adjusts is applied as adjusted and reported with `value_adjusted` (warning) carrying the effective value; slider seeds are never used as limits.
@@ -1094,6 +1095,7 @@ A **content lifetime** begins when a document is created or its content is repla
 |------|--------|
 | 2026-10-01 | Initial version |
 | 2026-10-02 | PL_AGA Phase 10 propagate: behaviour-change notes in §03_02, §03_04, §03_06 and §03_08 restated as implemented (pre-Agent-API behaviour named with its §06_01 item); the §06_01 items are documented in JS_API.md, EXPORT_CJS.md and the C_DOC, C_UND, C_IOF and C_APC concepts/specs |
+| 2026-10-03 | §03_03: unit strings may be wrapped in one pair of double quotes (eval finding) |
 | 2026-10-03 | Defect batch: §03_05 codes `ground_path_no_resistance`, `wire_loop`, `current_source_no_path`; BJT/FET `current` and BJT `voltage`; `set` reports only writable keys; LogicInput `state` read-only; §06_01 items 19–21 |
 | 2026-10-03 | Polar pin names corrected (SP_AGA_DEC_06): sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp inputs fixed; source `voltage` sign stated |
 | 2026-10-02 | Fix round: `stop_trigger` run reason (SP_AGA_DEC_05), first probe sample after the first solved step, determinism qualified for noise sources, §06_01 item 18 time-step bar no longer re-quantises the maximum step |
