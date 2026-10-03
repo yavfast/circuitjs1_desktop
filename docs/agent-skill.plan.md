@@ -185,6 +185,46 @@ What to do:
 - Iterate on the skill text until the pass rule holds.
 - Record the results.
 
+> **Open (2026-10-03):** only the Claude Desktop integration row is still to be observed. It is a manual row owed by the developer (steps in `evals/results.md`). Everything else in this phase is done, so the phase stays [TODO] until that row is recorded.
+
+**Result (2026-10-03).** The developer approved the runs on 2026-10-03. They ran with `claude -p` (Claude Code 2.1.288: the CLI updated itself from 2.1.287, and every run's `init` reported 2.1.288), haiku and sonnet, against a scratch app instance (Xvfb, scratch HOME, `target/site` rebuilt at 1f79a13). The skill consistency check passed live before every round.
+- **Smoke runs.**
+  - The real `init` message lists the CLI's bundled skills (`skills`, `slash_commands`) and bundled plugins (`path: "builtin"`). The isolation check now flags only user skills/commands by name, namespaced names and non-bundled plugins. The user's `~/.claude/skills` did not leak.
+  - `run.mjs` gained `--max-total-usd` (cost ceiling), a "Skill used" column and a skill-text hash in the results header. Wording changes keep the version (SP_AGS_04_01), but the hash tells the rounds apart.
+- **Harness fix.** `--keep` also left each run's documents open, so a later run edited an earlier run's circuit. The round was aborted after 4 runs and restarted. `--keep` now keeps only the temporary directory; `--keep-docs` is separate.
+- **Rounds** (each 4 scenarios × 2 models × 3 reps):
+
+  | Round | Skill text | Failing (model) | Skill invoked | Cost |
+  |---|---|---|---|---|
+  | 1 | 7f3c03a4 (as committed) | tune-divider sonnet 0/3 | 11/24 | $2.84 |
+  | 2 | 3dab4c17 | tune-divider haiku 1/3 | 18/24 | $2.83 |
+  | 3 | 3488c3db | none: every scenario 3/3 on both models, **releasable** | 24/24 | $2.63 |
+
+- **Total cost.** About $8.80, plus up to $2 for one killed run:
+  - $8.30 for the three rounds (`results.md`);
+  - $0.20 for the two smoke runs;
+  - $0.30 for the 3 completed runs of the aborted round;
+  - one sonnet run of the aborted round was killed before it reported a cost and is capped at $2.
+
+  The $60 ceiling was never approached.
+- **Failure analysis.** Every failure was `checkpoint_exists` in `tune-divider`. The agent did not load the skill for a one-value change to an open circuit; it tuned the divider correctly with the tools alone and did not checkpoint. No checker bug and no check was loosened.
+- **Skill changes.**
+  - **SKILL.md description.** Round 2: it names changing values, retuning and repairing an open circuit. Round 3: it also says "Load it before the first `circuit_*` call of any CircuitJS1 task".
+  - **Step 9 note.** Checkpoint also after a one-value change.
+  - **Step 7 note.** How to pass times.
+  - **Step 2 note.** The most-used type names and keys. This removed every `unknown_type` call: 12 per round before, 0 in round 3.
+  - **Version.** Wording only, so no version change per SP_AGS_04_01.
+  - **Spec conflict.** SP_AGS_01_02 fixes the description value and must take the new text.
+- **SP_AGS_05_05 integration rows.**
+  - Claude Code over HTTP: observed 2026-10-03.
+  - Eval runner: observed 2026-10-03.
+  - Claude Desktop over the bridge: manual, owed by the developer.
+- **Agent API/MCP findings, not fixed in this phase.**
+  - Tool arguments typed `number | string` (`span`, `recordFrom`) repeatedly arrived as strings with embedded quotes (`"\"10 ms\""`) from both models, which gives `invalid_value`. The agents recovered by sending seconds; 5–9 such errors per round. Possible fix: strip one level of surrounding quotes, or describe the field as a plain string such as "10 ms".
+  - Both findings are in the PL_AGA Backlog.
+- **Isolation allowlist (review fix).** `run.mjs` now pins the CLI's bundled skills, slash commands and plugins per CLI version (2.1.288, taken from the runs' `init`). Any other name except `circuitjs-circuits` makes a run INVALID. A CLI version without a pinned bundle is refused before any run unless `--accept-bundled` is given. Checked with the stand-in: bundled only → valid; one unknown skill → INVALID; version 9.9.9 → refused, exit 2.
+  - Agents probe the LED `color` key, which does not exist (`color_r/g/b`). This is a naming wart, not a defect.
+
 ## Backlog
 
 - Template library as MCP resources (prior-art suggestion) — return when: evals show agents failing on circuits that a template would cover.
@@ -198,3 +238,4 @@ What to do:
 | 2026-10-02 | Phase 1 done: skill entry, references, host snippets |
 | 2026-10-02 | Phase 2 done: consistency script |
 | 2026-10-02 | Phase 3 done: eval set, checker, run driver (Phase 4 pending the go-ahead) |
+| 2026-10-03 | Phase 4 eval rounds: releasable at skill text 3488c3db; Claude Desktop row owed |

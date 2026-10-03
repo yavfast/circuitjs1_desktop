@@ -1,6 +1,6 @@
 ---
 name: circuitjs-circuits
-description: Builds, edits, simulates, measures and debugs circuits in the CircuitJS1 desktop simulator through its MCP tools (`circuit_*`); use when the user asks to design, draw, simulate, tune or fix an electronic circuit in CircuitJS1 or Falstad format.
+description: Builds, edits, simulates, measures and debugs circuits in the CircuitJS1 desktop simulator through its MCP tools (`circuit_*`). Load it before the first `circuit_*` call of any CircuitJS1 task — designing, drawing, simulating or measuring a circuit, and also changing component values of, retuning or repairing a circuit already open in a CircuitJS1 document, even a one-value change. Also use it for circuits in CircuitJS1 or Falstad format.
 ---
 
 # CircuitJS1 circuits
@@ -48,9 +48,11 @@ Copy this list into your notes and tick it off:
 
 Notes on the steps:
 - **Step 2.** `circuit_types {"type": "<name>"}` gives pins in post order, the geometry kind, property keys, units and defaults. Do not guess keys: a wrong key is rejected and the hint lists the valid ones.
+  Most-used names (there is no plain VoltageSource type and no `voltage` key): `VoltageSourceDC` and `Rail` (`max_voltage`), `VoltageSourceAC` (`max_voltage` is the amplitude, `frequency`), `Resistor` (`resistance`), `Capacitor` (`capacitance`), `Inductor` (`inductance`), `Diode`, `LED`, `Ground`, `Wire`, `LabeledNode` (`label`).
 - **Step 4.** One `circuit_import` call replaces the whole circuit of that document. Edits are atomic per batch: one bad edit rejects the batch, nothing changes.
 - **Step 6.** A circuit driven by an AC source never settles (`settle_timeout`); read DC levels from `stats.mean` of a span run instead.
-- **Step 7.** Pass `reset: true` on every measuring run, so results are repeatable. Give two probes on the same element distinct `name`s.
+- **Step 7.** Pass `reset: true` on every measuring run, so results are repeatable. Give two probes on the same element distinct `name`s. Pass times as seconds (`"span": 0.01`) or as a plain unit string (`"span": "10 ms"`), never with quotes inside the string.
+- **Step 9.** Also for a one-value change to an existing circuit: the user undoes your work by the checkpoint comment.
 - **Step 10.** Say what you measured and with which run (span, step, recordFrom), not what the formula predicts. If the target cannot be reached with the chosen topology, report the limit with the evidence instead of tuning on.
 
 ## Debug loop

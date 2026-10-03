@@ -3,7 +3,7 @@
 > **Code:** SP_AGS
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-02
+> **Updated:** 2026-10-03
 >
 > **Concept:** [C_AGS](./agent-skill.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_MCP](./mcp-server.sp.md), [SP_MCB](./mcp-bridge.sp.md)
@@ -48,7 +48,7 @@
 | Field | Type | Required | Constraints | Value |
 |-------|------|----------|-------------|-------|
 | name | string | yes | ≤ 64 chars, `[a-z0-9-]`, no vendor names | `circuitjs-circuits` |
-| description | string | yes | ≤ 1024 chars, third person, states what and when | Builds, edits, simulates, measures and debugs circuits in the CircuitJS1 desktop simulator through its MCP tools (`circuit_*`); use when the user asks to design, draw, simulate, tune or fix an electronic circuit in CircuitJS1 or Falstad format |
+| description | string | yes | ≤ 1024 chars, third person, states what and when | Builds, edits, simulates, measures and debugs circuits in the CircuitJS1 desktop simulator through its MCP tools (`circuit_*`). Load it before the first `circuit_*` call of any CircuitJS1 task — designing, drawing, simulating or measuring a circuit, and also changing component values of, retuning or repairing a circuit already open in a CircuitJS1 document, even a one-value change. Also use it for circuits in CircuitJS1 or Falstad format. |
 
 ### 01_03. Eval scenario  {#SP_AGS_01_03}
 
@@ -247,6 +247,7 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version |
+| 2026-10-03 | PL_AGS Phase 4: description widened to open-circuit edits and "load before the first `circuit_*` call" (eval round 1–2: agents skipped the skill on one-value changes and missed the checkpoint) |
 | 2026-10-02 | PL_AGS Phase 1: the elements table covers the required list (26 types) instead of "the 25 most-used" |
 | 2026-10-01 | Review round 2: canonical names, checker reset, desktop env snippet |
 | 2026-10-01 | Review round 1: fixture document selection, canonical type names, toolsVersion compatibility, integration scenarios |
