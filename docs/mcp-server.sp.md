@@ -88,7 +88,7 @@ For `circuit_render` with `format=png` the base64 PNG appears only in the image 
 - **Timeouts.** The HTTP server closes a request whose headers do not arrive within 10 s or whose whole request does not arrive within 60 s; a long-running response is not limited by these. An asynchronous Agent API call (`run`, `render`) that never calls back ends after 180 s as an `internal_error` tool result. A request the protocol layer never answers gets `-32603` after a 200 s backstop, so every request gets exactly one reply.
 - **Sessions.** The server keeps no protocol session state and issues no `Mcp-Session-Id`. Session headers sent by clients are ignored.
 - **Capabilities.** `tools` (with `listChanged: false`) and `resources` (with `listChanged: false`, `subscribe: false`). No `prompts`, no sampling, no elicitation.
-- **Server info.** `serverInfo` = `{name: "circuitjs1", version: <appVersion>}`. `instructions` is one paragraph naming the coordinate unit (grid cells), the verify loop (connectivity report → run → measure), the skill name `circuitjs-circuits` and the `toolsVersion`.
+- **Server info.** `serverInfo` = `{name: "circuitjs1", version: <appVersion>}`. `instructions` is one paragraph naming the coordinate unit (grid cells), the verify loop (connectivity report → run → measure, then `circuit_layout` before reporting a drawing), the skill name `circuitjs-circuits` and the `toolsVersion`.
 - **Concurrency.** Requests are processed on the app's event loop. A `circuit_run` request answers when its run ends, and other requests are served meanwhile.
 
 ### 02_02. Tool catalogue  {#SP_MCP_02_02}
@@ -107,6 +107,7 @@ Every tool takes the `doc` argument of SP_AGA contracts, optional except where t
 | circuit_connectivity | getConnectivity | `includeNets?`, `netFilter?` | true | false | true |
 | circuit_read | read | `targets[]` | true | false | true |
 | circuit_render | render | `format?`, `scale?`, `includeScopes?` | true | false | true |
+| circuit_layout | checkLayout | `includeBoxes?` (SP_AGA §02_16: `text_overlap`, `text_not_covered`; call it before reporting a drawing) | true | false | true |
 | circuit_sim | simControl | `action`, `settings?` | false | true (`reset`) | false |
 | circuit_run | run | `mode?`, `span?`, `settle?`, `budgetMs?`, `probes?`, `recordFrom?`, `maxPoints?`, `reset?` | false | true (`reset`) | false |
 | circuit_diagnostics | getDiagnostics | `log?` | true | false | true |
@@ -214,6 +215,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 - **Read-only tools.** A read-only tool whose result would exceed the limit is re-executed with a smaller request, and the result of that *effective* call is returned:
   - `circuit_get`: `detail: "concise"`, then `limit` halved until it fits (`nextOffset` tells the agent where to continue);
   - `circuit_connectivity`: `includeNets: false` (issues only);
+  - `circuit_layout`: `includeBoxes: false` (issues only). The full 2000 boxes take about 150 000–180 000 characters, so a request with boxes on a large circuit is reduced. The note says the boxes were left out and that `issues` are complete up to their own cap of 100;
   - `circuit_diagnostics`: log `limit` halved until it fits;
   - `circuit_types`: never exceeds (bounded by the catalogue);
   - `circuit_render` with `format=svg`: when the SVG text exceeds the limit, the result is `isError` with issue `result_too_large` and hint "Use format png or a lower scale."
@@ -252,7 +254,9 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 
 | Contract | Scenario | Input | Expected outcome |
 |----------|----------|-------|------------------|
-| Endpoint | Claude Code connects | `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` | `/mcp` lists the server as connected with 14 tools |
+| Endpoint | Claude Code connects | `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` | `/mcp` lists the server as connected with 15 tools |
+| circuit_layout | value text crossed by a wire | the SP_AGA §05_01 T8 fixture imported, then `circuit_layout` | `structuredContent.data.issues` holds one `text_overlap` [`C1`, `W1`]; not `isError`; annotations read-only and idempotent |
+| Sizing | layout boxes | `circuit_layout` with `includeBoxes: true` on 2000 resistors | text ≤ 60 000 chars; the note names `includeBoxes: false`; `issues` present |
 | Endpoint | MCP Inspector | Inspector at localhost origin | Handshake, `tools/list`, `resources/list` succeed |
 | circuit_types | inapplicable combination | `{type:"Resistor", models:"diode"}`, `{model:"x"}`, `{models:"all", model:"x"}` | JSON-RPC -32602 naming the argument |
 | Origin rule | Foreign web page | `Origin: http://example.com` | 403 |
@@ -312,7 +316,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 | Data/state changes | Four preference keys; instance files under `~/.circuitjs1/instances/` (safe to delete) |
 | Artifacts | The server script bundled into the package, the menu item and the info dialog |
 | Dependent modules | [SP_MCB](./mcp-bridge.sp.md) and [SP_AGS](./agent-skill.sp.md) need the endpoint; the Agent API does not depend on the server |
-| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`; `1.1` since the agent model definitions of [PL_AGA](./agent-api.plan.md) Phases 11–14 — `defineModel`, `circuit_types` `models`/`model`, AgentCircuit and `circuit_get` `models`): a breaking change bumps MAJOR, an addition bumps MINOR; the skill states the `toolsVersion` it supports |
+| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`; `1.1` since the agent model definitions of [PL_AGA](./agent-api.plan.md) Phases 11–14 — `defineModel`, `circuit_types` `models`/`model`, AgentCircuit and `circuit_get` `models`; `1.2` since PL_AGA Phase 16a — the tool `circuit_layout`): a breaking change bumps MAJOR, an addition bumps MINOR. Removing or renaming a released tool (for example `circuit_layout`) is breaking and bumps MAJOR. The skill states the `toolsVersion` it supports |
 
 Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes. To set it, open Options → "MCP Server...", untick "Enabled", Save and restart the app: nothing listens and no instance record is written. Verified by `tests/mcp/e2e.mjs` scenario `settings`, row `disable` (checks `statusDisabled`, `noRecord`, `noPortBound`, `menuOff`).
 
@@ -334,6 +338,7 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 **Decision:** A — 14 grouped tools (confirmed by the developer).
 **Rationale:** Tool-design guidance favours fewer, consolidated tools; the grouped families (documents, history, files) are each used together.
 **Rejected because:** B — tool-list size grows without adding capability.
+**Amended:** 2026-10-04 — a 15th tool, `circuit_layout` (SP_AGA `checkLayout`, PL_AGA Phase 16a). The developer chose a separate on-demand call ([SP_AGA_DEC_10](./agent-api.sp.md#SP_AGA_DEC_10)), and a separate tool is easier to find than an argument of another tool. Grouping is unchanged.
 
 ### DEC_02 — Single JSON responses or event streams?  {#SP_MCP_DEC_02}
 
@@ -387,3 +392,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-04 | Model definitions review round 2: inapplicable `circuit_types` argument combinations are -32602 like other inapplicable arguments |
 | 2026-10-04 | Phase 11 review: the document circuit resource carries `models` / `modelsTruncated` |
 | 2026-10-04 | `toolsVersion` 1.1 (§06_01: an addition bumps MINOR): the agent model definitions of PL_AGA Phases 11–14; the skill compatibility line, agent-format header and the version checks of the tests follow (PL_AGA Phase 15) |
+| 2026-10-04 | Tool `circuit_layout` → SP_AGA `checkLayout` (developer decision SP_AGA_DEC_10, PL_AGA Phase 16a): §02_02 row, §02_01 server instructions name it in the verify loop, §03_04 reduction `includeBoxes: false` (2000 boxes ≈ 150–180k chars), §05_01 15 tools and two rows, DEC_01 amended (15th tool), §06_01 `toolsVersion` 1.2 and removing a released tool is MAJOR |

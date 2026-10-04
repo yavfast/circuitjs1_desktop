@@ -3,7 +3,7 @@
 > **Code:** C_AGA
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-04
 > **Author:** main
 > **Owner:** app-shell maintainers (layer L3: the document/session shell)
 > **Complexity:** high
@@ -169,6 +169,7 @@ The simulator hides wiring mistakes: it ties unconnected nodes to ground through
 | `single_label` | A label text used only once (informational) |
 | `bad_connection` | A post touches another element's body, from the analysis' existing bad-connection list |
 | `symbol_overlap` | A wire runs through a part's symbol, two symbols overlap, or a post lies on a foreign symbol or lead — computed from geometry only, so agents get feedback on unreadable drawings (wire–wire and lead crossings stay allowed) |
+| `text_overlap` | A text an element draws (value, label, chip pin name, caption) is crossed by a wire or another part's lead, lies over another part's symbol, or touches another part's text. Not part of this report: a separate on-demand layout check reports it, and the agent calls it before reporting a drawing. Each element has one text layout function that both its drawing and the check use, measured with the canvas text metrics and in a font it names, so the text positions never drift from the image. The parts the texts are tested against come from the approximate `symbol_overlap` body model, not from the drawn outlines, so near op-amp triangles and chip outlines a finding can be off. Texts that show simulated readings change every step, and texts drawn only while a part is selected or hovered are transient; both are left out |
 | `unknown_net` (operation error, not a connectivity issue) | A probe or reading names a net that does not exist. The operation is rejected instead of returning 0 V |
 
 Nets are named by their label when a labelled node is on them, `gnd` for ground, and otherwise by a generated name. Generated names are stable only until the next topology change; the skill tells agents to label nets they need to track.
@@ -256,7 +257,7 @@ These are operation groups; their contracts belong to the specification.
 - **Catalogue:** list types, describe a type.
 - **Documents:** list, create, activate, close, open/save by path.
 - **Build and edit:** import a whole circuit; add elements and wires; move; delete; set properties; add/remove scope view. Each call is atomic and returns an operation result with its connectivity delta.
-- **Inspect:** get the circuit (elements with IDs, properties, post cells), the connectivity report, instant readings, and a render.
+- **Inspect:** get the circuit (elements with IDs, properties, post cells), the connectivity report, instant readings, a render, and an on-demand layout check of the drawn texts.
 - **Simulate:** start/stop free-running, reset, set time-step settings, run for a span, run until settled.
 - **Measure:** probes on a run, with statistics and decimated series.
 - **Debug:** diagnostics, log since cursor.
@@ -347,3 +348,6 @@ These are operation groups; their contracts belong to the specification.
 | 2026-10-04 | §3.6 Models: agents define and list component models (SP_AGA_DEC_07); `symbol_overlap` row in §3.3 |
 | 2026-10-04 | §3.6 Models: strictly create-only names, models carried with their dependencies (SP_AGA model review round 1) |
 | 2026-10-04 | Model definitions review round 2: §3.6 states that opening a file may overwrite models, as the editor does |
+| 2026-10-04 | §3.3 `text_overlap` row (live agent series T3, T8, T9; SP_AGA §03_13, SP_AGA_DEC_09/DEC_10 proposed) |
+| 2026-10-04 | §3.3 `text_overlap` row: reported only by the on-demand layout check, from one layout function shared by drawing and check (developer decisions SP_AGA_DEC_09/DEC_10) |
+| 2026-10-04 | §3.3 `text_overlap` row after text layout design review round 1: explicit fonts, obstacles from the approximate body model ("never drifts" for text positions only), transient highlight texts left out |

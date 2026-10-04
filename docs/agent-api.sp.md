@@ -15,12 +15,12 @@
 ## Contents
 
 - [01. Data Structures](#SP_AGA_01) — cells, IDs, handles, pin names, element specs/records, nets, issues, results, probes, transactions, open marks, models
-- [02. Contracts](#SP_AGA_02) — catalogue, documents, import/edit, inspect, readings, render, simulation, runs, diagnostics, history, files, models
-- [03. Validation Rules](#SP_AGA_03) — geometry, identity, properties, atomicity, issue rules, sizing, document routing, files, error reporting, models
+- [02. Contracts](#SP_AGA_02) — catalogue, documents, import/edit, inspect, readings, render, simulation, runs, diagnostics, history, files, models, layout check
+- [03. Validation Rules](#SP_AGA_03) — geometry, identity, properties, atomicity, issue rules, sizing, document routing, files, error reporting, models, text layout
 - [04. State Transitions](#SP_AGA_04) — agent transaction, document run state, element ID lifetime
 - [05. Verification Criteria](#SP_AGA_05) — functional expectations, invariants, integration scenarios, edge cases
 - [06. Reversibility](#SP_AGA_06) — rollback of each behavioural change
-- [07. Design Decisions](#SP_AGA_DEC) — edit batch shape, property keys, file operations, model definitions
+- [07. Design Decisions](#SP_AGA_DEC) — edit batch shape, property keys, file operations, model definitions, text layout
 
 ## 01. Data Structures  {#SP_AGA_01}
 
@@ -142,7 +142,7 @@ ConnectivityDelta (in mutation results): `{added: Issue[], cleared: Issue[], err
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| code | IssueCode | yes | Stable code ([§03_05](#SP_AGA_03_05), [§03_06](#SP_AGA_03_06)) |
+| code | IssueCode | yes | Stable code ([§03_05](#SP_AGA_03_05), [§03_06](#SP_AGA_03_06), [§03_13](#SP_AGA_03_13)) |
 | severity | `"error"` \| `"warning"` \| `"info"` | yes | `error`: the operation was rejected, or the circuit cannot be simulated meaningfully |
 | message | string | yes | One-sentence English description |
 | elements | ElementId[] | no | Involved elements |
@@ -347,7 +347,7 @@ Common rules for every contract:
 Contract classes:
 | Contract | Mutating (returns `connectivity` + `transaction`) | Opens/continues the agent transaction | Served while the document is busy |
 |----------|------|------|------|
-| listTypes, describeType, listDocuments, getCircuit, getConnectivity, read, render, getDiagnostics, getHistory, exportCircuit | no | no | yes |
+| listTypes, describeType, listDocuments, getCircuit, getConnectivity, checkLayout, read, render, getDiagnostics, getHistory, exportCircuit | no | no | yes |
 | createDocument, activateDocument | no | no | yes |
 | importCircuit, applyEdits, openFile into a handle | yes | yes | no (`busy`) |
 | openFile into `new` | no (creates a document) | no (user-load semantics) | yes (another document) |
@@ -567,6 +567,7 @@ Output: `data: {format, width: int, height: int, content: string}`.
 - **Content.** SVG text, or PNG as base64.
 - **Area.** Drawn offscreen for the given document. It covers the circuit bounds (element endpoints, bounding boxes and every drawn text, so labels are not clipped) plus a 1-cell margin, whatever the viewport or the active tab. An empty document gives a blank 32×32 image.
 - **Look.** Printable colours on white, whatever the session's Printable option, no current dots, the target's selection highlight as it is. Drawing an image never changes a scope's graph, time base, trigger or scale.
+- **Texts.** The elements paint the placements of their layout method ([§03_13](#SP_AGA_03_13)) with the document's options, each in the font it names. For an element that is not highlighted (not selected, not hovered, not being dragged), a `checkLayout` text box, times `scale` and shifted by the image origin, is where the image shows that text. A highlighted element may draw transient texts, such as transistor pin letters, which `checkLayout` never checks.
 - **Completion.** Asynchronous: the first SVG render loads the vector exporter and then completes. A load failure produces an issue and never a modal alert.
 
 Errors: `render_failed` (the vector exporter could not load; `hint`: retry with `png`); `invalid_value` naming `scale` (the image would exceed 16384 px on a side or 40 megapixels in area); `render_failed` also when the browser cannot encode the image (no dialog); `unknown_document` (the document was closed while rendering).
@@ -738,6 +739,48 @@ Output: `data: {models: ModelRecord[]}`.
 
 Errors: `invalid_value`; `unknown_model`.
 
+### 02_16. checkLayout  {#SP_AGA_02_16}
+
+Purpose: on-demand drawing check of the texts: values, labels, chip pin names and element captions crossed by wires or leads, lying over symbols, or touching each other ([§03_13](#SP_AGA_03_13); [SP_AGA_DEC_09](#SP_AGA_DEC_09), [SP_AGA_DEC_10](#SP_AGA_DEC_10)). It is a separate call: no mutation delta and no `getConnectivity` computes or lists its issues.
+
+Input: `doc?`, `includeBoxes: bool = false`.
+
+Output: `data: {issues: Issue[], texts: int, truncated: bool, boxes?: TextBox[]}`.
+- **`issues`.** The codes of the [§03_13](#SP_AGA_03_13) table, with the Issue shape and keys of [§01_07](#SP_AGA_01_07). Sorted by severity, then by key. At most 100 issues are listed; `truncated` is then true.
+- **`texts`.** The number of texts the rules checked. Live and not-covered texts are not counted.
+- **`boxes`** (only with `includeBoxes`). TextBox fields:
+
+  | Field | Type | Description |
+  |-------|------|-------------|
+  | element | ElementId | The owner |
+  | text | string | The string, cut at 32 characters with `…` |
+  | box | `{x1, y1, x2, y2}` | Ink box in cells, rounded outwards to whole pixels (exact 1/16 multiples) |
+  | anchor | CellPoint | The placement's anchor point, unrounded, in cells |
+  | align | `"left"` \| `"center"` \| `"right"` | Horizontal alignment at the anchor |
+  | baseline | `"alphabetic"` \| `"middle"` \| `"top"` \| `"bottom"` | Vertical alignment at the anchor |
+  | font | string | The canvas font string of the placement (for example `normal 12px sans-serif`) |
+  | live | bool | The text shows a simulated quantity ([§03_13](#SP_AGA_03_13)) |
+
+  Element list order, then layout order. Live texts are included and marked. Transient texts drawn only for a highlighted element are not included. At most 2000 boxes are listed; `truncated` is then true.
+
+Processing logic:
+
+    FUNCTION checkLayout(doc, includeBoxes):
+        within the document scope of doc (its options apply, §03_08):
+            FOR each element in list order:
+                IF the element's class is not covered: count it for text_not_covered; CONTINUE
+                element.layoutTexts(measuring layout, highlighted = false)   // no drawing, no state change
+            bodies, pairs ← symbol_overlap body model and reported pairs of doc (§03_05)
+            apply the rules of §03_13 to the checked texts; one issue per element pair
+        cap issues and boxes; return
+
+- **Not highlighted.** Every element is laid out as not selected, not hovered and not being dragged, whatever the editor shows. The selection and the mouse therefore never change the result.
+- **Read-only.** It changes nothing: no drawing, no analysis, no bounding box, no undo entry, no modified flag. It is served while the document is busy (an agent run): layout reads only element properties, geometry and options.
+- **Cost.** One canvas `measureText` per text, about 4–5 µs measured headless (2026-10-04), with no draw. A 2500-element circuit with two texts per element takes about 25 ms plus the rules (spatial hash). No element bound applies. For a background document, the scoped bind ([§03_08](#SP_AGA_03_08); 0.6 ms on average, 3 ms worst) comes on top.
+- **MCP.** Tool `circuit_layout` (read-only, idempotent; argument `includeBoxes?`), a new tool of [SP_MCP §02_02](./mcp-server.sp.md#SP_MCP_02_02), with `toolsVersion` 1.2. A result over the MCP size limit is re-executed with `includeBoxes: false` ([SP_MCP §03_04](./mcp-server.sp.md#SP_MCP_03_04)).
+
+Errors: only the common ones of [§02](#SP_AGA_02): `unknown_document` (Document rule) and `not_ready` (Readiness rule).
+
 ## 03. Validation Rules  {#SP_AGA_03}
 
 ### 03_01. Geometry  {#SP_AGA_03_01}
@@ -846,6 +889,8 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 | ground_path_no_resistance | error | The last analysis reported a path with no resistance from a rail or logic input to ground, as a stop or a recovery-mode warning ([§03_06](#SP_AGA_03_06)); the culprit is in `elements` |
 | wire_loop | warning | The last analysis reported a loop made only of wires ([§03_06](#SP_AGA_03_06)): wire currents are approximated, node voltages stay valid |
 | current_source_no_path | warning | A current source (an ohmmeter excepted) for which the analysis found no current path — open, or in series with another current source; the simulator stamps 100 MΩ in its place, so it drives no current |
+
+The text layout issues `text_overlap` and `text_not_covered` are not connectivity issues. Only the separate `checkLayout` call reports them ([§02_16](#SP_AGA_02_16), [§03_13](#SP_AGA_03_13)).
 
 ### 03_06. Solver and operation issue codes  {#SP_AGA_03_06}
 
@@ -985,6 +1030,89 @@ The protected state:
 - **Count.** The `models` section of a JSON v2 text has no count limit, also on the agent path; the limit of 200 applies to AgentCircuit `models` ([§02_03](#SP_AGA_02_03)).
 - **In-circuit scopes.** The `Scope` element (text `403`) carries its scope settings in the property `scope`, shaped as a `scopes` entry with element IDs. It is a structured value: agent records omit it ([§02_05](#SP_AGA_02_05)) and an AgentCircuit cannot set it.
 - **Versions.** JSON 2.x is in development and carries no compatibility promise between its versions (resolved by the developer, 2026-10-04); no behaviour of other builds with 2.2 files is specified.
+
+### 03_13. Text layout  {#SP_AGA_03_13}
+
+How `checkLayout` ([§02_16](#SP_AGA_02_16)) finds the texts and judges them. Mechanism and timing were resolved by the developer: [SP_AGA_DEC_09](#SP_AGA_DEC_09) (a separate layout function measured with the canvas) and [SP_AGA_DEC_10](#SP_AGA_DEC_10) (a separate call on demand). Delivery is staged as PL_AGA Phases 16a and 16b.
+
+| Code | Severity | Rule |
+|------|----------|------|
+| text_overlap | warning | A checked text of one element meets another element by rule 1, 2 or 3 below. One issue per unordered element pair |
+| text_not_covered | info | Elements of a class whose texts are not laid out yet; their texts are not checked. One issue per class, listing the first 20 of its element IDs in ID order, without `at`. Its key is the code plus those 20 IDs |
+
+These codes come only from `checkLayout`, never from `getConnectivity` or a mutation delta.
+
+**Layout and paint**
+- **One placement, two uses.** Every class that draws text has one layout method, `layoutTexts(TextLayout out, boolean highlighted)`. It places each string the element draws. A placement holds:
+  - the string and its font;
+  - the anchor point in circuit pixels;
+  - the horizontal alignment and the baseline;
+  - an over-bar flag and a live flag;
+  - a `group` number.
+- **Painting.** `draw()` paints exactly those placements through a painting layout, and has no other text site.
+  - Each group is painted at the point of the draw order where the class drew those texts before. For example, a chip interleaves each pin's name with that pin's drawing, and a probe or a source paints its marks between shapes.
+  - The check measures them through a measuring layout and draws nothing; it ignores groups.
+- **Shared helpers.** `drawValues`, `drawLabeledNode`, `drawCenteredText` and the chip pin-name placement are split the same way: a layout helper computes the placement, and the painting layout draws it. The painting layout keeps today's draw-time effects (widening the bounding box for the text). The measuring layout has none.
+- **Explicit fonts.** Every placement names its font; no text inherits the graphics state.
+  - Before PL_AGA Phase 16a, many texts took whatever font was last set:
+    - the label texts of `LabeledNode` and `Rail`;
+    - the centred texts of gates, inverters, delay buffers, the ohmmeter and the ammeter;
+    - switch, relay and three-phase-motor labels;
+    - the pin letters of transistors, Darlingtons, SCRs and triacs.
+  - The op-amp, comparator, OTA and real op-amp elements left their sign font set. The image's text font therefore depended on the previous element and, offscreen, on where a slice ended. This is a rendering defect, fixed by Phase 16a step 0 ([§06_01](#SP_AGA_06_01)).
+- **No rotation.** No element draws rotated text, so a placement has no rotation. A text that an element draws inside a translate or scale gives its anchor and font size in circuit pixels.
+- **Pure layout.** Layout reads only:
+  - the element's properties and geometry;
+  - the document options (Show Values, European resistors);
+  - the session language;
+  - its `highlighted` argument.
+
+  It writes no field and no other state. Points that `draw()` wrote into fields for its texts are computed as locals in layout, or in `setPoints`: the source mark point of `VoltageElm`, the sign point of `ProbeElm`, the label point of `RelayContactElm`.
+- **Highlight.** `highlighted` is the element's `needsHighlight()` or its being dragged: it is selected or hovered, its scope is hovered, or it is the plot's Y element. A placement made only when `highlighted` is true is *transient*, for example the pin letters of transistors and MOSFETs. Transient placements are never checked or listed. A text whose font depends on the highlight, such as the bold label of a selected data recorder, is checked in its unhighlighted form. `checkLayout` always passes false.
+- **Simulated state in fonts.** A font that changes with simulated state is laid out by `checkLayout` as for the unfired state, for example the bold label of a fired stop trigger (`StopTriggerElm`: `needsHighlight() || stopped`). The painting layout passes the actual state.
+
+**Text and box**
+- **Text.** One non-transient placement whose string is not empty or whitespace. The element that placed it is its *owner*.
+- **Box.** The axis-aligned rectangle around the string's ink, in editor pixels. It uses the canvas text metrics (`actualBoundingBoxLeft`, `…Right`, `…Ascent`, `…Descent`) of one shared measuring context, with the placement's font, alignment and baseline, at the anchor. The over-bar is not part of the box.
+- **Session dependence.** Boxes depend on the session's fonts and language, as the drawing does. Keys are compared within one session.
+- **Live text.** A placement that shows a simulated quantity is marked live by its layout, and the rules skip it:
+  - readings of the ammeter, ohmmeter, voltmeter (probe), test point, wattmeter and decimal display;
+  - logic output levels;
+  - the sweep generator's present frequency;
+  - an output's voltage;
+  - a wire's current or voltage.
+- **Text elements.** The strings of a text element are texts like any other.
+- **Scope elements.** In-circuit scope elements and scope panels are outside the check.
+
+**Coverage**
+- **Text site.** A call of `drawString(`, `drawValues(`, `drawLabeledNode(`, `drawCenteredText(` or `fillText` in an element class's source, outside the layout classes. Only calls count: method declarations do not. The paint wrappers in `CircuitElm` count as layout classes until PL_AGA Phase 16b removes them. `PotElm`'s own `drawValues` overload is removed or renamed when `PotElm` is converted.
+- **Covered.** A class with a text site reports `textLayoutCovered()` false, and its elements give `text_not_covered`. The class becomes covered only when every text it draws goes through `layoutTexts` and no text site is left. A class with no text site of its own inherits its parent's coverage. A class with no text site anywhere in its hierarchy draws no text and is covered.
+- **Enforcement.** The live harness's static check `text_sites` fails any class that has a text site and does not report itself not covered.
+- **Overridden `draw()`.** A class that overrides `draw()` without calling `super.draw()` must also override `layoutTexts`, or report itself not covered. Examples: `JfetElm` of `MosfetElm`; `Switch2Elm`, `CrossSwitchElm`, `MBBSwitchElm` and `DPDTSwitchElm` of `SwitchElm`. `text_sites` checks this rule too.
+- **Stages.** After PL_AGA Phase 16a, the classes that 16a does not convert report `text_not_covered`. At the end of Phase 16b no class does, the paint wrappers (`drawValues`, `drawLabeledNode`, `drawCenteredText` as text sites) are gone, and `text_sites` is part of the default harness run.
+
+**Obstacles**
+- Of every element: the symbol region and the lines of the `symbol_overlap` body model ([§03_05](#SP_AGA_03_05)). A wire is one line.
+- **Approximate body model.** That model is approximate, not the drawn outline: a band around a two-point symbol, a disc for a one-post symbol, a shrunk rectangle for a derived one. "Cannot drift from the drawing" holds for the texts only. Calibration may flag a text near an op-amp triangle or a chip outline that the drawing clears, or miss one that touches the real outline.
+- Graphic elements (text, box, line) and post-less elements are no obstacles, as in `symbol_overlap`.
+- A `single` element that has at least one checked text has no symbol region here: its texts stand for its symbol (rule 3).
+
+**Rules.** `PAD` = 1 px, half the 2 px stroke of wires and leads. For a checked text of element A and an element B ≠ A:
+1. **Over a symbol.** The box grown by `PAD` shares an interior point with B's symbol region.
+2. **Crossed.** A line of B (a wire, or a lead or stem of B) has a point strictly inside the box grown by `PAD`.
+3. **Text on text.** The box and a checked text box of B, each grown by `PAD`, overlap with a positive area. Texts closer than 2 px read as one.
+
+**Exempt**
+- A's own symbol, lines and other texts: a label's stem, a chip's pin names inside its own body, a value text next to its own leads.
+- A pair that `symbol_overlap` reports. `checkLayout` computes that geometry-only rule itself, so the exemption does not depend on an earlier `getConnectivity`.
+
+**Reporting**
+- **One per pair.** One `text_overlap` per unordered element pair, from the first finding in rule order (1, 2, 3). Within one rule, the texts of the element with the smaller ID come first, then the texts in layout order. "Smaller" means earlier in the order `elements` is sorted in: string order by UTF-16 code units, so `R10` comes before `R2`.
+- **Fields.** `elements` holds both IDs, sorted. `at` is the centre of the found text's box, in cells, at 1/16-cell (whole-pixel) resolution: the centre is rounded to whole pixels. The key is built as in [§01_07](#SP_AGA_01_07). It stays the same while B moves and still meets the same text.
+- **Message.** It names the text (cut at 32 characters with `…`), its owner and B: `Text "10nF" of C1 is crossed by W7.`, `… lies over the symbol of U1.`, `… overlaps the text "VREF" of L2.`
+- **Hint.** "Give the text clear space: a value text sits beside the middle of its symbol (above a horizontal part, right of a vertical part, left of a vertical source); keep wires and other parts at least one cell from it, move or flip the part, or shorten the label."
+
+**Agreement with the image.** `render` paints the same placements ([§02_08](#SP_AGA_02_08)). For an element that is not highlighted, every text box, times `scale` and shifted by the image origin, is where the image shows that text.
 
 ## 04. State Transitions  {#SP_AGA_04}
 
@@ -1138,6 +1266,29 @@ A **content lifetime** begins when a document is created or its content is repla
 | user load (JSON) | invalid models entry | a JSON 2.2 file whose entry has `kind:"foo"`, or `from` | loads; a console/log message; the elements naming it fall back; no alert |
 | user paste (JSON) | models in a paste | paste of a JSON 2.2 fragment with a `models` entry the session lacks | the entry is defined; the pasted element uses it; one undo removes the elements (the entry stays) |
 | user import (JSON) | subcircuits only | "Import subcircuits only" of a JSON 2.2 file with a subcircuit model that uses a diode model, plus other entries and elements | the subcircuit and diode entries are defined; no other entry and no element is imported |
+| checkLayout | text crossed by a wire (live series T8) | Capacitor `C1` (0,0)→(0,4) `capacitance:"10 nF"`; Wire `W1` (1,−1)→(1,5), one cell right of the capacitor through its value text | one `text_overlap` (warning), `elements` [`C1`, `W1`], message contains `10nF` and "crossed"; `at` = centre of that text's box (right of the capacitor's middle); `getConnectivity` and the import's delta list no `text_overlap` |
+| checkLayout | key stability | the T8 fixture; `move W1 by {dx:3}`, then `checkLayout`; `move W1 by {dx:−3}`, `checkLayout`; `move W1 by {dy:0.5}`, `checkLayout` | none; then the same key as before; then still that key (`at` follows the text, not the wire); no mutation delta contains `text_overlap` |
+| checkLayout | clean value texts | `R1` Resistor (0,0)→(4,0) `resistance:"4.7k"` and a wire (−3,0)→(0,0); `C1` Capacitor (4,0)→(4,4); a vertical wire (7,−2)→(7,6), three cells right of `C1` | no issue |
+| checkLayout | label on label (live series T9) | LabeledNodes pointing up: `L1` (0,0)→(0,−1) `label:"VOUT_MAIN"`, `L2` (2,0)→(2,−1) `label:"VREF_MAIN"`; again with `L2` at (5,0)→(5,−1) | one `text_overlap` [`L1`, `L2`], message "overlaps the text"; five cells apart: none |
+| checkLayout | label text across a lead (live series T3) | `L1` LabeledNode (0,0)→(1,0) `label:"input"`; `R1` Resistor (2,−6)→(2,2), whose lower lead passes through the text | one `text_overlap` [`L1`, `R1`], "crossed by R1"; `getConnectivity` has no `symbol_overlap` for the pair |
+| checkLayout | text over a symbol | `L1` as above; Ground `G1` (2,−1)→(2,0), whose symbol lies in the text | one `text_overlap` [`G1`, `L1`], "lies over the symbol of G1" |
+| checkLayout | chip pin names | `DFlipFlop` `U1` with every pin wired two cells straight out; then a wire across `U1`'s body | first: no issue, and `includeBoxes` lists one box per pin name, inside `U1`'s body; second: no `text_overlap` for the pair (`getConnectivity` reports its `symbol_overlap`) |
+| checkLayout | own drawing exempt | a 2-cell vertical capacitor with value `"4.7 uF"`; labels on 1-cell stems in four directions; an op-amp with its `+`/`−` signs | no issue |
+| checkLayout | live texts | `Output` with `show_voltage:true`, `Probe`, `Ammeter` and a wire showing its current, each with its reading across another wire; `run` 5 ms; `checkLayout` again with `includeBoxes` | no `text_overlap`; equal results before and after the run; the readings are listed with `live: true` and `texts` does not count them (in Phase 16a, the classes not converted yet give `text_not_covered` instead) |
+| checkLayout | values hidden | the T8 fixture as legacy text whose options line hides values (flag 16) | no issue; the SVG `render` has no `10nF` text |
+| checkLayout | highlight does not count | the T8 fixture plus a `TransistorNPN` with a wire past its pin-letter positions, an `Output` and a `DataRecorder`; `checkLayout includeBoxes` with nothing highlighted; again with the transistor hovered (its pin letters drawn) and with the Output and the DataRecorder selected. Both are set through the harness-only `debugSetHighlight(handle, id, "hover" \| "select")`, which sets the editor's hovered element or the element's selected flag in that document and repaints. The SVG `render` shows the pin letters while hovered | equal issue keys and equal `boxes` in all three reads; no box for a pin letter |
+| render | explicit fonts | a `LabeledNode`, a `Gate`, an `Inverter`, a `Switch` with a label and a `TransistorNPN`, each listed once after an `OpAmp` and once before it; SVG and PNG renders, and the visible tab; PNG at one scale without forced slice breaks and with the harness-only `debugRenderSliceElements(1)` (a slice break after every element) | each SVG text's font equals its placement's `font`, whatever the element order and the slices; the label and centred texts use the units font; the two PNGs have equal pixels |
+| checkLayout | layout equals drawing, every type | one default element of every catalogue type (as the `synth` scenario does) in four directions, plus option variants: `MosfetElm` with show-Vt, `PotElm` with its show-values flag, switches and relays with labels, `TextElm` with two lines and an over-bar, `Output` with `show_voltage`, a wire showing its current; the examples `555int.txt`, `counter.txt` and `alu74181.txt`. SVG `render` and `checkLayout includeBoxes`, nothing highlighted | for every SVG `<text>` there is a box with the same string. Its `anchor` equals the SVG `x`/`y` within 0.5 px, after the SVG group transforms are applied. Its `align` and `baseline` match the SVG attributes through the canvas2svg mapping (`war/canvas2svg.js`):
+- `left`/`center`/`right` ↔ `start`/`middle`/`end`;
+- `middle` ↔ `central`, `top` ↔ `text-before-edge`, `bottom` ↔ `text-after-edge`.
+
+Its `font` equals the SVG font by parsed style, weight, size and family. Equal counts per element. A type with SVG texts and no placements reports `text_not_covered`. At the end of PL_AGA Phase 16b no type does |
+| checkLayout | text_not_covered | Phase 16a: a `PolarCapacitor` (not converted) with a wire through its value text; the value comes from the covered `CapacitorElm` layout, but the class has its own text site. After Phase 16b: a `Resistor` with the harness-only `debugForceNotCovered("Resistor")` and a wire through its value text | one `text_not_covered` (info) naming the class and the element's ID, no `at`; no `text_overlap` for that element's texts |
+| checkLayout | background = visible | the fixtures of the rows above, imported into a background document and into the visible document, read again after the visible tab has drawn | equal issue keys and boxes |
+| checkLayout | busy document | `checkLayout` while an agent `run` is in progress on the document | served; the same result as after the run, except the live boxes |
+| checkLayout | caps | 120 crossings (120 resistors with a wire through each value text); `includeBoxes` on 2100 resistors | 100 issues listed, `truncated: true`; 2000 boxes listed, `truncated: true` |
+| checkLayout | example corpus | every bundled example (`agent_connect_all`, `CIRCUITS=all`, which also calls `checkLayout`) | each example that reports `text_overlap` is in the calibration list of [PL_AGA Phase 16a](./agent-api.plan.md#PL_AGA_P16A) (updated by 16b), and its render shows each reported text crossed or overlapped; no other example reports one; the clean examples of `agent_overlap` report none unless listed there |
+| checkLayout | cost | 100 and 2500 elements of the measurement mix (Resistor, Capacitor, LabeledNode, TransistorNPN, OpAmp), headless, on the visible document (no bind); then the same on a background document | visible: median of 5 runs ≤ 5 ms at 100 and ≤ 60 ms at 2500 elements, each with 10 % tolerance; background: the same plus the scoped bind (≤ 3 ms). `importCircuit`, `applyEdits` and `getConnectivity` on these circuits stay within 10 % of their median before Phase 16 (5 runs, same machine and Chromium) |
 
 ### 05_02. Invariant Checks  {#SP_AGA_05_02}
 
@@ -1156,6 +1307,8 @@ A **content lifetime** begins when a document is created or its content is repla
 | No 0-V fallback | `read`/probe of a missing net never returns a value |
 | Pin names unique | For every catalogue type, `pins` has no duplicates |
 | Grid preference of other tabs has no effect | With Small Grid on in the active tab, `applyEdits add` of a potentiometer in a background document without the small-grid option gives the same posts as with it off; undo/redo and reload keep those posts |
+| `checkLayout` changes no state ([§02_16](#SP_AGA_02_16)) | `checkLayout` on the visible document (running, Show Current on, an in-circuit scope) and on a background document: the circuit text (scope lines unmasked), every element's bounding box and current-dot position, the scopes' graph state, the undo depth, the modified flag and the R1 list ([§03_08](#SP_AGA_03_08)) are equal before and after the call |
+| Drawing paints the layout ([§03_13](#SP_AGA_03_13) Coverage) | The static harness check `text_sites` scans `element/` for `drawString(`, `drawValues(`, `drawLabeledNode(`, `drawCenteredText(` and `fillText` outside the layout classes. It fails unless every class with such a site reports `textLayoutCovered()` false. It also fails a class that overrides `draw()` without `super.draw()` and inherits `layoutTexts` while its parent has texts. Run with every Phase 16a/16b change; part of the default run after 16b. The "layout equals drawing" row of [§05_01](#SP_AGA_05_01) checks the result |
 
 ### 05_03. Integration Scenarios  {#SP_AGA_05_03}
 
@@ -1194,6 +1347,8 @@ A **content lifetime** begins when a document is created or its content is repla
 | Dependent modules | [SP_MCP](./mcp-server.sp.md) and [SP_AGS](./agent-skill.sp.md) depend on it; removing the Agent API removes the MCP tool set |
 | Model definitions ([§03_11](#SP_AGA_03_11), [§03_12](#SP_AGA_03_12)) | Removing `defineModel`/`listModels` and the AgentCircuit `models` key leaves the catalogues as the editor makes them. The JSON `models` section can be dropped by reverting the exporter and importer (items 22, 23) alone. JSON 2.x is in development and carries no compatibility promise between its versions (resolved by the developer, 2026-10-04) |
 | External contracts | The existing scripting global keeps its documented methods; its element IDs come from the registry (same format) |
+| Layout check ([§02_16](#SP_AGA_02_16), [§03_13](#SP_AGA_03_13)) | Removing `checkLayout` removes the check; no other contract reports its issues. Once `circuit_layout` is released (toolsVersion 1.2), removing it is a breaking change and bumps `toolsVersion` MAJOR ([SP_MCP §06_01](./mcp-server.sp.md#SP_MCP_06_01)). The layout/paint split of the element text drawing changes no pixel after the explicit-font baseline: the PL_AGA Phase 16a/16b pixel comparison, the "layout equals drawing" row and the `render_text`/`xfmr_draw` scenarios check it. Each class's split can be reverted on its own; the class then reports itself not covered |
+| Explicit text fonts (defect fix, PL_AGA Phase 16a step 0; [§03_13](#SP_AGA_03_13)) | Before: label, centred, switch, relay and motor texts and transistor pin letters drew in whatever font the previous element or the slice start had set, so the same circuit could show different fonts on screen, in the image and between image slices. Now: every text site sets its font, the units font where it inherited one before. Its pixel changes are reviewed and accepted once, and the Phase 16 pixel baseline is taken after it. Revertible on its own (the old inheritance comes back) |
 
 ## 07. Design Decisions  {#SP_AGA_DEC}
 
@@ -1352,6 +1507,57 @@ The channel equations are symmetric (the solver swaps source and drain by voltag
 **Rationale:** The names must be the electrically and visually correct terminals; a terminal current with one sign rule lets an agent see body-diode conduction that the channel current hid (−5.7 nA reported while 11.4 mA flowed).
 **Resolved by:** main under the developer's instruction (2026-10-04) to swap the names directly without compatibility code, after measurement of every FET variant (live scenario `pin_names`).
 
+### DEC_09 — Where do the text boxes of `text_overlap` come from?  {#SP_AGA_DEC_09}
+
+> **Status:** resolved
+> **Date:** 2026-10-04
+
+**Question:** In the live agent series, agents drew value texts crossed by wires (T8: a 555 timer's ground wire through the capacitor's `10nF`), label texts over leads (T3) and labels whose texts touched (T9). The agents also skipped the render-look step of the skill (T7, and the re-runs of T8 and T9 said so). So, as with `symbol_overlap`, the tools must report the problem. Texts exist only at draw time: `drawValues` placement, `drawLabeledNode`, chip pin names and per-element `drawCenteredText`/`drawString` calls, in about 50 element classes. Their width needs font metrics. How does the checker get the text boxes without changing state, the same in a background and in the visible document?
+
+**Options considered:**
+| Option | Accuracy | Cost | Background = visible | Upkeep |
+|--------|----------|------|----------------------|--------|
+| A — text pass: the elements' own draw code into a 1 × 1 scratch canvas; the graphics wrapper records each string's ink box; draw state and bounding boxes saved and put back | Exact (same code as the image) | One draw per element, about 60 µs (measured) | Yes, with the bounding boxes put back | Draw side effects must be contained; live texts need an element-level declaration |
+| B — placement model: the checker re-implements each family's placement and measures with canvas `measureText` | Approximate; two copies of every placement rule, so drift is silent | About 5 µs per text (measured), no drawing | Yes | High |
+| C — separate layout function: every text-drawing class gets a layout method that returns the placements; `draw()` paints them and the check measures them with canvas `measureText` | Exact for every class that has the method; one source of truth, so no drift; a class without it is reported, never guessed | About 5 µs per text, no drawing, no state touched | Yes (geometry, properties and options only) | One refactor of about 50 classes' text drawing (shared helpers split into layout and paint) |
+| D — render only: report from the measure pass of `render` | Exact | None extra | Yes | Agents that skip the render never see it |
+
+**Decision:** C. A separate function computes the text boxes with the canvas measurement (`measureText`), as specified in [§03_13](#SP_AGA_03_13):
+- the shared helpers and every class's own `drawString` sites are split into layout (placements) and paint;
+- `draw()` = layout + paint; `checkLayout` = layout + measure;
+- a class without the layout method declares itself not covered (`text_not_covered`);
+- a harness check compares SVG texts with the boxes of every type.
+
+Also resolved (delegated, proposals accepted): live-reading texts are marked live and left out of the rules; the strings of text elements are texts.
+**Rationale:** The layout method makes the drawing and the check share one placement, so they cannot drift. The check draws nothing and changes no state, and its cost is a canvas measurement per text.
+**Resolved by:** the developer, 2026-10-04: "Зробити окрему функцію, яка буде це розраховувати. Наче, у canvas вже є така" ("Make a separate function that computes it. I think canvas already has one"). The layout/paint split that keeps placement and drawing from drifting apart was set by the coordinator from that answer.
+**Amended:** 2026-10-04 (design review round 1, lead):
+- Delivery is staged: Phase 16a, then 16b.
+- Every placement names its font (fixes the inherited-font defect).
+- Layout takes a `highlighted` input, and transient texts are never checked.
+- Placements carry draw-order groups; there is no rotation.
+- Coverage is enforced by the static check `text_sites`.
+
+### DEC_10 — When is `text_overlap` computed?  {#SP_AGA_DEC_10}
+
+> **Status:** resolved
+> **Date:** 2026-10-04
+
+**Question:** The connectivity rules run on every `getConnectivity` and twice per mutation (the delta compares before and after). Where does the text check run, and how is its cost bounded? `importCircuit` of 2500 elements already takes about 51 s (PL_AGA backlog).
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — every `getConnectivity` and mutation delta, with an element bound and an info issue above it | A crossing shows in the reply of the edit that made it; every edit pays the check |
+| B — `getConnectivity` only | The delta and the full report disagree on the issue set |
+| C — a time budget per pass | Issues appear and vanish with machine load; unstable keys |
+| D — `render` only | Agents that skip the render never see it |
+| E — a separate read-only call on demand (`checkLayout`, MCP tool `circuit_layout`) | Edits, imports and connectivity reads pay nothing. The agent calls it before reporting, as the skill's checklist says; with C of DEC_09 it is cheap enough to need no element bound |
+
+**Decision:** E. `checkLayout` ([§02_16](#SP_AGA_02_16)) is the only producer of `text_overlap` and `text_not_covered`. No mutation delta and no `getConnectivity` computes them. It has no element bound (about 5 µs per text), and its output is capped at 100 issues and 2000 boxes. The MCP surface is a new tool `circuit_layout`, so `toolsVersion` goes to 1.2. The skill's checklist calls it before every report, together with the render look.
+**Rationale:** The check costs nothing unless it is asked for. A separate tool is easier to find than a flag on another tool, and every MCP tool maps to one contract.
+**Resolved by:** the developer, 2026-10-04: "Окремим викликом, при необхідності" ("As a separate call, when needed"). The MCP surface (a new tool rather than an argument of an existing read-only tool) was recommended by the designer.
+
 ## Changelog
 
 | Date | Change |
@@ -1392,3 +1598,7 @@ The channel equations are symmetric (the solver swaps source and drain by voltag
 | 2026-10-04 | Phase 15 (skill and documentation for models): no contract change; the skill (SP_AGS §02_03/§02_04/§02_05/§05_03) and docs/JS_API.md (`defineModel`, `listModels`, `models` of import, `getCircuit` and files) now document §01_13, §02_15, §03_11 and §03_12 |
 | 2026-10-04 | Phase 15 follow-up: §01_13 Subcircuit source errors and the §05_01 source-errors row state when "some nodes are unconnected" fires (a group of used internal nodes without a path to ground; in a source with no ground-connected element the first group is tolerated, as by the editor); verified equal to the editor's Create Subcircuit (`agent_models_sub` `unconnected_*`). No code change |
 | 2026-10-04 | P-channel FET pin names corrected (SP_AGA_DEC_08): `PMOS`/`PJFET` post 1 `drain`, post 2 `source`; FET `current` is the drain terminal current positive into the drain, `voltage` drain minus source; §01_09, §03_02, §06_01 item 30 |
+| 2026-10-04 | Text overlap design (live agent series T3, T8, T9): §03_05 codes `text_overlap` (warning) and `text_check_skipped` (info); §03_13 text boxes (text pass, live texts, obstacles, rules, exemptions, reporting, 1000-element bound); §02_08 Texts; §05_01 text rows, §05_02 invariant "a connectivity read changes no state", §06_01 rollback row; SP_AGA_DEC_09 (text pass) and SP_AGA_DEC_10 (every analysis with an element bound), both proposed |
+| 2026-10-04 | Text overlap redesign after the developer resolved SP_AGA_DEC_09 (separate layout function, canvas `measureText`) and SP_AGA_DEC_10 (separate call on demand): new §02_16 `checkLayout` (MCP `circuit_layout`, toolsVersion 1.2) in the read-only contract class; `text_overlap`/`text_check_skipped` rows removed from §03_05 (layout issues are reported only by `checkLayout`; `text_check_skipped` dropped, new `text_not_covered` info); §03_13 rewritten as text layout (layout/paint split, live placements, not-covered classes); §02_08 Texts; §05_01 text rows now `checkLayout` (incl. every-type layout = drawing, busy, caps); §05_02 `checkLayout` changes no state, drawing paints the layout; §06_01 row |
+| 2026-10-04 | Text layout design review round 1 (lead: staged Phases 16a/16b): §03_13 code table (`text_overlap`, `text_not_covered`) cited from §01_07 `code`; every placement names its font (inherited-font defect, §06_01 row); `highlighted` layout input, transient texts never checked, §02_08 and §03_13 agreement for elements not highlighted; draw-order groups; no rotation; coverage by the static check `text_sites` (classes with text sites report not covered; `draw()` overrides without `super.draw()` must override `layoutTexts`); obstacles stated as the approximate `symbol_overlap` body model; `at` resolution, ID order for "smaller"; §02_16 TextBox anchor/align/baseline/font, errors through the common rules, bind cost, MCP size reduction; §05_01 rows highlight, explicit fonts, every-type with option variants and SVG attribute comparison, `text_not_covered`, cost tolerance; §05_02 `text_sites`; §06_01 MAJOR bump on removing a released tool |
+| 2026-10-04 | Text layout design review round 2: `text_not_covered` key (code + first 20 IDs in ID order); §03_13 `highlighted` = `needsHighlight()` or dragged, fonts from simulated state laid out unfired (stop trigger), text sites count calls only (paint wrappers are layout classes until 16b, PotElm overload renamed), inherited coverage; §05_01 `text_not_covered` 16a fixture is a PolarCapacitor, highlight set by `debugSetHighlight`, font slices compared with `debugRenderSliceElements(1)`, SVG alignment/baseline/font compared through the canvas2svg mapping |

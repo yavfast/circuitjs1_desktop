@@ -1,7 +1,7 @@
 # Implementation Plan: Agent API  {#PL_AGA}
 
 > **Code:** PL_AGA
-> **Status:** completed
+> **Status:** in-progress
 > **Created:** 2026-10-01
 > **Updated:** 2026-10-04
 >
@@ -63,6 +63,9 @@ When this plan is complete:
 | skill (apply) | gwt/jsni-patterns, gwt/build-pipeline | P1, P9 | JSNI and build |
 | skill (update) | automation/js-api-surface | P2, P10 | record the new ID scheme and the `CircuitJS1Agent` export |
 | skill (create) | automation/background-documents | P0 | the chosen mechanism and its pitfalls, if the prototype yields non-obvious findings |
+| skill (apply) | automation/background-documents | P16 | "Bounding boxes are draw-time state": layout must not touch them (the painting half keeps today's bounding-box growth) |
+| skill (update) | automation/agent-mcp-surface, automation/background-documents | P16 | `circuit_layout` (15 tools, toolsVersion 1.2); layout needs no draw |
+| cache (apply) | .dev_flow/cache/schematic-drawing-guidelines.md | P16 | rule 19: a text box never meets wires, symbols or other texts |
 
 ## Progress
 
@@ -82,6 +85,8 @@ When this plan is complete:
 - [x] [Phase 13 — Model definitions: subcircuits](#PL_AGA_P13)
 - [x] [Phase 14 — JSON v2 `models` section (format 2.2)](#PL_AGA_P14)
 - [x] [Phase 15 — Skill and documentation for models](#PL_AGA_P15)
+- [ ] [Phase 16a — Layout check: fonts, layout core and the common classes](#PL_AGA_P16A)
+- [ ] [Phase 16b — Layout check: remaining classes and enforcement](#PL_AGA_P16B)
 
 ## Phases
 
@@ -447,6 +452,160 @@ What to build: SP_AGS §02_03, §02_05 and §05_03 extended first; then `referen
 
   > **Follow-up (2026-10-04, coordinator round):** (1) `toolsVersion` 1.0 → 1.1 (SP_MCP_06_01: Phases 11–14 added `defineModel`, `circuit_types` `models`/`model`, AgentCircuit/`getCircuit` `models`): `mcp/server/src/index.js`, agent-format header, SKILL.md compatibility line (a 1.0 app has no model definitions) and hosts/claude-code.md, SP_MCP §06_01 and changelog, version checks in `test:mcp-unit`, `tests/mcp/e2e.mjs` (`oneRecord0600`) and the live `mcp_browser`; the bridge tests' fake instances keep their own `1.0` (they do not state the app's version). (2) "some nodes are unconnected" is not a Phase 13 defect: the agent build runs the same check as the editor (`findUnconnectedNodes` runs in both node allocations; element validation does not touch it). A source with no ground-connected element tolerates its first floating group of used internal nodes (the editor's `nodesWithGroundConnectionCount == 0 && first` rule), so one floating resistor in a groundless source is accepted by both; a grounded source or a second floating part is rejected by both. New live checks `unconnected_grounded/noGroundOneFloating/noGroundTwoFloating_agentAsEditor` in `agent_models_sub` compare `defineModel` with File → Create Subcircuit on the same circuit; SP_AGA §01_13, §05_01, agent-format and diagnostics.md state the rule. (3) C_AGS_03_01 step 10: the render look comes before every report. Runs: `agent_models_sub` 66/66, `json_models` 49/49, `agent_models` 75/75, `mcp_browser` 8/8, `test:mcp-unit` 26/26, bridge `npm test` 88/88, check-consistency offline and live (fresh scratch instance reporting toolsVersion 1.1) PASS. No Java change; the MCP bundle was rebuilt (`npm run build:mcp`) and copied into `target/site/scripts/`.
 
+### Phase 16a — Layout check (`checkLayout`, `text_overlap`): fonts, layout core and the common classes  {#PL_AGA_P16A}
+
+**Depends on:** Phase 15 (closed); [SP_AGA_DEC_09](./agent-api.sp.md#SP_AGA_DEC_09) (C: separate layout function, canvas `measureText`) and [SP_AGA_DEC_10](./agent-api.sp.md#SP_AGA_DEC_10) (E: separate call on demand), both resolved by the developer on 2026-10-04. Staging into 16a/16b by the lead (design review round 1).
+
+**Implements:**
+- [SP_AGA_02_16](./agent-api.sp.md#SP_AGA_02_16) `checkLayout`, with its row in the §02 contract classes.
+- [SP_AGA_03_13](./agent-api.sp.md#SP_AGA_03_13): the code table, explicit fonts, the `highlighted` input, groups, coverage with `text_not_covered` for the classes 16a leaves.
+- The §03_05 note on layout issues, the §01_07 `code` citation, [SP_AGA_02_08](./agent-api.sp.md#SP_AGA_02_08) Texts.
+- The [SP_AGA_06_01](./agent-api.sp.md#SP_AGA_06_01) rows "Layout check" and "Explicit text fonts".
+- MCP `circuit_layout` as already specified in [SP_MCP](./mcp-server.sp.md) §02_01, §02_02, §03_04, §05_01, §06_01 and DEC_01, with toolsVersion 1.2.
+- Skill text ([SP_AGS](./agent-skill.sp.md) §02_01, §02_02, §02_04).
+
+**Verify:**
+- [SP_AGA_05_01](./agent-api.sp.md#SP_AGA_05_01) `checkLayout` rows: T8, key stability, clean value texts, T9, T3, text over a symbol, chip pin names, own drawing exempt, live texts, values hidden, highlight does not count, background = visible, busy document, caps, example corpus, cost.
+- The 16a part of "layout equals drawing, every type": every converted type matches, and every other type reports `text_not_covered`.
+- `render` "explicit fonts"; `text_not_covered` (Phase 16a fixture).
+- [SP_AGA_05_02](./agent-api.sp.md#SP_AGA_05_02) "`checkLayout` changes no state" and "Drawing paints the layout" (`text_sites`).
+- Pixel equality against the step-0 baseline for every converted class (step 0 tooling).
+- These scenarios stay at baseline: `agent_overlap`, `agent_connect_all`, `render_text`, `xfmr_draw`, `geom_posts`, `agent_bg`.
+- `test:mcp-unit`; `test:mcp` (15 tools, toolsVersion 1.2, the two SP_MCP rows); `check-consistency.mjs` offline and live, with the §03_13 codes parsed.
+
+What to build:
+0. **Explicit text fonts (defect fix, own commit).** Every text site sets its font; where it inherits one today, that is `unitsFont()`. The sites:
+   - `drawLabeledNode` (`LabeledNodeElm`, `RailElm`);
+   - `drawCenteredText` in `GateElm`, `InverterElm`, `DelayBufferElm`, `OhmMeterElm` and `AmmeterElm`;
+   - `SwitchElm`, `RelayCoilElm`, `RelayContactElm`, `ThreePhaseMotorElm`;
+   - the pin letters of `TransistorElm`, `DarlingtonElm`, `SCRElm` and `TriacElm`.
+
+   `OpAmpElm`, `ComparatorElm`, `OTAElm` and `OpAmpRealElm` wrap their sign font in save/restore. Render the corpus before and after (the tooling below), review each pixel diff, and record the accepted diffs in the Result. **Then capture the pixel baseline on this commit.**
+   - *Pixel tooling.* The harness gets `RENDER_BASELINE=<dir>`, which writes a PNG `render` (scale 1) of every example, and `RENDER_COMPARE=<dir>`, which compares pixel data with those files. Same machine, same Chromium, same session language.
+   - Leave out examples with noise sources (`RandomUtils`).
+   - Live texts: render after the same `run` with `reset: true`, and mask the `live: true` boxes of `checkLayout` (grown by 2 px) once the contract exists.
+   - Slice breaks: a harness-only `debugRenderSliceElements(n)` forces an offscreen-render slice break after every n elements (0 = off). The "explicit fonts" row compares a PNG with n = 1 against one without forced breaks, at the same scale.
+   - Before any 16a change, record in the Result the median of 5 runs of `importCircuit`, `applyEdits` and `getConnectivity` on the 100- and 2500-element measurement mixes. That is the "before" of the §05_01 cost row; same machine and Chromium.
+1. **Text measurer (L0).** An interface `TextMeasurer` (string, font → advance width and ink extents left/right/ascent/descent). Two implementations:
+   - by `Graphics` over its context, for painting;
+   - a session-scoped measuring context: one 1 × 1 canvas kept on the renderer, whose font is set only when it changes.
+
+   The JSNI that reads `actualBoundingBox*` stays in `Graphics` (RULE_ARCH_008). Measured on 2026-10-04: about 4–5 µs per `measureText`, headless.
+2. **Placement types (L2, `element/`).**
+   - `TextPlacement`: string, font (required), anchor in circuit pixels, alignment, baseline, over-bar, live, `group`, colour only where a class paints a text in its own colour. No rotation.
+   - `TextLayout` (sink).
+   - A painting layout over `Graphics`. It sets the font, alignment and baseline, draws, draws the over-bar, and widens the bounding box the way the helpers do today. It paints one `group` at a time, when `draw()` asks for it.
+   - A measuring layout, which records `{owner, placement, box}`.
+   - `CircuitElm.layoutTexts(TextLayout out, boolean highlighted)` with an empty default.
+   - `textLayoutCovered()`: false for every class that still has a text site (each declares it, and `text_sites` checks it); true for classes without text.
+3. **Shared helpers split (`CircuitElm`, `ChipElm`).**
+   - `layoutValue(out, s, hs)`, from `drawValues`: includes the Rail/Sweep anchor and the VoltageElm/diagonal left side.
+   - `layoutLabel(out, str, pt1, pt2)`, from `drawLabeledNode`, with the `/` over-bar.
+   - `layoutCentered(out, s, x, y, cx)`, from `drawCenteredText`.
+   - The `ChipElm` pin-name and chip-label placement: one group per pin, painted where each pin is drawn today.
+
+   The old `draw*` helpers stay as thin paint wrappers until 16b.
+4. **Classes converted in 16a.** Each class:
+   - moves its text part into `layoutTexts`;
+   - paints each group at its old point in the draw order with the same colour;
+   - turns fields that `draw()` wrote for texts into locals or `setPoints` values;
+   - matches the pixel baseline.
+
+   The classes:
+   - **The 29 helper-only classes:** `AMElm`, `AudioOutputElm`, `CapacitorElm`, `ComparatorElm`, `CurrentElm`, `CustomTransformerElm`, `DataRecorderElm` (bold only when highlighted, checked unhighlighted), `DelayBufferElm`, `FMElm`, `GateElm`, `InductorElm`, `InverterElm`, `LabeledNodeElm`, `LDRElm`, `LogicInputElm`, `LogicOutputElm` (live), `OhmMeterElm` (reading live), `OpAmpElm`, `OpAmpRealElm`, `OTAElm`, `OutputElm` (voltage live), `RailElm`, `ResistorElm`, `StopTriggerElm` (its label is bold when highlighted or fired, `needsHighlight() || stopped`; the painting layout passes the fired state, `checkLayout` lays out the unfired one), `SweepElm` (live), `TappedTransformerElm`, `ThermistorNTCElm`, `TransformerElm`, `WireElm` (live).
+   - **`ChipElm`** (step 3; subclasses inherit).
+   - **`VoltageElm`**: the `+`/`*` mark and values; `plusPoint` (written at lines ~177–181) becomes a local; groups keep the mark between the waveform and the dots.
+   - **`PotElm`**: its own value override and the two-part values, including `FLAG_SHOW_VALUES`. Its own `drawValues(g, s, pt, hs)` overload is removed or renamed, so `text_sites` sees no declaration under that name.
+   - **`SwitchElm`**: the label. `Switch2Elm`, `CrossSwitchElm`, `MBBSwitchElm` and `DPDTSwitchElm` override `draw()` without `super.draw()`, so they override `layoutTexts` too, or report not covered.
+   - **`TextElm`**: lines and over-bar.
+   - **`ProbeElm`**: static `X`/`Y`, reading live; the `plusPoint` field becomes a local.
+   - **`MosfetElm`**: the show-Vt text. `JfetElm` overrides `draw()`, so it overrides `layoutTexts` or reports not covered.
+   - **Pin letters** of `TransistorElm`, `DarlingtonElm`, `SCRElm`, `TriacElm` and `MosfetElm`: transient placements, made only when `highlighted`. They are painted, never checked, and need no checked placement.
+
+   **Left for 16b**, each reporting `text_not_covered`: `AmmeterElm`, `CustomCompositeChipElm` (label), `DecimalDisplayElm`, `MotorProtectionSwitchElm`, `PolarCapacitorElm`, `RelayCoilElm`, `RelayContactElm`, `TestPointElm`, `ThreePhaseMotorElm`, `WattmeterElm`.
+5. **Checker (`agent/TextOverlap.java`, L3).**
+   - Texts come from the measuring layout with `highlighted = false`. Live placements are kept for `includeBoxes` and skipped by the rules. Transient placements are dropped.
+   - Obstacles and the symbol-overlap pairs come from `SymbolOverlap`: expose its body list and its reported pairs to the package, with no change to its own results. A `single` body with a checked text has no symbol region here.
+   - Rules with `PAD` = 1 px:
+     - rectangle vs `two_point` band (separating axes);
+     - rectangle vs `derived` rectangle or band;
+     - rectangle vs disc;
+     - segment vs rectangle (strict interior);
+     - rectangle vs rectangle (positive area).
+   - A 64 px spatial hash like `SymbolOverlap`.
+   - Reporting: pair order by UTF-16 ID order, `at` at the rounded centre, the message with the text cut at 32 characters, the hint of §03_13.
+   - `text_not_covered` per class, listing up to 20 IDs.
+   - Add `IssueCode.TEXT_OVERLAP` and `IssueCode.TEXT_NOT_COVERED`.
+6. **Contract (`agent/LayoutOps.java`).**
+   - `checkLayout {doc?, includeBoxes?}` inside `DocumentScope`. TextBox carries `anchor`, `align`, `baseline` and `font`.
+   - Read-only and served while busy. Caps: 100 issues, 2000 boxes, `truncated`.
+   - Register it in `AgentApi`. No change to `Connectivity` or `Mutation`.
+   - Harness diagnostics (not contract):
+     - `debugForceNotCovered(type)`;
+     - `debugSetHighlight(handle, id, "hover" | "select" | null)`, which sets that document's editor hovered element (`mouseElm`) or the element's selected flag, clears it with `null`, and repaints;
+     - `debugRenderSliceElements(n)` (step 0);
+     - `debugDocState(handle)` gains element bounding boxes and current-dot positions.
+7. **MCP server** (SP_MCP is already written):
+   - `tools.js` and `schemas.js` (output schema kept open);
+   - the size reduction `includeBoxes: false` with its note in `shaping.js`;
+   - `agent-format.md` (tool and both codes);
+   - `index.js` toolsVersion 1.2 and the server instructions;
+   - version and tool-list checks in `test:mcp-unit`, `tests/mcp/e2e.mjs` and the live `mcp_browser`. The e2e row "All 14 tools called" (`tests/mcp/e2e.mjs` ~1908) becomes 15 and calls `circuit_layout`.
+8. **Live harness.**
+   - A static check `text_sites`: grep `element/` for calls of `drawString(`, `drawValues(`, `drawLabeledNode(`, `drawCenteredText(` and `fillText` outside the layout classes. Method declarations do not count. The 16a paint wrappers in `CircuitElm` count as layout classes until 16b.
+     - Fail a class with such a call that does not report not covered.
+     - Fail a class that overrides `draw()` without `super.draw()` and inherits `layoutTexts` from a parent with texts.
+     - A class without calls of its own takes its parent's coverage.
+   - A scenario `agent_layout` with every Verify row.
+   - The every-type check: string, `anchor` ±0.5 px (SVG group transforms applied), `align`, `baseline` and `font` against the SVG `<text>` attributes. Alignment and baseline go through the canvas2svg mapping of `war/canvas2svg.js` (left/center/right ↔ start/middle/end; middle ↔ central, top ↔ text-before-edge, bottom ↔ text-after-edge). The font is compared by parsed style, weight, size and family. In four directions and with the option variants (Mosfet show-Vt, Pot show-values, switch and relay labels, TextElm multi-line with over-bar, Output `show_voltage`, a wire showing its current).
+   - Pixel compare through `RENDER_COMPARE`.
+   - `agent_connect_all` calls `checkLayout` per example and records `text_overlap`.
+   - `tests/live/README.md` rows.
+9. **Consistency script first.** `mcp/skill/tools/check-consistency.mjs` gets `'SP_AGA_03_13'` in `bySection` (rows of `### 03_13.` up to `## 04.`, same pattern as §03_05) and in `MIN_CODES` (2). This comes before the skill sync of step 11, so `text_overlap` and `text_not_covered` are required in `diagnostics.md`.
+10. **Corpus calibration.** Run `CIRCUITS=all node tests/live/harness.mjs agent_connect_all` and look at the render of every flagged example.
+    - A flag with no visible crossing or touching is a false positive: fix the layout or the rule, never per-example exemptions.
+    - Expect body-model findings near op-amp triangles and chip outlines (§03_13 Obstacles). Decide those against the drawing and record them.
+    - Record the confirmed examples (name, pair, text) in the Result: that is the calibration list of the §05_01 "example corpus" row.
+11. **Skill (SP_AGS first).**
+    - SP_AGS: §02_01 tool map row and checklist step ("call `circuit_layout` before reporting, together with the render look; fix every `text_overlap`"), §02_04 diagnostics rows for both codes, §02_02 where texts sit.
+    - SP_AGS §05_04 row: "App at toolsVersion 1.1 (no `circuit_layout`): do the render look only". The skill's compatibility text says the same.
+    - `SKILL.md`: rule, checklist, tool map, compatibility toolsVersion 1.2.
+    - `reference/diagnostics.md`: both codes; `text_not_covered` means look at the render.
+    - `reference/geometry.md`: value above a horizontal part, right of a vertical part, left of a vertical voltage source; label text beyond its stem end; pin names inside a chip.
+    - `check-consistency.mjs` offline and live.
+12. **Docs and skills.**
+    - docs/JS_API.md `checkLayout` row.
+    - `automation/agent-mcp-surface`: 15 tools; the pitfall "agents skip the render-look step" now points to `circuit_layout`.
+    - `automation/background-documents`: layout needs no draw.
+    - An element rule or skill note: texts are placed only in `layoutTexts`, with an explicit font.
+    - `.dev_flow/cache/agent-series/README.md`.
+    - Re-run T3, T8 and T9 of the live series.
+
+### Phase 16b — Layout check: remaining classes and enforcement  {#PL_AGA_P16B}
+
+**Depends on:** Phase 16a.
+
+**Implements:** [SP_AGA_03_13](./agent-api.sp.md#SP_AGA_03_13) Coverage "Stages" (no class reports `text_not_covered`, no paint wrappers, `text_sites` in the default run).
+
+**Verify:**
+- [SP_AGA_05_01](./agent-api.sp.md#SP_AGA_05_01): "layout equals drawing, every type" with no `text_not_covered` for any type; "`text_not_covered`" through `debugForceNotCovered`; "live texts" for the newly converted meters.
+- [SP_AGA_05_02](./agent-api.sp.md#SP_AGA_05_02) "Drawing paints the layout" (`text_sites` in the default run).
+- Pixel equality against the 16a step-0 baseline for every class converted here.
+- The 16a calibration list re-checked.
+
+What to build:
+1. **Order.** At the start, count how often each remaining class occurs in the live agent series and the bundled corpus, and record the counts in the Result. Convert the classes in that order: `AmmeterElm`, `CustomCompositeChipElm`, `DecimalDisplayElm`, `MotorProtectionSwitchElm`, `PolarCapacitorElm`, `RelayCoilElm`, `RelayContactElm`, `TestPointElm`, `ThreePhaseMotorElm`, `WattmeterElm`.
+2. **Each class:**
+   - `layoutTexts` with explicit fonts, live flags (Ammeter, DecimalDisplay, TestPoint and Wattmeter readings) and groups at the old draw-order points;
+   - texts drawn inside a translate/scale (`MotorProtectionSwitchElm`) give their anchor and font size in circuit pixels;
+   - `RelayContactElm`'s `ptSwitch` moves to a local or `setPoints`;
+   - `CustomCompositeChipElm`'s label names its own font (today it takes the last pin's font, which may be shrunk);
+   - its pixel diff against the baseline is 0;
+   - it reports covered.
+3. **Wrappers out.** Remove or privatise the paint wrappers `drawValues`, `drawLabeledNode` and `drawCenteredText`, so no element text site remains outside the layout classes.
+4. **Enforcement.** Make `text_sites` part of the default `npm run test:live`. Keep the `text_not_covered` test through `debugForceNotCovered`.
+5. **Docs.** Re-run calibration and update the Result list. Update the skill only if a code or text placement changed.
+
 ## Backlog
 
 - Split SP_AGA into an umbrella plus children (it is above the docs soft-split size) — return when: the next `/dev-flow audit docs` flags it, or SP_AGA grows further.
@@ -480,6 +639,7 @@ What to build: SP_AGS §02_03, §02_05 and §05_03 extended first; then `referen
   - A step set by `simControl configure` is lost when the user activates that tab or text import runs: `restoreUIState`/`updateTimeStepBar` and `TextCircuitImporter` set the time-step scrollbar, whose command re-quantises `maxTimeStep` to the 1-2-5 table capped at 10 µs (1 ms became 10 µs). Violates §02_09 "persistent settings". Root cause filed as audit backlog BL-D01 by that task (trigger re-pointed to this fix round). The fix must cover both paths: `TextCircuitImporter` (~:382 calls `timeStepBar.setValue`, which fires the slider command and re-quantises a file's own step) and `updateTimeStepBar`; close the BL-D01 row in `.dev_flow/audit/whole_20260930_173830.plan.md` with the fix commit.
   - C_AGA_03_04 "the same circuit and span produce the same result" does not hold for circuits with noise sources (`RandomUtils` static unseeded `java.util.Random`); runs with `reset: true` were otherwise bit-identical. Qualify the claim (or seed per run) in the concept/spec.
   - `StopTriggerElm` clears only the free-run flag, so it does not end an agent `run`: decide whether a stop trigger should end the run with `solver_stop`-like reason or stay as is, and record it in §02_10.
+- The visible tab's frame draw grows super-linearly with the element count (found while designing Phase 16, 2026-10-04, headless `debugCanvasPixels` on a mix of resistors, capacitors, labels, NPN transistors and op-amps: 250 elements 121 ms, 1000 elements 1448 ms per frame), while the offscreen render of the same circuits stays linear (about 60 µs per element draw). A large circuit in the visible tab therefore drops to under one frame per second. Profile `CircuitRenderer.updateCircuit` (post drawing, per-element scans) — return when: a user report of a slow large circuit, or the next performance round.
 
 ## Design Decisions  {#PL_AGA_DEC}
 
@@ -521,3 +681,7 @@ What to build: SP_AGS §02_03, §02_05 and §05_03 extended first; then `referen
 | 2026-10-04 | Phases 11–15: agent model definitions (SP_AGA_DEC_07, developer request); status back to in-progress |
 | 2026-10-04 | Phases 11–15 after SP_AGA model review round 1: codec in L2 (`io/`), `agent/ModelOps` orchestration only; no `replace`; ModelText import per phase; `parseRules` returns its error; subcircuit source read-only; JSON 2.2 user/agent paths; SP_MCP change within Phase 11; Phase 15 extends SP_AGS first |
 | 2026-10-04 | Model definitions review round 2 (Phases 11–15): Phase 11 fixes the CustomLogic text-load exception (`getModelWithNameOrCopy(name, null)`), ensures the logic `default`, uses a side-effect-free line builder, ignores JSON `models` in importCircuit until Phase 14, `name_taken` hint; Phase 13 validates subcircuit inner references; Phase 14 paste/subcircuits-only rows; Phase 15 skill notes |
+| 2026-10-04 | Phase 16 planned: text overlap check `text_overlap` / `text_check_skipped` (SP_AGA §03_13; live agent series T3, T8, T9), gated on SP_AGA_DEC_09/DEC_10 (proposed); Required Knowledge rows for P16; backlog: super-linear visible frame draw; status back to in-progress |
+| 2026-10-04 | Phase 16 re-planned after the developer resolved SP_AGA_DEC_09 (separate layout function with canvas `measureText`; layout/paint split of element text drawing) and SP_AGA_DEC_10 (separate on-demand call): `checkLayout` / MCP `circuit_layout` (toolsVersion 1.2), class list for the split, `text_not_covered`, pixel-equality and every-type layout = drawing checks; no change to connectivity or mutation deltas; backlog trigger of the frame-draw item re-pointed |
+| 2026-10-04 | Text layout design review round 1 (lead: staged alternative): Phase 16 split into 16a (step 0 explicit text fonts as a defect fix with reviewed pixel diffs and the pixel baseline after it; measurer and placement types with `highlighted`, groups and required fonts; helper split incl. chip pin names; 29 helper-only classes plus VoltageElm, PotElm, SwitchElm, TextElm, ProbeElm, MosfetElm vt, transient pin letters; checker, contract, MCP, `text_sites`, every-type check against SVG attributes with option variants, consistency script §03_13 before the skill, calibration, skill, T3/T8/T9) and 16b (10 remaining classes by frequency, each pixel-equal; paint wrappers removed; `text_sites` in the default run) |
+| 2026-10-04 | Text layout design review round 2: 16a step 0 adds `debugRenderSliceElements(n)` and the pre-16a cost medians; StopTriggerElm fired-state font; PotElm overload renamed; `debugSetHighlight`; e2e "All 14 tools called" → 15 with `circuit_layout`; `text_sites` counts calls only, wrappers are layout classes until 16b, inherited coverage; canvas2svg alignment/baseline mapping and parsed font comparison; SP_AGS §05_04 row for toolsVersion 1.1 apps; 16b: CustomCompositeChipElm label font |
