@@ -402,6 +402,8 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
     private static java.util.function.Consumer<Runnable> fallbackSink;
     /** Names of the entries legacy diode lines created or rewrote during the current recording. */
     private static java.util.Set<String> fallbackNames;
+    /** The recordings an inner {@link #beginFallbackRecording} interrupted, innermost last. */
+    private static final java.util.ArrayList<Object[]> fallbackOuter = new java.util.ArrayList<Object[]>();
 
     /**
      * [SP_AGA_03_04] "Model catalogues": while an import with a report runs, the entry that a
@@ -410,14 +412,23 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
      * the write; its name is remembered ({@link #isFallbackName}).
      */
     public static void beginFallbackRecording(java.util.function.Consumer<Runnable> sink) {
+        // nestable: an inner recording (a validation trial inside an import) saves the outer one
+        fallbackOuter.add(new Object[] { fallbackSink, fallbackNames });
         fallbackSink = sink;
         fallbackNames = new java.util.HashSet<String>();
     }
 
-    /** Ends {@link #beginFallbackRecording}. */
+    /** Ends {@link #beginFallbackRecording}; the recording it interrupted, if any, continues. */
+    @SuppressWarnings("unchecked")
     public static void endFallbackRecording() {
-        fallbackSink = null;
-        fallbackNames = null;
+        if (fallbackOuter.isEmpty()) {
+            fallbackSink = null;
+            fallbackNames = null;
+            return;
+        }
+        Object[] outer = fallbackOuter.remove(fallbackOuter.size() - 1);
+        fallbackSink = (java.util.function.Consumer<Runnable>) outer[0];
+        fallbackNames = (java.util.Set<String>) outer[1];
     }
 
     // created: the line made a new entry (a later model line of the same content then defines it);

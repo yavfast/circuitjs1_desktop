@@ -37,7 +37,7 @@ public abstract class CompositeElm extends CircuitElm {
     }
 
     // need to use escape() instead of converting spaces to _'s so composite elements can be nested
-    final int FLAG_ESCAPE = 1;
+    static final int FLAG_ESCAPE = 1;
 
     // list of elements contained in this subcircuit
     ArrayList<CircuitElm> compElmList;

@@ -180,6 +180,30 @@ public class CustomCompositeElm extends CompositeElm {
         model = CustomCompositeModel.getModelWithName(modelName);
         if (model == null)
             return;
+        applyModel(st);
+    }
+
+    /**
+     * [SP_AGA_01_13] "Inner references": builds the elements of {@code m}, a model that no
+     * catalogue holds yet, exactly as an instance of it builds them (validation trial; the element
+     * is discarded). Nested subcircuit and other models are looked up in the session catalogues.
+     *
+     * @throws RuntimeException when the model's node list or element dumps do not load
+     */
+    public static void trialLoad(CircuitDocument circuitDocument, CustomCompositeModel m) {
+        new CustomCompositeElm(circuitDocument, m);
+    }
+
+    private CustomCompositeElm(CircuitDocument circuitDocument, CustomCompositeModel m) {
+        super(circuitDocument, 0, 0);
+        modelName = m.name;
+        flags |= FLAG_ESCAPE;
+        model = m;
+        applyModel(null);
+    }
+
+    /** Builds the elements and posts of {@link #model} (from {@code st}, or its own element dumps). */
+    private void applyModel(StringTokenizer st) {
         postCount = model.extList.size();
         int externalNodes[] = new int[postCount];
         int i;

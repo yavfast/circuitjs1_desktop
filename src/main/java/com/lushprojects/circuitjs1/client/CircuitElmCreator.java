@@ -330,6 +330,56 @@ public class CircuitElmCreator {
         }
     }
 
+    /**
+     * The class names {@link #constructElement} creates, which must be kept equal to its case
+     * labels (the live harness scenario {@code agent_models_sub} compares the two lists in this
+     * source file).
+     */
+    private static final String[] CLASS_NAMES = {
+            "GroundElm", "ResistorElm", "RailElm", "SwitchElm", "Switch2Elm", "MBBSwitchElm", "NTransistorElm",
+            "TransistorElm", "PTransistorElm", "WireElm", "CapacitorElm", "PolarCapacitorElm", "InductorElm",
+            "DCVoltageElm", "VoltageElm", "VarRailElm", "PotElm", "OutputElm", "CurrentElm", "ProbeElm",
+            "DiodeElm", "ZenerElm", "ACVoltageElm", "ACRailElm", "SquareRailElm", "SweepElm", "LEDElm",
+            "AntennaElm", "LogicInputElm", "LogicOutputElm", "TransformerElm", "TappedTransformerElm",
+            "TransLineElm", "RelayElm", "RelayCoilElm", "RelayContactElm", "ThreePhaseMotorElm",
+            "MemristorElm", "SparkGapElm", "ClockElm", "AMElm", "FMElm", "LampElm", "PushSwitchElm",
+            "OpAmpElm", "OpAmpSwapElm", "NMosfetElm", "MosfetElm", "PMosfetElm", "NJfetElm", "JfetElm",
+            "PJfetElm", "AnalogSwitchElm", "AnalogSwitch2Elm", "SchmittElm", "InvertingSchmittElm",
+            "TriStateElm", "SCRElm", "DiacElm", "TriacElm", "TriodeElm", "VaractorElm", "TunnelDiodeElm",
+            "CC2Elm", "CC2NegElm", "InverterElm", "NandGateElm", "NorGateElm", "AndGateElm", "OrGateElm",
+            "XorGateElm", "DFlipFlopElm", "JKFlipFlopElm", "SevenSegElm", "MultiplexerElm", "DeMultiplexerElm",
+            "SipoShiftElm", "PisoShiftElm", "PhaseCompElm", "CounterElm", "DecadeElm", "RingCounterElm",
+            "TimerElm", "DACElm", "ADCElm", "LatchElm", "SeqGenElm", "VCOElm", "BoxElm", "LineElm", "TextElm",
+            "TFlipFlopElm", "SevenSegDecoderElm", "FullAdderElm", "HalfAdderElm", "MonostableElm",
+            "LabeledNodeElm", "UserDefinedLogicElm", "CustomLogicElm", "TestPointElm", "AmmeterElm",
+            "DataRecorderElm", "AudioOutputElm", "NDarlingtonElm", "DarlingtonElm", "PDarlingtonElm",
+            "ComparatorElm", "OTAElm", "NoiseElm", "VCVSElm", "VCCSElm", "CCVSElm", "CCCSElm", "OhmMeterElm",
+            "ScopeElm", "FuseElm", "LEDArrayElm", "CustomTransformerElm", "OptocouplerElm", "StopTriggerElm",
+            "OpAmpRealElm", "CustomCompositeElm", "AudioInputElm", "CrystalElm", "SRAMElm",
+            "TimeDelayRelayElm", "DCMotorElm", "LDRElm", "ThermistorNTCElm", "UnijunctionElm", "ExtVoltageElm",
+            "DecimalDisplayElm", "WattmeterElm", "Counter2Elm", "DelayBufferElm", "DataInputElm",
+            "MotorProtectionSwitchElm", "DPDTSwitchElm", "CrossSwitchElm"
+    };
+
+    /**
+     * [SP_AGA_01_13] "Inner references": whether {@link #constructElement} creates an element for
+     * this class name of a subcircuit model's node list, without creating one (side-effect free).
+     */
+    public static boolean isKnownClassName(String n) {
+        if (n == null) {
+            return false;
+        }
+        if (n.startsWith("CustomCompositeElm:")) {
+            return true;
+        }
+        for (String c : CLASS_NAMES) {
+            if (c.equals(n)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static CircuitElm constructElement(CircuitDocument doc, String n, int x1, int y1) {
         switch (n) {
             case "GroundElm":

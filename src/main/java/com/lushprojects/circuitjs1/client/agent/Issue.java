@@ -95,6 +95,11 @@ public final class Issue {
         return message;
     }
 
+    /** @return the fix hint, or null */
+    public String getHint() {
+        return hint;
+    }
+
     /**
      * @return the issue key: code + sorted elements + sorted posts + at, as
      *         {@code code|E1,E2|E1.a,E2.b|x,y} (empty segments stay empty)

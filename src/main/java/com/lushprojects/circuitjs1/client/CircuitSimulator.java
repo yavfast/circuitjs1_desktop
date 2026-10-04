@@ -738,6 +738,16 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // do the rest of the pre-stamp circuit analysis
     boolean preStampCircuit(boolean subcircuit) {
+        return preStampCircuit(subcircuit, true);
+    }
+
+    /**
+     * @param full false: the node allocation only ([SP_AGA_01_13] read-only subcircuit build) —
+     *             no element validation (which resets inductors without a current path, marks
+     *             current sources broken and records solver events), no time-step reset and no
+     *             analysis hook
+     */
+    boolean preStampCircuit(boolean subcircuit, boolean full) {
         nodeList.clear();
 
         calculateWireClosure();
@@ -783,7 +793,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
 
         findUnconnectedNodes();
-        if (!validateCircuit()) {
+        if (full && !validateCircuit()) {
             return false;
         }
 
@@ -791,8 +801,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         // only need this for validation
         nodesWithGroundConnection.clear();
 
-        timeStep = maxTimeStep;
         needsStamp = true;
+        if (!full) {
+            return true;
+        }
+        timeStep = maxTimeStep;
 
         CirSim cirSim = (CirSim) this.cirSim;
         cirSim.callAnalyzeHook();
@@ -1467,7 +1480,93 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return false;
     }
 
+    /** The editor's "Create Subcircuit": the selection (or the whole circuit) as a model; problems are alerted. */
     public CustomCompositeModel getCircuitAsComposite() {
+        CompositeBuild b = buildComposite(false);
+        if (b.problem != null && b.problem.alert != null) {
+            Window.alert(b.problem.alert);
+        }
+        return b.model;
+    }
+
+    /** A model built from the circuit, or the reason why none could be built. */
+    public static final class CompositeBuild {
+        /** The built model (no name, no catalogue entry), or null. */
+        public final CustomCompositeModel model;
+        /** Why no model was built, or null. */
+        public final CustomCompositeModel.BuildProblem problem;
+
+        CompositeBuild(CustomCompositeModel model, CustomCompositeModel.BuildProblem problem) {
+            this.model = model;
+            this.problem = problem;
+        }
+    }
+
+    /**
+     * [SP_AGA_01_13] "Subcircuit source": the whole circuit as a model, read-only. The selection is
+     * ignored; two labels with different texts on one node are a problem (the editor's build keeps
+     * the first silently). The build allocates the nodes the subcircuit way (no ground at a
+     * voltage source), without the element validation of an analysis (which would reset an
+     * inductor that has no current path in the subcircuit allocation); afterwards the circuit is
+     * analysed again with the normal node allocation, which gives every element the node and
+     * voltage-source numbers it had, so a circuit that was stamped keeps its stamp and the
+     * simulation goes on as if nothing happened (simulated time, time step, stop state, solver
+     * events, node voltages and element states are unchanged — R1 of [SP_AGA_03_08] when this
+     * is the active document). Call it while the document is bound.
+     */
+    public CompositeBuild buildCompositeReadOnly() {
+        boolean stamped = !needsStamp;
+        boolean pending = circuitInfo().dcAnalysisFlag;
+        int nodeCount = nodeList.size();
+        int vsCount = voltageSourceCount;
+        // the wire analysis of both passes may warn (a wire loop under recovery): the solver's
+        // warning and event state is put back afterwards, so the events stay those of the last analysis
+        ArrayList<SolverEvent> savedEvents = new ArrayList<>(solverEvents);
+        SolverEvent savedLastWarning = lastWarningEvent;
+        String savedWarningMessage = warningMessage;
+        String savedWarningKey = warningKey;
+        CircuitElm savedWarningElm = warningElm;
+        String savedStopMessage = stopMessage;
+        String savedStopKey = stopKey;
+        CircuitElm savedStopElm = stopElm;
+        boolean savedStabilizers = singularStabilizersActive;
+        CompositeBuild b;
+        try {
+            b = buildComposite(true);
+        } finally {
+            // the normal node allocation again (deterministic: the same numbers as before the build);
+            // like the build, without element validation, time-step reset or analysis hook
+            boolean ok = preStampCircuit(false, false);
+            if (ok && stamped && !pending && nodeList.size() == nodeCount && voltageSourceCount == vsCount) {
+                // the stamped matrices still describe this allocation
+                needsStamp = false;
+            }
+            solverEvents.clear();
+            solverEvents.addAll(savedEvents);
+            lastWarningEvent = savedLastWarning;
+            warningMessage = savedWarningMessage;
+            warningKey = savedWarningKey;
+            warningElm = savedWarningElm;
+            stopMessage = savedStopMessage;
+            stopKey = savedStopKey;
+            stopElm = savedStopElm;
+            singularStabilizersActive = savedStabilizers;
+        }
+        return b;
+    }
+
+    /**
+     * The shared builder of a subcircuit model: external pins are the non-internal labelled
+     * nodes (pin side from the label direction); wires, labels, scopes, graphics and ground are
+     * not part of the model; ground becomes the model's ground node. Never alerts: problems carry
+     * the editor's alert text and the agent's reason.
+     *
+     * @param readOnly           true (agent): ignore the selection, reject two labels with
+     *                           different texts on one node, and allocate the nodes without
+     *                           element validation ({@link #preStampCircuit(boolean, boolean)});
+     *                           false (editor): the selection when there is one, as before
+     */
+    CompositeBuild buildComposite(boolean readOnly) {
         String nodeDump;
         String dump;
         // String models = "";
@@ -1480,15 +1579,19 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 new Vector<>(), new Vector<>()
         };
         Vector<ExtListEntry> extList = new Vector<>();
-        boolean sel = isSelection();
+        boolean sel = !readOnly && isSelection();
+
+        // redo node allocation to avoid auto-assigning ground
+        if (!preStampCircuit(true, !readOnly)) {
+            // [SP_AGA_01_13] node allocation failure: the editor shows nothing (as before)
+            return new CompositeBuild(null, new CustomCompositeModel.BuildProblem(null,
+                    "the node allocation of the source circuit failed (its wire analysis reports an error"
+                            + (stopMessage != null ? ": " + stopMessage : "") + ")"));
+        }
 
         boolean[] used = new boolean[nodeList.size()];
         boolean[] extnodes = new boolean[nodeList.size()];
-
-        // redo node allocation to avoid auto-assigning ground
-        if (!preStampCircuit(true)) {
-            return null;
-        }
+        String[] extText = new String[nodeList.size()];
 
         // find all the labeled nodes, get a list of them, and create a node number map
         for (CircuitElm ce : elmList) {
@@ -1503,6 +1606,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
                 // already added to list?
                 if (extnodes[ce.getNode(0)]) {
+                    if (readOnly && !lne.text.equals(extText[ce.getNode(0)])) {
+                        // the editor's build keeps the first label silently
+                        return new CompositeBuild(null, new CustomCompositeModel.BuildProblem(null,
+                                "labels " + extText[ce.getNode(0)] + " and " + lne.text + " are on one node"));
+                    }
                     continue;
                 }
 
@@ -1522,9 +1630,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 // create ext list entry for external nodes
                 sideLabels[side].add(lne);
                 extnodes[ce.getNode(0)] = true;
+                extText[ce.getNode(0)] = lne.text;
                 if (ce.getNode(0) == 0) {
-                    Window.alert("Node \"" + lne.text + "\" can't be connected to ground");
-                    return null;
+                    return new CompositeBuild(null, new CustomCompositeModel.BuildProblem(
+                            "Node \"" + lne.text + "\" can't be connected to ground",
+                            "node " + lne.text + " can't be connected to ground"));
                 }
             }
         }
@@ -1580,8 +1690,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         for (ExtListEntry ent : extList) {
             if (!used[ent.node]) {
-                Window.alert("Node \"" + ent.name + "\" is not used!");
-                return null;
+                return new CompositeBuild(null, new CustomCompositeModel.BuildProblem(
+                        "Node \"" + ent.name + "\" is not used!", "node " + ent.name + " is not used"));
             }
         }
 
@@ -1592,16 +1702,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     first = false;
                     continue;
                 }
-                Window.alert("Some nodes are unconnected!");
-                return null;
+                return new CompositeBuild(null, new CustomCompositeModel.BuildProblem(
+                        "Some nodes are unconnected!", "some nodes are unconnected"));
             }
         }
 
-        CustomCompositeModel ccm = new CustomCompositeModel();
-        ccm.nodeList = nodeDump;
-        ccm.elmDump = dump;
-        ccm.extList = extList;
-        return ccm;
+        return new CompositeBuild(CustomCompositeModel.createDetached(nodeDump, dump, extList), null);
     }
 
     public boolean converged; // TODO: Add checkConverged()

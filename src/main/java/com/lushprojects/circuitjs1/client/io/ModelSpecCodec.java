@@ -12,6 +12,7 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.TransistorModel;
 import com.lushprojects.circuitjs1.client.element.BaseCircuitElm;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
+import com.lushprojects.circuitjs1.client.element.CompositeModelScan;
 import com.lushprojects.circuitjs1.client.util.UnitValues;
 
 import java.util.ArrayList;
@@ -33,10 +34,12 @@ import java.util.List;
  * side-effect-free {@code modelLine()}: {@code dump()} marks entries dumped and the logic
  * {@code dump()} rewrites its stored rules.
  * <p>
- * This build defines diode, transistor and logic models. A subcircuit definition is decoded as
- * far as its model line (so an identical existing entry is accepted) but cannot be registered yet
- * (PL_AGA Phase 13): {@link Definition#unsupported} says why. Logic rules are validated by the
- * editor's own parser ({@link CustomLogicModel#parseRules(String, int, int)}), never by alerts.
+ * All four kinds are defined. Logic rules are validated by the editor's own parser
+ * ({@link CustomLogicModel#parseRules(String, int, int)}), never by alerts. A subcircuit ModelSpec
+ * is built from its {@code source} document by the caller ({@link Context#buildSubcircuit}: the
+ * documents are the app shell's); a subcircuit ModelText is read into a detached model. The inner
+ * references of either ({@link Definition#innerField}) are checked by the caller after the
+ * create-only identity test ({@code element/CompositeModelScan} and a trial build).
  */
 public final class ModelSpecCodec {
 
@@ -51,6 +54,10 @@ public final class ModelSpecCodec {
     public static final String INVALID_VALUE = "invalid_value";
     public static final String UNKNOWN_PROPERTY = "unknown_property";
     public static final String UNKNOWN_MODEL = "unknown_model";
+    /** [SP_AGA_01_13] Subcircuit {@code source}: the handle names no open document. */
+    public static final String UNKNOWN_DOCUMENT = "unknown_document";
+    /** [SP_AGA_01_13] Subcircuit {@code source}: the source document is busy with an agent run. */
+    public static final String BUSY = "busy";
 
     /** [SP_AGA_01_13] ModelName pattern of a ModelSpec. */
     public static final String NAME_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$";
@@ -78,7 +85,7 @@ public final class ModelSpecCodec {
         public final String message;
         public final String hint;
 
-        Problem(String code, String field, String message, String hint) {
+        public Problem(String code, String field, String message, String hint) {
             this.code = code;
             this.field = field;
             this.message = message;
@@ -90,30 +97,34 @@ public final class ModelSpecCodec {
     public static final class Definition {
         public final String kind;
         public final String name;
-        /** The model line the definition produces (identical check), or null when it cannot be built. */
+        /** The model line the definition produces (the identical check). */
         public final String line;
-        /** The detached model to register (DiodeModel / TransistorModel / CustomLogicModel), or null. */
+        /** The detached model to register (a diode, transistor, logic or subcircuit model). */
         final Object model;
-        /** Why this build cannot register the definition (null when it can). */
-        public final String unsupported;
         /**
          * A problem that rejects the definition only as a new entry (a logic ModelText whose rules
          * do not parse): an identical existing entry is still accepted, as the text importer
          * accepts an identical model line ([SP_AGA_02_05] "Round trip"). Null when none.
          */
         public final Problem newEntryProblem;
+        /**
+         * Subcircuit only: the argument path whose inner references the caller checks after the
+         * identity test ({@code ….source} for a model built from a document, {@code ….modelText});
+         * null for other kinds.
+         */
+        public final String innerField;
 
-        Definition(String kind, String name, String line, Object model, String unsupported) {
-            this(kind, name, line, model, unsupported, null);
+        Definition(String kind, String name, String line, Object model) {
+            this(kind, name, line, model, null, null);
         }
 
-        Definition(String kind, String name, String line, Object model, String unsupported, Problem newEntryProblem) {
+        Definition(String kind, String name, String line, Object model, Problem newEntryProblem, String innerField) {
             this.kind = kind;
             this.name = name;
             this.line = line;
             this.model = model;
-            this.unsupported = unsupported;
             this.newEntryProblem = newEntryProblem;
+            this.innerField = innerField;
         }
 
         /** @return the detached model when it is a diode model, else null (used as a {@code from} base) */
@@ -130,6 +141,11 @@ public final class ModelSpecCodec {
         public CustomLogicModel logic() {
             return model instanceof CustomLogicModel ? (CustomLogicModel) model : null;
         }
+
+        /** @return the detached model when it is a subcircuit model, else null (its pins and dumps) */
+        public CustomCompositeModel composite() {
+            return model instanceof CustomCompositeModel ? (CustomCompositeModel) model : null;
+        }
     }
 
     /** What decoding needs from its caller. */
@@ -142,6 +158,17 @@ public final class ModelSpecCodec {
 
         /** @return a parameter string as the caller's value rules read it (e.g. outer quotes dropped) */
         String valueText(String raw);
+
+        /**
+         * [SP_AGA_01_13] "Subcircuit source": builds the model from the whole circuit of the open
+         * document {@code handle} without changing that document, named {@code name}, with the
+         * chip label shown when {@code showLabel}. Problems ({@link #UNKNOWN_DOCUMENT},
+         * {@link #BUSY}, {@link #INVALID_VALUE} naming {@code field}) go to {@code problems}.
+         *
+         * @return the detached model (no catalogue entry), or null after a problem
+         */
+        CustomCompositeModel buildSubcircuit(String handle, String name, boolean showLabel, String field,
+                List<Problem> problems);
     }
 
     // ---------------------------------------------------------------- catalogue access
@@ -294,6 +321,58 @@ public final class ModelSpecCodec {
         return out;
     }
 
+    /** @return the names of every entry of a kind's catalogue, internal ones included */
+    public static List<String> names(String kind) {
+        List<String> out = new ArrayList<>();
+        List<? extends Object> all;
+        switch (kind) {
+            case DIODE:
+                all = DiodeModel.entries();
+                break;
+            case TRANSISTOR:
+                all = TransistorModel.entries();
+                break;
+            case LOGIC:
+                all = CustomLogicModel.entries();
+                break;
+            case SUBCIRCUIT:
+                all = CustomCompositeModel.entries();
+                break;
+            default:
+                return out;
+        }
+        for (Object e : all) {
+            String n = nameOf(e);
+            if (n != null && !out.contains(n)) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Removes an entry that a validation trial created (a non-built-in entry only); used to put a
+     * catalogue back after a trial build ([SP_AGA_01_13] "Inner references").
+     */
+    public static void discard(String kind, String name) {
+        switch (kind) {
+            case DIODE:
+                DiodeModel.removeFallback(name, DiodeModel.findEntry(name));
+                break;
+            case TRANSISTOR:
+                TransistorModel.removeFallback(name, TransistorModel.findEntry(name));
+                break;
+            case LOGIC:
+                CustomLogicModel.discardEntry(name);
+                break;
+            case SUBCIRCUIT:
+                CustomCompositeModel.discardEntry(name);
+                break;
+            default:
+                break;
+        }
+    }
+
     /** @return the first token of a model line of that kind */
     public static String lineToken(String kind) {
         switch (kind) {
@@ -332,6 +411,11 @@ public final class ModelSpecCodec {
         if (d.model instanceof CustomLogicModel) {
             Runnable r = CustomLogicModel.entryRestorer(d.name);
             CustomLogicModel.defineEntry((CustomLogicModel) d.model);
+            return r;
+        }
+        if (d.model instanceof CustomCompositeModel) {
+            Runnable r = CustomCompositeModel.entryRestorer(d.name);
+            CustomCompositeModel.defineEntry((CustomCompositeModel) d.model);
             return r;
         }
         throw new IllegalStateException("model kind " + d.kind + " cannot be registered");
@@ -404,14 +488,110 @@ public final class ModelSpecCodec {
             case LOGIC:
                 return decodeLogicSpec(o, name, where, problems);
             default:
-                if (o.get("source") == null) {
-                    problems.add(invalid(where + ".source", "is required", "Pass source: {doc} naming the document to build from."));
-                    return null;
-                }
-                // [PL_AGA_P13] built from a source document in a later build
-                return new Definition(kind, name, null, null,
-                        "subcircuit models built from a source document are not supported by this build yet");
+                return decodeSubcircuitSpec(o, name, where, ctx, problems);
         }
+    }
+
+    // ---------------------------------------------------------------- subcircuit
+
+    /** [SP_AGA_01_13] Subcircuit ModelSpec: {@code source: {doc}} and {@code showLabel}. */
+    private static Definition decodeSubcircuitSpec(JSONObject o, String name, String where, Context ctx,
+            List<Problem> problems) {
+        String sw = where + ".source";
+        JSONValue src = o.get("source");
+        JSONObject so = src == null ? null : src.isObject();
+        if (so == null) {
+            problems.add(invalid(sw, src == null ? "is required" : "must be an object {doc}",
+                    "Pass source: {doc: \"d2\"} naming the open document whose circuit becomes the model."));
+            return null;
+        }
+        for (String key : so.keySet()) {
+            if (!"doc".equals(key)) {
+                problems.add(invalid(sw + "." + key, "is not a field of a subcircuit source", "A source is {doc}."));
+            }
+        }
+        JSONValue dv = so.get("doc");
+        if (dv == null || dv.isString() == null) {
+            problems.add(invalid(sw + ".doc", dv == null ? "is required" : "must be a document handle string",
+                    "Pass the handle of the open document to build from (listDocuments lists them)."));
+        }
+        JSONValue lv = o.get("showLabel");
+        if (lv != null && lv.isBoolean() == null) {
+            problems.add(invalid(where + ".showLabel", "must be true or false", "Omit showLabel to show the model name on the chip."));
+        }
+        if (!problems.isEmpty()) {
+            return null;
+        }
+        if (ctx == null) {
+            problems.add(invalid(sw, "cannot be built here", "Define the subcircuit with defineModel or importCircuit models."));
+            return null;
+        }
+        boolean showLabel = lv == null || lv.isBoolean().booleanValue();
+        CustomCompositeModel m = ctx.buildSubcircuit(dv.isString().stringValue(), name, showLabel, sw, problems);
+        if (m == null) {
+            return null;
+        }
+        return new Definition(SUBCIRCUIT, name, m.modelLine(), m, null, sw);
+    }
+
+    /** What the inner-reference check of a subcircuit model resolves names against. */
+    public interface InnerNames {
+        /** @return true when a model of {@code kind} named {@code name} can be used by the model's elements */
+        boolean exists(String kind, String name);
+
+        /** @return the node list of the subcircuit model {@code name} (for its nested dumps), or null */
+        String subcircuitNodeList(String name);
+    }
+
+    /** @return the model kind of an element's model catalogue ({@code zener} → {@code diode}), or null */
+    public static String kindOfCatalogue(String catalogue) {
+        if ("zener".equals(catalogue)) {
+            return DIODE;
+        }
+        return isKind(catalogue) ? catalogue : null;
+    }
+
+    /**
+     * [SP_AGA_01_13] "Inner references", the static part: the class names of the model's node
+     * list must name element classes, and the model-name fields of its element dumps must resolve
+     * through {@code names}; a nested subcircuit that is the model itself is a recursion. A model
+     * without a pin is rejected first ([SP_AGA_01_13] "Pins"). No element is built and no
+     * catalogue is touched.
+     *
+     * @return the reason of the first problem ("inner model x unknown", …), or null
+     */
+    public static String innerProblem(final CustomCompositeModel m, final InnerNames names) {
+        if (m.extList == null || m.extList.isEmpty()) {
+            return "a subcircuit needs at least one pin";
+        }
+        final String[] first = new String[1];
+        CompositeModelScan.scan(m.nodeList, m.elmDump, new CompositeModelScan.Resolver() {
+            @Override
+            public String nodeList(String name) {
+                return name.equals(m.name) ? null : names.subcircuitNodeList(name);
+            }
+        }, new CompositeModelScan.Listener() {
+            @Override
+            public void reference(String catalogue, String name) {
+                if (first[0] != null) {
+                    return;
+                }
+                String kind = kindOfCatalogue(catalogue);
+                if (SUBCIRCUIT.equals(kind) && name.equals(m.name)) {
+                    first[0] = "a Subcircuit inside uses the model being defined, " + clip(name) + " (recursion)";
+                } else if (kind != null && !names.exists(kind, name)) {
+                    first[0] = "inner model " + clip(name) + " unknown";
+                }
+            }
+
+            @Override
+            public void unknownClass(String className) {
+                if (first[0] == null) {
+                    first[0] = "unknown element class " + clip(className) + " in the node list";
+                }
+            }
+        });
+        return first[0];
     }
 
     // ---------------------------------------------------------------- diode
@@ -518,7 +698,7 @@ public final class ModelSpecCodec {
             bv = core[3] != null ? core[3] : base.breakdownVoltage;
         }
         DiodeModel dm = DiodeModel.createDetached(name, flags, is, rs, n, bv, storedFc);
-        return new Definition(DIODE, name, dm.modelLine(), dm, null);
+        return new Definition(DIODE, name, dm.modelLine(), dm);
     }
 
     private static DiodeModel diodeBase(JSONObject o, String where, Context ctx, List<Problem> problems) {
@@ -613,7 +793,7 @@ public final class ModelSpecCodec {
         if (!problems.isEmpty()) {
             return null;
         }
-        return new Definition(TRANSISTOR, name, tm.modelLine(), tm, null);
+        return new Definition(TRANSISTOR, name, tm.modelLine(), tm);
     }
 
     /** "inf" (stored as the inverse 0) is read as positive infinity. */
@@ -694,7 +874,7 @@ public final class ModelSpecCodec {
                     + clip(rules.get(Math.min(line, rules.size() - 1))) + "')", ruleHint(in.length, out.length)));
             return null;
         }
-        return new Definition(LOGIC, name, lm.modelLine(), lm, null);
+        return new Definition(LOGIC, name, lm.modelLine(), lm);
     }
 
     /** Validates one side's pin names into {@code problems}; {@code seen} collects the names so far. */
@@ -772,11 +952,11 @@ public final class ModelSpecCodec {
             switch (kind) {
                 case DIODE: {
                     DiodeModel dm = DiodeModel.undumpDetached(name, st);
-                    return new Definition(kind, name, dm.modelLine(), dm, null);
+                    return new Definition(kind, name, dm.modelLine(), dm);
                 }
                 case TRANSISTOR: {
                     TransistorModel tm = TransistorModel.undumpDetached(name, st);
-                    return new Definition(kind, name, tm.modelLine(), tm, null);
+                    return new Definition(kind, name, tm.modelLine(), tm);
                 }
                 case LOGIC: {
                     // [SP_AGA_01_13] "Line": the rules are validated by the editor's parser, never alerted
@@ -786,12 +966,13 @@ public final class ModelSpecCodec {
                     Problem bad = lm.getRuleError() == null ? null
                             : invalid(mw, "has rules that do not parse at rule line " + (lm.getRuleErrorLine() + 1)
                                     + ": " + lm.getRuleError(), ruleHint(lm.inputs.length, lm.outputs.length));
-                    return new Definition(kind, name, lm.modelLine(), lm, null, bad);
+                    return new Definition(kind, name, lm.modelLine(), lm, bad, null);
                 }
-                default:
-                    // [PL_AGA_P13] inner-reference validation and registration come with the subcircuit definitions
-                    return new Definition(kind, name, CustomCompositeModel.normalizedLine(name, st), null,
-                            "subcircuit ModelText is not supported by this build yet");
+                default: {
+                    // [SP_AGA_01_13] the inner references are checked after the identity test
+                    CustomCompositeModel cm = CustomCompositeModel.undumpDetached(name, st);
+                    return new Definition(kind, name, cm.modelLine(), cm, null, mw);
+                }
             }
         } catch (RuntimeException e) {
             problems.add(invalid(mw, "has a field that does not parse" + (e.getMessage() != null ? " (" + clip(e.getMessage()) + ")" : ""),

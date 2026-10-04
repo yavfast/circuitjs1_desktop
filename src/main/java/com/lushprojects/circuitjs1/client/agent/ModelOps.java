@@ -7,11 +7,18 @@ import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomCompositeModel;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
+import com.lushprojects.circuitjs1.client.DiodeModel;
+import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.ExtListEntry;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.CompositeModelScan;
+import com.lushprojects.circuitjs1.client.element.CustomCompositeElm;
+import com.lushprojects.circuitjs1.client.element.MosfetElm;
+import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
 
 import java.util.ArrayList;
@@ -30,8 +37,14 @@ import java.util.Map;
  *     name is always taken. Nothing is written while validating.</li>
  * <li><b>Application.</b> Each new definition records its entry restorer before it is written
  *     ({@link #define}); the caller's rollback runs them in reverse.</li>
+ * <li><b>Subcircuits.</b> A ModelSpec is built from its {@code source} document
+ *     ({@link Scope#buildSubcircuit}: read-only, inside the source's {@code DocumentScope}); a
+ *     subcircuit definition's inner references are checked after the identity test — the static
+ *     scan of {@link ModelSpecCodec#innerProblem}, then a trial build with a restorer for every
+ *     catalogue entry it creates ({@link #trialBuild}).</li>
  * <li><b>listModels</b> ([SP_AGA_02_15]), ModelRecords and the usage scan ({@code usedBy}), and the
- *     models of a document for {@code getCircuit} ([SP_AGA_02_05]).</li>
+ *     models of a document for {@code getCircuit} ([SP_AGA_02_05]) — both through the dependency
+ *     closure of subcircuit models ([SP_AGA_03_11] "Dependencies").</li>
  * </ul>
  */
 final class ModelOps {
@@ -55,6 +68,16 @@ final class ModelOps {
     /** The definitions of one call being validated: kind → name → new definition, in order. */
     static final class Scope implements ModelSpecCodec.Context {
         private final Map<String, LinkedHashMap<String, ModelSpecCodec.Definition>> created = new HashMap<>();
+        /** The new definitions in call order (all kinds). */
+        private final List<ModelSpecCodec.Definition> order = new ArrayList<>();
+        final CirSim sim;
+        /** The document the call changes (a subcircuit source must be another one). */
+        final CircuitDocument target;
+
+        Scope(CirSim sim, CircuitDocument target) {
+            this.sim = sim;
+            this.target = target;
+        }
 
         @Override
         public ModelSpecCodec.Definition pending(String kind, String name) {
@@ -87,7 +110,76 @@ final class ModelOps {
                 created.put(d.kind, m);
             }
             m.put(d.name, d);
+            order.add(d);
         }
+
+        /**
+         * [SP_AGA_01_13] "Subcircuit source": checks the source handle (open, not busy, not the
+         * target) and builds the model from the source's whole circuit inside its
+         * {@code DocumentScope}, read-only ({@code CircuitSimulator.buildCompositeReadOnly}),
+         * with the editor's pin layout; its stored circuit is the source's own text dump.
+         */
+        @Override
+        public CustomCompositeModel buildSubcircuit(String handle, String name, boolean showLabel, String field,
+                List<ModelSpecCodec.Problem> problems) {
+            final CircuitDocument src = DocumentHandles.find(sim, handle);
+            if (src == null) {
+                Issue u = DocumentHandles.unknown(sim, handle);
+                problems.add(new ModelSpecCodec.Problem(ModelSpecCodec.UNKNOWN_DOCUMENT, field + ".doc", u.getMessage(), u.getHint()));
+                return null;
+            }
+            if (src.isAgentBusy()) {
+                Issue b = AgentApi.busyIssue(src);
+                problems.add(new ModelSpecCodec.Problem(ModelSpecCodec.BUSY, field + ".doc", b.getMessage(), b.getHint()));
+                return null;
+            }
+            if (src == target) {
+                problems.add(sourceProblem(field, "a subcircuit cannot be built from the document it is defined in",
+                        "Build the block in its own document (createDocument), then name that document as the source."));
+                return null;
+            }
+            CircuitSimulator.CompositeBuild b = DocumentScope.call(sim, src, () -> src.simulator.buildCompositeReadOnly());
+            CustomCompositeModel.BuildProblem problem = b.problem;
+            CustomCompositeModel m = b.model;
+            if (problem == null) {
+                problem = m.layoutPins();
+            }
+            if (problem != null) {
+                problems.add(sourceProblem(field, problem.reason, SOURCE_HINT));
+                return null;
+            }
+            m.name = name;
+            m.setShowLabel(showLabel);
+            // [SP_AGA_01_13] "Build": modelCircuit is the source document's own circuit dump
+            m.modelCircuit = DocumentScope.call(sim, src,
+                    () -> CircuitFormatRegistry.getDefault().createExporter().export(src));
+            return m;
+        }
+
+        /** Inner-reference names: the session catalogues plus the earlier definitions of the call. */
+        ModelSpecCodec.InnerNames innerNames() {
+            return new ModelSpecCodec.InnerNames() {
+                @Override
+                public boolean exists(String kind, String name) {
+                    return pending(kind, name) != null || ModelSpecCodec.entry(kind, name) != null;
+                }
+
+                @Override
+                public String subcircuitNodeList(String name) {
+                    ModelSpecCodec.Definition d = pending(ModelSpecCodec.SUBCIRCUIT, name);
+                    CustomCompositeModel m = d != null ? d.composite() : CustomCompositeModel.findEntry(name);
+                    return m == null ? null : m.nodeList;
+                }
+            };
+        }
+    }
+
+    private static final String SOURCE_HINT = "Fix the source circuit: label every external pin with a labelled node "
+            + "(one label per node, none on ground, each used by an element) and connect every internal node.";
+
+    private static ModelSpecCodec.Problem sourceProblem(String field, String reason, String hint) {
+        return new ModelSpecCodec.Problem(ModelSpecCodec.INVALID_VALUE, field,
+                "Argument '" + field + "': " + reason + ".", hint);
     }
 
     /** A validated definition and its outcome. */
@@ -145,9 +237,7 @@ final class ModelOps {
             issues.add(Issue.of(codeOf(p.code), p.message, p.hint));
             return null;
         }
-        if (d.unsupported != null) {
-            issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "': " + d.unsupported + ".",
-                    "Define diode, transistor and logic models; a " + d.kind + " model can be used when the session already has it."));
+        if (d.innerField != null && !checkInner(d, scope, issues)) {
             return null;
         }
         scope.add(d);
@@ -155,6 +245,12 @@ final class ModelOps {
     }
 
     private static IssueCode codeOf(String problemCode) {
+        if (ModelSpecCodec.UNKNOWN_DOCUMENT.equals(problemCode)) {
+            return IssueCode.UNKNOWN_DOCUMENT;
+        }
+        if (ModelSpecCodec.BUSY.equals(problemCode)) {
+            return IssueCode.BUSY;
+        }
         if (ModelSpecCodec.UNKNOWN_PROPERTY.equals(problemCode)) {
             return IssueCode.UNKNOWN_PROPERTY;
         }
@@ -162,6 +258,80 @@ final class ModelOps {
             return IssueCode.UNKNOWN_MODEL;
         }
         return IssueCode.INVALID_VALUE;
+    }
+
+    /**
+     * [SP_AGA_01_13] "Inner references" of a new subcircuit definition: the static scan (class
+     * names, model-name fields against the session plus the earlier definitions of the call,
+     * recursion), then a trial build ({@link #trialBuild}). Any problem is {@code invalid_value}
+     * naming {@code source} or {@code modelText}; the catalogues are unchanged either way.
+     *
+     * @return true when the definition passes
+     */
+    private static boolean checkInner(ModelSpecCodec.Definition d, Scope scope, List<Issue> issues) {
+        CustomCompositeModel m = d.composite();
+        String reason = ModelSpecCodec.innerProblem(m, scope.innerNames());
+        if (reason == null) {
+            reason = trialBuild(m, scope);
+        }
+        if (reason == null) {
+            return true;
+        }
+        issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + d.innerField + "': " + reason + ".",
+                m.extList == null || m.extList.isEmpty() ? "Give the subcircuit at least one external pin (a labelled node in its source)."
+                        : "Define the models the subcircuit's elements use first (dependencies first: earlier defineModel edits "
+                        + "or earlier models entries), or pass the model line exactly as getCircuit returns it."));
+        return false;
+    }
+
+    /**
+     * Builds the elements of {@code m} once, as a {@code Subcircuit} of it would, in the call's
+     * target document, and discards them. The earlier definitions of the call are registered for
+     * the trial, and every catalogue entry the trial creates or rewrites (legacy forward-drop
+     * diodes, fallback logic models, those registrations) is put back afterwards, as are the
+     * session-wide MOSFET display flags ([SP_AGA_03_08] R1).
+     *
+     * @return null, or the reason when building throws (its message)
+     */
+    static String trialBuild(CustomCompositeModel m, Scope scope) {
+        final List<Runnable> restorers = new ArrayList<>();
+        Map<String, List<String>> before = new HashMap<>();
+        for (String k : ModelSpecCodec.KINDS) {
+            before.put(k, ModelSpecCodec.names(k));
+        }
+        // a MOSFET's load constructor sets the session-wide display flags from its dump
+        int mosfetFlags = MosfetElm.getGlobalFlags();
+        DiodeModel.beginFallbackRecording(restorers::add);
+        CustomLogicModel.beginFallbackRecording(restorers::add);
+        String reason = null;
+        try {
+            for (ModelSpecCodec.Definition p : scope.order) {
+                if (ModelSpecCodec.entry(p.kind, p.name) == null) {
+                    restorers.add(ModelSpecCodec.define(p));
+                }
+            }
+            CustomCompositeElm.trialLoad(scope.target, m);
+        } catch (Throwable t) {
+            // [SP_AGA_01_13] any exception while building is invalid_value, never internal_error
+            reason = "the model does not load (" + (t.getMessage() != null ? Catalogue.clipName(t.getMessage()) : t.getClass().getName()) + ")";
+        } finally {
+            MosfetElm.setGlobalFlags(mosfetFlags);
+            DiodeModel.endFallbackRecording();
+            CustomLogicModel.endFallbackRecording();
+            for (int i = restorers.size() - 1; i >= 0; i--) {
+                restorers.get(i).run();
+            }
+            // anything else the trial created goes too
+            for (String k : ModelSpecCodec.KINDS) {
+                List<String> was = before.get(k);
+                for (String n : ModelSpecCodec.names(k)) {
+                    if (!was.contains(n)) {
+                        ModelSpecCodec.discard(k, n);
+                    }
+                }
+            }
+        }
+        return reason;
     }
 
     /**
@@ -323,6 +493,22 @@ final class ModelOps {
         return PinNames.fromJsonNames(raw, raw.length);
     }
 
+    /**
+     * [SP_AGA_02_04] The PinNames of a {@code Subcircuit} with the subcircuit model {@code name}
+     * (an earlier definition of the call, else the session entry): {@code pin1}..{@code pinN} in
+     * the model's pin order ([SP_AGA_01_13] "Build").
+     *
+     * @return the pin names, or null when no such model exists
+     */
+    static String[] subcircuitPins(String name, Scope scope) {
+        ModelSpecCodec.Definition d = scope == null ? null : scope.pending(ModelSpecCodec.SUBCIRCUIT, name);
+        CustomCompositeModel m = d != null ? d.composite() : CustomCompositeModel.findEntry(name);
+        if (m == null || m.extList == null) {
+            return null;
+        }
+        return PinNames.fromJsonNames(null, m.extList.size());
+    }
+
     // ---------------------------------------------------------------- usage and closure
 
     /** One model reference of an element: its kind and name. */
@@ -360,9 +546,70 @@ final class ModelOps {
     }
 
     /**
-     * [SP_AGA_03_11] "Dependencies": the usage of the session's models by the open documents.
-     * Direct references only: the reading of the elements inside subcircuit models comes with
-     * the subcircuit definitions (PL_AGA Phase 13).
+     * [SP_AGA_03_11] "Dependencies": the models the element dumps of the subcircuit model
+     * {@code name} reference directly (its own node list and dumps; nested subcircuit models by
+     * name — the caller descends into them), in dump order. Empty when there is no such model.
+     */
+    static List<Ref> innerRefs(String name, Map<String, List<Ref>> cache) {
+        List<Ref> cached = cache.get(name);
+        if (cached != null) {
+            return cached;
+        }
+        final List<Ref> out = new ArrayList<>();
+        cache.put(name, out);
+        CustomCompositeModel m = CustomCompositeModel.findEntry(name);
+        if (m == null || m.nodeList == null) {
+            return out;
+        }
+        CompositeModelScan.scan(m.nodeList, m.elmDump, null, new CompositeModelScan.Listener() {
+            @Override
+            public void reference(String catalogue, String n) {
+                String kind = ModelSpecCodec.kindOfCatalogue(catalogue);
+                if (kind != null && n != null && !n.isEmpty()) {
+                    out.add(new Ref(kind, n));
+                }
+            }
+
+            @Override
+            public void unknownClass(String className) {
+            }
+        });
+        return out;
+    }
+
+    /**
+     * [SP_AGA_03_11] "Dependencies": {@code r} and every model it depends on through subcircuit
+     * models, dependencies first (post-order), each once; {@code seen} holds the keys already
+     * visited (it also stops a cycle); {@code cache} keeps the inner references read per model.
+     */
+    static void closure(Ref r, List<String> seen, List<Ref> out, Map<String, List<Ref>> cache) {
+        String key = r.kind + "\u0000" + r.name;
+        if (seen.contains(key)) {
+            return;
+        }
+        seen.add(key);
+        if (ModelSpecCodec.SUBCIRCUIT.equals(r.kind)) {
+            for (Ref inner : innerRefs(r.name, cache)) {
+                closure(inner, seen, out, cache);
+            }
+        }
+        out.add(r);
+    }
+
+    /** @return the models an element uses: its direct references and their closure, each once */
+    static List<Ref> usedModels(CircuitElm elm, Map<String, List<Ref>> cache) {
+        List<Ref> out = new ArrayList<>();
+        List<String> seen = new ArrayList<>();
+        for (Ref r : refsOf(elm)) {
+            closure(r, seen, out, cache);
+        }
+        return out;
+    }
+
+    /**
+     * [SP_AGA_03_11] "Dependencies": the usage of the session's models by the open documents. An
+     * element uses the models it references directly and, for a Subcircuit, every model its
+     * subcircuit model depends on.
      */
     static final class Usage {
         /** kind + "\u0000" + name → doc handle → element IDs */
@@ -370,10 +617,11 @@ final class ModelOps {
 
         static Usage scan(CirSim sim) {
             Usage u = new Usage();
+            Map<String, List<Ref>> cache = new HashMap<>();
             for (CircuitDocument doc : sim.documentManager.getDocuments()) {
                 String handle = DocumentHandles.of(doc);
                 for (CircuitElm elm : doc.simulator.elmList) {
-                    for (Ref r : refsOf(elm)) {
+                    for (Ref r : usedModels(elm, cache)) {
                         String key = r.kind + "\u0000" + r.name;
                         LinkedHashMap<String, List<String>> byDoc = u.uses.get(key);
                         if (byDoc == null) {
@@ -419,36 +667,38 @@ final class ModelOps {
     }
 
     /**
-     * [SP_AGA_02_05] {@code models}: the non-built-in models the document's elements reference,
-     * each once in order of first use, as ModelSpec or ModelText by the Form rule; at most
-     * {@link #MAX_MODELS}, the rest counted. "First use" follows the record order of
-     * {@code getCircuit} (element IDs), so a re-imported form lists its models in the same order.
+     * [SP_AGA_02_05] {@code models}: the non-built-in models of the document — those its elements
+     * reference and, through subcircuit models, those their element dumps reference
+     * ([SP_AGA_03_11] "Dependencies") — each once, dependencies first, otherwise in order of first
+     * use, as ModelSpec or ModelText by the Form rule; at most {@link #MAX_MODELS}, the rest
+     * counted. "First use" follows the record order of {@code getCircuit} (element IDs), so a
+     * re-imported form lists its models in the same order.
      */
     static DocumentModels documentModels(CircuitDocument doc) {
         ModelNames.ensureDefaults();
         DocumentModels out = new DocumentModels();
         List<String> seen = new ArrayList<>();
+        List<Ref> ordered = new ArrayList<>();
+        Map<String, List<Ref>> cache = new HashMap<>();
         List<CircuitElm> elms = new ArrayList<>(doc.simulator.elmList);
         CircuitView.sortById(elms);
         for (CircuitElm elm : elms) {
             for (Ref r : refsOf(elm)) {
-                String key = r.kind + "\u0000" + r.name;
-                if (seen.contains(key)) {
-                    continue;
-                }
-                seen.add(key);
-                Object entry = ModelSpecCodec.entry(r.kind, r.name);
-                if (entry == null || ModelSpecCodec.isBuiltIn(entry)) {
-                    continue;
-                }
-                if (out.models.size() >= MAX_MODELS) {
-                    out.truncated++;
-                    continue;
-                }
-                JSONObject m = ModelSpecCodec.encode(r.kind, r.name);
-                if (m != null) {
-                    out.models.set(out.models.size(), m);
-                }
+                closure(r, seen, ordered, cache);
+            }
+        }
+        for (Ref r : ordered) {
+            Object entry = ModelSpecCodec.entry(r.kind, r.name);
+            if (entry == null || ModelSpecCodec.isBuiltIn(entry)) {
+                continue;
+            }
+            if (out.models.size() >= MAX_MODELS) {
+                out.truncated++;
+                continue;
+            }
+            JSONObject m = ModelSpecCodec.encode(r.kind, r.name);
+            if (m != null) {
+                out.models.set(out.models.size(), m);
             }
         }
         return out;

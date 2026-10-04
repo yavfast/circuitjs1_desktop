@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.element.ChipElm;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -260,10 +262,119 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
      * @throws RuntimeException when a field is missing or does not parse
      */
     public static String normalizedLine(String name, StringTokenizer st) {
+        return undumpDetached(name, st).modelLine();
+    }
+
+    /**
+     * [SP_AGA_01_13] ModelText: the fields of a {@code .} line after its name, read as
+     * {@link #undump} reads them, into a model that no catalogue holds.
+     *
+     * @throws RuntimeException when a field is missing or does not parse
+     */
+    public static CustomCompositeModel undumpDetached(String name, StringTokenizer st) {
         CustomCompositeModel m = new CustomCompositeModel();
         m.name = name;
         m.undump(st);
-        return m.modelLine();
+        return m;
+    }
+
+    /**
+     * [SP_AGA_01_13] A model built from a circuit ({@code CircuitSimulator.buildComposite}), named
+     * and in no catalogue yet.
+     */
+    public static CustomCompositeModel createDetached(String nodeList, String elmDump, Vector<ExtListEntry> extList) {
+        CustomCompositeModel m = new CustomCompositeModel();
+        m.nodeList = nodeList;
+        m.elmDump = elmDump;
+        m.extList = extList;
+        return m;
+    }
+
+    /**
+     * Registers a detached model as a new catalogue entry under its name (create-only callers
+     * check that the name is free; {@link #entryRestorer} taken before removes it again). It is
+     * not saved across sessions ([SP_AGA_03_11] "Scope": no {@code subcircuit:} storage key).
+     */
+    public static void defineEntry(CustomCompositeModel m) {
+        if (modelMap == null)
+            initModelMap();
+        modelMap.put(m.name, m);
+        sequenceNumber++;
+    }
+
+    /**
+     * Removes the entry {@code name} that a validation trial created (never a built-in entry;
+     * the browser storage is not touched).
+     */
+    public static void discardEntry(String name) {
+        if (modelMap == null || name == null)
+            return;
+        CustomCompositeModel m = modelMap.get(name);
+        if (m != null && !m.builtin) {
+            modelMap.remove(name);
+            sequenceNumber++;
+        }
+    }
+
+    /** Why a circuit cannot become a subcircuit model: the editor's alert and the agent's reason. */
+    public static final class BuildProblem {
+        /** The text the editor alerts (as before the Agent API), or null when it shows nothing. */
+        public final String alert;
+        /** [SP_AGA_01_13] "Errors": the reason an agent path reports instead (never alerted). */
+        public final String reason;
+
+        public BuildProblem(String alert, String reason) {
+            this.alert = alert;
+            this.reason = reason;
+        }
+    }
+
+    /**
+     * The pin layout of the editor's "Create Subcircuit" ({@code EditCompositeModelDialog}) for a
+     * model just built from a circuit: pins ordered by label text (case-insensitive), the
+     * north/south positions shifted past the west/east columns, and the chip size that holds them.
+     *
+     * @return null, or the problem (no external pin; two pins on one node)
+     */
+    public BuildProblem layoutPins() {
+        if (extList.size() == 0) {
+            return new BuildProblem("Device has no external inputs/outputs!", "device has no external inputs/outputs");
+        }
+        Collections.sort(extList, new java.util.Comparator<ExtListEntry>() {
+            public int compare(ExtListEntry a, ExtListEntry b) {
+                return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+            }
+        });
+        java.util.HashSet<Integer> nodeSet = new java.util.HashSet<Integer>();
+        int i;
+        int postCount = extList.size();
+        int sideCounts[] = new int[] { 0, 0, 0, 0 };
+        for (i = 0; i != postCount; i++) {
+            ExtListEntry pin = extList.get(i);
+            sideCounts[pin.side] += 1;
+            if (nodeSet.contains(pin.node)) {
+                return new BuildProblem("Can't have two input/output nodes connected!",
+                        "labels " + pin.name + " and another label are on one node");
+            }
+            nodeSet.add(pin.node);
+        }
+
+        int xOffsetLeft = (sideCounts[ChipElm.SIDE_W] > 0) ? 1 : 0;
+        int xOffsetRight = (sideCounts[ChipElm.SIDE_E] > 0) ? 1 : 0;
+        for (i = 0; i != postCount; i++) {
+            ExtListEntry pin = extList.get(i);
+            if (pin.side == ChipElm.SIDE_N || pin.side == ChipElm.SIDE_S) {
+                pin.pos += xOffsetLeft;
+            }
+        }
+
+        int minHeight = (sideCounts[ChipElm.SIDE_N] > 0 && sideCounts[ChipElm.SIDE_S] > 0) ? 2 : 1;
+        int minWidth = 2;
+        int pinsNS = Math.max(sideCounts[ChipElm.SIDE_N], sideCounts[ChipElm.SIDE_S]);
+        int pinsWE = Math.max(sideCounts[ChipElm.SIDE_W], sideCounts[ChipElm.SIDE_E]);
+        sizeX = Math.max(minWidth, pinsNS + xOffsetLeft + xOffsetRight);
+        sizeY = Math.max(minHeight, pinsWE);
+        return null;
     }
 
     /**

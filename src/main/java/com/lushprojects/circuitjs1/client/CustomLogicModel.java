@@ -150,6 +150,8 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
     private static java.util.function.Consumer<Runnable> fallbackSink;
     /** Names whose entry an element's fallback created during the current recording. */
     private static java.util.Set<String> fallbackNames;
+    /** The recordings an inner {@link #beginFallbackRecording} interrupted, innermost last. */
+    private static final java.util.ArrayList<Object[]> fallbackOuter = new java.util.ArrayList<Object[]>();
 
     /**
      * [SP_AGA_03_04] "Model catalogues": while an import with a report runs, every entry that a
@@ -159,14 +161,23 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
      * remembered, so later elements naming them are unresolved too ({@link #isUnresolved}).
      */
     public static void beginFallbackRecording(java.util.function.Consumer<Runnable> sink) {
+        // nestable: an inner recording (a validation trial inside an import) saves the outer one
+        fallbackOuter.add(new Object[] { fallbackSink, fallbackNames });
         fallbackSink = sink;
         fallbackNames = new java.util.HashSet<String>();
     }
 
-    /** Ends {@link #beginFallbackRecording}. */
+    /** Ends {@link #beginFallbackRecording}; the recording it interrupted, if any, continues. */
+    @SuppressWarnings("unchecked")
     public static void endFallbackRecording() {
-        fallbackSink = null;
-        fallbackNames = null;
+        if (fallbackOuter.isEmpty()) {
+            fallbackSink = null;
+            fallbackNames = null;
+            return;
+        }
+        Object[] outer = fallbackOuter.remove(fallbackOuter.size() - 1);
+        fallbackSink = (java.util.function.Consumer<Runnable>) outer[0];
+        fallbackNames = (java.util.Set<String>) outer[1];
     }
 
     private static void recordFallbackEntry(String name) {
@@ -322,6 +333,13 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
             modelMap = new HashMap<String, CustomLogicModel>();
         }
         modelMap.put(lm.name, lm);
+    }
+
+    /** Removes the entry {@code name} that a validation trial created ([SP_AGA_01_13] "Inner references"). */
+    public static void discardEntry(String name) {
+        if (modelMap != null && name != null) {
+            modelMap.remove(name);
+        }
     }
 
     /** @return the first error of the stored rules as the last parse found it, or null */

@@ -142,7 +142,7 @@ final class EditOps {
         List<Issue> issues = new ArrayList<>();
         final List<Edit> plan = new ArrayList<>();
         // [SP_AGA_03_11] names = session ∪ batch: a new model is visible to the later edits
-        ModelOps.Scope scope = new ModelOps.Scope();
+        ModelOps.Scope scope = new ModelOps.Scope(call.sim, call.doc);
         ModelNames.beginScope(scope);
         try {
             for (int i = 0; i < edits.size(); i++) {
@@ -407,15 +407,16 @@ final class EditOps {
     }
 
     /**
-     * [SP_AGA_02_04] "earlier edits visible to later ones": a {@code CustomLogic} whose
-     * {@code model_name} the edit gives has the posts of that logic model (session entry or a
-     * {@code defineModel} earlier in the batch) for the later edits of the batch.
+     * [SP_AGA_02_04] "earlier edits visible to later ones": a {@code CustomLogic} or
+     * {@code Subcircuit} whose {@code model_name} the edit gives has the posts of that model
+     * (session entry or a {@code defineModel} earlier in the batch) for the later edits of the batch.
      */
     private static String[] modelPins(Catalogue.TypeInfo type, Map<String, Object> props, String[] current,
             ModelOps.Scope scope) {
         Object name = props.get("model_name");
-        if (type != null && "CustomLogic".equals(type.type) && name instanceof String) {
-            String[] pins = ModelOps.logicPins((String) name, scope);
+        if (type != null && name instanceof String) {
+            String[] pins = "CustomLogic".equals(type.type) ? ModelOps.logicPins((String) name, scope)
+                    : "Subcircuit".equals(type.type) ? ModelOps.subcircuitPins((String) name, scope) : null;
             if (pins != null) {
                 return pins;
             }

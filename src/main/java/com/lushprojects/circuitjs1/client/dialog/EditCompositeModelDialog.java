@@ -54,10 +54,6 @@ import com.lushprojects.circuitjs1.client.element.CustomCompositeChipElm;
 import com.lushprojects.circuitjs1.client.element.CustomCompositeElm;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-
 public class EditCompositeModelDialog extends Dialog
         implements MouseDownHandler, MouseMoveHandler, MouseUpHandler, MouseOutHandler, MouseOverHandler {
 
@@ -74,49 +70,15 @@ public class EditCompositeModelDialog extends Dialog
     }
 
     public boolean createModel() {
-        HashSet<Integer> nodeSet = new HashSet<Integer>();
         model = cirSim.getActiveDocument().simulator.getCircuitAsComposite();
         if (model == null)
             return false;
-        if (model.extList.size() == 0) {
-            Window.alert(Locale.LS("Device has no external inputs/outputs!"));
+        // [SP_AGA_01_13] the pin layout is the model's own (shared with the agent's build)
+        CustomCompositeModel.BuildProblem problem = model.layoutPins();
+        if (problem != null) {
+            Window.alert(Locale.LS(problem.alert));
             return false;
         }
-        Collections.sort(model.extList, new Comparator<ExtListEntry>() {
-            public int compare(ExtListEntry a, ExtListEntry b) {
-                return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-            }
-        });
-        int i;
-        int postCount = model.extList.size();
-        int sideCounts[] = new int[] { 0, 0, 0, 0 };
-        for (i = 0; i != postCount; i++) {
-            ExtListEntry pin = model.extList.get(i);
-            sideCounts[pin.side] += 1;
-
-            if (nodeSet.contains(pin.node)) {
-                Window.alert(Locale.LS("Can't have two input/output nodes connected!"));
-                return false;
-            }
-            nodeSet.add(pin.node);
-        }
-
-        int xOffsetLeft = (sideCounts[ChipElm.SIDE_W] > 0) ? 1 : 0;
-        int xOffsetRight = (sideCounts[ChipElm.SIDE_E] > 0) ? 1 : 0;
-        for (i = 0; i != postCount; i++) {
-            ExtListEntry pin = model.extList.get(i);
-            if (pin.side == ChipElm.SIDE_N || pin.side == ChipElm.SIDE_S) {
-                pin.pos += xOffsetLeft;
-            }
-        }
-
-        int minHeight = (sideCounts[ChipElm.SIDE_N] > 0 && sideCounts[ChipElm.SIDE_S] > 0) ? 2 : 1;
-        int minWidth = 2;
-        int pinsNS = Math.max(sideCounts[ChipElm.SIDE_N], sideCounts[ChipElm.SIDE_S]);
-        int pinsWE = Math.max(sideCounts[ChipElm.SIDE_W], sideCounts[ChipElm.SIDE_E]);
-        model.sizeX = Math.max(minWidth, pinsNS + xOffsetLeft + xOffsetRight);
-        model.sizeY = Math.max(minHeight, pinsWE);
-
         model.modelCircuit = cirSim.actionManager.dumpCircuit();
         return true;
     }

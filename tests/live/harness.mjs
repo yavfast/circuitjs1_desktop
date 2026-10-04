@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -5020,6 +5020,580 @@ async function scenarioAgentModelsLogic(s) {
   report('AG.agent_models_logic', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models_logic.json') });
 }
 
+// agent_models_sub: subcircuit model definitions (PL_AGA Phase 13; SP_AGA_01_13 subcircuit ModelSpec
+// `source` and ModelText, read-only source, source errors, inner references; §02_05 models closure;
+// §03_11 Identical (state is part of the line), Dependencies, Scope (no `subcircuit:` storage), No
+// dialogs; §05_01 rows defineModel subcircuit, subcircuit source errors, importCircuit unknown inner
+// model, getCircuit dependency closure, same-session re-import with a subcircuit model; §05_02
+// "ok=false ⇒ catalogues unchanged" and R1 for a build whose source is the active, free-running
+// document). An RC block built in its own document behaves as the RC in a run; a block using an
+// agent-defined diode model travels as [diode ModelSpec, subcircuit ModelText] and re-imports in the
+// same session (identical) and in a fresh one (side page); every source error is invalid_value
+// naming `source` with its reason, without an alert or dialog, with the catalogues and the source
+// document unchanged. window.alert is hooked for the whole scenario; the editor's "Create
+// Subcircuit" (File menu) still alerts a label on ground and still creates a model.
+async function scenarioAgentModelsSub(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const codes = (r) => (r.issues || []).map((i) => i.code);
+  const has = (r, code, re) => (r.issues || []).some((i) => i.code === code && (!re || re.test(i.message + ' ' + (i.hint || ''))));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const strip = (m) => { const c = Object.assign({}, m); delete c.usedBy; return c; };
+  const catalogue = async () => JSON.stringify((await A('listModels', {})).data.models.map(strip));
+  const record = async (kind, name) => { const r = await A('listModels', { kind, name }); return r.ok ? r.data.models[0] : null; };
+  const alerts = async () => JSON.parse(await s.eval('JSON.stringify(window.__alerts || [])'));
+  const storageKeys = () => s.eval("JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('subcircuit:')).sort())");
+  const text = async (doc) => (await A('exportCircuit', { doc, format: 'text' })).data.content;
+  const docState = async (doc) => {
+    const st = JSON.parse(await s.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(doc)})`));
+    return { text: await text(doc), ids: (await A('getCircuit', { doc })).data.elements.map((e) => e.id), undo: st.undo, marks: st.openMarks };
+  };
+  const define = (doc, model, more) => A('applyEdits', { doc, edits: [{ op: 'defineModel', model }].concat(more || []) });
+  const label = (id, text, x, y, ex, ey) => ({ id, type: 'LabeledNode', start: { x, y }, end: { x: ex, y: ey }, properties: { label: text } });
+  const posts = (rec) => (rec ? rec.posts.map((p) => p.pin) : null);
+  const postAt = (rec, pin) => rec.posts.find((p) => p.pin === pin).at;
+  const rejections = {};
+  // a rejection: the code (and reason), catalogues, the target and (when given) the source unchanged, no alert, no dialog
+  const rejects = async (name, doc, src, fn, code, re) => {
+    const c0 = await catalogue(); const d0 = await docState(doc); const s0 = src ? await docState(src) : null; const a0 = (await alerts()).length;
+    const g0 = await s.call('dialogShowing');
+    const r = await fn();
+    const c1 = await catalogue(); const d1 = await docState(doc); const s1 = src ? await docState(src) : null; const a1 = (await alerts()).length;
+    const g1 = await s.call('dialogShowing');
+    rejections[name] = { ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message + ' | ' + (i.hint || '')),
+      unchanged: { catalogue: c0 === c1, doc: same(d0, d1), source: same(s0, s1), alerts: a0 === a1, dialogs: same(g0, g1) } };
+    return ck(name, r.ok === false && has(r, code, re) && c0 === c1 && same(d0, d1) && same(s0, s1) && a0 === a1 && same(g0, g1));
+  };
+  // creates a document holding `elements` (AgentCircuit), stopped
+  const sourceDoc = async (title, elements) => {
+    const d = (await A('createDocument', { title })).data.doc;
+    const r = await A('importCircuit', { doc: d, circuit: { elements } });
+    if (!r.ok) out.notes['import_' + title] = (r.issues || []).map((i) => i.code + ': ' + i.message);
+    return d;
+  };
+  await s.eval('window.__alerts = []; window.__savedAlert = window.alert; window.alert = (m) => { window.__alerts.push(String(m)); };');
+  try {
+    await resetApp(s);
+    const exMark = s.exceptions.length;
+    const dialogMark = s.dialogs.length;
+    const keys0 = await storageKeys();
+
+    // ---------------------------------------------------------------- the class-name list of the static scan equals the factory's
+    {
+      const src = fs.readFileSync(path.join(PROJECT, 'src/main/java/com/lushprojects/circuitjs1/client/CircuitElmCreator.java'), 'utf8');
+      const ctor = src.slice(src.indexOf('public static CircuitElm constructElement('));
+      const labels = [...ctor.matchAll(/case "([A-Za-z0-9]+)":/g)].map((m) => m[1]).sort();
+      const listSrc = src.slice(src.indexOf('CLASS_NAMES = {'), src.indexOf('};', src.indexOf('CLASS_NAMES = {')));
+      const list = [...listSrc.matchAll(/"([A-Za-z0-9]+)"/g)].map((m) => m[1]).sort();
+      out.notes.classNames = { labels: labels.length, list: list.length };
+      ck('classNames_inSync', labels.length > 100 && same(labels, list));
+    }
+
+    // ---------------------------------------------------------------- an RC block in its own document
+    // in (west) -> R 1k -> out (east); C 1 uF from out to ground
+    const rcElements = [
+      label('LIN', 'in', 4, 2, 2, 2),
+      { id: 'R1', type: 'Resistor', start: { x: 4, y: 2 }, end: { x: 8, y: 2 }, properties: { resistance: '1k' } },
+      { id: 'C1', type: 'Capacitor', start: { x: 8, y: 2 }, end: { x: 8, y: 6 }, properties: { capacitance: '1 uF' } },
+      { id: 'G1', type: 'Ground', start: { x: 8, y: 6 }, end: { x: 8, y: 7 } },
+      label('LOUT', 'out', 8, 2, 10, 2),
+    ];
+    const S = await sourceDoc('RC block', rcElements);
+    const T = (await A('createDocument', { title: 'Uses the block' })).data.doc;
+    const sText0 = await text(S);
+    const sTime0 = (await A('getDiagnostics', { doc: S })).data;
+    const rc = await define(T, { kind: 'subcircuit', name: 'rc-sub', source: { doc: S } }, [
+      { op: 'add', element: { id: 'X1', type: 'Subcircuit', start: { x: 10, y: 10 }, properties: { model_name: 'rc-sub' } } },
+      { op: 'markOpen', posts: ['X1.pin2'] }]);
+    const rcm = rc.ok ? rc.data.models[0] : null;
+    const x1 = rc.ok ? rc.data.elements.find((e) => e.id === 'X1') : null;
+    out.notes.rc = { ok: rc.ok, issues: (rc.issues || []).map((i) => i.code + ': ' + i.message), model: rcm, posts: x1 && x1.posts };
+    ck('rc_defined', rc.ok && rcm && rcm.kind === 'subcircuit' && rcm.builtIn === false && !rcm.existing && rcm.showLabel === true
+      && same(rcm.pins, [{ pin: 'pin1', label: 'in', side: 'W' }, { pin: 'pin2', label: 'out', side: 'E' }]) && same(rcm.usedBy, [{ doc: T, ids: ['X1'] }]));
+    ck('rc_elementPins', same(posts(x1), ['pin1', 'pin2']) && x1.posts[1].open === true);
+    ck('rc_sourceUnchanged', (await text(S)) === sText0 && same((await A('getDiagnostics', { doc: S })).data, sTime0));
+    ck('rc_noStorage', (await storageKeys()) === keys0);
+    const subType = await A('describeType', { type: 'Subcircuit' });
+    const subKey = subType.ok ? subType.data.properties.find((p) => p.key === 'model_name') : null;
+    ck('rc_choices', subKey && Array.isArray(subKey.choices) && subKey.choices.includes('rc-sub'));
+    // identical redefinition from the unchanged (stopped) source: existing
+    const rcAgain = await define(T, { kind: 'subcircuit', name: 'rc-sub', source: { doc: S } });
+    ck('rc_identicalExisting', rcAgain.ok && rcAgain.data.models[0].existing === true);
+    // showLabel false is another definition (the flags differ): name_taken; under a new name it is stored
+    await rejects('rc_otherShowLabel', T, S, () => define(T, { kind: 'subcircuit', name: 'rc-sub', source: { doc: S }, showLabel: false }), 'name_taken');
+    // batch rollback and rollback on a forced exception: the subcircuit entry is not kept
+    await rejects('rc_batchRollback', T, S, () => define(T, { kind: 'subcircuit', name: 'sub-rb', source: { doc: S } },
+      [{ op: 'add', element: { type: 'NoSuchType', start: { x: 0, y: 30 } } }]), 'unknown_type');
+    {
+      const c0 = await catalogue();
+      await s.eval('CircuitJS1Agent.debugFailNextMutation()');
+      const fx = await define(T, { kind: 'subcircuit', name: 'sub-rb', source: { doc: S } }, [
+        { op: 'add', element: { id: 'X9', type: 'Subcircuit', start: { x: 30, y: 30 }, properties: { model_name: 'sub-rb' } } }]);
+      await sleep(200);
+      await s.call('closeDialogs');
+      ck('rc_exceptionRollback', fx.ok === false && has(fx, 'internal_error') && c0 === await catalogue()
+        && has(await A('listModels', { kind: 'subcircuit', name: 'sub-rb' }), 'unknown_model'));
+    }
+    const nl = await define(T, { kind: 'subcircuit', name: 'rc-nolabel', source: { doc: S }, showLabel: false });
+    ck('rc_showLabelFalse', nl.ok && nl.data.models[0].showLabel === false);
+
+    // the block behaves as the RC: 5 V step into pin1, pin2 compared with the same RC drawn flat
+    if (x1) {
+      const p1 = postAt(x1, 'pin1');
+      await A('applyEdits', { doc: T, edits: [
+        { op: 'add', element: { id: 'V1', type: 'VoltageSourceDC', start: { x: p1.x - 4, y: p1.y + 4 }, end: { x: p1.x - 4, y: p1.y }, properties: { max_voltage: '5 V' } } },
+        { op: 'add', element: { id: 'W1', type: 'Wire', start: { x: p1.x - 4, y: p1.y }, end: p1 } },
+        { op: 'add', element: { id: 'G2', type: 'Ground', start: { x: p1.x - 4, y: p1.y + 4 }, end: { x: p1.x - 4, y: p1.y + 5 } } }] });
+      const F = await sourceDoc('Flat RC', [
+        { id: 'V1', type: 'VoltageSourceDC', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '5 V' } },
+        { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1k' } },
+        { id: 'C1', type: 'Capacitor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { capacitance: '1 uF' } },
+        { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+        { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }]);
+      const sub = await R({ doc: T, span: '1 ms', reset: true, maxPoints: 20, probes: [{ post: 'X1.pin2', name: 'out' }] });
+      const flat = await R({ doc: F, span: '1 ms', reset: true, maxPoints: 20, probes: [{ post: 'C1.pin1', name: 'out' }] });
+      const fs1 = sub.ok ? sub.data.probes[0].stats.final : codes(sub);
+      const ff1 = flat.ok ? flat.data.probes[0].stats.final : codes(flat);
+      out.notes.rcRun = { sub: fs1, flat: ff1 };
+      // 1 tau: 5 (1 - 1/e) = 3.16 V
+      ck('rc_behavesAsRc', typeof fs1 === 'number' && typeof ff1 === 'number' && Math.abs(fs1 - ff1) < 1e-3 * Math.max(1, Math.abs(ff1)) && Math.abs(fs1 - 3.16) < 0.1);
+      await A('closeDocument', { doc: F, discardChanges: true });
+    } else {
+      ck('rc_behavesAsRc', false);
+    }
+
+    // ---------------------------------------------------------------- source errors: invalid_value naming source, each reason
+    const srcErr = (src, name) => () => define(T, { kind: 'subcircuit', name: name || 'sub-err', source: { doc: src } });
+    await rejects('err_unknownDocument', T, null, srcErr('d999'), 'unknown_document');
+    await rejects('err_sourceIsTarget', S, null, () => define(S, { kind: 'subcircuit', name: 'sub-err', source: { doc: S } }), 'invalid_value', /'edits\[0\]\.model\.source'.*cannot be built from the document it is defined in/);
+    const N0 = await sourceDoc('No labels', [
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'W1', type: 'Wire', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+      { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } },
+      { id: 'G2', type: 'Ground', start: { x: 0, y: 0 }, end: { x: 0, y: 1 } }]);
+    await rejects('err_noLabels', T, N0, srcErr(N0), 'invalid_value', /model\.source'.*device has no external inputs\/outputs/);
+    const NG = await sourceDoc('Label on ground', [label('LG', 'g', 0, 0, -2, 0),
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'G1', type: 'Ground', start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+      { id: 'G2', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } }]);
+    await rejects('err_labelOnGround', T, NG, srcErr(NG), 'invalid_value', /model\.source'.*node g can't be connected to ground/);
+    const NU = await sourceDoc('Unused label', [label('LA', 'a', 0, 0, -2, 0), label('LU', 'u', 0, 8, -2, 8),
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'G1', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } }]);
+    await rejects('err_unusedLabel', T, NU, srcErr(NU), 'invalid_value', /model\.source'.*node u is not used/);
+    const NC = await sourceDoc('Unconnected', [label('LA', 'a', 0, 0, -2, 0),
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'G1', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } },
+      { id: 'R2', type: 'Resistor', start: { x: 10, y: 0 }, end: { x: 14, y: 0 } }]);
+    await rejects('err_unconnectedNodes', T, NC, srcErr(NC), 'invalid_value', /model\.source'.*some nodes are unconnected/);
+    const N2 = await sourceDoc('Two labels', [label('LA', 'a', 0, 0, -2, 0), label('LB', 'b', 0, 0, 0, -2),
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'G1', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } }]);
+    await rejects('err_twoLabelsOneNode', T, N2, srcErr(N2), 'invalid_value', /model\.source'.*labels (a and b|b and a) are on one node/);
+    // a source busy with an agent run: busy (the source is checked when the run ends)
+    {
+      await s.call('agentStart', 'subBusy', 'run', { doc: S, span: 1000, budgetMs: 1500 });
+      const c0 = await catalogue(); const a0 = (await alerts()).length;
+      const r = await srcErr(S, 'sub-busy')();
+      const c1 = await catalogue();
+      await waitFor(async () => (await s.call('agentStarted', 'subBusy')).calls === 1, 15000, 'busy run end');
+      rejections.err_sourceBusy = { ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message) };
+      ck('err_sourceBusy', r.ok === false && has(r, 'busy', /model\.source\.doc'|busy/) && c0 === c1 && (await alerts()).length === a0);
+    }
+    // the source spec itself: source missing, source without doc, a doc that is not a string, showLabel not a boolean, an extra field
+    await rejects('spec_sourceMissing', T, null, () => define(T, { kind: 'subcircuit', name: 'sub-x' }), 'invalid_value', /model\.source'/);
+    await rejects('spec_sourceNoDoc', T, null, () => define(T, { kind: 'subcircuit', name: 'sub-x', source: {} }), 'invalid_value', /model\.source\.doc'/);
+    await rejects('spec_sourceExtra', T, null, () => define(T, { kind: 'subcircuit', name: 'sub-x', source: { doc: S, path: 'x' } }), 'invalid_value', /model\.source\.path'/);
+    await rejects('spec_showLabelType', T, null, () => define(T, { kind: 'subcircuit', name: 'sub-x', source: { doc: S }, showLabel: 'yes' }), 'invalid_value', /model\.showLabel'/);
+    await rejects('spec_parametersField', T, null, () => define(T, { kind: 'subcircuit', name: 'sub-x', source: { doc: S }, parameters: {} }), 'invalid_value', /model\.parameters'/);
+
+    // ---------------------------------------------------------------- a block using an agent-defined diode model (closure)
+    // the diode model is defined in the block's own document; the block (anode a west, cathode k east)
+    const B = (await A('createDocument', { title: 'Diode block' })).data.doc;
+    const db = await define(B, { kind: 'diode', name: 'sub-diode', parameters: { forward_voltage: '0.7 V', forward_current: '10 mA' } }, [
+      { op: 'add', element: label('LA', 'a', 2, 2, 0, 2) },
+      { op: 'add', element: { id: 'D1', type: 'Diode', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, properties: { model: 'sub-diode' } } },
+      { op: 'add', element: label('LK', 'k', 6, 2, 8, 2) }]);
+    out.notes.diodeBlock = { ok: db.ok, issues: (db.issues || []).map((i) => i.code + ': ' + i.message) };
+    const U = (await A('createDocument', { title: 'Uses the diode block' })).data.doc;
+    const dm = await define(U, { kind: 'subcircuit', name: 'sub-dmod', source: { doc: B } }, [
+      { op: 'add', element: { id: 'X2', type: 'Subcircuit', start: { x: 10, y: 10 }, properties: { model_name: 'sub-dmod' } } }]);
+    out.notes.dmod = { ok: dm.ok, issues: (dm.issues || []).map((i) => i.code + ': ' + i.message), model: dm.ok && dm.data.models[0] };
+    ck('dmod_defined', db.ok && dm.ok && same(dm.data.models[0].pins.map((p) => p.label), ['a', 'k']));
+    const gc = await A('getCircuit', { doc: U, detail: 'full' });
+    const gm = gc.data.models || [];
+    out.notes.closure = gm;
+    ck('closure_dependenciesFirst', gc.ok && same(gm.map((m) => m.kind + ':' + m.name), ['diode:sub-diode', 'subcircuit:sub-dmod'])
+      && gm[0].parameters && typeof gm[1].modelText === 'string' && gm[1].modelText.startsWith('. sub-dmod '));
+    const page2 = await A('getCircuit', { doc: U, offset: 1 });
+    ck('closure_offset0Only', page2.ok && page2.data.models === undefined);
+    const dRec = await record('diode', 'sub-diode');
+    out.notes.diodeUsedBy = dRec && dRec.usedBy;
+    ck('closure_usedByThroughSubcircuit', dRec && dRec.usedBy.some((u) => u.doc === U && same(u.ids, ['X2'])) && dRec.usedBy.some((u) => u.doc === B && same(u.ids, ['D1'])));
+    // the text export lists the diode model line before the subcircuit line
+    const ut = (await text(U)).split('\n');
+    const iD = ut.findIndex((l) => l.startsWith('34 sub-diode ')), iS = ut.findIndex((l) => l.startsWith('. sub-dmod '));
+    ck('closure_textOrder', iD >= 0 && iS > iD);
+    // same-session re-import of the getCircuit form: every entry identical, elements equal
+    const RT = (await A('createDocument', { title: 'Sub roundtrip' })).data.doc;
+    const c0 = await catalogue();
+    const rt = await A('importCircuit', { doc: RT, circuit: { elements: gc.data.elements, simulation: gc.data.simulation, scopes: gc.data.scopes, models: gm } });
+    const c1 = await catalogue();
+    const gc2 = await A('getCircuit', { doc: RT, detail: 'full' });
+    const recs = (g) => JSON.stringify(g.data.elements);
+    out.notes.roundtrip = { ok: rt.ok, issues: (rt.issues || []).map((i) => i.code + ': ' + i.message), same: c0 === c1 };
+    ck('roundtrip_sameSession', rt.ok && c0 === c1 && recs(gc) === recs(gc2) && same(gc2.data.models, gm));
+    // nested: a block containing the diode block lists diode, inner block, outer block
+    const O = await sourceDoc('Outer block', []);
+    const ob = await A('applyEdits', { doc: O, edits: [{ op: 'add', element: { id: 'X3', type: 'Subcircuit', start: { x: 4, y: 4 }, properties: { model_name: 'sub-dmod' } } }] });
+    const x3 = ob.ok ? ob.data.elements[0] : null;
+    if (x3) {
+      const pa = postAt(x3, 'pin1'), pk = postAt(x3, 'pin2');
+      await A('applyEdits', { doc: O, edits: [{ op: 'add', element: label('OA', 'p', pa.x, pa.y, pa.x - 2, pa.y) }, { op: 'add', element: label('OK', 'q', pk.x, pk.y, pk.x + 2, pk.y) }] });
+    }
+    const outer = await define(U, { kind: 'subcircuit', name: 'sub-outer', source: { doc: O } }, [
+      { op: 'add', element: { id: 'X4', type: 'Subcircuit', start: { x: 10, y: 20 }, properties: { model_name: 'sub-outer' } } }]);
+    const gcn = await A('getCircuit', { doc: U });
+    out.notes.nested = { ok: outer.ok, issues: (outer.issues || []).map((i) => i.code + ': ' + i.message), models: (gcn.data.models || []).map((m) => m.name) };
+    ck('closure_nested', outer.ok && same((gcn.data.models || []).map((m) => m.name), ['sub-diode', 'sub-dmod', 'sub-outer']));
+    const dRec2 = await record('diode', 'sub-diode');
+    ck('closure_usedByNested', dRec2 && dRec2.usedBy.some((u) => u.doc === U && same(u.ids, ['X2', 'X4'])));
+
+    // fresh session (side page): the getCircuit form restores both models
+    let target = null; let cdp2 = null;
+    try {
+      target = await (await fetch(`http://127.0.0.1:${s.cdpPort}/json/new?${s.baseUrl}/circuitjs.html`, { method: 'PUT' })).json();
+      cdp2 = new CDP(target.webSocketDebuggerUrl); await cdp2.open();
+      const s2 = new Session(cdp2, s.baseUrl);
+      await cdp2.send('Runtime.enable');
+      const A2 = async (op, args) => JSON.parse(await s2.eval(`CircuitJS1Agent.call(${JSON.stringify(op)}, ${JSON.stringify(JSON.stringify(args))})`));
+      await waitFor(async () => { try { return (await A2('listDocuments', {})).ok; } catch { return false; } }, LOAD_TIMEOUT_MS, 'side page');
+      const before = await A2('listModels', { kind: 'subcircuit', name: 'sub-dmod' });
+      const fr = await A2('importCircuit', { circuit: { elements: gc.data.elements, simulation: gc.data.simulation, models: gm } });
+      const back = await A2('getCircuit', { detail: 'full' });
+      const sr = await A2('listModels', { kind: 'subcircuit', name: 'sub-dmod' });
+      out.notes.fresh = { before: codes(before), import: fr.ok ? 'ok' : (fr.issues || []).map((i) => i.code + ': ' + i.message), backModels: back.data && back.data.models };
+      ck('roundtrip_freshSession', has(before, 'unknown_model') && fr.ok && same(back.data.models, gm) && sr.ok
+        && same(strip(sr.data.models[0]), strip(await record('subcircuit', 'sub-dmod'))));
+    } finally {
+      if (cdp2) cdp2.close();
+      if (target) await fetch(`http://127.0.0.1:${s.cdpPort}/json/close/${target.id}`).catch(() => {});
+      await s.cdp.send('Page.bringToFront').catch(() => {});
+    }
+
+    // ---------------------------------------------------------------- inner references of a ModelText
+    // a block with a CustomLogic of a defined logic model; its ModelText with the name replaced
+    const LB = (await A('createDocument', { title: 'Logic block' })).data.doc;
+    const lb = await define(LB, { kind: 'logic', name: 'sub-lg', inputs: ['A'], outputs: ['Y'], rules: ['1=0', '0=1'] }, [
+      { op: 'add', element: { id: 'CL1', type: 'CustomLogic', start: { x: 4, y: 4 }, properties: { model_name: 'sub-lg' } } }]);
+    const cl1 = lb.ok ? lb.data.elements.find((e) => e.id === 'CL1') : null;
+    if (cl1) {
+      const pa = postAt(cl1, 'A'), py = postAt(cl1, 'Y');
+      await A('applyEdits', { doc: LB, edits: [{ op: 'add', element: label('LA', 'a', pa.x, pa.y, pa.x - 2, pa.y) }, { op: 'add', element: label('LY', 'y', py.x, py.y, py.x + 2, py.y) }] });
+    }
+    const lgs = await define(T, { kind: 'subcircuit', name: 'sub-lgblock', source: { doc: LB } });
+    out.notes.logicBlock = { ok: lgs.ok, issues: (lgs.issues || []).map((i) => i.code + ': ' + i.message) };
+    const I = (await A('createDocument', { title: 'Inner refs' })).data.doc;
+    const tg = await A('importCircuit', { doc: I, circuit: { elements: [{ id: 'X5', type: 'Subcircuit', start: { x: 4, y: 4 }, properties: { model_name: 'sub-lgblock' } }] } });
+    const lmt = tg.ok ? ((await A('getCircuit', { doc: I })).data.models || []).find((m) => m.name === 'sub-lgblock') : null;
+    out.notes.logicBlockText = lmt;
+    ck('inner_logicBlock', lgs.ok && lmt && /CustomLogicElm/.test(lmt.modelText) && lmt.modelText.includes('sub-lg'));
+    const renamed = (from, to, extra) => ({ kind: 'subcircuit', name: 'sub-bad', modelText: lmt.modelText.replace('. sub-lgblock ', '. sub-bad ').split(from).join(to) + (extra || '') });
+    if (lmt) {
+      await rejects('inner_unknownModel', I, null, () => A('importCircuit', { doc: I, circuit: { elements: [], models: [renamed('sub-lg', 'nope')] } }), 'invalid_value', /models\[0\]\.modelText'.*inner model nope unknown/);
+      ck('inner_unknownNotRegistered', has(await A('listModels', { kind: 'logic', name: 'nope' }), 'unknown_model') && has(await A('listModels', { kind: 'subcircuit', name: 'sub-bad' }), 'unknown_model'));
+      await rejects('inner_unknownClass', I, null, () => A('importCircuit', { doc: I, circuit: { elements: [], models: [renamed('CustomLogicElm', 'NopeLogicElm')] } }), 'invalid_value', /modelText'.*unknown element class NopeLogicElm/);
+      // a field that does not load (the pin node is in no node-list line): the trial build fails -> invalid_value
+      const tok = renamed('\u0000', '').modelText.split(' ');
+      tok[7] = '99';
+      await rejects('inner_doesNotLoad', I, null, () => A('importCircuit', { doc: I, circuit: { elements: [], models: [{ kind: 'subcircuit', name: 'sub-bad', modelText: tok.join(' ') }] } }), 'invalid_value', /modelText'.*does not load/);
+      // the model the definition depends on, defined earlier in the same list: accepted (dependencies first)
+      const dep = await A('importCircuit', { doc: I, circuit: { elements: [], models: [
+        { kind: 'logic', name: 'sub-lg2', inputs: ['A'], outputs: ['Y'], rules: ['1=0', '0=1'] }, renamed('sub-lg', 'sub-lg2')] } });
+      out.notes.innerDep = { ok: dep.ok, issues: (dep.issues || []).map((i) => i.code + ': ' + i.message) };
+      ck('inner_dependencyFirst', dep.ok && (await record('subcircuit', 'sub-bad')) !== null);
+      // legacy text content with a model line naming an unknown inner model: invalid_value, nothing registered
+      const opts = '$ 1 0.000005 10 50 5 50 5e-11';
+      const badLine = lmt.modelText.replace('. sub-lgblock ', '. sub-bad2 ').split('sub-lg').join('nope2');
+      await rejects('inner_textLine', I, null, () => A('importCircuit', { doc: I, circuit: opts + '\n' + badLine + '\n' }), 'invalid_value', /sub-bad2.*inner model nope2 unknown/);
+      ck('inner_textNotRegistered', has(await A('listModels', { kind: 'logic', name: 'nope2' }), 'unknown_model'));
+    }
+    // a subcircuit without a pin (ModelText and a legacy text `.` line): invalid_value, nothing registered
+    {
+      const rcText = ((await A('getCircuit', { doc: T })).data.models || []).find((m) => m.name === 'rc-sub');
+      const t = rcText ? rcText.modelText.split(' ') : null;
+      const nopin = t ? ['.', 'sub-nopin', t[2], t[3], t[4], '0'].concat(t.slice(6 + 4 * Number(t[5]))).join(' ') : null;
+      out.notes.noPin = nopin;
+      await rejects('pins_modelTextNone', I, null, () => A('importCircuit', { doc: I, circuit: { elements: [], models: [{ kind: 'subcircuit', name: 'sub-nopin', modelText: nopin }] } }),
+        'invalid_value', /modelText'.*a subcircuit needs at least one pin/);
+      await rejects('pins_textLineNone', I, null, () => A('importCircuit', { doc: I, circuit: '$ 1 0.000005 10 50 5 50 5e-11\n' + nopin + '\n' }),
+        'invalid_value', /sub-nopin.*a subcircuit needs at least one pin/);
+      ck('pins_noneNotRegistered', nopin && has(await A('listModels', { kind: 'subcircuit', name: 'sub-nopin' }), 'unknown_model'));
+    }
+    // recursion (guard): a ModelText whose Subcircuit names the model itself
+    {
+      const R3 = await sourceDoc('Recursion block', [{ id: 'X6', type: 'Subcircuit', start: { x: 4, y: 4 }, properties: { model_name: 'rc-sub' } }]);
+      const x6 = (await A('getCircuit', { doc: R3 })).data.elements[0];
+      const p1 = postAt(x6, 'pin1'), p2 = postAt(x6, 'pin2');
+      await A('applyEdits', { doc: R3, edits: [{ op: 'add', element: label('RA', 'a', p1.x, p1.y, p1.x - 2, p1.y) }, { op: 'add', element: label('RB', 'b', p2.x, p2.y, p2.x + 2, p2.y) }] });
+      const ro = await define(T, { kind: 'subcircuit', name: 'sub-outer-rc', source: { doc: R3 } });
+      await A('applyEdits', { doc: T, edits: [{ op: 'add', element: { id: 'X7', type: 'Subcircuit', start: { x: 40, y: 40 }, properties: { model_name: 'sub-outer-rc' } } }] });
+      const rm = ((await A('getCircuit', { doc: T })).data.models || []).find((m) => m.name === 'sub-outer-rc');
+      out.notes.recursion = { ok: ro.ok, model: rm && rm.modelText.slice(0, 120) };
+      if (rm) {
+        const rec = rm.modelText.split('rc-sub').join('sub-self').replace('. sub-outer-rc ', '. sub-self ');
+        await rejects('inner_recursion', I, null, () => A('importCircuit', { doc: I, circuit: { elements: [], models: [{ kind: 'subcircuit', name: 'sub-self', modelText: rec }] } }), 'invalid_value', /modelText'.*recursion/);
+      } else {
+        ck('inner_recursion', false);
+      }
+      await A('closeDocument', { doc: R3, discardChanges: true });
+    }
+
+    // ---------------------------------------------------------------- R1: the source is the active, free-running document
+    {
+      const V = (await A('createDocument', { title: 'Active block', activate: true })).data.doc;
+      const vi = await A('importCircuit', { doc: V, circuit: { elements: [
+        label('LIN', 'in', 4, 2, 2, 2),
+        { id: 'R1', type: 'Resistor', start: { x: 4, y: 2 }, end: { x: 8, y: 2 }, properties: { resistance: '1k' } },
+        { id: 'R2', type: 'Resistor', start: { x: 8, y: 2 }, end: { x: 8, y: 6 }, properties: { resistance: '1k' } },
+        { id: 'G1', type: 'Ground', start: { x: 8, y: 6 }, end: { x: 8, y: 7 } },
+        label('LOUT', 'out', 8, 2, 10, 2),
+        // a charging RC that keeps the state moving
+        { id: 'V1', type: 'VoltageSourceDC', start: { x: 14, y: 6 }, end: { x: 14, y: 2 }, properties: { max_voltage: '5 V' } },
+        { id: 'R3', type: 'Resistor', start: { x: 14, y: 2 }, end: { x: 18, y: 2 }, properties: { resistance: '10k' } },
+        { id: 'C3', type: 'Capacitor', start: { x: 18, y: 2 }, end: { x: 18, y: 6 }, properties: { capacitance: '100 uF' } },
+        { id: 'W1', type: 'Wire', start: { x: 18, y: 6 }, end: { x: 14, y: 6 } },
+        { id: 'G2', type: 'Ground', start: { x: 14, y: 6 }, end: { x: 14, y: 7 } }] } });
+      await A('simControl', { doc: V, action: 'run' });
+      await sleep(600);
+      await s.eval("CircuitJS1.selectElementById('R1', false); CircuitJS1.selectElementById('C3', true);");
+      // selectElementById does not refresh the Edit menu items; a background export does (DocumentScope exit)
+      await A('exportCircuit', { doc: T, format: 'text' });
+      // one synchronous page task: state, defineModel from the running active document, state again
+      const sync = JSON.parse(await s.eval(`(() => {
+        const st = () => ({ info: CircuitJS1.getSimInfo(), text: JSON.parse(CircuitJS1Agent.call('exportCircuit', JSON.stringify({ doc: ${JSON.stringify(V)}, format: 'text' }))).data.content,
+          diag: JSON.parse(CircuitJS1Agent.call('getDiagnostics', JSON.stringify({ doc: ${JSON.stringify(V)} }))).data,
+          sel: CircuitJS1.getElements().filter((e) => e.isSelected()).map((e) => e.getId()).sort(), r1: window.__H.r1Sample() });
+        const a = st();
+        const r = JSON.parse(CircuitJS1Agent.call('applyEdits', JSON.stringify({ doc: ${JSON.stringify(T)}, edits: [{ op: 'defineModel', model: { kind: 'subcircuit', name: 'sub-active', source: { doc: ${JSON.stringify(V)} } } }] })));
+        const b = st();
+        return JSON.stringify({ a, b, ok: r.ok, issues: r.issues, model: r.ok ? r.data.models[0] : null });
+      })()`));
+      out.notes.r1 = { ok: sync.ok, issues: sync.issues, time: [sync.a.info.time, sync.b.info.time], timeStep: [sync.a.info.timeStep, sync.b.info.timeStep], sel: [sync.a.sel, sync.b.sel],
+        differs: ['info', 'text', 'diag', 'sel', 'r1'].filter((k) => !same(sync.a[k], sync.b[k])) };
+      if (out.notes.r1.differs.length) out.notes.r1.detail = { a: sync.a, b: sync.b };
+      ck('r1_built', vi.ok && sync.ok && same(sync.model.pins.map((p) => p.label), ['in', 'out']));
+      ck('r1_wholeCircuitDespiteSelection', sync.ok && same(sync.a.sel, ['C3', 'R1']) && (await A('getCircuit', { doc: T })).ok);
+      ck('r1_syncUnchanged', same(sync.a.info, sync.b.info) && sync.a.text === sync.b.text && same(sync.a.diag, sync.b.diag) && same(sync.a.sel, sync.b.sel) && same(sync.a.r1, sync.b.r1));
+      // the document keeps free-running correctly afterwards: time advances, no stop, C3 still charging and the divider holds 0 V
+      const t1 = await s.call('simTime');
+      await sleep(600);
+      // one page task: run state, time and the readings at that time (C3 charges through 10k into 100 uF: tau = 1 s)
+      const after = JSON.parse(await s.eval(`JSON.stringify({ info: CircuitJS1.getSimInfo(), read: JSON.parse(CircuitJS1Agent.call('read', JSON.stringify({ doc: ${JSON.stringify(V)}, targets: [{ post: 'C3.pin1' }, { post: 'R2.pin1' }] }))) })`));
+      const vc = after.read.ok ? after.read.data.values[0].value : null;
+      const expect = 5 * (1 - Math.exp(-after.info.time / 1));
+      out.notes.r1After = { t1, info: after.info, vc, expect, divider: after.read.ok ? after.read.data.values[1].value : codes(after.read) };
+      ck('r1_keepsRunning', after.info.running && after.info.time > t1 && !after.info.stopMessage && after.read.ok
+        && Math.abs(vc - expect) <= 0.02 * expect && Math.abs(after.read.data.values[1].value) < 1e-9);
+      // the subcircuit line holds the elements' state: after more simulated time the same source is another definition
+      const again = await define(T, { kind: 'subcircuit', name: 'sub-active', source: { doc: V } });
+      out.notes.stateIdentity = { ok: again.ok, issues: codes(again) };
+      ck('identity_includesState', again.ok === false && has(again, 'name_taken'));
+      await A('simControl', { doc: V, action: 'stop' });
+      await A('closeDocument', { doc: V, discardChanges: true });
+    }
+
+    // ---------------------------------------------------------------- R1: a background source while another tab free-runs
+    {
+      const W = (await A('createDocument', { title: 'Visible', activate: true })).data.doc;
+      await A('importCircuit', { doc: W, circuit: { elements: [
+        { id: 'V1', type: 'VoltageSourceDC', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '5 V' } },
+        { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1k' } },
+        { id: 'C1', type: 'Capacitor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { capacitance: '1 mF' } },
+        { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } },
+        { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }] } });
+      await A('simControl', { doc: W, action: 'run' });
+      await sleep(400);
+      const r0 = await s.call('r1Sample');
+      const t0 = await s.call('simTime');
+      const bg = await define(T, { kind: 'subcircuit', name: 'sub-bg', source: { doc: S } });
+      const r1 = await s.call('r1Sample');
+      await sleep(300);
+      const t1 = await s.call('simTime');
+      out.notes.r1Background = { ok: bg.ok, t0, t1 };
+      ck('r1_backgroundSource', bg.ok && same(r0, r1) && t1 > t0);
+      await A('simControl', { doc: W, action: 'stop' });
+      await A('closeDocument', { doc: W, discardChanges: true });
+    }
+    // one page task: state of `doc` (simulated time and step, text, diagnostics, the R1 sample, given reads), defineModel into T, state again
+    const syncBuild = async (doc, name, reads) => JSON.parse(await s.eval(`(() => {
+      const doc = ${JSON.stringify(doc)};
+      const st = () => ({ info: CircuitJS1.getSimInfo(),
+        text: JSON.parse(CircuitJS1Agent.call('exportCircuit', JSON.stringify({ doc, format: 'text' }))).data.content,
+        diag: JSON.parse(CircuitJS1Agent.call('getDiagnostics', JSON.stringify({ doc }))).data,
+        reads: ${JSON.stringify(reads || [])}.length ? JSON.parse(CircuitJS1Agent.call('read', JSON.stringify({ doc, targets: ${JSON.stringify(reads || [])} }))) : null,
+        r1: window.__H.r1Sample() });
+      const a = st();
+      const r = JSON.parse(CircuitJS1Agent.call('applyEdits', JSON.stringify({ doc: ${JSON.stringify(T)}, edits: [{ op: 'defineModel', model: { kind: 'subcircuit', name: ${JSON.stringify(name)}, source: { doc } } }] })));
+      const b = st();
+      return JSON.stringify({ a, b, ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message) });
+    })()`));
+    const differs = (x) => ['info', 'text', 'diag', 'reads', 'r1'].filter((k) => !same(x.a[k], x.b[k]));
+
+    // ---------------------------------------------------------------- R1: an active, free-running source without Ground
+    // (the normal allocation grounds V1's first terminal, the subcircuit allocation does not)
+    {
+      const V = (await A('createDocument', { title: 'No ground', activate: true })).data.doc;
+      const vi = await A('importCircuit', { doc: V, circuit: { elements: [
+        { id: 'V1', type: 'VoltageSourceDC', start: { x: 2, y: 6 }, end: { x: 2, y: 2 }, properties: { max_voltage: '5 V' } },
+        { id: 'R1', type: 'Resistor', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, properties: { resistance: '1k' } },
+        { id: 'R2', type: 'Resistor', start: { x: 6, y: 2 }, end: { x: 6, y: 6 }, properties: { resistance: '1k' } },
+        { id: 'W1', type: 'Wire', start: { x: 6, y: 6 }, end: { x: 2, y: 6 } },
+        label('LIN', 'in', 2, 2, 0, 2), label('LOUT', 'out', 6, 2, 8, 2)] } });
+      await A('simControl', { doc: V, action: 'run' });
+      await sleep(400);
+      const sb = await syncBuild(V, 'sub-noground', [{ post: 'R2.pin1' }, { element: 'R1', quantity: 'current' }]);
+      await sleep(600);
+      const after = JSON.parse(await s.eval(`JSON.stringify({ info: CircuitJS1.getSimInfo(), read: JSON.parse(CircuitJS1Agent.call('read', JSON.stringify({ doc: ${JSON.stringify(V)}, targets: [{ post: 'R2.pin1' }, { element: 'R1', quantity: 'current' }] }))) })`));
+      const vals = after.read.ok ? after.read.data.values.map((v) => v.value) : null;
+      out.notes.r1NoGround = { import: vi.ok, build: sb.ok, issues: sb.issues, differs: differs(sb), time: [sb.a.info.time, sb.b.info.time, after.info.time], vals };
+      ck('r1_noGroundSyncUnchanged', vi.ok && differs(sb).length === 0);
+      ck('r1_noGroundKeepsRunning', after.info.running && after.info.time > sb.b.info.time && !after.info.stopMessage && vals
+        && Math.abs(vals[0] - 2.5) < 1e-6 && Math.abs(Math.abs(vals[1]) - 2.5e-3) < 1e-8);
+      await A('simControl', { doc: V, action: 'stop' });
+      await A('closeDocument', { doc: V, discardChanges: true });
+    }
+
+    // ---------------------------------------------------------------- an inductor whose current path exists only through the
+    // normal allocation's ground (V1's first terminal -> a logic input's ground connection): the build does not reset it
+    {
+      const L = await sourceDoc('Inductor path', [
+        { id: 'V1', type: 'VoltageSourceDC', start: { x: 2, y: 6 }, end: { x: 2, y: 2 }, properties: { max_voltage: '5 V' } },
+        { id: 'L1', type: 'Inductor', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, properties: { inductance: '1 H' } },
+        { id: 'LI1', type: 'LogicInput', start: { x: 6, y: 2 }, end: { x: 9, y: 2 }, properties: { position: 0 } },
+        label('LIN', 'in', 2, 2, 0, 2), label('LOUT', 'out', 6, 2, 6, 0)]);
+      const lr = await R({ doc: L, span: '2 ms', reset: true, maxPoints: 10, probes: [{ element: 'L1', quantity: 'current', name: 'i' }] });
+      const sb = await syncBuild(L, 'sub-inductor', [{ element: 'L1', quantity: 'current' }]);
+      const i0 = sb.a.reads && sb.a.reads.ok ? sb.a.reads.data.values[0].value : null;
+      const i1 = sb.b.reads && sb.b.reads.ok ? sb.b.reads.data.values[0].value : null;
+      out.notes.inductor = { run: lr.ok ? lr.data.probes[0].stats.final : codes(lr), build: sb.ok, issues: sb.issues, i0, i1, differs: differs(sb) };
+      ck('inductor_notReset', lr.ok && typeof i0 === 'number' && Math.abs(i0) > 1e-6 && i0 === i1 && differs(sb).length === 0);
+      await A('closeDocument', { doc: L, discardChanges: true });
+    }
+
+    // ---------------------------------------------------------------- a wire loop (warned under recovery): the solver events stay those of the last analysis
+    {
+      const WL = await sourceDoc('Wire loop', [label('LA', 'a', 2, 2, 0, 2),
+        { id: 'W1', type: 'Wire', start: { x: 2, y: 2 }, end: { x: 6, y: 2 } },
+        { id: 'W2', type: 'Wire', start: { x: 6, y: 2 }, end: { x: 6, y: 6 } },
+        { id: 'W3', type: 'Wire', start: { x: 6, y: 6 }, end: { x: 2, y: 6 } },
+        { id: 'W4', type: 'Wire', start: { x: 2, y: 6 }, end: { x: 2, y: 2 } },
+        { id: 'R1', type: 'Resistor', start: { x: 6, y: 6 }, end: { x: 10, y: 6 }, properties: { resistance: '1k' } },
+        { id: 'G1', type: 'Ground', start: { x: 10, y: 6 }, end: { x: 10, y: 7 } }]);
+      const d0 = (await A('getDiagnostics', { doc: WL })).data;
+      const sb = await syncBuild(WL, 'sub-wireloop');
+      out.notes.wireLoop = { build: sb.ok, issues: sb.issues, differs: differs(sb), events: d0 && d0.events };
+      ck('wireLoop_eventsUnchanged', JSON.stringify(d0.events || []).includes('wire loop') && differs(sb).length === 0);
+      await A('closeDocument', { doc: WL, discardChanges: true });
+    }
+
+    // ---------------------------------------------------------------- the trial build leaves the session-wide MOSFET display flags alone
+    {
+      const digital = async (id) => {
+        await A('applyEdits', { doc: T, edits: [{ op: 'add', element: { id, type: 'NMOS', start: { x: 60, y: 10 + 6 * id.length } } }] });
+        const r = (await A('getCircuit', { doc: T, detail: 'full', ids: [id] })).data.elements[0];
+        return !!r.properties.digital;
+      };
+      const g0 = await digital('MA');
+      // a subcircuit of one MOSFET whose dump carries the opposite symbol flag (4 = digital, 32 = body diode)
+      const mos = (name) => ({ kind: 'subcircuit', name, modelText: `. ${name} 0 2 2 3 g 1 0 0 d 2 0 2 s 3 1 3 NMosfetElm\\s1\\s2\\s3 ${g0 ? 32 : 36}\\\\s1.5\\\\s0.02` });
+      const ok1 = await A('importCircuit', { doc: I, circuit: { elements: [], models: [mos('sub-mos')] } });
+      const g1 = await digital('MBB');
+      const rj = await A('importCircuit', { doc: I, circuit: { elements: [], models: [mos('sub-mos2'), { kind: 'diode', name: '1N4148', parameters: { emission_coefficient: 3 } }] } });
+      const g2 = await digital('MCCC');
+      out.notes.mosfet = { g0, g1, g2, ok1: ok1.ok ? 'ok' : (ok1.issues || []).map((i) => i.code + ': ' + i.message), rejected: codes(rj) };
+      ck('trial_mosfetFlagsKept', ok1.ok && rj.ok === false && has(rj, 'name_taken') && g1 === g0 && g2 === g0);
+    }
+
+    // ---------------------------------------------------------------- same-session re-import of a document using diode, logic and subcircuit models
+    {
+      const M = await sourceDoc('Mixed models', [
+        { id: 'X1', type: 'Subcircuit', start: { x: 4, y: 4 }, properties: { model_name: 'sub-dmod' } },
+        { id: 'X2', type: 'Subcircuit', start: { x: 4, y: 14 }, properties: { model_name: 'sub-lgblock' } },
+        { id: 'CL1', type: 'CustomLogic', start: { x: 20, y: 4 }, properties: { model_name: 'sub-lg' } }]);
+      const g = await A('getCircuit', { doc: M, detail: 'full' });
+      const ms = g.data.models || [];
+      const M2 = (await A('createDocument', { title: 'Mixed models again' })).data.doc;
+      const c0 = await catalogue();
+      const ri = await A('importCircuit', { doc: M2, circuit: { elements: g.data.elements, simulation: g.data.simulation, models: ms } });
+      const c1 = await catalogue();
+      const g2 = await A('getCircuit', { doc: M2, detail: 'full' });
+      out.notes.mixed = { models: ms.map((m) => m.kind + ':' + m.name), import: ri.ok ? 'ok' : (ri.issues || []).map((i) => i.code + ': ' + i.message) };
+      ck('roundtrip_sameSessionLogic', ri.ok && c0 === c1 && same(ms.map((m) => m.kind + ':' + m.name), ['logic:sub-lg', 'diode:sub-diode', 'subcircuit:sub-dmod', 'subcircuit:sub-lgblock'])
+        && JSON.stringify(g.data.elements) === JSON.stringify(g2.data.elements) && same(g2.data.models, ms));
+      await A('closeDocument', { doc: M, discardChanges: true });
+      await A('closeDocument', { doc: M2, discardChanges: true });
+    }
+    ck('noStorage_end', (await storageKeys()) === keys0);
+
+    // ---------------------------------------------------------------- the editor's Create Subcircuit (File menu): alerts unchanged, still creates a model
+    {
+      const E = (await A('createDocument', { title: 'Editor block', activate: true })).data.doc;
+      await A('importCircuit', { doc: E, circuit: { elements: [label('LG', 'g', 4, 4, 2, 4),
+        { id: 'R1', type: 'Resistor', start: { x: 4, y: 4 }, end: { x: 8, y: 4 } },
+        { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } },
+        { id: 'G2', type: 'Ground', start: { x: 8, y: 4 }, end: { x: 8, y: 5 } }] } });
+      await sleep(300);
+      await s.call('focus'); await s.key('Escape');
+      const b0 = (await alerts()).length;
+      const dlg0 = await s.call('dialogShowing');
+      const m1 = await s.call('clickMenuPath', [menuTexts('File'), menuTexts('Create Subcircuit...')]);
+      await sleep(400);
+      const groundAlerts = (await alerts()).slice(b0);
+      const dlg1 = await s.call('dialogShowing');
+      out.notes.editorGround = { menu: m1, alerts: groundAlerts, dialog: dlg1 };
+      ck('editor_labelOnGroundAlerts', m1 === 2 && groundAlerts.length === 1 && groundAlerts[0] === 'Node "g" can\'t be connected to ground' && same(dlg0, dlg1));
+      await s.call('closeDialogs'); await s.key('Escape');
+      await A('importCircuit', { doc: E, circuit: { elements: rcElements } });
+      await sleep(300);
+      await s.call('focus'); await s.key('Escape');
+      const b1 = (await alerts()).length;
+      const m2 = await s.call('clickMenuPath', [menuTexts('File'), menuTexts('Create Subcircuit...')]);
+      await sleep(500);
+      const okTexts = menuTexts('OK');
+      const named = await s.eval(`(() => { const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('canvas') && x.querySelector('input.gwt-TextBox'));
+        if (!d) return 'noDialog'; const tb = d.querySelector('input[type=text]'); if (!tb) return 'noTextBox'; tb.value = 'ed-rc';
+        const ok = Array.from(d.querySelectorAll('button')).find((b) => ${JSON.stringify(okTexts)}.includes(b.textContent.trim())); if (!ok) return 'noOk'; ok.click(); return 'ok'; })()`);
+      await sleep(400);
+      const er = await record('subcircuit', 'ed-rc');
+      out.notes.editorCreate = { menu: m2, named, alerts: (await alerts()).slice(b1), record: er && strip(er) };
+      ck('editor_createsModel', m2 === 2 && named === 'ok' && er && same(er.pins.map((p) => p.label), ['in', 'out']) && (await alerts()).length === b1);
+      await s.call('closeDialogs'); await s.key('Escape');
+      await A('closeDocument', { doc: E, discardChanges: true });
+    }
+
+    for (const doc of [S, T, N0, NG, NU, NC, N2, B, U, RT, O, LB, I]) await A('closeDocument', { doc, discardChanges: true });
+    out.rejections = rejections;
+    const unexpected = s.exceptions.slice(exMark).filter((e) => !/debugFailNextMutation/.test(e));
+    out.notes.exceptions = unexpected.slice(0, 5);
+    ck('noPageException', unexpected.length === 0);
+    const allAlerts = await alerts();
+    out.notes.alerts = allAlerts;
+    // the only alert: the editor's label-on-ground one
+    ck('noAgentAlert', allAlerts.length === 1 && s.dialogs.length === dialogMark);
+  } catch (e) {
+    out.notes.error = e.stack || e.message;
+    ck('noHarnessError', false);
+  } finally {
+    await s.eval('if (window.__savedAlert) { window.alert = window.__savedAlert; delete window.__savedAlert; }').catch(() => {});
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_models_sub.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('AG.agent_models_sub', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models_sub.json') });
+}
+
 // pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_03_02 "Polar names",
 // §01_09 source voltage sign; io-framework "Pin-name aliases"), on a background document. Each
 // source drives a 1 kOhm load from `start` (grounded) to `end`: a DC source reads +5 V at `plus`
@@ -5834,7 +6408,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -5878,7 +6452,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

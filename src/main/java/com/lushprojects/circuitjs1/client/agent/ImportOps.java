@@ -65,7 +65,7 @@ final class ImportOps {
         List<ModelOps.Planned> planned = new ArrayList<>();
         if (circuit.isObject() != null) {
             // [SP_AGA_02_03] models are validated with the elements (names = session ∪ models)
-            ModelOps.Scope scope = new ModelOps.Scope();
+            ModelOps.Scope scope = new ModelOps.Scope(call.sim, call.doc);
             ModelNames.beginScope(scope);
             try {
                 planned = ModelOps.validateList(circuit.isObject().get("models"), "circuit.models", scope, issues);

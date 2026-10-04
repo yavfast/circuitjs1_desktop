@@ -81,11 +81,13 @@ const MODEL_KIND = { type: 'string', enum: ['diode', 'transistor', 'logic', 'sub
  */
 const MODEL_ENTRY = {
   type: 'object',
-  description: 'ModelSpec {kind, name, from?, parameters} (diode, transistor) or {kind: "logic", name, inputs, outputs, rules, info?}, '
-    + 'or ModelText {kind, name, modelText} (one model line of the text format, as circuit_get returns it). Names are '
-    + 'create-only: an existing name is accepted only with an identical definition. Example: {"kind": "diode", '
-    + '"name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}; '
-    + '{"kind": "logic", "name": "and2", "inputs": ["A", "B"], "outputs": ["Y"], "rules": ["11=1", "??=0"]}.',
+  description: 'ModelSpec {kind, name, from?, parameters} (diode, transistor), {kind: "logic", name, inputs, outputs, rules, info?} '
+    + 'or {kind: "subcircuit", name, source: {doc}, showLabel?} (the whole circuit of another document, external pins = its '
+    + 'labelled nodes, posts pin1..N by label text), or ModelText {kind, name, modelText} (one model line of the text format, '
+    + 'as circuit_get returns it). Names are create-only: an existing name is accepted only with an identical definition. '
+    + 'Example: {"kind": "diode", "name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}; '
+    + '{"kind": "logic", "name": "and2", "inputs": ["A", "B"], "outputs": ["Y"], "rules": ["11=1", "??=0"]}; '
+    + '{"kind": "subcircuit", "name": "rc-filter", "source": {"doc": "d2"}}.',
   properties: {
     kind: MODEL_KIND,
     name: { type: 'string', description: 'Model name: ^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$ for a ModelSpec.' },
@@ -102,8 +104,8 @@ const MODEL_ENTRY = {
     outputs: { type: 'array', items: { type: 'string' }, description: 'logic: output pin names (1-32).' },
     rules: { type: 'array', items: { type: 'string' }, description: 'logic: rule lines left=right (1-256, at most 100 chars each).' },
     info: { type: 'string', description: 'logic: info text (at most 200 chars; default the name).' },
-    source: { type: 'object', properties: { doc: DOC } },
-    showLabel: { type: 'boolean' },
+    source: { type: 'object', properties: { doc: DOC }, description: 'subcircuit: {doc} — the open document whose whole circuit becomes the model (read only; not the document of the call).' },
+    showLabel: { type: 'boolean', description: 'subcircuit: draw the model name on the chip (default true).' },
   },
   required: ['kind', 'name'],
 };

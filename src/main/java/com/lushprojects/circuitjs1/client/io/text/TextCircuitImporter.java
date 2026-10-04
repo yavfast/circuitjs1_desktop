@@ -299,6 +299,48 @@ public class TextCircuitImporter implements CircuitImporter {
     }
 
     /**
+     * [SP_AGA_01_13] "Inner references" on a create-only report (agent {@code importCircuit}
+     * content): a new subcircuit model line whose element dumps name a model the session lacks
+     * (the model lines before it in the same content are already loaded), or whose node list
+     * names an unknown element class, or that has no pin, is an error item and is not loaded — its elements would
+     * otherwise register fallback models silently. User loads and {@code openFile} load the line
+     * as the editor does.
+     *
+     * @return true when the line must not be undumped
+     */
+    private boolean rejectInnerReferences(StringTokenizer tokenizer) {
+        if (report == null || !report.isCreateOnlyModels()) {
+            return false;
+        }
+        StringTokenizer st = new StringTokenizer(tokenizer.getOriginalString(), DELIMITERS);
+        st.nextToken(); // line type
+        String name = CustomLogicModel.unescape(st.nextToken());
+        CustomCompositeModel model = CustomCompositeModel.undumpDetached(name, st);
+        String problem = ModelSpecCodec.innerProblem(model, new ModelSpecCodec.InnerNames() {
+            @Override
+            public boolean exists(String kind, String n) {
+                if (ModelSpecCodec.LOGIC.equals(kind)) {
+                    return !CustomLogicModel.isUnresolved(n);
+                }
+                return ModelSpecCodec.entry(kind, n) != null;
+            }
+
+            @Override
+            public String subcircuitNodeList(String n) {
+                CustomCompositeModel m = CustomCompositeModel.findEntry(n);
+                return m == null ? null : m.nodeList;
+            }
+        });
+        if (problem == null) {
+            return false;
+        }
+        report.addModelLineProblem("line " + lineNumber + ": subcircuit model '" + name + "': " + problem,
+                model.extList.isEmpty() ? "Give the subcircuit at least one external pin (a labelled node)."
+                        : "Define the models its elements use first (model lines before it, dependencies first).", lineNumber);
+        return true;
+    }
+
+    /**
      * [SP_AGA_06_01] item 25 / [SP_AGA_03_11] "No dialogs": a logic model line whose rules do not
      * parse loads as before (the rules before the bad line apply). A user load alerts the parser's
      * message as before; an agent path never alerts — an agent load carries a report (an error on
@@ -408,7 +450,7 @@ public class TextCircuitImporter implements CircuitImporter {
                 return true;
 
             case '.': // Custom composite model
-                if (keepExistingModel(tokenizer, typeId)) {
+                if (keepExistingModel(tokenizer, typeId) || rejectInnerReferences(tokenizer)) {
                     return true;
                 }
                 recordModelEntry(tokenizer, typeId);
