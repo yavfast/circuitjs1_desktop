@@ -55,7 +55,11 @@ public class LEDElm extends DiodeElm {
         colorR = parseDouble(st.nextToken());
         colorG = parseDouble(st.nextToken());
         colorB = parseDouble(st.nextToken());
-        maxBrightnessCurrent = parseDouble(st.nextToken(), .01);
+        // the maximum-brightness current is optional in legacy lines (the original reader caught
+        // its absence; ec8f0f7 lost that and dropped such an LED on load, e.g. ledflasher.txt)
+        maxBrightnessCurrent = .01;
+        if (st.hasMoreTokens())
+            maxBrightnessCurrent = parseDouble(st.nextToken(), .01);
     }
 
     @Override

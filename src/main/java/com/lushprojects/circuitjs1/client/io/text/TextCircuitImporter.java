@@ -221,7 +221,7 @@ public class TextCircuitImporter implements CircuitImporter {
             createStandardElement(tokenizer, document, typeId);
 
         } catch (Exception e) {
-            CirSim.console("Exception while parsing: " + tokenizer.getOriginalString());
+            CirSim.console("Exception while parsing: " + tokenizer.getOriginalString() + " (" + e + ")");
             // A line whose parsing throws counts as failed (SP_AGA_03_04)
             reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
                     "line " + lineNumber + ": the line could not be parsed");

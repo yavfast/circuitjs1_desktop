@@ -146,6 +146,8 @@ subcircuit mode, `AudioInputElm.clearCache()`,
     letter (`T`, `S`, `r`, `t`, `w`), so the first token alone accepts
     prose (PL_AGA Phase 9).
 11. **References in dump lines are indices among dumped lines.** Use `CircuitSimulator.locateElmForDump`, not `elmList.indexOf`; elements whose `hasDumpLine()` is false are skipped by the exporter (2026-10-01).
+12. **Helpers an element builds while parsing take the element's document.** A delegate created with a `null` document (`new Scope(cirSim(), null)`) resolves `simulator()` through the *active* tab, and objects that read `circuitDocument.simulator` directly (`ScopePlot.reset`) throw. `ScopeElm` did both: every `403` line failed to parse — dropped silently by the user load, an `import_element_skipped` rejection in the agent import (qam-256.txt, multivib-a.txt; fixed 2026-10-04). A line that throws is reported only by the agent path, so `textfid` and `agent_connect_all` check the `403` lines explicitly. The embedded scope's stack position is -1 while in the circuit (`draw()` forces it); `ScopeElm` keeps the file's position field separately so the export does not depend on whether the scope was drawn.
+13. **Optional trailing fields need `st.hasMoreTokens()`.** `parseDouble(st.nextToken(), def)` does not cover a missing token — `nextToken()` throws `NoSuchElementException` and the whole line is dropped. Upstream readers caught it with `try {} catch`; refactors that replaced the try with a default lost legacy lines (TransformerElm coupling, eb72ca5; LEDElm maximum-brightness current, ec8f0f7 — ledflasher.txt, fixed 2026-10-04). `agent_connect_all` fails on any rejected example.
 
 ## References
 

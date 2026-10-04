@@ -29,13 +29,21 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 public class ScopeElm extends CircuitElm {
 
     public Scope elmScope;
+    /**
+     * The stack-position field of the 403 line. An embedded scope is not stacked: its position is
+     * -1 while it lives in the circuit (the docked scopes compare positions with it, and draw()
+     * forces -1), so the field read from the file is kept here and written back unchanged —
+     * otherwise the line's export depended on whether the scope had been drawn yet.
+     */
+    private int dumpPosition = -1;
 
     public ScopeElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
         noDiagonal = false;
         // use ElmGeometry to set default size so derived geometry stays consistent
         geom().setEndpoints(xx, yy, xx + 128, yy + 64);
-        elmScope = new Scope(cirSim(), null);
+        elmScope = newElmScope();
+        elmScope.position = -1;
         setPoints();
     }
 
@@ -59,10 +67,22 @@ public class ScopeElm extends CircuitElm {
         noDiagonal = false;
         String sStr = st.nextToken();
         StringTokenizer sst = new StringTokenizer(sStr, "_");
-        elmScope = new Scope(cirSim(), null);
+        elmScope = newElmScope();
         elmScope.undump(sst);
+        dumpPosition = elmScope.position;
+        elmScope.position = -1;
         setPoints();
         elmScope.resetGraph();
+    }
+
+    /**
+     * The embedded scope belongs to this element's document: its plots read that document's
+     * simulator (a plot's first reset takes the simulation time from it) and the undump resolves
+     * the plotted element indices in it. A scope without a document fell back to the active tab
+     * for the indices and threw on its first plot, so every 403 line failed to load.
+     */
+    private Scope newElmScope() {
+        return new Scope(cirSim(), circuitDocument);
     }
 
     public void setScopeRect() {
@@ -82,6 +102,9 @@ public class ScopeElm extends CircuitElm {
 
     public void setElmScope(Scope s) {
         elmScope = s;
+        // an undocked scope leaves the stack
+        elmScope.position = -1;
+        dumpPosition = -1;
     }
 
 
@@ -114,7 +137,14 @@ public class ScopeElm extends CircuitElm {
 
     public String dump() {
         String dumpStr = super.dump();
-        String elmDump = elmScope.dump();
+        int position = elmScope.position;
+        elmScope.position = dumpPosition;
+        String elmDump;
+        try {
+            elmDump = elmScope.dump();
+        } finally {
+            elmScope.position = position;
+        }
         if (elmDump == null)
             return null;
         String sStr = elmDump.replace(' ', '_');

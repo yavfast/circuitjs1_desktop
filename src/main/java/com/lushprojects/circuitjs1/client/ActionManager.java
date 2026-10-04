@@ -315,7 +315,11 @@ public class ActionManager extends BaseCirSimDelegate {
             circuitEditor().menuElm = circuitEditor().mouseElm;
             menu = "elm";
         }
-        if (menu != "elm")
+        // the scope popup of an in-circuit scope acts on its menu element too (cleared below), and
+        // a key pressed while a context menu is open (the pointer is on the popup, so nothing is
+        // hovered) keeps the element that menu was opened on for its next item
+        boolean contextMenuOpen = menuManager.contextPanel != null && menuManager.contextPanel.isShowing();
+        if (menu != "elm" && menu != "scopepop" && !(menu == "key" && contextMenuOpen))
             circuitEditor().menuElm = null;
 
         if (item == "cut") {
@@ -401,16 +405,34 @@ public class ActionManager extends BaseCirSimDelegate {
         }
 
         if (menu == "scopepop") {
-            circuitEditor().pushUndo();
+            // An in-circuit scope's menu acts on the element it was opened on (menuElm): moving the
+            // pointer onto the popup leaves the canvas, which clears the hovered element (mouseElm)
+            CircuitElm menuElm = circuitEditor().menuElm instanceof ScopeElm ? circuitEditor().menuElm : circuitEditor().mouseElm;
+            circuitEditor().menuElm = null;
             Scope s;
             if (scopeManager().menuScope != -1)
                 s = scopeManager().scopes[scopeManager().menuScope];
+            else if (menuElm instanceof ScopeElm)
+                s = ((ScopeElm) menuElm).elmScope;
             else
-                s = ((ScopeElm) circuitEditor().mouseElm).elmScope;
+                return;
+            // without a free docked-scope slot Dock changes nothing: no undo step
+            if (item == "dock" && scopeManager().menuScope == -1
+                    && scopeManager().getScopeCount() >= scopeManager().getMaxScopes())
+                return;
+            circuitEditor().pushUndo();
 
-            if (item == "dock") {
-                scopeManager().dockScope(circuitEditor().mouseElm);
-                circuitEditor().doDelete(false);
+            if (item == "dock" && scopeManager().menuScope == -1) {
+                scopeManager().dockScope(menuElm);
+                // remove exactly this element: doDelete would take the selection instead, if
+                // any, and leave a ScopeElm without its scope behind
+                if (((ScopeElm) menuElm).elmScope == null) {
+                    circuitEditor().forgetElement(menuElm);
+                    menuElm.delete();
+                    simulator().elmList.remove(menuElm);
+                    cirSim.needAnalyze();
+                    cirSim.setUnsavedChanges(true);
+                }
             }
             if (item == "undock") {
                 CircuitElm elm = s.getElm();

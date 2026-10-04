@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -182,6 +182,16 @@ class Session {
     for (let k = 1; k <= 4; k++) await m('mouseMoved', x1 + ((x2 - x1) * k) / 4, y1 + ((y2 - y1) * k) / 4, { buttons: 1 });
     await m('mouseReleased', x2, y2, { clickCount: 1 });
     await sleep(200);
+  }
+  // Right-button click in viewport coordinates (hover first, so the editor picks the element);
+  // opens the element's or scope's context menu.
+  async mouseRightClick(x, y) {
+    const m = (type, extra = {}) => this.cdp.send('Input.dispatchMouseEvent', { type, x, y, ...extra });
+    await m('mouseMoved', { button: 'none' });
+    await sleep(150);
+    await m('mousePressed', { button: 'right', buttons: 2, clickCount: 1 });
+    await m('mouseReleased', { button: 'right', clickCount: 1 });
+    await sleep(300);
   }
   markConsole() { return this.console.length; }
   consoleSince(mark) { return this.console.slice(mark); }
@@ -823,14 +833,25 @@ async function scenarioTextFidelity(s) {
   const num = (t) => (/^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/.test(t) ? Number(t) : null);
   const elmKey = (toks) => toks.slice(0, 5).join(' ');
   const isElm = (toks) => toks.length >= 6 && !['$', 'o', 'h', '38', '!', '%', '?', 'B', '34', '32', '.'].includes(toks[0]) && toks.slice(1, 5).every((t) => num(t) !== null);
-  const agg = { circuits: 0, linesCompared: 0, lossy: 0, signFlips: 0, byType: {}, samples: [] };
+  const agg = { circuits: 0, linesCompared: 0, lossy: 0, signFlips: 0, byType: {}, samples: [], scopeElmLines: 0, scopeElmMissing: [] };
   for (const name of list) {
     const raw = fs.readFileSync(path.join(SITE_DIR, 'circuitjs1/circuits', name), 'utf8');
     await s.call('loadExample', name);
+    // a drawn in-circuit scope has stack position -1 (ScopeElm.draw): let the canvas draw it before
+    // the export, so the 403 check covers the file's own position field (ScopeElm.dumpPosition)
+    if (/^403\s/m.test(raw)) await sleep(800);
     const T1 = String(await s.call('exportText'));
     const t1 = new Map();
     for (const line of T1.split('\n')) { const toks = line.trim().split(/\s+/); if (isElm(toks)) { const k = elmKey(toks); if (!t1.has(k)) t1.set(k, toks); } }
     agg.circuits++;
+    // In-circuit scope (403) lines are kept byte for byte: a scope whose load throws is dropped
+    // silently by the user load path (fixed 2026-10-04: ScopeElm's scope had no document)
+    const t1Lines = new Set(T1.split('\n').map((l) => l.trim()));
+    for (const line of raw.split('\n')) {
+      if (!/^403\s/.test(line.trim())) continue;
+      agg.scopeElmLines++;
+      if (!t1Lines.has(line.trim())) agg.scopeElmMissing.push(`${name}: ${line.trim()}`);
+    }
     for (const line of raw.split('\n')) {
       const a = line.trim().split(/\s+/); if (!isElm(a)) continue;
       const b = t1.get(elmKey(a)); if (!b) continue;
@@ -851,6 +872,79 @@ async function scenarioTextFidelity(s) {
   }
   fs.writeFileSync(path.join(OUT_DIR, 'textfidelity.json'), JSON.stringify(agg, null, 2));
   report('T.text_fidelity', agg.lossy === 0, { circuits: agg.circuits, linesCompared: agg.linesCompared, lossyFields: agg.lossy, signFlips: agg.signFlips, byType: agg.byType, sample: agg.samples.slice(0, 5) });
+  // own result line: text_fidelity already fails on accepted differences, which would hide this
+  // a circuit list without a 403 line has nothing to check: PASS with skipped
+  report('T.text_fidelity_scope', agg.scopeElmMissing.length === 0, { scopeElmLines: agg.scopeElmLines, scopeElmMissing: agg.scopeElmMissing.slice(0, 10), ...(agg.scopeElmLines === 0 ? { skipped: 'no 403 line in the circuit list' } : {}) });
+}
+
+// scope_float: an in-circuit scope made by the user (2026-10-04). lrc.txt -> element context menu
+// "View in New Undocked Scope" on R1 -> the export has one 403 line with stack position -1 -> Ctrl+A,
+// then its scope context menu "Dock Scope" -> exactly one element fewer, no 403 line, one more 'o'
+// line -> Ctrl+Z brings the 403 line
+// back unchanged; no page exception. Before the fix the undocked scope had no document and its
+// first plot threw.
+async function scenarioScopeFloat(s) {
+  const out = { checks: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.call('loadExample', 'lrc.txt');
+  await sleep(300);
+  const lines = async () => String(await s.call('exportText')).split('\n').map((l) => l.trim()).filter(Boolean);
+  const of = (ls, t) => ls.filter((l) => l.split(' ')[0] === t);
+  // circuit coordinates -> viewport coordinates of the visible canvas
+  const toView = async (x, y) => {
+    const cr = await s.call('canvasRect');
+    const v = (await s.call('visibleTab')).view;
+    const k = cr.w / v.canvas.width; const t = v.transform;
+    return [Math.round(cr.x + (t[0] * x + t[2] * y + t[4]) * k), Math.round(cr.y + (t[1] * x + t[3] * y + t[5]) * k)];
+  };
+  const l0 = await lines();
+  const r1 = of(l0, 'r')[0].split(' ').map(Number);
+  await s.call('focus');
+  await s.mouseRightClick(...(await toView((r1[1] + r1[3]) / 2, (r1[2] + r1[4]) / 2)));
+  out.floatMenu = await s.call('clickMenuPath', [menuTexts('View in New Undocked Scope')]);
+  await sleep(800); // drawn at least once: a drawn embedded scope has position -1
+  const l1 = await lines();
+  const sc = of(l1, '403');
+  out.floatLine = sc[0] || null;
+  ck('floatMenuFound', out.floatMenu === 1);
+  ck('oneScopeLine', sc.length === 1);
+  // 403 x1 y1 x2 y2 flags elm_speed_value_flags_scaleV_scaleA_position_...
+  ck('positionMinus1', sc.length === 1 && sc[0].split(' ')[6].split('_')[6] === '-1');
+  ck('othersUnchanged', l1.length === l0.length + 1);
+  if (sc.length === 1) {
+    const g = sc[0].split(' ').map(Number);
+    const logMark = await s.call('logCount');
+    // with everything selected, Dock still removes only the scope element (not the selection)
+    await s.call('focus');
+    await s.key('KeyA', { ctrl: true });
+    const n1 = await s.call('count');
+    out.selectedBeforeDock = await s.call('selectedCount');
+    await s.mouseRightClick(...(await toView((g[1] + g[3]) / 2, (g[2] + g[4]) / 2)));
+    out.dockMenu = await s.call('clickMenuPath', [menuTexts('Dock Scope')]);
+    await sleep(300);
+    const l2 = await lines();
+    out.countBeforeAfterDock = [n1, await s.call('count')];
+    out.dockLogs = (await s.call('logsSince', logMark)).slice(-8);
+    ck('selectAllBeforeDock', out.selectedBeforeDock > 1);
+    ck('dockRemovesOnlyScope', out.countBeforeAfterDock[1] === n1 - 1);
+    ck('dockMenuFound', out.dockMenu === 1);
+    ck('dockedNoScopeLine', of(l2, '403').length === 0);
+    ck('dockedOneMoreScope', of(l2, 'o').length === of(l1, 'o').length + 1);
+    await s.call('focus');
+    await s.key('KeyZ', { ctrl: true });
+    await sleep(300);
+    const l3 = await lines();
+    out.undoLine = of(l3, '403')[0] || null;
+    ck('undoRestoresScopeLine', of(l3, '403').length === 1 && of(l3, '403')[0] === sc[0] && of(l3, 'o').length === of(l1, 'o').length);
+  }
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  await resetApp(s);
+  fs.writeFileSync(path.join(OUT_DIR, 'scope_float.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('SF.scope_float', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'scope_float.json') });
 }
 
 // Agent API documents (PL_AGA Phase 1, SP_AGA_02_02 / SP_AGA_05_01): listDocuments, createDocument
@@ -2014,6 +2108,9 @@ async function scenarioAgentConnectAll(s) {
   const byCode = {};
   const symbolOverlap = {};
   const noGround = [];
+  const rejected = [];
+  const scopeElmMissing = [];
+  stats.scopeElmLines = 0;
   for (const name of list) {
     const ex0 = s.exceptions.length;
     const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
@@ -2026,7 +2123,16 @@ async function scenarioAgentConnectAll(s) {
     const rd = first ? await A('read', { doc, targets: [{ net: first.name }] }) : { ok: true };
     stats.ms += Date.now() - t0;
     stats.circuits++;
-    if (!imp.ok) stats.importRejected++;
+    if (!imp.ok) { stats.importRejected++; rejected.push({ name, issues: (imp.issues || []).map((i) => i.code + ': ' + i.message) }); }
+    // In-circuit scopes (403) load into the background document and export byte for byte: their
+    // plotted elements resolve in that document, not in the visible tab (2026-10-04, qam-256.txt)
+    const scopeLines = text.split('\n').map((l) => l.trim()).filter((l) => /^403\s/.test(l));
+    if (scopeLines.length && imp.ok) {
+      const ex = await A('exportCircuit', { doc, format: 'text' });
+      const got = new Set(String((ex.data && ex.data.content) || '').split('\n').map((l) => l.trim()));
+      stats.scopeElmLines += scopeLines.length;
+      for (const l of scopeLines) if (!got.has(l)) scopeElmMissing.push(`${name}: ${l}`);
+    }
     const results = [imp, con, gc, dg, rd];
     const problem = results.some((r) => r.__undefined) || !con.ok || !gc.ok || !dg.ok || !rd.ok
       || (imp.ok && !imp.connectivity) || s.exceptions.length !== ex0
@@ -2044,9 +2150,9 @@ async function scenarioAgentConnectAll(s) {
   await A('closeDocument', { doc, discardChanges: true });
   const vis1 = await s.call('visibleTab');
   const visibleSame = JSON.stringify(vis0) === JSON.stringify(vis1);
-  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad, symbolOverlap, noGround }, null, 2));
-  report('AG.agent_connect_all', bad.length === 0 && visibleSame && s.exceptions.length === exMark,
-    { ...stats, bad: bad.length, visibleSame, details: path.join(OUT_DIR, 'agent_connect_all.json') });
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad, rejected, scopeElmMissing, symbolOverlap, noGround }, null, 2));
+  report('AG.agent_connect_all', bad.length === 0 && rejected.length === 0 && scopeElmMissing.length === 0 && visibleSame && s.exceptions.length === exMark,
+    { ...stats, bad: bad.length, rejected: rejected.map((r) => r.name), scopeElmMissing: scopeElmMissing.length, visibleSame, details: path.join(OUT_DIR, 'agent_connect_all.json') });
   function recs(r) { return (r && r.data && r.data.elements) || []; }
 }
 
@@ -5728,7 +5834,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -5772,7 +5878,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }
