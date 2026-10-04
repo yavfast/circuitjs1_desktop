@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
+
 /**
  * Manages clipboard operations with system clipboard integration
  * Provides copy/paste functionality for circuit elements
@@ -19,7 +21,10 @@ public class ClipboardManager {
      * Check if browser supports modern Clipboard API
      */
     private native boolean checkClipboardSupport() /*-{
-        return !!(navigator.clipboard && navigator.clipboard.writeText && navigator.clipboard.readText);
+        // the page window's clipboard ($wnd): the module frame's document never has the focus, and
+        // the Clipboard API refuses to read for an unfocused document
+        var nav = $wnd.navigator;
+        return !!(nav.clipboard && nav.clipboard.writeText && nav.clipboard.readText);
     }-*/;
 
     /**
@@ -159,8 +164,9 @@ public class ClipboardManager {
      * Write to system clipboard using modern Clipboard API
      */
     private native void writeToSystemClipboard(String data) /*-{
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(data).then(function() {
+        var nav = $wnd.navigator;
+        if (nav.clipboard && nav.clipboard.writeText) {
+            nav.clipboard.writeText(data).then(function() {
                 console.log('Circuit data copied to system clipboard');
             })['catch'](function(err) {
                 console.error('Failed to copy to system clipboard: ', err);
@@ -173,8 +179,9 @@ public class ClipboardManager {
      */
     private native void readFromSystemClipboardAsync(ClipboardCallback callback) /*-{
         var self = this;
-        if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText().then(function(text) {
+        var nav = $wnd.navigator;
+        if (nav.clipboard && nav.clipboard.readText) {
+            nav.clipboard.readText().then(function(text) {
                 callback.@com.lushprojects.circuitjs1.client.ClipboardCallback::onSuccess(Ljava/lang/String;)(text);
             })['catch'](function(err) {
                 console.error('Failed to read from system clipboard: ', err);
@@ -217,20 +224,13 @@ public class ClipboardManager {
     }-*/;
 
     /**
-     * Check if data looks like circuit data
+     * Whether text read from the system clipboard is a circuit to paste: the side-effect-free
+     * circuit test of file contents ([SP_AGA_03_09]: a JSON v2 circuit, or text whose every line
+     * is a circuit line with at least one element or options line). Prose is never pasted (the
+     * old token heuristic accepted any text containing "r ", "c ", "l " or "w ").
      */
     private boolean isCircuitData(String data) {
-        if (data == null || data.isEmpty()) {
-            return false;
-        }
-
-        // Simple heuristic: circuit data typically starts with $ and contains circuit elements
-        return data.startsWith("$") ||
-               data.contains("$ ") ||
-               data.contains("r ") ||  // resistor
-               data.contains("c ") ||  // capacitor
-               data.contains("l ") ||  // inductor
-               data.contains("w ");    // wire
+        return data != null && !data.isEmpty() && CircuitContentTest.isCircuit(data);
     }
 
     /**

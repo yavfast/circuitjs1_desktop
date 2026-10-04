@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Rectangle;
 import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
+import com.lushprojects.circuitjs1.client.io.json.JsonScopeCodec;
 
 public class ScopeElm extends CircuitElm {
 
@@ -185,10 +186,58 @@ public class ScopeElm extends CircuitElm {
     @Override
     public String getJsonTypeName() { return "Scope"; }
 
+    /**
+     * [SP_AGA_03_12] JSON 2.2: the embedded scope's settings, in the form of a {@code scopes}
+     * section entry ({@link JsonScopeCodec}; element references are element IDs, {@code position}
+     * is the stack-position field of the 403 line). Written only while the scope has a target
+     * (as the 403 line is).
+     */
     @Override
     public java.util.Map<String, Object> getJsonProperties() {
         java.util.Map<String, Object> props = super.getJsonProperties();
-        // Scope configuration would be exported separately in the scopes section
+        java.util.Map<String, Object> scope = jsonScope(CircuitElm::getElementId);
+        if (scope != null) {
+            props.put("scope", scope);
+        }
         return props;
+    }
+
+    /**
+     * The {@code scope} property with element references written by {@code idOf} (the JSON
+     * exporter passes its own key lookup, which keeps repeated IDs apart).
+     *
+     * @return the settings, or null while the scope has no target
+     */
+    public java.util.Map<String, Object> jsonScope(java.util.function.Function<CircuitElm, String> idOf) {
+        if (elmScope == null || !elmScope.hasDumpTarget()) {
+            return null;
+        }
+        return JsonScopeCodec.toMap(elmScope, dumpPosition, idOf);
+    }
+
+    /**
+     * Applies a {@code scope} property. Its element references can only be resolved once every
+     * element of the content exists, so the JSON importer calls this after creating them all; the
+     * key is not read by {@link #applyJsonProperties} (an agent {@code set} re-applies the current
+     * properties and must not touch the scope). A scope whose {@code element} names no element of
+     * the content keeps no target (its element saves no line).
+     *
+     * @param resolve the element of a JSON key of the content, or null
+     */
+    public void applyJsonScope(java.util.Map<String, Object> json, java.util.function.Function<String, CircuitElm> resolve) {
+        if (json == null || elmScope == null) {
+            return;
+        }
+        Object key = json.get("element");
+        CircuitElm target = key instanceof String ? resolve.apply((String) key) : null;
+        if (target == null) {
+            return;
+        }
+        JsonScopeCodec.apply(elmScope, target, json, resolve, circuitDocument);
+        Object pos = json.get("position");
+        dumpPosition = pos instanceof Number ? ((Number) pos).intValue() : -1;
+        elmScope.position = -1;
+        setPoints();
+        elmScope.resetGraph();
     }
 }

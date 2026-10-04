@@ -86,7 +86,26 @@ final class ImportOps {
                 call.args.invalid("circuit", "is empty", "Pass the circuit text.");
                 return call.args.failure();
             }
-            formatId = checkString(text, issues, cat);
+            if (text.trim().startsWith("{")) {
+                // [SP_AGA_03_12] "Agent path": the models section of a JSON v2 text is validated
+                // before any change (create-only; files carry full definitions) and defined
+                // before the elements; its names are valid model values of the content
+                ModelOps.Scope scope = new ModelOps.Scope(call.sim, call.doc);
+                ModelNames.beginScope(scope);
+                try {
+                    JSONValue models = jsonModels(text);
+                    planned = models == null ? planned
+                            : ModelOps.validateList(models, "circuit.models", scope, true, issues);
+                    if (planned == null) {
+                        planned = new ArrayList<>();
+                    }
+                    formatId = checkString(text, issues, cat);
+                } finally {
+                    ModelNames.endScope();
+                }
+            } else {
+                formatId = checkString(text, issues, cat);
+            }
             content = text;
         } else {
             call.args.invalid("circuit", "must be an AgentCircuit object or a circuit string",
@@ -103,6 +122,20 @@ final class ImportOps {
         OperationResult result = Mutation.run(call.sim, doc, ctx -> load(ctx, content, formatId, agent, cat, true, models));
         keepLastImport(doc, result);
         return result;
+    }
+
+    /**
+     * @return the top-level {@code models} value of a JSON circuit text, or null when the text is
+     *         no JSON object or has none (the schema checks report a malformed text)
+     */
+    private static JSONValue jsonModels(String text) {
+        try {
+            JSONValue parsed = JSONParser.parseStrict(text);
+            JSONObject root = parsed == null ? null : parsed.isObject();
+            return root == null ? null : root.get("models");
+        } catch (JSONException | IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

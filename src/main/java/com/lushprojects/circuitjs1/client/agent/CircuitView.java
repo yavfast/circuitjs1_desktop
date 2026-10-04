@@ -14,11 +14,10 @@ import com.lushprojects.circuitjs1.client.ScopeManager;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
+import com.lushprojects.circuitjs1.client.io.ModelDependencies;
 import com.lushprojects.circuitjs1.client.io.json.JsonCircuitExporter;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -224,56 +223,8 @@ final class CircuitView {
                 "getCircuit lists the element IDs.").elements(ElementIdRegistry.isValidId(id) ? id : "#?");
     }
 
-    /**
-     * [SP_AGA_02_05] Ordering: IDs of the form {@code <letters><digits>} first, by letters, then by
-     * numeric value; all other IDs after them, in lexicographic order.
-     */
+    /** [SP_AGA_02_05] Ordering of records by element ID ({@link ElementIdRegistry#compareIds}). */
     static void sortById(List<CircuitElm> elms) {
-        final Map<CircuitElm, String> ids = new HashMap<>();
-        for (CircuitElm e : elms) {
-            ids.put(e, e.getElementId());
-        }
-        Collections.sort(elms, new Comparator<CircuitElm>() {
-            @Override
-            public int compare(CircuitElm a, CircuitElm b) {
-                return compareIds(ids.get(a), ids.get(b));
-            }
-        });
-    }
-
-    static int compareIds(String a, String b) {
-        String pa = ElementIdRegistry.counterPrefix(a);
-        String pb = ElementIdRegistry.counterPrefix(b);
-        if (pa != null && pb != null) {
-            int c = pa.compareTo(pb);
-            if (c != 0) {
-                return c;
-            }
-            String da = a.substring(pa.length());
-            String db = b.substring(pb.length());
-            // numeric value of arbitrarily long digit strings: compare without leading zeros
-            String na = stripZeros(da);
-            String nb = stripZeros(db);
-            if (na.length() != nb.length()) {
-                return na.length() - nb.length();
-            }
-            c = na.compareTo(nb);
-            return c != 0 ? c : da.compareTo(db);
-        }
-        if (pa != null) {
-            return -1;
-        }
-        if (pb != null) {
-            return 1;
-        }
-        return a.compareTo(b);
-    }
-
-    private static String stripZeros(String digits) {
-        int i = 0;
-        while (i < digits.length() - 1 && digits.charAt(i) == '0') {
-            i++;
-        }
-        return digits.substring(i);
+        ModelDependencies.sortById(elms);
     }
 }

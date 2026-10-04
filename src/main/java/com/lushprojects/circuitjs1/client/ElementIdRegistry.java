@@ -155,6 +155,46 @@ public final class ElementIdRegistry {
         return sb.length() == 0 ? "E" : sb.toString();
     }
 
+    /**
+     * [SP_AGA_02_05] "Ordering" of element IDs: IDs of the form {@code <letters><digits>} first,
+     * by letters, then by numeric value; all other IDs after them, in lexicographic order.
+     */
+    public static int compareIds(String a, String b) {
+        String pa = counterPrefix(a);
+        String pb = counterPrefix(b);
+        if (pa != null && pb != null) {
+            int c = pa.compareTo(pb);
+            if (c != 0) {
+                return c;
+            }
+            String da = a.substring(pa.length());
+            String db = b.substring(pb.length());
+            // numeric value of arbitrarily long digit strings: compare without leading zeros
+            String na = stripZeros(da);
+            String nb = stripZeros(db);
+            if (na.length() != nb.length()) {
+                return na.length() - nb.length();
+            }
+            c = na.compareTo(nb);
+            return c != 0 ? c : da.compareTo(db);
+        }
+        if (pa != null) {
+            return -1;
+        }
+        if (pb != null) {
+            return 1;
+        }
+        return a.compareTo(b);
+    }
+
+    private static String stripZeros(String digits) {
+        int i = 0;
+        while (i < digits.length() - 1 && digits.charAt(i) == '0') {
+            i++;
+        }
+        return digits.substring(i);
+    }
+
     private static boolean isAsciiLetter(char c) {
         return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
     }

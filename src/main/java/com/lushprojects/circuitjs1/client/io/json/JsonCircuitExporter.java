@@ -31,10 +31,12 @@ import com.lushprojects.circuitjs1.client.MenuManager;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.ScopeManager;
-import com.lushprojects.circuitjs1.client.ScopePlot;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.io.CircuitExporter;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
+import com.lushprojects.circuitjs1.client.io.ModelDependencies;
+import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,14 +46,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Exports circuit in JSON format (version 2.0).
+ * Exports circuit in JSON format (version 2.2).
  * 
  * JSON structure:
  * {
- *   "schema": { "format": "circuitjs", "version": "2.1" },
+ *   "schema": { "format": "circuitjs", "version": "2.2" },
  *   "simulation": { ... simulation parameters ... },
  *   "elements": { ... element definitions ... },
- *   "scopes": [ ... scope configurations ... ]
+ *   "scopes": [ ... scope configurations ... ],
+ *   "adjustables": [ ... sliders ... ],
+ *   "models": [ ... model definitions the circuit uses (only when non-empty) ... ]
  * }
  */
 public class JsonCircuitExporter implements CircuitExporter {
@@ -106,6 +110,12 @@ public class JsonCircuitExporter implements CircuitExporter {
             root.put("adjustables", adjustables);
         }
 
+        // 7. Models the circuit uses (2.2; only when there is one)
+        JSONArray models = buildModels(document.simulator.elmList);
+        if (models.size() > 0) {
+            root.put("models", models);
+        }
+
         return formatJson(root.toString());
     }
 
@@ -123,13 +133,23 @@ public class JsonCircuitExporter implements CircuitExporter {
         // Schema
         root.put("schema", buildSchema());
 
-        // Only selected elements
+        // Only selected elements; every ID (and pin location) is collected first, as buildElements
+        // does, so a Scope element listed before its target still names it
+        pinsByLocation = new HashMap<>();
+        for (CircuitElm elm : selection) {
+            collectPins(elm, generateElementId(elm));
+        }
         JSONObject elements = new JSONObject();
         for (CircuitElm elm : selection) {
-            String id = generateElementId(elm);
-            elements.put(id, buildElement(elm));
+            elements.put(elementIds.get(elm), buildElement(elm));
         }
         root.put("elements", elements);
+
+        // Models the selection uses (2.2), so a paste of it defines them
+        JSONArray models = buildModels(selection);
+        if (models.size() > 0) {
+            root.put("models", models);
+        }
 
         return formatJson(root.toString());
     }
@@ -274,6 +294,10 @@ public class JsonCircuitExporter implements CircuitExporter {
 
         // Properties
         Map<String, Object> props = elm.getJsonProperties();
+        if (elm instanceof ScopeElm && props.containsKey("scope")) {
+            // element references as this export keys them (a repeated ID is suffixed here)
+            props.put("scope", ((ScopeElm) elm).jsonScope(elementIds::get));
+        }
         if (!props.isEmpty()) {
             JSONObject propsObj = new JSONObject();
             for (Map.Entry<String, Object> entry : props.entrySet()) {
@@ -421,152 +445,33 @@ public class JsonCircuitExporter implements CircuitExporter {
         for (int i = 0; i < scopeManager.getScopeCount(); i++) {
             Scope scope = scopeManager.getScope(i);
             if (scope != null && scope.getElm() != null) {
-                JSONObject scopeObj = new JSONObject();
-                
-                // Reference to main element
-                String elmId = elementIds.get(scope.getElm());
-                if (elmId != null) {
-                    scopeObj.put("element", new JSONString(elmId));
-                }
-                
-                // Position in scope stack
-                scopeObj.put("position", new JSONNumber(scope.position));
-
-                // User label shown on the scope (text format: trailing token of the 'o' line)
-                if (scope.getText() != null && !scope.getText().isEmpty()) {
-                    scopeObj.put("label", new JSONString(scope.getText()));
-                }
-                
-                // Time scale (speed)
-                scopeObj.put("speed", new JSONNumber(scope.speed));
-                
-                // Display options
-                JSONObject display = new JSONObject();
-                display.put("show_voltage", JSONBoolean.getInstance(scope.showV));
-                display.put("show_current", JSONBoolean.getInstance(scope.showI));
-                display.put("show_scale", JSONBoolean.getInstance(scope.showScale));
-                display.put("show_max", JSONBoolean.getInstance(scope.showMax));
-                display.put("show_min", JSONBoolean.getInstance(scope.showMin));
-                display.put("show_frequency", JSONBoolean.getInstance(scope.showFreq));
-                display.put("show_fft", JSONBoolean.getInstance(scope.showFFT));
-                display.put("show_rms", JSONBoolean.getInstance(scope.showRMS));
-                display.put("show_average", JSONBoolean.getInstance(scope.showAverage));
-                display.put("show_duty_cycle", JSONBoolean.getInstance(scope.showDutyCycle));
-                display.put("show_negative", JSONBoolean.getInstance(scope.showNegative));
-                display.put("show_element_info", JSONBoolean.getInstance(scope.showElmInfo));
-                scopeObj.put("display", display);
-                
-                // Plot modes
-                JSONObject plotMode = new JSONObject();
-                plotMode.put("plot_2d", JSONBoolean.getInstance(scope.plot2d));
-                plotMode.put("plot_xy", JSONBoolean.getInstance(scope.plotXY));
-                plotMode.put("max_scale", JSONBoolean.getInstance(scope.maxScale));
-                plotMode.put("log_spectrum", JSONBoolean.getInstance(scope.logSpectrum));
-                scopeObj.put("plot_mode", plotMode);
-
-                // Trigger settings (optional)
-                boolean dumpTrigger = scope.isTriggerEnabled() ||
-                        scope.getTriggerMode() != Scope.TRIG_MODE_AUTO ||
-                        scope.getTriggerSlope() != Scope.TRIG_SLOPE_RISING ||
-                        scope.getTriggerLevel() != 0.0 ||
-                        scope.getTriggerHoldoff() != 0.0 ||
-                        scope.getTriggerPosition() != 0.25 ||
-                        scope.getTriggerSource() != 0;
-                if (dumpTrigger) {
-                    JSONObject trigger = new JSONObject();
-                    trigger.put("enabled", JSONBoolean.getInstance(scope.isTriggerEnabled()));
-                    trigger.put("mode", new JSONNumber(scope.getTriggerMode()));
-                    trigger.put("slope", new JSONNumber(scope.getTriggerSlope()));
-                    trigger.put("level", new JSONNumber(scope.getTriggerLevel()));
-                    trigger.put("holdoff", new JSONNumber(scope.getTriggerHoldoff()));
-                    trigger.put("position", new JSONNumber(scope.getTriggerPosition()));
-                    trigger.put("source", new JSONNumber(scope.getTriggerSource()));
-                    scopeObj.put("trigger", trigger);
-                }
-
-                // History settings (optional)
-                boolean dumpHistory = scope.isHistoryEnabled() ||
-                        scope.getHistoryDepth() != 8 ||
-                        scope.getHistoryCaptureMode() != Scope.HISTORY_CAPTURE_ON_TRIGGER ||
-                        scope.getHistorySource() != 0;
-                if (dumpHistory) {
-                    JSONObject history = new JSONObject();
-                    history.put("enabled", JSONBoolean.getInstance(scope.isHistoryEnabled()));
-                    history.put("depth", new JSONNumber(scope.getHistoryDepth()));
-                    history.put("capture_mode", new JSONNumber(scope.getHistoryCaptureMode()));
-                    history.put("source", new JSONNumber(scope.getHistorySource()));
-                    scopeObj.put("history", history);
-                }
-                
-                // Scale settings for different units
-                JSONObject scales = new JSONObject();
-                scales.put("voltage", new JSONNumber(scope.getScale(Scope.UNITS_V)));
-                scales.put("current", new JSONNumber(scope.getScale(Scope.UNITS_A)));
-                scales.put("ohms", new JSONNumber(scope.getScale(Scope.UNITS_OHMS)));
-                scales.put("watts", new JSONNumber(scope.getScale(Scope.UNITS_W)));
-                scopeObj.put("scales", scales);
-                
-                // Manual scale settings
-                if (scope.isManualScale()) {
-                    JSONObject manualScale = new JSONObject();
-                    manualScale.put("enabled", JSONBoolean.getInstance(true));
-                    manualScale.put("divisions", new JSONNumber(scope.manDivisions));
-                    scopeObj.put("manual_scale", manualScale);
-                }
-                
-                // Plots (individual traces)
-                JSONArray plotsArray = new JSONArray();
-                java.util.Vector<ScopePlot> plots = scope.plots;
-                if (plots != null) {
-                    int plotIdx = 0;
-                    for (int j = 0; j < plots.size(); j++) {
-                        ScopePlot plot = plots.get(j);
-                        if (plot != null && plot.getElm() != null) {
-                            JSONObject plotObj = new JSONObject();
-                            
-                            // Element reference for this plot
-                            String plotElmId = elementIds.get(plot.getElm());
-                            if (plotElmId != null) {
-                                plotObj.put("element", new JSONString(plotElmId));
-                            }
-                            
-                            // Units type (0=V, 1=A, 2=W, 3=Ohm)
-                            plotObj.put("units", new JSONString(getUnitsName(plot.units)));
-
-                            // The value being plotted (e.g. VAL_VOLTAGE, VAL_CURRENT, etc)
-                            plotObj.put("value", new JSONNumber(plot.getValue()));
-                            
-                            // Color
-                            if (plot.color != null) {
-                                plotObj.put("color", new JSONString(plot.color));
-                            }
-                            
-                            // Manual scale for this plot (skip Infinity values)
-                            if (Double.isFinite(plot.manScale)) {
-                                plotObj.put("scale", new JSONNumber(plot.manScale));
-                            }
-                            plotObj.put("v_position", new JSONNumber(plot.manVPosition));
-                            
-                            // AC coupling
-                            if (plot.isAcCoupled()) {
-                                plotObj.put("ac_coupled", JSONBoolean.getInstance(true));
-                            }
-                            
-                            plotsArray.set(plotIdx++, plotObj);
-                        }
-                    }
-                }
-                if (plotsArray.size() > 0) {
-                    scopeObj.put("plots", plotsArray);
-                }
-                
-                scopes.set(scopeIdx++, scopeObj);
+                // one form for docked and in-circuit scopes (JsonScopeCodec)
+                scopes.set(scopeIdx++, toJsonValue(JsonScopeCodec.toMap(scope, scope.position, elementIds::get)));
             }
         }
 
         return scopes;
     }
-    
+
+    /**
+     * [SP_AGA_03_12] The {@code models} section: the circuit's models ([SP_AGA_03_11]
+     * "Dependencies": the non-built-in models its elements use, through subcircuit models too),
+     * dependencies first, otherwise in order of first use by element ID (as {@code getCircuit}
+     * lists them), each a ModelSpec or a ModelText by the Form rule of [SP_AGA_02_05], no cap.
+     */
+    private JSONArray buildModels(List<CircuitElm> elms) {
+        List<CircuitElm> ordered = new ArrayList<>(elms);
+        ModelDependencies.sortById(ordered);
+        JSONArray models = new JSONArray();
+        for (ModelDependencies.Ref r : ModelDependencies.circuitModels(ordered)) {
+            JSONObject m = ModelSpecCodec.encode(r.kind, r.name);
+            if (m != null) {
+                models.set(models.size(), m);
+            }
+        }
+        return models;
+    }
+
     /**
      * Build adjustables (sliders) section.
      */
@@ -631,19 +536,6 @@ public class JsonCircuitExporter implements CircuitExporter {
         return adjustables;
     }
     
-    /**
-     * Convert units constant to string name.
-     */
-    private String getUnitsName(int units) {
-        switch (units) {
-            case Scope.UNITS_V: return "V";
-            case Scope.UNITS_A: return "A";
-            case Scope.UNITS_W: return "W";
-            case Scope.UNITS_OHMS: return "Ω";
-            default: return "V";
-        }
-    }
-
     /**
      * [SP_AGA_03_02] "One scheme": element keys are the document's registry IDs
      * ({@link CircuitElm#getElementId()}), so an exported key names the same element as the

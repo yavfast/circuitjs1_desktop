@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -363,6 +363,12 @@ function pageHelpers() {
 }
 
 // ---------------------------------------------------------------- diff helpers
+// kind:name of every model line of a text export (34 diode, 32 transistor, ! logic, . subcircuit)
+function modelLineKeys(t) {
+  const kinds = { 34: 'diode', 32: 'transistor', '!': 'logic', '.': 'subcircuit' };
+  const unescape = (x) => (x === '\\0' ? '' : x.replace(/\\(.)/g, (m, c) => ({ n: '\n', r: '\r', s: ' ', p: '+', q: '=', h: '#', a: '&' })[c] ?? c));
+  return String(t).split('\n').map((l) => l.split(' ')).filter((w) => w.length > 1 && kinds[w[0]]).map((w) => kinds[w[0]] + ':' + unescape(w[1]));
+}
 function textElementLines(t) {
   // Everything except the options header ($) — keep all other non-empty lines.
   return t.split('\n').map((l) => l.trimEnd()).filter((l) => l.trim() && !l.startsWith('$ '));
@@ -653,6 +659,13 @@ async function roundtripCurrent(s, label, detailDir, srcCount) {
   const con = s.consoleSince(conMark).map((c) => `[${c.type}] ${c.text.slice(0, 500)}`);
   const J1 = safeParse(J1s), J2 = safeParse(J2s);
   const L1 = textElementLines(T1), L2 = textElementLines(T2);
+  // [SP_AGA_03_12] the JSON models section carries every model the text writes as a model line,
+  // and every in-circuit scope (403) line survives text -> JSON -> text
+  const t1Models = modelLineKeys(T1);
+  const j1Models = new Set(((J1 && J1.models) || []).map((m) => m.kind + ':' + m.name));
+  const modelsLost = t1Models.filter((k) => !j1Models.has(k));
+  const scope1 = L1.filter((l) => l.startsWith('403 ')), scope2 = new Set(L2.filter((l) => l.startsWith('403 ')));
+  const scopeElmLost = scope1.filter((l) => !scope2.has(l));
   const ld = lineDiff(L1, L2), md = multisetDiff(L1, L2);
   const jd = jsonElementDiff(J1, J2);
   const ldNoGeom = lineDiff(L1.map(stripCoords), L2.map(stripCoords));
@@ -675,6 +688,7 @@ async function roundtripCurrent(s, label, detailDir, srcCount) {
     jsonElemsChanged: Object.keys(jd.changed).length, jsonElemsChangedByCategory: catCount, jsonTopLevelDiffs: jd.topLevel.length,
     propChanges: propChanges.slice(0, 50), topLevelNonGeom: jd.topLevel.filter((d) => !/^nodes\./.test(d.key)).slice(0, 20),
     classDelta, logCounts: countLogPatterns([...logs, ...con]),
+    textModels: t1Models.length, modelsLost, jsonVersion: J1 && J1.schema && J1.schema.version, scopeElmLines: scope1.length, scopeElmLost: scopeElmLost.length,
   });
   // changed property keys aggregated by JSON type
   const byType = {};
@@ -709,8 +723,12 @@ function printTable(recs) {
 }
 
 function aggregate(recs) {
-  const agg = { circuits: recs.length, withNonGeomLineDiffs: 0, withPropChanges: 0, withGeomChanges: 0, withClassDelta: 0, classDeltas: {}, propChangesByType: {}, withCountChange: 0, withLineDiffs: 0, withJsonDiffs: 0, withMissing: 0, withTypeChange: 0, changedKeysByType: {}, missingTypes: {}, typeChanges: {}, logTotals: { unknown: 0, skipping: 0, error: 0 } };
+  const agg = { circuits: recs.length, withModels: 0, withModelsLost: 0, modelsLost: {}, scopeElmLines: 0, scopeElmLost: 0, notVersion22: 0, withNonGeomLineDiffs: 0, withPropChanges: 0, withGeomChanges: 0, withClassDelta: 0, classDeltas: {}, propChangesByType: {}, withCountChange: 0, withLineDiffs: 0, withJsonDiffs: 0, withMissing: 0, withTypeChange: 0, changedKeysByType: {}, missingTypes: {}, typeChanges: {}, logTotals: { unknown: 0, skipping: 0, error: 0 } };
   for (const r of recs) {
+    if (r.textModels) agg.withModels++;
+    if ((r.modelsLost || []).length) { agg.withModelsLost++; agg.modelsLost[r.circuit] = r.modelsLost; }
+    agg.scopeElmLines += r.scopeElmLines || 0; agg.scopeElmLost += r.scopeElmLost || 0;
+    if (r.jsonVersion !== undefined && r.jsonVersion !== '2.2') agg.notVersion22++;
     if (r.count1 !== r.count2) agg.withCountChange++;
     if (r.nonGeomDiffLines) agg.withNonGeomLineDiffs++;
     if (r.jsonElemsChangedByCategory?.geometry) agg.withGeomChanges++;
@@ -760,7 +778,7 @@ async function scenarioRoundtrip(s) {
   fs.writeFileSync(path.join(OUT_DIR, 'roundtrip_summary.json'), JSON.stringify({ aggregate: agg, circuits: recs }, null, 2));
   printTable(recs);
   const pass = recs.every((r) => !r.harnessError && !r.exportFailed && !Object.keys(r.classDelta || {}).length && r.count1 === r.count2 && r.posDiffLines === 0 && r.jsonElemsChanged === 0 && r.jsonMissing === 0 && r.jsonTypeChanged === 0);
-  report('C.json_roundtrip', pass, { circuits: agg.circuits, countChanged: agg.withCountChange, lineDiffs: agg.withLineDiffs, nonGeomLineDiffs: agg.withNonGeomLineDiffs, geomChanged: agg.withGeomChanges, propChanged: agg.withPropChanges, classChanged: agg.withClassDelta, jsonDiffs: agg.withJsonDiffs, missing: agg.withMissing, typeChanged: agg.withTypeChange, jsonTypesWithChangedKeys: Object.keys(agg.changedKeysByType).length, logTotals: agg.logTotals, details: path.join(OUT_DIR, 'roundtrip_summary.json') });
+  report('C.json_roundtrip', pass, { circuits: agg.circuits, modelCircuits: agg.withModels, modelsLost: agg.withModelsLost, scopeElmLines: agg.scopeElmLines, scopeElmLost: agg.scopeElmLost, notVersion22: agg.notVersion22, countChanged: agg.withCountChange, lineDiffs: agg.withLineDiffs, nonGeomLineDiffs: agg.withNonGeomLineDiffs, geomChanged: agg.withGeomChanges, propChanged: agg.withPropChanges, classChanged: agg.withClassDelta, jsonDiffs: agg.withJsonDiffs, missing: agg.withMissing, typeChanged: agg.withTypeChange, jsonTypesWithChangedKeys: Object.keys(agg.changedKeysByType).length, logTotals: agg.logTotals, details: path.join(OUT_DIR, 'roundtrip_summary.json') });
 }
 
 // Synthetic: one default-constructed element per registered JSON type name
@@ -4564,12 +4582,8 @@ async function scenarioAgentModels(s) {
     ck('fallback_reimportIdentical', frt.ok && fc0 === await catalogue());
 
     // fresh session (side page): the getCircuit form restores the models it carries
-    let target = null; let cdp2 = null;
-    try {
-      target = await (await fetch(`http://127.0.0.1:${s.cdpPort}/json/new?${s.baseUrl}/circuitjs.html`, { method: 'PUT' })).json();
-      cdp2 = new CDP(target.webSocketDebuggerUrl); await cdp2.open();
-      const s2 = new Session(cdp2, s.baseUrl);
-      await cdp2.send('Runtime.enable');
+    // a fresh session: withSidePage serves the app from another origin (no session restore of this page's tabs)
+    await withSidePage(s, async (s2) => {
       const A2 = async (op, args) => JSON.parse(await s2.eval(`CircuitJS1Agent.call(${JSON.stringify(op)}, ${JSON.stringify(JSON.stringify(args))})`));
       await waitFor(async () => { try { return (await A2('listDocuments', {})).ok; } catch { return false; } }, LOAD_TIMEOUT_MS, 'side page');
       const before = await A2('listModels', { kind: 'diode', name: 'led-green-2v1' });
@@ -4580,11 +4594,7 @@ async function scenarioAgentModels(s) {
       ck('roundtrip_freshSession', has(before, 'unknown_model') && fr.ok && after.ok
         && same(after.data.models[0].parameters, (await record('diode', 'led-green-2v1')).parameters)
         && same(back.data.models, gcModels));
-    } finally {
-      if (cdp2) cdp2.close();
-      if (target) await fetch(`http://127.0.0.1:${s.cdpPort}/json/close/${target.id}`).catch(() => {});
-      await s.cdp.send('Page.bringToFront').catch(() => {});
-    }
+    });
 
     // ---------------------------------------------------------------- legacy text content
     const T = (await A('createDocument', { title: 'Text' })).data.doc;
@@ -5262,12 +5272,8 @@ async function scenarioAgentModelsSub(s) {
     ck('closure_usedByNested', dRec2 && dRec2.usedBy.some((u) => u.doc === U && same(u.ids, ['X2', 'X4'])));
 
     // fresh session (side page): the getCircuit form restores both models
-    let target = null; let cdp2 = null;
-    try {
-      target = await (await fetch(`http://127.0.0.1:${s.cdpPort}/json/new?${s.baseUrl}/circuitjs.html`, { method: 'PUT' })).json();
-      cdp2 = new CDP(target.webSocketDebuggerUrl); await cdp2.open();
-      const s2 = new Session(cdp2, s.baseUrl);
-      await cdp2.send('Runtime.enable');
+    // a fresh session: withSidePage serves the app from another origin (no session restore of this page's tabs)
+    await withSidePage(s, async (s2) => {
       const A2 = async (op, args) => JSON.parse(await s2.eval(`CircuitJS1Agent.call(${JSON.stringify(op)}, ${JSON.stringify(JSON.stringify(args))})`));
       await waitFor(async () => { try { return (await A2('listDocuments', {})).ok; } catch { return false; } }, LOAD_TIMEOUT_MS, 'side page');
       const before = await A2('listModels', { kind: 'subcircuit', name: 'sub-dmod' });
@@ -5277,11 +5283,7 @@ async function scenarioAgentModelsSub(s) {
       out.notes.fresh = { before: codes(before), import: fr.ok ? 'ok' : (fr.issues || []).map((i) => i.code + ': ' + i.message), backModels: back.data && back.data.models };
       ck('roundtrip_freshSession', has(before, 'unknown_model') && fr.ok && same(back.data.models, gm) && sr.ok
         && same(strip(sr.data.models[0]), strip(await record('subcircuit', 'sub-dmod'))));
-    } finally {
-      if (cdp2) cdp2.close();
-      if (target) await fetch(`http://127.0.0.1:${s.cdpPort}/json/close/${target.id}`).catch(() => {});
-      await s.cdp.send('Page.bringToFront').catch(() => {});
-    }
+    });
 
     // ---------------------------------------------------------------- inner references of a ModelText
     // a block with a CustomLogic of a defined logic model; its ModelText with the name replaced
@@ -5648,11 +5650,11 @@ async function scenarioPinNames(s) {
     // superseded names are not PostRefs
     const oldRef = await A('read', { doc, targets: [{ post: 'X1.' + c.old[0] }] });
     ck(k + '_oldPostRef_unknown', !oldRef.ok && codes(oldRef.issues).includes('unknown_post'));
-    // a new export: version 2.1, new names
+    // a new export: the current version (2.1 renamed the pins; 2.2 since PL_AGA Phase 14), new names
     const ex = await A('exportCircuit', { doc, format: 'json' });
     const j = JSON.parse(ex.data.content);
     out.notes[k].exportPins = Object.keys(j.elements.X1.pins);
-    ck(k + '_export21', j.schema.version === '2.1' && same(Object.keys(j.elements.X1.pins).filter((p) => !p.startsWith('_')), c.names));
+    ck(k + '_exportNewNames', j.schema.version === '2.2' && same(Object.keys(j.elements.X1.pins).filter((p) => !p.startsWith('_')), c.names));
     // the same circuit as a JSON 2.0 file with the superseded names, X1 pin keys in reverse order
     const ren = { [c.names[0]]: c.old[0], [c.names[1]]: c.old[1] };
     const oldJ = JSON.parse(ex.data.content);
@@ -6187,6 +6189,439 @@ async function scenarioVerifyDefects(s) {
 const TIMER_SQUARE_HZ = 239.521;
 const TIMER_SQUARE_DUTY = 0.507567;
 
+// In-page fake of the desktop file system (nw.require('fs'|'path'|'buffer')) for openFile/saveFile
+// checks in headless Chromium: reads and writes go to window.__fakeFiles.
+function fakeFsScript(files) {
+  return `(() => {
+    const files = window.__fakeFiles = ${JSON.stringify(files)};
+    const fds = {}; let nfd = 3;
+    const err = (p, code) => { const e = new Error((code || 'ENOENT') + ': ' + p); e.code = code || 'ENOENT'; return e; };
+    const loose = (base) => new Proxy(base, { get: (t, k) => (k in t ? t[k] : () => undefined) });
+    const fs = loose({
+      realpathSync: (p) => { if (!(p in files)) throw err(p); return p; },
+      statSync: (p) => { if (!(p in files)) throw err(p); return { isFile: () => true, size: files[p].length, mode: 420 }; },
+      lstatSync: (p) => { throw err(p); },
+      readFileSync: (p) => { if (!(p in files)) throw err(p); const t = files[p]; return { length: t.length, toString: () => t }; },
+      openSync: (p, flag) => { if (p in files && flag === 'wx') throw err(p, 'EEXIST'); const fd = nfd++; fds[fd] = { p, data: '' }; return fd; },
+      fchmodSync: () => {}, fsyncSync: () => {},
+      writeSync: (fd, buf, off, len) => { fds[fd].data += buf.s.substr(off, len); return len; },
+      closeSync: (fd) => { if (fds[fd]) { files[fds[fd].p] = fds[fd].data; delete fds[fd]; } },
+      renameSync: (a, b) => { files[b] = files[a]; delete files[a]; },
+      unlinkSync: (p) => { delete files[p]; },
+    });
+    const path = loose({ resolve: (p) => p, isAbsolute: (p) => p.startsWith('/'), basename: (p) => p.replace(/^.*\\//, ''), join: (...a) => a.join('/'), dirname: (p) => p.replace(/\\/[^/]*$/, '') });
+    const buffer = { Buffer: { from: (s) => ({ length: s.length, s }) } };
+    window.__savedNw = window.nw;
+    window.nw = { require: (m) => (m === 'fs' ? fs : m === 'path' ? path : m === 'buffer' ? buffer : undefined) };
+  })()`;
+}
+const FAKE_FS_RESTORE = 'window.nw = window.__savedNw; delete window.__savedNw; if (window.nw === undefined) delete window.nw;';
+
+// Opens the app in a side page, runs fn(s2) and closes the page. The page is served as
+// http://localhost:<port> — another origin than the main page (127.0.0.1), so its local storage is
+// its own: no session restore of the main page's tabs (whose model lines would define the models)
+// and no stored subcircuits; a fresh session with its own model catalogues and clipboard.
+async function withSidePage(s, fn) {
+  let target = null; let cdp2 = null;
+  const base = s.baseUrl.replace('//127.0.0.1:', '//localhost:');
+  try {
+    await s.cdp.send('Browser.grantPermissions', { permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'], origin: base }).catch(() => {});
+    target = await (await fetch(`http://127.0.0.1:${s.cdpPort}/json/new?${base}/circuitjs.html`, { method: 'PUT' })).json();
+    cdp2 = new CDP(target.webSocketDebuggerUrl); await cdp2.open();
+    const s2 = new Session(cdp2, base);
+    await cdp2.send('Runtime.enable'); await cdp2.send('Page.enable');
+    // headless: the side page counts as focused (the Clipboard API reads only in a focused document)
+    await cdp2.send('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
+    await waitFor(() => s2.eval(`typeof CircuitJS1 !== 'undefined' && typeof CircuitJS1.getElementCount === 'function' && typeof CircuitJS1Agent !== 'undefined'`), LOAD_TIMEOUT_MS, 'side page');
+    await s2.eval(`(${pageHelpers.toString()})()`);
+    await waitFor(() => s2.call('ready'), 20000, 'side page ready');
+    await sleep(1000);
+    await cdp2.send('Page.bringToFront').catch(() => {});
+    return await fn(s2);
+  } finally {
+    if (cdp2) cdp2.close();
+    if (target) await fetch(`http://127.0.0.1:${s.cdpPort}/json/close/${target.id}`).catch(() => {});
+    await s.cdp.send('Page.bringToFront').catch(() => {});
+  }
+}
+
+// json_models: the JSON v2 `models` section, format 2.2 (PL_AGA Phase 14; SP_AGA_03_12, §02_03 JSON
+// text models, §03_04, §05_01 rows "exportCircuit / saveFile json models section", "user load (JSON)
+// invalid models entry", "user paste (JSON) models in a paste", "user import (JSON) subcircuits
+// only", §06_01 items 22-23) and the in-circuit scope settings (Scope element property `scope`).
+// Main page: exportCircuit writes 2.2 with `models` = the getCircuit models (dependencies first) and
+// no `models` key without user models; saveFile json (in-page fake file system) writes it; agent
+// importCircuit of JSON text: identical entries accepted (catalogues unchanged), a differing entry
+// `name_taken` with the openFile hint, `kind:"foo"`, `from`, `source`, a subcircuit without pins and
+// one with an unknown inner model `invalid_value`, a new entry defined and used, a rejected import
+// registers nothing; user load of a file with an invalid entry loads (console message, the element
+// falls back, no alert); openFile of it reports value_adjusted; a rejected openFile restores the
+// entry its models section overwrote; in-circuit scope (403) lines survive text -> JSON -> text.
+// Side page (fresh session): openFile of the saved file defines its model; "Import subcircuits only"
+// defines the subcircuit and its diode dependency only; a Ctrl+V paste of a JSON 2.2 text defines
+// its model, one undo removes the pasted elements and keeps the model; a user JSON load defines
+// diode, transistor and logic models with the records of the writing session; every bundled example
+// with model lines keeps them through JSON into the fresh session.
+async function scenarioJsonModels(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const has = (r, code, re) => (r.issues || []).some((i) => i.code === code && (!re || re.test(i.message + ' ' + (i.hint || ''))));
+  const issues = (r) => (r.issues || []).map((i) => i.code + ': ' + i.message);
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const strip = (m) => { const c = Object.assign({}, m); delete c.usedBy; return c; };
+  const catalogueOf = async (call) => JSON.stringify((await call('listModels', {})).data.models.map(strip));
+  const catalogue = () => catalogueOf(A);
+  const recordOf = async (call, kind, name) => { const r = await call('listModels', { kind, name }); return r.ok ? strip(r.data.models[0]) : null; };
+  const record = (kind, name) => recordOf(A, kind, name);
+  const define = (doc, edits) => A('applyEdits', { doc, edits });
+  const label = (id, text, x, y, ex, ey) => ({ id, type: 'LabeledNode', start: { x, y }, end: { x: ex, y: ey }, properties: { label: text } });
+  const exportJson = async (doc) => (await A('exportCircuit', { doc, format: 'json' })).data.content;
+  const docText = async (doc) => (await A('exportCircuit', { doc, format: 'text' })).data.content;
+  const modelLines = (t) => String(t).split('\n').filter((l) => /^(34|32|!|\.) /.test(l));
+  const rejections = {};
+  const rejects = async (name, doc, fn, code, re) => {
+    const c0 = await catalogue(); const t0 = await docText(doc);
+    const r = await fn();
+    const c1 = await catalogue(); const t1 = await docText(doc);
+    rejections[name] = { ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message + ' | ' + (i.hint || '')) };
+    return ck(name, r.ok === false && has(r, code, re) && c0 === c1 && t0 === t1);
+  };
+  await s.eval('window.__alerts = []; window.__savedAlert = window.alert; window.alert = (m) => { window.__alerts.push(String(m)); };');
+  try {
+    await resetApp(s);
+    const exMark = s.exceptions.length;
+    const dialogMark = s.dialogs.length;
+
+    // ---------------------------------------------------------------- exportCircuit json: 2.2 and models
+    const D = (await A('createDocument', { title: 'JSON models' })).data.doc;
+    const dd = await define(D, [
+      { op: 'defineModel', model: { kind: 'diode', name: 'jm-led', parameters: { forward_voltage: '2.1 V', forward_current: '20 mA' } } },
+      { op: 'defineModel', model: { kind: 'transistor', name: 'jm-bjt', parameters: { early_voltage_forward: '100 V' } } },
+      { op: 'defineModel', model: { kind: 'logic', name: 'jm-and', inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=1', '??=0'] } },
+      { op: 'add', element: { id: 'LED1', type: 'LED', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { model: 'jm-led' } } },
+      { op: 'add', element: { id: 'Q1', type: 'TransistorNPN', start: { x: 10, y: 0 }, end: { x: 14, y: 0 }, properties: { model: 'jm-bjt' } } },
+      { op: 'add', element: { id: 'CL1', type: 'CustomLogic', start: { x: 20, y: 4 }, properties: { model_name: 'jm-and' } } }]);
+    out.notes.define = { ok: dd.ok, issues: issues(dd) };
+    const jD = JSON.parse(await exportJson(D));
+    const gcD = await A('getCircuit', { doc: D, detail: 'full' });
+    out.notes.exportModels = jD.models;
+    ck('export_version22', dd.ok && jD.schema && jD.schema.version === '2.2');
+    ck('export_modelsEqualGetCircuit', Array.isArray(jD.models) && same(jD.models.map((m) => m.name), ['jm-and', 'jm-led', 'jm-bjt']) && same(jD.models, gcD.data.models));
+    ck('export_modelSpecForms', jD.models && jD.models.every((m) => !m.modelText) && jD.models[1].parameters.forward_current === '20 mA');
+    const P = (await A('createDocument', { title: 'Plain' })).data.doc;
+    await A('importCircuit', { doc: P, circuit: { elements: [{ id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'D1', type: 'Diode', start: { x: 0, y: 4 }, end: { x: 4, y: 4 } }] } });
+    const jP = JSON.parse(await exportJson(P));
+    ck('export_noModelsKey', jP.schema.version === '2.2' && !('models' in jP));
+
+    // ---------------------------------------------------------------- a subcircuit with a diode dependency
+    const B = (await A('createDocument', { title: 'Diode block' })).data.doc;
+    const db = await define(B, [{ op: 'defineModel', model: { kind: 'diode', name: 'jm-dd', parameters: { forward_voltage: '0.65 V', forward_current: '10 mA' } } },
+      { op: 'add', element: label('LA', 'a', 2, 2, 0, 2) },
+      { op: 'add', element: { id: 'D1', type: 'Diode', start: { x: 2, y: 2 }, end: { x: 6, y: 2 }, properties: { model: 'jm-dd' } } },
+      { op: 'add', element: label('LK', 'k', 6, 2, 8, 2) }]);
+    const U = (await A('createDocument', { title: 'Uses the block' })).data.doc;
+    const du = await define(U, [{ op: 'defineModel', model: { kind: 'subcircuit', name: 'jm-dsub', source: { doc: B } } },
+      { op: 'defineModel', model: { kind: 'diode', name: 'jm-extra', parameters: { forward_voltage: '1.9 V', forward_current: '10 mA' } } },
+      { op: 'add', element: { id: 'X1', type: 'Subcircuit', start: { x: 10, y: 10 }, properties: { model_name: 'jm-dsub' } } },
+      { op: 'add', element: { id: 'D9', type: 'Diode', start: { x: 2, y: 20 }, end: { x: 6, y: 20 }, properties: { model: 'jm-extra' } } }]);
+    out.notes.subBlock = { block: issues(db), user: issues(du) };
+    const jU = JSON.parse(await exportJson(U));
+    ck('export_dependenciesFirst', db.ok && du.ok && same((jU.models || []).map((m) => m.kind + ':' + m.name), ['diode:jm-extra', 'diode:jm-dd', 'subcircuit:jm-dsub'])
+      && typeof jU.models[2].modelText === 'string' && jU.models[2].modelText.startsWith('. jm-dsub '));
+    const subText = jU.models[2].modelText;
+
+    // ---------------------------------------------------------------- saveFile json (in-page fake file system)
+    const D2 = (await A('createDocument', { title: 'Saved' })).data.doc;
+    await define(D2, [{ op: 'defineModel', model: { kind: 'diode', name: 'jm-file', parameters: { forward_voltage: '3.1 V', forward_current: '15 mA' } } },
+      { op: 'add', element: { id: 'LED1', type: 'LED', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { model: 'jm-file' } } }]);
+    let saved = null;
+    await s.eval(fakeFsScript({}));
+    try {
+      const sv = await A('saveFile', { doc: D2, path: '/tmp/jm_save.json', format: 'json' });
+      saved = await s.eval(`window.__fakeFiles['/tmp/jm_save.json'] || null`);
+      out.notes.saveFile = { ok: sv.ok, issues: issues(sv) };
+    } finally {
+      await s.eval(FAKE_FS_RESTORE);
+    }
+    const jSaved = saved ? JSON.parse(saved) : null;
+    ck('saveFile_modelsSection', jSaved && jSaved.schema.version === '2.2' && same((jSaved.models || []).map((m) => m.name), ['jm-file']));
+
+    // ---------------------------------------------------------------- agent importCircuit of JSON text
+    const E = (await A('createDocument', { title: 'Agent JSON' })).data.doc;
+    const c0 = await catalogue();
+    const ri = await A('importCircuit', { doc: E, circuit: JSON.stringify(jD) });
+    ck('agent_identicalAccepted', ri.ok && c0 === await catalogue());
+    const withModels = (models, extra) => JSON.stringify(Object.assign({}, jP, { models }, extra || {}));
+    const differing = JSON.parse(JSON.stringify(jD));
+    differing.models[1].parameters = { forward_voltage: '2.5 V', forward_current: '20 mA' };
+    await rejects('agent_differingNameTaken', E, () => A('importCircuit', { doc: E, circuit: JSON.stringify(differing) }), 'name_taken', /open the file with `openFile`/i);
+    await rejects('agent_kindFoo', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'foo', name: 'jm-foo' }]) }), 'invalid_value', /circuit\.models\[0\]\.kind'/);
+    await rejects('agent_fromInFile', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'diode', name: 'jm-from', from: 'default', parameters: {} }]) }), 'invalid_value', /circuit\.models\[0\]\.from'.*not allowed in a file/);
+    await rejects('agent_sourceInFile', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'subcircuit', name: 'jm-src', source: { doc: B } }]) }), 'invalid_value', /circuit\.models\[0\]\.source'.*not allowed in a file/);
+    const t = subText.split(' ');
+    const noPin = ['.', 'jm-nopin', t[2], t[3], t[4], '0'].concat(t.slice(6 + 4 * Number(t[5]))).join(' ');
+    await rejects('agent_subcircuitNoPin', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'subcircuit', name: 'jm-nopin', modelText: noPin }]) }), 'invalid_value', /modelText'.*a subcircuit needs at least one pin/);
+    const innerBad = subText.replace(/^\. jm-dsub /, '. jm-inner ').split('jm-dd').join('jm-nope');
+    await rejects('agent_innerUnknown', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'subcircuit', name: 'jm-inner', modelText: innerBad }]) }), 'invalid_value', /modelText'.*inner model jm-nope unknown/);
+    // a new entry and a bad one: nothing registered
+    await rejects('agent_rejectedRegistersNothing', E, () => A('importCircuit', { doc: E, circuit: withModels([{ kind: 'diode', name: 'jm-new0', parameters: { forward_voltage: '1.5 V', forward_current: '5 mA' } }, { kind: 'foo', name: 'x' }]) }), 'invalid_value');
+    ck('agent_rejectedNotListed', has(await A('listModels', { kind: 'diode', name: 'jm-new0' }), 'unknown_model'));
+    const newJ = JSON.parse(withModels([{ kind: 'diode', name: 'jm-new', parameters: { forward_voltage: '1.6 V', forward_current: '5 mA' } }]));
+    for (const e of Object.values(newJ.elements)) if (e.type === 'Diode') e.properties = Object.assign({}, e.properties, { model: 'jm-new' });
+    const rn = await A('importCircuit', { doc: E, circuit: JSON.stringify(newJ) });
+    const rnRec = await record('diode', 'jm-new');
+    out.notes.agentNew = { ok: rn.ok, issues: issues(rn), rec: rnRec };
+    ck('agent_newDefinedAndUsed', rn.ok && rnRec && rnRec.parameters.forward_current === '5 mA'
+      && (await A('getCircuit', { doc: E })).data.elements.some((e) => e.type === 'Diode' && e.properties.model === 'jm-new'));
+    // a file's models section has no cap (the AgentCircuit cap is 200)
+    const many = Array.from({ length: 201 }, (_, i) => ({ kind: 'diode', name: 'jm-many' + i, parameters: { forward_voltage: (1 + i / 1000) + ' V', forward_current: '10 mA' } }));
+    const rm = await A('importCircuit', { doc: E, circuit: withModels(many) });
+    ck('agent_fileModelsUncapped', rm.ok && !!(await record('diode', 'jm-many200')));
+    // new logic and subcircuit entries in a JSON text: defined, elements use them
+    const DN = (await A('createDocument', { title: 'New entries' })).data.doc;
+    await define(DN, [{ op: 'add', element: { id: 'CL1', type: 'CustomLogic', start: { x: 4, y: 4 }, properties: { model_name: 'jm-and' } } },
+      { op: 'add', element: { id: 'X1', type: 'Subcircuit', start: { x: 20, y: 4 }, properties: { model_name: 'jm-dsub' } } }]);
+    const renamed = (await exportJson(DN)).split('jm-and').join('jm-newlg').split('jm-dsub').join('jm-newsub');
+    const rnew = await A('importCircuit', { doc: E, circuit: renamed });
+    const lgRec = await record('logic', 'jm-newlg'), subRec = await record('subcircuit', 'jm-newsub');
+    const lgOld = await record('logic', 'jm-and'), subOld = await record('subcircuit', 'jm-dsub');
+    out.notes.agentNewLogicSub = { ok: rnew.ok, issues: issues(rnew) };
+    ck('agent_newLogicAndSubcircuit', rnew.ok && lgRec && subRec && same(lgRec.rules, lgOld.rules) && same(lgRec.inputs, lgOld.inputs)
+      && same(subRec.pins, subOld.pins) && (await A('getCircuit', { doc: E })).data.elements.some((e) => e.type === 'Subcircuit' && e.properties.model_name === 'jm-newsub'));
+    await A('closeDocument', { doc: DN, discardChanges: true });
+    // a model name the content does not define is still invalid_value (JSON elements are checked against the content's models)
+    const unk = JSON.parse(JSON.stringify(newJ)); delete unk.models;
+    await rejects('agent_unknownStillRejected', E, () => A('importCircuit', { doc: E, circuit: JSON.stringify(Object.assign(unk, { elements: Object.fromEntries(Object.entries(unk.elements).map(([k, e]) => [k, e.type === 'Diode' ? Object.assign({}, e, { properties: Object.assign({}, e.properties, { model: 'jm-undefined' }) }) : e])) })) }), 'invalid_value', /jm-undefined/);
+
+    // ---------------------------------------------------------------- user load (JSON) with invalid entries
+    const bad = JSON.parse(JSON.stringify(jP));
+    bad.models = [{ kind: 'foo', name: 'jm-foo' }, { kind: 'diode', name: 'jm-bad-from', from: 'default', parameters: { breakdown_voltage: '7 V' } }];
+    for (const e of Object.values(bad.elements)) if (e.type === 'Diode') e.properties = Object.assign({}, e.properties, { model: 'jm-bad-from' });
+    const badText = JSON.stringify(bad);
+    // the log buffer is bounded: start from an empty one
+    await s.call('clearLogs');
+    const logMark = await s.call('logCount'); const conMark = s.markConsole();
+    const alerts0 = (await s.eval('window.__alerts.length'));
+    const nBad = await s.call('importJson', badText);
+    const loadLogs = [...(await s.call('logsSince', logMark)), ...s.consoleSince(conMark).map((c) => c.text)];
+    const fallback = await record('diode', 'jm-bad-from');
+    out.notes.userInvalid = { count: nBad, logs: loadLogs.filter((l) => /models\[/.test(l)).slice(0, 4), fallback };
+    ck('user_invalidLoads', nBad === Object.keys(bad.elements).length);
+    ck('user_invalidLogged', loadLogs.some((l) => /models\[0\]/.test(l)) && loadLogs.some((l) => /models\[1\]\.from/.test(l)));
+    ck('user_invalidFallback', !fallback || fallback.parameters.breakdown_voltage !== '7 V');
+    ck('user_invalidNoAlert', (await s.eval('window.__alerts.length')) === alerts0 && s.dialogs.length === dialogMark);
+
+    // ---------------------------------------------------------------- openFile: invalid entries (value_adjusted) and a rejected load restoring its overwrite
+    const overwrite = JSON.parse(JSON.stringify(jD));
+    overwrite.models[1].parameters = { forward_voltage: '2.6 V', forward_current: '20 mA' };
+    overwrite.elements.ZZ1 = { type: 'NoSuchElementType', p1: { x: 0, y: 0 }, p2: { x: 64, y: 0 } };
+    const ledBefore = await record('diode', 'jm-led');
+    // a model name no load of this session has registered yet (the user load above left a fallback entry)
+    const badFile = badText.split('jm-bad-from').join('jm-bad-file');
+    await s.eval(fakeFsScript({ '/tmp/jm_bad.json': badFile, '/tmp/jm_over.json': JSON.stringify(overwrite) }));
+    try {
+      const ob = await A('openFile', { path: '/tmp/jm_bad.json' });
+      out.notes.openInvalid = { ok: ob.ok, issues: issues(ob) };
+      ck('openFile_invalidAdjusted', ob.ok && has(ob, 'value_adjusted', /models\[0\]/) && has(ob, 'value_adjusted', /models\[1\]\.from/)
+        && (ob.issues || []).some((i) => i.code === 'value_adjusted' && /jm-bad-file/.test(i.message) && (i.elements || []).length === 1));
+      if (ob.ok) await A('closeDocument', { doc: ob.data.doc, discardChanges: true });
+      const c1 = await catalogue();
+      const oo = await A('openFile', { path: '/tmp/jm_over.json' });
+      out.notes.openRejected = { ok: oo.ok, issues: issues(oo) };
+      ck('openFile_rejectedRestores', oo.ok === false && has(oo, 'import_element_skipped') && c1 === await catalogue() && same(await record('diode', 'jm-led'), ledBefore));
+    } finally {
+      await s.eval(FAKE_FS_RESTORE);
+    }
+
+    // ---------------------------------------------------------------- a logic entry whose rules do not parse
+    // user JSON load: loads the rules before the bad line and alerts the parser's message once, as
+    // a text '!' line does; openFile: value_adjusted, no alert; importCircuit: invalid_value, no alert
+    const badRule = (name) => JSON.stringify(Object.assign({}, jP, { models: [{ kind: 'logic', name, modelText: '! ' + name + ' 0 A,B Y ' + name + ' 1\\q11\\n' }] }));
+    const ar0 = await s.eval('window.__alerts.length');
+    await s.call('importJson', badRule('jm-badrule'));
+    const ar1 = await s.eval('window.__alerts.length');
+    const brRec = await record('logic', 'jm-badrule');
+    out.notes.badRule = { alerts: await s.eval(`window.__alerts.slice(${ar0})`), rec: brRec };
+    ck('badRule_userLoadAlertsOnce', ar1 === ar0 + 1 && brRec && same(brRec.outputs, ['Y']));
+    await s.eval(fakeFsScript({ '/tmp/jm_badrule.json': badRule('jm-badrule2') }));
+    try {
+      const obr = await A('openFile', { path: '/tmp/jm_badrule.json' });
+      out.notes.badRuleOpenFile = { ok: obr.ok, issues: issues(obr) };
+      ck('badRule_openFileAdjusted', obr.ok && has(obr, 'value_adjusted', /jm-badrule2.*do not parse/) && (await s.eval('window.__alerts.length')) === ar1);
+      if (obr.ok) await A('closeDocument', { doc: obr.data.doc, discardChanges: true });
+    } finally {
+      await s.eval(FAKE_FS_RESTORE);
+    }
+    await rejects('badRule_importCircuitInvalid', E, () => A('importCircuit', { doc: E, circuit: badRule('jm-badrule3') }), 'invalid_value', /models\[0\]\.modelText'.*do not parse/);
+    ck('badRule_agentNoAlert', (await s.eval('window.__alerts.length')) === ar1);
+
+    // ---------------------------------------------------------------- in-circuit scopes (403) through JSON
+    // with the user's saved scope defaults switching manual scale and voltage on (a new Scope takes
+    // them; settings the JSON omits must not come from them), and a line using trigger, history,
+    // manual scale with divisions, AC coupling, a second plot and a label
+    out.notes.scopeElm = {};
+    const scopeCover = '$ 1 0.000005 10 50 5 50 5e-11\nv 0 128 0 0 0 1 40 5 0 0 0.5\nr 0 0 128 0 0 1000\nw 128 0 128 128 0\nw 0 128 128 128 0\n'
+      + '403 192 0 320 128 0 1_64_0_xfc1213_5_0.1_0_2_6_1_0.5_1_0_0_3_0.01_0_1_1_1_0.5_0.001_0.3_0_1_16_0_0_probe\n';
+    await s.eval(`localStorage.setItem('scopeDefaults', '1 18 64')`);
+    try {
+    for (const f of ['multivib-a.txt', 'qam-256.txt', 'coverage']) {
+      if (f === 'coverage') await s.call('importText', scopeCover); else await s.call('loadExample', f);
+      const T1 = await s.call('exportText');
+      const J1 = await s.call('exportJson');
+      await s.call('importJson', J1);
+      const T2 = await s.call('exportText');
+      const l1 = T1.split('\n').filter((l) => l.startsWith('403 ')), l2 = T2.split('\n').filter((l) => l.startsWith('403 '));
+      const scopeProps = Object.values(JSON.parse(J1).elements).filter((e) => e.type === 'Scope').map((e) => e.properties && e.properties.scope);
+      out.notes.scopeElm[f] = { lines: l1.length, kept: l1.filter((l) => l2.includes(l)).length, withScope: scopeProps.filter(Boolean).length };
+      ck('scopeElm_' + f, l1.length > 0 && same(l1, l2) && scopeProps.length === l1.length && scopeProps.every((p) => p && typeof p.element === 'string'));
+      if (f === 'coverage') ck('scopeElm_coverageKept', l1.length === 1 && l1[0].endsWith('_probe') && l1[0].includes('_xfc1213_'));
+    }
+    } finally {
+      await s.eval(`localStorage.removeItem('scopeDefaults')`);
+    }
+    await s.call('loadExample', 'qam-256.txt');
+    const qamJ1 = await s.call('exportJson');
+    const qamDoc = (await A('createDocument', { title: 'qam' })).data.doc;
+    await A('importCircuit', { doc: qamDoc, circuit: qamJ1 });
+    const scopeRec = (await A('getCircuit', { doc: qamDoc, detail: 'full', limit: 500 })).data.elements.find((e) => e.type === 'Scope');
+    out.notes.agentFormScope = scopeRec ? { properties: Object.keys(scopeRec.properties || {}) } : null;
+    ck('agentForm_scopeOmitted', scopeRec && !('scope' in (scopeRec.properties || {})));
+    const multivibJ1 = await (async () => { await s.call('loadExample', 'multivib-a.txt'); return s.call('exportJson'); })();
+
+    // ---------------------------------------------------------------- examples with model lines: J1 into a fresh session
+    const EXAMPLES = ['brentkung.txt', 'early.txt', 'ledarray.txt', 'opamp-regulator.txt'];
+    const exJ = {};
+    for (const f of EXAMPLES) {
+      await s.call('loadExample', f);
+      exJ[f] = { T1: modelLines(await s.call('exportText')), J1: await s.call('exportJson') };
+    }
+
+    // paste fragment: a JSON 2.2 text with a model the side session lacks
+    const D3 = (await A('createDocument', { title: 'Paste source' })).data.doc;
+    await define(D3, [{ op: 'defineModel', model: { kind: 'diode', name: 'jm-paste', parameters: { forward_voltage: '2.9 V', forward_current: '12 mA' } } },
+      { op: 'add', element: { id: 'LED1', type: 'LED', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { model: 'jm-paste' } } }]);
+    const pasteText = await exportJson(D3);
+    const recs = {};
+    for (const [k, n] of [['diode', 'jm-led'], ['transistor', 'jm-bjt'], ['logic', 'jm-and'], ['diode', 'jm-file'], ['diode', 'jm-dd'], ['subcircuit', 'jm-dsub'], ['diode', 'jm-paste']]) {
+      recs[n] = await record(k, n);
+    }
+    const noUse = (r) => { if (!r) return r; const c = Object.assign({}, r); delete c.usedBy; return c; };
+
+    // ---------------------------------------------------------------- side page: a fresh session
+    await withSidePage(s, async (s2) => {
+      const A2 = (op, args) => s2.call('agentCall', op, args);
+      const rec2 = (kind, name) => recordOf(A2, kind, name);
+      const side = out.notes.side = {};
+      side.fresh = (await A2('listModels', {})).data.models.filter((m) => /^jm-/.test(m.name)).map((m) => m.name);
+      ck('fresh_sessionHasNoModels', side.fresh.length === 0);
+      // openFile of the file saveFile wrote defines its model
+      await s2.eval(fakeFsScript({ '/tmp/jm_save.json': saved || '' }));
+      try {
+        const before = await A2('listModels', { kind: 'diode', name: 'jm-file' });
+        const of = await A2('openFile', { path: '/tmp/jm_save.json' });
+        side.openFile = { before: before.ok, ok: of.ok, issues: issues(of) };
+        ck('fresh_openFileDefines', !before.ok && of.ok && same(noUse(await rec2('diode', 'jm-file')), noUse(recs['jm-file'])));
+      } finally {
+        await s2.eval(FAKE_FS_RESTORE);
+      }
+      // "Import subcircuits only": the subcircuit and its diode dependency, no other entry, no element
+      const n0 = await s2.call('count');
+      await s2.eval(`CircuitJS1.importCircuit(${JSON.stringify(JSON.stringify(jU))}, true)`);
+      side.subOnly = { count: [n0, await s2.call('count')], dd: !!(await rec2('diode', 'jm-dd')), dsub: !!(await rec2('subcircuit', 'jm-dsub')), extra: !!(await rec2('diode', 'jm-extra')) };
+      ck('fresh_subcircuitsOnly', same(noUse(await rec2('subcircuit', 'jm-dsub')), noUse(recs['jm-dsub'])) && same(noUse(await rec2('diode', 'jm-dd')), noUse(recs['jm-dd']))
+        && has(await A2('listModels', { kind: 'diode', name: 'jm-extra' }), 'unknown_model') && (await s2.call('count')) === n0);
+      // Ctrl+V of prose from the system clipboard pastes nothing: no element, no undo entry, not modified
+      const sideDoc = (await A2('listDocuments', {})).data.documents.find((d) => d.active).doc;
+      const docState2 = async () => { const st = JSON.parse(await s2.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(sideDoc)})`)); return [await s2.call('count'), st.undo, st.modified]; };
+      const pr0 = await docState2();
+      await s2.eval(`navigator.clipboard.writeText(${JSON.stringify('Notes for the meeting\nwe will discuss r and c\nw 1 and l 2\n')})`);
+      await s2.call('focus');
+      await s2.key('KeyV', { ctrl: true });
+      await sleep(500);
+      const pr1 = await docState2();
+      side.prose = [pr0, pr1];
+      ck('fresh_prosePastesNothing', same(pr0, pr1));
+      // Ctrl+V of a JSON 2.2 text from the system clipboard (the side session's internal clipboard is empty)
+      const p0 = await s2.call('count');
+      await s2.eval(`navigator.clipboard.writeText(${JSON.stringify(pasteText)})`);
+      await s2.call('focus');
+      await s2.key('KeyV', { ctrl: true });
+      await waitFor(async () => (await s2.call('count')) > p0, 5000, 'paste').catch(() => {});
+      const p1 = await s2.call('count');
+      const pasted = await rec2('diode', 'jm-paste');
+      await s2.key('KeyZ', { ctrl: true });
+      const p2 = await s2.call('count');
+      side.paste = { counts: [p0, p1, p2], rec: pasted, console: s2.console.slice(-8).map((c) => c.text.slice(0, 200)), logs: (await s2.call('logsSince', Math.max(0, (await s2.call('logCount')) - 8))).map((l) => l.slice(0, 200)) };
+      ck('fresh_pasteDefines', p1 === p0 + 1 && same(noUse(pasted), noUse(recs['jm-paste'])));
+      ck('fresh_pasteUndoKeepsModel', p2 === p0 && same(noUse(await rec2('diode', 'jm-paste')), noUse(recs['jm-paste'])));
+      // a user JSON load defines diode, transistor and logic models as the writing session had them
+      await s2.call('importJson', JSON.stringify(jD));
+      ck('fresh_userLoadDefines', same(noUse(await rec2('diode', 'jm-led')), noUse(recs['jm-led']))
+        && same(noUse(await rec2('transistor', 'jm-bjt')), noUse(recs['jm-bjt'])) && same(noUse(await rec2('logic', 'jm-and')), noUse(recs['jm-and'])));
+      // every bundled example with model lines keeps them through JSON
+      side.examples = {};
+      for (const f of EXAMPLES) {
+        await s2.call('importJson', exJ[f].J1);
+        const T2 = modelLines(await s2.call('exportText'));
+        side.examples[f] = { T1: exJ[f].T1.map((l) => l.slice(0, 60)), same: same(T2, exJ[f].T1) };
+      }
+      ck('fresh_examplesKeepModels', EXAMPLES.every((f) => exJ[f].T1.length > 0 && side.examples[f].same));
+      ck('fresh_noAlertNoException', s2.dialogs.length === 0 && s2.exceptions.length === 0);
+    });
+
+    // a second fresh session: Ctrl+V of a JSON text holding Scope elements, then Ctrl+Z
+    await withSidePage(s, async (s2) => {
+      const n0 = await s2.call('count');
+      const scopes0 = (await s2.call('exportText')).split('\n').filter((l) => l.startsWith('403 ')).length;
+      await s2.eval(`navigator.clipboard.writeText(${JSON.stringify(multivibJ1)})`);
+      await s2.call('focus');
+      await s2.key('KeyV', { ctrl: true });
+      await waitFor(async () => (await s2.call('count')) > n0, 5000, 'scope paste').catch(() => {});
+      const n1 = await s2.call('count');
+      const scopes1 = (await s2.call('exportText')).split('\n').filter((l) => l.startsWith('403 ')).length;
+      await s2.key('KeyZ', { ctrl: true });
+      const n2 = await s2.call('count');
+      const scopes2 = (await s2.call('exportText')).split('\n').filter((l) => l.startsWith('403 ')).length;
+      out.notes.scopePaste = { counts: [n0, n1, n2], scopeLines: [scopes0, scopes1, scopes2] };
+      ck('fresh_scopePasteUndo', n1 === n0 + Object.keys(JSON.parse(multivibJ1).elements).length && scopes1 === scopes0 + 4 && n2 === n0 && scopes2 === scopes0);
+      ck('fresh_scopePasteNoException', s2.exceptions.length === 0);
+    });
+
+    // text circuits from the system clipboard still paste (a fresh session each, its internal
+    // clipboard empty): ledarray (a `!` model line) and lrc (`o`, `38` and `h` lines)
+    out.notes.textPaste = {};
+    for (const f of ['ledarray.txt', 'lrc.txt']) {
+      const expected = (await s.call('loadExample', f)).count;
+      await withSidePage(s, async (s2) => {
+        const raw = await s2.call('fetchText', '/circuitjs1/circuits/' + f);
+        const n0 = await s2.call('count');
+        await s2.eval(`navigator.clipboard.writeText(${JSON.stringify(raw)})`);
+        await s2.call('focus');
+        await s2.key('KeyV', { ctrl: true });
+        await waitFor(async () => (await s2.call('count')) > n0, 5000, 'text paste').catch(() => {});
+        const n1 = await s2.call('count');
+        const smiley = f === 'ledarray.txt' ? (await s2.call('agentCall', 'listModels', { kind: 'logic', name: 'smiley' })).ok : null;
+        out.notes.textPaste[f] = { counts: [n0, n1], expected, smiley };
+        ck('fresh_textPaste_' + f, n1 === n0 + expected && smiley !== false && s2.exceptions.length === 0);
+      });
+    }
+
+    for (const doc of [D, P, B, U, D2, E, D3, qamDoc]) await A('closeDocument', { doc, discardChanges: true });
+    out.rejections = rejections;
+    out.notes.exceptions = s.exceptions.slice(exMark).slice(0, 5);
+    ck('noPageException', s.exceptions.length === exMark);
+    // the one expected alert: the user JSON load of a logic entry whose rules do not parse
+    ck('noOtherAlert', (await s.eval('window.__alerts.length')) === 1 && s.dialogs.length === dialogMark);
+  } finally {
+    await s.eval('if (window.__savedAlert) window.alert = window.__savedAlert;');
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'json_models.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('M.json_models', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'json_models.json') });
+}
+
 // mcp_browser: the in-app MCP server in the browser build (PL_MCP Phase 1, SP_MCP_05_04 "Browser
 // build"). circuitjs.html loads scripts/mcp-server.js in every build; without the desktop runtime
 // the server must report `disabled` and attempt no listen, with no page exception or console error
@@ -6408,7 +6843,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -6452,7 +6887,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -19,7 +19,6 @@
 
 package com.lushprojects.circuitjs1.client.io.text;
 
-import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitElmCreator;
@@ -352,9 +351,8 @@ public class TextCircuitImporter implements CircuitImporter {
         if (error == null) {
             return;
         }
-        if (report == null && (document == null || !document.isAgentOrigin())) {
+        if (ImportLifecycle.alertRuleErrorOnUserLoad(document, report, error)) {
             // the editor's behaviour for user loads (file open, paste, import, session restore, undo/redo)
-            Window.alert(error);
             return;
         }
         StringTokenizer st = new StringTokenizer(tokenizer.getOriginalString(), DELIMITERS);

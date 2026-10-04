@@ -33,14 +33,15 @@ import com.lushprojects.circuitjs1.client.io.CircuitImporter;
  * File extensions: .json, .circuitjs.json
  * MIME type: application/json
  * 
- * Format version: 2.1
+ * Format version: 2.2
  */
 public class JsonCircuitFormat implements CircuitFormat {
 
     public static final String FORMAT_ID = "json";
     public static final String FORMAT_NAME = "CircuitJS JSON";
-    // [SP_AGA_DEC_06] 2.1: polar pin names corrected; readers accept any 2.x
-    public static final String FORMAT_VERSION = "2.1";
+    // [SP_AGA_DEC_06] 2.1: polar pin names corrected; [SP_AGA_03_12] 2.2: the models section and
+    // the in-circuit scope settings (Scope element property "scope"); readers accept any 2.x
+    public static final String FORMAT_VERSION = "2.2";
     public static final String[] EXTENSIONS = {".json", ".circuitjs.json"};
     public static final String MIME_TYPE = "application/json";
 

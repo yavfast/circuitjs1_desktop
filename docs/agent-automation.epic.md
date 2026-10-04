@@ -85,3 +85,4 @@ The concept interview asked eight questions; each answer is recorded in the conc
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version from the spike and the concept interview |
+| 2026-10-04 | Scope extended (developer request): agents define component models — diode/LED/zener, BJT, custom logic, subcircuit — C_AGA §3.6 Models, SP_AGA_DEC_07, PL_AGA Phases 11–15; drawing feedback `symbol_overlap` and the IEC LED symbol from the graded live agent series |

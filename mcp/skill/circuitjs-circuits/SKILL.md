@@ -90,7 +90,7 @@ Hosts qualify tool names with the server name they were configured with; this sk
 | `circuitjs:circuit_diagnostics` | Solver state and events since the last analysis; the session log with `log` |
 | `circuitjs:circuit_checkpoint` | Seal your edits since the last checkpoint as one named undo entry |
 | `circuitjs:circuit_history` | `list` the undo history, `undo`/`redo` steps, `restore` a checkpoint |
-| `circuitjs:circuit_file` | `open` a `.txt`/`.json` file, `save` to an absolute path, `export` the content as text or JSON |
+| `circuitjs:circuit_file` | `open` a `.txt`/`.json` file, `save` to an absolute path, `export` the content as text or JSON (both carry the models the circuit uses) |
 | `circuitjs:bridge_instances` | Bridge only: the running app instances with their `toolsVersion` |
 | `circuitjs:bridge_select` | Bridge only: forward to one instance (`instanceId` or `url`) |
 | `circuitjs:bridge_launch` | Bridge only: start the app (or use the running one), optionally opening a file in a new tab |

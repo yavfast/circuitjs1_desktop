@@ -373,6 +373,78 @@ public final class ModelSpecCodec {
         }
     }
 
+    /**
+     * [SP_AGA_03_04] "Model catalogues": captures the catalogue entry {@code name} of {@code kind}
+     * as it is now; the returned action puts it back (re-applies its values in place, or removes
+     * an entry that did not exist). Null for an unknown kind.
+     */
+    public static Runnable entryRestorer(String kind, String name) {
+        switch (kind) {
+            case DIODE:
+                return DiodeModel.entryRestorer(name);
+            case TRANSISTOR:
+                return TransistorModel.entryRestorer(name);
+            case LOGIC:
+                return CustomLogicModel.entryRestorer(name);
+            case SUBCIRCUIT:
+                return CustomCompositeModel.entryRestorer(name);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * [SP_AGA_03_12] "User loads and openFile": loads a model line into its catalogue exactly as
+     * the text importer loads it ({@code undumpModel}): the session entry of that name is
+     * overwritten in place (elements keep their model object), or created. No alert: a logic line
+     * whose rules do not parse keeps the rules before the bad line and returns the parser's
+     * message.
+     *
+     * @param line a model line (as {@link Definition#line})
+     * @return the rule error of a logic line, or null
+     */
+    public static String loadLine(String kind, String line) {
+        StringTokenizer st = new StringTokenizer(line, DELIMITERS);
+        st.nextToken(); // line type
+        switch (kind) {
+            case DIODE:
+                DiodeModel.undumpModel(st);
+                return null;
+            case TRANSISTOR:
+                TransistorModel.undumpModel(st);
+                return null;
+            case LOGIC:
+                return CustomLogicModel.undumpModel(st);
+            case SUBCIRCUIT:
+                CustomCompositeModel.undumpModel(st);
+                return null;
+            default:
+                throw new IllegalArgumentException("model kind " + kind);
+        }
+    }
+
+    /**
+     * [SP_AGA_03_12] "Full definitions": an entry of a file's {@code models} section carries no
+     * {@code from} and no {@code source} (input-only fields of a ModelSpec).
+     *
+     * @return the problem naming the field, or null
+     */
+    public static Problem fileEntryProblem(JSONValue v, String where) {
+        JSONObject o = v == null ? null : v.isObject();
+        if (o == null) {
+            return null; // decode reports it
+        }
+        if (o.get("from") != null) {
+            return invalid(where + ".from", "is not allowed in a file: a file carries full definitions",
+                    "Give the model's full parameters (the form exportCircuit and getCircuit write), without from.");
+        }
+        if (o.get("source") != null) {
+            return invalid(where + ".source", "is not allowed in a file: a file carries full definitions",
+                    "Give the subcircuit as a ModelText {kind, name, modelText} (the form exportCircuit and getCircuit write).");
+        }
+        return null;
+    }
+
     /** @return the first token of a model line of that kind */
     public static String lineToken(String kind) {
         switch (kind) {

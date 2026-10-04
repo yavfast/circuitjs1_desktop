@@ -14,6 +14,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.McpServerStatus;
+import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
 
 /**
  * JSNI adapter (RULE_ARCH_008) exporting the Agent API as

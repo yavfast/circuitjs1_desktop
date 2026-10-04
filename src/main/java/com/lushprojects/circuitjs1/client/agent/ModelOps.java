@@ -15,10 +15,11 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.ExtListEntry;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
-import com.lushprojects.circuitjs1.client.element.CompositeModelScan;
 import com.lushprojects.circuitjs1.client.element.CustomCompositeElm;
 import com.lushprojects.circuitjs1.client.element.MosfetElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
+import com.lushprojects.circuitjs1.client.io.ModelDependencies;
+import com.lushprojects.circuitjs1.client.io.ModelDependencies.Ref;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
 
 import java.util.ArrayList;
@@ -341,18 +342,34 @@ final class ModelOps {
      * @return the planned definitions in order (empty when absent), or null on errors
      */
     static List<Planned> validateList(JSONValue v, String where, Scope scope, List<Issue> issues) {
+        return validateList(v, where, scope, false, issues);
+    }
+
+    /**
+     * As {@link #validateList(JSONValue, String, Scope, List)}; {@code file} entries (the
+     * {@code models} section of a JSON v2 text, [SP_AGA_03_12] "Full definitions") must not carry
+     * {@code from} or {@code source}.
+     */
+    static List<Planned> validateList(JSONValue v, String where, Scope scope, boolean file, List<Issue> issues) {
         List<Planned> out = new ArrayList<>();
         if (v == null || v.isNull() != null) {
             return out;
         }
         JSONArray list = v.isArray();
-        if (list == null || list.size() > MAX_MODELS) {
-            issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "' must be a list of at most " + MAX_MODELS
-                    + " ModelSpec or ModelText entries.", "Pass [{kind, name, parameters}] or [{kind, name, modelText}]."));
+        // [SP_AGA_03_12] a file's models section has no cap (the exporter writes them all)
+        if (list == null || (!file && list.size() > MAX_MODELS)) {
+            issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "' must be a list of "
+                    + (file ? "" : "at most " + MAX_MODELS + " ") + "ModelSpec or ModelText entries.",
+                    "Pass [{kind, name, parameters}] or [{kind, name, modelText}]."));
             return null;
         }
         int before = issues.size();
         for (int i = 0; i < list.size(); i++) {
+            ModelSpecCodec.Problem fileProblem = file ? ModelSpecCodec.fileEntryProblem(list.get(i), where + "[" + i + "]") : null;
+            if (fileProblem != null) {
+                issues.add(Issue.of(codeOf(fileProblem.code), fileProblem.message, fileProblem.hint));
+                continue;
+            }
             Planned p = validate(list.get(i), where + "[" + i + "]", scope, true, issues);
             if (p != null) {
                 out.add(p);
@@ -511,99 +528,9 @@ final class ModelOps {
 
     // ---------------------------------------------------------------- usage and closure
 
-    /** One model reference of an element: its kind and name. */
-    static final class Ref {
-        final String kind;
-        final String name;
-
-        Ref(String kind, String name) {
-            this.kind = kind;
-            this.name = name;
-        }
-    }
-
-    /**
-     * @return the models an element references directly through its model-name keys
-     *         ({@code model}, {@code model_name})
-     */
-    static List<Ref> refsOf(CircuitElm elm) {
-        List<Ref> refs = new ArrayList<>();
-        Map<String, Object> props = null;
-        for (String key : new String[] { "model", "model_name" }) {
-            String kind = ModelNames.kindOf(elm.getJsonModelCatalogue(key));
-            if (kind == null) {
-                continue;
-            }
-            if (props == null) {
-                props = PropertyValues.current(elm);
-            }
-            Object v = props.get(key);
-            if (v instanceof String && !((String) v).isEmpty()) {
-                refs.add(new Ref(kind, (String) v));
-            }
-        }
-        return refs;
-    }
-
-    /**
-     * [SP_AGA_03_11] "Dependencies": the models the element dumps of the subcircuit model
-     * {@code name} reference directly (its own node list and dumps; nested subcircuit models by
-     * name — the caller descends into them), in dump order. Empty when there is no such model.
-     */
-    static List<Ref> innerRefs(String name, Map<String, List<Ref>> cache) {
-        List<Ref> cached = cache.get(name);
-        if (cached != null) {
-            return cached;
-        }
-        final List<Ref> out = new ArrayList<>();
-        cache.put(name, out);
-        CustomCompositeModel m = CustomCompositeModel.findEntry(name);
-        if (m == null || m.nodeList == null) {
-            return out;
-        }
-        CompositeModelScan.scan(m.nodeList, m.elmDump, null, new CompositeModelScan.Listener() {
-            @Override
-            public void reference(String catalogue, String n) {
-                String kind = ModelSpecCodec.kindOfCatalogue(catalogue);
-                if (kind != null && n != null && !n.isEmpty()) {
-                    out.add(new Ref(kind, n));
-                }
-            }
-
-            @Override
-            public void unknownClass(String className) {
-            }
-        });
-        return out;
-    }
-
-    /**
-     * [SP_AGA_03_11] "Dependencies": {@code r} and every model it depends on through subcircuit
-     * models, dependencies first (post-order), each once; {@code seen} holds the keys already
-     * visited (it also stops a cycle); {@code cache} keeps the inner references read per model.
-     */
-    static void closure(Ref r, List<String> seen, List<Ref> out, Map<String, List<Ref>> cache) {
-        String key = r.kind + "\u0000" + r.name;
-        if (seen.contains(key)) {
-            return;
-        }
-        seen.add(key);
-        if (ModelSpecCodec.SUBCIRCUIT.equals(r.kind)) {
-            for (Ref inner : innerRefs(r.name, cache)) {
-                closure(inner, seen, out, cache);
-            }
-        }
-        out.add(r);
-    }
-
-    /** @return the models an element uses: its direct references and their closure, each once */
-    static List<Ref> usedModels(CircuitElm elm, Map<String, List<Ref>> cache) {
-        List<Ref> out = new ArrayList<>();
-        List<String> seen = new ArrayList<>();
-        for (Ref r : refsOf(elm)) {
-            closure(r, seen, out, cache);
-        }
-        return out;
+    /** @return the models an element uses, directly and through subcircuit models ({@link ModelDependencies}, L2) */
+    private static List<Ref> usedModels(CircuitElm elm, Map<String, List<Ref>> cache) {
+        return ModelDependencies.usedModels(elm, cache);
     }
 
     /**
@@ -677,21 +604,9 @@ final class ModelOps {
     static DocumentModels documentModels(CircuitDocument doc) {
         ModelNames.ensureDefaults();
         DocumentModels out = new DocumentModels();
-        List<String> seen = new ArrayList<>();
-        List<Ref> ordered = new ArrayList<>();
-        Map<String, List<Ref>> cache = new HashMap<>();
         List<CircuitElm> elms = new ArrayList<>(doc.simulator.elmList);
         CircuitView.sortById(elms);
-        for (CircuitElm elm : elms) {
-            for (Ref r : refsOf(elm)) {
-                closure(r, seen, ordered, cache);
-            }
-        }
-        for (Ref r : ordered) {
-            Object entry = ModelSpecCodec.entry(r.kind, r.name);
-            if (entry == null || ModelSpecCodec.isBuiltIn(entry)) {
-                continue;
-            }
+        for (Ref r : ModelDependencies.circuitModels(elms)) {
             if (out.models.size() >= MAX_MODELS) {
                 out.truncated++;
                 continue;

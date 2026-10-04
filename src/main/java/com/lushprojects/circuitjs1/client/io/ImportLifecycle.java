@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.io;
 
+import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.CircuitConst;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
@@ -41,6 +42,22 @@ import com.lushprojects.circuitjs1.client.element.DataInputElm;
 public final class ImportLifecycle {
 
     private ImportLifecycle() {
+    }
+
+    /**
+     * [SP_AGA_06_01] item 25 / [SP_AGA_03_11] "No dialogs": what a text or JSON import does with
+     * the parser message of a logic model whose rules do not parse. A user load (file open, paste,
+     * import dialog, session restore, undo/redo — no import report and not agent origin) alerts it,
+     * as the editor always did; an agent path never alerts (the caller reports it).
+     *
+     * @return true when the message was alerted (a user load); false when the caller reports it
+     */
+    public static boolean alertRuleErrorOnUserLoad(CircuitDocument document, ImportReport report, String error) {
+        if (report == null && (document == null || !document.isAgentOrigin())) {
+            Window.alert(error);
+            return true;
+        }
+        return false;
     }
 
     /**

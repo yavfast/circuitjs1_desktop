@@ -58,23 +58,24 @@ Invariants:
 |------|------:|---------|
 | RC_RETAIN | 1 | Keep current elements/state (paste / merge) |
 | RC_NO_CENTER | 2 | Do not recentre viewport after load |
-| RC_SUBCIRCUITS | 4 | Parse only composite-model (`.`) definitions |
+| RC_SUBCIRCUITS | 4 | Parse only composite-model definitions: text `.` lines; JSON the `subcircuit` entries of `models` and the entries they depend on ([SP_AGA_03_12](./agent-api.sp.md#SP_AGA_03_12)) |
 | RC_KEEP_TITLE | 8 | Preserve document title |
 
 Single source of truth: `CircuitConst.RC_*`; `CircuitImporter.RC_*` are aliases of it. (Until 2026-09-30 `CircuitImporter` declared its own values with `RC_SUBCIRCUITS`/`RC_NO_CENTER` swapped, so undo/redo loaded an empty circuit and paste added nothing — audit PL_AUDIT_20260930_173830 ITEM-01.)
 
-### 01_04. JSON document schema (v2.0)  {#SP_IOF_01_04}
+### 01_04. JSON document schema (v2.x)  {#SP_IOF_01_04}
 
 Root object shape (written by `JsonCircuitExporter`, accepted by `JsonCircuitImporter`):
 
 | Key | Required | Description |
 |-----|----------|-------------|
-| schema | yes | `{ format: "circuitjs", version: "2.1" }` (written since 2026-10-03; `2.0` files still read) — gate checked by `validateSchema` |
+| schema | yes | `{ format: "circuitjs", version: "2.2" }` (2.2 written since 2026-10-04, 2.1 from 2026-10-03; `2.0` and `2.1` files still read, any `2.x` accepted) — gate checked by `validateSchema` |
 | simulation | yes | time steps (SI strings), display booleans, voltage range string, `current_speed`, `power_brightness`, `auto_time_step` (always written since 2026-10-02; the importer keeps the target document's setting when an older file lacks it) |
 | elements | yes | `{ "<element-id>": ElementEntry, ... }` — key = the element's registry ID `CircuitElm.getElementId()` ([SP_AGA_03_02](./agent-api.sp.md#SP_AGA_03_02)) |
 | nodes | optional | `{ "N1": { connections: ["<id>.<pin>", ...] }, ... }` for `(x,y)` where >=3 pins coincide |
 | scopes | optional | list of `{ display-flags, plot_mode, trigger?, history?, scales, manual_scale?, plots[] }` |
 | adjustables | optional | list of `{ element, edit_item, label, min_value, max_value, current_value, shared_slider? }` |
+| models | optional (2.2) | list of ModelSpec / ModelText entries ([SP_AGA_01_13](./agent-api.sp.md#SP_AGA_01_13)): the models the circuit uses ([SP_AGA_03_11](./agent-api.sp.md#SP_AGA_03_11) "Dependencies"), dependencies first, written only when non-empty, no cap; `from` and `source` are invalid in a file ([SP_AGA_03_12](./agent-api.sp.md#SP_AGA_03_12)) |
 | state | conditional | emitted only when `includeState=true` |
 
 Element entry (`ElementEntry`):
@@ -83,7 +84,7 @@ Element entry (`ElementEntry`):
 | type | yes | JSON type name (factory key: `Resistor`, `Capacitor`, `PolarCapacitor`, `DCVoltage`, `ACVoltage`, `MosfetN`/`NMosfet`, ...) |
 | description | optional | free-text description |
 | bounds | optional | AABB or variant from EXPORT_CJS.md; single-terminal elements require it for the second endpoint |
-| properties | optional | key -> SI-string or scalar |
+| properties | optional | key -> SI-string or scalar; lists as JSON arrays; the `Scope` element (text `403`) has the object `scope`, shaped as a `scopes` entry with element IDs (2.2, `JsonScopeCodec`), applied after all elements exist |
 | pins | optional | `{ "p1": {x,y,connected_to?}, ... }`; pseudo-pins `_startpoint` / `_endpoint` prioritised |
 | _flags | optional | integer bitmask passed to `applyJsonFlags` |
 | state | optional | runtime state snapshot (includeState only) |
@@ -236,7 +237,7 @@ Errors:
 
 Processing logic (text): reset `clearDumpedFlags` on model registries; emit options line; for each element emit `dumpModel` (if any) then `dumpElm`; emit scopes; emit `AdjustableManager.dump`; emit hint if active.
 
-Processing logic (JSON): reset `elementIds` and `usedIds`; key each element by `elm.getElementId()`, suffixing a repeated ID `_2`, `_3`, … with a console warning; build `pinsByLocation`; emit `schema`, `simulation` (`auto_time_step` always written, `true` or `false`), `elements`, `nodes` (coincidence >=3), `scopes`, `adjustables`; optionally emit `state`; pretty-print via `formatJson` / `isSimpleBlock`. `exportSimulation(doc)` returns the `simulation` object alone.
+Processing logic (JSON): reset `elementIds` and `usedIds`; key each element by `elm.getElementId()`, suffixing a repeated ID `_2`, `_3`, … with a console warning; build `pinsByLocation`; emit `schema`, `simulation` (`auto_time_step` always written, `true` or `false`), `elements`, `nodes` (coincidence >=3), `scopes` (one writer for docked scopes and the `Scope` element's `scope` property: `JsonScopeCodec`), `adjustables`, `models` (when non-empty: `ModelDependencies.circuitModels` over the elements in ID order, each encoded by `ModelSpecCodec.encode`; `exportSelection` writes the selection's models too); optionally emit `state`; pretty-print via `formatJson` / `isSimpleBlock`. `exportSimulation(doc)` returns the `simulation` object alone.
 
 ### 02_04. importCircuit  {#SP_IOF_02_04}
 
@@ -269,6 +270,8 @@ Errors:
 
 A text import with a report also records one model-catalogue restorer before each `!`, `34`, `32`, `.` line; a caller that rejects the import (`report.hasErrors()`) runs `report.restoreModels()` (newest change first) so the session catalogues are as before ([SP_AGA_06_01](./agent-api.sp.md#SP_AGA_06_01) item 15).
 
+`defineModels` (JSON, [SP_AGA_03_12](./agent-api.sp.md#SP_AGA_03_12)): each `models` entry, in file order, is checked (`ModelSpecCodec.fileEntryProblem`: no `from`, no `source`) and decoded (`ModelSpecCodec.decode`, no context). On a create-only report (agent `importCircuit`) an existing name is accepted when its model line is identical and is `name_taken` (ERROR) otherwise; a new subcircuit passes `ModelSpecCodec.innerProblem` (inner references, pins); a new entry is registered with `ModelSpecCodec.define` and its restorer recorded. Otherwise (user loads, paste, subcircuits-only import, `openFile`) the entry's model line is loaded as a text model line is (`ModelSpecCodec.loadLine` → the kind's `undumpModel`: the session entry of that name is overwritten in place), a restorer recorded first when a report is collected. An invalid entry is skipped with a console line and `report.addModelEntryProblem` (`invalid_value` ERROR on a create-only report, else `value_adjusted` WARNING); never an alert. A logic entry whose rules do not parse loads the rules before the bad line; as for a text `!` line, a user load (no report, not agent origin) alerts the parser's message (`ImportLifecycle.alertRuleErrorOnUserLoad`, shared by both importers), otherwise it is reported as above.
+
 Processing logic (text):
     FUNCTION importCircuit(data, doc, flags):
         IF NOT (flags & RC_RETAIN): resetCircuitState()     // ImportLifecycle, see SP_IOF_04_01
@@ -280,10 +283,13 @@ Processing logic (JSON):
         root = JSONParser.parseStrict(data)
         IF NOT validateSchema(root): RETURN
         IF NOT (flags & RC_RETAIN): resetCircuitState()     // shared ImportLifecycle reset
-        IF flags & RC_SUBCIRCUITS: RETURN                   // JSON carries no model definitions
+        IF flags & RC_SUBCIRCUITS:                          // [SP_AGA_03_12] subcircuit entries + their dependencies
+            defineModels(root.models, subcircuitsOnly); finalizeCircuitLoading(flags, report); RETURN
+        defineModels(root.models)                           // before the elements, see below
         IF NOT (flags & RC_RETAIN): parseSimulation(root.simulation)   // invalid values -> import_setting_invalid
         parseElements(root.elements)                        // via CircuitElementFactory; keys become IDs only without RC_RETAIN
         createAutoWires(root.elements)                      // synthesise WireElm by connected_to
+        applyPendingJsonScope(Scope elements)               // their `scope` property names other elements
         parseScopes(root.scopes)
         parseAdjustables(root.adjustables)                  // current_value NOT applied (flagged)
         adjustableManager.createSliders()
@@ -414,6 +420,8 @@ Text import session transitions mirror JSON except: no schema stage; both use th
 | Save -> Load | non-empty doc | ActionManager.dumpCircuit -> CircuitLoader.readCircuit | semantic equivalence (modulo auto-wire synthesis) |
 | Paste selection | doc with prior state | exportSelection -> importCircuit(flags=RC_RETAIN) | existing elements retained; pasted elements appended |
 | Subcircuit model inline | subcircuit dump | importCircuit(flags=RC_SUBCIRCUITS) | only `.` lines parsed; other lines ignored |
+| Subcircuit models from JSON | JSON 2.2 with `models` and elements | importCircuit(flags=RC_SUBCIRCUITS \| RC_RETAIN) | only the `subcircuit` entries and the entries they depend on are defined; no element added |
+| JSON models round trip | doc using user models | export JSON -> import in a fresh session | every model defined with the same model line |
 | Dropbox import | .json file | readCircuit with auto-detect | JSON importer selected |
 
 ### 05_04. Edge Cases and Boundaries  {#SP_IOF_05_04}
@@ -434,3 +442,4 @@ Text import session transitions mirror JSON except: no schema stage; both use th
 |------|--------|
 | 2026-04-19 | Initial version derived from .dev_flow/onboard/analysis/io-framework.md |
 | 2026-10-02 | PL_AGA Phase 10 propagate: JSON element keys = registry IDs (per-prefix, duplicates suffixed) and `getIdPrefix` table; `auto_time_step` always written, `exportSimulation`; `importCircuit` report overload with report-code column; JSON keys as IDs only without `RC_RETAIN`; 5 µs max-step fallback, time-step bar without its command, single-line-break split; `XNORGate` unregistered, `createDefault`; shared `resetCircuitState` steps (seal, ID reset, open marks) and `settleElementIds` in finalize; model-catalogue restore. |
+| 2026-10-04 | PL_AGA Phase 14: JSON 2.2 — `models` section (export through `ModelDependencies` + `ModelSpecCodec.encode`; import `defineModels` create-only on agent content, editor overwrite otherwise; `RC_SUBCIRCUITS` imports subcircuit entries and their dependencies), the `Scope` element's `scope` property (`JsonScopeCodec`, shared with `scopes`). |

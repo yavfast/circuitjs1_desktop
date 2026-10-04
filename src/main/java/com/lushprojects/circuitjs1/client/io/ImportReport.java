@@ -139,6 +139,23 @@ public final class ImportReport {
         }
     }
 
+    /**
+     * [SP_AGA_03_12] An entry of a JSON {@code models} section that is not loaded as written
+     * (invalid, or a logic model whose rules do not parse): {@link #INVALID_VALUE} (error) on a
+     * create-only report (agent content), else {@link #VALUE_ADJUSTED} (warning: the entry is
+     * skipped or loads as the editor loads it). Never an alert.
+     *
+     * @param message what is wrong, starting with the entry ("models[2]: …")
+     * @param hint    how to fix it
+     */
+    public void addModelEntryProblem(String message, String hint) {
+        if (createOnlyModels) {
+            items.add(new Item(INVALID_VALUE, Severity.ERROR, message, 0, null, hint));
+        } else {
+            items.add(new Item(VALUE_ADJUSTED, Severity.WARNING, message, 0, null, hint));
+        }
+    }
+
     /** Adds an item reported at a text line (1-based). */
     public void addAtLine(String code, Severity severity, String message, int line) {
         items.add(new Item(code, severity, message, line, null));

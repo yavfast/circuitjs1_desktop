@@ -24,16 +24,22 @@ import com.lushprojects.circuitjs1.client.*;
 import com.lushprojects.circuitjs1.client.dialog.ControlsDialog;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
+import com.lushprojects.circuitjs1.client.io.ModelDependencies;
+import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
- * Imports circuit from JSON format (version 2.0).
+ * Imports circuit from JSON format (any version 2.x; 2.2 adds the models section).
  * 
  * This importer handles the new JSON format with explicit
  * element properties and pin connections.
@@ -116,13 +122,17 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             importedElements = new HashMap<>();
 
-            // "Import subcircuits only" takes model definitions and nothing else (text: '.'
-            // lines). The JSON format carries no model definitions yet, so there is nothing
-            // to merge.
+            // [SP_AGA_03_12] "Import subcircuits only" takes the subcircuit entries of the models
+            // section and the entries they depend on, and nothing else (text: '.' lines)
             if ((flags & CircuitConst.RC_SUBCIRCUITS) != 0) {
-                CirSim.console("JSON import: no subcircuit definitions in JSON format; nothing imported");
+                int defined = defineModels(root, document, true);
+                ImportLifecycle.finalizeCircuitLoading(document, flags, report);
+                CirSim.console("JSON import: " + defined + " model(s) of the subcircuits imported");
                 return;
             }
+
+            // 0. [SP_AGA_03_12] Models, before the elements that name them
+            defineModels(root, document, false);
 
             // 1. Parse simulation parameters (a paste keeps the current document settings,
             // as the text importer does)
@@ -135,6 +145,9 @@ public class JsonCircuitImporter implements CircuitImporter {
 
             // 3. Create auto-wires from connected_to references
             int wireCount = createAutoWires(root, document);
+
+            // 3a. In-circuit scopes: their settings name other elements, which all exist now
+            applyScopeElements(root);
 
             // 4. Parse scopes
             int scopeCount = parseScopes(root, document);
@@ -199,6 +212,195 @@ public class JsonCircuitImporter implements CircuitImporter {
             boolean parse = e instanceof JSONException;
             reportItem(parse ? ImportReport.SCHEMA_INVALID : ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
                     parse ? "the JSON circuit is not valid JSON" : "the JSON import failed: " + e, null);
+        }
+    }
+
+    /**
+     * [SP_AGA_03_12] Defines the entries of the {@code models} section, in file order
+     * (dependencies first), before any element is created.
+     * <ul>
+     * <li>Files carry full definitions: an entry with {@code from} or {@code source}, or one the
+     *     codec rejects, is invalid.</li>
+     * <li>Agent content ({@code importCircuit}, a create-only report): an entry whose name exists
+     *     is accepted unchanged when its model line is identical and is {@code name_taken}
+     *     otherwise; a new subcircuit entry passes the static inner-reference and pin check
+     *     ({@link ModelSpecCodec#innerProblem}); an invalid entry is an error that rejects the
+     *     import; each new entry records its restorer.</li>
+     * <li>User loads, paste, subcircuits-only import and {@code openFile}: the text importer's
+     *     behaviour for model lines — the entry's model line overwrites the session entry of that
+     *     name (a restorer recorded first when a report is collected); an invalid entry is skipped
+     *     with a console message (a {@code value_adjusted} warning on a report), never an alert;
+     *     elements naming it take the fallback of an unknown model. A logic entry whose rules do
+     *     not parse loads the rules before the bad line; a user load alerts the parser's message as
+     *     a text {@code !} line does ({@link ImportLifecycle#alertRuleErrorOnUserLoad}).</li>
+     * </ul>
+     *
+     * @param subcircuitsOnly "Import subcircuits only": the subcircuit entries and the entries
+     *                        they depend on, nothing else
+     * @return the number of entries defined or accepted
+     */
+    private int defineModels(JSONObject root, CircuitDocument document, boolean subcircuitsOnly) {
+        JSONValue modelsValue = root.get("models");
+        if (modelsValue == null || modelsValue.isNull() != null) {
+            return 0;
+        }
+        JSONArray list = modelsValue.isArray();
+        if (list == null) {
+            modelEntryProblem("models", "the models section is not a list; ignored",
+                    "Write models as a list of ModelSpec or ModelText entries.");
+            return 0;
+        }
+        List<ModelSpecCodec.Definition> defs = new ArrayList<>();
+        List<String> where = new ArrayList<>();
+        for (int i = 0; i < list.size(); i++) {
+            String w = "models[" + i + "]";
+            List<ModelSpecCodec.Problem> problems = new ArrayList<>();
+            ModelSpecCodec.Problem fileProblem = ModelSpecCodec.fileEntryProblem(list.get(i), w);
+            ModelSpecCodec.Definition d = null;
+            if (fileProblem != null) {
+                problems.add(fileProblem);
+            } else {
+                // no context: a file entry names no batch, no source document and no from base
+                d = ModelSpecCodec.decode(list.get(i), w, null, problems);
+            }
+            if (d == null) {
+                ModelSpecCodec.Problem p = problems.isEmpty() ? null : problems.get(0);
+                modelEntryProblem(w, "entry skipped: " + (p == null ? "invalid" : p.message),
+                        p == null || p.hint == null ? "Write the entry as getCircuit or exportCircuit writes it." : p.hint);
+                continue;
+            }
+            defs.add(d);
+            where.add(w);
+        }
+        if (subcircuitsOnly) {
+            List<ModelSpecCodec.Definition> kept = subcircuitsWithDependencies(defs);
+            for (int i = defs.size() - 1; i >= 0; i--) {
+                if (!kept.contains(defs.get(i))) {
+                    defs.remove(i);
+                    where.remove(i);
+                }
+            }
+        }
+        int count = 0;
+        for (int i = 0; i < defs.size(); i++) {
+            // RULE_ERR_003: one entry that fails to load never aborts the circuit
+            try {
+                if (defineModel(defs.get(i), where.get(i), document)) {
+                    count++;
+                }
+            } catch (RuntimeException e) {
+                modelEntryProblem(where.get(i), "entry failed to load: " + e,
+                        "Write the entry as getCircuit or exportCircuit writes it.");
+            }
+        }
+        return count;
+    }
+
+    /** Defines one decoded entry (see {@link #defineModels}). @return true when defined or accepted */
+    private boolean defineModel(ModelSpecCodec.Definition d, String where, CircuitDocument document) {
+        if (report != null && report.isCreateOnlyModels()) {
+            // [SP_AGA_03_11] "Create-only names" (agent importCircuit content)
+            Object entry = ModelSpecCodec.entry(d.kind, d.name);
+            if (entry != null) {
+                if (ModelSpecCodec.isInternal(entry) || !d.line.equals(ModelSpecCodec.lineOf(entry))) {
+                    report.addForKey(ImportReport.NAME_TAKEN, ImportReport.Severity.ERROR, where + ": the " + d.kind
+                            + " model '" + d.name + "' exists in the session with a different definition", null);
+                    return false;
+                }
+                return true; // identical: nothing to write
+            }
+            if (d.newEntryProblem != null) {
+                modelEntryProblem(where, d.newEntryProblem.message, d.newEntryProblem.hint);
+                return false;
+            }
+            if (d.composite() != null) {
+                // [SP_AGA_01_13] "Inner references" (static part) and "Pins"
+                String reason = ModelSpecCodec.innerProblem(d.composite(), SESSION_NAMES);
+                if (reason != null) {
+                    modelEntryProblem(where, "subcircuit model '" + d.name + "': " + reason,
+                            "Define the models its elements use first (earlier models entries, dependencies first).");
+                    return false;
+                }
+            }
+            report.addModelRestorer(ModelSpecCodec.define(d));
+            return true;
+        }
+        // user loads and openFile: the entry's model line overwrites the session entry, as a
+        // text model line does
+        if (report != null) {
+            report.addModelRestorer(ModelSpecCodec.entryRestorer(d.kind, d.name));
+        }
+        String ruleError = ModelSpecCodec.loadLine(d.kind, d.line);
+        // a logic model whose rules do not parse loads the rules before the bad line; a user load
+        // alerts the parser's message as a text '!' line does, an agent path reports it
+        if (ruleError != null && !ImportLifecycle.alertRuleErrorOnUserLoad(document, report, ruleError)) {
+            modelEntryProblem(where, "the rules of logic model '" + d.name + "' do not parse (" + ruleError + ")",
+                    "Fix the rule line: left=right, one left character per input up to one per pin, one right character per output.");
+        }
+        return true;
+    }
+
+    /** Model names of the session catalogues (an element fallback's logic entry does not count). */
+    private static final ModelSpecCodec.InnerNames SESSION_NAMES = new ModelSpecCodec.InnerNames() {
+        @Override
+        public boolean exists(String kind, String name) {
+            if (ModelSpecCodec.LOGIC.equals(kind)) {
+                return !CustomLogicModel.isUnresolved(name);
+            }
+            return ModelSpecCodec.entry(kind, name) != null;
+        }
+
+        @Override
+        public String subcircuitNodeList(String name) {
+            CustomCompositeModel m = CustomCompositeModel.findEntry(name);
+            return m == null ? null : m.nodeList;
+        }
+    };
+
+    /**
+     * [SP_AGA_03_12] "Import subcircuits only": the subcircuit entries and, transitively, the
+     * entries of the same list their element dumps reference.
+     */
+    private static List<ModelSpecCodec.Definition> subcircuitsWithDependencies(List<ModelSpecCodec.Definition> defs) {
+        Map<String, ModelSpecCodec.Definition> byKey = new LinkedHashMap<>();
+        for (ModelSpecCodec.Definition d : defs) {
+            byKey.put(d.kind + "\u0000" + d.name, d);
+        }
+        List<ModelSpecCodec.Definition> kept = new ArrayList<>();
+        for (ModelSpecCodec.Definition d : defs) {
+            if (d.composite() != null) {
+                keepWithDependencies(d, byKey, kept);
+            }
+        }
+        return kept;
+    }
+
+    private static void keepWithDependencies(ModelSpecCodec.Definition d, Map<String, ModelSpecCodec.Definition> byKey,
+            List<ModelSpecCodec.Definition> kept) {
+        if (kept.contains(d)) {
+            return;
+        }
+        kept.add(d);
+        if (d.composite() == null) {
+            return;
+        }
+        for (ModelDependencies.Ref r : ModelDependencies.innerRefsOf(d.composite())) {
+            ModelSpecCodec.Definition dep = byKey.get(r.kind + "\u0000" + r.name);
+            if (dep != null) {
+                keepWithDependencies(dep, byKey, kept);
+            }
+        }
+    }
+
+    /**
+     * A {@code models} entry that is not loaded as written: a console line always; on a report an
+     * {@code invalid_value} error (agent content) or a {@code value_adjusted} warning
+     * ({@code openFile}). Never an alert.
+     */
+    private void modelEntryProblem(String where, String message, String hint) {
+        CirSim.console("JSON import: " + where + ": " + message);
+        if (report != null) {
+            report.addModelEntryProblem(where + ": " + message, hint);
         }
     }
 
@@ -479,6 +681,38 @@ public class JsonCircuitImporter implements CircuitImporter {
     }
 
     /**
+     * [SP_AGA_03_12] Applies the {@code scope} property of every imported {@code Scope} element
+     * (text 403) once all elements exist. One scope whose settings fail is skipped with a console
+     * line and a {@code value_adjusted} warning; it never aborts the load (RULE_ERR_003).
+     */
+    private void applyScopeElements(JSONObject root) {
+        JSONValue elementsValue = root.get("elements");
+        JSONObject elements = elementsValue == null ? null : elementsValue.isObject();
+        if (elements == null) {
+            return;
+        }
+        for (String key : elements.keySet()) {
+            CircuitElm elm = importedElements.get(key);
+            if (!(elm instanceof ScopeElm)) {
+                continue;
+            }
+            JSONObject e = elements.get(key).isObject();
+            JSONValue props = e == null ? null : e.get("properties");
+            JSONValue scope = props == null || props.isObject() == null ? null : props.isObject().get("scope");
+            if (scope == null || scope.isObject() == null) {
+                continue;
+            }
+            try {
+                ((ScopeElm) elm).applyJsonScope(CircuitElementFactory.jsonObjectToMap(scope.isObject()), importedElements::get);
+            } catch (RuntimeException ex) {
+                CirSim.console("JSON import: the scope settings of element " + key + " could not be applied: " + ex);
+                reportItem(ImportReport.VALUE_ADJUSTED, ImportReport.Severity.WARNING,
+                        "element " + key + ": its scope settings could not be applied (" + ex + ")", key);
+            }
+        }
+    }
+
+    /**
      * Creates Wire elements automatically based on connected_to references in pin
      * definitions.
      * This allows netlist-style connections without requiring exact coordinate
@@ -705,175 +939,9 @@ public class JsonCircuitImporter implements CircuitImporter {
                 continue;
             }
 
-            // Create scope
+            // Create scope (one form for docked and in-circuit scopes: JsonScopeCodec)
             Scope scope = new Scope(cirSim, document);
-            scope.setElm(elm);
-
-            // Position
-            JSONValue posValue = scopeJson.get("position");
-            if (posValue != null && posValue.isNumber() != null) {
-                scope.position = (int) posValue.isNumber().doubleValue();
-            }
-
-            JSONValue labelValue = scopeJson.get("label");
-            if (labelValue != null && labelValue.isString() != null) {
-                scope.setText(labelValue.isString().stringValue());
-            }
-
-            // Speed (applied after plots/settings are restored)
-            int scopeSpeed = scope.speed;
-            JSONValue speedValue = scopeJson.get("speed");
-            if (speedValue != null && speedValue.isNumber() != null) {
-                scopeSpeed = (int) speedValue.isNumber().doubleValue();
-            }
-
-            // Display options
-            JSONValue displayValue = scopeJson.get("display");
-            if (displayValue != null && displayValue.isObject() != null) {
-                JSONObject display = displayValue.isObject();
-                scope.showV = getBoolean(display, "show_voltage", true);
-                scope.showI = getBoolean(display, "show_current", false);
-                scope.showScale = getBoolean(display, "show_scale", true);
-                scope.showMax = getBoolean(display, "show_max", false);
-                scope.showMin = getBoolean(display, "show_min", false);
-                scope.showFreq = getBoolean(display, "show_frequency", false);
-                scope.showFFT = getBoolean(display, "show_fft", false);
-                scope.showRMS = getBoolean(display, "show_rms", false);
-                scope.showAverage = getBoolean(display, "show_average", false);
-                scope.showDutyCycle = getBoolean(display, "show_duty_cycle", false);
-                scope.showNegative = getBoolean(display, "show_negative", false);
-                scope.showElmInfo = getBoolean(display, "show_element_info", true);
-            }
-
-            // Plot modes
-            JSONValue plotModeValue = scopeJson.get("plot_mode");
-            if (plotModeValue != null && plotModeValue.isObject() != null) {
-                JSONObject plotMode = plotModeValue.isObject();
-                scope.plot2d = getBoolean(plotMode, "plot_2d", false);
-                scope.plotXY = getBoolean(plotMode, "plot_xy", false);
-                scope.maxScale = getBoolean(plotMode, "max_scale", false);
-                scope.logSpectrum = getBoolean(plotMode, "log_spectrum", false);
-            }
-
-            // Trigger settings (optional)
-            JSONValue triggerValue = scopeJson.get("trigger");
-            if (triggerValue != null && triggerValue.isObject() != null) {
-                JSONObject trigger = triggerValue.isObject();
-                scope.setTriggerEnabled(getBoolean(trigger, "enabled", scope.isTriggerEnabled()));
-                scope.setTriggerMode(getInt(trigger, "mode", scope.getTriggerMode()));
-                scope.setTriggerSlope(getInt(trigger, "slope", scope.getTriggerSlope()));
-                scope.setTriggerLevel(getDouble(trigger, "level", scope.getTriggerLevel()));
-                scope.setTriggerHoldoff(getDouble(trigger, "holdoff", scope.getTriggerHoldoff()));
-                scope.setTriggerPosition(getDouble(trigger, "position", scope.getTriggerPosition()));
-                scope.setTriggerSource(getInt(trigger, "source", scope.getTriggerSource()));
-            }
-
-            // Scale settings for different units
-            JSONValue scalesValue = scopeJson.get("scales");
-            if (scalesValue != null && scalesValue.isObject() != null) {
-                JSONObject scales = scalesValue.isObject();
-                scope.setScale(Scope.UNITS_V, getDouble(scales, "voltage", 5));
-                scope.setScale(Scope.UNITS_A, getDouble(scales, "current", 1));
-                scope.setScale(Scope.UNITS_OHMS, getDouble(scales, "ohms", 5));
-                scope.setScale(Scope.UNITS_W, getDouble(scales, "watts", 5));
-            }
-
-            // Manual scale settings
-            JSONValue manualScaleValue = scopeJson.get("manual_scale");
-            if (manualScaleValue != null && manualScaleValue.isObject() != null) {
-                JSONObject manualScale = manualScaleValue.isObject();
-                boolean enabled = getBoolean(manualScale, "enabled", false);
-                scope.setManualScale(enabled, false);
-                if (enabled) {
-                    int divisions = getInt(manualScale, "divisions", scope.manDivisions);
-                    scope.setManDivisions(divisions);
-                }
-            }
-
-            // Plots (individual traces)
-            JSONValue plotsValue = scopeJson.get("plots");
-            if (plotsValue != null && plotsValue.isArray() != null) {
-                JSONArray plotsArray = plotsValue.isArray();
-                java.util.Vector<ScopePlot> restoredPlots = new java.util.Vector<>();
-
-                for (int p = 0; p < plotsArray.size(); p++) {
-                    JSONValue plotValue = plotsArray.get(p);
-                    if (plotValue == null || plotValue.isObject() == null) {
-                        continue;
-                    }
-                    JSONObject plotJson = plotValue.isObject();
-
-                    // Plot element reference (optional; defaults to scope element)
-                    CircuitElm plotElm = elm;
-                    JSONValue plotElmValue = plotJson.get("element");
-                    if (plotElmValue != null && plotElmValue.isString() != null) {
-                        String plotElmId = plotElmValue.isString().stringValue();
-                        CircuitElm resolved = importedElements.get(plotElmId);
-                        if (resolved != null) {
-                            plotElm = resolved;
-                        }
-                    }
-
-                    // Plot value (preferred). If missing, infer from units.
-                    int value = Scope.VAL_VOLTAGE;
-                    JSONValue valueValue = plotJson.get("value");
-                    if (valueValue != null && valueValue.isNumber() != null) {
-                        value = (int) valueValue.isNumber().doubleValue();
-                    } else {
-                        JSONValue unitsValue = plotJson.get("units");
-                        if (unitsValue != null && unitsValue.isString() != null) {
-                            value = inferScopeValueFromUnits(unitsValue.isString().stringValue());
-                        }
-                    }
-
-                    int units = plotElm.getScopeUnits(value);
-                    ScopePlot sp = ScopePlot.create(cirSim, document, plotElm, units, value,
-                            scope.getManScaleFromMaxScale(units, false));
-
-                    // Color
-                    JSONValue colorValue = plotJson.get("color");
-                    if (colorValue != null && colorValue.isString() != null) {
-                        sp.color = colorValue.isString().stringValue();
-                    }
-
-                    // Manual scale for this plot
-                    JSONValue plotScaleValue = plotJson.get("scale");
-                    JSONValue vPosValue = plotJson.get("v_position");
-                    if (plotScaleValue != null && plotScaleValue.isNumber() != null) {
-                        int vPos = 0;
-                        if (vPosValue != null && vPosValue.isNumber() != null) {
-                            vPos = (int) vPosValue.isNumber().doubleValue();
-                        }
-                        sp.applyManualScale(plotScaleValue.isNumber().doubleValue(), vPos);
-                    } else if (vPosValue != null && vPosValue.isNumber() != null) {
-                        sp.manVPosition = (int) vPosValue.isNumber().doubleValue();
-                    }
-
-                    // AC coupling
-                    if (getBoolean(plotJson, "ac_coupled", false)) {
-                        sp.setAcCoupled(true);
-                    }
-
-                    restoredPlots.add(sp);
-                }
-
-                if (!restoredPlots.isEmpty()) {
-                    scope.plots = restoredPlots;
-                }
-            }
-
-            // History settings
-            JSONValue historyValue = scopeJson.get("history");
-            if (historyValue != null && historyValue.isObject() != null) {
-                JSONObject history = historyValue.isObject();
-                scope.setHistoryEnabled(getBoolean(history, "enabled", false));
-                scope.setHistoryDepth(getInt(history, "depth", 8));
-                scope.setHistoryCaptureMode(getInt(history, "capture_mode", Scope.HISTORY_CAPTURE_ON_TRIGGER));
-                scope.setHistorySource(getInt(history, "source", 0));
-            }
-
-            // Apply speed last so it reinitializes plot buffers with restored settings.
-            scope.setSpeed(scopeSpeed);
+            JsonScopeCodec.apply(scope, elm, CircuitElementFactory.jsonObjectToMap(scopeJson), importedElements::get, document);
 
             // Add scope at current index
             scopeManager.setScope(count, scope);
@@ -979,21 +1047,7 @@ public class JsonCircuitImporter implements CircuitImporter {
         return count;
     }
 
-    private boolean getBoolean(JSONObject obj, String key, boolean defaultValue) {
-        JSONValue value = obj.get(key);
-        if (value == null || value.isBoolean() == null) {
-            return defaultValue;
-        }
-        return value.isBoolean().booleanValue();
-    }
 
-    private double getDouble(JSONObject obj, String key, double defaultValue) {
-        JSONValue value = obj.get(key);
-        if (value == null || value.isNumber() == null) {
-            return defaultValue;
-        }
-        return value.isNumber().doubleValue();
-    }
 
     private int getInt(JSONObject obj, String key, int defaultValue) {
         JSONValue value = obj.get(key);
@@ -1001,24 +1055,6 @@ public class JsonCircuitImporter implements CircuitImporter {
             return defaultValue;
         }
         return (int) value.isNumber().doubleValue();
-    }
-
-    private int inferScopeValueFromUnits(String units) {
-        if (units == null) {
-            return Scope.VAL_VOLTAGE;
-        }
-        switch (units) {
-            case "V":
-                return Scope.VAL_VOLTAGE;
-            case "A":
-                return Scope.VAL_CURRENT;
-            case "W":
-                return Scope.VAL_POWER;
-            case "Ohm":
-                return Scope.VAL_R;
-            default:
-                return Scope.VAL_VOLTAGE;
-        }
     }
 
     private boolean validateSchema(JSONObject root) {

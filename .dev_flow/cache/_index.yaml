@@ -12,3 +12,11 @@ entries:
       - IEC 61082-1 (preview/TOC), IEC 60617 database snapshot, IEC 60062 (RKM), IEC 60063 (E-series)
       - IEEE Std 315 / ANSI Y32.2 (catalog only)
       - Olin Lathrop (Codidact/EE.SE), Horowitz & Hill App. E, Wikipedia "Circuit diagram", SparkFun, Schemalyzer, KiCad KLC
+  - id: agent-series
+    path: agent-series/README.md
+    description: Tools and task prompts of the graded live agent series (isolated claude -p agents over MCP; layout/drawing checker, MCP client with PNG render, frequency-response and one-post-element render helpers, ten graded circuit tasks) — rerun T8/T9/T10 after PL_AGA Phases 14-15
+    topics: [agent, mcp, live-series, layout-check, schematic, verify]
+    fetched: 2026-10-04
+    trust: project
+    sources:
+      - session scratchpad of the 2026-10-04 E_AGT verify session (written by main)

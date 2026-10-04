@@ -1,4 +1,4 @@
-package com.lushprojects.circuitjs1.client.agent;
+package com.lushprojects.circuitjs1.client.io;
 
 import com.google.gwt.json.client.JSONBoolean;
 import com.google.gwt.json.client.JSONNull;
@@ -7,8 +7,6 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
 import com.lushprojects.circuitjs1.client.CircuitElmCreator;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
-import com.lushprojects.circuitjs1.client.io.CircuitFormat;
-import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.text.TextCircuitImporter;
 
 /**
@@ -28,32 +26,35 @@ import com.lushprojects.circuitjs1.client.io.text.TextCircuitImporter;
  *     circuit only with zero unknown lines and at least one element or options line.</li>
  * </ul>
  * Format detection by the first character alone is not this test.
+ * <p>
+ * Lives in {@code io/} (L2): the agent's file contracts and the editor's system-clipboard paste
+ * ({@code ClipboardManager}) both use it, so the editor does not depend on the Agent API module.
  */
-final class CircuitContentTest {
+public final class CircuitContentTest {
 
     /** Outcome of the test, with the line counts of the text branch. */
-    static final class Result {
+    public static final class Result {
         /** {@code "json"}, {@code "text"}, or null when the content is no circuit. */
-        String kind;
-        int elementLines;
-        int optionsLines;
-        int auxLines;
-        int modelLines;
-        int ignoredLines;
-        int unknownLines;
+        public String kind;
+        public int elementLines;
+        public int optionsLines;
+        public int auxLines;
+        public int modelLines;
+        public int ignoredLines;
+        public int unknownLines;
         /** 1-based number of the first unknown line, 0 when none. */
-        int firstUnknownLine;
+        public int firstUnknownLine;
 
         private Result(String kind) {
             this.kind = kind;
         }
 
-        boolean isCircuit() {
+        public boolean isCircuit() {
             return kind != null;
         }
 
         /** Harness diagnostic form ({@code CircuitJS1Agent.debugCircuitTest}). */
-        JSONObject toJson() {
+        public JSONObject toJson() {
             JSONObject o = new JSONObject();
             o.put("circuit", JSONBoolean.getInstance(isCircuit()));
             o.put("kind", kind == null ? JSONNull.getInstance() : new JSONString(kind));
@@ -71,13 +72,16 @@ final class CircuitContentTest {
     private CircuitContentTest() {
     }
 
-    /** @return whether {@code content} is a circuit (JSON v2 or legacy text) */
-    static boolean isCircuit(String content) {
+    /**
+     * @return whether {@code content} is a circuit (JSON v2 or legacy text); also the test of a
+     *         system-clipboard paste ({@code ClipboardManager})
+     */
+    public static boolean isCircuit(String content) {
         return test(content).isCircuit();
     }
 
     /** Runs the test; see the class comment. */
-    static Result test(String content) {
+    public static Result test(String content) {
         if (content == null || content.trim().isEmpty()) {
             return new Result(null);
         }

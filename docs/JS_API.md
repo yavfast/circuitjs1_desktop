@@ -112,7 +112,7 @@ mcp_chrome-devtoo_take_snapshot()
 () => {
   // Load test circuit (RC circuit with voltage source)
   const circuit = {
-    "schema": {"format": "circuitjs", "version": "2.1"},
+    "schema": {"format": "circuitjs", "version": "2.2"},
     "simulation": {
       "time_step": "5 us",
       "voltage_range": "5 V"
@@ -490,7 +490,7 @@ CircuitJS1.deleteElementById(id);
 
 // 3. Create new element with same ID but different position
 const circuit = {
-    "schema": {"format": "circuitjs", "version": "2.1"},  // required, otherwise the import is rejected
+    "schema": {"format": "circuitjs", "version": "2.2"},  // required, otherwise the import is rejected
     "elements": {
         "R1": {  // Same ID preserved
             "type": "Resistor",
@@ -569,7 +569,7 @@ CircuitJS1.importCircuit(circuitText, false);
 ```
 
 ### exportAsJson(): string
-Export circuit in JSON format (version 2.1) without simulation state.
+Export circuit in JSON format (version 2.2) without simulation state. The top-level `models` list holds the model definitions the circuit uses (diode, transistor, custom logic, subcircuit), when there are any ([agent-api.sp.md §03_12](./agent-api.sp.md#SP_AGA_03_12)).
 
 ```javascript
 const jsonData = CircuitJS1.exportAsJson();
@@ -577,7 +577,7 @@ console.log(JSON.parse(jsonData));
 ```
 
 ### exportAsJsonWithState(): string
-Export circuit in JSON format (version 2.1) including simulation state (pin voltages, currents, internal element states).
+Export circuit in JSON format (version 2.2) including simulation state (pin voltages, currents, internal element states).
 
 This method includes additional `state` field for each element containing:
 - `pins`: Object with pin names as keys, each containing `v` (voltage) and `i` (current into node)
@@ -601,12 +601,12 @@ console.log('Collector current:', transistorState.ic);
 ### importFromJson(json: string): void
 Import circuit from JSON format (recommended). Supports importing simulation state if present.
 
-Any `2.x` schema version is accepted. Files written as 2.0 with the superseded polar pin names (`positive`/`negative` of voltage and current sources, `probe+`/`probe-` of the ohmmeter) load with their old meaning; see [EXPORT_CJS.md](./EXPORT_CJS.md) (version 2.1 note).
+Any `2.x` schema version is accepted. Files written as 2.0 with the superseded polar pin names (`positive`/`negative` of voltage and current sources, `probe+`/`probe-` of the ohmmeter) load with their old meaning; see [EXPORT_CJS.md](./EXPORT_CJS.md) (version 2.1 note). A 2.2 file's `models` entries are defined before the elements, as the model lines of a text file are: they replace session models of the same name; an invalid entry is skipped with a console message (no alert).
 
 ```javascript
 // Create circuit programmatically
 const circuit = {
-  "schema": {"format": "circuitjs", "version": "2.1"},
+  "schema": {"format": "circuitjs", "version": "2.2"},
   "simulation": {
     "time_step": "5 us",
     "voltage_range": "5 V"
@@ -862,7 +862,7 @@ window.oncircuitjsloaded = function(api) {
     
     // Import a simple RC circuit using JSON format
     const circuit = {
-      "schema": {"format": "circuitjs", "version": "2.1"},
+      "schema": {"format": "circuitjs", "version": "2.2"},
       "simulation": {
         "time_step": "5 us",
         "voltage_range": "5 V",

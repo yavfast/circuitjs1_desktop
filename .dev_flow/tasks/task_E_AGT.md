@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-04 12:00
+> **Last updated:** 2026-10-04 15:30
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document** | `epic` — [agent-automation.epic.md](../../docs/agent-automation.epic.md); all four plans implemented (PL_AGA, PL_MCP, PL_MCB completed; PL_AGS Phase 4 open only for the manual Claude Desktop row) |
-| **Pipeline phase** | `verify` — implementation and automated verification done; the developer's manual checks owed; push/merge not requested |
+| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phases 11–15 (agent model definitions, SP_AGA_DEC_07), inside the epic [agent-automation.epic.md](../../docs/agent-automation.epic.md); PL_MCP/PL_MCB completed, PL_AGS Phase 4 open only for the manual Claude Desktop row |
+| **Pipeline phase** | `implement` — PL_AGA Phase 14 implemented, uncommitted, awaiting its clean-context review (Phases 11–13 committed); then Phase 15 and the live-series re-runs (verify); the developer's earlier manual checks still owed; push/merge not requested |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -124,7 +124,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Verify (live, developer request 2026-10-03): an agent built a JFET Armstrong step-up converter through the MCP tools only — 65.7 % at 0.1 V / 100 kΩ (3.24 V out), starts from 25 mV (step) / 44.5 mV (ramp), continuous up to ~0.15 V; tools sufficient; 2 HIGH + 2 medium + 1 low defects and 6 skill gaps → PL_AGA Backlog "Defect batch from the live JFET DC-DC verify"
 - [x] Fix round for the live-verify defects (developer: fix every found defect right away): transformer pins `p1/s1/p2/s2` (+ aliases), ratio label N2/N1 in the catalogue (dialog was right), model names validated with `choices` (agent paths; user loads unchanged), collapsed posts / replaced ends reported, offscreen render printable on white with text bounds, skill gaps closed; `verify_defects` 44 (30 fail on HEAD); reviews PASS
 - [x] Transformer drawing (developer report 2026-10-03): CustomTransformer core/coils drawn along the box diagonal since dde7f33, flipped Transformer coils facing outward — drawing-only fixes, posts unchanged; legacy TappedTransformer/Transformer optional fields (eb72ca5) and forced 64 px spacing on load (a593884) fixed — ringmod.txt loads correctly; TappedTransformer `spacing`/`tap_position` JSON properties; new `not_axis_aligned` for 69 axis-bound types; live `xfmr_draw` 81 + `agent_axis` 10; review PASS
-- [ ] **Next:** collect the developer's results of the owed manual checks (Relevant Context, "Manual checks owed"), fix every defect they report in a fix round, then push/merge `design/agent-mcp` only on the developer's word
+- [ ] Later (after the graded-series subtask): collect the developer's results of the owed manual checks (Relevant Context, "Manual checks owed"), fix every defect they report in a fix round, then push/merge `design/agent-mcp` only on the developer's word
 - [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
@@ -145,7 +145,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 22:40 — tree at checkpoint: branch `design/agent-mcp`, clean apart from this checkpoint's `.dev_flow/` edits; commits 496d9c9 + f48c7e0 ahead of `master`, not pushed
 
 ### Subtask: graded live agent design series (verify)
-> Author: `main` — Created: 2026-10-04 09:10 — Last updated: 2026-10-04 09:10 — Status: `in-progress`
+> Author: `main` — Created: 2026-10-04 09:10 — Last updated: 2026-10-04 15:30 — Status: `in-progress`
 
 **Goal:** developer request 2026-10-04 ("перевірити роботу AI-агентів з MCP … завдання від простих до складних … елементи не накладаються, параметри адекватні"): give isolated `claude -p` agents (skill + circuit_* tools only, no circuit_file) ten circuit-design tasks of rising difficulty, one at a time; verify each independently — electrical targets re-measured by the verifier, drawing standards by a heuristic layout checker (part overlap, wire through part, post inside part, label text, crossings, 4-way junctions, compressed/diagonal parts, ground/source orientation) plus a visual review of the render, parameter adequacy (E-series, power, models, time step); fix every defect found in the app/skill right away (memory: fix defects immediately).
 
@@ -161,9 +161,12 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Scope fix (worktree commit ad50e70): 403 lines never loaded (null document), Dock Scope/scope popup menu, legacy LED lines; review PASS + delta PASS — to merge into design/agent-mcp
 - [x] Scope fix merged as fb55b3c
 - [x] PL_AGA Phase 13 — subcircuit models (read-only source build without validation, inner-reference checks, closure/usedBy, editor builder shared; editor Create Subcircuit array-size fix §06_01 item 28); agent_models_sub 63; review PASS (should/prefer fixed, confirmed)
-- [ ] Next: PL_AGA Phase 14 (JSON models + in-circuit scope settings) → 15; then re-run T8/T9/T10; then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
+- [x] PL_AGA Phase 14 — JSON 2.2 `models` (closure via io/ModelDependencies), in-circuit scope JSON settings (JsonScopeCodec; 403 lines round-trip, manual scale independent of saved scope defaults), user JSON bad-rule alert like text loads, system-clipboard paste/copy fix (paste only circuit content; io/CircuitContentTest moved from agent/), no JSON old-version compatibility (developer); json_models 49; review FAIL (2 must) → fixed → delta PASS → follow-ups confirmed
+- [ ] **Next:** PL_AGA Phase 15 (skill/docs remainder + SP_AGS rows) → stop the app and run `npm run test:mcp` (real NW.js save/open with `models`) → re-run live-series T8/T9/T10 with `.dev_flow/cache/agent-series/` → specify `text_overlap` from render (value text crossed by a wire, T8)
 
 **Activity:**
+- 2026-10-04 — developer: "Підтримку попередніх версій схем у json форматі можна не реалізовувати, бо це ще у розробці" → no compatibility with earlier JSON 2.x versions (no older-reader guarantee, json_models_older dropped); existing compat code kept, not extended
+- 2026-10-04 15:30 — checkpoint: branch `design/agent-mcp` at de3ef73 (Phases 11–13 + scope fix committed, not pushed); uncommitted: PL_AGA Phase 14 (EXPORT_CJS.md, JS_API.md, agent-api.plan/sp, io-framework.sp, agent-format, SKILL.md, elements.md, ClipboardManager, ElementIdRegistry, agent/CircuitView/ImportOps/ModelOps, ScopeElm, io/ImportLifecycle/ImportReport/ModelSpecCodec, io/json/*, new io/ModelDependencies + io/json/JsonScopeCodec, TextCircuitImporter, tests/live) — its implementer was applying a last round (user JSON bad-rule alert, spec wording, fresh-session side pages) when the session was checkpointed; the parallel circuit-lang task's files stay dirty and are not ours; series tools saved to `.dev_flow/cache/agent-series/`
 - 2026-10-04 — developer: wire crossings are allowed (not a defect); research of drawing guidelines (IEEE 315, IEC 61082, ГОСТ 2.702) → `.dev_flow/cache/schematic-drawing-guidelines.md`
 - 2026-10-04 — developer decision (LED colour finding): "Агенти повинні мати можливість через mcp створювати нові моделі тих компонентів, якщо це передбачено у застосунку" → new feature: agent model creation for every app model kind (diode, BJT, custom logic, composite); spec/plan first, after the `symbol_overlap` fix lands
 - 2026-10-04 — fixes so far: short-lead text flip (BaseCircuitElm.leadFraction: LabeledNode, Output, StopTrigger, TestPoint); skill "readable schematic" rule + render-look step, spacing 2 → 3 cells; `symbol_overlap` code (subagent, in progress)
@@ -190,11 +193,15 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - ~~`proposed`: polar pin names swapped~~ **resolved 2026-10-03** by the developer ("make them correct") → SP_AGA_DEC_06: sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp constant `in-`/`in+`; JSON 2.1 with import aliases for 2.0 names. — main
 - `resolved (delegated)` 2026-10-02 — left as implemented when the developer lifted the Phase 6 pause without objecting (minor, Phase 6; delta reviewer: acceptable as is): when an agent `undo`/`restoreCheckpoint` auto-seals an open transaction and the following undo load then throws (`internal_error`), the seal is not rolled back — the transaction ends sealed. Recommended: leave as is (the sealed entry is a correct checkpoint of the agent's work; the failure path is exceptional). Alternative: snapshot the transaction state and restore it too. Raise with the developer at the pause. — main
 
+- `{s:pin}` 2026-10-04 (main → owner of `.dev_flow/skills/io/json-format.md` and `text-format.md`, the circuit-lang task): `text-format.md:143` should say `io/CircuitContentTest` (moved from agent/ by PL_AGA Phase 14); json-format Pitfall 12 is outdated after PL_AGA Phase 14 — proposed replacement: "JSON 2.2 carries a `models` section (SP_AGA_03_12; closure via `io/ModelDependencies`); `RC_SUBCIRCUITS` imports subcircuit entries and their dependencies. In-circuit scopes travel as the `Scope` element's `scope` property, applied after all elements exist (`JsonScopeCodec`)." Also `.dev_flow/skills/io/text-format.md` Pitfalls 12–13 were added by E_AGT commit fb55b3c (index staged around your uncommitted edits). — main
+
 ## Blocking Issues
 
 {No blockers yet.}
 
 ## Relevant Context
+
+- `{s:pin}` Live series + model definitions (2026-10-04) — main: series method, tools and task prompts in [`.dev_flow/cache/agent-series/`](../cache/agent-series/README.md); drawing guidelines digest [`.dev_flow/cache/schematic-drawing-guidelines.md`](../cache/schematic-drawing-guidelines.md); design: SP_AGA §01_13, §02_03–§02_05, §02_15, §03_03, §03_04, §03_11, §03_12, DEC_07 in [agent-api.sp.md](../../docs/agent-api.sp.md); plan Phases 11–15 with status notes in [agent-api.plan.md](../../docs/agent-api.plan.md); live scenarios agent_overlap, render_text, scope_float, agent_models, agent_models_logic, agent_models_sub, json_models (+ manual json_models_older). Commits: 709033a, 29003ef, ddd446b, fb55b3c, de3ef73.
 
 - `{s:pin}` Resolved 2026-10-01: [PL_AGA_DEC_01](../../docs/agent-api.plan.md#PL_AGA_DEC_01) = A, scoped silent bind + 4 conditions (closes [SP_AGA_DEC_04](../../docs/agent-api.sp.md#SP_AGA_DEC_04)); skill `automation/background-documents`. Also resolved 2026-10-01: [PL_MCP_DEC_01](../../docs/mcp-server.plan.md#PL_MCP_DEC_01) = A, SDK 1.x core + own transport, script-tag loading, no Node crypto (closes [C_MCP_DEC_03](../../docs/mcp-server.concept.md#C_MCP_DEC_03)). No open design decisions remain. — main
 - `{s:pin}` Spec-level decisions settled by the developer: SP_AGA_DEC_01 one atomic `applyEdits` batch · SP_MCP_DEC_01 14 grouped tools · SP_MCP_DEC_03 file actions on circuit files only (.txt/.json, ≤10 MB, overwrite only empty/circuit files). — main
