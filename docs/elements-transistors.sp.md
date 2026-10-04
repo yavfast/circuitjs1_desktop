@@ -93,8 +93,15 @@ subclass is a "new blank element" convenience.
   gate for p-JFET).
 - `JfetElm.doStep` calls `super.doStep` (MOSFET square-law) then steps
   both diodes.
-- `getCurrentIntoNode(n)`: `{ gate: -(Igs+Igd), source: +Igs+ids,
-  drain: -ids+Igd }`.
+- `getCurrentIntoNode(n)`: `{ post 0 (gate): -(Igs+Igd), post 1: +Igs+ids,
+  post 2: -ids+Igd }`; `Igs`/`Igd` are computed in `stepFinished` (since
+  2026-10-04; before they stayed 0).
+- MOSFET/JFET pin names and reported quantities
+  ([SP_AGA_DEC_08](./agent-api.sp.md#SP_AGA_DEC_08)): post 1 is the source of
+  an n-channel and the drain of a p-channel device; `getCurrent()` is the
+  current into the drain terminal (positive into the drain for both
+  polarities), `getVoltageDiff()` drain minus source; the scope keeps `ids`
+  and post 2 minus post 1.
 - Defaults: `vt = -4 V`, `β = 0.00125` (Hayes/Horowitz p.155).
 
 ## 03. Validation Rules  {#SP_ETR_03}

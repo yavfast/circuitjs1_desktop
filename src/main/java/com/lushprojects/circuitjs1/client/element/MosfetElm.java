@@ -28,6 +28,7 @@ import com.lushprojects.circuitjs1.client.Diode;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
+import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
@@ -295,8 +296,26 @@ public class MosfetElm extends CircuitElm {
         return (n == 0) ? geom().getPoint1() : (n == 1) ? src[0] : (n == 2) ? drn[0] : body[0];
     }
 
+    /** @return the post of the drain: 2 for n-channel, 1 for p-channel (see getPost) */
+    int drainPost() {
+        return pnp == -1 ? 1 : 2;
+    }
+
+    /** @return the post of the source: 1 for n-channel, 2 for p-channel (see getPost) */
+    int sourcePost() {
+        return pnp == -1 ? 2 : 1;
+    }
+
+    /**
+     * [SP_AGA_DEC_08] The element's reported current is the drain current: the current into the
+     * drain terminal (channel plus the body or gate-drain diode at the drain), positive into the
+     * drain whatever the polarity, so negative for a conducting p-channel device (as a PNP's
+     * collector current). {@code ids} is the channel current from post 2 to post 1 (Ids of an
+     * n-channel, Isd of a p-channel device); the scope keeps plotting it (getScopeValue).
+     */
+    @Override
     public double getCurrent() {
-        return ids;
+        return -getCurrentIntoNode(drainPost());
     }
 
     public double getPower() {
@@ -572,7 +591,23 @@ public class MosfetElm extends CircuitElm {
         return true;
     }
 
+    /** [SP_AGA_DEC_08] drain minus source (Vds) for both polarities */
+    @Override
     double getVoltageDiff() {
+        return getNodeVoltage(drainPost()) - getNodeVoltage(sourcePost());
+    }
+
+    // the scope keeps its pre-SP_AGA_DEC_08 values: channel current ids (Ids / Isd, as the info
+    // panel) and, for every other value but power, post 2 minus post 1 (Vds / Vsd), as the base
+    // class did with the old getVoltageDiff
+    @Override
+    public double getScopeValue(int x) {
+        if (x == Scope.VAL_CURRENT) {
+            return ids;
+        }
+        if (x == Scope.VAL_POWER) {
+            return getPower();
+        }
         return getNodeVoltage(2) - getNodeVoltage(1);
     }
 
@@ -708,12 +743,16 @@ public class MosfetElm extends CircuitElm {
         return props;
     }
 
+    // [SP_AGA_DEC_08] post 1 is the source of an n-channel and the drain of a p-channel device
+    // (the drawn S/D labels, the body tie of stamp(), the source of getFetInfo's Vgs)
     @Override
     public String[] getJsonPinNames() {
+        String p1 = pnp == -1 ? "drain" : "source";
+        String p2 = pnp == -1 ? "source" : "drain";
         if (hasBodyTerminal()) {
-            return new String[] { "gate", "source", "drain", "body" };
+            return new String[] { "gate", p1, p2, "body" };
         }
-        return new String[] { "gate", "source", "drain" };
+        return new String[] { "gate", p1, p2 };
     }
 
     @Override

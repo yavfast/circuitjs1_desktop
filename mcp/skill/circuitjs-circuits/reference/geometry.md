@@ -51,7 +51,7 @@ Reply posts: `base` (0, 0), `collector` (4, −1), `emitter` (4, 1).
 - Drawn downwards instead (`start` (0, 10), `end` (0, 14)), the posts are `base` (0, 10), `collector` (1, 14), `emitter` (−1, 14): the offsets turn with the element.
 - A longer element moves only the far side: `end` (6, 0) gives `collector` (6, −1), `emitter` (6, 1).
 - `flags: 1` swaps the collector and emitter sides: `collector` (4, 1), `emitter` (4, −1).
-- `TransistorPNP` at default size has `collector` (4, 1), `emitter` (4, −1). MOSFETs (`NMOS`, `PMOS`) have `gate` (0, 0), `source` (4, 1), `drain` (4, −1).
+- `TransistorPNP` at default size has `collector` (4, 1), `emitter` (4, −1). `NMOS` and `NJFET` have `gate` (0, 0), `source` (4, 1), `drain` (4, −1); `PMOS` and `PJFET` have `gate` (0, 0), `drain` (4, 1), `source` (4, −1) (source on top: the high-side orientation).
 
 **Op-amp.** The inputs sit one cell above and below `start`; the output is at `end`.
 

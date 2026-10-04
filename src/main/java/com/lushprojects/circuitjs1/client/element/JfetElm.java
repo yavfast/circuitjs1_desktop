@@ -59,6 +59,7 @@ public class JfetElm extends MosfetElm {
         super.reset();
         diodeGS.reset();
         diodeGD.reset();
+        gateCurrentGS = gateCurrentGD = 0;
     }
 
     Polygon gatePoly;
@@ -83,13 +84,12 @@ public class JfetElm extends MosfetElm {
         setPowerColor(g, true);
         g.fillPolygon(gatePoly);
 
-        // Total gate current is sum of both diode currents
-        double totalGateCurrent = gateCurrentGS + gateCurrentGD;
-        curcountd = updateDotCount(-ids, curcountd);
+        // lead currents as getCurrentIntoNode: into the source lead -(Igs + ids) (drawn from
+        // src[0] inwards), into the drain lead ids - Igd (drawn with -curcountd from drn[0] inwards)
+        curcountd = updateDotCount(gateCurrentGD - ids, curcountd);
         curcountgs = updateDotCount(gateCurrentGS, curcountgs);
         curcountgd = updateDotCount(gateCurrentGD, curcountgd);
-        // Source current: channel current + gate-source diode current
-        curcounts = updateDotCount(-totalGateCurrent - ids, curcounts);
+        curcounts = updateDotCount(-gateCurrentGS - ids, curcounts);
         if (curcountd != 0 || curcounts != 0) {
             drawDots(g, src[0], src[1], curcounts);
             drawDots(g, src[1], src[2], addCurCount(curcounts, 8));
@@ -181,6 +181,14 @@ public class JfetElm extends MosfetElm {
         diodeGD.doStep(pnp * vgd);
     }
 
+    // the gate junction currents feed getCurrentIntoNode (pin currents, drain current, dots);
+    // they were never computed, so a conducting gate junction reported no current
+    @Override
+    public void stepFinished() {
+        super.stepFinished();
+        calculateCurrent();
+    }
+
     void calculateCurrent() {
         double vgs = getNodeVoltage(0) - getNodeVoltage(1);
         double vgd = getNodeVoltage(0) - getNodeVoltage(2);
@@ -262,9 +270,12 @@ public class JfetElm extends MosfetElm {
         return new java.util.LinkedHashMap<>();
     }
 
+    // [SP_AGA_DEC_08] as MosfetElm: post 1 is the source of an n-channel and the drain of a
+    // p-channel JFET (the channel is symmetric; getFetInfo and the solver take post 2 as the
+    // source of a p-channel device)
     @Override
     public String[] getJsonPinNames() {
-        return new String[] { "gate", "source", "drain" };
+        return pnp == -1 ? new String[] { "gate", "drain", "source" } : new String[] { "gate", "source", "drain" };
     }
 
     @Override

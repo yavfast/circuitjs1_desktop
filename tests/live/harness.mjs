@@ -5636,7 +5636,7 @@ async function scenarioAgentModelsSub(s) {
   report('AG.agent_models_sub', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models_sub.json') });
 }
 
-// pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_03_02 "Polar names",
+// pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_DEC_08 FETs, SP_AGA_03_02 "Polar names",
 // §01_09 source voltage sign; io-framework "Pin-name aliases"), on a background document. Each
 // source drives a 1 kOhm load from `start` (grounded) to `end`: a DC source reads +5 V at `plus`
 // and 0 V at `minus`, a 10 mA current source leaves at `out` (+10 V), the ohmmeter's `probe` is
@@ -5741,9 +5741,123 @@ async function scenarioPinNames(s) {
     out.notes[k] = { posts, v };
     ck(k + '_inMinusInverting', imp.ok && near(v.inm, 1) && v.out < -10);
   }
+  // FETs and BJTs wired by their pin names (SP_AGA_DEC_08): the supply on `source`/`emitter`, the
+  // load (1 kOhm) from `drain`/`collector` to the other rail, the gate/base on a rail (BJT: through
+  // 100 kOhm). Off: the drain stays at the load's rail — a P-channel body diode tied to the wrong
+  // post conducts and lifts it (11.43 V before the fix). On: the device conducts; `current` is the
+  // drain/collector current, positive into the drain (negative for P-channel and PNP), `voltage`
+  // of a FET is drain minus source.
+  const fetCases = {
+    nmos: { type: 'NMOS', p: false, names: ['gate', 'source', 'drain'], on: 12, off: 0 },
+    pmos: { type: 'PMOS', p: true, names: ['gate', 'drain', 'source'], on: 0, off: 12 },
+    pmos_noBodyDiode: { type: 'PMOS', props: { body_diode: false }, p: true, names: ['gate', 'drain', 'source'], on: 0, off: 12 },
+    pmos_bodyTerminal: { type: 'PMOS', props: { body_terminal: true }, p: true, names: ['gate', 'drain', 'source', 'body'], on: 0, off: 12 },
+    nmos_bodyTerminal: { type: 'NMOS', props: { body_terminal: true }, p: false, names: ['gate', 'source', 'drain', 'body'], on: 12, off: 0 },
+    njfet: { type: 'NJFET', p: false, names: ['gate', 'source', 'drain'], on: 0, off: -6 },
+    pjfet: { type: 'PJFET', p: true, names: ['gate', 'drain', 'source'], on: 12, off: 18 },
+    pnp: { type: 'TransistorPNP', p: true, bjt: true, names: ['base', 'collector', 'emitter'], on: 0, off: 12 },
+    // a Darlington is a composite without element quantities: post voltages only
+    pdarl: { type: 'DarlingtonPNP', p: true, bjt: true, noQty: true, names: ['base', 'collector', 'emitter'], on: 0, off: 12 },
+    npn: { type: 'TransistorNPN', p: false, bjt: true, names: ['base', 'collector', 'emitter'], on: 12, off: 0 },
+  };
+  const away = (at, dx, dy) => ({ x: at.x + dx, y: at.y + dy });
+  out.notes.fets = {};
+  for (const [k, c] of Object.entries(fetCases)) {
+    const q = { id: 'Q1', type: c.type, start: { x: 0, y: 0 }, ...(c.props ? { properties: c.props } : {}) };
+    const imp0 = await A('importCircuit', { doc, circuit: { elements: [q] } });
+    const rec = imp0.ok && ((await A('getCircuit', { doc })).data.elements || []).find((e) => e.id === 'Q1');
+    const note = out.notes.fets[k] = { imp0: imp0.ok ? 'ok' : codes(imp0.issues), pins: rec && rec.posts.map((p) => p.pin + '@' + p.at.x + ',' + p.at.y) };
+    ck('fet_' + k + '_names', rec && same(rec.posts.map((p) => p.pin), c.names));
+    if (!rec) continue;
+    // wired by the names the record gives (whatever post they are on)
+    const at = Object.fromEntries(rec.posts.map((p) => [p.pin, p.at]));
+    const [ctl, out1, sup] = c.bjt ? ['base', 'collector', 'emitter'] : ['gate', 'drain', 'source'];
+    const supV = c.p ? 12 : 0;
+    const loadV = c.p ? 0 : 12;
+    // rails leave the posts sideways (gate left, others right), clear of the symbol
+    const circuit = (ctlV) => [q,
+      { id: 'VS', type: 'Rail', start: at[sup], end: away(at[sup], 2, 0), properties: { max_voltage: supV + ' V' } },
+      ...(c.bjt
+        ? [{ id: 'RB', type: 'Resistor', start: at[ctl], end: away(at[ctl], -4, 0), properties: { resistance: '100 kOhm' } },
+          { id: 'VG', type: 'Rail', start: away(at[ctl], -4, 0), end: away(at[ctl], -6, 0), properties: { max_voltage: ctlV + ' V' } }]
+        : [{ id: 'VG', type: 'Rail', start: at[ctl], end: away(at[ctl], -2, 0), properties: { max_voltage: ctlV + ' V' } }]),
+      { id: 'RL', type: 'Resistor', start: at[out1], end: away(at[out1], 4, 0), properties: { resistance: '1 kOhm' } },
+      { id: 'VL', type: 'Rail', start: away(at[out1], 4, 0), end: away(at[out1], 6, 0), properties: { max_voltage: loadV + ' V' } },
+      // the body terminal goes to the supply (source) rail
+      ...(at.body ? [{ id: 'VB', type: 'Rail', start: at.body, end: away(at.body, 0, at.body.y >= at[ctl].y ? 2 : -2), properties: { max_voltage: supV + ' V' } }] : []),
+    ];
+    for (const state of ['off', 'on']) {
+      const imp = await A('importCircuit', { doc, circuit: { elements: circuit(c[state]) } });
+      await R({ doc, span: '2 ms', reset: true, maxPoints: 10 });
+      const v = await values([{ name: 'out', post: 'Q1.' + out1 }, { name: 'sup', post: 'Q1.' + sup },
+        ...(c.noQty ? [] : [{ name: 'i', element: 'Q1', quantity: 'current' }, { name: 'v', element: 'Q1', quantity: 'voltage' }])]);
+      note[state] = { ok: imp.ok ? true : codes(imp.issues), ...v };
+      if (!imp.ok) { ck('fet_' + k + '_' + state + '_import', false); continue; }
+      if (state === 'off') {
+        // nothing conducts: the output stays at the load rail, no current
+        ck('fet_' + k + '_offBlocks', near(v.out, loadV, 0.01) && near(v.sup, supV) && (c.noQty || Math.abs(v.i) < 1e-6));
+      } else {
+        // conducting: the output is pulled most of the way to the supply; current into the
+        // drain/collector is positive for N-type, negative for P-type, about the load current
+        const iLoad = (v.out - loadV) / 1000;
+        ck('fet_' + k + '_onConducts', Math.abs(v.out - loadV) > 6);
+        if (!c.noQty) ck('fet_' + k + '_currentSign', near(v.i, -iLoad, Math.abs(iLoad) * 0.02) && (c.p ? v.i < 0 : v.i > 0));
+        if (!c.bjt) ck('fet_' + k + '_voltageDrainMinusSource', near(v.v, v.out - v.sup, 1e-3));
+      }
+    }
+  }
+  // a JFET's drain current includes its gate-drain junction: n-channel, source open, gate fed
+  // from 5 V through 10 kOhm, drain through 1 kOhm to ground. The whole gate current leaves at
+  // the drain (through the junction and the channel), so `current` = -(gate current); the
+  // gate junction currents were never computed before (JfetElm.calculateCurrent unused).
+  {
+    const rec = (await A('importCircuit', { doc, circuit: { elements: [{ id: 'Q1', type: 'NJFET', start: { x: 0, y: 0 } }] } })).ok
+      && ((await A('getCircuit', { doc })).data.elements || [])[0];
+    const at = rec ? Object.fromEntries(rec.posts.map((p) => [p.pin, p.at])) : {};
+    const imp = rec && await A('importCircuit', { doc, circuit: { elements: [{ id: 'Q1', type: 'NJFET', start: { x: 0, y: 0 } },
+      { id: 'RG', type: 'Resistor', start: at.gate, end: away(at.gate, -4, 0), properties: { resistance: '10 kOhm' } },
+      { id: 'VG', type: 'Rail', start: away(at.gate, -4, 0), end: away(at.gate, -6, 0), properties: { max_voltage: '5 V' } },
+      { id: 'RL', type: 'Resistor', start: at.drain, end: away(at.drain, 4, 0), properties: { resistance: '1 kOhm' } },
+      { id: 'G1', type: 'Ground', start: away(at.drain, 4, 0), end: away(at.drain, 4, 1) }] } });
+    await R({ doc, span: '2 ms', reset: true, maxPoints: 10 });
+    const v = await values([{ name: 'g', post: 'Q1.gate' }, { name: 'd', post: 'Q1.drain' }, { name: 'i', element: 'Q1', quantity: 'current' }]);
+    const iGate = (5 - v.g) / 10000;
+    out.notes.jfetGateCurrent = { ok: imp && imp.ok, iGate, ...v };
+    ck('fet_njfet_drainCurrentWithGate', imp && imp.ok && iGate > 1e-4 && near(v.i, -iGate, iGate * 0.01) && near(v.d, iGate * 1000, 0.01));
+  }
+  // user scopes are unchanged (SP_AGA_DEC_08): on the visible tab a conducting PMOS (source 12 V,
+  // gate 0 V, drain through 1 kOhm to ground) has a current and a voltage scope; they plot the
+  // channel current ids (Isd, positive) and post 2 minus post 1 (Vsd, positive), while `current`
+  // and `voltage` read the drain current (negative) and drain minus source (negative)
+  {
+    const A0 = ((await A('listDocuments', {})).data.documents || []).find((d) => d.active).doc;
+    const imp = await A('importCircuit', { doc: A0, circuit: { elements: [
+      { id: 'Q1', type: 'PMOS', start: { x: 0, y: 0 } },
+      { id: 'VS', type: 'Rail', start: { x: 4, y: -1 }, end: { x: 6, y: -1 }, properties: { max_voltage: '12 V' } },
+      { id: 'VG', type: 'Rail', start: { x: 0, y: 0 }, end: { x: -2, y: 0 }, properties: { max_voltage: '0 V' } },
+      { id: 'RL', type: 'Resistor', start: { x: 4, y: 1 }, end: { x: 8, y: 1 }, properties: { resistance: '1 kOhm' } },
+      { id: 'G1', type: 'Ground', start: { x: 8, y: 1 }, end: { x: 8, y: 2 } }] } });
+    const sc = await A('applyEdits', { doc: A0, edits: [{ op: 'addScope', element: 'Q1', quantity: 'current' }, { op: 'addScope', element: 'Q1', quantity: 'voltage' }] });
+    await R({ doc: A0, span: '2 ms', reset: true, maxPoints: 10 });
+    const rd = await A('read', { doc: A0, targets: [{ name: 'i', element: 'Q1', quantity: 'current' }, { name: 'v', element: 'Q1', quantity: 'voltage' },
+      { name: 'd', post: 'Q1.drain' }, { name: 's', post: 'Q1.source' }] });
+    const r = rd.ok ? Object.fromEntries(rd.data.values.map((x) => [x.name, x.value])) : {};
+    // last recorded sample of the two newest scopes (plot 0 each)
+    const scopes = await s.eval(`(() => { const n = CircuitJS1.getScopeCount(); const last = (k) => { const d = CircuitJS1.getScopeData(k, 0);
+      if (!d) return null; const m = d.maxValues.length; const j = (d.ptr - 1 + m) % m; return { max: d.maxValues[j], min: d.minValues[j], units: d.units }; };
+      return { n, current: last(n - 2), voltage: last(n - 1) }; })()`);
+    out.notes.userScopePmos = { imp: imp.ok, scopes: sc.ok, read: r, scopeValues: scopes };
+    const isd = r.d / 1000; // load current = source-to-drain channel current
+    ck('pmos_userScopeUnchanged', imp.ok && sc.ok && scopes && scopes.current && scopes.voltage
+      && scopes.current.units === 1 && near(scopes.current.max, isd, isd * 0.02) && scopes.current.max > 0
+      && near(scopes.voltage.max, r.s - r.d, 1e-3) && scopes.voltage.max > 0
+      && near(r.i, -isd, isd * 0.02) && near(r.v, r.d - r.s, 1e-3));
+    await A('applyEdits', { doc: A0, edits: [{ op: 'removeScope', element: 'Q1' }] });
+  }
   // catalogue
   const want = { VoltageSourceDC: ['minus', 'plus'], VoltageSourceAC: ['minus', 'plus'], VoltageSourceSquare: ['minus', 'plus'],
-    CurrentSource: ['in', 'out'], OhmMeter: ['com', 'probe'], OpAmp: ['in-', 'in+', 'out'], PolarCapacitor: ['positive', 'negative'], Rail: ['output'] };
+    CurrentSource: ['in', 'out'], OhmMeter: ['com', 'probe'], OpAmp: ['in-', 'in+', 'out'], PolarCapacitor: ['positive', 'negative'], Rail: ['output'],
+    NMOS: ['gate', 'source', 'drain'], PMOS: ['gate', 'drain', 'source'], NJFET: ['gate', 'source', 'drain'], PJFET: ['gate', 'drain', 'source'] };
   const cat = {};
   for (const t of Object.keys(want)) { const d = await A('describeType', { type: t }); cat[t] = d.ok ? d.data.pins : codes(d.issues); }
   out.notes.catalogue = cat;

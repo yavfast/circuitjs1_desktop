@@ -327,9 +327,9 @@ Each element has these methods:
 - `getTypeName()` - JSON type name (e.g., "Resistor")
 - `getDescription()` - Element description if set
 - `getInfo()` - Get element info array (varies by element)
-- `getVoltageDiff()` - Voltage across element
+- `getVoltageDiff()` - Voltage across element; for a MOSFET/JFET drain minus source for both polarities (since 2026-10-04, SP_AGA_DEC_08; before, post 2 minus post 1, which is source minus drain for a P-channel device)
 - `getVoltage(postIndex)` - Voltage at specific post
-- `getCurrent()` - Current through element; for a BJT the collector current (positive into the collector, so negative for a PNP), for a MOSFET/JFET the drain current (since 2026-10-03; a BJT returned 0 before)
+- `getCurrent()` - Current through element; for a BJT the collector current (positive into the collector, so negative for a PNP), for a MOSFET/JFET the drain current: the current into the drain terminal, positive into the drain for both polarities, so negative for a conducting P-channel device (since 2026-10-04, SP_AGA_DEC_08; before, the channel current from post 2 to post 1; a BJT returned 0 before 2026-10-03)
 - `getPower()` - Power dissipation/consumption
 - `getLabelName()` - Label if present
 - `getPostCount()` - Number of connection posts
