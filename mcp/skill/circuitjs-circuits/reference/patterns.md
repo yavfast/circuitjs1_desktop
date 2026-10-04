@@ -16,6 +16,8 @@ To reuse a pattern: create a document, import the block, then change values with
 8. 555 astable oscillator
 9. Logic gate driving an LED
 10. LED with a defined model
+11. Custom logic block (half adder)
+12. Subcircuit block
 
 ## 1. Voltage divider
 
@@ -259,3 +261,64 @@ A green LED that drops 2.1 V at 20 mA (the built-in `default-led` is red, ≈ 1.
 - **Expected.** I = (5 V − 2.1 V)/145 Ω = 20 mA, so the LED sits at its model's point: V(`led`) = 2.1 V (measured 2.100 V; LED current 20.00 mA).
 - **Run.** `{"span": "1 ms", "reset": true, "probes": [{"net": "led"}, {"element": "LED1", "quantity": "current", "name": "iLED"}]}` → read `stats.final`.
 - **In an existing circuit.** Define and use the model in one batch: `{"edits": [{"op": "defineModel", "model": {"kind": "diode", "name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}}, {"op": "set", "id": "LED1", "properties": {"model": "led-green-2v1"}}]}`. Running the same batch again answers `existing: true`.
+
+## 11. Custom logic block (half adder)
+
+A `CustomLogic` part whose truth table is a logic model defined in the circuit's `models` list: inputs `A`, `B`, outputs `S` (sum) and `C` (carry). Two logic inputs drive it (A high, B low); logic outputs show the result. A circuit of logic parts only needs no `Ground`.
+
+```json
+{"models": [
+  {"kind":"logic","name":"half-adder","inputs":["A","B"],"outputs":["S","C"],"rules":["00=00","01=10","10=10","11=01"]}
+],
+"elements": [
+  {"id":"INA","type":"LogicInput","start":{"x":6,"y":4},"end":{"x":3,"y":4},"properties":{"position":1}},
+  {"id":"INB","type":"LogicInput","start":{"x":6,"y":6},"end":{"x":3,"y":6},"properties":{"position":0}},
+  {"id":"W1","type":"Wire","start":{"x":6,"y":4},"end":{"x":8,"y":4}},
+  {"id":"W2","type":"Wire","start":{"x":6,"y":6},"end":{"x":8,"y":6}},
+  {"id":"U1","type":"CustomLogic","start":{"x":8,"y":4},"end":{"x":12,"y":4},"properties":{"model_name":"half-adder"}},
+  {"id":"W3","type":"Wire","start":{"x":14,"y":4},"end":{"x":17,"y":4}},
+  {"id":"W4","type":"Wire","start":{"x":14,"y":6},"end":{"x":17,"y":6}},
+  {"id":"OS","type":"LogicOutput","start":{"x":17,"y":4},"end":{"x":20,"y":4}},
+  {"id":"OC","type":"LogicOutput","start":{"x":17,"y":6},"end":{"x":20,"y":6}},
+  {"id":"SUM","type":"LabeledNode","start":{"x":14,"y":4},"end":{"x":14,"y":2},"properties":{"label":"sum"}},
+  {"id":"CARRY","type":"LabeledNode","start":{"x":14,"y":6},"end":{"x":14,"y":8},"properties":{"label":"carry"}}
+]}
+```
+
+- **Posts.** The model's pins are the posts: inputs on the left (`A` at `start`, `B` 2 cells below), outputs 6 cells to the right (`S` at (14, 4), `C` at (14, 6)). For any other model, read the posts from the element record before wiring.
+- **Expected.** A = 1, B = 0: `sum` 5 V, `carry` 0 V (measured 5 V / 0 V). With `{"op": "set", "id": "INB", "properties": {"position": 1}}`: `sum` 0 V, `carry` 5 V (measured). Rules are tried top to bottom; one rule per input combination here.
+- **Run.** `{"span": "1 ms", "reset": true, "probes": [{"net": "sum"}, {"net": "carry"}]}` → read `stats.final` (`min` is 0: the outputs switch during the first steps).
+
+## 12. Subcircuit block
+
+An RC low-pass (R = 1 kΩ, C = 100 nF, pattern 2) packed as one `Subcircuit` part. Build the block in its own document, with a `LabeledNode` on each external pin; the ground inside is the circuit ground:
+
+```json
+{"elements": [
+  {"id":"IN","type":"LabeledNode","start":{"x":0,"y":0},"end":{"x":-3,"y":0},"properties":{"label":"in"}},
+  {"id":"R1","type":"Resistor","start":{"x":0,"y":0},"end":{"x":4,"y":0},"properties":{"resistance":"1 kOhm"}},
+  {"id":"C1","type":"Capacitor","start":{"x":4,"y":0},"end":{"x":4,"y":4},"properties":{"capacitance":"100 nF"}},
+  {"id":"GND1","type":"Ground","start":{"x":4,"y":4},"end":{"x":4,"y":6}},
+  {"id":"OUT","type":"LabeledNode","start":{"x":4,"y":0},"end":{"x":7,"y":0},"properties":{"label":"out"}}
+]}
+```
+
+Then, in the document that uses it (here the block is document `d2`), define the model and place the part in one batch: `circuit_edit {"doc": "d3", "edits": [{"op": "defineModel", "model": {"kind": "subcircuit", "name": "rc-lowpass", "source": {"doc": "d2"}, "showLabel": false}}, {"op": "add", "element": {"id": "X1", "type": "Subcircuit", "start": {"x": 4, "y": 0}, "properties": {"model_name": "rc-lowpass"}}}]}`. The reply's model record gives `pins: [{"pin": "pin1", "label": "in", "side": "W"}, {"pin": "pin2", "label": "out", "side": "E"}]` and X1's posts: `pin1` at (4, 0), `pin2` at (10, 0). `showLabel: false` keeps the model name off a chip this small (it would cover the pin names). Wired up and read back with `circuit_get`, the circuit carries the model as one model line, so it imports alone:
+
+```json
+{"models": [
+  {"kind":"subcircuit","name":"rc-lowpass","modelText":". rc-lowpass 0 2 1 2 in 1 0 2 out 2 0 3 ResistorElm\\s1\\s2\\rCapacitorElm\\s2\\s0 0\\\\s1000\\s4\\\\s1e-7\\\\s0\\\\s0.001\\\\s0.001"}
+],
+"elements": [
+  {"id":"V1","type":"VoltageSourceAC","start":{"x":0,"y":4},"end":{"x":0,"y":0},"properties":{"max_voltage":"1 V","frequency":"1 kHz"}},
+  {"id":"W1","type":"Wire","start":{"x":0,"y":0},"end":{"x":4,"y":0}},
+  {"id":"X1","type":"Subcircuit","start":{"x":4,"y":0},"end":{"x":8,"y":0},"properties":{"model_name":"rc-lowpass"}},
+  {"id":"GND1","type":"Ground","start":{"x":0,"y":4},"end":{"x":0,"y":6}},
+  {"id":"IN","type":"LabeledNode","start":{"x":0,"y":0},"end":{"x":0,"y":-2},"properties":{"label":"in"}},
+  {"id":"OUT","type":"LabeledNode","start":{"x":10,"y":0},"end":{"x":13,"y":0},"properties":{"label":"out"}}
+]}
+```
+
+- **Expected.** The same as pattern 2: `out` peakToPeak = 2 V · 0.847 = 1.693 V (measured 1.693 V; `in` 2.000 V). The labels inside the block (`in`, `out`) are not nets of the outer circuit: only its pins connect.
+- **Run.** `{"span": "5 ms", "recordFrom": "2 ms", "reset": true, "probes": [{"net": "in"}, {"net": "out"}]}`.
+- **State.** The model line holds the block's element state (here the capacitor's 1 mV start voltage). Define it from a block you have not run: after a run of `d2`, the same definition is `name_taken`; define a new name instead.

@@ -312,7 +312,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 | Data/state changes | Four preference keys; instance files under `~/.circuitjs1/instances/` (safe to delete) |
 | Artifacts | The server script bundled into the package, the menu item and the info dialog |
 | Dependent modules | [SP_MCB](./mcp-bridge.sp.md) and [SP_AGS](./agent-skill.sp.md) need the endpoint; the Agent API does not depend on the server |
-| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`): a breaking change bumps MAJOR, an addition bumps MINOR; the skill states the `toolsVersion` it supports |
+| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`; `1.1` since the agent model definitions of [PL_AGA](./agent-api.plan.md) Phases 11–14 — `defineModel`, `circuit_types` `models`/`model`, AgentCircuit and `circuit_get` `models`): a breaking change bumps MAJOR, an addition bumps MINOR; the skill states the `toolsVersion` it supports |
 
 Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes. To set it, open Options → "MCP Server...", untick "Enabled", Save and restart the app: nothing listens and no instance record is written. Verified by `tests/mcp/e2e.mjs` scenario `settings`, row `disable` (checks `statusDisabled`, `noRecord`, `noPortBound`, `menuOff`).
 
@@ -386,3 +386,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-04 | SP_AGA model review round 1: `circuit_types` argument combinations, `defineModel` create-only; implemented within PL_AGA Phase 11 (MCP server part) |
 | 2026-10-04 | Model definitions review round 2: inapplicable `circuit_types` argument combinations are -32602 like other inapplicable arguments |
 | 2026-10-04 | Phase 11 review: the document circuit resource carries `models` / `modelsTruncated` |
+| 2026-10-04 | `toolsVersion` 1.1 (§06_01: an addition bumps MINOR): the agent model definitions of PL_AGA Phases 11–14; the skill compatibility line, agent-format header and the version checks of the tests follow (PL_AGA Phase 15) |

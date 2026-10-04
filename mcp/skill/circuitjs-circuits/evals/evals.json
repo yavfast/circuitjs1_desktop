@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "scenarios": [
     {
       "id": "rc-lowpass-1k",
@@ -60,6 +60,47 @@
           "compare": "approx",
           "target": 0.010,
           "tolerance": 0.15
+        },
+        {
+          "type": "no_solver_stop"
+        }
+      ]
+    },
+    {
+      "id": "green-led-model",
+      "kind": "build",
+      "prompt": "In CircuitJS1, drive a green LED from a 5 V supply at 20 mA. Its datasheet gives a forward voltage of 2.1 V at 20 mA. Verify the LED's current and voltage in the simulator and report them.",
+      "checks": [
+        {
+          "type": "connectivity_clean"
+        },
+        {
+          "type": "measure",
+          "probe": {
+            "elementType": "LED",
+            "quantity": "current"
+          },
+          "run": {
+            "span": "10 ms"
+          },
+          "stat": "final",
+          "compare": "approx",
+          "target": 0.020,
+          "tolerance": 0.1
+        },
+        {
+          "type": "measure",
+          "probe": {
+            "elementType": "LED",
+            "quantity": "voltage"
+          },
+          "run": {
+            "span": "10 ms"
+          },
+          "stat": "final",
+          "compare": "approx",
+          "target": 2.1,
+          "tolerance": 0.03
         },
         {
           "type": "no_solver_stop"

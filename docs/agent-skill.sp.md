@@ -3,7 +3,7 @@
 > **Code:** SP_AGS
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-03
+> **Updated:** 2026-10-04
 >
 > **Concept:** [C_AGS](./agent-skill.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_MCP](./mcp-server.sp.md), [SP_MCB](./mcp-bridge.sp.md)
@@ -82,18 +82,20 @@ Document selection: a scenario with a `fixture` loads it into a new document who
 In this order, total ≤ 250 lines:
 
 1. **Purpose and scope.** One paragraph on what the skill covers. Excluded: PCB layout, frequency-domain analysis.
-2. **Golden rules.** At most 8 bullets:
+2. **Golden rules.** At most 10 bullets:
    - coordinates in grid cells, whole cells for new parts;
    - work in a new document unless told otherwise;
    - an explicit ground in every circuit;
    - label every net you will probe;
+   - draw a readable schematic: wires and symbols meet only at posts (`symbol_overlap`), parts axis-aligned and spaced so value texts never touch, supply on top, ground below, labels on short leads pointing away;
    - no simulation while the connectivity report has errors;
+   - defaults are generic: define a model (`defineModel`, or `models` of an import) when a part's real behaviour matters — a coloured LED, a specific diode or BJT, a logic function the catalogue lacks, a reused block — with the model listing call and the create-only rule;
    - measure, never assume;
    - checkpoint with a comment after each logical change;
    - never fix the user's unrelated issues unasked.
-3. **Workflow checklist.** A copyable checklist of the ten steps of [C_AGS_03_01](./agent-skill.concept.md#C_AGS_03_01), each naming the tool it uses.
+3. **Workflow checklist.** A copyable checklist of the ten steps of [C_AGS_03_01](./agent-skill.concept.md#C_AGS_03_01), each naming the tool it uses; the placing step puts models first, and the look at the drawing of step 10 (`circuit_render`, then fixing what it shows) is a checklist step of its own before the report (11 steps).
 4. **Debug loop.** Read `circuit_connectivity` and `circuit_diagnostics`, look up the issue code in `reference/diagnostics.md`, fix, then re-check.
-5. **Tool map.** A table of the 14 `circuit_*` tools and 3 `bridge_*` tools, each with a one-line use. Tools are named as `circuitjs:<tool>` for host-qualified references.
+5. **Tool map.** A table of the 14 `circuit_*` tools and 3 `bridge_*` tools, each with a one-line use. Tools are named as `circuitjs:<tool>` for host-qualified references. The `circuit_edit` row names every edit op (`defineModel` included), the `circuit_import` row the AgentCircuit keys (`models` included), the `circuit_types` row the model listing.
 6. **References index.** One line per reference file saying when to read it.
 
 ### 02_02. reference/geometry.md  {#SP_AGS_02_02}
@@ -117,6 +119,12 @@ It must contain:
 
 - **Table.** The most-used types (the required list below, 26 types), one row each: type, pins, geometry kind, default size, key properties with units, and one typical value.
 - **Required types.** The table must include the canonical catalogue names (aliases noted) of: resistor, capacitor, inductor, wire, ground, DC and AC voltage sources (`VoltageSourceDC`, `VoltageSourceAC`), current source, diode, LED, Zener (`ZenerDiode`, alias `Zener`), NPN/PNP transistors (`TransistorNPN`, `TransistorPNP`), N/P MOSFETs (`NMOS`, `PMOS`, aliases `MosfetN`, `MosfetP`), `OpAmp`, `Switch`, `Potentiometer`, `LabeledNode`, a rail, `LogicInput`, `LogicOutput`, AND/OR gates (`ANDGate`, `ORGate`, aliases `AndGate`, `OrGate`), `Inverter`, `Timer555`. `element_count` checks use canonical names only. Every name is checked against `circuitjs://catalogue` ([§05_03](#SP_AGS_05_03)), and the canonical name is the one `describeType` returns.
+- **Models.** A section on [SP_AGA_01_13](./agent-api.sp.md#SP_AGA_01_13) models for the four kinds (`diode`, `transistor`, `logic`, `subcircuit`) and the element keys that name them (`model`, `model_name`):
+  - when to define a model instead of using a built-in one, and that an element `model` the session lacks is rejected, never replaced silently;
+  - how to define: the `defineModel` edit before the `add`/`set` that uses it in one batch, or the AgentCircuit `models` list; the listing calls (`circuit_types` `models`, `model`);
+  - per kind, the ModelSpec fields and parameter keys with their value kinds: diode simple form (`forward_voltage` at `forward_current`) and SPICE keys; transistor keys with `"inf"`; logic inputs, outputs, rule syntax, pin markup and limits; subcircuit `source` document, labels as pins (order, sides), `showLabel`, source errors, inner models first;
+  - typical LED forward voltages by colour at 20 mA (red ≈ 1.8–2.0 V, yellow ≈ 2.0–2.1 V, green ≈ 2.1 V GaP / 3.0 V InGaN, blue and white ≈ 3.0–3.2 V);
+  - models and files: create-only names (identical re-definition = `existing`, a new name to change, then `set`), a subcircuit's identity includes its elements' saved state, JSON 2.2 carries the models, `circuit_import` of content with a differing model is `name_taken`, `circuit_file open` loads models as the editor does.
 - **Pointer.** A closing line points to `circuitjs://catalogue` for every other type and for exact property lists.
 
 ### 02_04. reference/diagnostics.md  {#SP_AGS_02_04}
@@ -127,6 +135,7 @@ It must contain:
   - typical cause in this simulator;
   - fix steps;
   - the tool call that confirms the fix.
+- **Model definitions.** A section with one row per model error an agent can meet, each with the field the message names, the typical cause (message text), the fix and the confirming call: `name_taken` (a different definition, an internal name, a subcircuit source after a run, a model line of imported content — with the `circuit_file open` hint), `unknown_model` (`from`), `invalid_value` on `name`, `parameters.<key>`, fields of another kind, `rules[<i>]`, `inputs[<i>]`/`outputs[<i>]`, `source` (each source reason, plus `unknown_document`/`busy`), `modelText` (inner model unknown, bad line, no pins) and an element's `model`/`model_name`; `unknown_property` on `parameters.<key>`; the `value_adjusted` warning of `circuit_file open`.
 - **Symptoms section.** Covers symptoms that carry no issue code:
   - flat 0 V trace;
   - an oscillator that never starts;
@@ -135,11 +144,12 @@ It must contain:
 
 ### 02_05. reference/patterns.md  {#SP_AGS_02_05}
 
-- **Patterns.** At least 8: divider, RC low-pass, RLC resonance, half-wave rectifier with filter, transistor common-emitter stage, op-amp inverting and non-inverting stages, 555 astable, logic gate with LED.
+- **Patterns.** At least 11: divider, RC low-pass, RLC resonance, half-wave rectifier with filter, transistor common-emitter stage, op-amp inverting and non-inverting stages, 555 astable, logic gate with LED, LED with a defined model, a custom-logic block, a subcircuit block.
 - **Contents of each pattern:**
   - an AgentCircuit in cells;
   - the expected measurements, with formulas;
   - the probes to set.
+- **Patterns with models.** A pattern that uses a model carries its definition in the AgentCircuit `models` list, so the block imports alone into a fresh session (a subcircuit as the `modelText` that `circuit_get` returns). The subcircuit pattern also shows the source document and the `defineModel` batch with the pins it yields.
 
 ### 02_06. reference/simulation.md  {#SP_AGS_02_06}
 
@@ -177,6 +187,7 @@ It must contain:
 - Every AgentCircuit in the skill imports with `ok = true` and `connectivity.errorCount = 0`.
 - Every issue code named exists in SP_AGA or among the server issue codes of SP_MCP (`result_too_large`), and every SP_AGA issue code appears in `diagnostics.md`.
 - Every tool and argument named exists in the SP_MCP tool catalogue.
+- Every ModelSpec and ModelText in the skill has the fields of its kind, a valid name, and the parameter keys of the [SP_AGA_01_13](./agent-api.sp.md#SP_AGA_01_13) value table; every model an example circuit names is built in or defined in that circuit's `models`.
 
 ## 04. State Transitions  {#SP_AGS_04}
 
@@ -200,6 +211,7 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | led-driver-10ma | build | Drive a red LED from 5 V with 10 mA | connectivity_clean; measure the LED's current final approx 0.010 A (tolerance 0.15, span 10 ms); no_solver_stop |
 | fix-broken-amp | debug | Fixture: common-emitter amplifier (input 0.1 V peak-to-peak at 1 kHz, output net `out`) with a dangling base resistor and no ground; make it amplify | connectivity_clean; measure net `out` peakToPeak atLeast 0.5 V (recordFrom 10 ms, span 20 ms); no_solver_stop |
 | tune-divider | tune | Fixture: divider giving 3.0 V from 9 V at net `out`; change it to give 3.3 V within 2 % | measure net `out` final approx 3.3 V (tolerance 0.02, span 1 ms); checkpoint_exists ≥ 1 |
+| green-led-model | build | Drive a green LED (datasheet: 2.1 V at 20 mA) from 5 V at 20 mA | connectivity_clean; measure the LED's current final approx 0.020 A (tolerance 0.1, span 10 ms); measure the LED's voltage final approx 2.1 V (tolerance 0.03, span 10 ms) — the built-in red LED reads 1.85 V there, so only a defined model passes; no_solver_stop |
 
 ### 05_02. Pass rule  {#SP_AGS_05_02}
 
@@ -215,12 +227,14 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | Example circuits | Script imports every AgentCircuit block through `circuitjs-mcp call circuit_import` into a scratch document and asserts `ok` and zero errors |
 | Issue code coverage | Script diffs codes in `diagnostics.md` against the SP_AGA code list |
 | Tool coverage | Script diffs tool names in `SKILL.md` against `circuitjs-mcp tools` |
+| Model specs | Script checks every ModelSpec/ModelText of the skill (AgentCircuit `models`, `defineModel` edits, inline `{"kind": …}` snippets) against the [SP_AGA_01_13](./agent-api.sp.md#SP_AGA_01_13) fields of its kind, the ModelName and pin-name patterns, rule-line limits and rule shape (`left=right` with the widths of the rule parser), and the value-table keys, and requires an example of each kind; live, every `model`/`model_name` of an example circuit must be built in (`circuitjs-mcp call circuit_types {"models": "all"}`) or defined in that circuit's `models` |
 
 ### 05_04. Edge Cases and Boundaries  {#SP_AGS_05_04}
 
 | Case | Expected behavior |
 |------|-------------------|
 | App older than the compatibility line | The skill tells the agent to compare the server's `toolsVersion` (in the server instructions and instance record) with its compatibility line, and to report a mismatch instead of guessing tool names |
+| App at toolsVersion 1.0 (the skill's line is 1.1) | Partial compatibility: the skill tells the agent to work without model definitions (`defineModel`, `circuit_types` `models`), which a 1.0 app may lack, and to ask the user to update the app when the task needs a model |
 | Host without the bridge and without HTTP support | The skill tells the user how to connect (hosts/ files) and stops |
 
 ### 05_05. Integration Scenarios  {#SP_AGS_05_05}
@@ -252,3 +266,4 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | 2026-10-01 | Review round 2: canonical names, checker reset, desktop env snippet |
 | 2026-10-01 | Review round 1: fixture document selection, canonical type names, toolsVersion compatibility, integration scenarios |
 | 2026-10-04 | Skill content for agent model definitions (diode/transistor: SKILL.md rule "Defaults are generic", elements.md Models section, patterns.md pattern 10) pulled forward into PL_AGA Phase 11; the SP_AGS spec rows follow in PL_AGA Phase 15 |
+| 2026-10-04 | PL_AGA Phase 15: model content of the skill specified — §02_01 golden rules (10, with the readable-schematic and model rules), checklist (11 steps, render look), tool-map rows; §02_03 Models; §02_04 Model definitions; §02_05 11 patterns (custom logic, subcircuit) self-contained with `models`; §03_02 model accuracy; §05_01 `green-led-model`; §05_03 Model specs check; skill version 1.1, compatibility line toolsVersion 1.1 with a §05_04 row for a 1.0 app (no model definitions used) |

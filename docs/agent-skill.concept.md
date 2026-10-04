@@ -3,7 +3,7 @@
 > **Code:** C_AGS
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-01
+> **Updated:** 2026-10-04
 > **Author:** main
 > **Owner:** automation tooling maintainers (ships with the bridge)
 > **Complexity:** medium
@@ -57,9 +57,9 @@ Prior art shows agents fail at exactly these points ([spike, Entry 3](./mcp-agen
 |--------|---------|
 | **Skill entry** | When to use the skill; golden rules; the workflow checklist; the tool map |
 | **Geometry reference** | Grid cells; the two-point element definition; how derived pins land, with examples for transistor, op-amp and chip; wires and coincident-post connections; labels as named nets; a compact layout style (signal left→right, supply rail top, ground bottom) |
-| **Common elements reference** | The most-used types with pin names, typical properties and units; it points to the catalogue resource for everything else |
+| **Common elements reference** | The most-used types with pin names, typical properties and units; models (diode, transistor, custom logic, subcircuit): when to define one, how, typical LED drops, and how files carry them; it points to the catalogue resource for everything else |
 | **Diagnostics reference** | Every connectivity issue code and solver stop message → likely cause → fix |
-| **Patterns reference** | Proven small circuits (divider, RC/RLC, rectifier, transistor bias, op-amp stages, 555 astable, basic logic), each with the probes and measurements that verify it |
+| **Patterns reference** | Proven small circuits (divider, RC/RLC, rectifier, transistor bias, op-amp stages, 555 astable, basic logic, and three with models: an LED with a defined model, a custom-logic block, a subcircuit block), each with the probes and measurements that verify it |
 | **Simulation reference** | Time-step and run-span rules of thumb; operating point by "run until settled"; how to measure frequency, gain, ripple and rise time from probe statistics |
 | **Eval set** | Scenarios, each with a task prompt, expected observable outcomes and a checker |
 
@@ -85,7 +85,7 @@ Eval runner (bridge CLI) ──► scenario prompt ──► agent run ──►
 7. **Run, probe and measure** against the target values.
 8. **Iterate on properties.** After each change, re-check connectivity and the measurements.
 9. **Checkpoint** with a comment describing the change, so the user sees it in the undo history.
-10. **Report** the measured outcome. Render the circuit when the user wants to see it.
+10. **Look at the drawing, then report.** Render the circuit and fix what the image shows (overlaps, crowded values, parts or labels pointing the wrong way) before reporting the measured outcome; skip the look only for a one-value change. The live agent series showed drawing defects that only the image reveals, so the look is part of every build.
 
 ### 3.2. Geometry conventions  {#C_AGS_03_02}
 
@@ -135,3 +135,5 @@ The skill is a directory that installs into an agent host's skill location, eith
 | Date | Change |
 |------|--------|
 | 2026-10-01 | Initial version from the spike and the concept interview |
+| 2026-10-04 | C_AGS_03_01 step 10: a look at the rendered drawing (and fixing what it shows) comes before every report, not only on request — drawing defects found in the live agent series (PL_AGA Phase 15) |
+| 2026-10-04 | C_AGS_02_01: the elements reference covers models and the patterns reference three model patterns (PL_AGA Phase 15 review) |

@@ -9,9 +9,10 @@ description: Builds, edits, simulates, measures and debugs circuits in the Circu
 
 This skill is for building, checking, simulating and repairing analog and digital circuits in a running CircuitJS1 Desktop app, through the `circuit_*` tools of its MCP server. You place parts on a grid, clear the connectivity report, run the transient simulator with probes, and report measured values. It does not cover PCB layout or frequency-domain (AC, Bode, noise) analysis: the simulator has transient analysis only, so you measure a frequency response by running the circuit at each frequency.
 
-**Compatibility.** This skill works with **toolsVersion 1.0**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.0 before the first call:
-- same MAJOR (1) and MINOR ≥ 0: go ahead (a newer MINOR only adds tools, issue codes or properties);
-- a different MAJOR, or a version older than 1.0: tell the user that the app and this skill do not match, name both versions, and do not guess tool names or arguments.
+**Compatibility.** This skill works with **toolsVersion 1.1**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.1 before the first call:
+- same MAJOR (1) and MINOR ≥ 1: go ahead (a newer MINOR only adds tools, issue codes or properties);
+- 1.0: do not use model definitions (`defineModel`, `circuit_types` `models`: the app may lack them); ask the user to update the app for a task that needs a model;
+- a different MAJOR: tell the user that the app and this skill do not match, name both versions, and do not guess tool names or arguments.
 
 **No tools?** With the bridge and no app running, only the `bridge_*` tools are listed: if `bridge_launch` is available, call it first. If no `circuit_*` tool appears after that (or there is no bridge), or every call answers `No CircuitJS1 instance`, stop. Tell the user how to connect, and do not try to imitate the tools:
 - start the CircuitJS1 Desktop app (its server listens on `http://127.0.0.1:7311/mcp`; Options → "MCP Server..." shows the URL);
@@ -26,7 +27,7 @@ This skill is for building, checking, simulating and repairing analog and digita
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
 - **Draw a readable schematic.** Wires and symbols meet only at posts: never lay a part, a ground or a label along a wire or over another part (`symbol_overlap`). Parts horizontal or vertical, 3–4 cells long; parallel parts 3 cells apart (4 for long values), so value texts never touch a neighbour; supply on top, `Ground` below its post (`end` 2 cells down), signal left to right; labels with a 2–3-cell lead pointing away from the parts. Layout details: [reference/geometry.md](reference/geometry.md#layout-style).
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
-- **Defaults are generic: define a model when a part's real behaviour matters** (a coloured LED's forward voltage, a power Schottky, a specific BJT, a logic function the catalogue lacks: a `CustomLogic` truth table). Use `circuit_edit` `defineModel` in the same batch that sets the elements' `model`; list existing models with `circuit_types {"models": "diode"}`. Model names are create-only: to change one, define a new name. Keys, forms and typical values: [reference/elements.md](reference/elements.md#models).
+- **Defaults are generic: define a model when a part's real behaviour matters** (a coloured LED's forward voltage, a power Schottky, a specific BJT, a logic function the catalogue lacks: a `CustomLogic` truth table; a block you reuse: a `Subcircuit` built from another document). Use `circuit_edit` `defineModel` in the same batch that sets the elements' `model` / `model_name` (or the `models` list of `circuit_import`); list existing models with `circuit_types {"models": "all"}`. Model names are create-only: to change one, define a new name. Keys, forms, typical values, files: [reference/elements.md](reference/elements.md#models).
 - **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`); confirm with a read when a result looks wrong.
 - **Checkpoint with a comment** (`circuit_checkpoint`) right after each logical change, before long measuring: after 300 s without edits your edits are sealed as "agent edits (auto)", and a later checkpoint only returns `noChanges`.
 - **Never fix the user's unrelated issues unasked**: report them.
@@ -39,7 +40,7 @@ Copy this list into your notes and tick it off:
 - [ ] 1. Clarify the target: function, values to hit, how success is measured (ask; no tool)
 - [ ] 2. Pick a start: a pattern from reference/patterns.md, an example (circuitjs://examples), or a net sketch; check types with circuit_types
 - [ ] 3. Own tab: circuit_documents {"action": "create", "title": "..."}; pass its doc to every later call
-- [ ] 4. Place: circuit_import (whole circuit) or circuit_edit (incremental); read derived posts back from the reply
+- [ ] 4. Place: circuit_import (whole circuit) or circuit_edit (incremental), models first; read derived posts back from the reply
 - [ ] 5. Clear connectivity: the connectivity delta of the reply, circuit_connectivity for the full report; 0 errors, no symbol_overlap
 - [ ] 6. Operating point: circuit_run {"mode": "settle", "reset": true} with probes on the supply nets
 - [ ] 7. Run, probe, measure: circuit_run {"span", "reset": true, "recordFrom", "probes"}; check reason and issues first
@@ -79,9 +80,9 @@ Hosts qualify tool names with the server name they were configured with; this sk
 |------|-----|
 | `circuitjs:circuit_types` | List the catalogue (`filter`), or describe one type (`type`): pins, geometry, sizes, property keys; or list the session models (`models`, `model`) |
 | `circuitjs:circuit_documents` | `list`, `create` (background unless `activate: true`), `activate`, `close` documents (tabs) |
-| `circuitjs:circuit_import` | Replace a document's circuit with an AgentCircuit `{elements, simulation?, scopes?}` or a text/JSON circuit string |
-| `circuitjs:circuit_edit` | Batch of `add`, `move`, `delete`, `set`, `describe`, `addScope`, `removeScope`, `markOpen` edits |
-| `circuitjs:circuit_get` | Read element records with posts, nets and properties; paged by `offset`/`limit` |
+| `circuitjs:circuit_import` | Replace a document's circuit with an AgentCircuit `{elements, simulation?, scopes?, models?}` or a text/JSON circuit string |
+| `circuitjs:circuit_edit` | Batch of `add`, `move`, `delete`, `set`, `describe`, `addScope`, `removeScope`, `markOpen` and `defineModel` edits |
+| `circuitjs:circuit_get` | Read element records with posts, nets and properties, and the models they use; paged by `offset`/`limit` |
 | `circuitjs:circuit_connectivity` | Full connectivity report: nets and issues with hints (`netFilter`, `includeNets`) |
 | `circuitjs:circuit_read` | Instant readings of nets, posts or element quantities at the current time, without stepping |
 | `circuitjs:circuit_render` | PNG (default) or SVG image of the whole circuit, offscreen |
@@ -105,7 +106,7 @@ Resources (read them with the host's resource reader):
 
 Read a reference only when the step needs it:
 - [reference/geometry.md](reference/geometry.md) — before placing parts: cells, `start`/`end`, derived pins of transistors, op-amps and chips, how posts connect, labels, layout style.
-- [reference/elements.md](reference/elements.md) — when choosing parts: the common types with pins, key properties, units and typical values.
-- [reference/patterns.md](reference/patterns.md) — when a known circuit fits: verified circuits with the probes and the measured values.
+- [reference/elements.md](reference/elements.md) — when choosing parts: the common types with pins, key properties, units and typical values; models (diode, transistor, custom logic, subcircuit) and how files carry them.
+- [reference/patterns.md](reference/patterns.md) — when a known circuit fits: verified circuits with the probes and the measured values, also with a defined LED model, a custom-logic block and a subcircuit.
 - [reference/simulation.md](reference/simulation.md) — before measuring: time step, run span, operating point, deriving frequency, gain, ripple and rise time, budgets.
-- [reference/diagnostics.md](reference/diagnostics.md) — when a reply carries an issue code, or a result looks wrong.
+- [reference/diagnostics.md](reference/diagnostics.md) — when a reply carries an issue code (model definition errors included), or a result looks wrong.

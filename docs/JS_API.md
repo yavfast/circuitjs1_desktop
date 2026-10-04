@@ -805,11 +805,13 @@ Common rules: `doc` (a document handle `d1`, `d2` …) selects the document, and
 
 | Contract | Purpose |
 |---|---|
-| `listTypes`, `describeType` | Element catalogue: type names, aliases, pins, default size, property keys with kinds, units and defaults ([§02_01](./agent-api.sp.md#SP_AGA_02_01)) |
+| `listTypes`, `describeType` | Element catalogue: type names, aliases, pins, default size, property keys with kinds, units and defaults; `choices` of a `model`/`model_name` key list the session's models ([§02_01](./agent-api.sp.md#SP_AGA_02_01)) |
 | `listDocuments`, `createDocument`, `activateDocument`, `closeDocument` | Open documents by handle; only `activateDocument`, `activate: true` and closing the active document change the visible tab ([§02_02](./agent-api.sp.md#SP_AGA_02_02)) |
-| `importCircuit` | Replace a document's circuit with an agent circuit (grid-cell coordinates), a JSON v2 text or a legacy text, atomically ([§02_03](./agent-api.sp.md#SP_AGA_02_03)) |
-| `applyEdits` | Ordered, atomic batch of `add`, `move`, `delete`, `set` (a property patch), `describe`, `addScope`, `removeScope` and `markOpen` edits ([§02_04](./agent-api.sp.md#SP_AGA_02_04)) |
-| `getCircuit` | The circuit in agent form: element records with posts in cells, paged ([§02_05](./agent-api.sp.md#SP_AGA_02_05)) |
+| `importCircuit` | Replace a document's circuit with an agent circuit (grid-cell coordinates, optional `models` list defined before the elements), a JSON v2 text or a legacy text, atomically; models are create-only here: a model that differs from the session's under the same name is `name_taken` ([§02_03](./agent-api.sp.md#SP_AGA_02_03)) |
+| `applyEdits` | Ordered, atomic batch of `add`, `move`, `delete`, `set` (a property patch), `describe`, `addScope`, `removeScope`, `markOpen` and `defineModel` edits ([§02_04](./agent-api.sp.md#SP_AGA_02_04)) |
+| `defineModel` (edit of `applyEdits`) | Registers a new session model — `diode`, `transistor`, `logic` (custom logic truth table) or `subcircuit` (built from another open document) — from a ModelSpec `{kind, name, from?, parameters \| inputs/outputs/rules \| source}`; later edits of the batch may name it in `model`/`model_name`. Names are create-only: an identical definition answers `existing: true`, a different one is `name_taken`; nothing removes a model and undo keeps it ([§01_13](./agent-api.sp.md#SP_AGA_01_13), [§03_11](./agent-api.sp.md#SP_AGA_03_11)) |
+| `getCircuit` | The circuit in agent form: element records with posts in cells, paged; the first page lists the models the elements use (dependencies first) as ModelSpec or ModelText, so the result re-imports ([§02_05](./agent-api.sp.md#SP_AGA_02_05)) |
+| `listModels` | The session's models (`kind` absent: all kinds; built-in first, then by name), or one model by `kind` and `name`, with its parameters, pins and `usedBy` (the open documents and element IDs that use it) ([§02_15](./agent-api.sp.md#SP_AGA_02_15)) |
 | `getConnectivity` | Nets and connectivity issues (dangling posts, posts on wire bodies, no ground, isolated groups, source/wire loops …) ([§02_06](./agent-api.sp.md#SP_AGA_02_06)) |
 | `read` | Instant net, post and element readings at the current simulated time ([§02_07](./agent-api.sp.md#SP_AGA_02_07)) |
 | `render` (async) | SVG or PNG image of the whole circuit of one document, as the result ([§02_08](./agent-api.sp.md#SP_AGA_02_08)) |
@@ -818,7 +820,7 @@ Common rules: `doc` (a document handle `d1`, `d2` …) selects the document, and
 | `getDiagnostics` | Solver state and events, last import issues and the session log ([§02_11](./agent-api.sp.md#SP_AGA_02_11)) |
 | `checkpoint` | Seal the open agent transaction as one commented undo entry ([§02_12](./agent-api.sp.md#SP_AGA_02_12)) |
 | `getHistory`, `undo`, `redo`, `restoreCheckpoint` | Undo history with checkpoint comments, multi-step undo/redo, return to a checkpoint ([§02_13](./agent-api.sp.md#SP_AGA_02_13)) |
-| `openFile`, `saveFile`, `exportCircuit` | Path-based open/save of `.txt`/`.json` circuit files (desktop runtime only, otherwise `file_unavailable`) and export as text or JSON ([§02_14](./agent-api.sp.md#SP_AGA_02_14)) |
+| `openFile`, `saveFile`, `exportCircuit` | Path-based open/save of `.txt`/`.json` circuit files (desktop runtime only, otherwise `file_unavailable`) and export as text or JSON; JSON is format 2.2 with a `models` section, and `openFile` loads a file's models as the editor does (same-named session models replaced, an unloadable entry skipped with `value_adjusted`) ([§02_14](./agent-api.sp.md#SP_AGA_02_14), [§03_12](./agent-api.sp.md#SP_AGA_03_12)) |
 
 Agent coordinates are grid cells (1 cell = 16 editor pixels, half-cell lattice); pins are named `<ElementId>.<PinName>` (for example `R1.pin1`, `V1.plus`; a two-post voltage source has `minus`/`plus`, a current source `in`/`out` — [§03_02](./agent-api.sp.md#SP_AGA_03_02) "Polar names"). Issue codes and their severities are listed in [§03_05](./agent-api.sp.md#SP_AGA_03_05) and [§03_06](./agent-api.sp.md#SP_AGA_03_06).
 

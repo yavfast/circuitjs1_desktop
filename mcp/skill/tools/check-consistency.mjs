@@ -32,6 +32,10 @@
 //              vs the served input schemas; toolsVersion of the instance vs the SKILL.md line
 //   catalogue  type, alias, pin, geometry and property names vs circuitjs://catalogue/<type>,
 //              `set` edits resolved through the element IDs of their pattern section
+//   models     every ModelSpec/ModelText of the skill (AgentCircuit `models`, `defineModel` edits, inline
+//              `{"kind": ...}` snippets) has the fields of its kind, a valid name, pins and rules, and the
+//              parameter keys of the agent-api.sp.md §01_13 value table; one example per kind at least;
+//              live: every model an example circuit names is built in or defined in its own `models`
 //   examples   every ```json block that is an AgentCircuit ({elements: [...]}) imports into a scratch
 //              document with ok = true and connectivity.errorCount = 0; the document is closed after
 //
@@ -61,7 +65,7 @@ function parseArgs(argv) {
     else if (a === '--bridge') o.bridge = path.resolve(val());
     else if (['--url', '--instance', '--registry', '--timeout'].includes(a)) { const v = val(); o.pass.push(a, v); if (a === '--timeout') o.timeout = Number(v) || o.timeout; if (a === '--url') o.url = v; }
     else if (a === '--offline') o.offline = true;
-    else if (a === '--help' || a === '-h') { console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 42).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')); process.exit(0); }
+    else if (a === '--help' || a === '-h') { { const ls = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n'); console.log(ls.slice(1, ls.findIndex((l, i) => i > 0 && !l.startsWith('//'))).map((l) => l.replace(/^\/\/ ?/, '')).join('\n')); } process.exit(0); }
     else usage(`unknown argument ${a}`);
   }
   return o;
@@ -413,6 +417,92 @@ else {
     }
   }
   console.log(`  catalogue: ${catalogue.length} types; ${tableRows.length} table rows, ${elementSpecs.length} element specs, ${resolved} set edits resolved`);
+}
+
+// ------------------------------------------------------------------ group: models (SP_AGS_03_02, SP_AGS_05_03)
+// Every ModelSpec / ModelText of the skill (AgentCircuit `models`, `defineModel` edits, inline
+// `{"kind": ...}` snippets) has the fields of its kind and the parameter keys of the SP_AGA_01_13 value
+// table; live: every model an example circuit names is built in or defined in that circuit's `models`.
+group('models');
+{
+  const KINDS = { diode: '34', transistor: '32', logic: '!', subcircuit: '.' }; // kind -> model line token
+  const FIELDS = { diode: ['from', 'parameters'], transistor: ['from', 'parameters'], logic: ['inputs', 'outputs', 'rules', 'info'], subcircuit: ['source', 'showLabel'] };
+  const REQUIRED = { diode: ['parameters'], transistor: ['parameters'], logic: ['inputs', 'outputs', 'rules'], subcircuit: ['source'] };
+  const PARAMS = { diode: new Set(), transistor: new Set() };
+  for (const m of section(aga, '### 01_13.', '## 02.').matchAll(/^\| (diode|transistor) \| `([a-z_]+)` \|/gm)) PARAMS[m[1]].add(m[2]);
+  check(PARAMS.diode.size >= 6 && PARAMS.transistor.size >= 12, `SP_AGA_01_13: parsed ${PARAMS.diode.size} diode and ${PARAMS.transistor.size} transistor keys; the spec format changed?`);
+  const specs = []; // {f, line, m}
+  const seen = new Set();
+  const addSpec = (f, line, m) => { if (m && typeof m === 'object' && !Array.isArray(m) && typeof m.kind === 'string' && !seen.has(m)) { seen.add(m); specs.push({ f, line, m }); } };
+  for (const b of blocks) (Array.isArray(b.c.models) ? b.c.models : []).forEach((m) => addSpec(b.f, b.line, m));
+  for (const { f, line, edit } of edits) if (edit.op === 'defineModel') addSpec(f, line, edit.model);
+  for (const [f, t] of Object.entries(text)) {
+    for (const m of t.matchAll(/`(\{"kind"[^`]*\})`/g)) {
+      const v = tryJson(m[1]);
+      if (check(v !== undefined, `${f}:${lineAt(t, m.index)} a model snippet does not parse`)) addSpec(f, lineAt(t, m.index), v);
+    }
+  }
+  const NAME = /^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$/, PIN = /^[A-Za-z0-9/#:_+-]{1,8}$/;
+  const count = { diode: 0, transistor: 0, logic: 0, subcircuit: 0 };
+  for (const { f, line, m } of specs) {
+    const at = `${f}:${line} model ${m.name || '?'}`;
+    if (!check(m.kind in KINDS, `${at}: kind ${m.kind} is not one of ${Object.keys(KINDS).join(', ')}`)) continue;
+    count[m.kind]++;
+    if ('modelText' in m) {
+      for (const k of Object.keys(m)) check(['kind', 'name', 'modelText'].includes(k), `${at}: ${k} is not a ModelText field`);
+      const tok = typeof m.modelText === 'string' ? m.modelText.split(' ') : [];
+      check(tok[0] === KINDS[m.kind] && tok[1] === m.name, `${at}: modelText must start with "${KINDS[m.kind]} ${m.name}"`);
+      continue;
+    }
+    for (const k of Object.keys(m)) check(['kind', 'name', ...FIELDS[m.kind]].includes(k), `${at}: ${k} is not a field of a ${m.kind} ModelSpec`);
+    for (const k of REQUIRED[m.kind]) check(k in m, `${at}: a ${m.kind} ModelSpec needs ${k}`);
+    check(typeof m.name === 'string' && NAME.test(m.name), `${at}: the name does not match the ModelName pattern`);
+    if (PARAMS[m.kind] && m.parameters) for (const k of Object.keys(m.parameters)) check(PARAMS[m.kind].has(k), `${at}: ${k} is not a ${m.kind} model parameter (SP_AGA_01_13)`);
+    if (m.kind === 'logic') {
+      const pins = [...(m.inputs || []), ...(m.outputs || [])];
+      for (const side of ['inputs', 'outputs']) check(Array.isArray(m[side]) && m[side].length >= 1 && m[side].length <= 32, `${at}: ${side} must list 1-32 pins`);
+      for (const p of pins) check(typeof p === 'string' && PIN.test(p) && !/^(clk)?$/i.test(p.replace(/^[/#]|CLK:|INV:/g, '')), `${at}: pin name ${JSON.stringify(p)} is not valid`);
+      check(new Set(pins).size === pins.length, `${at}: pin names repeat`);
+      check(Array.isArray(m.rules) && m.rules.length >= 1 && m.rules.length <= 256 && m.rules.every((r) => typeof r === 'string' && r.length <= 100), `${at}: rules must be 1-256 lines of at most 100 characters`);
+      // the rule shape of the editor's parser (CustomLogicModel.parseRules): left=right, spaces ignored,
+      // left 0 1 ? + - or pattern letters, inputs..inputs+outputs long; right one character per output
+      const nIn = (m.inputs || []).length, nOut = (m.outputs || []).length;
+      (Array.isArray(m.rules) ? m.rules : []).forEach((r, i) => {
+        const s = String(r).toLowerCase();
+        if (s === '' || s.startsWith('#')) return;
+        const lr = s.replace(/ /g, '').split('=');
+        check(lr.length === 2 && /^[01?+\-a-z]*$/.test(lr[0]) && lr[0].length >= nIn && lr[0].length <= nIn + nOut && lr[1].length === nOut,
+          `${at}: rules[${i}] ${JSON.stringify(r)} does not parse (left ${nIn}..${nIn + nOut} characters of 0 1 ? + - or letters, "=", right ${nOut})`);
+      });
+    }
+    if (m.kind === 'subcircuit') check(m.source && typeof m.source.doc === 'string', `${at}: source must be {doc}`);
+  }
+  for (const k of Object.keys(count)) check(count[k] > 0, `no ${k} model example found in the skill`);
+  console.log(`  models: ${specs.length} model specs (${Object.entries(count).map(([k, n]) => `${k} ${n}`).join(', ')})`);
+  if (live) {
+    // Example circuits are self-contained: a model they name is built in (or the logic `default`) or in their `models`
+    let builtIn;
+    try { builtIn = cli(['call', 'circuit_types', JSON.stringify({ models: 'all' })]).data.models.filter((r) => r.builtIn || (r.kind === 'logic' && r.name === 'default')); } catch (e) {
+      if (e instanceof Unreachable && !(e instanceof BridgeRejected)) { console.error(`check-consistency: ${e.message}`); process.exit(2); }
+      builtIn = null;
+    }
+    if (check(Array.isArray(builtIn) && builtIn.length > 0, 'circuit_types {"models": "all"} returned no built-in models')) {
+      const KEY_KIND = { model: (t) => (/^Transistor/.test(t) ? 'transistor' : 'diode'), model_name: (t) => (t === 'CustomLogic' ? 'logic' : 'subcircuit') };
+      let named = 0;
+      for (const b of blocks) {
+        const own = new Set((b.c.models || []).map((m) => `${m.kind}:${m.name}`));
+        for (const e of b.c.elements) for (const key of Object.keys(KEY_KIND)) {
+          const v = e.properties && e.properties[key];
+          if (typeof v !== 'string' || !byName.has(e.type)) continue;
+          const kind = KEY_KIND[key](byName.get(e.type));
+          named++;
+          check(own.has(`${kind}:${v}`) || builtIn.some((r) => r.kind === kind && r.name === v), `${b.f}:${b.line} ${e.id || e.type} names the ${kind} model ${v}, which is neither built in nor in the circuit's models`);
+        }
+      }
+      check(named > 0, 'no example circuit names a model');
+      console.log(`  models: ${named} model references of example circuits resolved`);
+    }
+  }
 }
 
 // ------------------------------------------------------------------ group: examples (SP_AGS_03_02, SP_AGS_05_03)

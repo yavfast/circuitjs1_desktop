@@ -49,7 +49,7 @@ mkdir -p ~/.claude/skills
 cp -r mcp/skill/circuitjs-circuits ~/.claude/skills/
 ```
 
-Start a new Claude Code session; the skill triggers on requests to design, simulate, tune or fix a circuit in CircuitJS1. The skill works with toolsVersion 1.0 (see `SKILL.md`).
+Start a new Claude Code session; the skill triggers on requests to design, simulate, tune or fix a circuit in CircuitJS1. The skill works with toolsVersion 1.1 (see `SKILL.md`).
 
 ## 3. Uninstall
 

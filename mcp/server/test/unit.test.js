@@ -450,7 +450,7 @@ test('document circuit resource: full detail, all pages, importable shape', asyn
 
 test('agent-format text names the current SP_AGA rules', () => {
   for (const s of ['grid cells', '0.5', '1/16', 'stop_trigger', 'First sample', 'Determinism', '40 megapixels', '16384',
-    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.0',
+    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.1',
     'defineModel', 'name_taken', 'unknown_model', 'modelText', 'Create-only', 'forward_voltage', '"inf"', '"models": "diode"']) {
     assert.ok(AGENT_FORMAT.includes(s), s);
   }
@@ -495,7 +495,7 @@ test('tools/list, tools/call and resources through the SDK server', async () => 
 test('the bundle contains the tool table and the agent-format text', { skip: !fs.existsSync(path.join(ROOT, 'war/scripts/mcp-server.js')) }, () => {
   const text = fs.readFileSync(path.join(ROOT, 'war/scripts/mcp-server.js'), 'utf8');
   assert.ok(text.includes('circuit_connectivity'));
-  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.0)'));
+  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.1)'));
   assert.ok(!/require\(\s*["'](node:)?crypto["']\s*\)/.test(text));
 });
 

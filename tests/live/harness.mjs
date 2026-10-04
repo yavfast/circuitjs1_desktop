@@ -5065,6 +5065,7 @@ async function scenarioAgentModelsSub(s) {
   const posts = (rec) => (rec ? rec.posts.map((p) => p.pin) : null);
   const postAt = (rec, pin) => rec.posts.find((p) => p.pin === pin).at;
   const rejections = {};
+  let editorUncAlerts = 0; // the editor's "Some nodes are unconnected!" alerts of the unconnected_* variants
   // a rejection: the code (and reason), catalogues, the target and (when given) the source unchanged, no alert, no dialog
   const rejects = async (name, doc, src, fn, code, re) => {
     const c0 = await catalogue(); const d0 = await docState(doc); const s0 = src ? await docState(src) : null; const a0 = (await alerts()).length;
@@ -5573,6 +5574,44 @@ async function scenarioAgentModelsSub(s) {
       out.notes.editorCreate = { menu: m2, named, alerts: (await alerts()).slice(b1), record: er && strip(er) };
       ck('editor_createsModel', m2 === 2 && named === 'ok' && er && same(er.pins.map((p) => p.label), ['in', 'out']) && (await alerts()).length === b1);
       await s.call('closeDialogs'); await s.key('Escape');
+      // "some nodes are unconnected" (SP_AGA_01_13 Subcircuit source errors): the agent's read-only
+      // build decides as the editor's Create Subcircuit on the same circuit. With a ground in the
+      // source every part without a path to it is rejected; without any ground-connected element the
+      // first floating group of internal nodes is tolerated (the editor's rule), a second one is not.
+      const floating = (x) => ({ id: 'RF' + x, type: 'Resistor', start: { x, y: 10 }, end: { x: x + 4, y: 10 } });
+      const block = [label('LA', 'a', 4, 4, 2, 4), { id: 'R1', type: 'Resistor', start: { x: 4, y: 4 }, end: { x: 8, y: 4 } }, label('LB', 'b', 8, 4, 10, 4)];
+      const variants = {
+        grounded: block.concat([{ id: 'G1', type: 'Ground', start: { x: 8, y: 4 }, end: { x: 8, y: 6 } }]).filter((e) => e.id !== 'LB').concat([floating(14)]),
+        noGroundOneFloating: block.concat([floating(14)]),
+        noGroundTwoFloating: block.concat([floating(14), floating(20)]),
+      };
+      const expectAccepted = { grounded: false, noGroundOneFloating: true, noGroundTwoFloating: false };
+      out.notes.unconnected = {};
+      let vi = 0;
+      for (const [name, elements] of Object.entries(variants)) {
+        const ir = await A('importCircuit', { doc: E, circuit: { elements } });
+        const g0 = (await alerts()).length;
+        const ag = await A('applyEdits', { doc: T, edits: [{ op: 'defineModel', model: { kind: 'subcircuit', name: 'sub-unc-' + (vi++), source: { doc: E } } }] });
+        const agentAlerts = (await alerts()).length - g0;
+        await sleep(300);
+        await s.call('focus'); await s.key('Escape');
+        const a0 = (await alerts()).length;
+        const mm = await s.call('clickMenuPath', [menuTexts('File'), menuTexts('Create Subcircuit...')]);
+        await sleep(400);
+        const edAlerts = (await alerts()).slice(a0);
+        editorUncAlerts += edAlerts.length;
+        const edDialog = await s.eval(`!!Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('canvas') && x.querySelector('input.gwt-TextBox'))`);
+        // cancel the pin-layout dialog (its OK would alert the empty model name)
+        await s.eval(`(() => { const d = Array.from(document.querySelectorAll('.gwt-DialogBox')).find((x) => x.offsetWidth > 0 && x.querySelector('canvas') && x.querySelector('input.gwt-TextBox'));
+          if (!d) return; const c = Array.from(d.querySelectorAll('button')).find((b) => ${JSON.stringify(menuTexts('Cancel'))}.includes(b.textContent.trim())); if (c) c.click(); })()`);
+        await s.key('Escape');
+        const agentAccepted = ag.ok === true;
+        const editorAccepted = edAlerts.length === 0 && edDialog === true;
+        const agentReason = (ag.issues || []).map((i) => i.message).join('; ');
+        out.notes.unconnected[name] = { import: ir.ok, agentAccepted, agentReason, agentAlerts, menu: mm, editorAlerts: edAlerts, editorDialog: edDialog };
+        ck('unconnected_' + name + '_agentAsEditor', ir.ok && mm === 2 && agentAlerts === 0 && agentAccepted === editorAccepted && agentAccepted === expectAccepted[name]
+          && (agentAccepted || (/some nodes are unconnected/.test(agentReason) && same(edAlerts, ['Some nodes are unconnected!']))));
+      }
       await A('closeDocument', { doc: E, discardChanges: true });
     }
 
@@ -5583,8 +5622,9 @@ async function scenarioAgentModelsSub(s) {
     ck('noPageException', unexpected.length === 0);
     const allAlerts = await alerts();
     out.notes.alerts = allAlerts;
-    // the only alert: the editor's label-on-ground one
-    ck('noAgentAlert', allAlerts.length === 1 && s.dialogs.length === dialogMark);
+    // the only alerts: the editor's label-on-ground one and its two "Some nodes are unconnected!" ones
+    ck('noAgentAlert', editorUncAlerts === 2 && allAlerts.length === 1 + editorUncAlerts
+      && allAlerts.filter((m) => m === 'Some nodes are unconnected!').length === editorUncAlerts && s.dialogs.length === dialogMark);
   } catch (e) {
     out.notes.error = e.stack || e.message;
     ck('noHarnessError', false);
@@ -6644,7 +6684,7 @@ async function scenarioMcpBrowser(s) {
   ck('server_disabled', page.server && page.server.state === 'disabled' && page.server.reason === 'no desktop runtime'
     && !page.server.port && !(page.server.urls && page.server.urls.length));
   ck('app_status_disabled', page.app.state === 'disabled' && page.app.reason === 'no desktop runtime' && page.app.port === 0 && page.app.urls.length === 0);
-  ck('toolsVersion', page.server && page.server.toolsVersion === '1.0');
+  ck('toolsVersion', page.server && page.server.toolsVersion === '1.1');
   const bad = (t) => /mcp-server|CircuitJS1Mcp/.test(t);
   const errs = s.console.filter((c) => (c.type === 'error' || c.type === 'log:error') && bad(c.text)).map((c) => c.text.slice(0, 300));
   const exc = s.exceptions.filter(bad).map((e) => e.slice(0, 300));

@@ -1,7 +1,7 @@
 # Implementation Plan: Agent API  {#PL_AGA}
 
 > **Code:** PL_AGA
-> **Status:** in-progress
+> **Status:** completed
 > **Created:** 2026-10-01
 > **Updated:** 2026-10-04
 >
@@ -81,7 +81,7 @@ When this plan is complete:
 - [x] [Phase 12 — Model definitions: custom logic](#PL_AGA_P12)
 - [x] [Phase 13 — Model definitions: subcircuits](#PL_AGA_P13)
 - [x] [Phase 14 — JSON v2 `models` section (format 2.2)](#PL_AGA_P14)
-- [ ] [Phase 15 — Skill and documentation for models](#PL_AGA_P15)
+- [x] [Phase 15 — Skill and documentation for models](#PL_AGA_P15)
 
 ## Phases
 
@@ -433,7 +433,7 @@ What to build: the JSON exporter writes version 2.2 always and the `models` sect
 
   > **Status (2026-10-04, implementer):** implemented; live `json_models` 47/47 (every Verify row: export/saveFile 2.2 with `models`, agent JSON-text path incl. `from`/`source`/pin/inner checks and no cap, user load with invalid entries, openFile `value_adjusted` and restore on rejection, fresh-session openFile, subcircuits-only import, Ctrl+V paste + undo, user load, the four examples with model lines; a logic entry with unparsable rules alerts once on a user JSON load as a text `!` line does, never on agent paths — the decision shared as `ImportLifecycle.alertRuleErrorOnUserLoad`); roundtrip default 24/23/17/2 and all-corpus 157/180/211/9 (unchanged counts; diff lines 82→77 and 542→532, every `403` and the multivib-a/qam-256 `o` lines now survive, `modelsLost` 0); other live scenarios at their baseline (`agent_bg` slice bound flaked once, passed twice alone); `test:mcp-unit` 26/26; skill consistency (offline) pass. Design: L2 `io/ModelDependencies` (the closure shared with `getCircuit`/`usedBy`, ID ordering moved to `ElementIdRegistry.compareIds`), `io/json/JsonScopeCodec` (one form for `scopes` entries and the `Scope` element's `scope` property, applied by the importer after all elements exist), `ModelSpecCodec.fileEntryProblem/loadLine/entryRestorer`, `ImportReport.addModelEntryProblem`. Beyond the plan: a JSON text in the system clipboard is accepted as circuit data and the clipboard is read through the page window (the module frame never has the focus, so a system-clipboard paste always failed in a browser).
 
-### Phase 15 — Skill and documentation for models [TODO]  {#PL_AGA_P15}
+### Phase 15 — Skill and documentation for models [DONE]  {#PL_AGA_P15}
 
 **Depends on:** Phases 11–14
 > The diode/transistor part of the skill (SKILL.md model rule, `reference/elements.md` "Models" section, the `patterns.md` LED-with-a-model pattern, diagnostics rows) was pulled forward into Phase 11 after the T2 live re-run (an agent did not discover `defineModel` without skill text). Phase 15 keeps the logic, subcircuit and JSON `models` parts and the SP_AGS spec extension.
@@ -442,6 +442,10 @@ What to build: the JSON exporter writes version 2.2 always and the `models` sect
 **Verify:** `node mcp/skill/tools/check-consistency.mjs` (live) passes; live series T2 re-run passes with a coloured LED model
 
 What to build: SP_AGS §02_03, §02_05 and §05_03 extended first; then `reference/elements.md` model section (kinds, keys with their value kinds, create-only names — a new name to change a model; an `importCircuit` of text or JSON whose model differs from the session's is `name_taken`, and `openFile` loads such a file as the editor does —; a subcircuit built again from a simulated source is no longer identical (its line includes element state), so build it once or under a new name —, typical LED forward voltages by colour at 20 mA — red ≈ 1.8–2.0 V, yellow ≈ 2.0–2.1 V, green ≈ 2.1 V (GaP) / 3.0 V (InGaN), blue and white ≈ 3.0–3.2 V — and when to define a model instead of using a default), SKILL.md tool map line, a pattern with a defined model; docs/JS_API.md agent section rows.
+
+  > **Status (2026-10-04, implementer):** implemented. SP_AGS extended first (§02_01 golden rules incl. the readable-schematic and model rules, 11-step checklist, tool-map rows; §02_03 Models; §02_04 Model definitions; §02_05 11 patterns, self-contained with `models`; §03_02 model accuracy; §05_01 `green-led-model`; §05_03 Model specs). Skill: SKILL.md model rule covers all four kinds (`circuit_types {"models": "all"}`), checklist step 4 "models first", tool map `defineModel`/`models`; elements.md "when to define" and "Models and files" (create-only, `existing`, subcircuit state identity, JSON 2.2, `circuit_import` `name_taken`, `circuit_file open`), `showLabel: false` for small blocks; patterns.md 11 (half adder: A=1,B=0 → `sum` 5 V / `carry` 0 V; B=1 → 0 V / 5 V) and 12 (RC low-pass as a `Subcircuit` from document source: pins `in` W / `out` E, `out` peakToPeak 1.693 V, same as pattern 2; re-import of the `modelText` form gives the same), both built and measured live on a scratch NW.js instance (port 7312, scratch HOME); diagnostics.md "Model definitions" (15 rows with the measured messages) and a "Model not applied" symptom; docs/JS_API.md rows `defineModel`, `listModels`, `models` in import/getCircuit/files. `check-consistency.mjs` gains the `models` group (fields per kind, names, pins, rules, SP_AGA_01_13 keys, one example per kind; live: example circuits self-contained against the built-in models); it caught a placeholder model name (`"..."`) in elements.md. Eval `green-led-model` (skill version 1.1): checker validated on the pattern-10 circuit (pass: 20.0 mA, 2.100 V) and on the default red LED (fail: 1.850 V); not run with agents. Verify: check-consistency live PASS (all 7 groups), offline PASS; T2 re-run PASS recorded from Phase 11 (2026-10-04, main: `led-red` 1.999 V / 14.90 mA, `led-green` 2.196 V / 14.48 mA); `test:mcp-unit` 26/26; eval runner `--dry-run` 5 scenarios × 2 models × 3 reps = 30. Eval results for skill 1.1 are not recorded (paid runs).
+
+  > **Follow-up (2026-10-04, coordinator round):** (1) `toolsVersion` 1.0 → 1.1 (SP_MCP_06_01: Phases 11–14 added `defineModel`, `circuit_types` `models`/`model`, AgentCircuit/`getCircuit` `models`): `mcp/server/src/index.js`, agent-format header, SKILL.md compatibility line (a 1.0 app has no model definitions) and hosts/claude-code.md, SP_MCP §06_01 and changelog, version checks in `test:mcp-unit`, `tests/mcp/e2e.mjs` (`oneRecord0600`) and the live `mcp_browser`; the bridge tests' fake instances keep their own `1.0` (they do not state the app's version). (2) "some nodes are unconnected" is not a Phase 13 defect: the agent build runs the same check as the editor (`findUnconnectedNodes` runs in both node allocations; element validation does not touch it). A source with no ground-connected element tolerates its first floating group of used internal nodes (the editor's `nodesWithGroundConnectionCount == 0 && first` rule), so one floating resistor in a groundless source is accepted by both; a grounded source or a second floating part is rejected by both. New live checks `unconnected_grounded/noGroundOneFloating/noGroundTwoFloating_agentAsEditor` in `agent_models_sub` compare `defineModel` with File → Create Subcircuit on the same circuit; SP_AGA §01_13, §05_01, agent-format and diagnostics.md state the rule. (3) C_AGS_03_01 step 10: the render look comes before every report. Runs: `agent_models_sub` 66/66, `json_models` 49/49, `agent_models` 75/75, `mcp_browser` 8/8, `test:mcp-unit` 26/26, bridge `npm test` 88/88, check-consistency offline and live (fresh scratch instance reporting toolsVersion 1.1) PASS. No Java change; the MCP bundle was rebuilt (`npm run build:mcp`) and copied into `target/site/scripts/`.
 
 ## Backlog
 

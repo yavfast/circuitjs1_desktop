@@ -9,7 +9,7 @@ Every issue has `code`, `severity`, `message`, `hint` and, where known, the `ele
 - Connectivity issues (every mutation and `circuit_connectivity`)
 - Solver issues (runs, `circuit_diagnostics`)
 - Run end reasons
-- Operation errors and warnings: references and values; geometry and IDs; imports; documents, history and runs; files and output
+- Operation errors and warnings: references and values; geometry and IDs; imports; documents, history and runs; files and output; model definitions
 - Symptoms without an issue code
 
 ## Connectivity issues
@@ -121,6 +121,28 @@ All are errors (the call was rejected) unless marked otherwise.
 | `render_failed` | error | The SVG exporter could not load, or the image could not be encoded | Retry with `format: "png"` | `circuit_render` |
 | `result_too_large` | error (server) | An SVG render or an export over the 60 000-character tool-result limit | `png` or a lower `scale`; `save` to a file, or read with `circuit_get` pages | The same tool with the smaller form |
 
+### Model definitions
+
+Errors of `defineModel` edits, of `models` entries of `circuit_import` and of elements that name a model. The message names the field (`edits[0].model.parameters.forward_voltage`, `circuit.models[1].modelText`); the call changed nothing.
+
+| Error and field | Typical cause (message) | Fix | Confirm with |
+|---|---|---|---|
+| `name_taken` on `model` | "exists in the session with a different definition": the name was defined before with other values; "reserved by an internal model" | Define a new name, then `set` the elements' `model` / `model_name` to it | `circuit_types {"models": "diode", "model": "<name>"}` |
+| `name_taken` on a subcircuit | The same source, defined again after it ran: the model line holds its element state | Define a new name; or build the block once and reuse that model | As above |
+| `name_taken` on a line of imported content | "Line 2: the diode model ... exists ... with a different definition": text or JSON content whose model differs from the session's | Rename the model in the content; to load a file's models as the editor does, `circuit_file {"action": "open"}` it | `circuit_import` again |
+| `unknown_model` on `from` | A `from` that names no listed model of that kind | Pick a name from `circuit_types {"models": "transistor"}`, or omit `from` | The same edit again |
+| `invalid_value` on `name` | "is not a valid model name": spaces or a leading `-` | 1–40 characters: a letter or digit, then letters, digits, `_ . + -` | The same edit again |
+| `invalid_value` on `parameters.<key>` | A value out of range ("must be > 0"); `forward_voltage` without `forward_current` ("needs forward_current"); `forward_voltage` with `emission_coefficient` or `series_resistance` | Give `forward_voltage` and `forward_current` together (the simple form), or the SPICE keys without `forward_voltage` | The same edit again |
+| `unknown_property` on `parameters.<key>` | A key the kind does not have (`vf`); the hint lists the keys | Use a listed key | The same edit again |
+| `invalid_value` on a field | A field the kind does not take: `from` on a logic or subcircuit model, `rules` on a diode; a required field missing ("`rules` is required") | Give the fields of that kind (elements reference, Models) | The same edit again |
+| `invalid_value` on `rules[<i>]` | "does not parse: Model must have 1 digits on right side": the left side needs one character per input (then optionally one per output), the right side one per output | Fix that line; the hint states the lengths for this model | The same edit again |
+| `invalid_value` on `inputs[<i>]` / `outputs[<i>]` | "is not a valid pin name" (over 8 characters, a space); "is empty after its markup is removed" (`"CLK"`, `"/"`); "repeats the pin name" | 1–8 characters of `A-Z a-z 0-9 / # : _ + -`, unique across both sides; a clock input as `CLK:C` | The same edit again |
+| `invalid_value` on `source` | "a subcircuit cannot be built from the document it is defined in"; "device has no external inputs/outputs" (no label); "node b can't be connected to ground"; "node c is not used" (a label on no element); "labels b and c are on one node"; "some nodes are unconnected": a part with no path to the block's ground (in a block without ground, a second floating part; the editor's Create Subcircuit decides the same); also the reasons of a built model's contents: "inner model x unknown", "unknown element class C in the node list", "a Subcircuit inside uses the model being defined" (recursion), "the node allocation of the source circuit failed" (a wire loop with recovery off), "the model does not load" | Build the block in its own document and name that one; one `LabeledNode` per external pin, none on ground, each on a used net; join or delete stray parts (a block without ground may still keep one unconnected part: delete it anyway); define inner models first, remove the nested block or the loop | `circuit_connectivity` of the source; the same edit again |
+| `unknown_document` / `busy` on `source` | The source handle was closed; a run is going on in the source | List documents; wait for the run | `circuit_documents {"action": "list"}` |
+| `invalid_value` on `modelText` | "inner model led-x unknown": a subcircuit line uses a model that is neither in the session nor earlier in the list; a line whose first token or name does not match; logic rules that do not parse; a subcircuit without pins | List the inner models first (dependencies first, as `circuit_get` returns them), or define them before; pass the line exactly as `circuit_get` returned it | The same import again |
+| `invalid_value` on an element's `model` / `model_name` | "names no diode model of the session": the model is not defined (yet), or a part number such as "BAT54"; the hint lists the available names | Put the `defineModel` edit before the `add`/`set` in the same batch (or the entry in `models`), or use a listed name | `circuit_types {"type": "LED"}` → the key's `choices` |
+| `value_adjusted` (warning) on `circuit_file open` | The file names a model the session lacks, or has a `models` entry the app cannot load: it was loaded as the editor loads it (an empty logic model, the entry skipped) | Check the named elements; define the missing model and `set` it | `circuit_get` → `models` |
+
 ## Symptoms without an issue code
 
 **A flat 0 V trace.**
@@ -130,6 +152,7 @@ All are errors (the call was rejected) unless marked otherwise.
 - **Polarity.** A diode, LED or source drawn the other way round: compare with a pattern, or `circuit_read` both ends.
 - **Window.** The probe records from `recordFrom`: check `stats.samples` and `tStart`/`tEnd`.
 - **Current source idle.** A `current_source_no_path` warning: the source has no return path and drives 0 A.
+- **Model not applied.** After a `defineModel`, a part keeps the model it names: an LED still drops 1.8 V until its `model` is `set` to the new name (`circuit_get` shows the `model` in use).
 
 **An oscillator that never starts.**
 - **Start state.** A run with `reset: true` starts from initial conditions, which can be a balanced state that never tips; a fresh import starts from the state saved in the circuit instead. Compare both, and break the symmetry (a slightly different value in one branch, an initial capacitor voltage).
