@@ -52,13 +52,20 @@ public final class ImportReport {
         public final int line;
         /** JSON element key (or {@code #<index>} of a scope/adjustable entry), or null. */
         public final String key;
+        /** How to fix the item when the code's general hint does not fit, or null. */
+        public final String hint;
 
         Item(String code, Severity severity, String message, int line, String key) {
+            this(code, severity, message, line, key, null);
+        }
+
+        Item(String code, Severity severity, String message, int line, String key, String hint) {
             this.code = code;
             this.severity = severity;
             this.message = message;
             this.line = line;
             this.key = key;
+            this.hint = hint;
         }
     }
 
@@ -111,6 +118,24 @@ public final class ImportReport {
             items.add(new Item(INVALID_VALUE, Severity.ERROR, message, line, key));
         } else {
             items.add(new Item(VALUE_ADJUSTED, Severity.WARNING, message + "; it simulates with a fallback model", line, key));
+        }
+    }
+
+    /**
+     * [SP_AGA_03_11] "No dialogs": a model line whose content the model cannot use as written (a
+     * logic rule line that does not parse) — {@link #INVALID_VALUE} (error) on a create-only
+     * report (agent content), else {@link #VALUE_ADJUSTED} (warning: the model loads as the
+     * editor loads it). Never an alert.
+     *
+     * @param message what is wrong, starting with "line N"
+     * @param hint    how to fix it
+     * @param line    1-based text line
+     */
+    public void addModelLineProblem(String message, String hint, int line) {
+        if (createOnlyModels) {
+            items.add(new Item(INVALID_VALUE, Severity.ERROR, message, line, null, hint));
+        } else {
+            items.add(new Item(VALUE_ADJUSTED, Severity.WARNING, message, line, null, hint));
         }
     }
 

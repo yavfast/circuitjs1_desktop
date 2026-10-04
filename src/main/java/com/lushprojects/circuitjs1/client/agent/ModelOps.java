@@ -139,9 +139,15 @@ final class ModelOps {
                     + " with a different definition (" + where + ").", takenHint));
             return null;
         }
+        if (d.newEntryProblem != null) {
+            // [SP_AGA_01_13] "Line": checked after the identity test, so an identical entry re-imports
+            ModelSpecCodec.Problem p = d.newEntryProblem;
+            issues.add(Issue.of(codeOf(p.code), p.message, p.hint));
+            return null;
+        }
         if (d.unsupported != null) {
             issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "': " + d.unsupported + ".",
-                    "Define diode and transistor models; a " + d.kind + " model can be used when the session already has it."));
+                    "Define diode, transistor and logic models; a " + d.kind + " model can be used when the session already has it."));
             return null;
         }
         scope.add(d);
@@ -252,7 +258,7 @@ final class ModelOps {
             CustomLogicModel lm = (CustomLogicModel) entry;
             r.put("inputs", strings(lm.inputs));
             r.put("outputs", strings(lm.outputs));
-            r.put("rules", strings(ruleLines(lm.getRules())));
+            r.put("rules", strings(ModelSpecCodec.ruleLines(lm.getRules())));
             r.put("info", new JSONString(lm.infoText == null ? "" : lm.infoText));
         }
         if (entry instanceof CustomCompositeModel) {
@@ -275,14 +281,6 @@ final class ModelOps {
         return r;
     }
 
-    private static String[] ruleLines(String rules) {
-        if (rules == null || rules.isEmpty()) {
-            return new String[0];
-        }
-        String r = rules.endsWith("\n") ? rules.substring(0, rules.length() - 1) : rules;
-        return r.split("\n", -1);
-    }
-
     /** @return the chip side of a pin as N, S, W or E */
     private static String side(int s) {
         switch (s) {
@@ -298,13 +296,31 @@ final class ModelOps {
     }
 
     private static JSONArray strings(String[] values) {
-        JSONArray a = new JSONArray();
-        if (values != null) {
-            for (int i = 0; i < values.length; i++) {
-                a.set(i, new JSONString(values[i]));
-            }
+        return ModelSpecCodec.strings(values);
+    }
+
+    /**
+     * [SP_AGA_02_04] The PinNames a {@code CustomLogic} element has with the logic model
+     * {@code name} — a model defined earlier in the call being validated, else the session entry
+     * — so later edits of the batch see the posts the model gives it ([SP_AGA_01_13] "Pin
+     * markup": names after markup removal, made unique by [SP_AGA_03_02]).
+     *
+     * @return the pin names, or null when no such model exists
+     */
+    static String[] logicPins(String name, Scope scope) {
+        ModelSpecCodec.Definition d = scope == null ? null : scope.pending(ModelSpecCodec.LOGIC, name);
+        CustomLogicModel lm = d != null ? d.logic() : CustomLogicModel.findEntry(name);
+        if (lm == null || lm.inputs == null || lm.outputs == null) {
+            return null;
         }
-        return a;
+        String[] raw = new String[lm.inputs.length + lm.outputs.length];
+        for (int i = 0; i < raw.length; i++) {
+            String n = i < lm.inputs.length ? lm.inputs[i] : lm.outputs[i - lm.inputs.length];
+            String t = ChipElm.pinText(n);
+            // as ChipElm.getJsonPinNames: a pin without text is pin<i>
+            raw[i] = t.isEmpty() ? "pin" + (i + 1) : t;
+        }
+        return PinNames.fromJsonNames(raw, raw.length);
     }
 
     // ---------------------------------------------------------------- usage and closure

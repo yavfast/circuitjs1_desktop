@@ -81,10 +81,11 @@ const MODEL_KIND = { type: 'string', enum: ['diode', 'transistor', 'logic', 'sub
  */
 const MODEL_ENTRY = {
   type: 'object',
-  description: 'ModelSpec {kind, name, from?, parameters} (diode, transistor), or ModelText {kind, name, modelText} '
-    + '(one model line of the text format, as circuit_get returns it). Names are create-only: an existing name is '
-    + 'accepted only with an identical definition. Example: {"kind": "diode", "name": "led-green-2v1", '
-    + '"parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}.',
+  description: 'ModelSpec {kind, name, from?, parameters} (diode, transistor) or {kind: "logic", name, inputs, outputs, rules, info?}, '
+    + 'or ModelText {kind, name, modelText} (one model line of the text format, as circuit_get returns it). Names are '
+    + 'create-only: an existing name is accepted only with an identical definition. Example: {"kind": "diode", '
+    + '"name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}; '
+    + '{"kind": "logic", "name": "and2", "inputs": ["A", "B"], "outputs": ["Y"], "rules": ["11=1", "??=0"]}.',
   properties: {
     kind: MODEL_KIND,
     name: { type: 'string', description: 'Model name: ^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$ for a ModelSpec.' },
@@ -97,10 +98,10 @@ const MODEL_ENTRY = {
         + 'leakage_be/bc_current, leakage_be/bc_emission, early_voltage_forward/_reverse, knee_current_forward/_reverse ("inf" allowed).',
     },
     modelText: { type: 'string', description: 'ModelText: exactly one model line.' },
-    inputs: { type: 'array', items: { type: 'string' } },
-    outputs: { type: 'array', items: { type: 'string' } },
-    rules: { type: 'array', items: { type: 'string' } },
-    info: { type: 'string' },
+    inputs: { type: 'array', items: { type: 'string' }, description: 'logic: input pin names (1-32, 1-8 chars each; markup /, #, CLK:, INV:).' },
+    outputs: { type: 'array', items: { type: 'string' }, description: 'logic: output pin names (1-32).' },
+    rules: { type: 'array', items: { type: 'string' }, description: 'logic: rule lines left=right (1-256, at most 100 chars each).' },
+    info: { type: 'string', description: 'logic: info text (at most 200 chars; default the name).' },
     source: { type: 'object', properties: { doc: DOC } },
     showLabel: { type: 'boolean' },
   },

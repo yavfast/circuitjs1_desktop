@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -4412,8 +4412,10 @@ async function scenarioAgentModels(s) {
       elements: [{ id: 'D1', type: 'Diode', start: { x: 0, y: 0 }, properties: { model: 'mt-ok' } }] } });
     const mtRec = await record('diode', 'mt-ok');
     ck('mt_defines', mtOk.ok && mtRec && mtRec.parameters.emission_coefficient === 1.5 && same(mtRec.usedBy, [{ doc: I, ids: ['D1'] }]));
-    // logic ModelText: a new name is not definable in this build (Phase 12); the ensured default, identical, is accepted
-    await rejects('mt_logicNew', I, imp(mt({ kind: 'logic', name: 'lx', modelText: '! lx 0 A Y lx 1\\q1\\n' })), 'invalid_value', /not supported/);
+    // logic ModelText (PL_AGA Phase 12) defines a new name; the ensured default, identical, is accepted
+    const lxText = await A('importCircuit', { doc: I, circuit: mt({ kind: 'logic', name: 'lx', modelText: '! lx 0 A Y lx 1\\q1\\n' }) });
+    const lxRec = await record('logic', 'lx');
+    ck('mt_logicNew', lxText.ok && lxRec && same(lxRec.inputs, ['A']) && same(lxRec.outputs, ['Y']) && same(lxRec.rules, ['1=1']));
     const ldText = (await A('importCircuit', { doc: I, circuit: { elements: [], models: [{ kind: 'logic', name: 'default', modelText: '! default 0 A,B C,D custom\\slogic \\0' }] } }));
     ck('mt_logicDefaultIdentical', ldText.ok);
 
@@ -4559,6 +4561,357 @@ async function scenarioAgentModels(s) {
   fs.writeFileSync(path.join(OUT_DIR, 'agent_models.json'), JSON.stringify(out, null, 2));
   const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
   report('AG.agent_models', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models.json') });
+}
+
+// agent_models_logic: custom logic model definitions (PL_AGA Phase 12; SP_AGA_01_13 logic ModelSpec,
+// pin markup, limits, logic ModelText import; §03_11 No dialogs; §06_01 item 25; §05_01 rows
+// defineModel logic / logic bad rule / logic limits / logic pin names / bad `from` (logic),
+// importCircuit ModelText errors (logic line with a bad rule), getCircuit ModelText fallback (a
+// 9-char pin name), same-session re-import with a logic model). window.alert is hooked in the page
+// for the whole scenario: no agent path may reach it; the editor's model dialog (driven through the
+// UI: double click, "Edit Model", a bad rule, OK) still alerts the parser's message.
+async function scenarioAgentModelsLogic(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const codes = (r) => (r.issues || []).map((i) => i.code);
+  const has = (r, code, re) => (r.issues || []).some((i) => i.code === code && (!re || re.test(i.message + ' ' + (i.hint || ''))));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const strip = (m) => { const c = Object.assign({}, m); delete c.usedBy; return c; };
+  const catalogue = async () => JSON.stringify((await A('listModels', {})).data.models.map(strip));
+  const record = async (kind, name) => { const r = await A('listModels', { kind, name }); return r.ok ? r.data.models[0] : null; };
+  const alerts = async () => JSON.parse(await s.eval('JSON.stringify(window.__alerts || [])'));
+  const docState = async (doc) => {
+    const st = JSON.parse(await s.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(doc)})`));
+    return { text: (await A('exportCircuit', { doc, format: 'text' })).data.content, ids: (await A('getCircuit', { doc })).data.elements.map((e) => e.id), undo: st.undo, marks: st.openMarks };
+  };
+  const define = (doc, model, more) => A('applyEdits', { doc, edits: [{ op: 'defineModel', model }].concat(more || []) });
+  const rejections = {};
+  const rejects = async (name, doc, fn, code, re) => {
+    const c0 = await catalogue(); const d0 = await docState(doc); const a0 = (await alerts()).length;
+    const r = await fn();
+    const c1 = await catalogue(); const d1 = await docState(doc); const a1 = (await alerts()).length;
+    rejections[name] = { ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message + ' | ' + (i.hint || '')) };
+    return ck(name, r.ok === false && has(r, code, re) && c0 === c1 && same(d0, d1) && a0 === a1);
+  };
+  const posts = (rec) => (rec ? rec.posts.map((p) => p.pin) : null);
+  const postAt = (rec, pin) => rec.posts.find((p) => p.pin === pin).at;
+  await s.eval('window.__alerts = []; window.__savedAlert = window.alert; window.alert = (m) => { window.__alerts.push(String(m)); };');
+  try {
+    await resetApp(s);
+    const exMark = s.exceptions.length;
+    const dialogMark = s.dialogs.length;
+    const D = (await A('createDocument', { title: 'Logic models' })).data.doc;
+
+    // ---------------------------------------------------------------- defineModel logic (AND), used in the same batch
+    const andSpec = { kind: 'logic', name: 'lg-and', inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=1', '??=0'] };
+    const and = await define(D, andSpec, [{ op: 'add', element: { id: 'CL1', type: 'CustomLogic', start: { x: 10, y: 4 }, properties: { model_name: 'lg-and' } } }]);
+    const cl1 = and.ok ? and.data.elements.find((e) => e.id === 'CL1') : null;
+    const m0 = and.ok ? and.data.models[0] : null;
+    out.notes.and = { ok: and.ok, issues: codes(and), model: m0, posts: cl1 && cl1.posts };
+    ck('and_defined', and.ok && m0 && m0.kind === 'logic' && m0.builtIn === false && !m0.existing && same(m0.inputs, ['A', 'B']) && same(m0.outputs, ['Y'])
+      && same(m0.rules, ['11=1', '??=0']) && m0.info === 'lg-and' && same(m0.usedBy, [{ doc: D, ids: ['CL1'] }]));
+    ck('and_elementPins', same(posts(cl1), ['A', 'B', 'Y']) && cl1.properties.input_count === 2 && cl1.properties.output_count === 1);
+    if (cl1) {
+      const a = postAt(cl1, 'A'), b = postAt(cl1, 'B');
+      await A('applyEdits', { doc: D, edits: [
+        { op: 'add', element: { id: 'IA', type: 'LogicInput', start: a, end: { x: a.x - 3, y: a.y }, properties: { position: 1 } } },
+        { op: 'add', element: { id: 'IB', type: 'LogicInput', start: b, end: { x: b.x - 3, y: b.y }, properties: { position: 1 } } }] });
+      const truth = {};
+      for (const [pa, pb] of [[1, 1], [1, 0], [0, 1], [0, 0]]) {
+        await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'IA', properties: { position: pa } }, { op: 'set', id: 'IB', properties: { position: pb } }] });
+        const run = await R({ doc: D, span: '1 ms', reset: true, maxPoints: 10, probes: [{ post: 'CL1.Y', name: 'y' }] });
+        truth[`${pa}${pb}`] = run.ok ? run.data.probes[0].stats.final : codes(run).join(',');
+      }
+      out.notes.andTruth = truth;
+      ck('and_computesAnd', truth['11'] > 2.5 && truth['10'] < 0.5 && truth['01'] < 0.5 && truth['00'] < 0.5);
+    }
+    // identical redefinition (existing); a definition differing only in info is name_taken
+    const andAgain = await define(D, andSpec);
+    ck('and_identicalExisting', andAgain.ok && andAgain.data.models[0].existing === true);
+    await rejects('and_differingInfo', D, () => define(D, Object.assign({}, andSpec, { info: 'other' })), 'name_taken');
+
+    // ---------------------------------------------------------------- bad rules: invalid_value naming rules[i], no alert
+    await rejects('badRule_spec', D, () => define(D, { kind: 'logic', name: 'lg-bad1', inputs: ['A', 'B'], outputs: ['Y'], rules: ['1=11'] }), 'invalid_value', /'edits\[0\]\.model\.rules\[0\]'/);
+    await rejects('badRule_afterComment', D, () => define(D, { kind: 'logic', name: 'lg-bad2', inputs: ['A', 'B'], outputs: ['Y'], rules: ['# AND', '11=1', '1*=0'] }), 'invalid_value', /rules\[2\]'/);
+    await rejects('badRule_rightSide', D, () => define(D, { kind: 'logic', name: 'lg-bad3', inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=10'] }), 'invalid_value', /rules\[0\]'.*right side/);
+    await rejects('badRule_noEquals', D, () => define(D, { kind: 'logic', name: 'lg-bad4', inputs: ['A'], outputs: ['Y'], rules: ['11'] }), 'invalid_value', /rules\[0\]'/);
+    ck('badRule_notRegistered', has(await A('listModels', { kind: 'logic', name: 'lg-bad1' }), 'unknown_model'));
+    await rejects('from_logic', D, () => define(D, { kind: 'logic', name: 'lg-from', from: 'default', inputs: ['A'], outputs: ['Y'], rules: ['1=1'] }), 'invalid_value', /\.from'/);
+    await rejects('logic_parametersField', D, () => define(D, { kind: 'logic', name: 'lg-par', inputs: ['A'], outputs: ['Y'], rules: ['1=1'], parameters: {} }), 'invalid_value', /\.parameters'/);
+
+    // ---------------------------------------------------------------- limits
+    const pinsN = (n, p) => Array.from({ length: n }, (_, k) => p + k);
+    const lim = (name, extra) => Object.assign({ kind: 'logic', name, inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=1'] }, extra);
+    const limits = {
+      inputs33: [{ inputs: pinsN(33, 'I'), rules: ['?'.repeat(33) + '=0'] }, /model\.inputs'/],
+      outputsNone: [{ outputs: [] }, /model\.outputs'/],
+      pin9chars: [{ inputs: ['ABCDEFGHI', 'B'] }, /model\.inputs\[0\]'/],
+      pinComma: [{ inputs: ['A,C', 'B'] }, /model\.inputs\[0\]'/],
+      duplicateInput: [{ inputs: ['A', 'A'] }, /model\.inputs\[1\]'/],
+      duplicateAcross: [{ outputs: ['A'] }, /model\.outputs\[0\]'/],
+      pinClk: [{ inputs: ['A', 'CLK'] }, /model\.inputs\[1\]'.*empty after its markup/],
+      pinSlashOnly: [{ outputs: ['/'] }, /model\.outputs\[0\]'.*empty after its markup/],
+      pinInvOnly: [{ inputs: ['INV:', 'B'] }, /model\.inputs\[0\]'/],
+      rules257: [{ rules: Array.from({ length: 257 }, () => '11=1') }, /model\.rules'/],
+      rulesNone: [{ rules: [] }, /model\.rules'/],
+      rule101: [{ rules: ['11=1', '# ' + 'x'.repeat(99)] }, /model\.rules\[1\]'/],
+      ruleTwoLines: [{ rules: ['11=1\n00=0'] }, /model\.rules\[0\]'/],
+      info201: [{ info: 'i'.repeat(201) }, /model\.info'/],
+    };
+    for (const [k, [extra, re]] of Object.entries(limits)) {
+      await rejects('limit_' + k, D, () => define(D, lim('lg-lim-' + k, extra)), 'invalid_value', re);
+    }
+    // the limits themselves are accepted: 32 pins per side, 256 rule lines of 100 chars, info of 200 chars
+    const maxOk = await define(D, lim('lg-max', { inputs: pinsN(32, 'I'), outputs: pinsN(32, 'O'), info: 'i'.repeat(200),
+      rules: ['?'.repeat(32) + '=' + '0'.repeat(32), '# ' + 'x'.repeat(98)].concat(Array.from({ length: 254 }, () => '#')) }));
+    out.notes.maxOk = { ok: maxOk.ok, issues: (maxOk.issues || []).map((i) => i.message) };
+    ck('limit_maxAccepted', maxOk.ok);
+
+    // ---------------------------------------------------------------- pin names (markup)
+    const latch = { kind: 'logic', name: 'lg-dff', inputs: ['D', 'CLK:C'], outputs: ['Q', '/Q'], rules: ['0+=01', '1+=10', '??ab=ab'], info: 'D flip-flop' };
+    const lt = await define(D, latch, [{ op: 'add', element: { id: 'FF1', type: 'CustomLogic', start: { x: 30, y: 4 }, properties: { model_name: 'lg-dff' } } },
+      { op: 'markOpen', posts: ['FF1.Q_2'] }]);
+    const ff = lt.ok ? lt.data.elements.find((e) => e.id === 'FF1') : null;
+    out.notes.latch = { ok: lt.ok, issues: (lt.issues || []).map((i) => i.code + ': ' + i.message), model: lt.ok && lt.data.models[0], posts: posts(ff) };
+    ck('pins_elementNames', lt.ok && same(posts(ff), ['D', 'C', 'Q', 'Q_2']) && ff.posts[3].open === true);
+    ck('pins_recordKeepsMarkup', lt.ok && same(lt.data.models[0].inputs, ['D', 'CLK:C']) && same(lt.data.models[0].outputs, ['Q', '/Q'])
+      && lt.data.models[0].info === 'D flip-flop');
+    // the flip-flop latches D on the rising clock edge
+    if (ff) {
+      const at = (p) => postAt(ff, p);
+      await A('applyEdits', { doc: D, edits: [
+        { op: 'add', element: { id: 'ID', type: 'LogicInput', start: at('D'), end: { x: at('D').x - 3, y: at('D').y }, properties: { position: 1 } } },
+        { op: 'add', element: { id: 'IC', type: 'LogicInput', start: at('C'), end: { x: at('C').x - 3, y: at('C').y }, properties: { position: 0 } } }] });
+      const q = async () => { const r = await R({ doc: D, span: '0.2 ms', maxPoints: 10, probes: [{ post: 'FF1.Q', name: 'q' }, { post: 'FF1.Q_2', name: 'nq' }] }); return r.ok ? r.data.probes.map((p) => p.stats.final) : codes(r); };
+      await R({ doc: D, span: '0.2 ms', reset: true, maxPoints: 10, probes: [{ post: 'FF1.Q' }] });
+      const q0 = await q();
+      await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'IC', properties: { position: 1 } }] });
+      const q1 = await q();
+      await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'ID', properties: { position: 0 } }] });
+      const q2 = await q();
+      out.notes.latchRun = { q0, q1, q2 };
+      ck('pins_flipFlopLatches', q1[0] > 2.5 && q1[1] < 0.5 && q2[0] > 2.5 && q2[1] < 0.5);
+    }
+
+    // the D latch of the skill text (agent-format §6, elements.md): transparent while E is high, holds while low
+    const dl = await define(D, { kind: 'logic', name: 'lg-dlatch', inputs: ['D', 'E'], outputs: ['Q', '/Q'], rules: ['01=01', '11=10', '??ab=ab'] },
+      [{ op: 'add', element: { id: 'DL1', type: 'CustomLogic', start: { x: 40, y: 14 }, properties: { model_name: 'lg-dlatch' } } }]);
+    const dle = dl.ok ? dl.data.elements.find((e) => e.id === 'DL1') : null;
+    if (dle) {
+      const at = (p) => postAt(dle, p);
+      await A('applyEdits', { doc: D, edits: [
+        { op: 'add', element: { id: 'LD', type: 'LogicInput', start: at('D'), end: { x: at('D').x - 3, y: at('D').y }, properties: { position: 1 } } },
+        { op: 'add', element: { id: 'LE', type: 'LogicInput', start: at('E'), end: { x: at('E').x - 3, y: at('E').y }, properties: { position: 1 } } }] });
+      const q = async (reset) => { const r = await R({ doc: D, span: '0.2 ms', reset, maxPoints: 10, probes: [{ post: 'DL1.Q', name: 'q' }, { post: 'DL1.Q_2', name: 'nq' }] }); return r.ok ? r.data.probes.map((p) => p.stats.final) : codes(r); };
+      const l1 = await q(true); // E high, D high: Q follows D
+      await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'LE', properties: { position: 0 } }] });
+      await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'LD', properties: { position: 0 } }] });
+      const l2 = await q(false); // E low: Q holds 1
+      await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'LE', properties: { position: 1 } }] });
+      const l3 = await q(false); // E high again: Q follows D = 0
+      out.notes.dlatchRun = { posts: posts(dle), l1, l2, l3 };
+      ck('pins_dLatch', same(posts(dle), ['D', 'E', 'Q', 'Q_2']) && l1[0] > 2.5 && l1[1] < 0.5 && l2[0] > 2.5 && l3[0] < 0.5 && l3[1] > 2.5);
+    } else {
+      ck('pins_dLatch', false);
+    }
+
+    // ---------------------------------------------------------------- set model_name: the element takes the model's pins
+    const sm = await A('applyEdits', { doc: D, edits: [{ op: 'add', element: { id: 'CL2', type: 'CustomLogic', start: { x: 50, y: 4 }, properties: { model_name: 'default' } } }] });
+    const cl2a = sm.ok ? sm.data.elements[0] : null;
+    const sm2 = await A('applyEdits', { doc: D, edits: [{ op: 'set', id: 'CL2', properties: { model_name: 'lg-and' } }, { op: 'markOpen', posts: ['CL2.Y'] }] });
+    const cl2b = sm2.ok ? sm2.data.elements.find((e) => e.id === 'CL2') : null;
+    out.notes.setModel = { before: posts(cl2a), after: posts(cl2b), issues: (sm2.issues || []).map((i) => i.code + ': ' + i.message) };
+    ck('set_modelPins', same(posts(cl2a), ['A', 'B', 'C', 'D']) && sm2.ok && same(posts(cl2b), ['A', 'B', 'Y']) && cl2b.properties.model_name === 'lg-and'
+      && cl2b.properties.output_count === 1 && cl2b.posts[2].open === true && !has(sm2, 'value_adjusted'));
+    const usedAnd = await record('logic', 'lg-and');
+    ck('set_usedBy', usedAnd && same(usedAnd.usedBy, [{ doc: D, ids: ['CL1', 'CL2'] }]));
+
+    // ---------------------------------------------------------------- importCircuit: logic ModelText
+    const I = (await A('createDocument', { title: 'Logic import' })).data.doc;
+    const mt = (m) => ({ elements: [], models: [m] });
+    await rejects('mt_badRule', I, () => A('importCircuit', { doc: I, circuit: mt({ kind: 'logic', name: 'lg-mt', modelText: '! lg-mt 0 A,B Y lg-mt 1\\q11\\n' }) }), 'invalid_value', /modelText'.*rule line 1/);
+    ck('mt_badRuleNotRegistered', has(await A('listModels', { kind: 'logic', name: 'lg-mt' }), 'unknown_model'));
+    await rejects('mt_badFlags', I, () => A('importCircuit', { doc: I, circuit: mt({ kind: 'logic', name: 'lg-mt', modelText: '! lg-mt x A,B Y lg-mt 11\\q1\\n' }) }), 'invalid_value', /modelText'/);
+    // a 9-char pin name travels as ModelText; the element takes its pins
+    const longText = '! lg-long 0 ABCDEFGHI,B Y lg-long 11\\q1\\n';
+    const lo = await A('importCircuit', { doc: I, circuit: { models: [{ kind: 'logic', name: 'lg-long', modelText: longText }],
+      elements: [{ id: 'CL3', type: 'CustomLogic', start: { x: 0, y: 0 }, properties: { model_name: 'lg-long' } },
+        { id: 'CL4', type: 'CustomLogic', start: { x: 12, y: 0 }, properties: { model_name: 'lg-and' } }] } });
+    const loRec = await record('logic', 'lg-long');
+    out.notes.longImport = { ok: lo.ok, issues: (lo.issues || []).map((i) => i.code + ': ' + i.message), rec: loRec && strip(loRec) };
+    ck('mt_defines', lo.ok && loRec && same(loRec.inputs, ['ABCDEFGHI', 'B']) && same(loRec.rules, ['11=1']));
+    const gc = await A('getCircuit', { doc: I, detail: 'full' });
+    const gm = gc.data.models || [];
+    out.notes.gcModels = gm;
+    const gLong = gm.find((m) => m.name === 'lg-long'), gAnd = gm.find((m) => m.name === 'lg-and');
+    ck('get_longPinIsModelText', gLong && gLong.modelText === longText && !gLong.inputs);
+    ck('get_andIsModelSpec', gAnd && !gAnd.modelText && same(gAnd.inputs, ['A', 'B']) && same(gAnd.outputs, ['Y']) && same(gAnd.rules, ['11=1', '??=0']) && gAnd.info === 'lg-and');
+    ck('get_elementPins', same(posts(gc.data.elements.find((e) => e.id === 'CL3')), ['ABCDEFGHI', 'B', 'Y']));
+    // same-session re-import of the getCircuit form: every entry identical, records equal
+    const RT = (await A('createDocument', { title: 'Logic roundtrip' })).data.doc;
+    const c0 = await catalogue();
+    const rt = await A('importCircuit', { doc: RT, circuit: { elements: gc.data.elements, simulation: gc.data.simulation, scopes: gc.data.scopes, models: gm } });
+    const c1 = await catalogue();
+    const gc2 = await A('getCircuit', { doc: RT, detail: 'full' });
+    const recs = (g) => JSON.stringify(g.data.elements.map((e) => { const c = Object.assign({}, e); delete c.posts; return c; }));
+    out.notes.roundtrip = { ok: rt.ok, issues: (rt.issues || []).map((i) => i.code + ': ' + i.message), catalogueSame: c0 === c1 };
+    ck('roundtrip_sameSession', rt.ok && c0 === c1 && recs(gc) === recs(gc2) && same(gc2.data.models, gm));
+    // the ModelSpec form of getCircuit, defined under a new name, gives the same model line but the name
+    const asNew = Object.assign({}, gAnd, { name: 'lg-and-copy' });
+    const cp = await define(I, asNew, [{ op: 'add', element: { id: 'CL5', type: 'CustomLogic', start: { x: 24, y: 0 }, properties: { model_name: 'lg-and-copy' } } }]);
+    const txt = (await A('exportCircuit', { doc: I, format: 'text' })).data.content;
+    const line = (n) => txt.split('\n').find((l) => l.startsWith('! ' + n + ' '));
+    out.notes.lines = [line('lg-and'), line('lg-and-copy')];
+    ck('spec_reimportSameLine', cp.ok && line('lg-and') && line('lg-and-copy') && line('lg-and').replace(/lg-and/g, 'X') === line('lg-and-copy').replace(/lg-and-copy/g, 'X').replace(/lg-and/g, 'X'));
+
+    // ---------------------------------------------------------------- legacy text content
+    const T = (await A('createDocument', { title: 'Logic text' })).data.doc;
+    const opts = '$ 1 0.000005 10 50 5 50 5e-11';
+    await rejects('text_badRuleLine', T, () => A('importCircuit', { doc: T, circuit: opts + '\n! lg-tbad 0 A,B Y lg-tbad 1\\q11\\n\n' }), 'invalid_value', /lg-tbad.*rule line 1/);
+    ck('text_badRuleNotRegistered', has(await A('listModels', { kind: 'logic', name: 'lg-tbad' }), 'unknown_model'));
+    const tg = await A('importCircuit', { doc: T, circuit: opts + '\n! lg-tok 0 A,B Y lg-tok 11\\q1\\n\n' });
+    ck('text_goodRuleLine', tg.ok && (await record('logic', 'lg-tok')) !== null);
+    await rejects('text_differingLogicDefault', T, () => A('importCircuit', { doc: T, circuit: opts + '\n! default 0 A,B C,D custom\\slogic 11\\q11\\n\n' }), 'name_taken', /open the file with `openFile`/i);
+
+    // ---------------------------------------------------------------- openFile of a file with a bad rule: loads, warning, no alert
+    const files = { '/tmp/aml_bad.txt': opts + '\n! lg-fbad 0 A,B Y lg-fbad 11\\q1\\n1\\q11\\n\n' };
+    await s.eval(`(() => {
+      const files = ${JSON.stringify(files)};
+      const err = (p) => { const e = new Error('ENOENT: no such file or directory, ' + p); e.code = 'ENOENT'; return e; };
+      const loose = (base) => new Proxy(base, { get: (t, k) => (k in t ? t[k] : () => undefined) });
+      const fs = loose({
+        realpathSync: (p) => { if (!(p in files)) throw err(p); return p; },
+        statSync: (p) => { if (!(p in files)) throw err(p); return { isFile: () => true, size: files[p].length, mode: 420 }; },
+        readFileSync: (p) => { if (!(p in files)) throw err(p); const t = files[p]; return { length: t.length, toString: () => t }; },
+      });
+      const path = loose({ resolve: (p) => p, isAbsolute: (p) => p.startsWith('/'), basename: (p) => p.replace(/^.*\\//, ''), join: (...a) => a.join('/'), dirname: (p) => p.replace(/\\/[^/]*$/, '') });
+      window.__savedNw = window.nw;
+      window.nw = { require: (m) => (m === 'fs' ? fs : m === 'path' ? path : m === 'buffer' ? { Buffer: function () {} } : undefined) };
+    })()`);
+    try {
+      const a0 = (await alerts()).length;
+      const of = await A('openFile', { path: '/tmp/aml_bad.txt' });
+      const fr = await record('logic', 'lg-fbad');
+      out.notes.openFile = { ok: of.ok, issues: (of.issues || []).map((i) => i.code + ': ' + i.message), rec: fr && fr.rules };
+      ck('openFile_badRuleLoads', of.ok && has(of, 'value_adjusted', /lg-fbad.*rule line 2/) && fr && same(fr.rules, ['11=1', '1=11'])
+        && (await alerts()).length === a0);
+      if (of.ok) await A('closeDocument', { doc: of.data.doc, discardChanges: true });
+    } finally {
+      await s.eval('window.nw = window.__savedNw; delete window.__savedNw; if (window.nw === undefined) delete window.nw;');
+    }
+
+    // ---------------------------------------------------------------- user load of a bad rule alerts (editor behaviour); agent undo/redo over it do not
+    let userAlerts = 0;
+    {
+      const V = (await A('createDocument', { title: 'Logic user', activate: true })).data.doc;
+      await sleep(200);
+      const a0 = (await alerts()).length;
+      await s.call('importText', opts + '\n! lg-ubad 0 A,B Y lg-ubad 1\\q11\\n\n');
+      const afterLoad = (await alerts()).slice(a0);
+      const a1 = a0 + afterLoad.length;
+      // an element using the user's model, so every undo entry carries its model line
+      const ed = await A('applyEdits', { doc: V, edits: [{ op: 'add', element: { id: 'CU', type: 'CustomLogic', start: { x: 2, y: 2 }, properties: { model_name: 'lg-ubad' } } }] });
+      await A('checkpoint', { doc: V });
+      const ed2 = await A('applyEdits', { doc: V, edits: [{ op: 'add', element: { id: 'R1', type: 'Resistor', start: { x: 20, y: 0 }, end: { x: 24, y: 0 } } }] });
+      const un = await A('undo', { doc: V });
+      const re = await A('redo', { doc: V });
+      const rc = await A('restoreCheckpoint', { doc: V, checkpointId: (await A('getHistory', { doc: V })).data.undo.map((e) => e.checkpointId).find((c) => c) });
+      const a2 = (await alerts()).length;
+      // a background document's agent undo: no alert either
+      const W = (await A('createDocument', { title: 'Logic bg' })).data.doc;
+      await A('importCircuit', { doc: W, circuit: (await A('exportCircuit', { doc: V, format: 'text' })).data.content });
+      const bw1 = await A('applyEdits', { doc: W, edits: [{ op: 'add', element: { id: 'R9', type: 'Resistor', start: { x: 30, y: 0 }, end: { x: 34, y: 0 } } }] });
+      const bu = await A('undo', { doc: W });
+      const a3 = (await alerts()).length;
+      await A('closeDocument', { doc: W, discardChanges: true });
+      // the user's own redo (Ctrl+Y in the visible tab; after the restore the redo entry holds CU
+      // and R1) reloads the model line: the editor alerts
+      await s.call('focus'); await s.key('Escape');
+      await s.key('KeyY', { ctrl: true });
+      await sleep(300);
+      const afterUserRedo = (await alerts()).slice(a3);
+      out.notes.userLoad = { afterLoad, agentAlerts: a3 - a1, afterUserRedo, ok: [ed.ok, ed2.ok, un.ok, re.ok, rc.ok, bw1.ok, bu.ok] };
+      ck('userLoad_alerts', afterLoad.length === 1 && afterLoad[0] === 'Model must have >= 2 digits on left side');
+      ck('agentUndo_noAlert', ed.ok && ed2.ok && un.ok && re.ok && rc.ok && a2 === a1);
+      ck('agentBackgroundUndo_noAlert', bw1.ok && bu.ok && a3 === a2);
+      ck('userRedo_alerts', afterUserRedo.length >= 1 && afterUserRedo.every((m) => m === 'Model must have >= 2 digits on left side'));
+      userAlerts = afterLoad.length + afterUserRedo.length;
+
+      // a session entry whose stored rules do not parse (the user's load kept them) travels as
+      // ModelText and re-imports where the identical entry exists (§02_05 Round trip, its exception);
+      // as a new name (the fresh-session case) the same line is invalid_value
+      const vg = await A('getCircuit', { doc: V, detail: 'full' });
+      const ubad = (vg.data.models || []).find((m) => m.name === 'lg-ubad');
+      const ar0 = (await alerts()).length;
+      const RB = (await A('createDocument', { title: 'Logic bad rt' })).data.doc;
+      const cb0 = await catalogue();
+      const rb = await A('importCircuit', { doc: RB, circuit: { elements: vg.data.elements, simulation: vg.data.simulation, models: vg.data.models } });
+      const cb1 = await catalogue();
+      const rbm = await A('importCircuit', { doc: RB, circuit: { elements: [], models: [ubad] } });
+      out.notes.badRoundtrip = { model: ubad, import: rb.ok ? 'ok' : (rb.issues || []).map((i) => i.code + ': ' + i.message), models: rbm.ok };
+      ck('badRules_sameSessionReimport', ubad && typeof ubad.modelText === 'string' && rb.ok && rbm.ok && cb0 === cb1);
+      const renamed = ubad ? { kind: 'logic', name: 'lg-ubad-new', modelText: ubad.modelText.replace(/lg-ubad/g, 'lg-ubad-new') } : null;
+      await rejects('badRules_newNameRejected', RB, () => A('importCircuit', { doc: RB, circuit: { elements: [], models: [renamed] } }), 'invalid_value', /modelText'.*do not parse/);
+      ck('badRules_noAlert', (await alerts()).length === ar0);
+      await A('closeDocument', { doc: RB, discardChanges: true });
+
+      // ---------------------------------------------------------------- editor: the model dialog still alerts a bad rule
+      await A('closeDocument', { doc: V, discardChanges: true });
+      const E = (await A('createDocument', { title: 'Logic editor', activate: true })).data.doc;
+      await sleep(300);
+      const ee = await define(E, { kind: 'logic', name: 'lg-edit', inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=1'] },
+        [{ op: 'add', element: { id: 'CE', type: 'CustomLogic', start: { x: 10, y: 6 }, properties: { model_name: 'lg-edit' } } }]);
+      const ce = ee.ok ? ee.data.elements.find((e) => e.id === 'CE') : null;
+      await A('checkpoint', { doc: E });
+      await sleep(300);
+      const dcr = await s.call('canvasRect');
+      const view = (await s.call('visibleTab')).view;
+      const k = dcr.w / view.canvas.width, t = view.transform;
+      const toScreen = (gx, gy) => ({ x: dcr.x + (t[0] * gx + t[4]) * k, y: dcr.y + (t[3] * gy + t[5]) * k });
+      let dialogAlert = null;
+      if (ce) {
+        const xs = ce.posts.map((p) => p.at.x), ys = ce.posts.map((p) => p.at.y);
+        const mid = toScreen(16 * (Math.min(...xs) + Math.max(...xs)) / 2, 16 * (Math.min(...ys) + Math.max(...ys)) / 2);
+        await s.call('focus'); await s.key('Escape');
+        const b0 = (await alerts()).length;
+        await s.mouseDoubleClick(mid.x, mid.y);
+        await sleep(400);
+        const shown = await s.call('dialogShowing');
+        // the element dialog's one body button is "Edit Model" (labels are translated; the bottom
+        // row .topSpace holds Apply, OK, Cancel)
+        const clicked = await s.eval(`(() => { const b = Array.from(document.querySelectorAll('.gwt-DialogBox button')).find((x) => x.offsetWidth > 0 && !x.closest('.topSpace')); if (!b) return false; b.click(); return true; })()`);
+        await sleep(400);
+        const typed = await s.eval(`(() => { const ta = Array.from(document.querySelectorAll('.gwt-DialogBox textarea')).find((x) => x.offsetWidth > 0); if (!ta) return false; ta.value = '1=11'; const d = ta.closest('.gwt-DialogBox'); const ok = d.querySelectorAll('.topSpace button')[1]; if (!ok) return 'noOk'; ok.click(); return true; })()`);
+        await sleep(400);
+        const all = await alerts();
+        dialogAlert = { at: mid, shown, clicked, typed, alerts: all.slice(b0) };
+        await s.call('closeDialogs'); await s.key('Escape');
+      }
+      out.notes.editorDialog = dialogAlert;
+      ck('editor_dialogAlertsBadRule', dialogAlert && dialogAlert.alerts.length >= 1 && /^Model must have >= 2 digits on left side$/.test(dialogAlert.alerts[0]));
+      await A('closeDocument', { doc: E, discardChanges: true });
+    }
+
+    for (const doc of [D, I, RT, T]) await A('closeDocument', { doc, discardChanges: true });
+    out.rejections = rejections;
+    const unexpected = s.exceptions.slice(exMark);
+    out.notes.exceptions = unexpected.slice(0, 5);
+    ck('noPageException', unexpected.length === 0);
+    // alerts: only the editor dialog's (hooked), none through CDP
+    const allAlerts = await alerts();
+    out.notes.alerts = allAlerts;
+    ck('noAgentAlert', allAlerts.length === userAlerts + (out.notes.editorDialog ? out.notes.editorDialog.alerts.length : 0) && s.dialogs.length === dialogMark);
+  } catch (e) {
+    out.notes.error = e.stack || e.message;
+    ck('noHarnessError', false);
+  } finally {
+    await s.eval('if (window.__savedAlert) { window.alert = window.__savedAlert; delete window.__savedAlert; }').catch(() => {});
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_models_logic.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('AG.agent_models_logic', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models_logic.json') });
 }
 
 // pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_03_02 "Polar names",
@@ -5375,7 +5728,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -5419,7 +5772,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

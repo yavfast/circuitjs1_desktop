@@ -213,7 +213,7 @@ final class EditOps {
         Edit e;
         switch (op) {
             case "add":
-                e = validateAdd(o, where, i, m, cat, issues);
+                e = validateAdd(o, where, i, m, cat, scope, issues);
                 break;
             case "move":
                 e = validateMove(o, where, m, issues);
@@ -229,7 +229,7 @@ final class EditOps {
                 break;
             }
             case "set":
-                e = validateSet(o, where, m, issues);
+                e = validateSet(o, where, m, scope, issues);
                 break;
             case "describe": {
                 DescribeEdit d = new DescribeEdit();
@@ -274,7 +274,8 @@ final class EditOps {
         return e;
     }
 
-    private static Edit validateAdd(JSONObject o, String where, int i, Model m, Catalogue cat, List<Issue> issues) {
+    private static Edit validateAdd(JSONObject o, String where, int i, Model m, Catalogue cat, ModelOps.Scope scope,
+            List<Issue> issues) {
         AgentCircuitConverter.Spec spec = AgentCircuitConverter.parseSpec(o.get("element"), where + ".element", i,
                 CellGeometry.EDIT_LATTICE, cat, issues);
         if (spec == null) {
@@ -291,7 +292,7 @@ final class EditOps {
         // a generated ID is not known yet: later edits can only name supplied IDs
         it.id = spec.id != null ? spec.id : "#add" + i;
         it.type = spec.type;
-        it.pins = spec.type.pins;
+        it.pins = modelPins(spec.type, spec.given, spec.type.pins, scope);
         it.x1 = spec.x1;
         it.y1 = spec.y1;
         it.x2 = spec.x2;
@@ -376,7 +377,7 @@ final class EditOps {
         return mv;
     }
 
-    private static Edit validateSet(JSONObject o, String where, Model m, List<Issue> issues) {
+    private static Edit validateSet(JSONObject o, String where, Model m, ModelOps.Scope scope, List<Issue> issues) {
         SetEdit s = new SetEdit();
         s.id = requireElement(o, "id", where, m, issues);
         boolean hasProps = present(o, "properties");
@@ -399,9 +400,27 @@ final class EditOps {
             }
             AgentCircuitConverter.readProperties(props, where + ".properties", it.type, extraKeys(it), false, s.patch,
                     issues, s.id);
+            it.pins = modelPins(it.type, s.patch, it.pins, scope);
         }
         s.flags = AgentCircuitConverter.readFlags(o.get("flags"), where + ".flags", issues, s.id);
         return s;
+    }
+
+    /**
+     * [SP_AGA_02_04] "earlier edits visible to later ones": a {@code CustomLogic} whose
+     * {@code model_name} the edit gives has the posts of that logic model (session entry or a
+     * {@code defineModel} earlier in the batch) for the later edits of the batch.
+     */
+    private static String[] modelPins(Catalogue.TypeInfo type, Map<String, Object> props, String[] current,
+            ModelOps.Scope scope) {
+        Object name = props.get("model_name");
+        if (type != null && "CustomLogic".equals(type.type) && name instanceof String) {
+            String[] pins = ModelOps.logicPins((String) name, scope);
+            if (pins != null) {
+                return pins;
+            }
+        }
+        return current;
     }
 
     /** Keys an existing element exports beyond its catalogue entry (kind inferred from the value). */

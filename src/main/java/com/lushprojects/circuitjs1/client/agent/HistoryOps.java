@@ -219,6 +219,10 @@ final class HistoryOps {
                 um.sealTransaction();
             }
             String warning;
+            // [SP_AGA_03_11] "No dialogs": the reload is an agent path (agent origin), so a model
+            // line the editor would alert about (a logic rule that does not parse) is not alerted
+            boolean wasAgentOrigin = doc.isAgentOrigin();
+            doc.setAgentOrigin(true);
             try {
                 warning = isUndo ? um.undo(steps) : um.redo(steps);
             } catch (Throwable t) {
@@ -228,6 +232,8 @@ final class HistoryOps {
                 return OperationResult.failure(Issue.of(IssueCode.INTERNAL_ERROR,
                         "Internal error; the document and its history were restored: " + t.getMessage(),
                         "Report the error; the call can be retried."));
+            } finally {
+                doc.setAgentOrigin(wasAgentOrigin);
             }
             sim.needAnalyze();
             sim.setUnsavedChanges(true);

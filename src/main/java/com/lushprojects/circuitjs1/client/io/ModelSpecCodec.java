@@ -11,6 +11,7 @@ import com.lushprojects.circuitjs1.client.DiodeModel;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.TransistorModel;
 import com.lushprojects.circuitjs1.client.element.BaseCircuitElm;
+import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.util.UnitValues;
 
 import java.util.ArrayList;
@@ -32,9 +33,10 @@ import java.util.List;
  * side-effect-free {@code modelLine()}: {@code dump()} marks entries dumped and the logic
  * {@code dump()} rewrites its stored rules.
  * <p>
- * This build defines diode and transistor models. A logic or subcircuit definition is decoded
- * as far as its model line (so an identical existing entry is accepted) but cannot be registered
- * yet (PL_AGA Phases 12 and 13): {@link Definition#unsupported} says why.
+ * This build defines diode, transistor and logic models. A subcircuit definition is decoded as
+ * far as its model line (so an identical existing entry is accepted) but cannot be registered yet
+ * (PL_AGA Phase 13): {@link Definition#unsupported} says why. Logic rules are validated by the
+ * editor's own parser ({@link CustomLogicModel#parseRules(String, int, int)}), never by alerts.
  */
 public final class ModelSpecCodec {
 
@@ -52,6 +54,14 @@ public final class ModelSpecCodec {
 
     /** [SP_AGA_01_13] ModelName pattern of a ModelSpec. */
     public static final String NAME_PATTERN = "^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$";
+
+    /** [SP_AGA_01_13] Logic ModelSpec limits: pins per side, rule lines, chars per rule line, info chars. */
+    public static final int MAX_LOGIC_PINS = 32;
+    public static final int MAX_RULES = 256;
+    public static final int MAX_RULE_CHARS = 100;
+    public static final int MAX_INFO_CHARS = 200;
+    /** [SP_AGA_01_13] Pin name of a logic ModelSpec, markup included. */
+    public static final String PIN_PATTERN = "^[A-Za-z0-9/#:_+-]{1,8}$";
 
     /** Relative tolerance of the record form's forward-voltage check. */
     static final double FORWARD_VOLTAGE_TOLERANCE = 1e-9;
@@ -82,17 +92,28 @@ public final class ModelSpecCodec {
         public final String name;
         /** The model line the definition produces (identical check), or null when it cannot be built. */
         public final String line;
-        /** The detached model to register (DiodeModel / TransistorModel), or null. */
+        /** The detached model to register (DiodeModel / TransistorModel / CustomLogicModel), or null. */
         final Object model;
         /** Why this build cannot register the definition (null when it can). */
         public final String unsupported;
+        /**
+         * A problem that rejects the definition only as a new entry (a logic ModelText whose rules
+         * do not parse): an identical existing entry is still accepted, as the text importer
+         * accepts an identical model line ([SP_AGA_02_05] "Round trip"). Null when none.
+         */
+        public final Problem newEntryProblem;
 
         Definition(String kind, String name, String line, Object model, String unsupported) {
+            this(kind, name, line, model, unsupported, null);
+        }
+
+        Definition(String kind, String name, String line, Object model, String unsupported, Problem newEntryProblem) {
             this.kind = kind;
             this.name = name;
             this.line = line;
             this.model = model;
             this.unsupported = unsupported;
+            this.newEntryProblem = newEntryProblem;
         }
 
         /** @return the detached model when it is a diode model, else null (used as a {@code from} base) */
@@ -103,6 +124,11 @@ public final class ModelSpecCodec {
         /** @return the detached model when it is a transistor model, else null */
         public TransistorModel transistor() {
             return model instanceof TransistorModel ? (TransistorModel) model : null;
+        }
+
+        /** @return the detached model when it is a logic model, else null (its pins for later edits) */
+        public CustomLogicModel logic() {
+            return model instanceof CustomLogicModel ? (CustomLogicModel) model : null;
         }
     }
 
@@ -301,6 +327,11 @@ public final class ModelSpecCodec {
         if (d.model instanceof TransistorModel) {
             Runnable r = TransistorModel.entryRestorer(d.name);
             TransistorModel.defineEntry((TransistorModel) d.model);
+            return r;
+        }
+        if (d.model instanceof CustomLogicModel) {
+            Runnable r = CustomLogicModel.entryRestorer(d.name);
+            CustomLogicModel.defineEntry((CustomLogicModel) d.model);
             return r;
         }
         throw new IllegalStateException("model kind " + d.kind + " cannot be registered");
@@ -609,6 +640,12 @@ public final class ModelSpecCodec {
 
     // ---------------------------------------------------------------- logic
 
+    /**
+     * [SP_AGA_01_13] Logic ModelSpec: pins (1..32 per side, the pin-name pattern, not empty after
+     * the markup is removed, unique within the model as given), rules (1..256 lines of at most 100
+     * chars, parsed by the editor's parser; a bad line names {@code rules[<i>]}), info (at most 200
+     * chars, default the name). Flags are 0, as the editor creates a model.
+     */
     private static Definition decodeLogicSpec(JSONObject o, String name, String where, List<Problem> problems) {
         List<String> inputs = stringList(o, "inputs", where, true, problems);
         List<String> outputs = stringList(o, "outputs", where, true, problems);
@@ -619,15 +656,75 @@ public final class ModelSpecCodec {
                 problems.add(invalid(where + ".info", "must be a string", "Pass the info text, or omit it."));
             } else {
                 info = o.get("info").isString().stringValue();
+                if (info.length() > MAX_INFO_CHARS) {
+                    problems.add(invalid(where + ".info", "has " + info.length() + " characters; at most " + MAX_INFO_CHARS
+                            + " are allowed", "Shorten the info text."));
+                }
             }
         }
         if (!problems.isEmpty()) {
             return null;
         }
-        String line = CustomLogicModel.lineOf(name, 0, String.join(",", inputs), String.join(",", outputs), info,
-                String.join("\n", rules));
-        // [PL_AGA_P12] rule validation and registration come with the logic model definitions
-        return new Definition(LOGIC, name, line, null, "logic model definitions are not supported by this build yet");
+        List<String> seen = new ArrayList<>();
+        pins(inputs, "inputs", where, seen, problems);
+        pins(outputs, "outputs", where, seen, problems);
+        String rw = where + ".rules";
+        if (rules.isEmpty() || rules.size() > MAX_RULES) {
+            problems.add(invalid(rw, "must hold 1 to " + MAX_RULES + " rule lines (got " + rules.size() + ")",
+                    "Pass the truth table as rule lines such as \"11=1\"; '#' lines are comments."));
+        }
+        for (int i = 0; i < rules.size(); i++) {
+            String r = rules.get(i);
+            if (r.indexOf('\n') >= 0 || r.indexOf('\r') >= 0) {
+                problems.add(invalid(rw + "[" + i + "]", "must be one line", "Pass each rule line as its own list entry."));
+            } else if (r.length() > MAX_RULE_CHARS) {
+                problems.add(invalid(rw + "[" + i + "]", "has " + r.length() + " characters; at most " + MAX_RULE_CHARS
+                        + " are allowed", "Split the rule or use pattern letters."));
+            }
+        }
+        if (!problems.isEmpty()) {
+            return null;
+        }
+        String[] in = inputs.toArray(new String[0]);
+        String[] out = outputs.toArray(new String[0]);
+        CustomLogicModel lm = CustomLogicModel.createDetached(name, in, out, info, String.join("\n", rules));
+        if (lm.getRuleError() != null) {
+            int line = Math.max(0, lm.getRuleErrorLine());
+            problems.add(invalid(rw + "[" + line + "]", "does not parse: " + lm.getRuleError() + " ('"
+                    + clip(rules.get(Math.min(line, rules.size() - 1))) + "')", ruleHint(in.length, out.length)));
+            return null;
+        }
+        return new Definition(LOGIC, name, lm.modelLine(), lm, null);
+    }
+
+    /** Validates one side's pin names into {@code problems}; {@code seen} collects the names so far. */
+    private static void pins(List<String> names, String key, String where, List<String> seen, List<Problem> problems) {
+        String w = where + "." + key;
+        if (names.isEmpty() || names.size() > MAX_LOGIC_PINS) {
+            problems.add(invalid(w, "must hold 1 to " + MAX_LOGIC_PINS + " pin names (got " + names.size() + ")",
+                    "Pass the " + key + " as a list of pin names, e.g. [\"A\", \"B\"]."));
+            return;
+        }
+        for (int i = 0; i < names.size(); i++) {
+            String n = names.get(i);
+            String wi = w + "[" + i + "]";
+            if (!n.matches(PIN_PATTERN)) {
+                problems.add(invalid(wi, "is not a valid pin name: '" + clip(n) + "'",
+                        "Use 1-8 characters: letters, digits, '_', '+', '-', and the markup '/', '#', ':'."));
+            } else if (ChipElm.pinText(n).isEmpty()) {
+                problems.add(invalid(wi, "is empty after its markup is removed: '" + clip(n) + "'",
+                        "Give the pin a text after the markup; a clock input is written like \"CLK:C\"."));
+            } else if (seen.contains(n)) {
+                problems.add(invalid(wi, "repeats the pin name '" + clip(n) + "'", "Pin names are unique within the model."));
+            }
+            seen.add(n);
+        }
+    }
+
+    private static String ruleHint(int inputs, int outputs) {
+        return "A rule is left=right: the left side has " + inputs + " to " + (inputs + outputs)
+                + " characters (0, 1, ? = any, + = rising, - = falling, or a pattern letter), one per input then per output; "
+                + "the right side has " + outputs + " (0, 1, _ = high impedance, or a pattern letter of the left side).";
     }
 
     // ---------------------------------------------------------------- ModelText
@@ -681,10 +778,16 @@ public final class ModelSpecCodec {
                     TransistorModel tm = TransistorModel.undumpDetached(name, st);
                     return new Definition(kind, name, tm.modelLine(), tm, null);
                 }
-                case LOGIC:
-                    // [PL_AGA_P12] rule validation and registration come with the logic model definitions
-                    return new Definition(kind, name, CustomLogicModel.normalizedLine(name, st), null,
-                            "logic ModelText is not supported by this build yet");
+                case LOGIC: {
+                    // [SP_AGA_01_13] "Line": the rules are validated by the editor's parser, never alerted
+                    CustomLogicModel lm = CustomLogicModel.undumpDetached(name, st);
+                    // a bad rule rejects a new entry only: the session may hold this very line (an
+                    // editor-made model keeps rules that do not parse), and an identical line is accepted
+                    Problem bad = lm.getRuleError() == null ? null
+                            : invalid(mw, "has rules that do not parse at rule line " + (lm.getRuleErrorLine() + 1)
+                                    + ": " + lm.getRuleError(), ruleHint(lm.inputs.length, lm.outputs.length));
+                    return new Definition(kind, name, lm.modelLine(), lm, null, bad);
+                }
                 default:
                     // [PL_AGA_P13] inner-reference validation and registration come with the subcircuit definitions
                     return new Definition(kind, name, CustomCompositeModel.normalizedLine(name, st), null,
@@ -775,8 +878,8 @@ public final class ModelSpecCodec {
 
     /**
      * [SP_AGA_02_05] "Form": the entry as a ModelSpec when its ModelSpec passes validation and
-     * reproduces the entry's model line exactly, otherwise (and always for logic and subcircuit
-     * models in this build) as a ModelText. Null when the catalogue has no such entry.
+     * reproduces the entry's model line exactly, otherwise (and always for subcircuit models) as
+     * a ModelText. Null when the catalogue has no such entry.
      */
     public static JSONObject encode(String kind, String name) {
         Object entry = entry(kind, name);
@@ -784,12 +887,8 @@ public final class ModelSpecCodec {
             return null;
         }
         String line = lineOf(entry);
-        JSONObject params = parameters(entry);
-        if (params != null && name.matches(NAME_PATTERN)) {
-            JSONObject spec = new JSONObject();
-            spec.put("kind", new JSONString(kind));
-            spec.put("name", new JSONString(name));
-            spec.put("parameters", params);
+        JSONObject spec = name.matches(NAME_PATTERN) ? specOf(kind, name, entry) : null;
+        if (spec != null) {
             List<Problem> problems = new ArrayList<>();
             Definition d = decode(spec, "model", null, problems);
             if (d != null && line.equals(d.line)) {
@@ -801,6 +900,50 @@ public final class ModelSpecCodec {
         text.put("name", new JSONString(name));
         text.put("modelText", new JSONString(line));
         return text;
+    }
+
+    /** @return the ModelSpec fields of a diode, transistor or logic entry (unvalidated), or null */
+    private static JSONObject specOf(String kind, String name, Object entry) {
+        JSONObject spec = new JSONObject();
+        spec.put("kind", new JSONString(kind));
+        spec.put("name", new JSONString(name));
+        JSONObject params = parameters(entry);
+        if (params != null) {
+            spec.put("parameters", params);
+            return spec;
+        }
+        if (entry instanceof CustomLogicModel) {
+            CustomLogicModel lm = (CustomLogicModel) entry;
+            spec.put("inputs", strings(lm.inputs));
+            spec.put("outputs", strings(lm.outputs));
+            spec.put("rules", strings(ruleLines(lm.getRules())));
+            spec.put("info", new JSONString(lm.infoText == null ? "" : lm.infoText));
+            return spec;
+        }
+        return null;
+    }
+
+    /**
+     * [SP_AGA_01_13] ModelRecord {@code rules}: the stored rules split into lines (the trailing
+     * newline the text format adds is not a line).
+     */
+    public static String[] ruleLines(String rules) {
+        if (rules == null || rules.isEmpty()) {
+            return new String[0];
+        }
+        String r = rules.endsWith("\n") ? rules.substring(0, rules.length() - 1) : rules;
+        return r.split("\n", -1);
+    }
+
+    /** @return the strings as a JSON array */
+    public static JSONArray strings(String[] values) {
+        JSONArray a = new JSONArray();
+        if (values != null) {
+            for (int i = 0; i < values.length; i++) {
+                a.set(i, new JSONString(values[i]));
+            }
+        }
+        return a;
     }
 
     // ---------------------------------------------------------------- helpers

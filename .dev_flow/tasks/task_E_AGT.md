@@ -157,7 +157,9 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Fix rounds 1–2: `symbol_overlap` (geometry-only), short-lead text flip (`leadFraction` in 10 one-post elements), IEC LED symbol, `no_ground` only without any ground reference, skill drawing rules; reviews PASS (round 1 PASS + findings, delta PASS + findings → confirmed); full test:live = baseline; new scenarios agent_overlap 20, render_text 7, agent_connect 31
 - [x] Design: agent model definitions (SP_AGA_DEC_07, PL_AGA Phases 11–15) — spec review 4 rounds → PASS
 - [x] PL_AGA Phase 11 — diode/transistor models (defineModel, listModels, models in import/getCircuit, create-only text import, logic fallback NPE fix, fwdrop/logic restorers; skill text pulled forward); agent_models 75, test:mcp 69/0, T2 re-run PASS with agent-defined LED models
-- [ ] Next: PL_AGA Phase 12 → 13 → 14 → 15; qam-256 403-line fix (worktree subagent, pending); then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
+- [x] PL_AGA Phase 12 — custom logic models (one rule parser, no agent-path alerts, user loads alert as before, agent undo/redo marked agent origin, batch PinNames, bad-rule entries re-import when identical); agent_models_logic 57; review FAIL (1 must) → fixed → delta PASS
+- [x] Scope fix (worktree commit ad50e70): 403 lines never loaded (null document), Dock Scope/scope popup menu, legacy LED lines; review PASS + delta PASS — to merge into design/agent-mcp
+- [ ] Next: merge ad50e70; PL_AGA Phase 13 → 14 (incl. JSON in-circuit scope settings) → 15; then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
 
 **Activity:**
 - 2026-10-04 — developer: wire crossings are allowed (not a defect); research of drawing guidelines (IEEE 315, IEC 61082, ГОСТ 2.702) → `.dev_flow/cache/schematic-drawing-guidelines.md`

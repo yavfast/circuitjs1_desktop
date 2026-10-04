@@ -19,6 +19,7 @@
 
 package com.lushprojects.circuitjs1.client.io.text;
 
+import com.google.gwt.user.client.Window;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitEditor;
 import com.lushprojects.circuitjs1.client.CircuitElmCreator;
@@ -298,6 +299,38 @@ public class TextCircuitImporter implements CircuitImporter {
     }
 
     /**
+     * [SP_AGA_06_01] item 25 / [SP_AGA_03_11] "No dialogs": a logic model line whose rules do not
+     * parse loads as before (the rules before the bad line apply). A user load alerts the parser's
+     * message as before; an agent path never alerts — an agent load carries a report (an error on
+     * {@code importCircuit} content: the import is rejected and the entry restored; a warning on
+     * {@code openFile}), and agent mutations, undo/redo and rollbacks mark the document agent
+     * origin. Either way the problem goes to the console.
+     */
+    private void reportRuleError(StringTokenizer tokenizer, CircuitDocument document, String error) {
+        if (error == null) {
+            return;
+        }
+        if (report == null && (document == null || !document.isAgentOrigin())) {
+            // the editor's behaviour for user loads (file open, paste, import, session restore, undo/redo)
+            Window.alert(error);
+            return;
+        }
+        StringTokenizer st = new StringTokenizer(tokenizer.getOriginalString(), DELIMITERS);
+        st.nextToken(); // line type
+        String name = st.hasMoreTokens() ? CustomLogicModel.unescape(st.nextToken()) : "";
+        CustomLogicModel model = CustomLogicModel.findEntry(name);
+        int ruleLine = model == null ? -1 : model.getRuleErrorLine();
+        String message = "line " + lineNumber + ": the rules of logic model '" + name + "' do not parse"
+                + (ruleLine >= 0 ? " at rule line " + (ruleLine + 1) : "") + " (" + error + ")";
+        CirSim.console("Text import: " + message);
+        if (report != null) {
+            report.addModelLineProblem(message, "Fix the rule line: left=right, one left character per input "
+                    + "(0 1 ? + - or a pattern letter) up to one per pin, one right character per output (0 1 _ or a pattern letter).",
+                    lineNumber);
+        }
+    }
+
+    /**
      * Handle special circuit elements (scopes, hints, options).
      */
     private boolean handleSpecialElements(StringTokenizer tokenizer, CircuitDocument document,
@@ -334,7 +367,7 @@ public class TextCircuitImporter implements CircuitImporter {
                     return true;
                 }
                 recordModelEntry(tokenizer, typeId);
-                CustomLogicModel.undumpModel(tokenizer);
+                reportRuleError(tokenizer, document, CustomLogicModel.undumpModel(tokenizer));
                 return true;
 
             case '%':

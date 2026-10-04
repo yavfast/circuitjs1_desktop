@@ -686,32 +686,67 @@ public abstract class ChipElm extends CircuitElm {
         }
 
         void fixName() {
-            if (text.startsWith("/")) {
-                text = text.substring(1);
+            int[] marks = new int[1];
+            text = stripPinMarkup(text, marks);
+            if ((marks[0] & MARK_OVERBAR) != 0) {
                 lineOver = true;
-            } else if (text.startsWith("#")) {
-                text = text.substring(1);
+            }
+            if ((marks[0] & MARK_BUBBLE) != 0) {
                 bubble = true;
             }
-
-            String result = text.replaceAll("CLK:", "");
-            if (result.length() != text.length()) {
-                clock = true;
-                text = result;
-            }
-            result = text.replaceAll("INV:", "");
-            if (result.length() != text.length()) {
-                bubble = true;
-                text = result;
-            }
-
-            if (text.compareToIgnoreCase("clk") == 0) {
-                text = "";
+            if ((marks[0] & MARK_CLOCK) != 0) {
                 clock = true;
             }
         }
 
 
+    }
+
+    private static final int MARK_OVERBAR = 1;
+    private static final int MARK_BUBBLE = 2;
+    private static final int MARK_CLOCK = 4;
+
+    /**
+     * [SP_AGA_01_13] "Pin markup": the text a chip pin name is drawn with, after its markup is
+     * removed — a leading {@code /} (overbar) or {@code #} (bubble), {@code CLK:} (clock) and
+     * {@code INV:} (bubble) anywhere, and a name equal to {@code clk} in any case (a clock mark
+     * without text). The one implementation of the markup, used by the pins and by the model codec.
+     */
+    public static String pinText(String name) {
+        return stripPinMarkup(name, null);
+    }
+
+    /** @param marks receives the MARK_* bits of the markup found (may be null) */
+    private static String stripPinMarkup(String name, int[] marks) {
+        int found = 0;
+        String text = name;
+        if (text.startsWith("/")) {
+            text = text.substring(1);
+            found |= MARK_OVERBAR;
+        } else if (text.startsWith("#")) {
+            text = text.substring(1);
+            found |= MARK_BUBBLE;
+        }
+
+        String result = text.replaceAll("CLK:", "");
+        if (result.length() != text.length()) {
+            found |= MARK_CLOCK;
+            text = result;
+        }
+        result = text.replaceAll("INV:", "");
+        if (result.length() != text.length()) {
+            found |= MARK_BUBBLE;
+            text = result;
+        }
+
+        if (text.compareToIgnoreCase("clk") == 0) {
+            text = "";
+            found |= MARK_CLOCK;
+        }
+        if (marks != null) {
+            marks[0] |= found;
+        }
+        return text;
     }
 
     @Override

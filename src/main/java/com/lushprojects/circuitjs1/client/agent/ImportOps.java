@@ -393,7 +393,7 @@ final class ImportOps {
             message = message + ".";
         }
         message = Character.toUpperCase(message.charAt(0)) + message.substring(1);
-        Issue issue = Issue.of(code, severity, message, hintFor(code));
+        Issue issue = Issue.of(code, severity, message, item.hint != null ? item.hint : hintFor(code));
         // only element-scoped items name an element; a setting key ("time_step") is no ElementId
         boolean elementScoped = code == IssueCode.IMPORT_ELEMENT_SKIPPED || code == IssueCode.IMPORT_WIRE_SKIPPED
                 || code == IssueCode.IMPORT_GEOMETRY_ADJUSTED || code == IssueCode.IDS_REGENERATED

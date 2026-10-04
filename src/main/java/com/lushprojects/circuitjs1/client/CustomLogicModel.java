@@ -25,6 +25,9 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
     public Vector<String> rulesLeft, rulesRight;
     public boolean dumped;
     public boolean triState;
+    /** First error of the stored rules found by the last parse, or null ([SP_AGA_06_01] item 25). */
+    private String ruleError;
+    private int ruleErrorLine = -1;
     private CircuitDocument circuitDocument;
     /**
      * [SP_AGA_03_04] "Model catalogues": captures catalogue entry {@code name} as it is now and
@@ -123,7 +126,14 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         rulesRight = copy.rulesRight;
     }
 
-    public static void undumpModel(StringTokenizer st) {
+    /**
+     * Loads a model line (after its line type) into the catalogue entry of its name.
+     *
+     * @return [SP_AGA_06_01] item 25: the first error of the line's rules (the editor's message),
+     *         or null; the parse never alerts — the caller (the text importer) alerts it on a user
+     *         load and reports it on an agent path
+     */
+    public static String undumpModel(StringTokenizer st) {
         String name = unescape(st.nextToken());
         CustomLogicModel model = getModelWithName(name);
         model.undump(st);
@@ -131,6 +141,7 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         if (fallbackNames != null) {
             fallbackNames.remove(name);
         }
+        return model.ruleError;
     }
 
     // ------------------------------------------------------------------ [SP_AGA_03_04] fallback entries
@@ -265,6 +276,64 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         parseRules();
     }
 
+    /**
+     * [SP_AGA_01_13] A model of the given fields that is in no catalogue (a ModelSpec being
+     * validated); its rules are parsed, {@link #getRuleError()} holds their first error.
+     *
+     * @param rules rule lines separated by newlines (a trailing newline is added as dump() adds it)
+     */
+    public static CustomLogicModel createDetached(String name, String[] inputs, String[] outputs, String infoText,
+            String rules) {
+        CustomLogicModel lm = new CustomLogicModel();
+        lm.name = name;
+        lm.inputs = inputs;
+        lm.outputs = outputs;
+        lm.infoText = infoText;
+        lm.rules = rules.isEmpty() || rules.endsWith("\n") ? rules : rules + "\n";
+        lm.parseRules();
+        return lm;
+    }
+
+    /**
+     * [SP_AGA_01_13] ModelText: parses the fields of a model line after its name (as
+     * {@link #undump} does, but with whole flags required) into a model that is in no catalogue.
+     * Its rules are parsed without any alert ({@link #getRuleError()}).
+     *
+     * @throws RuntimeException when a field is missing or does not parse
+     */
+    public static CustomLogicModel undumpDetached(String name, StringTokenizer st) {
+        CustomLogicModel lm = new CustomLogicModel();
+        lm.name = name;
+        lm.flags = Integer.parseInt(st.nextToken());
+        lm.inputs = listToArray(unescape(st.nextToken()));
+        lm.outputs = listToArray(unescape(st.nextToken()));
+        lm.infoText = unescape(st.nextToken());
+        lm.rules = unescape(st.nextToken());
+        lm.parseRules();
+        return lm;
+    }
+
+    /**
+     * Registers a detached model as a new catalogue entry under its name (create-only callers
+     * check that the name is free; {@link #entryRestorer} taken before removes it again).
+     */
+    public static void defineEntry(CustomLogicModel lm) {
+        if (modelMap == null) {
+            modelMap = new HashMap<String, CustomLogicModel>();
+        }
+        modelMap.put(lm.name, lm);
+    }
+
+    /** @return the first error of the stored rules as the last parse found it, or null */
+    public String getRuleError() {
+        return ruleError;
+    }
+
+    /** @return the 0-based index of the rule line {@link #getRuleError()} is about, or -1 */
+    public int getRuleErrorLine() {
+        return ruleErrorLine;
+    }
+
     static String arrayToList(String arr[]) {
         if (arr == null)
             return "";
@@ -324,7 +393,11 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
             infoText = ei.textf.getText();
         if (n == 3) {
             rules = ei.textArea.getText();
-            parseRules();
+            // [SP_AGA_06_01] item 25: the editor's dialog alerts the parser's first error, as before
+            String error = parseRules();
+            if (error != null) {
+                Window.alert(error);
+            }
         }
         if (n == 4) {
             if (ei.checkbox.getState())
@@ -342,32 +415,67 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
         this.circuitDocument = circuitDocument;
     }
 
-    void parseRules() {
-        String[] lines = rules.split("\n");
+    /**
+     * Parses the stored rules into {@link #rulesLeft} / {@link #rulesRight}; at the first bad line
+     * the rules before it stay parsed and the rest are ignored (editor behaviour).
+     *
+     * @return [SP_AGA_06_01] item 25: the first error (the editor's message), or null; never alerts
+     */
+    String parseRules() {
+        RuleParse p = parseRules(rules, inputs.length, outputs.length);
+        rulesLeft = p.left;
+        rulesRight = p.right;
+        triState = p.triState;
+        ruleError = p.error;
+        ruleErrorLine = p.errorLine;
+        return p.error;
+    }
+
+    /** The outcome of {@link #parseRules(String, int, int)}. */
+    public static final class RuleParse {
+        public final Vector<String> left = new Vector<>();
+        public final Vector<String> right = new Vector<>();
+        public boolean triState;
+        /** The first error as the editor words it, or null. */
+        public String error;
+        /** 0-based index (in the newline-separated rules) of the line {@link #error} is about, or -1. */
+        public int errorLine = -1;
+
+        RuleParse fail(int line, String message) {
+            errorLine = line;
+            error = message;
+            return this;
+        }
+    }
+
+    /**
+     * [SP_AGA_01_13] "Rules" / [SP_AGA_06_01] item 25: the one custom-logic rule parser, shared by
+     * the editor's model dialog, file loads and the Agent API's validation. Rules are
+     * {@code left=right} lines (spaces ignored, case-insensitive): the left side holds
+     * {@code 0 1 ? + -} and pattern letters, at least one character per input and at most one per
+     * pin; the right side has one character per output. Blank lines and {@code #} lines are
+     * comments. Returns the lines parsed before the first error, and that error.
+     */
+    public static RuleParse parseRules(String rules, int inputCount, int outputCount) {
+        RuleParse p = new RuleParse();
+        String[] lines = (rules == null ? "" : rules).split("\n");
         int i;
-        rulesLeft = new Vector<>();
-        rulesRight = new Vector<>();
-        triState = false;
         for (i = 0; i != lines.length; i++) {
             String s = lines[i].toLowerCase();
             if (s.isEmpty() || s.startsWith("#"))
                 continue;
             String[] s0 = s.replaceAll(" ", "").split("=");
             if (s0.length != 2) {
-                Window.alert("Error on line " + (i + 1) + " of model description");
-                return;
+                return p.fail(i, "Error on line " + (i + 1) + " of model description");
             }
-            if (s0[0].length() < inputs.length) {
-                Window.alert("Model must have >= " + (inputs.length) + " digits on left side");
-                return;
+            if (s0[0].length() < inputCount) {
+                return p.fail(i, "Model must have >= " + inputCount + " digits on left side");
             }
-            if (s0[0].length() > inputs.length + outputs.length) {
-                Window.alert("Model must have <= " + (inputs.length + outputs.length) + " digits on left side");
-                return;
+            if (s0[0].length() > inputCount + outputCount) {
+                return p.fail(i, "Model must have <= " + (inputCount + outputCount) + " digits on left side");
             }
-            if (s0[1].length() != outputs.length) {
-                Window.alert("Model must have " + (outputs.length) + " digits on right side");
-                return;
+            if (s0[1].length() != outputCount) {
+                return p.fail(i, "Model must have " + outputCount + " digits on right side");
             }
             String rl = s0[0];
             boolean[] used = new boolean[26];
@@ -380,8 +488,7 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
                     continue;
                 }
                 if (x < 'a' || x > 'z') {
-                    Window.alert("Error on line " + (i + 1) + " of model description");
-                    return;
+                    return p.fail(i, "Error on line " + (i + 1) + " of model description");
                 }
                 // if a letter appears twice, capitalize it the 2nd time so we can compare
                 if (used[x - 'a']) {
@@ -393,11 +500,12 @@ public class CustomLogicModel implements Editable, SimulationContextAware {
             }
             String rr = s0[1];
             if (rr.contains("_")) {
-                triState = true;
+                p.triState = true;
             }
-            rulesLeft.add(newRl);
-            rulesRight.add(s0[1]);
+            p.left.add(newRl);
+            p.right.add(s0[1]);
         }
+        return p;
     }
 
     public String dump() {
