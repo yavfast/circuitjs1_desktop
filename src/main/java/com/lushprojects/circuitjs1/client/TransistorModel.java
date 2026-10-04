@@ -307,6 +307,65 @@ public class TransistorModel implements Editable, Comparable<TransistorModel>, S
 
     public String dump() {
         dumped = true;
+        return modelLine();
+    }
+
+    // ------------------------------------------------------------------ [SP_AGA_01_13] agent models
+
+    /** @return true for an entry the editor hides (parts of built-in chips) */
+    public boolean isInternal() {
+        return internal;
+    }
+
+    /** @return the model flags */
+    public int getFlags() {
+        return flags;
+    }
+
+    /** @return the catalogue entry of that name (built-in, internal or user), or null; never creates one */
+    public static TransistorModel findEntry(String name) {
+        createModelMap();
+        return name == null ? null : modelMap.get(name);
+    }
+
+    /** @return every catalogue entry, internal ones included (unordered) */
+    public static java.util.List<TransistorModel> entries() {
+        createModelMap();
+        return new java.util.ArrayList<TransistorModel>(modelMap.values());
+    }
+
+    /** @return a copy of {@code base} under {@code name} that is not in the catalogue */
+    public static TransistorModel createDetached(String name, TransistorModel base) {
+        TransistorModel tm = base == null ? new TransistorModel() : new TransistorModel(base);
+        tm.name = name;
+        return tm;
+    }
+
+    /**
+     * Parses the fields of a model line after its name (as {@link #undump} does) into a model
+     * that is not in the catalogue.
+     *
+     * @throws RuntimeException when a field is missing or does not parse
+     */
+    public static TransistorModel undumpDetached(String name, StringTokenizer st) {
+        TransistorModel tm = new TransistorModel();
+        tm.name = name;
+        tm.undump(st);
+        return tm;
+    }
+
+    /** Registers a detached model as a new user entry under its name (create-only callers check the name). */
+    public static void defineEntry(TransistorModel tm) {
+        createModelMap();
+        tm.readOnly = tm.builtIn = tm.internal = false;
+        modelMap.put(tm.name, tm);
+    }
+
+    /**
+     * [SP_AGA_03_11] "Identical": the model line {@link #dump()} writes, without marking the
+     * entry dumped.
+     */
+    public String modelLine() {
         return "32 " + CustomLogicModel.escape(name) + " " + flags + " " +
                 satCur + " " + invRollOffF + " " + BEleakCur + " " + leakBEemissionCoeff + " " + invRollOffR + " " +
                 BCleakCur + " " + leakBCemissionCoeff + " " + emissionCoeffF + " " + emissionCoeffR + " " + invEarlyVoltF + " " + invEarlyVoltR + " " + betaR;

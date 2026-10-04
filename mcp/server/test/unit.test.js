@@ -116,6 +116,9 @@ const MAPPING = [
   ['circuit_types', {}, 'listTypes', {}],
   ['circuit_types', { filter: 'mosfet' }, 'listTypes', { filter: 'mosfet' }],
   ['circuit_types', { type: 'Resistor', doc: 'd1' }, 'describeType', { doc: 'd1', type: 'Resistor' }],
+  ['circuit_types', { models: 'all' }, 'listModels', {}],
+  ['circuit_types', { models: 'diode' }, 'listModels', { kind: 'diode' }],
+  ['circuit_types', { models: 'transistor', model: 'default', doc: 'd1' }, 'listModels', { doc: 'd1', kind: 'transistor', name: 'default' }],
   ['circuit_documents', { action: 'list' }, 'listDocuments', {}],
   ['circuit_documents', { action: 'create', title: 'x', activate: true }, 'createDocument', { title: 'x', activate: true }],
   ['circuit_documents', { action: 'activate', doc: 'd2' }, 'activateDocument', { doc: 'd2' }],
@@ -123,6 +126,10 @@ const MAPPING = [
   ['circuit_import', { circuit: 'text', doc: 'd3' }, 'importCircuit', { doc: 'd3', circuit: 'text' }],
   ['circuit_import', { circuit: { elements: [] } }, 'importCircuit', { circuit: { elements: [] } }],
   ['circuit_edit', { edits: [{ op: 'delete', id: 'R1' }] }, 'applyEdits', { edits: [{ op: 'delete', id: 'R1' }] }],
+  ['circuit_edit', { edits: [{ op: 'defineModel', model: { kind: 'diode', name: 'led-g', parameters: { forward_voltage: '2.1 V', forward_current: '20 mA' } } }] }, 'applyEdits',
+    { edits: [{ op: 'defineModel', model: { kind: 'diode', name: 'led-g', parameters: { forward_voltage: '2.1 V', forward_current: '20 mA' } } }] }],
+  ['circuit_import', { circuit: { elements: [], models: [{ kind: 'diode', name: 'm', modelText: '34 m 0 1e-14 0 1 0 0' }] } }, 'importCircuit',
+    { circuit: { elements: [], models: [{ kind: 'diode', name: 'm', modelText: '34 m 0 1e-14 0 1 0 0' }] } }],
   ['circuit_get', { detail: 'full', ids: ['R1'], offset: 2, limit: 9 }, 'getCircuit', { detail: 'full', ids: ['R1'], offset: 2, limit: 9 }],
   ['circuit_connectivity', { includeNets: false, netFilter: ['out'] }, 'getConnectivity', { includeNets: false, netFilter: ['out'] }],
   ['circuit_read', { targets: [{ net: 'out' }] }, 'read', { targets: [{ net: 'out' }] }],
@@ -176,6 +183,16 @@ test('schema violations are -32602 naming the field', async () => {
   await rejects(tools.call('circuit_file', { action: 'open' }), -32602, /path is required/);
   await rejects(tools.call('circuit_sim', { action: 'configure' }), -32602, /settings is required/);
   await rejects(tools.call('circuit_types', { type: 'R', filter: 'x' }), -32602, /filter does not apply/);
+  // [SP_MCP_02_02] inapplicable circuit_types combinations name the argument
+  await rejects(tools.call('circuit_types', { type: 'Resistor', models: 'diode' }), -32602, /circuit_types: type does not apply when `models` is given/);
+  await rejects(tools.call('circuit_types', { model: 'x' }), -32602, /circuit_types: model requires `models`/);
+  await rejects(tools.call('circuit_types', { models: 'all', model: 'x' }), -32602, /circuit_types: model needs `models` of one kind/);
+  await rejects(tools.call('circuit_types', { models: 'diode', filter: 'x' }), -32602, /circuit_types: filter does not apply when `models` is given/);
+  await rejects(tools.call('circuit_types', { models: 'mosfet' }), -32602, /models must be one of diode, transistor, logic, subcircuit, all/);
+  await rejects(tools.call('circuit_edit', { edits: [{ op: 'defineModel' }] }), -32602, /edits\[0\]\.model is required/);
+  await rejects(tools.call('circuit_edit', { edits: [{ op: 'defineModel', model: { name: 'x' } }] }), -32602, /edits\[0\]\.model\.kind is required/);
+  await rejects(tools.call('circuit_edit', { edits: [{ op: 'defineModel', model: { kind: 'bjt', name: 'x' } }] }), -32602, /edits\[0\]\.model\.kind must be one of diode/);
+  await rejects(tools.call('circuit_import', { circuit: { elements: [], models: {} } }), -32602, /circuit\.models must be array/);
   await rejects(tools.call('circuit_import', { circuit: 5 }), -32602, /circuit must be object or string/);
   await rejects(tools.call('circuit_nope', {}), -32602, /Unknown tool/);
 });
@@ -416,11 +433,25 @@ test('document circuit resource: full detail, all pages, importable shape', asyn
   assert.deepEqual(Object.keys(c), ['elements', 'simulation', 'scopes']);
   assert.deepEqual(agent.calls.map((x) => [x.args.detail, x.args.offset, x.args.limit]), [['full', 0, 500], ['full', 500, 500], ['full', 1000, 500]]);
   await rejects(res.read('circuitjs://documents/d7/circuit'), RESOURCE_NOT_FOUND);
+  // [SP_AGA_02_05] models (offset-0 page) and modelsTruncated are carried when present
+  const withModels = fakeAgent((op, args) => {
+    const r = bigCircuit(3)(op, args);
+    if (!args.offset) {
+      r.data.models = [{ kind: 'diode', name: 'm', parameters: { forward_voltage: '2 V', forward_current: '20 mA' } }];
+      r.data.modelsTruncated = 4;
+    }
+    return r;
+  });
+  const cm = JSON.parse((await createResources({ agent: withModels, fetchText: packageFetch }).read('circuitjs://documents/d1/circuit')).contents[0].text);
+  assert.deepEqual(Object.keys(cm), ['elements', 'simulation', 'scopes', 'models', 'modelsTruncated']);
+  assert.equal(cm.models[0].name, 'm');
+  assert.equal(cm.modelsTruncated, 4);
 });
 
 test('agent-format text names the current SP_AGA rules', () => {
   for (const s of ['grid cells', '0.5', '1/16', 'stop_trigger', 'First sample', 'Determinism', '40 megapixels', '16384',
-    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.0']) {
+    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.0',
+    'defineModel', 'name_taken', 'unknown_model', 'modelText', 'Create-only', 'forward_voltage', '"inf"', '"models": "diode"']) {
     assert.ok(AGENT_FORMAT.includes(s), s);
   }
   for (const t of TOOLS) {

@@ -18,6 +18,8 @@ public class CustomLogicElm extends ChipElm {
     boolean patternValues[];
     boolean highImpedance[];
     static String lastModelName = "default";
+    /** [SP_AGA_03_03] Model name that named no catalogue entry when the element was loaded, else null. */
+    private String unresolvedModelName;
 
     public CustomLogicElm(CircuitDocument circuitDocument, int xx, int yy) {
         super(circuitDocument, xx, yy);
@@ -29,6 +31,8 @@ public class CustomLogicElm extends ChipElm {
                           StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
         modelName = CustomLogicModel.unescape(st.nextToken());
+        // [SP_AGA_03_03] decided before the fallback below creates an entry for the name
+        unresolvedModelName = CustomLogicModel.isUnresolved(modelName) ? modelName : null;
         updateModels();
         int i;
         for (i = 0; i != getPostCount(); i++) {
@@ -302,8 +306,35 @@ public class CustomLogicElm extends ChipElm {
         String name = getJsonString(properties, "model_name", null);
         if (name != null && !name.isEmpty()) {
             modelName = name;
+            // [SP_AGA_03_03] a JSON load copies the previous model under an unknown name
+            unresolvedModelName = CustomLogicModel.isUnresolved(name) ? name : null;
             // same model binding + pin setup as the text constructor
             updateModels();
         }
+    }
+
+    // [SP_AGA_03_03] "Model names": `model_name` names a custom logic model of the session
+    @Override
+    public String getJsonModelCatalogue(String key) {
+        return "model_name".equals(key) ? "logic" : super.getJsonModelCatalogue(key);
+    }
+
+    @Override
+    public String getUnresolvedModelName() {
+        return unresolvedModelName;
+    }
+
+    @Override
+    public boolean retryUnresolvedModel() {
+        if (unresolvedModelName == null) {
+            return true;
+        }
+        if (CustomLogicModel.isUnresolved(unresolvedModelName)) {
+            return false;
+        }
+        // a model line later in the content defined it: take its pins
+        unresolvedModelName = null;
+        updateModels();
+        return true;
     }
 }

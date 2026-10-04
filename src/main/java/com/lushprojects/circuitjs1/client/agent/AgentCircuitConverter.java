@@ -188,7 +188,7 @@ final class AgentCircuitConverter {
             if (info.modelCatalogue != null && !ModelNames.exists(info.modelCatalogue, String.valueOf(value))) {
                 // [SP_AGA_03_03] "Model names": rejected before the element's fallback registers it
                 issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + key + "' names no "
-                        + ("transistor".equals(info.modelCatalogue) ? "transistor" : "diode") + " model of the session: '"
+                        + ModelNames.label(info.modelCatalogue) + " model of the session: '"
                         + Catalogue.clipName(String.valueOf(value)) + "'.", ModelNames.hint(info.modelCatalogue))
                         .elements(subject));
                 continue;

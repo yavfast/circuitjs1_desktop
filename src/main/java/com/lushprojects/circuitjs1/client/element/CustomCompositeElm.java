@@ -25,6 +25,8 @@ public class CustomCompositeElm extends CompositeElm {
     int inputCount, outputCount;
     CustomCompositeModel model;
     public static String lastModelName = "default";
+    /** [SP_AGA_03_03] Model name of the last JSON load that named no catalogue entry, else null. */
+    private String unresolvedModelName;
     static final int FLAG_SMALL = 2;
 
     public CustomCompositeElm(CircuitDocument circuitDocument, int xx, int yy) {
@@ -297,9 +299,12 @@ public class CustomCompositeElm extends CompositeElm {
         super.applyJsonProperties(properties);
         // input_count/output_count are informational only (never assigned; derived from the model)
         String name = getJsonString(properties, "model_name", modelName);
+        unresolvedModelName = null;
         if (name.equals(modelName))
             return;
         if (CustomCompositeModel.getModelWithName(name) == null) {
+            // [SP_AGA_03_03] reported by an import with a report (value_adjusted on openFile)
+            unresolvedModelName = name;
             // JSON does not carry subcircuit models; keep the current model rather than
             // leaving model == null (which would break setPoints/getInfo)
             if (circuitDocument != null && cirSim() != null)
@@ -309,5 +314,16 @@ public class CustomCompositeElm extends CompositeElm {
         // same rebuild as the text constructor, using the model's default element dump
         modelName = name;
         updateModels();
+    }
+
+    // [SP_AGA_03_03] "Model names": `model_name` names a subcircuit model of the session
+    @Override
+    public String getJsonModelCatalogue(String key) {
+        return "model_name".equals(key) ? "subcircuit" : super.getJsonModelCatalogue(key);
+    }
+
+    @Override
+    public String getUnresolvedModelName() {
+        return unresolvedModelName;
     }
 }

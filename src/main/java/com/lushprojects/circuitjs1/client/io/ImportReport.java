@@ -33,6 +33,11 @@ public final class ImportReport {
     public static final String INVALID_VALUE = "invalid_value";
     /** The same on a lenient load (the element simulates with a fallback model). */
     public static final String VALUE_ADJUSTED = "value_adjusted";
+    /**
+     * [SP_AGA_03_11] "Create-only names": a model line of agent content names a session model
+     * that has a different definition.
+     */
+    public static final String NAME_TAKEN = "name_taken";
 
     public enum Severity {
         ERROR, WARNING, INFO
@@ -60,6 +65,7 @@ public final class ImportReport {
     private final List<Item> items = new ArrayList<>();
     private final List<Runnable> modelRestorers = new ArrayList<>();
     private boolean strictModels;
+    private boolean createOnlyModels;
 
     /**
      * [SP_AGA_03_03] "Model names": an element naming a model that neither the session catalogue
@@ -71,6 +77,24 @@ public final class ImportReport {
     public ImportReport strictModels() {
         strictModels = true;
         return this;
+    }
+
+    /**
+     * [SP_AGA_03_11] "Create-only names" (agent {@code importCircuit} only): a model line whose name
+     * exists in its catalogue is a no-op when its line is identical to the entry's, and an error
+     * item {@link #NAME_TAKEN} otherwise; it never overwrites the entry. User loads and
+     * {@code openFile} keep the editor's overwrite (with restorers).
+     *
+     * @return this report
+     */
+    public ImportReport createOnlyModels() {
+        createOnlyModels = true;
+        return this;
+    }
+
+    /** @return true when model lines must not change existing entries ({@link #createOnlyModels()}) */
+    public boolean isCreateOnlyModels() {
+        return createOnlyModels;
     }
 
     /**

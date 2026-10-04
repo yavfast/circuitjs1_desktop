@@ -251,3 +251,4 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | 2026-10-02 | PL_AGS Phase 1: the elements table covers the required list (26 types) instead of "the 25 most-used" |
 | 2026-10-01 | Review round 2: canonical names, checker reset, desktop env snippet |
 | 2026-10-01 | Review round 1: fixture document selection, canonical type names, toolsVersion compatibility, integration scenarios |
+| 2026-10-04 | Skill content for agent model definitions (diode/transistor: SKILL.md rule "Defaults are generic", elements.md Models section, patterns.md pattern 10) pulled forward into PL_AGA Phase 11; the SP_AGS spec rows follow in PL_AGA Phase 15 |

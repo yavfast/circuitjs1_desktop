@@ -61,7 +61,7 @@ const TEMPLATES = [
     uriTemplate: 'circuitjs://documents/{doc}/circuit',
     name: 'circuit',
     title: 'Document circuit',
-    description: 'The whole circuit of document {doc} at full detail, {elements, simulation, scopes}; importable unchanged through circuit_import.',
+    description: 'The whole circuit of document {doc} at full detail, {elements, simulation, scopes, models?, modelsTruncated?}; importable unchanged through circuit_import.',
     mimeType: 'application/json',
   },
   {
@@ -176,7 +176,11 @@ function createResources(opts) {
       if (d.nextOffset === undefined || d.nextOffset === null || page.length === 0) break;
       offset = d.nextOffset;
     }
-    return { elements, simulation: first.simulation, scopes: first.scopes };
+    const circuit = { elements, simulation: first.simulation, scopes: first.scopes };
+    // [SP_AGA_02_05] the models of the circuit (offset-0 page), so the form imports unchanged
+    if (Array.isArray(first.models) && first.models.length) circuit.models = first.models;
+    if (first.modelsTruncated > 0) circuit.modelsTruncated = first.modelsTruncated;
+    return circuit;
   }
 
   async function read(uri) {

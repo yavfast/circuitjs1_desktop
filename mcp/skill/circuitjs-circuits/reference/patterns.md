@@ -15,6 +15,7 @@ To reuse a pattern: create a document, import the block, then change values with
 7. Non-inverting op-amp stage
 8. 555 astable oscillator
 9. Logic gate driving an LED
+10. LED with a defined model
 
 ## 1. Voltage divider
 
@@ -235,3 +236,26 @@ Two logic inputs (both high, `position: 1`) into an AND gate; its output drives 
 - **Expected.** Both inputs high: `out` = 5 V, I_LED = (5 V − V_LED)/R1 = (5 − 1.78)/330 = 9.75 mA (measured 9.752 mA, LED voltage 1.782 V). Set one input low (`{"op": "set", "id": "B", "properties": {"position": 0}}`): `out` = 0 V, I_LED = 0.
 - **Run.** `{"span": "1 ms", "reset": true, "probes": [{"net": "out"}, {"element": "LED1", "quantity": "current", "name": "iLED"}]}` → read `stats.final` (`min` is 0: the gate output switches on during the first steps).
 - **LED current.** For a target current I from a supply V, R = (V − V_LED)/I with V_LED ≈ 1.8 V for the default red LED; confirm with the LED's `current` probe.
+
+## 10. LED with a defined model
+
+A green LED that drops 2.1 V at 20 mA (the built-in `default-led` is red, ≈ 1.8 V): the circuit defines the model in its `models` list and the LED names it. 5 V through R1 = 145 Ω.
+
+```json
+{"models": [
+  {"kind":"diode","name":"led-green-2v1","parameters":{"forward_voltage":"2.1 V","forward_current":"20 mA"}}
+],
+"elements": [
+  {"id":"V1","type":"VoltageSourceDC","start":{"x":0,"y":8},"end":{"x":0,"y":0},"properties":{"max_voltage":"5 V"}},
+  {"id":"W1","type":"Wire","start":{"x":0,"y":0},"end":{"x":6,"y":0}},
+  {"id":"R1","type":"Resistor","start":{"x":6,"y":0},"end":{"x":6,"y":4},"properties":{"resistance":"145 Ohm"}},
+  {"id":"LED1","type":"LED","start":{"x":6,"y":4},"end":{"x":6,"y":8},"properties":{"model":"led-green-2v1","color_r":0,"color_g":1,"color_b":0}},
+  {"id":"W2","type":"Wire","start":{"x":0,"y":8},"end":{"x":6,"y":8}},
+  {"id":"GND1","type":"Ground","start":{"x":0,"y":8},"end":{"x":0,"y":10}},
+  {"id":"LBL","type":"LabeledNode","start":{"x":6,"y":4},"end":{"x":9,"y":4},"properties":{"label":"led"}}
+]}
+```
+
+- **Expected.** I = (5 V − 2.1 V)/145 Ω = 20 mA, so the LED sits at its model's point: V(`led`) = 2.1 V (measured 2.100 V; LED current 20.00 mA).
+- **Run.** `{"span": "1 ms", "reset": true, "probes": [{"net": "led"}, {"element": "LED1", "quantity": "current", "name": "iLED"}]}` → read `stats.final`.
+- **In an existing circuit.** Define and use the model in one batch: `{"edits": [{"op": "defineModel", "model": {"kind": "diode", "name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}}, {"op": "set", "id": "LED1", "properties": {"model": "led-green-2v1"}}]}`. Running the same batch again answers `existing: true`.

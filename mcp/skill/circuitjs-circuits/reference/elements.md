@@ -6,6 +6,7 @@ The most-used types of the catalogue. Names are the canonical names that `circui
 
 - Table
 - Notes per type
+- Models
 - Everything else
 
 ## Table
@@ -47,7 +48,7 @@ The most-used types of the catalogue. Names are the canonical names that `circui
 - **Polarity.** The pin names state it. A voltage source's `plus` is its positive terminal: `plus` is `max_voltage` above `minus`, and the source's `voltage` reads `plus` minus `minus`. A `CurrentSource` pushes `current` out of `out` (the arrow head) into the circuit and takes it back at `in`, so across a load `out` is the high end. `PolarCapacitor`: `positive`, `negative`. `OpAmp`: `in-` is always the inverting input, also with `swap_inputs` (which only mirrors the drawing). Post 0 is at `start`, so the patterns' orientation (`start` on the ground side, `end` on the supply side) puts `plus` / `out` at `end`.
 - **Rail.** A single-post source between its post and ground: the cleanest supply. Put it at the top with `end` 2 cells above `start`.
 - **Capacitor.** `initial_voltage` defaults to 1 mV, not 0; `reset: true` starts from it. A real part of 1 µF and above is usually an electrolytic: draw a supply filter, decoupling or emitter-bypass capacitor with a DC bias larger than its AC swing as `PolarCapacitor` (`positive` is post 0 at `start`, on the higher DC potential), so the schematic shows its "+". Its `max_reverse_voltage` defaults to 1 V and the model clamps beyond it, so keep `Capacitor` for an unbiased coupling capacitor whose voltage swings both ways (or raise `max_reverse_voltage`).
-- **Diodes.** Measured: the `default` diode drops 0.57 V at 10 mA, the `default-led` (red) 1.78 V at 9.8 mA. The Zener voltage follows the model: the built-in `default-zener` is 5.6 V (5.61 V measured at 6.4 mA), and `zener_voltage` cannot be set. The `model` key takes only a model the app holds: `circuit_types {"type": "Diode"}` lists them as the key's `choices` (built-in: `default`, `spice-default`, `1N4148`, `1N4004`, `1N5711` and `1N5712` Schottky, `default-zener`, `default-led`). A `ZenerDiode` takes only the models with a breakdown voltage (its own `choices`). Any other name, such as a part number like "BAT54", is rejected with `invalid_value`; it is never replaced by the default silently. Another Zener voltage or a part not listed needs a custom model, which properties cannot create: say so and pick the closest listed model or a different topology. Transistor `model` keys work the same way.
+- **Diodes.** Measured: the `default` diode drops 0.57 V at 10 mA, the `default-led` (red) 1.78 V at 9.8 mA. The Zener voltage follows the model: the built-in `default-zener` is 5.6 V (5.61 V measured at 6.4 mA), and `zener_voltage` cannot be set. The `model` key takes only a model the app holds: `circuit_types {"type": "Diode"}` lists them as the key's `choices` (built-in: `default`, `spice-default`, `1N4148`, `1N4004`, `1N5711` and `1N5712` Schottky, `default-zener`, `default-led`). A `ZenerDiode` takes only the models with a breakdown voltage (its own `choices`). Any other name, such as a part number like "BAT54", is rejected with `invalid_value`; it is never replaced by the default silently. Another Zener voltage, LED colour or a part not listed needs a model of its own: define it (next section), then name it in `model`. Transistor `model` keys work the same way.
 - **Transistors.** A BJT's `current` is its collector current: positive into `collector` for a conducting NPN, negative for a PNP. A MOSFET's `current` is its drain current. `power` is the whole device's dissipation.
 - **Element probes.** A type's TypeInfo lists `quantities`: the `voltage`, `current` and `power` an `{element, quantity}` probe or read accepts, all three or none. Two-post parts, transistors, MOSFETs, JFETs, triacs and crystals have them; transformers, chips, switches with more than two posts and other multi-post parts have none (`invalid_value`): probe their posts or nets instead, and get a transformer's loss from the power balance of the parts around it.
 - **MOSFETs.** `beta` is the transconductance parameter (A/V²); `body_diode` adds the drain-source diode.
@@ -60,6 +61,28 @@ The most-used types of the catalogue. Names are the canonical names that `circui
 - **Potentiometer.** `position` 0..1 moves the wiper; a grid-sized part (the geometry reference explains).
 - **LabeledNode.** A `label` is a net name. `gnd`, texts starting with `$` and texts starting with `label:` are reserved.
 - **IDs.** Give your own IDs (`R1`, `C_in`); generated ones use the type's prefix (`R`, `C`, `GND`, `TRA`, `U`, `TIM`…).
+
+## Models
+
+A model is a named parameter set shared by every document of the session and saved in the files that use it. Diode-family parts (`Diode`, `LED`, `ZenerDiode`, `Varactor`) and BJTs (`TransistorNPN`, `TransistorPNP`) name one in their `model` key. The built-in ones are generic: the `default` diode drops about 0.6 V, `default-led` is a red LED (≈ 1.8 V), and `1N5711` is a small-signal Schottky, not a power one. When the real part matters, define a model:
+
+- **Define.** `circuit_edit` with a `defineModel` edit whose `model` is one of the ModelSpecs below, before the `add` or `set` that uses it, in the same batch; `circuit_import` takes the same entries in its `models` list. The reply lists one record per definition; `circuit_types {"models": "diode"}` (or `"transistor"`, `"all"`) lists what the session holds, `{"models": "diode", "model": "<name>"}` one record with its `parameters` and `usedBy`.
+- **Names are create-only** (`^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$`). Defining an existing name with the same values succeeds with `existing: true`; other values are `name_taken`. To change a model, define a new name and `set` the elements' `model` to it.
+- **Diode, simple form** (what the editor's "simple model" does): `{"kind": "diode", "name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}` — the diode then drops exactly `forward_voltage` at `forward_current` (no series resistance). Optional: `saturation_current`, `breakdown_voltage` (> 0 makes a Zener model, e.g. `"12 V"`).
+- **Diode, SPICE keys:** `saturation_current` (IS), `series_resistance` (RS), `emission_coefficient` (N, a plain number), `breakdown_voltage` (BV); keys you omit come from `from` (default `default`). With all four given, `forward_voltage` is only checked; `forward_current` (with `series_resistance` 0) marks the model simple, as a record returns it.
+- **Transistor (BJT):** `{"kind": "transistor", "name": "...", "from": "default", "parameters": {"early_voltage_forward": "100 V"}}`. Keys: `saturation_current`, `beta_reverse`, `emission_coefficient_forward`, `emission_coefficient_reverse`, `leakage_be_current`, `leakage_bc_current`, `leakage_be_emission`, `leakage_bc_emission`, `early_voltage_forward`, `early_voltage_reverse`, `knee_current_forward`, `knee_current_reverse`; the Early voltages and knee currents also take `"inf"` (none). Forward beta stays the element's `beta` property.
+- **Typical forward voltages at 20 mA:**
+
+| Part | `forward_voltage` | `forward_current` |
+|---|---|---|
+| Red LED | 1.8–2.0 V | 20 mA |
+| Yellow LED | 2.0–2.1 V | 20 mA |
+| Green LED | 2.1 V (GaP) / 3.0 V (InGaN, bright green) | 20 mA |
+| Blue or white LED | 3.0–3.2 V | 20 mA |
+| Power Schottky (1N5819-like) | 0.45–0.6 V | 1 A |
+
+  A 1N5819-like rectifier: `{"kind": "diode", "name": "sch-1n5819", "parameters": {"forward_voltage": "0.5 V", "forward_current": "1 A", "breakdown_voltage": "40 V"}}`. Pattern 10 in the patterns reference is a verified LED with its own model.
+- **Errors.** `invalid_value` names the parameter (`parameters.forward_voltage`); an unknown key is `unknown_property`; a `from` the kind does not list is `unknown_model`; `name_taken` is above. `circuit_get` returns the models a circuit uses under `models`, so a read circuit re-imports with them.
 
 ## Everything else
 

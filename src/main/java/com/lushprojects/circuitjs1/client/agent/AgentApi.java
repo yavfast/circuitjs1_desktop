@@ -114,6 +114,7 @@ public final class AgentApi {
         this.sim = sim;
         DocumentsOps.register(this);
         CatalogueOps.register(this);
+        ModelOps.register(this);
         ImportOps.register(this);
         EditOps.register(this);
         CircuitView.register(this);

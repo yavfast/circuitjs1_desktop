@@ -73,6 +73,40 @@ const PROBE_SPEC = {
 
 const BUDGET = { type: 'integer', minimum: 100, maximum: 120000 };
 
+const MODEL_KIND = { type: 'string', enum: ['diode', 'transistor', 'logic', 'subcircuit'] };
+
+/**
+ * [SP_AGA_01_13] ModelSpec or ModelText (the form is told by `modelText`). One open object: the
+ * fields per kind, the value table and the forms are the Agent API's domain rules.
+ */
+const MODEL_ENTRY = {
+  type: 'object',
+  description: 'ModelSpec {kind, name, from?, parameters} (diode, transistor), or ModelText {kind, name, modelText} '
+    + '(one model line of the text format, as circuit_get returns it). Names are create-only: an existing name is '
+    + 'accepted only with an identical definition. Example: {"kind": "diode", "name": "led-green-2v1", '
+    + '"parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}.',
+  properties: {
+    kind: MODEL_KIND,
+    name: { type: 'string', description: 'Model name: ^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$ for a ModelSpec.' },
+    from: { type: 'string', description: 'diode/transistor: a listed model of the same kind whose values are the start (default: "default").' },
+    parameters: {
+      type: 'object',
+      additionalProperties: PROPERTY_VALUE,
+      description: 'diode: saturation_current, series_resistance, emission_coefficient, breakdown_voltage, forward_voltage + '
+        + 'forward_current (simple form); transistor: saturation_current, beta_reverse, emission_coefficient_forward/_reverse, '
+        + 'leakage_be/bc_current, leakage_be/bc_emission, early_voltage_forward/_reverse, knee_current_forward/_reverse ("inf" allowed).',
+    },
+    modelText: { type: 'string', description: 'ModelText: exactly one model line.' },
+    inputs: { type: 'array', items: { type: 'string' } },
+    outputs: { type: 'array', items: { type: 'string' } },
+    rules: { type: 'array', items: { type: 'string' } },
+    info: { type: 'string' },
+    source: { type: 'object', properties: { doc: DOC } },
+    showLabel: { type: 'boolean' },
+  },
+  required: ['kind', 'name'],
+};
+
 /** [SP_AGA_02_04] Edit variants, discriminated by `op`. */
 const EDIT_VARIANTS = [
   {
@@ -136,6 +170,13 @@ const EDIT_VARIANTS = [
   },
   {
     type: 'object',
+    title: 'defineModel',
+    description: 'Register a new session model (create-only); later edits of the batch may use its name.',
+    properties: { op: { const: 'defineModel' }, model: MODEL_ENTRY },
+    required: ['op', 'model'],
+  },
+  {
+    type: 'object',
     title: 'markOpen',
     description: 'Declare posts intentionally unconnected (open: false removes the mark).',
     properties: {
@@ -149,7 +190,7 @@ const EDIT_VARIANTS = [
 
 const EDIT = {
   type: 'object',
-  description: 'One edit, discriminated by op: add | move | delete | set | describe | addScope | removeScope | markOpen.',
+  description: 'One edit, discriminated by op: add | move | delete | set | describe | addScope | removeScope | markOpen | defineModel.',
   oneOf: EDIT_VARIANTS,
 };
 
@@ -167,6 +208,12 @@ const AGENT_CIRCUIT = {
         properties: { element: ELEMENT_ID, quantity: QUANTITY },
         required: ['element'],
       },
+    },
+    models: {
+      type: 'array',
+      maxItems: 200,
+      items: MODEL_ENTRY,
+      description: 'Models defined before the elements, dependencies first (ModelSpec or ModelText; circuit_get returns them).',
     },
   },
   required: ['elements'],
@@ -262,6 +309,8 @@ module.exports = {
   EDIT,
   EDIT_VARIANTS,
   AGENT_CIRCUIT,
+  MODEL_KIND,
+  MODEL_ENTRY,
   ISSUE,
   ELEMENT_RECORD,
   TIME_STEP,

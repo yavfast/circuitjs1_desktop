@@ -229,6 +229,50 @@ public class CustomCompositeModel implements Comparable<CustomCompositeModel> {
         if (internal)
             return "";
         dumped = true;
+        return modelLine();
+    }
+
+    // ------------------------------------------------------------------ [SP_AGA_01_13] agent models
+
+    /** @return true for an entry the editor hides (the parts of built-in chips) */
+    public boolean isInternal() {
+        return internal;
+    }
+
+    /** @return the catalogue entry of that name, or null; never creates one */
+    public static CustomCompositeModel findEntry(String name) {
+        if (modelMap == null)
+            initModelMap();
+        return name == null ? null : modelMap.get(name);
+    }
+
+    /** @return every catalogue entry, internal ones included (unordered) */
+    public static java.util.List<CustomCompositeModel> entries() {
+        if (modelMap == null)
+            initModelMap();
+        return new java.util.ArrayList<CustomCompositeModel>(modelMap.values());
+    }
+
+    /**
+     * The model line a {@code .} line's fields produce when loaded, without any catalogue write:
+     * the fields after the name, read as {@link #undump} reads them.
+     *
+     * @throws RuntimeException when a field is missing or does not parse
+     */
+    public static String normalizedLine(String name, StringTokenizer st) {
+        CustomCompositeModel m = new CustomCompositeModel();
+        m.name = name;
+        m.undump(st);
+        return m.modelLine();
+    }
+
+    /**
+     * [SP_AGA_03_11] "Identical": the model line {@link #dump()} writes (empty for an internal
+     * entry), without marking the entry dumped.
+     */
+    public String modelLine() {
+        if (internal)
+            return "";
         String str = ". " + CustomLogicModel.escape(name) + " " + flags + " " + sizeX + " " + sizeY + " " + extList.size() + " ";
         int i;
         for (i = 0; i != extList.size(); i++) {

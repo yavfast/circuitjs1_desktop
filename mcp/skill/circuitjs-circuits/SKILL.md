@@ -26,6 +26,7 @@ This skill is for building, checking, simulating and repairing analog and digita
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
 - **Draw a readable schematic.** Wires and symbols meet only at posts: never lay a part, a ground or a label along a wire or over another part (`symbol_overlap`). Parts horizontal or vertical, 3–4 cells long; parallel parts 3 cells apart (4 for long values), so value texts never touch a neighbour; supply on top, `Ground` below its post (`end` 2 cells down), signal left to right; labels with a 2–3-cell lead pointing away from the parts. Layout details: [reference/geometry.md](reference/geometry.md#layout-style).
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
+- **Defaults are generic: define a model when a part's real behaviour matters** (a coloured LED's forward voltage, a power Schottky, a specific BJT). Use `circuit_edit` `defineModel` in the same batch that sets the elements' `model`; list existing models with `circuit_types {"models": "diode"}`. Model names are create-only: to change one, define a new name. Keys, forms and typical values: [reference/elements.md](reference/elements.md#models).
 - **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`); confirm with a read when a result looks wrong.
 - **Checkpoint with a comment** (`circuit_checkpoint`) right after each logical change, before long measuring: after 300 s without edits your edits are sealed as "agent edits (auto)", and a later checkpoint only returns `noChanges`.
 - **Never fix the user's unrelated issues unasked**: report them.
@@ -76,7 +77,7 @@ Hosts qualify tool names with the server name they were configured with; this sk
 
 | Tool | Use |
 |------|-----|
-| `circuitjs:circuit_types` | List the catalogue (`filter`), or describe one type (`type`): pins, geometry, sizes, property keys |
+| `circuitjs:circuit_types` | List the catalogue (`filter`), or describe one type (`type`): pins, geometry, sizes, property keys; or list the session models (`models`, `model`) |
 | `circuitjs:circuit_documents` | `list`, `create` (background unless `activate: true`), `activate`, `close` documents (tabs) |
 | `circuitjs:circuit_import` | Replace a document's circuit with an AgentCircuit `{elements, simulation?, scopes?}` or a text/JSON circuit string |
 | `circuitjs:circuit_edit` | Batch of `add`, `move`, `delete`, `set`, `describe`, `addScope`, `removeScope`, `markOpen` edits |

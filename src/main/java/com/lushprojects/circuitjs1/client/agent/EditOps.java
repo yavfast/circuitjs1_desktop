@@ -108,6 +108,11 @@ final class EditOps {
         int value = -1;
     }
 
+    /** [SP_AGA_02_04] defineModel: a validated model definition ([SP_AGA_03_11]). */
+    private static final class DefineEdit extends Edit {
+        ModelOps.Planned planned;
+    }
+
     private static final class MarkEdit extends Edit {
         final List<String> refs = new ArrayList<>();
         boolean open;
@@ -136,13 +141,21 @@ final class EditOps {
         Model model = buildModel(doc, cat);
         List<Issue> issues = new ArrayList<>();
         final List<Edit> plan = new ArrayList<>();
-        for (int i = 0; i < edits.size(); i++) {
-            Edit e = validate(edits.get(i), i, model, cat, issues);
-            if (e != null) {
-                plan.add(e);
+        // [SP_AGA_03_11] names = session ∪ batch: a new model is visible to the later edits
+        ModelOps.Scope scope = new ModelOps.Scope();
+        ModelNames.beginScope(scope);
+        try {
+            for (int i = 0; i < edits.size(); i++) {
+                Edit e = validate(edits.get(i), i, model, cat, scope, issues);
+                if (e != null) {
+                    plan.add(e);
+                }
             }
+        } finally {
+            ModelNames.endScope();
         }
         if (!issues.isEmpty()) {
+            // nothing applied, catalogues untouched
             return OperationResult.failure(issues);
         }
         return Mutation.run(call.sim, doc, ctx -> apply(ctx, plan, cat));
@@ -184,13 +197,15 @@ final class EditOps {
 
     // ---------------------------------------------------------------- validation
 
-    private static Edit validate(JSONValue v, int i, Model m, Catalogue cat, List<Issue> issues) {
+    private static final String OPS = "add, move, delete, set, describe, addScope, removeScope, markOpen, defineModel";
+
+    private static Edit validate(JSONValue v, int i, Model m, Catalogue cat, ModelOps.Scope scope, List<Issue> issues) {
         String where = "edits[" + i + "]";
         JSONObject o = v == null ? null : v.isObject();
         JSONString opv = o == null || o.get("op") == null ? null : o.get("op").isString();
         if (opv == null) {
             issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".op' is required.",
-                    "Use one of: add, move, delete, set, describe, addScope, removeScope, markOpen."));
+                    "Use one of: " + OPS + "."));
             return null;
         }
         String op = opv.stringValue();
@@ -236,9 +251,20 @@ final class EditOps {
             case "markOpen":
                 e = validateMark(o, where, m, issues);
                 break;
+            case "defineModel": {
+                DefineEdit d = new DefineEdit();
+                if (!present(o, "model")) {
+                    issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".model' is required.",
+                            "Pass a ModelSpec {kind, name, from?, parameters}."));
+                } else {
+                    d.planned = ModelOps.validate(o.get("model"), where + ".model", scope, false, issues);
+                }
+                e = d;
+                break;
+            }
             default:
-                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".op' is not one of the allowed values: '" + op + "'.",
-                        "Use one of: add, move, delete, set, describe, addScope, removeScope, markOpen."));
+                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".op' is not one of the allowed values: '" + Catalogue.clipName(op) + "'.",
+                        "Use one of: " + OPS + "."));
                 return null;
         }
         if (issues.size() > before) {
@@ -514,6 +540,7 @@ final class EditOps {
         List<Issue> warnings = new ArrayList<>();
         List<String> created = new ArrayList<>();
         Set<String> touched = new LinkedHashSet<>();
+        List<ModelOps.Planned> defined = new ArrayList<>();
         boolean sliders = false;
 
         // [SP_AGA_03_02] Every supplied ID raises its counter before any ID is generated
@@ -598,6 +625,15 @@ final class EditOps {
                 } else {
                     doc.scopeManager.removeScopeViews(elm);
                 }
+            } else if (e instanceof DefineEdit) {
+                ModelOps.Planned p = ((DefineEdit) e).planned;
+                // [SP_AGA_02_04] the restorer is recorded before the entry is written; a failure
+                // later in the batch runs it (newest first) before the snapshot is restored
+                Runnable restorer = ModelOps.define(p);
+                if (restorer != null) {
+                    ctx.onRollback(restorer);
+                }
+                defined.add(p);
             } else if (e instanceof MarkEdit) {
                 MarkEdit mk = (MarkEdit) e;
                 for (String ref : mk.refs) {
@@ -648,6 +684,9 @@ final class EditOps {
         }
         data.put("elements", records);
         data.put("truncated", new JSONNumber(truncated));
+        if (!defined.isEmpty()) {
+            data.put("models", ModelOps.records(ctx.sim, defined));
+        }
         OperationResult result = OperationResult.success(data);
         for (Issue w : warnings) {
             result.addIssue(w);

@@ -25,7 +25,8 @@ How an agent describes, edits, checks and measures circuits through the `circuit
   - `derived`: posts computed from the two points (transistors, op-amps, chips). `derivedPostsAtDefault` gives each pin's offset from `start` at `defaultSize`.
 - `pins` are in post order. Pin names are unique per element (a repeated name gets `_2`, `_3`: `Q`, `Q_2`).
 - `defaultSize` (`end − start` of a freshly placed element) and `derivedPostsAtDefault` describe 16-grid documents. The `posts` of an element record are always authoritative: read them back after placing.
-- `properties`: `{key, kind, default, unit?, label?, sliderMin?, sliderMax?, readOnly?, choices?}`. `kind` is `quantity` (a unit string such as `"1 kOhm"`), `number`, `bool` or `text`. Slider values are typical-range hints, never limits. `choices` (diode and transistor `model`) lists the model names the app holds now; any other name is `invalid_value` (a legacy text import may define more with its model lines).
+- `properties`: `{key, kind, default, unit?, label?, sliderMin?, sliderMax?, readOnly?, choices?}`. `kind` is `quantity` (a unit string such as `"1 kOhm"`), `number`, `bool` or `text`. Slider values are typical-range hints, never limits. `choices` (diode, zener and transistor `model`; `CustomLogic` and `Subcircuit` `model_name`) lists the model names the session holds now; any other name is `invalid_value` (define a new model first: §6 Models).
+- `circuit_types {"models": "diode"}` lists the session's models of a kind (`diode`, `transistor`, `logic`, `subcircuit`; `"all"` = every kind), built-in first, then by name; `{"models": "diode", "model": "1N4148"}` returns one (`unknown_model` when the kind has no such model). A record is `{kind, name, builtIn, parameters?, inputs?, outputs?, rules?, info?, showLabel?, pins?, usedBy}`; `usedBy` lists `{doc, ids}` of the open documents whose elements use it. `type` with `models`, `model` without `models`, and `model` with `"all"` are -32602.
 - `quantities`: the element quantities (`voltage`, `current`, `power`) an `{element, quantity}` probe or reading accepts — all three or none (transformers, chips and op-amps have none: probe their posts or nets).
 - Named nets: a `LabeledNode` with the same `label` text joins its net with every other node of that text. `Ground` defines `gnd`.
 
@@ -71,7 +72,7 @@ Example spec: `{"id": "R1", "type": "Resistor", "start": {"x": 0, "y": 0}, "end"
 
 ### Whole circuit: `circuit_import`
 
-`circuit` is an AgentCircuit object `{elements: ElementSpec[], simulation?, scopes?}`, or a JSON v2 circuit text, or a legacy text circuit, both as strings. It replaces the document's circuit atomically and resets the simulation (time 0, initial element state). `simulation` uses the keys of the JSON v2 `simulation` object (`time_step`, `min_time_step`, …); `scopes` is `[{element, quantity?}]`. The result gives `{elements, ids}` and the connectivity delta. The resource `circuitjs://documents/{doc}/circuit` returns a document's circuit in exactly this importable form.
+`circuit` is an AgentCircuit object `{elements: ElementSpec[], simulation?, scopes?, models?}`, or a JSON v2 circuit text, or a legacy text circuit, both as strings. `models` (≤ 200 ModelSpec or ModelText entries, dependencies first) are defined before the elements (§6 Models). It replaces the document's circuit atomically and resets the simulation (time 0, initial element state). `simulation` uses the keys of the JSON v2 `simulation` object (`time_step`, `min_time_step`, …); `scopes` is `[{element, quantity?}]`. The result gives `{elements, ids}` and the connectivity delta. The resource `circuitjs://documents/{doc}/circuit` returns a document's circuit in exactly this importable form; `circuit_get` returns the models the circuit uses under `models` on its `offset: 0` page.
 
 ### Incremental: `circuit_edit`
 
@@ -87,8 +88,21 @@ Example spec: `{"id": "R1", "type": "Resistor", "start": {"x": 0, "y": 0}, "end"
 | `addScope` | `element`, `quantity?` (`voltage`, `current`, `power`) | add an on-screen scope view (20 slots) |
 | `removeScope` | `element` | remove that element's scope views |
 | `markOpen` | `posts: PostRef[]`, `open?` (default true) | declare posts intentionally unconnected (exempts them from `dangling_post` and `isolated_group`) |
+| `defineModel` | `model: ModelSpec` | register a new session model; later edits of the batch may use its name |
 
-The result gives `{applied, created, elements, truncated}`: the records of created, moved and `set` elements (at most 50), so derived post positions are visible at once.
+The result gives `{applied, created, elements, truncated, models?}`: the records of created, moved and `set` elements (at most 50), so derived post positions are visible at once, and one model record per `defineModel` (`existing: true` when an identical model already existed).
+
+### Models
+
+A model is a named parameter set shared by every document of the session and saved in the files that use it. Diode-family elements (`Diode`, `LED`, `Varactor`, `ZenerDiode`) and `TransistorNPN`/`TransistorPNP` name one by `model`; `CustomLogic` and `Subcircuit` by `model_name`.
+
+- **Create-only names.** A definition whose name exists is accepted unchanged when it is identical (same model line) and is otherwise `name_taken`; internal names are always taken. To change a model, define a new name and `set` the elements' `model` to it. Nothing removes a model; `undo` keeps it.
+- **ModelSpec** `{kind, name, from?, parameters}` for `diode` and `transistor`: `name` matches `^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$`; `from` names a listed model of the same kind whose values are the start (default `default`; unknown: `unknown_model`). Parameters are numbers or unit strings (`quantity` keys take an SI prefix and the unit, `number` keys none); an unknown key is `unknown_property`, a value out of range `invalid_value` naming `parameters.<key>`.
+  - diode: `saturation_current` (A, > 0), `series_resistance` (Ohm, ≥ 0), `emission_coefficient` (number, > 0), `breakdown_voltage` (V, ≥ 0; > 0 makes a zener model), `forward_voltage` (V) with `forward_current` (A). The simple form `{forward_voltage: "2.1 V", forward_current: "20 mA"}` (optionally `saturation_current`, `breakdown_voltage`) solves the emission coefficient so the diode drops exactly that voltage at that current, as the editor's simple model does. With all four core keys `forward_voltage` is derived and only checked (the form records return).
+  - transistor: `saturation_current` (A), `beta_reverse`, `emission_coefficient_forward`, `emission_coefficient_reverse`, `leakage_be_current` (A), `leakage_bc_current` (A), `leakage_be_emission`, `leakage_bc_emission`, `early_voltage_forward` (V), `early_voltage_reverse` (V), `knee_current_forward` (A), `knee_current_reverse` (A); the last four also take `"inf"` (infinite). Forward beta is the element's `beta` property.
+- **ModelText** `{kind, name, modelText}`: exactly one model line of the text format, as `circuit_get` returns it for a model that has no exact ModelSpec (editor names such as `fwdrop=0.8`; logic and subcircuit models). This build defines diode and transistor models; a `logic` or `subcircuit` entry is accepted only when the session already has an identical one.
+- **Legacy text content** given to `circuit_import` follows the same rule: a model line whose name exists with a different definition is `name_taken` (open the file with `circuit_file open` to load its models as the editor does).
+- Example batch: `[{"op": "defineModel", "model": {"kind": "diode", "name": "led-green-2v1", "parameters": {"forward_voltage": "2.1 V", "forward_current": "20 mA"}}}, {"op": "add", "element": {"type": "LED", "start": {"x": 0, "y": 0}, "properties": {"model": "led-green-2v1"}}}]`.
 
 ## 7. Checking: connectivity
 
@@ -191,7 +205,7 @@ Tool results stay within 60 000 characters of text:
 
 ## 13. Issue codes
 
-Operation errors: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`, `result_too_large` (server).
+Operation errors: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `unknown_model` (a `from` or `circuit_types` `model` that names no listed model), `name_taken` (a model name that exists with a different definition, or an internal one), `invalid_value`, `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`, `result_too_large` (server).
 
 Warnings and info: `value_adjusted`, `ids_regenerated`, `import_wire_skipped`, `import_setting_invalid`, `import_geometry_adjusted`, `scope_limit` (import), `reserved_label`, `scope_removed` (info); run ends `budget_exhausted`, `settle_timeout`, `stop_trigger`, `cancelled`.
 

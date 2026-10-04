@@ -27,7 +27,8 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
     public boolean builtIn;
     public boolean oldStyle;
     boolean internal;
-    static final int FLAGS_SIMPLE = 1;
+    /** Flag bit of a simple model (forward voltage at a forward current, the editor's "simple model"). */
+    public static final int FLAGS_SIMPLE = 1;
 
     // Electron thermal voltage at SPICE's default temperature of 27 C (300.15 K):
     static final double vt = 0.025865;
@@ -202,6 +203,8 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
         String name = "fwdrop=" + fwdrop;
         if (zvoltage != 0)
             name = name + " zvoltage=" + zvoltage;
+        // [SP_AGA_03_04] an import with a report can put the entry back (rejected import)
+        recordFallbackEntry(name, !modelMap.containsKey(name));
         DiodeModel dm = getModelWithName(name);
 //	CirSim.console("got model with name " + name);
         dm.saturationCurrent = leakage;
@@ -283,6 +286,9 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
     public static DiodeModel undumpModel(StringTokenizer st) {
         String name = CustomLogicModel.unescape(st.nextToken());
         DiodeModel dm = DiodeModel.getModelWithName(name);
+        if (fallbackNames != null) {
+            fallbackNames.remove(name);
+        }
         dm.undump(st);
         return dm;
     }
@@ -379,7 +385,153 @@ public class DiodeModel implements Editable, Comparable<DiodeModel>, SimulationC
 
     public String dump() {
         dumped = true;
+        return modelLine();
+    }
+
+    /**
+     * [SP_AGA_03_11] "Identical": the model line {@link #dump()} writes, without marking the
+     * entry dumped (a comparison must not change what the next export writes).
+     */
+    public String modelLine() {
         return "34 " + CustomLogicModel.escape(name) + " " + flags + " " + saturationCurrent + " " + seriesResistance + " " + emissionCoefficient + " " + breakdownVoltage + " " + forwardCurrent;
+    }
+
+    // ------------------------------------------------------------------ [SP_AGA_03_04] fallback entries
+
+    /** Receives a restorer for every entry a legacy diode line creates; null when not recording. */
+    private static java.util.function.Consumer<Runnable> fallbackSink;
+    /** Names of the entries legacy diode lines created or rewrote during the current recording. */
+    private static java.util.Set<String> fallbackNames;
+
+    /**
+     * [SP_AGA_03_04] "Model catalogues": while an import with a report runs, the entry that a
+     * legacy diode line with a forward drop creates or rewrites ({@code fwdrop=…},
+     * {@link #getModelWithParameters}) is reported to {@code sink} as its restorer, taken before
+     * the write; its name is remembered ({@link #isFallbackName}).
+     */
+    public static void beginFallbackRecording(java.util.function.Consumer<Runnable> sink) {
+        fallbackSink = sink;
+        fallbackNames = new java.util.HashSet<String>();
+    }
+
+    /** Ends {@link #beginFallbackRecording}. */
+    public static void endFallbackRecording() {
+        fallbackSink = null;
+        fallbackNames = null;
+    }
+
+    // created: the line made a new entry (a later model line of the same content then defines it);
+    // a rewritten existing entry is restored on rejection but never treated as absent
+    private static void recordFallbackEntry(String name, boolean created) {
+        if (fallbackSink != null) {
+            fallbackSink.accept(entryRestorer(name));
+            if (created) {
+                fallbackNames.add(name);
+            }
+        }
+    }
+
+    /**
+     * @return true when an element line of the current recording created the entry {@code name}
+     *         (a model line for it in the same content is a definition, not a conflict)
+     */
+    public static boolean isFallbackName(String name) {
+        return fallbackNames != null && fallbackNames.contains(name);
+    }
+
+    // ------------------------------------------------------------------ [SP_AGA_01_13] agent models
+
+    /** @return the model flags ({@code 1} = simple model) */
+    public int getFlags() {
+        return flags;
+    }
+
+    /** @return the stored forward current of a simple model (0 when not set) */
+    public double getForwardCurrent() {
+        return forwardCurrent;
+    }
+
+    /** @return true for an entry the editor hides (parts of built-in chips, superseded entries) */
+    public boolean isInternal() {
+        return internal;
+    }
+
+    /** @return the catalogue entry of that name (built-in, internal or user), or null; never creates one */
+    public static DiodeModel findEntry(String name) {
+        createModelMap();
+        return name == null ? null : modelMap.get(name);
+    }
+
+    /** @return every catalogue entry, internal ones included (unordered) */
+    public static java.util.List<DiodeModel> entries() {
+        createModelMap();
+        return new java.util.ArrayList<DiodeModel>(modelMap.values());
+    }
+
+    /**
+     * A model that is not in the catalogue (for validation and comparison): name, flags and the
+     * four core values plus the stored forward current, exactly as a model line carries them.
+     */
+    public static DiodeModel createDetached(String name, int flags, double saturationCurrent, double seriesResistance,
+                                            double emissionCoefficient, double breakdownVoltage, double forwardCurrent) {
+        DiodeModel dm = new DiodeModel();
+        dm.name = name;
+        dm.flags = flags;
+        dm.saturationCurrent = saturationCurrent;
+        dm.seriesResistance = seriesResistance;
+        dm.emissionCoefficient = emissionCoefficient;
+        dm.breakdownVoltage = breakdownVoltage;
+        dm.forwardCurrent = forwardCurrent;
+        dm.updateModel();
+        return dm;
+    }
+
+    /**
+     * Parses the fields of a model line after its name (as {@link #undump} does, but with whole
+     * flags required) into a model that is not in the catalogue.
+     *
+     * @throws RuntimeException when a field is missing or does not parse
+     */
+    public static DiodeModel undumpDetached(String name, StringTokenizer st) {
+        DiodeModel dm = new DiodeModel();
+        dm.name = name;
+        dm.flags = Integer.parseInt(st.nextToken());
+        dm.saturationCurrent = Double.parseDouble(st.nextToken());
+        dm.seriesResistance = Double.parseDouble(st.nextToken());
+        dm.emissionCoefficient = Double.parseDouble(st.nextToken());
+        dm.breakdownVoltage = Double.parseDouble(st.nextToken());
+        if (st.hasMoreTokens()) {
+            dm.forwardCurrent = Double.parseDouble(st.nextToken());
+        }
+        dm.updateModel();
+        return dm;
+    }
+
+    /**
+     * Registers a detached model as a new user entry under its name (create-only callers check
+     * that the name is free; {@link #entryRestorer} taken before removes it again).
+     */
+    public static void defineEntry(DiodeModel dm) {
+        createModelMap();
+        dm.readOnly = dm.builtIn = dm.internal = false;
+        modelMap.put(dm.name, dm);
+    }
+
+    /**
+     * The emission coefficient that makes a diode with series resistance 0 and this saturation
+     * current drop {@code forwardVoltage} at {@code forwardCurrent} — the editor's simple model
+     * ({@link #setEmissionCoefficient}).
+     */
+    public static double simpleEmissionCoefficient(double forwardVoltage, double forwardCurrent, double saturationCurrent) {
+        return (forwardVoltage / Math.log(forwardCurrent / saturationCurrent + 1)) / vt;
+    }
+
+    /**
+     * The forward voltage at {@code current} as the editor derives it for a simple model
+     * ({@link #setForwardVoltage}, series resistance not included).
+     */
+    public double forwardVoltageAt(double current) {
+        return emissionCoefficient * vt * Math.log(current / saturationCurrent + 1);
     }
 
     public boolean isSimple() {

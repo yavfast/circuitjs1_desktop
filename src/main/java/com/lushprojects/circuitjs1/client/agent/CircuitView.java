@@ -48,7 +48,7 @@ final class CircuitView {
 
     /**
      * {@code getCircuit(detail?, ids?, offset?, limit?)} → {@code {elements, total, nextOffset?,
-     * simulation, scopes}}.
+     * simulation, scopes, models?, modelsTruncated?}} ({@code models} on the {@code offset = 0} page).
      */
     static OperationResult getCircuit(AgentApi.Call call) {
         String detail = call.args.optEnum("detail", new String[] { "concise", "full" }, "concise");
@@ -101,6 +101,14 @@ final class CircuitView {
             }
             data.put("simulation", new JsonCircuitExporter(null).exportSimulation(doc));
             data.put("scopes", scopes(doc));
+            if (offset == 0) {
+                // [SP_AGA_02_05] the document's models, on the first page only
+                ModelOps.DocumentModels models = ModelOps.documentModels(doc);
+                data.put("models", models.models);
+                if (models.truncated > 0) {
+                    data.put("modelsTruncated", new JSONNumber(models.truncated));
+                }
+            }
             return OperationResult.success(data);
         });
     }

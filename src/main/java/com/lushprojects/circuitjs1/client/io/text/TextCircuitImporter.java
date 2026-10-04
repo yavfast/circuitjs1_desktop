@@ -40,6 +40,7 @@ import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
+import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
 
 /**
  * Imports circuit from the original CircuitJS1 text format.
@@ -85,9 +86,18 @@ public class TextCircuitImporter implements CircuitImporter {
             return;
         }
         this.report = report;
+        if (report != null) {
+            // [SP_AGA_03_04] logic entries that elements' fallbacks create are restored on rejection
+            CustomLogicModel.beginFallbackRecording(report::addModelRestorer);
+            DiodeModel.beginFallbackRecording(report::addModelRestorer);
+        }
         try {
             importLines(data, document, flags);
         } finally {
+            if (report != null) {
+                CustomLogicModel.endFallbackRecording();
+                DiodeModel.endFallbackRecording();
+            }
             this.report = null;
         }
     }
@@ -106,11 +116,16 @@ public class TextCircuitImporter implements CircuitImporter {
         parseCircuitLines(data, document, isSubcircuitMode, flags);
         // [SP_AGA_03_03] "Model names": a model defined anywhere in the content resolves; only
         // names neither the session nor the content define are reported (a report is given)
+        java.util.List<CircuitElm> still = new java.util.ArrayList<>();
+        java.util.List<Integer> stillLines = new java.util.ArrayList<>();
+        java.util.List<String> stillNames = new java.util.ArrayList<>();
         for (int i = 0; i < unresolvedModels.size(); i++) {
             CircuitElm elm = unresolvedModels.get(i);
             String name = elm.getUnresolvedModelName();
             if (!elm.retryUnresolvedModel() && report != null) {
-                report.addUnresolvedModel("line " + unresolvedLines.get(i), name, unresolvedLines.get(i), null);
+                still.add(elm);
+                stillLines.add(unresolvedLines.get(i));
+                stillNames.add(name);
             }
         }
         unresolvedModels.clear();
@@ -118,6 +133,12 @@ public class TextCircuitImporter implements CircuitImporter {
 
         // Finalize loading
         ImportLifecycle.finalizeCircuitLoading(document, flags, report);
+
+        // reported after the IDs are settled, so each item names its element
+        for (int i = 0; i < still.size(); i++) {
+            report.addUnresolvedModel("line " + stillLines.get(i), stillNames.get(i), stillLines.get(i),
+                    still.get(i).getElementId());
+        }
     }
 
     @Override
@@ -245,6 +266,38 @@ public class TextCircuitImporter implements CircuitImporter {
     }
 
     /**
+     * [SP_AGA_03_11] "Create-only names" on a report that asks for them (agent
+     * {@code importCircuit}): a model line whose name exists in its catalogue never overwrites the
+     * entry — it is a no-op when the line it produces equals the entry's model line, and a
+     * {@code name_taken} error item otherwise (always for an internal entry). A line whose fields
+     * do not parse throws, which fails the line.
+     *
+     * @return true when the line must not be undumped
+     */
+    private boolean keepExistingModel(StringTokenizer tokenizer, int typeId) {
+        if (report == null || !report.isCreateOnlyModels()) {
+            return false;
+        }
+        String kind = ModelSpecCodec.kindOfLineType(typeId);
+        StringTokenizer st = new StringTokenizer(tokenizer.getOriginalString(), DELIMITERS);
+        st.nextToken(); // line type
+        String name = CustomLogicModel.unescape(st.nextToken());
+        Object entry = ModelSpecCodec.entry(kind, name);
+        // an entry an element line of this content created (a CustomLogic fallback, a legacy
+        // fwdrop diode) is not a session entry: the model line defines it as usual
+        if (entry == null || ModelSpecCodec.isFallbackName(kind, name)) {
+            return false;
+        }
+        String line = ModelSpecCodec.normalizedLine(kind, name, st);
+        if (!ModelSpecCodec.isInternal(entry) && line.equals(ModelSpecCodec.lineOf(entry))) {
+            return true;
+        }
+        reportItem(ImportReport.NAME_TAKEN, ImportReport.Severity.ERROR, "line " + lineNumber + ": the " + kind
+                + " model '" + name + "' exists in the session with a different definition");
+        return true;
+    }
+
+    /**
      * Handle special circuit elements (scopes, hints, options).
      */
     private boolean handleSpecialElements(StringTokenizer tokenizer, CircuitDocument document,
@@ -277,6 +330,9 @@ public class TextCircuitImporter implements CircuitImporter {
                 return true;
 
             case '!': // Custom logic model
+                if (keepExistingModel(tokenizer, typeId)) {
+                    return true;
+                }
                 recordModelEntry(tokenizer, typeId);
                 CustomLogicModel.undumpModel(tokenizer);
                 return true;
@@ -299,11 +355,17 @@ public class TextCircuitImporter implements CircuitImporter {
                                            int typeId) {
         switch (typeId) {
             case 34: // Diode model
+                if (keepExistingModel(tokenizer, typeId)) {
+                    return true;
+                }
                 recordModelEntry(tokenizer, typeId);
                 DiodeModel.undumpModel(tokenizer);
                 return true;
 
             case 32: // Transistor model
+                if (keepExistingModel(tokenizer, typeId)) {
+                    return true;
+                }
                 recordModelEntry(tokenizer, typeId);
                 TransistorModel.undumpModel(tokenizer);
                 return true;
@@ -313,6 +375,9 @@ public class TextCircuitImporter implements CircuitImporter {
                 return true;
 
             case '.': // Custom composite model
+                if (keepExistingModel(tokenizer, typeId)) {
+                    return true;
+                }
                 recordModelEntry(tokenizer, typeId);
                 CustomCompositeModel.undumpModel(tokenizer);
                 return true;

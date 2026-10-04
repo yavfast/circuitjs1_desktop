@@ -82,17 +82,21 @@ const TOOLS = [
     name: 'circuit_types',
     title: 'Element catalogue',
     description:
-      'List the element types of the catalogue, or describe one type. Without `type`: the index ' +
-      '{type, aliases, pins, geometry, summary} of every type, narrowed by `filter` (case-insensitive ' +
-      'substring of name, alias or summary). With `type` (a name or alias): its TypeInfo - pins in post ' +
+      'List the element types of the catalogue, or describe one type, or list the session models. Without ' +
+      '`type`: the index {type, aliases, pins, geometry, summary} of every type, narrowed by `filter` ' +
+      '(substring of name, alias or summary). With `type` (a name or alias): its TypeInfo - pins in post ' +
       'order, geometry (single | two_point | derived), defaultSize and derivedPostsAtDefault in grid cells ' +
       '(1 cell = 16 px), property keys with kind, default and unit (model keys: choices), defaultFlags, ' +
-      'quantities (element quantities a probe accepts). Use it before ' +
-      'circuit_import or circuit_edit to learn pin names and property keys. The catalogue is the same for ' +
-      'all documents: a given `doc` must be open but does not change the answer. Example: {"type": "Resistor"} or {"filter": "mosfet"}.',
+      'quantities. With `models` (diode | transistor | logic | subcircuit | all): the model records ' +
+      '{kind, name, builtIn, parameters, usedBy}; `model` picks one name of one kind. Use it before ' +
+      'circuit_import or circuit_edit to learn pin names, property keys and model names. The catalogue is ' +
+      'the same for all documents: a given `doc` must be open but does not change the answer. Example: ' +
+      '{"type": "Resistor"} or {"models": "diode", "model": "1N4148"}.',
     inputSchema: inputSchema({
       type: { type: 'string', description: 'Type name or alias to describe; absent: list the index.' },
-      filter: { type: 'string', description: 'Index filter (substring), only without `type`.' },
+      filter: { type: 'string', description: 'Index filter (substring), only without `type` and `models`.' },
+      models: { type: 'string', enum: ['diode', 'transistor', 'logic', 'subcircuit', 'all'], description: 'List the session models of a kind (all: every kind).' },
+      model: { type: 'string', description: 'With `models` of one kind: that one model.' },
     }),
     outputSchema: S.operationResult({
       types: Object.assign({}, S.ARRAY_OF_OBJECTS, { description: 'Index entries {type, aliases, pins, geometry, summary}.' }),
@@ -100,9 +104,21 @@ const TOOLS = [
       geometry: S.STRING, pins: { type: 'array', items: S.STRING }, defaultSize: S.OBJECT,
       derivedPostsAtDefault: S.OBJECT, properties: S.ARRAY_OF_OBJECTS, defaultFlags: S.INT,
       quantities: { type: 'array', items: S.STRING },
-    }, 'listTypes: {types}; describeType: TypeInfo.'),
+      models: Object.assign({}, S.ARRAY_OF_OBJECTS, { description: 'ModelRecords {kind, name, builtIn, parameters?, usedBy}.' }),
+    }, 'listTypes: {types}; describeType: TypeInfo; listModels: {models}.'),
     annotations: hints(true, false, true, 'Element catalogue'),
     map(args, name) {
+      // [SP_MCP_02_02] models/model → listModels; inapplicable combinations are -32602
+      if (args.model !== undefined && args.models === undefined) throw invalidParams(name, 'model', 'requires `models` with one kind');
+      if (args.models !== undefined) {
+        if (args.type !== undefined) throw invalidParams(name, 'type', 'does not apply when `models` is given');
+        if (args.filter !== undefined) throw invalidParams(name, 'filter', 'does not apply when `models` is given');
+        if (args.models === 'all' && args.model !== undefined) throw invalidParams(name, 'model', 'needs `models` of one kind, not "all"');
+        const out = pick(args, []);
+        if (args.models !== 'all') out.kind = args.models;
+        if (args.model !== undefined) out.name = args.model;
+        return { op: 'listModels', args: out };
+      }
       if (args.type !== undefined) {
         if (args.filter !== undefined) throw invalidParams(name, 'filter', 'does not apply when `type` is given');
         return { op: 'describeType', args: pick(args, ['type']) };
@@ -145,11 +161,12 @@ const TOOLS = [
     title: 'Import a whole circuit',
     description:
       'Replace a document\'s whole circuit in one call (atomic: on any error nothing changes). `circuit` ' +
-      'is an AgentCircuit object {elements: ElementSpec[], simulation?, scopes?}, a JSON v2 circuit text ' +
+      'is an AgentCircuit object {elements: ElementSpec[], simulation?, scopes?, models?}, a JSON v2 circuit text ' +
       'or a legacy text circuit. ElementSpec: {id?, type, start: {x, y}, end?, properties?, flags?, ' +
       'description?}; coordinates are grid cells (1 cell = 16 px, x right, y down; author on the ' +
       'half-cell lattice). Records read with circuit_get or the circuitjs://documents/{doc}/circuit ' +
-      'resource import unchanged. The simulation is reset. Returns {elements, ids} and the connectivity ' +
+      'resource import unchanged (models: ModelSpec/ModelText, create-only names). The simulation is reset. ' +
+      'Returns {elements, ids} and the connectivity ' +
       'delta: check connectivity.errorCount. Acts on the active document unless `doc` is given. Example: ' +
       '{"circuit": {"elements": [{"id": "R1", "type": "Resistor", "start": {"x": 0, "y": 0}, "end": ' +
       '{"x": 4, "y": 0}, "properties": {"resistance": "4.7k"}}]}}.',
@@ -176,7 +193,8 @@ const TOOLS = [
       'Apply an ordered batch of 1..200 edits atomically (one invalid edit rejects the whole batch). ' +
       'Ops: add {element: ElementSpec}; move {id, start, end?} or {id, by: {dx, dy}}; delete {id}; set ' +
       '{id, properties, flags?} (a patch: other keys keep their value); describe {id, description}; ' +
-      'addScope / removeScope {element, quantity?}; markOpen {posts: PostRef[], open?}. Coordinates are ' +
+      'addScope / removeScope {element, quantity?}; markOpen {posts: PostRef[], open?}; defineModel {model: ' +
+      'ModelSpec} (a new session model, create-only: an identical existing one is reported existing). Coordinates are ' +
       'grid cells (1 cell = 16 px) on a half-cell lattice; later edits see earlier ones (an added id can ' +
       'be set in the same batch). Returns {applied, created, elements} (records of changed elements with ' +
       'post positions and nets) and the connectivity delta; values the element adjusts come back as ' +
@@ -191,7 +209,8 @@ const TOOLS = [
       created: { type: 'array', items: S.STRING },
       elements: { type: 'array', items: S.ELEMENT_RECORD, description: 'Records of created, moved or set elements (at most 50).' },
       truncated: S.INT,
-    }, '{applied, created, elements, truncated}'),
+      models: Object.assign({}, S.ARRAY_OF_OBJECTS, { description: 'One ModelRecord per defineModel (existing: true when identical).' }),
+    }, '{applied, created, elements, truncated, models?}'),
     annotations: hints(false, true, false, 'Edit the circuit'),
     map(args) {
       return { op: 'applyEdits', args: pick(args, ['edits']) };
@@ -205,7 +224,8 @@ const TOOLS = [
       'properties, flags, description}; coordinates in grid cells (1 cell = 16 px). detail concise ' +
       '(default) omits default-valued properties and flags; full lists them all. Pages by offset/limit ' +
       '(default 200, max 500): continue at data.nextOffset. ids reads a subset. Also returns total, the ' +
-      'simulation settings and the scope views. A result over the size limit is re-read with smaller ' +
+      'simulation settings, the scope views and (offset 0 only) the models the circuit uses (ModelSpec or ' +
+      'ModelText, importable with circuit_import). A result over the size limit is re-read with smaller ' +
       'arguments (concise, then a halved limit) and the text names the reduction. Acts on the active ' +
       'document unless `doc` is given. Example: {"detail": "full", "ids": ["R1", "C1"]}.',
     inputSchema: inputSchema({
@@ -220,7 +240,9 @@ const TOOLS = [
       nextOffset: Object.assign({}, S.INT, { description: 'Present when more elements follow.' }),
       simulation: S.OBJECT,
       scopes: S.ARRAY_OF_OBJECTS,
-    }, '{elements, total, nextOffset?, simulation, scopes}'),
+      models: Object.assign({}, S.ARRAY_OF_OBJECTS, { description: 'Offset 0 only: the non-built-in models the circuit uses.' }),
+      modelsTruncated: S.INT,
+    }, '{elements, total, nextOffset?, simulation, scopes, models?, modelsTruncated?}'),
     annotations: hints(true, false, true, 'Read the circuit'),
     map(args) {
       return { op: 'getCircuit', args: pick(args, ['detail', 'ids', 'offset', 'limit']) };

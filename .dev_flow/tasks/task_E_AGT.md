@@ -156,7 +156,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] T6 PASS (gain 10.73; 4-way dotted junctions, non-polar electrolytics) · T7 PASS (|H(1k)| 0.704, −40 dB/dec; agent skipped the render step) · T8 PASS elec (971 Hz, 64.6 %, 15 mA) — value text "10nF" crossed by a wire, LED symbol without polarity (→ IEC LED symbol, developer decision) · T9 PASS elec (500/250/125/62.5 Hz) — stray unconnected Ground (no_ground fires for logic-only circuits → fix) · T10 PASS (5.042 V, 7.8 mV; no power Schottky model → model definitions)
 - [x] Fix rounds 1–2: `symbol_overlap` (geometry-only), short-lead text flip (`leadFraction` in 10 one-post elements), IEC LED symbol, `no_ground` only without any ground reference, skill drawing rules; reviews PASS (round 1 PASS + findings, delta PASS + findings → confirmed); full test:live = baseline; new scenarios agent_overlap 20, render_text 7, agent_connect 31
 - [x] Design: agent model definitions (SP_AGA_DEC_07, PL_AGA Phases 11–15) — spec review 4 rounds → PASS
-- [ ] Next: PL_AGA Phase 11 (diode/transistor models) → 12 → 13 → 14 → 15; then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
+- [x] PL_AGA Phase 11 — diode/transistor models (defineModel, listModels, models in import/getCircuit, create-only text import, logic fallback NPE fix, fwdrop/logic restorers; skill text pulled forward); agent_models 75, test:mcp 69/0, T2 re-run PASS with agent-defined LED models
+- [ ] Next: PL_AGA Phase 12 → 13 → 14 → 15; qam-256 403-line fix (worktree subagent, pending); then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
 
 **Activity:**
 - 2026-10-04 — developer: wire crossings are allowed (not a defect); research of drawing guidelines (IEEE 315, IEC 61082, ГОСТ 2.702) → `.dev_flow/cache/schematic-drawing-guidelines.md`

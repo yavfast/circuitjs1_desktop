@@ -60,9 +60,18 @@ public class JsonCircuitImporter implements CircuitImporter {
     @Override
     public void importCircuit(String data, CircuitDocument document, int flags, ImportReport report) {
         this.report = report;
+        if (report != null) {
+            // [SP_AGA_03_04] logic entries that elements' fallbacks create are restored on rejection
+            CustomLogicModel.beginFallbackRecording(report::addModelRestorer);
+            DiodeModel.beginFallbackRecording(report::addModelRestorer);
+        }
         try {
             importJson(data, document, flags);
         } finally {
+            if (report != null) {
+                CustomLogicModel.endFallbackRecording();
+                DiodeModel.endFallbackRecording();
+            }
             this.report = null;
         }
     }

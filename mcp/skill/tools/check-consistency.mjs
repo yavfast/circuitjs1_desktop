@@ -23,7 +23,8 @@
 //              cells in example circuits, half-cell lattice in every element spec
 //   codes      every SP_AGA issue code (agent-api.sp.md §03_04-§03_06) and server code
 //              (mcp-server.sp.md §03_03) has a diagnostics.md row; every row names a known code
-//   names      every backticked snake_case word of the skill is an issue code, a property key, a tool,
+//   names      every backticked snake_case word of the skill is an issue code, a property key, a model
+//              parameter key (agent-api.sp.md §01_13 value table), a tool,
 //              an argument or enumeration value of a tool, or a catalogue geometry (live: full check;
 //              offline: codes and tools only are known, so the group is SKIP)
 //   tools      tool names vs `circuitjs-mcp tools` (+ the three bridge tools); argument keys of every
@@ -44,7 +45,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..', '..');
 const BRIDGE_TOOLS = ['bridge_instances', 'bridge_select', 'bridge_launch']; // mcp/bridge/README.md
-const NOT_CODES = new Set(['error', 'warning', 'info', 'elements']); // backticked words of §03_06 that are not codes
+const NOT_CODES = new Set(['error', 'warning', 'info', 'elements', 'from']); // backticked words of §03_06 that are not codes (`from`: a ModelSpec field)
 const OTHER_WORDS = new Set(['connected_to']); // JSON v2 file keys the skill names (not served by the tools)
 // Minimum number of codes each spec section must yield, so a format drift cannot pass vacuously
 const MIN_CODES = { 'SP_AGA_03_04': 5, 'SP_AGA_03_05': 9, 'SP_AGA_03_06': 30, 'SP_MCP_03_03': 1 };
@@ -226,6 +227,9 @@ const bySection = {
   'SP_AGA_03_06': [...section(aga, '### 03_06.', '### 03_07.').matchAll(/`([a-z_]+)`/g)].map((m) => m[1]).filter((c) => !NOT_CODES.has(c)),
   'SP_MCP_03_03': [...section(mcpSpec, '### 03_03.', '### 03_04.').matchAll(/issue `([a-z_]+)`/g)].map((m) => m[1]),
 };
+// [SP_AGA_01_13] model parameter keys (value table): words of the skill's model sections
+const MODEL_KEYS = new Set([...section(aga, '### 01_13.', '## 02.').matchAll(/^\| (?:diode|transistor) \| `([a-z_]+)` \|/gm)].map((m) => m[1]));
+check(MODEL_KEYS.size >= 10, `SP_AGA_01_13: only ${MODEL_KEYS.size} model parameter keys parsed; the spec format changed?`);
 const specCodes = new Map();
 for (const [sec, list] of Object.entries(bySection)) {
   check(new Set(list).size >= MIN_CODES[sec], `${sec}: only ${new Set(list).size} codes parsed (expected at least ${MIN_CODES[sec]}); the spec format changed?`);
@@ -289,8 +293,8 @@ else {
   for (const [f, t] of Object.entries(text)) {
     for (const m of t.matchAll(/`([a-z][a-z0-9]*(?:_[a-z0-9]+)+)`/g)) {
       const w = m[1]; n++;
-      check(specCodes.has(w) || allKeys.has(w) || schemaWords.has(w) || tools.includes(w) || BRIDGE_TOOLS.includes(w) || typeWords.has(w) || OTHER_WORDS.has(w),
-        `${f}:${lineAt(t, m.index)} \`${w}\` is no issue code, property key, tool, argument or catalogue word`);
+      check(specCodes.has(w) || allKeys.has(w) || MODEL_KEYS.has(w) || schemaWords.has(w) || tools.includes(w) || BRIDGE_TOOLS.includes(w) || typeWords.has(w) || OTHER_WORDS.has(w),
+        `${f}:${lineAt(t, m.index)} \`${w}\` is no issue code, property key, model parameter key, tool, argument or catalogue word`);
     }
   }
   check(n > 0, 'no snake_case names found');

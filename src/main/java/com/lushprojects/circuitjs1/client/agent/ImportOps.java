@@ -56,12 +56,23 @@ final class ImportOps {
             return call.args.failure();
         }
         final Catalogue cat = call.sim.getAgentCatalogue();
+        // [SP_AGA_01_13] the logic default entry exists before any model name check
+        ModelNames.ensureDefaults();
         List<Issue> issues = new ArrayList<>();
         final String content;
         final String formatId;
         final AgentCircuitConverter.Converted agent;
+        List<ModelOps.Planned> planned = new ArrayList<>();
         if (circuit.isObject() != null) {
-            agent = AgentCircuitConverter.convertCircuit(circuit.isObject(), cat, issues);
+            // [SP_AGA_02_03] models are validated with the elements (names = session ∪ models)
+            ModelOps.Scope scope = new ModelOps.Scope();
+            ModelNames.beginScope(scope);
+            try {
+                planned = ModelOps.validateList(circuit.isObject().get("models"), "circuit.models", scope, issues);
+                agent = AgentCircuitConverter.convertCircuit(circuit.isObject(), cat, issues);
+            } finally {
+                ModelNames.endScope();
+            }
             content = agent == null ? null : agent.json;
             formatId = "json";
         } else if (circuit.isString() != null) {
@@ -88,7 +99,8 @@ final class ImportOps {
             keepLastImport(doc, rejected);
             return rejected;
         }
-        OperationResult result = Mutation.run(call.sim, doc, ctx -> load(ctx, content, formatId, agent, cat, true));
+        final List<ModelOps.Planned> models = planned;
+        OperationResult result = Mutation.run(call.sim, doc, ctx -> load(ctx, content, formatId, agent, cat, true, models));
         keepLastImport(doc, result);
         return result;
     }
@@ -122,7 +134,7 @@ final class ImportOps {
         if (!issues.isEmpty()) {
             return OperationResult.failure(issues);
         }
-        return Mutation.run(sim, doc, ctx -> load(ctx, text, formatId, null, null, false));
+        return Mutation.run(sim, doc, ctx -> load(ctx, text, formatId, null, null, false, null));
     }
 
     /** @return the Issues of every item of an importer report, in report order */
@@ -136,14 +148,28 @@ final class ImportOps {
 
     /**
      * @param strictModels agent content (importCircuit): an unresolved model name rejects the
-     *                     import; a user file (openFile) loads with a warning ([SP_AGA_03_03])
+     *                     import and model lines are create-only ([SP_AGA_03_11]); a user file
+     *                     (openFile) loads with a warning and overwrites as the editor does
+     *                     ([SP_AGA_03_03])
+     * @param models       the validated AgentCircuit {@code models}, defined before the content
+     *                     is loaded, or null
      */
     private static OperationResult load(Mutation.Context ctx, String content, String formatId,
-            AgentCircuitConverter.Converted agent, Catalogue cat, boolean strictModels) {
+            AgentCircuitConverter.Converted agent, Catalogue cat, boolean strictModels, List<ModelOps.Planned> models) {
         CircuitDocument doc = ctx.doc;
+        if (models != null) {
+            // [SP_AGA_02_03] each new entry records its restorer first; a rejection runs them in
+            // reverse after the restorers of the content's model lines (registered later)
+            for (ModelOps.Planned p : models) {
+                Runnable restorer = ModelOps.define(p);
+                if (restorer != null) {
+                    ctx.onRollback(restorer);
+                }
+            }
+        }
         final ImportReport report = new ImportReport();
         if (strictModels) {
-            report.strictModels();
+            report.strictModels().createOnlyModels();
         }
         // Model catalogue entries changed by a text import go back before the snapshot reload
         ctx.onRollback(report::restoreModels);
@@ -277,7 +303,7 @@ final class ImportOps {
             JSONString v = p.modelCatalogue == null || props.get(p.key) == null ? null : props.get(p.key).isString();
             if (v != null && !v.stringValue().isEmpty() && !ModelNames.exists(p.modelCatalogue, v.stringValue())) {
                 issues.add(CellGeometry.withSubject(Issue.of(IssueCode.INVALID_VALUE, "Property 'elements." + key
-                        + ".properties." + p.key + "' names no " + ("transistor".equals(p.modelCatalogue) ? "transistor" : "diode")
+                        + ".properties." + p.key + "' names no " + ModelNames.label(p.modelCatalogue)
                         + " model of the session: '" + Catalogue.clipName(v.stringValue()) + "'.",
                         ModelNames.hint(p.modelCatalogue)), subject));
             }
@@ -396,6 +422,8 @@ final class ImportOps {
                 return "Use unique keys matching ^[A-Za-z][A-Za-z0-9_]{0,31}$.";
             case INVALID_VALUE:
                 return "Name a model of the session (describeType lists the key's choices) or define it with a model line in the same content.";
+            case NAME_TAKEN:
+                return ModelOps.IMPORT_NAME_TAKEN_HINT;
             case VALUE_ADJUSTED:
                 return "The element simulates with a fallback model; define the model in the file or choose one of describeType's choices.";
             default:

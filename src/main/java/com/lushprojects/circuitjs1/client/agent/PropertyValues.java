@@ -5,6 +5,7 @@ import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.util.UnitValues;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,9 +27,6 @@ final class PropertyValues {
 
     /** Maximum length of a text property or description. */
     static final int MAX_TEXT = 1000;
-
-    private static final String[] PREFIXES = { "f", "p", "n", "u", "μ", "m", "k", "K", "M", "G", "T" };
-    private static final int[] PREFIX_EXP = { -15, -12, -9, -6, -6, -3, 3, 3, 6, 9, 12 };
 
     private PropertyValues() {
     }
@@ -98,99 +96,31 @@ final class PropertyValues {
 
     /**
      * Parses {@code <number>[ ][prefix][unit]} fully, optionally inside one pair of double quotes;
-     * {@code unit} may be null (no unit allowed).
+     * {@code unit} may be null (no unit allowed). The strict number syntax is
+     * {@link UnitValues#parse}; the quote rule is the agent's own.
      *
      * @return the value, or null when the string is not of that form
      */
     static Double parseUnitString(String text, String unit) {
+        String s = unquote(text);
+        return s == null ? null : UnitValues.parse(s, unit);
+    }
+
+    /**
+     * [SP_AGA_03_03] One pair of surrounding double quotes is tolerated: agent hosts sometimes
+     * send a number-or-string argument JSON-encoded twice ({@code "\"10 ms\""}).
+     *
+     * @return the trimmed text without that pair, or null for null
+     */
+    static String unquote(String text) {
         if (text == null) {
             return null;
         }
         String s = text.trim();
-        // [SP_AGA_03_03] one pair of surrounding double quotes is tolerated: agent hosts sometimes send a
-        // number-or-string argument JSON-encoded twice ("\"10 ms\"")
         if (s.length() >= 2 && s.charAt(0) == '"' && s.charAt(s.length() - 1) == '"') {
             s = s.substring(1, s.length() - 1).trim();
         }
-        int i = 0;
-        int n = s.length();
-        if (i < n && (s.charAt(i) == '+' || s.charAt(i) == '-')) {
-            i++;
-        }
-        int digits = 0;
-        while (i < n && Character.isDigit(s.charAt(i))) {
-            i++;
-            digits++;
-        }
-        if (i < n && s.charAt(i) == '.') {
-            i++;
-            while (i < n && Character.isDigit(s.charAt(i))) {
-                i++;
-                digits++;
-            }
-        }
-        if (digits == 0) {
-            return null;
-        }
-        String mantissa = s.substring(0, i);
-        int exp = 0;
-        // an exponent needs digits after 'e' ("5e3"); "5 e" is not one
-        if (i < n && (s.charAt(i) == 'e' || s.charAt(i) == 'E')) {
-            int j = i + 1;
-            if (j < n && (s.charAt(j) == '+' || s.charAt(j) == '-')) {
-                j++;
-            }
-            int k = j;
-            while (k < n && Character.isDigit(s.charAt(k))) {
-                k++;
-            }
-            if (k > j) {
-                try {
-                    exp = Integer.parseInt(s.substring(i + 1, k).replace("+", ""));
-                } catch (NumberFormatException e) {
-                    return null;
-                }
-                i = k;
-            }
-        }
-        String rest = s.substring(i).trim();
-        int prefixExp;
-        if (rest.isEmpty() || matchesUnit(rest, unit)) {
-            prefixExp = 0;
-        } else {
-            prefixExp = Integer.MIN_VALUE;
-            for (int p = 0; p < PREFIXES.length; p++) {
-                String pre = PREFIXES[p];
-                if (rest.startsWith(pre)) {
-                    String tail = rest.substring(pre.length());
-                    if (tail.isEmpty() || matchesUnit(tail, unit)) {
-                        prefixExp = PREFIX_EXP[p];
-                        break;
-                    }
-                }
-            }
-            if (prefixExp == Integer.MIN_VALUE) {
-                return null;
-            }
-        }
-        double d;
-        try {
-            // decimal exponent arithmetic keeps the result correctly rounded ("4.7k" = 4700)
-            d = Double.parseDouble(mantissa + "e" + (exp + prefixExp));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        return Double.isNaN(d) || Double.isInfinite(d) ? null : d;
-    }
-
-    private static boolean matchesUnit(String s, String unit) {
-        if (unit == null) {
-            return false;
-        }
-        if (s.equals(unit)) {
-            return true;
-        }
-        return ("Ohm".equals(unit) && s.equals("Ω")) || ("Ω".equals(unit) && s.equals("Ohm"));
+        return s;
     }
 
     /**

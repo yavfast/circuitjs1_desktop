@@ -65,6 +65,10 @@ public enum IssueCode {
     NO_PATH("no_path", Issue.Severity.ERROR),
     INTERNAL_ERROR("internal_error", Issue.Severity.ERROR),
 
+    // Model codes ([SP_AGA_03_11])
+    UNKNOWN_MODEL("unknown_model", Issue.Severity.ERROR),
+    NAME_TAKEN("name_taken", Issue.Severity.ERROR),
+
     // Run end causes
     BUDGET_EXHAUSTED("budget_exhausted", Issue.Severity.WARNING),
     SETTLE_TIMEOUT("settle_timeout", Issue.Severity.WARNING),

@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -4192,6 +4192,375 @@ async function scenarioAgentFiles(s) {
     sweep: out.notes.sweep && { known: out.notes.sweep.known, unknown: out.notes.sweep.unknown }, details: path.join(OUT_DIR, 'agent_files.json') });
 }
 
+// agent_models: model definitions, diode and transistor (PL_AGA Phase 11; SP_AGA_01_13, §02_03,
+// §02_04 defineModel, §02_05 models, §02_15 listModels, §03_03 Model names, §03_11, §05_01 rows,
+// §05_02 "ok=false ⇒ catalogues unchanged"). On background documents: listModels kinds/order/name
+// and the ensured logic `default`; defineModel of an LED model whose forward voltage a run measures
+// (2.1 V ± 0.02 V at 20 mA) and describeType choices; name taken (built-in, earlier user model,
+// internal name, logic `default`); identical redefinition (existing); batch rollback and rollback on
+// a forced exception; bad `from`; the diode input errors; diode record re-import (same model line
+// but the name) and record mismatches; transistor from `default` with an Early voltage and with
+// "inf" (inverse 0 in the model line); undo/redo keep the model; `set` of an unknown CustomLogic
+// model_name; importCircuit ModelText errors, models rollback, the same-session round trip (and a
+// fresh-session one in a side page), the `fwdrop=0.8` ModelText fallback, a legacy text model line
+// that differs (name_taken + openFile hint) and a legacy CustomLogic line naming an unknown model;
+// openFile (text and JSON, through an in-page fake of the desktop file system) of a CustomLogic
+// naming an unknown model loads with value_adjusted. Every rejection leaves the catalogues and the
+// document unchanged; no alert, no page exception (apart from the forced one).
+async function scenarioAgentModels(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const codes = (r) => (r.issues || []).map((i) => i.code);
+  const has = (r, code, re) => (r.issues || []).some((i) => i.code === code && (!re || re.test(i.message + ' ' + (i.hint || ''))));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const strip = (m) => { const c = Object.assign({}, m); delete c.usedBy; return c; };
+  const catalogue = async () => JSON.stringify((await A('listModels', {})).data.models.map(strip));
+  const record = async (kind, name) => { const r = await A('listModels', { kind, name }); return r.ok ? r.data.models[0] : null; };
+  const docState = async (doc) => {
+    const st = JSON.parse(await s.eval(`CircuitJS1Agent.debugDocState(${JSON.stringify(doc)})`));
+    return { text: (await A('exportCircuit', { doc, format: 'text' })).data.content, ids: (await A('getCircuit', { doc })).data.elements.map((e) => e.id), undo: st.undo, marks: st.openMarks };
+  };
+  const define = (doc, model, more) => A('applyEdits', { doc, edits: [{ op: 'defineModel', model }].concat(more || []) });
+  // a rejection: ok=false with the code, document and catalogues unchanged (SP_AGA_05_02)
+  const rejections = {};
+  const rejects = async (name, doc, fn, code, re) => {
+    const c0 = await catalogue(); const d0 = await docState(doc);
+    const r = await fn();
+    const c1 = await catalogue(); const d1 = await docState(doc);
+    rejections[name] = { ok: r.ok, issues: (r.issues || []).map((i) => i.code + ': ' + i.message + ' | ' + (i.hint || '')) };
+    return ck(name, r.ok === false && has(r, code, re) && c0 === c1 && same(d0, d1));
+  };
+  try {
+    await resetApp(s);
+    const exMark = s.exceptions.length;
+    const alertMark = s.dialogs.length;
+    const vis0 = await s.call('visibleTab');
+    const D = (await A('createDocument', { title: 'Models' })).data.doc;
+
+    // ---------------------------------------------------------------- listModels
+    const all = (await A('listModels', {})).data.models;
+    const kindOrder = ['diode', 'transistor', 'logic', 'subcircuit'];
+    let ordered = true;
+    for (let i = 1; i < all.length; i++) {
+      const a = all[i - 1], b = all[i];
+      const ka = kindOrder.indexOf(a.kind), kb = kindOrder.indexOf(b.kind);
+      if (ka > kb || (ka === kb && (a.builtIn === false && b.builtIn === true || (a.builtIn === b.builtIn && a.name >= b.name)))) { ordered = false; out.notes.orderBreak = [a.kind + ':' + a.name, b.kind + ':' + b.name]; }
+    }
+    ck('list_allKinds', kindOrder.every((k) => all.some((m) => m.kind === k)));
+    ck('list_order', ordered);
+    ck('list_noInternal', !all.some((m) => m.name.startsWith('~') || m.name === 'old-default-led' || /^xlm324/.test(m.name)));
+    const logicDefault = all.find((m) => m.kind === 'logic' && m.name === 'default');
+    out.notes.logicDefault = logicDefault;
+    ck('list_logicDefault', logicDefault && logicDefault.builtIn === false && same(logicDefault.inputs, ['A', 'B']) && same(logicDefault.outputs, ['C', 'D']) && same(logicDefault.rules, []));
+    const n4148 = await A('listModels', { kind: 'diode', name: '1N4148' });
+    ck('list_name', n4148.ok && n4148.data.models.length === 1 && n4148.data.models[0].builtIn === true && n4148.data.models[0].parameters.breakdown_voltage === '75 V');
+    const noKind = await A('listModels', { name: '1N4148' });
+    ck('list_nameWithoutKind', noKind.ok === false && has(noKind, 'invalid_value', /'name'/));
+    const nope = await A('listModels', { kind: 'diode', name: 'nope' });
+    ck('list_unknownName', nope.ok === false && has(nope, 'unknown_model'));
+    ck('list_internalName', has(await A('listModels', { kind: 'diode', name: 'old-default-led' }), 'unknown_model'));
+
+    // ---------------------------------------------------------------- LED with a forward voltage
+    const ledSpec = { kind: 'diode', name: 'led-green-2v1', parameters: { forward_voltage: '2.1 V', forward_current: '20 mA' } };
+    const ledCircuit = [
+      { op: 'add', element: { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: '5 V' } } },
+      { op: 'add', element: { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: 145 } } },
+      { op: 'add', element: { id: 'LED1', type: 'LED', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { model: 'led-green-2v1' } } },
+      { op: 'add', element: { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } } },
+      { op: 'add', element: { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } } }];
+    const led = await define(D, ledSpec, ledCircuit);
+    out.notes.led = { ok: led.ok, issues: codes(led), models: led.data && led.data.models };
+    ck('led_defined', led.ok && led.data.models.length === 1 && led.data.models[0].name === 'led-green-2v1' && !led.data.models[0].existing
+      && led.data.models[0].parameters.forward_voltage === '2.1 V' && led.data.models[0].parameters.forward_current === '20 mA'
+      && same(led.data.models[0].usedBy, [{ doc: D, ids: ['LED1'] }]));
+    const run = await R({ doc: D, span: '5 ms', reset: true, maxPoints: 10, probes: [{ post: 'LED1.anode', name: 'va' }, { post: 'LED1.cathode', name: 'vk' }, { element: 'R1', quantity: 'current', name: 'i' }] });
+    const fin = run.ok ? Object.fromEntries(run.data.probes.map((p) => [p.name, p.stats.final])) : {};
+    out.notes.ledRun = { ok: run.ok, fin, issues: codes(run) };
+    ck('led_dropsForwardVoltage', run.ok && Math.abs((fin.va - fin.vk) - 2.1) <= 0.02 && Math.abs(Math.abs(fin.i) - 0.02) <= 0.0005);
+    const ledType = await A('describeType', { type: 'LED' });
+    const ledModelKey = ledType.data.properties.find((p) => p.key === 'model');
+    ck('led_choices', ledModelKey && ledModelKey.choices.includes('led-green-2v1'));
+
+    // ---------------------------------------------------------------- name taken / internal / identical
+    await rejects('taken_builtIn', D, () => define(D, { kind: 'diode', name: '1N4148', parameters: { emission_coefficient: 3 } }), 'name_taken');
+    await rejects('taken_user', D, () => define(D, { kind: 'diode', name: 'led-green-2v1', parameters: { forward_voltage: '2.2 V', forward_current: '20 mA' } }), 'name_taken');
+    await rejects('taken_internal', D, () => define(D, { kind: 'diode', name: 'old-default-led', parameters: {} }), 'name_taken');
+    ck('taken_internalNotListed', !(await A('listModels', { kind: 'diode' })).data.models.some((m) => m.name === 'old-default-led'));
+    await rejects('taken_logicDefault', D, () => define(D, { kind: 'logic', name: 'default', inputs: ['A', 'B'], outputs: ['Y'], rules: ['11=1'] }), 'name_taken');
+    const recBefore = await record('diode', 'led-green-2v1');
+    const again = await define(D, ledSpec, [{ op: 'add', element: { id: 'LED2', type: 'LED', start: { x: 8, y: 0 }, end: { x: 8, y: 4 }, properties: { model: 'led-green-2v1' } } }]);
+    const recAfter = await record('diode', 'led-green-2v1');
+    ck('identical_existing', again.ok && again.data.models[0].existing === true && same(strip(recBefore), strip(recAfter))
+      && same(recAfter.usedBy, [{ doc: D, ids: ['LED1', 'LED2'] }]));
+
+    // ---------------------------------------------------------------- rollback
+    await rejects('rollback_batch', D, () => define(D, { kind: 'diode', name: 'rb-diode', parameters: {} }, [{ op: 'add', element: { type: 'Nope', start: { x: 0, y: 10 } } }]), 'unknown_type');
+    ck('rollback_batchNotListed', has(await A('listModels', { kind: 'diode', name: 'rb-diode' }), 'unknown_model'));
+    {
+      const c0 = await catalogue(); const d0 = await docState(D);
+      await s.eval('CircuitJS1Agent.debugFailNextMutation()');
+      const fe = await define(D, { kind: 'diode', name: 'ex-diode', parameters: {} }, [{ op: 'add', element: { type: 'Resistor', start: { x: 0, y: 10 } } }]);
+      await sleep(200);
+      await s.call('closeDialogs');
+      const c1 = await catalogue(); const d1 = await docState(D);
+      ck('rollback_exception', fe.ok === false && has(fe, 'internal_error') && c0 === c1 && same(d0, d1)
+        && has(await A('listModels', { kind: 'diode', name: 'ex-diode' }), 'unknown_model'));
+    }
+
+    // ---------------------------------------------------------------- bad from, diode input errors
+    await rejects('from_unknown', D, () => define(D, { kind: 'diode', name: 'f1', from: 'nope', parameters: {} }), 'unknown_model', /\.from'/);
+    await rejects('from_internal', D, () => define(D, { kind: 'diode', name: 'f2', from: 'old-default-led', parameters: {} }), 'unknown_model', /\.from'/);
+    await define(D, { kind: 'transistor', name: 'bjt-only', parameters: { beta_reverse: 2 } });
+    await rejects('from_otherKind', D, () => define(D, { kind: 'diode', name: 'f3', from: 'bjt-only', parameters: {} }), 'unknown_model', /\.from'/);
+    await rejects('from_logic', D, () => define(D, { kind: 'logic', name: 'f4', from: 'default', inputs: ['A'], outputs: ['Y'], rules: ['1=1'] }), 'invalid_value', /\.from'/);
+    const diodeErrors = {
+      fcWithoutFv: [{ forward_current: '20 mA' }, 'invalid_value', /parameters\.forward_current'/],
+      fvWithEcOnly: [{ forward_voltage: '2 V', emission_coefficient: 2 }, 'invalid_value', /parameters\.forward_voltage'/],
+      negativeBv: [{ breakdown_voltage: '-5 V' }, 'invalid_value', /parameters\.breakdown_voltage'/],
+      unitOnNumber: [{ emission_coefficient: '2 V' }, 'invalid_value', /parameters\.emission_coefficient'/],
+      unknownKey: [{ foo: 1 }, 'unknown_property', /parameters\.foo'/],
+      fvFcWithEc: [{ forward_voltage: '2 V', forward_current: '10 mA', emission_coefficient: 2 }, 'invalid_value', /parameters\.forward_voltage' cannot be combined with emission_coefficient/],
+    };
+    for (const [k, [params, code, re]] of Object.entries(diodeErrors)) {
+      await rejects('diode_' + k, D, () => define(D, { kind: 'diode', name: 'de-' + k, parameters: params }), code, re);
+    }
+    // "inf" only on the four transistor keys that take it
+    await rejects('inf_transistorSaturation', D, () => define(D, { kind: 'transistor', name: 'ti1', parameters: { saturation_current: 'inf' } }), 'invalid_value', /parameters\.saturation_current'/);
+    await rejects('inf_diodeForwardVoltage', D, () => define(D, { kind: 'diode', name: 'ti2', parameters: { forward_voltage: 'inf', forward_current: '20 mA' } }), 'invalid_value', /parameters\.forward_voltage'/);
+
+    // ---------------------------------------------------------------- diode record re-import and mismatches
+    const rec = await record('diode', 'led-green-2v1');
+    const copy = await define(D, { kind: 'diode', name: 'led-green-copy', parameters: rec.parameters },
+      [{ op: 'add', element: { id: 'D9', type: 'Diode', start: { x: 12, y: 0 }, end: { x: 12, y: 4 }, properties: { model: 'led-green-copy' } } }]);
+    const txt = (await A('exportCircuit', { doc: D, format: 'text' })).data.content;
+    const lineOf = (name) => txt.split('\n').find((l) => l.startsWith('34 ' + name + ' '));
+    out.notes.recordLines = [lineOf('led-green-2v1'), lineOf('led-green-copy')];
+    ck('record_reimport', copy.ok && lineOf('led-green-2v1') && lineOf('led-green-copy')
+      && lineOf('led-green-2v1').replace('led-green-2v1', 'X') === lineOf('led-green-copy').replace('led-green-copy', 'X')
+      && lineOf('led-green-copy').split(' ')[2] === '1');
+    const off = Object.assign({}, rec.parameters, { forward_voltage: '2.121 V' });
+    await rejects('record_fvMismatch', D, () => define(D, { kind: 'diode', name: 'rm1', parameters: off }), 'invalid_value', /parameters\.forward_voltage'.*omit emission_coefficient and series_resistance/);
+    const withRs = Object.assign({}, rec.parameters, { series_resistance: '1 Ohm' });
+    await rejects('record_fcWithRs', D, () => define(D, { kind: 'diode', name: 'rm2', parameters: withRs }), 'invalid_value', /parameters\.forward_current'/);
+
+    // ---------------------------------------------------------------- transistor
+    const tr = await define(D, { kind: 'transistor', name: 'bjt-lowbeta', from: 'default', parameters: { early_voltage_forward: '100 V' } });
+    const def = await record('transistor', 'default');
+    const low = tr.ok ? tr.data.models[0] : null;
+    ck('transistor_fromDefault', low && low.parameters.early_voltage_forward === '100 V'
+      && Object.keys(def.parameters).every((k) => k === 'early_voltage_forward' || same(low.parameters[k], def.parameters[k])));
+    const inf = await define(D, { kind: 'transistor', name: 'bjt-inf', from: 'bjt-lowbeta', parameters: { early_voltage_forward: 'inf', knee_current_forward: 'inf' } },
+      [{ op: 'add', element: { id: 'Q1', type: 'TransistorNPN', start: { x: 20, y: 0 }, end: { x: 24, y: 0 }, properties: { model: 'bjt-inf' } } }]);
+    const qtxt = (await A('exportCircuit', { doc: D, format: 'text' })).data.content;
+    const qline = qtxt.split('\n').find((l) => l.startsWith('32 bjt-inf '));
+    out.notes.infLine = qline;
+    const qt = qline ? qline.split(' ') : [];
+    ck('transistor_inf', inf.ok && inf.data.models[0].parameters.early_voltage_forward === 'inf' && inf.data.models[0].parameters.knee_current_forward === 'inf'
+      && qt[4] === '0' && qt[12] === '0');
+
+    // ---------------------------------------------------------------- undo keeps the model
+    await A('checkpoint', { doc: D });
+    const u0 = await record('diode', 'led-green-2v1');
+    const ub = await define(D, { kind: 'diode', name: 'undo-led', parameters: { forward_voltage: '1.9 V', forward_current: '10 mA' } },
+      [{ op: 'add', element: { id: 'LED7', type: 'LED', start: { x: 30, y: 0 }, end: { x: 30, y: 4 }, properties: { model: 'undo-led' } } }]);
+    const ur0 = await record('diode', 'undo-led');
+    const un = await A('undo', { doc: D });
+    const afterUndo = (await A('getCircuit', { doc: D })).data.elements.map((e) => e.id);
+    const ur1 = await record('diode', 'undo-led');
+    const re = await A('redo', { doc: D });
+    const afterRedo = (await A('getCircuit', { doc: D })).data.elements.map((e) => e.id);
+    const ur2 = await record('diode', 'undo-led');
+    ck('undo_modelKept', ub.ok && un.ok && re.ok && !afterUndo.includes('LED7') && afterRedo.includes('LED7')
+      && ur1 && ur2 && same(ur0.parameters, ur1.parameters) && same(ur0.parameters, ur2.parameters)
+      && same(strip(u0), strip(await record('diode', 'led-green-2v1'))));
+
+    // ---------------------------------------------------------------- set unknown model_name (CustomLogic)
+    const L = (await A('createDocument', { title: 'Logic' })).data.doc;
+    await A('applyEdits', { doc: L, edits: [{ op: 'add', element: { id: 'CL1', type: 'CustomLogic', start: { x: 0, y: 0 } } }] });
+    const logicType = await A('describeType', { type: 'CustomLogic' });
+    const mk = logicType.data.properties.find((p) => p.key === 'model_name');
+    ck('logic_choices', mk && Array.isArray(mk.choices) && mk.choices.includes('default'));
+    await rejects('set_unknownModelName', L, () => A('applyEdits', { doc: L, edits: [{ op: 'set', id: 'CL1', properties: { model_name: 'nope' } }] }), 'invalid_value', /model_name.*Available logic models: .*default/);
+    ck('set_unknownNotRegistered', has(await A('listModels', { kind: 'logic', name: 'nope' }), 'unknown_model'));
+
+    // ---------------------------------------------------------------- importCircuit models / ModelText
+    const I = (await A('createDocument', { title: 'Import' })).data.doc;
+    const imp = (circuit) => () => A('importCircuit', { doc: I, circuit });
+    const mt = (m) => ({ elements: [], models: [m] });
+    await rejects('mt_twoLines', I, imp(mt({ kind: 'diode', name: 'mt1', modelText: '34 mt1 0 1e-14 0 1 0 0\n34 mt1 0 1e-14 0 1 0 0' })), 'invalid_value', /modelText'/);
+    await rejects('mt_wrongToken', I, imp(mt({ kind: 'diode', name: 'mt2', modelText: '32 mt2 0 1e-13 0 0 1.5 0 0 2 1 1 0 0 1' })), 'invalid_value', /modelText'/);
+    await rejects('mt_nameMismatch', I, imp(mt({ kind: 'diode', name: 'mt3', modelText: '34 other 0 1e-14 0 1 0 0' })), 'invalid_value', /modelText'/);
+    await rejects('mt_tildeName', I, imp(mt({ kind: 'diode', name: '~x', modelText: '34 ~x 0 1e-14 0 1 0 0' })), 'invalid_value', /(modelText|name)'/);
+    await rejects('mt_badField', I, imp(mt({ kind: 'transistor', name: 'mt5', modelText: '32 mt5 0 abc' })), 'invalid_value', /modelText'/);
+    await rejects('models_rollback', I, imp({ elements: [], models: [{ kind: 'diode', name: 'mr-a', parameters: {} }, { kind: 'diode', name: 'led-green-2v1', parameters: { forward_voltage: '3 V', forward_current: '20 mA' } }] }), 'name_taken', /openFile/);
+    ck('models_rollbackNotListed', has(await A('listModels', { kind: 'diode', name: 'mr-a' }), 'unknown_model'));
+    // models cap: more than 200 entries are rejected; getCircuit lists 200 and counts the rest
+    const capModels = (from, to) => Array.from({ length: to - from }, (_, k) => ({ kind: 'diode', name: 'cap-' + (from + k), parameters: { emission_coefficient: 1 + (from + k) / 1000 } }));
+    await rejects('models_over200', I, imp({ elements: [], models: capModels(0, 201) }), 'invalid_value', /circuit\.models'/);
+    const C = (await A('createDocument', { title: 'Cap' })).data.doc;
+    await define(C, { kind: 'diode', name: 'cap-0', parameters: { emission_coefficient: 1 } });
+    const capElms = Array.from({ length: 201 }, (_, k) => ({ id: 'D' + (k + 1), type: 'Diode', start: { x: (k % 20) * 6, y: Math.floor(k / 20) * 4 }, properties: { model: 'cap-' + k } }));
+    const capImp = await A('importCircuit', { doc: C, circuit: { elements: capElms, models: capModels(1, 201) } });
+    const capGc = await A('getCircuit', { doc: C, limit: 1 });
+    out.notes.cap = { ok: capImp.ok, issues: codes(capImp).slice(0, 3), models: capGc.data && capGc.data.models && capGc.data.models.length, truncated: capGc.data && capGc.data.modelsTruncated };
+    ck('models_getCircuitCap', capImp.ok && capGc.data.models.length === 200 && capGc.data.modelsTruncated === 1);
+    await A('closeDocument', { doc: C, discardChanges: true });
+    // a valid ModelText defines the model; the element uses it
+    const mtOk = await A('importCircuit', { doc: I, circuit: { models: [{ kind: 'diode', name: 'mt-ok', modelText: '34 mt-ok 0 2e-14 0 1.5 0 0\n' }],
+      elements: [{ id: 'D1', type: 'Diode', start: { x: 0, y: 0 }, properties: { model: 'mt-ok' } }] } });
+    const mtRec = await record('diode', 'mt-ok');
+    ck('mt_defines', mtOk.ok && mtRec && mtRec.parameters.emission_coefficient === 1.5 && same(mtRec.usedBy, [{ doc: I, ids: ['D1'] }]));
+    // logic ModelText: a new name is not definable in this build (Phase 12); the ensured default, identical, is accepted
+    await rejects('mt_logicNew', I, imp(mt({ kind: 'logic', name: 'lx', modelText: '! lx 0 A Y lx 1\\q1\\n' })), 'invalid_value', /not supported/);
+    const ldText = (await A('importCircuit', { doc: I, circuit: { elements: [], models: [{ kind: 'logic', name: 'default', modelText: '! default 0 A,B C,D custom\\slogic \\0' }] } }));
+    ck('mt_logicDefaultIdentical', ldText.ok);
+
+    // round trip in the same session: getCircuit form → new document, every entry identical
+    const gc = await A('getCircuit', { doc: D, detail: 'full' });
+    const gcModels = gc.data.models || [];
+    out.notes.gcModels = gcModels.map((m) => m.kind + ':' + m.name + (m.modelText ? ' (text)' : ' (spec)'));
+    ck('get_modelsListed', gcModels.some((m) => m.name === 'led-green-2v1' && m.parameters) && gcModels.some((m) => m.name === 'bjt-inf' && m.parameters)
+      && !gcModels.some((m) => m.name === 'default' || m.name === 'spice-default'));
+    const gcPage2 = await A('getCircuit', { doc: D, offset: 1 });
+    ck('get_modelsOffsetZeroOnly', gcPage2.ok && gcPage2.data.models === undefined);
+    const form = { elements: gc.data.elements, simulation: gc.data.simulation, scopes: gc.data.scopes, models: gcModels };
+    const RT = (await A('createDocument', { title: 'Roundtrip' })).data.doc;
+    const c0 = await catalogue();
+    const rt = await A('importCircuit', { doc: RT, circuit: form });
+    const c1 = await catalogue();
+    const gc2 = await A('getCircuit', { doc: RT, detail: 'full' });
+    const recs = (g) => JSON.stringify(g.data.elements.map((e) => { const c = Object.assign({}, e); delete c.posts; return c; }));
+    out.notes.roundtrip = { ok: rt.ok, issues: (rt.issues || []).map((i) => i.code + ': ' + i.message), catalogueSame: c0 === c1, recordsSame: recs(gc) === recs(gc2),
+      modelsSame: same(gc2.data.models, gcModels) };
+    if (recs(gc) !== recs(gc2)) out.notes.roundtripRecords = [recs(gc).slice(0, 1500), recs(gc2).slice(0, 1500)];
+    ck('roundtrip_sameSession', rt.ok && c0 === c1 && recs(gc) === recs(gc2) && same(gc2.data.models, gcModels));
+    // a different line under an existing name in the content → name_taken with the openFile hint
+    const differing = JSON.parse(JSON.stringify(form));
+    differing.models.find((m) => m.name === 'led-green-2v1').parameters.forward_current = '10 mA';
+    delete differing.models.find((m) => m.name === 'led-green-2v1').parameters.forward_voltage;
+    differing.models.find((m) => m.name === 'led-green-2v1').parameters = { forward_voltage: '2.1 V', forward_current: '10 mA' };
+    await rejects('roundtrip_differing', RT, () => A('importCircuit', { doc: RT, circuit: differing }), 'name_taken', /open the file with `openFile`/i);
+
+    // ModelText fallback: an editor-made diode model fwdrop=0.8 (legacy diode line with a forward drop)
+    const F = (await A('createDocument', { title: 'Fwdrop' })).data.doc;
+    const fw = await A('importCircuit', { doc: F, circuit: '$ 1 0.000005 10 50 5 50 5e-11\nd 0 0 64 0 1 0.8\n' });
+    const fgc = await A('getCircuit', { doc: F, detail: 'full' });
+    const fm = (fgc.data.models || []).find((m) => /^fwdrop=0\.8/.test(m.name));
+    out.notes.fwdrop = fm;
+    ck('fallback_modelText', fw.ok && fm && typeof fm.modelText === 'string' && fm.modelText.startsWith('34 ') && !fm.parameters);
+    const F2 = (await A('createDocument', {})).data.doc;
+    const fc0 = await catalogue();
+    const frt = await A('importCircuit', { doc: F2, circuit: { elements: fgc.data.elements, simulation: fgc.data.simulation, models: fgc.data.models } });
+    ck('fallback_reimportIdentical', frt.ok && fc0 === await catalogue());
+
+    // fresh session (side page): the getCircuit form restores the models it carries
+    let target = null; let cdp2 = null;
+    try {
+      target = await (await fetch(`http://127.0.0.1:${s.cdpPort}/json/new?${s.baseUrl}/circuitjs.html`, { method: 'PUT' })).json();
+      cdp2 = new CDP(target.webSocketDebuggerUrl); await cdp2.open();
+      const s2 = new Session(cdp2, s.baseUrl);
+      await cdp2.send('Runtime.enable');
+      const A2 = async (op, args) => JSON.parse(await s2.eval(`CircuitJS1Agent.call(${JSON.stringify(op)}, ${JSON.stringify(JSON.stringify(args))})`));
+      await waitFor(async () => { try { return (await A2('listDocuments', {})).ok; } catch { return false; } }, LOAD_TIMEOUT_MS, 'side page');
+      const before = await A2('listModels', { kind: 'diode', name: 'led-green-2v1' });
+      const fr = await A2('importCircuit', { circuit: form });
+      const after = await A2('listModels', { kind: 'diode', name: 'led-green-2v1' });
+      const back = await A2('getCircuit', { detail: 'full' });
+      out.notes.fresh = { before: codes(before), import: fr.ok ? 'ok' : codes(fr), after: after.ok && after.data.models[0].parameters, backModels: back.data && back.data.models };
+      ck('roundtrip_freshSession', has(before, 'unknown_model') && fr.ok && after.ok
+        && same(after.data.models[0].parameters, (await record('diode', 'led-green-2v1')).parameters)
+        && same(back.data.models, gcModels));
+    } finally {
+      if (cdp2) cdp2.close();
+      if (target) await fetch(`http://127.0.0.1:${s.cdpPort}/json/close/${target.id}`).catch(() => {});
+      await s.cdp.send('Page.bringToFront').catch(() => {});
+    }
+
+    // ---------------------------------------------------------------- legacy text content
+    const T = (await A('createDocument', { title: 'Text' })).data.doc;
+    const opts = '$ 1 0.000005 10 50 5 50 5e-11';
+    await rejects('text_differingLogicDefault', T, () => A('importCircuit', { doc: T, circuit: opts + '\n! default 0 A,B C,D custom\\slogic 11\\q11\\n\n' }), 'name_taken', /open the file with `openFile`/i);
+    // a CustomLogic line naming an unknown model, without a model line
+    const ltxt = (await A('exportCircuit', { doc: L, format: 'text' })).data.content.split('\n');
+    const clLine = ltxt.find((l) => l.startsWith('208 '));
+    const withModel = (name) => { const t = clLine.split(' '); t[6] = name; return t.join(' '); };
+    out.notes.clLine = clLine;
+    await rejects('text_unknownLogicModel', T, () => A('importCircuit', { doc: T, circuit: opts + '\n' + withModel('nope') + '\n' }), 'invalid_value', /'nope'/);
+    const tu = await A('importCircuit', { doc: T, circuit: opts + '\n' + withModel('nope') + '\n' });
+    ck('text_unknownLogicNamesElement', tu.issues.some((i) => i.code === 'invalid_value' && (i.elements || []).length === 1));
+    ck('text_unknownLogicNotRegistered', has(await A('listModels', { kind: 'logic', name: 'nope' }), 'unknown_model'));
+    // control: the same line after its model line loads (a model defined by the content)
+    const tk = await A('importCircuit', { doc: T, circuit: opts + '\n! tl-ok 0 A,B Y tl-ok 11\\q1\\n\n' + withModel('tl-ok') + '\n' });
+    ck('text_logicModelLineDefines', tk.ok && (await record('logic', 'tl-ok')) !== null);
+    // the element line before its own model line: the fallback's empty entry is no session entry,
+    // so the later model line defines the model (no name_taken) and the element takes its pins
+    const tl = await A('importCircuit', { doc: T, circuit: opts + '\n' + withModel('tl-late') + '\n! tl-late 0 A,B Y tl-late 11\\q1\\n\n' });
+    const tlRec = await record('logic', 'tl-late');
+    const tlElm = tl.ok ? (await A('getCircuit', { doc: T })).data.elements.find((e) => e.type === 'CustomLogic') : null;
+    out.notes.modelLineAfterElement = { ok: tl.ok, issues: codes(tl), rec: tlRec && [tlRec.inputs, tlRec.outputs], posts: tlElm && tlElm.posts.map((p) => p.pin) };
+    ck('text_modelLineAfterElement', tl.ok && tlRec && same(tlRec.outputs, ['Y']) && tlElm && same(tlElm.posts.map((p) => p.pin), ['A', 'B', 'Y']));
+    // a rejected import puts back the fwdrop entry its legacy diode line created
+    await rejects('text_fwdropRestored', T, () => A('importCircuit', { doc: T, circuit: opts + '\nd 0 0 64 0 1 0.777\nHello there\n' }), 'import_element_skipped');
+    ck('text_fwdropNotListed', has(await A('listModels', { kind: 'diode', name: 'fwdrop=0.777' }), 'unknown_model'));
+
+    // ---------------------------------------------------------------- openFile with an unknown logic model
+    const jsonDoc = JSON.parse((await A('exportCircuit', { doc: L, format: 'json' })).data.content);
+    for (const e of Object.values(jsonDoc.elements)) if (e.type === 'CustomLogic') e.properties.model_name = 'nope-file-j';
+    const files = { '/tmp/am_logic.txt': opts + '\n' + withModel('nope-file-t') + '\n', '/tmp/am_logic.json': JSON.stringify(jsonDoc),
+      '/tmp/am_reject.txt': opts + '\n' + withModel('nope-file-r') + '\nd 0 64 64 64 1 0.778\n32 am-badt 0 abc\n' };
+    await s.eval(`(() => {
+      const files = ${JSON.stringify(files)};
+      const err = (p) => { const e = new Error('ENOENT: no such file or directory, ' + p); e.code = 'ENOENT'; return e; };
+      const loose = (base) => new Proxy(base, { get: (t, k) => (k in t ? t[k] : () => undefined) });
+      const fs = loose({
+        realpathSync: (p) => { if (!(p in files)) throw err(p); return p; },
+        statSync: (p) => { if (!(p in files)) throw err(p); return { isFile: () => true, size: files[p].length, mode: 420 }; },
+        readFileSync: (p) => { if (!(p in files)) throw err(p); const t = files[p]; return { length: t.length, toString: () => t }; },
+      });
+      const path = loose({ resolve: (p) => p, isAbsolute: (p) => p.startsWith('/'), basename: (p) => p.replace(/^.*\\//, ''), join: (...a) => a.join('/'), dirname: (p) => p.replace(/\\/[^/]*$/, '') });
+      window.__savedNw = window.nw;
+      window.nw = { require: (m) => (m === 'fs' ? fs : m === 'path' ? path : m === 'buffer' ? { Buffer: function () {} } : undefined) };
+    })()`);
+    try {
+      const docsBefore = (await A('listDocuments', {})).data.documents.length;
+      const ot = await A('openFile', { path: '/tmp/am_logic.txt' });
+      const oj = await A('openFile', { path: '/tmp/am_logic.json' });
+      out.notes.openFile = { text: { ok: ot.ok, issues: (ot.issues || []).map((i) => i.code + ': ' + i.message) }, json: { ok: oj.ok, issues: (oj.issues || []).map((i) => i.code + ': ' + i.message) } };
+      const rt1 = await record('logic', 'nope-file-t');
+      const rj1 = await record('logic', 'nope-file-j');
+      ck('openFile_textUnknownLogic', ot.ok && has(ot, 'value_adjusted', /nope-file-t/) && rt1 && same(rt1.inputs, ['A', 'B']) && same(rt1.outputs, ['C', 'D']) && same(rt1.rules, []));
+      ck('openFile_jsonUnknownLogic', oj.ok && has(oj, 'value_adjusted', /nope-file-j/) && rj1 !== null);
+      ck('openFile_documentsCreated', (await A('listDocuments', {})).data.documents.length === docsBefore + 2);
+      for (const r of [ot, oj]) if (r.ok) await A('closeDocument', { doc: r.data.doc, discardChanges: true });
+      // a rejected openFile (an unknown line) runs the restorers of the entries its lines created
+      const c0r = await catalogue();
+      const orj = await A('openFile', { path: '/tmp/am_reject.txt' });
+      ck('openFile_rejectedRestores', orj.ok === false && has(orj, 'import_element_skipped') && c0r === await catalogue()
+        && has(await A('listModels', { kind: 'logic', name: 'nope-file-r' }), 'unknown_model')
+        && has(await A('listModels', { kind: 'diode', name: 'fwdrop=0.778' }), 'unknown_model')
+        && (await A('listDocuments', {})).data.documents.length === docsBefore);
+    } finally {
+      await s.eval('window.nw = window.__savedNw; delete window.__savedNw; if (window.nw === undefined) delete window.nw;');
+    }
+
+    for (const doc of [D, L, I, RT, F, F2, T]) await A('closeDocument', { doc, discardChanges: true });
+    out.rejections = rejections;
+    ck('visibleTabUnchanged', same(await s.call('visibleTab'), vis0));
+    const unexpected = s.exceptions.slice(exMark).filter((e) => !/debugFailNextMutation/.test(e));
+    out.notes.exceptions = unexpected.slice(0, 5);
+    ck('noPageException', unexpected.length === 0);
+    ck('noAlert', s.dialogs.length === alertMark);
+  } catch (e) {
+    out.notes.error = e.stack || e.message;
+    ck('noHarnessError', false);
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_models.json'), JSON.stringify(out, null, 2));
+  const failed = Object.entries(out.checks).filter(([, v]) => !v).map(([k]) => k);
+  report('AG.agent_models', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_models.json') });
+}
+
 // pin_names: polar pin names state the real polarity (SP_AGA_DEC_06, SP_AGA_03_02 "Polar names",
 // §01_09 source voltage sign; io-framework "Pin-name aliases"), on a background document. Each
 // source drives a 1 kOhm load from `start` (grounded) to `end`: a DC source reads +5 V at `plus`
@@ -5006,7 +5375,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -5050,7 +5419,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

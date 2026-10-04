@@ -129,7 +129,7 @@ Every tool description contains these points, all stated in the tool text:
 | `circuitjs://catalogue` | application/json | Type index | listTypes |
 | `circuitjs://catalogue/{type}` | application/json | TypeInfo | describeType |
 | `circuitjs://documents` | application/json | Document list | listDocuments |
-| `circuitjs://documents/{doc}/circuit` | application/json | `{elements: ElementRecord[], simulation, scopes}` of the document at full detail, all pages; importable unchanged through `circuit_import` | getCircuit (`detail: full`, all pages) |
+| `circuitjs://documents/{doc}/circuit` | application/json | `{elements: ElementRecord[], simulation, scopes, models?, modelsTruncated?}` of the document at full detail, all pages; importable unchanged through `circuit_import`. `models` is present when the circuit uses a non-built-in model; `modelsTruncated` when > 0 | getCircuit (`detail: full`, all pages) |
 | `circuitjs://examples` | application/json | `{path, title, menu}[]` of the bundled example circuits (`menu`: the Circuits submenu path) | example index of the app package |
 | `circuitjs://examples/{path}` | text/plain | Example circuit text (legacy format); only paths listed in the index | bundled example file |
 | `circuitjs://docs/agent-format` | text/markdown | Coordinate model, ElementSpec, edit ops, issue codes | text shipped with the app |
@@ -385,3 +385,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-04 | Model definitions (SP_AGA_DEC_07): `circuit_types` `models`/`model` → listModels; `circuit_edit` `defineModel`; AgentCircuit `models` in `circuit_import` and `circuit_get` |
 | 2026-10-04 | SP_AGA model review round 1: `circuit_types` argument combinations, `defineModel` create-only; implemented within PL_AGA Phase 11 (MCP server part) |
 | 2026-10-04 | Model definitions review round 2: inapplicable `circuit_types` argument combinations are -32602 like other inapplicable arguments |
+| 2026-10-04 | Phase 11 review: the document circuit resource carries `models` / `modelsTruncated` |
