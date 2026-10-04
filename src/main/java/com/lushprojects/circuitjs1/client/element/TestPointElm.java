@@ -173,7 +173,7 @@ public class TestPointElm extends CircuitElm {
         double dn = getDn();
         // Recalculate lead1 in draw where we have Graphics g to measure text
         interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(),
-                1 - ((int) g.measureWidth("TP") / 2.0 + 8) / dn);
+                leadFraction((int) g.measureWidth("TP") / 2.0 + 8, dn));
         setBbox(geom().getPoint1(), geom().getLead1(), 0);
 
         // draw selected value

@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-03 21:30
+> **Last updated:** 2026-10-04 12:00
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -143,6 +143,25 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 23:55 — PL_AGA P0: today's `bindDocument` starves the active tab when bound per slice (0 % rate); silent field-swap bind + sliders-dialog guard passes R1 at 97.5 %, R2 equal on all §05_02 fields given the per-document hint (condition 3); slices 23–25 ms vs the 20 ms bound (disclosed, Phase 8 proves it); pre-existing tab-switch hint leak filed in the PL_AGA backlog
 - 23:55 — P0 verified headless (harness `eval` + probe) instead of by hand in devmode — stronger evidence: every R1 field sampled per call and per slice
 - 22:40 — tree at checkpoint: branch `design/agent-mcp`, clean apart from this checkpoint's `.dev_flow/` edits; commits 496d9c9 + f48c7e0 ahead of `master`, not pushed
+
+### Subtask: graded live agent design series (verify)
+> Author: `main` — Created: 2026-10-04 09:10 — Last updated: 2026-10-04 09:10 — Status: `in-progress`
+
+**Goal:** developer request 2026-10-04 ("перевірити роботу AI-агентів з MCP … завдання від простих до складних … елементи не накладаються, параметри адекватні"): give isolated `claude -p` agents (skill + circuit_* tools only, no circuit_file) ten circuit-design tasks of rising difficulty, one at a time; verify each independently — electrical targets re-measured by the verifier, drawing standards by a heuristic layout checker (part overlap, wire through part, post inside part, label text, crossings, 4-way junctions, compressed/diagonal parts, ground/source orientation) plus a visual review of the render, parameter adequacy (E-series, power, models, time step); fix every defect found in the app/skill right away (memory: fix defects immediately).
+
+**Method:** scratch tools in the session scratchpad (`agt/`: mcp.mjs client, layout-check.mjs, agent-run.mjs, tasks); calibrated on bundled examples (voltdivide, amp-invert, fullrectf, npn, filt-lopass — no false errors). Model sonnet; per-run budget cap.
+
+**Progress:**
+- [x] T1 PASS · T2 PASS elec, FAIL drawing (ground on rail; same LED model both colours) · T3 PASS elec, label text flipped (app bug, fixed) · T4 PASS (cramped source in bridge, 4-way junction, 2.2 mF non-polar) · T5 PASS elec, tight parallel resistors
+- [x] T6 PASS (gain 10.73; 4-way dotted junctions, non-polar electrolytics) · T7 PASS (|H(1k)| 0.704, −40 dB/dec; agent skipped the render step) · T8 PASS elec (971 Hz, 64.6 %, 15 mA) — value text "10nF" crossed by a wire, LED symbol without polarity (→ IEC LED symbol, developer decision) · T9 PASS elec (500/250/125/62.5 Hz) — stray unconnected Ground (no_ground fires for logic-only circuits → fix) · T10 PASS (5.042 V, 7.8 mV; no power Schottky model → model definitions)
+- [x] Fix rounds 1–2: `symbol_overlap` (geometry-only), short-lead text flip (`leadFraction` in 10 one-post elements), IEC LED symbol, `no_ground` only without any ground reference, skill drawing rules; reviews PASS (round 1 PASS + findings, delta PASS + findings → confirmed); full test:live = baseline; new scenarios agent_overlap 20, render_text 7, agent_connect 31
+- [x] Design: agent model definitions (SP_AGA_DEC_07, PL_AGA Phases 11–15) — spec review 4 rounds → PASS
+- [ ] Next: PL_AGA Phase 11 (diode/transistor models) → 12 → 13 → 14 → 15; then re-run T2/T8/T9/T10; then `text_overlap` from render (value texts crossing lines, T8 finding) — not yet specified
+
+**Activity:**
+- 2026-10-04 — developer: wire crossings are allowed (not a defect); research of drawing guidelines (IEEE 315, IEC 61082, ГОСТ 2.702) → `.dev_flow/cache/schematic-drawing-guidelines.md`
+- 2026-10-04 — developer decision (LED colour finding): "Агенти повинні мати можливість через mcp створювати нові моделі тих компонентів, якщо це передбачено у застосунку" → new feature: agent model creation for every app model kind (diode, BJT, custom logic, composite); spec/plan first, after the `symbol_overlap` fix lands
+- 2026-10-04 — fixes so far: short-lead text flip (BaseCircuitElm.leadFraction: LabeledNode, Output, StopTrigger, TestPoint); skill "readable schematic" rule + render-look step, spacing 2 → 3 cells; `symbol_overlap` code (subagent, in progress)
 
 ## Review Rounds
 

@@ -314,6 +314,7 @@ final class Connectivity {
         boolean gotGround = false;
         boolean gotRail = false;
         boolean gotVoltage = false;
+        boolean gotGroundReference = false;
         boolean anyPost = false;
         for (CircuitElm elm : elms) {
             if (elm instanceof GroundElm) {
@@ -335,6 +336,8 @@ final class Connectivity {
                     continue;
                 }
                 anyPost = true;
+                // rails, logic inputs, gates, chips and op-amp outputs are referenced to ground internally
+                gotGroundReference |= elm.hasGroundConnection(j);
                 PostAt pa = new PostAt(elm, j, postRef(elm, pins, j), p, nets.analysed ? elm.getNode(j) : -1);
                 all.add(pa);
                 List<PostAt> list = byPoint.get(p);
@@ -431,8 +434,10 @@ final class Connectivity {
             }
         }
 
-        // no_ground
-        if (anyPost && !gotGround) {
+        // no_ground: no Ground element, and either the simulator assumes ground at a voltage source
+        // or no post is referenced to ground by its own element (a circuit referenced only through
+        // rails, logic inputs, gates or chips needs no Ground element)
+        if (anyPost && !gotGround && (implicitGround || !gotGroundReference)) {
             issues.add(Issue.of(IssueCode.NO_GROUND, "The circuit has no ground element"
                     + (implicitGround ? "; the simulator assumes ground at the first post of the first voltage source." : "."),
                     "Add a Ground element at the reference node."));
@@ -493,6 +498,9 @@ final class Connectivity {
                         .elements(pa.elm.getElementId()).posts(pa.ref).at(cell(p.x), cell(p.y)));
             }
         }
+
+        // symbol_overlap: wires through symbols, overlapping symbols, posts on a foreign symbol or lead
+        SymbolOverlap.check(elms, issues);
 
         // single_label / reserved_label
         Map<String, List<CircuitElm>> labels = new LinkedHashMap<>();

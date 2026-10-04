@@ -194,9 +194,17 @@ for (const r of refs) {
 const links = [...skill.matchAll(/\]\(([^)]+)\)/g)].map((m) => m[1]).filter((l) => !/^https?:/.test(l));
 for (const l of links) {
   check(/^[^/]+\/[^/]+$/.test(l), `SKILL.md link is not one level deep: ${l}`);
-  check(fs.existsSync(path.join(opt.skill, l)), `SKILL.md link is broken: ${l}`);
+  // a link may name a heading: file.md#github-style-slug
+  const [file, anchor] = l.split('#');
+  const target = path.join(opt.skill, file);
+  check(fs.existsSync(target), `SKILL.md link is broken: ${l}`);
+  if (anchor && fs.existsSync(target)) {
+    const slugs = fs.readFileSync(target, 'utf8').split('\n').filter((h) => /^#+ /.test(h))
+      .map((h) => h.replace(/^#+ /, '').trim().toLowerCase().replace(/[^\w\- ]/g, '').replace(/ /g, '-'));
+    check(slugs.includes(anchor), `SKILL.md link names no heading: ${l}`);
+  }
 }
-for (const r of refs) check(links.includes(r), `SKILL.md does not link ${r}`);
+for (const r of refs) check(links.some((l) => l.split('#')[0] === r), `SKILL.md does not link ${r}`);
 for (const b of badJson) check(false, `${b.f}:${b.line} a json example does not parse`);
 check(blocks.length > 0, 'no AgentCircuit blocks found');
 check(elementSpecs.length > 0, 'no element specs found');

@@ -71,31 +71,24 @@ public class LEDElm extends DiodeElm {
         return dumpValues(super.dump(), colorR, colorG, colorB, maxBrightnessCurrent);
     }
 
-    Point ledLead1, ledLead2, ledCenter;
+    // Emission arrows of the IEC 60617 / GOST 2.730 LED symbol, beside the diode body
+    Point arrowTail[], arrowHead[];
 
     public void setPoints() {
         super.setPoints();
-        double dn = getDn();
-        int cr = 12;
-        ledLead1 = interpPoint(geom().getPoint1(), geom().getPoint2(), .5 - cr / dn);
-        ledLead2 = interpPoint(geom().getPoint1(), geom().getPoint2(), .5 + cr / dn);
-        ledCenter = interpPoint(geom().getPoint1(), geom().getPoint2(), .5);
+        Point lead1 = geom().getLead1();
+        Point lead2 = geom().getLead2();
+        arrowTail = newPointArray(2);
+        arrowHead = newPointArray(2);
+        for (int i = 0; i != 2; i++) {
+            double f = .2 + .45 * i;
+            interpPoint(lead1, lead2, arrowTail[i], f, -(hs + 3));
+            interpPoint(lead1, lead2, arrowHead[i], f + .45, -(hs + 12));
+        }
     }
 
-    public void draw(Graphics g) {
-        if (needsHighlight() || this == circuitEditor().dragElm) {
-            super.draw(g);
-            return;
-        }
-        setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, geom().getPoint1(), ledLead1);
-        setVoltageColor(g, getNodeVoltage(1));
-        drawThickLine(g, ledLead2, geom().getPoint2());
-
-        g.setColor(neutralColor());
-        int cr = 12;
-        drawThickCircle(g, ledCenter.x, ledCenter.y, cr);
-        cr -= 4;
+    // Brightness 0..255 from the current relative to maxBrightnessCurrent (logarithmic)
+    double brightness() {
         double w = current / maxBrightnessCurrent;
         if (w > 0)
             w = 255 * (1 + .2 * Math.log(w));
@@ -103,13 +96,34 @@ public class LEDElm extends DiodeElm {
             w = 255;
         if (w < 0)
             w = 0;
-        Color cc = new Color((int) (colorR * w), (int) (colorG * w), (int) (colorB * w));
-        g.setColor(cc);
-        g.fillOval(ledCenter.x - cr, ledCenter.y - cr, cr * 2, cr * 2);
-        setBbox(geom().getPoint1(), geom().getPoint2(), cr);
-        updateDotCount();
-        drawDots(g, geom().getPoint1(), ledLead1, curcount);
-        drawDots(g, geom().getPoint2(), ledLead2, -curcount);
+        return w;
+    }
+
+    // The standard LED symbol: diode triangle and cathode bar (polarity visible) plus two emission
+    // arrows; a lit LED fills the outlined triangle with its colour scaled by brightness.
+    public void draw(Graphics g) {
+        drawDiode(g);
+        double w = brightness();
+        boolean lit = w > 32 && !needsHighlight();
+        Color litColor = new Color((int) (colorR * w), (int) (colorG * w), (int) (colorB * w));
+        if (lit) {
+            g.setColor(litColor);
+            g.fillPolygon(poly);
+            // outline keeps a dim or pale lit triangle visible on any background
+            setVoltageColor(g, getNodeVoltage(0));
+            setPowerColor(g, true);
+            drawThickPolygon(g, poly);
+            setVoltageColor(g, getNodeVoltage(1));
+            setPowerColor(g, true);
+            drawThickLine(g, cathode[0], cathode[1]);
+        }
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        for (int i = 0; i != 2; i++) {
+            drawThickLine(g, arrowTail[i], arrowHead[i]);
+            g.fillPolygon(calcArrow(arrowTail[i], arrowHead[i], 5, 3));
+        }
+        adjustBbox(arrowHead[0], arrowHead[1]);
+        doDots(g);
         drawPosts(g);
     }
 

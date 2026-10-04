@@ -163,11 +163,12 @@ The simulator hides wiring mistakes: it ties unconnected nodes to ground through
 | `dangling_post` | A post joined to no other post (wire ends included). The agent can mark intended open pins (e.g. an unused chip output) as open, which suppresses the issue for that post |
 | `post_on_wire_body` | A post lies on a wire's interior, not on its end, so it is not connected |
 | `overlapping_elements` | Two elements share both defining points, or two wires overlap collinearly |
-| `no_ground` | No ground element; the simulator's implicit ground is in use |
+| `no_ground` | No ground element, and either the simulator assumes ground at a voltage source or no element references ground internally; a circuit referenced only through rails, logic inputs, gates or chips needs none |
 | `isolated_group` | A connected group of nets has no path to ground |
 | `source_or_wire_loop` | A voltage-source/wire loop with no resistance, reported by the simulator's analysis — as a stop, or as a warning while its non-convergence recovery keeps running |
 | `single_label` | A label text used only once (informational) |
 | `bad_connection` | A post touches another element's body, from the analysis' existing bad-connection list |
+| `symbol_overlap` | A wire runs through a part's symbol, two symbols overlap, or a post lies on a foreign symbol or lead — computed from geometry only, so agents get feedback on unreadable drawings (wire–wire and lead crossings stay allowed) |
 | `unknown_net` (operation error, not a connectivity issue) | A probe or reading names a net that does not exist. The operation is rejected instead of returning 0 V |
 
 Nets are named by their label when a labelled node is on them, `gnd` for ground, and otherwise by a generated name. Generated names are stable only until the next topology change; the skill tells agents to label nets they need to track.
@@ -210,6 +211,7 @@ Nets are named by their label when a labelled node is on them, `gnd` for ground,
   - the solver's current warning;
   - the issues of the last import;
   - recent log entries, read through a cursor so the agent fetches only new lines.
+- **Models.** Where the app lets a user create a component model — diode (LED, zener, varactor), BJT, custom logic, subcircuit — an agent can define one too, in the same edit batch as the elements that use it, and list the existing ones. Names are strictly create-only: defining a model and importing a circuit never change an existing model (a definition identical to an existing one is accepted as is); to change a model an agent defines a new name and points its elements at it, so no other tab changes behaviour through them. Opening a file loads its model lines like a user file open and may overwrite, as the editor does. A circuit read or saved by an agent carries the models it uses, with the models they depend on (SP_AGA_DEC_07).
 - **Documents.** Documents can be listed, created, activated and closed.
   - Operations on a background document do not switch the visible tab.
   - Readings by net name use the document's own analysis, never the session-wide label registry (which holds the labels of whichever document was analysed last), so a label in one tab never answers for another.
@@ -342,3 +344,6 @@ These are operation groups; their contracts belong to the specification.
 |------|--------|
 | 2026-10-01 | Initial version from the spike and the concept interview |
 | 2026-10-01 | Spec review round 1: content-lifetime ID rule with counter raising, unique pin names, grid size pinned for agent geometry, recovery-mode warnings, any-document routing, path-based file adapter, issue code list aligned with SP_AGA |
+| 2026-10-04 | §3.6 Models: agents define and list component models (SP_AGA_DEC_07); `symbol_overlap` row in §3.3 |
+| 2026-10-04 | §3.6 Models: strictly create-only names, models carried with their dependencies (SP_AGA model review round 1) |
+| 2026-10-04 | Model definitions review round 2: §3.6 states that opening a file may overwrite models, as the editor does |

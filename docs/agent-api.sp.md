@@ -3,7 +3,7 @@
 > **Code:** SP_AGA
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-03
+> **Updated:** 2026-10-04
 >
 > **Concept:** [C_AGA](./agent-api.concept.md)
 > **Depends on:** [SP_DOC](./document-model.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SIM](./simulator-engine.sp.md), [SP_IOF](./io-framework.sp.md), [SP_EIC](./edit-info-contract.sp.md), [SP_FBR](./browser-file-bridge.sp.md) (existing mechanisms this spec changes or consumes)
@@ -14,13 +14,13 @@
 
 ## Contents
 
-- [01. Data Structures](#SP_AGA_01) — cells, IDs, handles, pin names, element specs/records, nets, issues, results, probes, transactions, open marks
-- [02. Contracts](#SP_AGA_02) — catalogue, documents, import/edit, inspect, readings, render, simulation, runs, diagnostics, history, files
-- [03. Validation Rules](#SP_AGA_03) — geometry, identity, properties, atomicity, issue rules, sizing, document routing, files, error reporting
+- [01. Data Structures](#SP_AGA_01) — cells, IDs, handles, pin names, element specs/records, nets, issues, results, probes, transactions, open marks, models
+- [02. Contracts](#SP_AGA_02) — catalogue, documents, import/edit, inspect, readings, render, simulation, runs, diagnostics, history, files, models
+- [03. Validation Rules](#SP_AGA_03) — geometry, identity, properties, atomicity, issue rules, sizing, document routing, files, error reporting, models
 - [04. State Transitions](#SP_AGA_04) — agent transaction, document run state, element ID lifetime
 - [05. Verification Criteria](#SP_AGA_05) — functional expectations, invariants, integration scenarios, edge cases
 - [06. Reversibility](#SP_AGA_06) — rollback of each behavioural change
-- [07. Design Decisions](#SP_AGA_DEC) — edit batch shape, property keys, file operations
+- [07. Design Decisions](#SP_AGA_DEC) — edit batch shape, property keys, file operations, model definitions
 
 ## 01. Data Structures  {#SP_AGA_01}
 
@@ -105,7 +105,7 @@ PropertyInfo:
 - **Shape.** `{key: string, kind: "quantity" | "number" | "bool" | "text", default: number | string | bool, unit: string?, label: string?, sliderMin: number?, sliderMax: number?, readOnly: bool?}`.
 - **`kind`.** It is `"quantity"` when the default is a unit string. `unit` is then its unit suffix (`Ohm`, `F`, `H`, `V`, `A`, `Hz`, `s`, …).
 - **`label`, `sliderMin`, `sliderMax`.** These come from the matching editable-parameter entry ([§02_01](#SP_AGA_02_01)). Matching is one-to-one: a key whose default equals the value of exactly one entry gets that entry, and an entry matched by more than one key is given to none of them; `bool` keys are not matched. `label` is the entry's English name (untranslated, markup removed). `sliderMin`/`sliderMax` are the slider seeds of that entry — a hint of a typical range, never a validity limit; they are omitted when the entry has sliders disabled or carries a degenerate pair (min = max, including (−1, −1) and (0, 0)).
-- **`choices`.** `string[]?` — for a key that names a session model (diode, zener, transistor `model`), the names accepted now ([§03_03](#SP_AGA_03_03) Model names).
+- **`choices`.** `string[]?` — for a key that names a session model (diode, zener, transistor `model`; custom logic and subcircuit `model_name`), the names accepted now: the listed entries of the matching kind ([§01_13](#SP_AGA_01_13); internal entries never), sorted as `listModels` sorts them ([§03_03](#SP_AGA_03_03) Model names, [§03_11](#SP_AGA_03_11)).
 - **Element-declared `label`.** An element may declare a key's label when its dialog row shows a derived value (a transformer's dialog shows N1/N2 while `ratio` stores N2/N1); such a key gets no slider seeds.
 - **`readOnly`.** `true` for a key the element exports but derives from its geometry or state rather than applying it from the property (for example a transformer's orientation keys, or a LogicInput's `state`, which follows `position`). `set` of a read-only key is `invalid_value`; an import accepts read-only keys and ignores them, so a circuit read with `getCircuit` re-imports unchanged.
 - **Defaults.** They are the element's built-in defaults: the catalogue is measured against a session scratch document with default options, with the element classes' remembered last-used values (model names, gate options, ground symbol and similar) at their initial values. They never reflect the user's latest choices in the editor. Text defaults are in English (an element placed by `add` in a localized UI keeps English default texts such as slider captions). `add` applies these defaults to every property its spec does not give ([§02_04](#SP_AGA_02_04)).
@@ -245,6 +245,93 @@ The open-mark set is per document: a set of PostRefs (PinName form) the agent ha
 - **Deletion.** Deleting an element removes its marks.
 - **Content replacement.** Replacing the document's content clears the set.
 
+### 01_13. ModelSpec, ModelText and ModelRecord  {#SP_AGA_01_13}
+
+A model is a named, reusable parameter set held in a session catalogue, shared by every document ([§03_11](#SP_AGA_03_11)). Four kinds exist — the kinds the app lets a user create; MOSFET, JFET, op-amp and other elements keep their parameters on the element and have no model.
+
+| Kind | Catalogue | Used by (element key) | Model line (first token) |
+|------|-----------|-----------------------|--------------------------|
+| `diode` | diode models | `Diode`, `LED`, `Varactor` (`model`); `ZenerDiode` (`model`, models with `breakdown_voltage` > 0 only) | `34` |
+| `transistor` | BJT models | `TransistorNPN`, `TransistorPNP` (`model`) | `32` |
+| `logic` | custom logic models | `CustomLogic` (`model_name`) | `!` |
+| `subcircuit` | composite models | `Subcircuit` (`model_name`) | `.` |
+
+Catalogue entries:
+- **Built-in.** `builtIn` is true for the diode and transistor entries the app creates at start-up (their `builtIn` flag) and for the composite entries whose lowercase `builtin` field is set (the `default` stub and the internal chip parts). No logic entry is built-in: `builtIn` is false for every logic model. The logic `default` model is an ordinary entry that the editor creates lazily when a `CustomLogic` element first uses it; the Agent API ensures it exists, created exactly as the editor creates it (inputs `A`, `B`, outputs `C`, `D`, no rules, info `custom logic`), before any name check and before any listing. So it is always listed (with `builtIn: false`), and a definition named `default` is accepted only when identical to that entry, otherwise `name_taken` ([§03_11](#SP_AGA_03_11)).
+- **Internal.** Entries with the internal flag (diode, transistor and composite entries the editor hides: the parts of built-in chip models such as `~lm317-dz` or `xlm324v2-qpi`, and superseded entries such as `old-default-led`) are never listed, never accepted as a `model`/`model_name` value or as `from`, and their names are always `name_taken`.
+- **Growth only.** No Agent API contract removes an entry: a catalogue only grows during a session. Only the editor's own subcircuit delete removes an entry.
+
+ModelSpec (input of the `defineModel` edit and of AgentCircuit `models`; also the output form of [§02_05](#SP_AGA_02_05) and of JSON `models`, [§03_12](#SP_AGA_03_12)):
+
+| Field | Required | Meaning |
+|-------|----------|---------|
+| `kind` | yes | `diode` \| `transistor` \| `logic` \| `subcircuit` |
+| `name` | yes | ModelName: `^[A-Za-z0-9][A-Za-z0-9_.+-]{0,39}$`. Names are create-only ([§03_11](#SP_AGA_03_11)) |
+| `from` | no | `diode` and `transistor` only: name of a listed model of the same kind whose parameters are the starting values (default: the kind's `default` model). An unknown name, an internal entry or a model of another kind is `unknown_model` naming `from`; `from` with `logic` or `subcircuit` is `invalid_value`. Not allowed in files ([§03_12](#SP_AGA_03_12)) |
+| `parameters` | `diode`, `transistor` | Map of the keys of the value table below; a key not in the table is `unknown_property` naming `parameters.<key>` |
+| `inputs`, `outputs` | `logic` (yes) | Pin names, 1..32 each, unique within the model (compared as given), each matching `^[A-Za-z0-9/#:_+-]{1,8}$` |
+| `rules` | `logic` (yes) | Rule lines, 1..256, each at most 100 chars |
+| `info` | `logic` (no) | Info text, at most 200 chars (default: the name) |
+| `source` | `subcircuit` (yes) | `{doc: DocumentHandle}` — the document whose whole circuit becomes the model. Input only; not allowed in files ([§03_12](#SP_AGA_03_12)) |
+| `showLabel` | `subcircuit` (no) | `bool`, default true |
+
+A field that the kind does not take is `invalid_value` naming it.
+
+Parameter values (`diode`, `transistor`):
+- **Input.** A value is a number or a string as a property value of the given kind ([§03_03](#SP_AGA_03_03)): a `quantity` key takes an optional SI prefix and its unit, a `number` key takes no unit. The four transistor keys marked ∞ also accept the string `"inf"` (infinite; stored as an inverse of 0). A value outside its constraint is `invalid_value` naming `parameters.<key>`.
+- **Output.** A `quantity` key is a unit string written by the element unit formatter (`getJsonUnitText`), which is lossless (RULE_STYLE_010); a `number` key is a JSON number; an infinite value is `"inf"`.
+
+| Kind | Key | SPICE | Value kind | Unit | Constraint |
+|------|-----|-------|------------|------|------------|
+| diode | `saturation_current` | IS | quantity | A | > 0 |
+| diode | `series_resistance` | RS | quantity | Ohm | ≥ 0 |
+| diode | `emission_coefficient` | N | number | — | > 0 |
+| diode | `breakdown_voltage` | BV | quantity | V | ≥ 0 (> 0 makes a zener model); negative is `invalid_value` |
+| diode | `forward_voltage` | — | quantity | V | > 0; simple and record forms below |
+| diode | `forward_current` | — | quantity | A | > 0; only together with `forward_voltage` |
+| transistor | `saturation_current` | IS | quantity | A | > 0 |
+| transistor | `beta_reverse` | BR | number | — | > 0 |
+| transistor | `emission_coefficient_forward` | NF | number | — | > 0 |
+| transistor | `emission_coefficient_reverse` | NR | number | — | > 0 |
+| transistor | `leakage_be_current` | ISE | quantity | A | ≥ 0 |
+| transistor | `leakage_bc_current` | ISC | quantity | A | ≥ 0 |
+| transistor | `leakage_be_emission` | NE | number | — | > 0 |
+| transistor | `leakage_bc_emission` | NC | number | — | > 0 |
+| transistor | `early_voltage_forward` | VAF | quantity | V | > 0 or `"inf"` (∞) |
+| transistor | `early_voltage_reverse` | VAR | quantity | V | > 0 or `"inf"` (∞) |
+| transistor | `knee_current_forward` | IKF | quantity | A | > 0 or `"inf"` (∞) |
+| transistor | `knee_current_reverse` | IKR | quantity | A | > 0 or `"inf"` (∞) |
+
+Transistor keys not given take the values of `from`; an Early voltage or knee current not given and not taken from `from` is infinite. Forward beta is the element's `beta` property, not a model parameter.
+
+Diode forms (keys not given take the values of `from`):
+- **Core form.** Any of the four core keys `saturation_current`, `series_resistance`, `emission_coefficient`, `breakdown_voltage`, without `forward_voltage`/`forward_current`. The model is not simple (flags 0, stored forward current 0).
+- **Simple form.** `forward_voltage` and `forward_current` (both required), optionally with `saturation_current` and `breakdown_voltage`: the emission coefficient is solved so that the diode drops `forward_voltage` at `forward_current` with the saturation current kept and series resistance 0 — exactly the editor's "Create New Simple Model" (flags SIMPLE, stored forward current = `forward_current`).
+- **Record form.** All four core keys present, with or without `forward_voltage`/`forward_current`: the core values are taken as given; `forward_current` (which then still requires `forward_voltage` and `series_resistance` = 0) marks the model simple and is its stored forward current; `forward_voltage` is derived and is only checked: it must equal the drop the core values give at `forward_current` (as a record states it) within 1e-9 relative, otherwise `invalid_value` naming `parameters.forward_voltage` ("forward_voltage is derived here; omit emission_coefficient and series_resistance to use the simple form"). A `forward_current` with a non-zero `series_resistance` is `invalid_value` naming `parameters.forward_current`. This is the form records and `getCircuit` emit, so a record re-imports to the same model line.
+- **Errors.** `forward_current` without `forward_voltage`, `forward_voltage` without `forward_current`, and `forward_voltage` together with `emission_coefficient` or `series_resistance` when not all four core keys are present are `invalid_value` naming the key.
+- **Records.** A diode record always carries the four core keys; `forward_voltage` (the editor's derived drop at `forward_current`) and `forward_current` appear only for a simple model.
+
+Logic models:
+- **Rules.** The custom-logic rule syntax of the editor (`left=right`; left: `0 1 ? + -` and pattern letters, length between the input count and inputs + outputs; right: `0 1 _` or a pattern letter, length = output count; `#` comment lines and blank lines ignored). Rules are validated before anything is registered; a bad line is `invalid_value` naming `rules[<i>]` with the reason, never an alert.
+- **Pin markup.** Pin names use the chip pin markup of the editor: a leading `/` (overbar) or `#` (bubble), `CLK:` (clock mark) and `INV:` (bubble) anywhere, and a name equal to `clk` in any case (drawn as a clock mark without text). The element's PinNames are the names after markup removal, made unique by [§03_02](#SP_AGA_03_02) (`Q` and `/Q` give `Q`, `Q_2`). A name that is empty after markup removal (`CLK`, `/`, `INV:`) is `invalid_value` naming `inputs[<i>]`/`outputs[<i>]`; a clock input is written with text, such as `CLK:C`.
+
+Subcircuit source:
+- **Build.** The source document's whole circuit becomes the model the way the editor's "Create Subcircuit" builds it: external pins are its non-internal labelled nodes (the pin side follows the label direction); wires, labels, ground, graphics and scopes are not part of the model; ground becomes the model's ground node. Pins are ordered by label text (case-insensitive), as the editor orders them, and sized as its pin-layout dialog computes them; the element's pins are `pin1`..`pinN` in that order. The model's stored circuit (`modelCircuit`, what the editor's "Load Model Circuit" opens) is the source document's own circuit dump.
+- **Read-only source.** The build reads the source and never changes it: its selection is ignored (always the whole circuit), it is analysed for the build and analysed again afterwards, and when it is the active document its simulation state is unchanged (R1 of [§03_08](#SP_AGA_03_08)).
+- **Errors.** An unknown handle is `unknown_document`; a busy source document ([§03_08](#SP_AGA_03_08)) is `busy`. Each of the following is `invalid_value` naming `source` with the reason as text, never an alert or dialog: the source is the target document of the call ("a subcircuit cannot be built from the document it is defined in"); no external pin ("device has no external inputs/outputs"); a label on ground ("node <label> can't be connected to ground"); a labelled node no element uses ("node <label> is not used"); unconnected internal nodes ("some nodes are unconnected"); node allocation of the source fails (its wire analysis reports an error); two labels with different texts on one node ("labels <a> and <b> are on one node" — the editor's build silently keeps the first, the agent path rejects it); a Subcircuit in the source whose model is, directly or through other subcircuit models, the model being defined (with create-only names this needs the name to exist already, which is `name_taken` first; the check is kept as a guard). The built model's inner references are checked as for a ModelText (Inner references, below).
+
+ModelText (`{kind, name, modelText}`; input of AgentCircuit `models`, output of [§02_05](#SP_AGA_02_05) and JSON `models` for any kind):
+- **Name.** Any non-empty string not starting with `~` (names the ModelName pattern rejects, such as the editor's `fwdrop=0.8`, travel this way).
+- **Line.** `modelText` is exactly one model line of the text format (no line break; a single trailing newline is dropped). Its first token must be the kind's token of the table above and its unescaped name token must equal `name`; otherwise `invalid_value` naming `modelText`. The remaining fields are parsed as the text importer parses them, without any catalogue write; a field that does not parse is `invalid_value`. A logic line's rules are validated as a ModelSpec's rules (`invalid_value` with the line and reason, never an alert).
+- **Inner references.** When a subcircuit ModelText, or a subcircuit built from a `source`, is validated, the class names of its node list must name element classes the composite builder can create, and the model-name fields of its element dumps (diode family, transistor, `CustomLogic`, nested `Subcircuit`) must resolve against the session catalogues plus the earlier entries of the same `models` list or batch (`models` lists dependencies first, [§03_11](#SP_AGA_03_11) Dependencies); otherwise `invalid_value` naming `modelText` (or `source`) with the reason "inner model <name> unknown" (or the unknown class). The name check is a static parse of the node list and element dumps that runs before any trial build; a trial build, if any, runs with restorers for every catalogue entry it creates, so validation leaves the catalogues unchanged. Any exception while building the model for validation is `invalid_value` with its message, never `internal_error`, and leaves the catalogues unchanged.
+
+ModelRecord (output of `listModels` and of `defineModel` results): `{kind, name, builtIn: bool, existing?: true, parameters?: map, inputs?, outputs?, rules?, info?, showLabel?, pins?: [{pin: PinName, label: string, side: "N" | "S" | "W" | "E"}], usedBy: [{doc: DocumentHandle, ids: ElementId[]}]}`.
+- **`parameters`.** Diode and transistor: the keys of the value table in the output form above (diode: the record form).
+- **`inputs`, `outputs`, `rules`, `info`.** Logic: as stored, pin names with their markup; `rules` split into lines.
+- **`showLabel`, `pins`.** Subcircuit: one entry per element pin in pin order; `side` is the chip side the pin is drawn on (north, south, west, east).
+- **`existing`.** Present (true) in a `defineModel` result when the definition was identical to an existing entry and changed nothing ([§03_11](#SP_AGA_03_11)).
+- **`usedBy`.** One entry per open document that uses the model, with the IDs of its elements that reference it directly or through a subcircuit model ([§03_11](#SP_AGA_03_11) Dependencies); a Subcircuit element is listed for every model its subcircuit model depends on.
+
 ## 02. Contracts  {#SP_AGA_02}
 
 Common rules for every contract:
@@ -326,24 +413,46 @@ Input:
 | doc | DocumentHandle? | no | — |
 | circuit | AgentCircuit \| string | yes | An AgentCircuit object (`elements` ≤ 5000, `scopes` ≤ 20), a JSON v2 circuit text, or a legacy text circuit (string ≤ 10 MB) |
 
-AgentCircuit (coordinates may be any multiple of 1/16 cell, [§01_01](#SP_AGA_01_01)): `{elements: (ElementSpec | ElementRecord)[], simulation: map<string, number|string|bool>?, scopes: {element: ElementId, quantity: "voltage"|"current"|"power"?}[]?}`. `simulation` keys are those of the JSON v2 `simulation` object.
+AgentCircuit (coordinates may be any multiple of 1/16 cell, [§01_01](#SP_AGA_01_01)): `{elements: (ElementSpec | ElementRecord)[], simulation: map<string, number|string|bool>?, scopes: {element: ElementId, quantity: "voltage"|"current"|"power"?}[]?, models: (ModelSpec | ModelText)[]?}`
+
+`models` ([§01_13](#SP_AGA_01_13), at most 200 entries, each a ModelSpec or a ModelText) are validated with the elements and defined before the elements are created, in array order (dependencies first), under the rules of [§03_11](#SP_AGA_03_11): a name that exists is accepted unchanged when the entry is identical and is otherwise `name_taken`; a rejected import removes every entry it created. `simulation` keys are those of the JSON v2 `simulation` object.
 
 Output: `data: {elements: int, ids: ElementId[]?}`; `ids` is present when `elements` ≤ 200 (otherwise read them with `getCircuit`); `connectivity` = delta against the replaced circuit. The simulation state is reset: simulated time is 0 and element states are initial.
 
-Errors: any validation code of [§03](#SP_AGA_03) for any element (`elements` names the offending spec as `#<i>` when it has no ID); `import_schema_invalid` (JSON text failing schema validation); `import_element_skipped` (an element the factory could not create — the import is rejected); `busy`.
+Errors: any validation code of [§03](#SP_AGA_03) for any element (`elements` names the offending spec as `#<i>` when it has no ID); `import_schema_invalid` (JSON text failing schema validation); `import_element_skipped` (an element the factory could not create — the import is rejected); `busy`; for a `models` entry or a model line ([§03_11](#SP_AGA_03_11)): `name_taken`, `unknown_model` (`from`), `invalid_value`, and for a subcircuit `source` `unknown_document` and `busy` (the source document).
 
 Processing logic:
 
     FUNCTION importCircuit(doc, circuit):
         IF doc busy: RETURN error busy
         form ← detect(circuit)                                 # AgentCircuit | JSON v2 | text
-        IF form = AgentCircuit: validate all specs (§03_01–03_03); convert to JSON v2 (cells×16, _startpoint/_endpoint pins)
+        names ← session catalogue names (listed entries, per kind)
+        IF form ∈ {AgentCircuit, JSON v2}:
+            FOR each models entry m in order:                  # §01_13, §03_11; JSON: `from`/`source` → invalid_value
+                validate m (shape, kind fields, values, rules, ModelText line; a subcircuit `source` is built
+                    detached from its read-only source document: unknown_document, busy, invalid_value)
+                IF m.name ∈ names[m.kind] or defined earlier in models: identical ? mark m existing : error name_taken
+                names[m.kind] ← names[m.kind] ∪ {m.name}
+        IF form = AgentCircuit: validate all element specs (§03_01–03_03); model references against names (session ∪ models)
+        IF any error: RETURN ok=false (nothing applied)          # no snapshot taken, catalogues untouched
+        IF form = AgentCircuit: convert to JSON v2 (cells×16, _startpoint/_endpoint pins, `models` kept)
         snapshot ← capture(doc)                                # circuit text + elementIds + openMarks + scopes + viewTransform
-        load the content into doc through the format registry, with grid size pinned to the grid option the content selects (§03_01); the importers report every skipped or failed line/element to the caller (§03_04)
-        IF any error issue: restore(doc, snapshot); RETURN ok=false        # undo/redo stacks untouched
+        restorers ← []
+        TRY
+            FOR each models entry m not marked existing, in order:
+                restorers.push(entryRestorer(m.kind, m.name)); define m in its kind's catalogue
+            load the content into doc through the format registry, with grid size pinned to the grid option the content
+                selects (§03_01); a JSON `models` section is already defined (its entries are now identical); text model
+                lines follow the same identical-or-name_taken rule, each created name pushing its restorer first;
+                JSON and text element model references resolve against the catalogues as now defined;
+                the importers report every skipped or failed line/element (§03_04)
+            IF any error issue: rollback(); RETURN ok=false         # undo/redo stacks untouched
+        ON exception t: rollback(); report t to the global uncaught-exception handler (§03_10); RETURN ok=false with internal_error
         reset ID counters; assign IDs (§03_02); clear open marks
         openOrContinueTransaction(doc, snapshot)               # §04_01; pushes `snapshot` and clears redo only when opening
         analyse doc; RETURN ok=true with ids and connectivity delta
+
+        rollback(): run restorers in reverse order (each removes the entry its name created); restore(doc, snapshot)
 
 ### 02_04. applyEdits  {#SP_AGA_02_04}
 
@@ -364,22 +473,29 @@ Edit (discriminated by `op`):
 | addScope | `element: ElementId`, `quantity?` | Add an on-screen scope view |
 | removeScope | `element: ElementId` | Remove scope views showing the element |
 | markOpen | `posts: PostRef[]`, `open: bool = true` | Add posts to (or remove them from) the open-mark set |
+| defineModel | `model: ModelSpec` ([§01_13](#SP_AGA_01_13)) | Register a new session model under the rules of [§03_11](#SP_AGA_03_11) (create-only; a definition identical to an existing entry changes nothing and succeeds); later edits of the batch may reference it |
 
-Output: `data: {applied: int, created: ElementId[], elements: ElementRecord[], truncated: int}`. `elements` holds the records of created, moved or `set` elements in edit order, at most 50, so derived post positions and geometry changes are visible; `truncated` is the number of records left out (read them with `getCircuit`).
+Output: `data: {applied: int, created: ElementId[], elements: ElementRecord[], truncated: int, models?: ModelRecord[]}` (`models`: one record per `defineModel` of the batch, in edit order, present when the batch has any; an identical redefinition is reported with `existing: true`). `elements` holds the records of created, moved or `set` elements in edit order, at most 50, so derived post positions and geometry changes are visible; `truncated` is the number of records left out (read them with `getCircuit`).
 
-Errors: validation codes of [§03](#SP_AGA_03); `unknown_element`; `unknown_post`; `busy`; `scope_limit` (no free scope slot).
+Errors: validation codes of [§03](#SP_AGA_03); `unknown_element`; `unknown_post`; `busy`; `scope_limit` (no free scope slot); for `defineModel` ([§03_11](#SP_AGA_03_11)): `name_taken`, `unknown_model` (`from`), `invalid_value`, and for a subcircuit `source` `unknown_document` and `busy` (the source document).
 
 Processing logic:
 
     FUNCTION applyEdits(doc, edits):
         IF doc busy: RETURN error busy
-        validate the batch in order against a model of doc's element set, with earlier edits visible to later ones
-            (an add's id is usable by a later edit; a deleted id is not)
-        IF any error: RETURN ok=false (nothing applied)
-        before ← connectivityIssues(doc); snapshot ← capture(doc)
+        names ← session catalogue names (listed entries, per kind)
+        validate the batch in order against a model of doc's element set and of names, with earlier edits visible to later ones
+            (an add's id is usable by a later edit; a deleted id is not;
+             a defineModel is validated as in §01_13 — a subcircuit `source` is built detached from its read-only source
+             document (unknown_document, busy, invalid_value) — and its name, when new, joins names for later edits;
+             a name already in names is accepted only when identical (marked existing), else name_taken)
+        IF any error: RETURN ok=false (nothing applied)        # no snapshot taken, catalogues untouched
+        before ← connectivityIssues(doc); snapshot ← capture(doc); restorers ← []
         WITH agent origin marked (editor undo pushes suppressed, §04_01) AND grid size pinned to doc's grid option (§03_01):
-            TRY apply edits in order
-            ON exception t: restore(doc, snapshot); report t to the global uncaught-exception handler (§03_10);
+            TRY apply edits in order; a defineModel not marked existing first does
+                    restorers.push(entryRestorer(kind, name)), then defines its model
+            ON exception t: run restorers in reverse order; restore(doc, snapshot);
+                            report t to the global uncaught-exception handler (§03_10);
                             RETURN ok=false with issue internal_error        # undo/redo stacks untouched
         openOrContinueTransaction(doc, snapshot)               # pushes `snapshot` and clears redo only when opening
         analyse doc synchronously (also when free-running); RETURN data, delta(before, after)
@@ -399,7 +515,11 @@ Purpose: read the circuit in agent form.
 
 Input: `doc?`, `detail: "concise" | "full" = "concise"`, `ids: ElementId[]?` (subset), `offset: int = 0`, `limit: int = 200` (≤ 500).
 
-Output: `data: {elements: ElementRecord[], total: int, nextOffset: int?, simulation: map, scopes: {element, quantity}[]}`.
+Output: `data: {elements: ElementRecord[], total: int, nextOffset: int?, simulation: map, scopes: {element, quantity}[], models: (ModelSpec | ModelText)[]?, modelsTruncated: int?}`.
+- **`models`.** Present only on the page with `offset = 0` (and empty there when the document uses no non-built-in model). It holds the document's models ([§03_11](#SP_AGA_03_11) Dependencies: the transitive closure of the non-built-in models its elements reference, including those the element dumps of its subcircuit models reference), dependencies first, otherwise in order of first use, each once.
+- **Form.** A diode, transistor or logic model is a ModelSpec when its ModelSpec passes the validation of [§01_13](#SP_AGA_01_13) and applying it reproduces the entry's model line exactly; otherwise, and always for a subcircuit model (whose ModelSpec `source` is input-only), it is a ModelText. Values are lossless (RULE_STYLE_010).
+- **Cap.** At most 200 entries, the AgentCircuit `models` cap; `modelsTruncated` (present when > 0) is the number left out, all of which `exportCircuit` JSON carries ([§03_12](#SP_AGA_03_12)).
+- **Round trip.** The returned form re-imports into a fresh session unchanged, and into the same session with every model entry identical (no catalogue change).
 
 Ordering:
 - IDs of the form `<letters><digits>` come first, ordered by letters, then by numeric value.
@@ -593,13 +713,26 @@ Errors: `nothing_to_undo`, `nothing_to_redo` (fewer entries than `steps`; nothin
 
 Rules:
 - **File access.** `openFile` and `saveFile` access the file system through a new path-based read/write adapter ([§03_09](#SP_AGA_03_09)) and obey the file rules there.
-- **Opening into a document.** `openFile` with a handle behaves as `importCircuit` into that document (agent transaction). With `"new"` it creates a document, loads the file like a user load (the undo history is reset and seeded with the loaded state) and opens no transaction.
+- **Opening into a document.** `openFile` with a handle behaves as `importCircuit` into that document (agent transaction), except for model lines and JSON `models`: those load like a user load and may overwrite session model entries, with restorers on rejection ([§03_11](#SP_AGA_03_11)). With `"new"` it creates a document, loads the file like a user load (the undo history is reset and seeded with the loaded state) and opens no transaction.
 - **After a successful `openFile`.** The document's file path and title are set, and its modified flag is cleared; this clear is applied last and takes precedence over the common modified-flag rule.
 - **Rejected `openFile`.** A file whose content is not a circuit ([§03_09](#SP_AGA_03_09) circuit test: `file_not_allowed`) or fails to load (any `error` import issue, [§03_04](#SP_AGA_03_04)) is rejected: with `into: "new"` no document is created and the visible tab does not change; with a handle the document is unchanged. Issues follow the no-content-disclosure rule of [§03_09](#SP_AGA_03_09).
 - **Before saving.** `saveFile` seals the open transaction automatically.
 - **After a successful `saveFile`.** The file path and title are set, and the modified flag is cleared.
 
 Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#SP_AGA_03_09)); `file_not_found`; `file_error` (read/write failure; the message carries the system reason); `no_path` (save without a path on a never-saved document); `busy` (`openFile` into a busy document).
+
+### 02_15. listModels  {#SP_AGA_02_15}
+
+Purpose: list the session's models ([§01_13](#SP_AGA_01_13)).
+
+Input: `kind?: "diode" | "transistor" | "logic" | "subcircuit"`, `name?: string` (requires `kind`; `name` without `kind` is `invalid_value` naming `name`). `doc` is not an argument: the call is session-scoped, like `listTypes`.
+
+Output: `data: {models: ModelRecord[]}`.
+- **Without `name`.** Every listed (non-internal) entry of the kind, or of all kinds when `kind` is absent; ordered by kind (`diode`, `transistor`, `logic`, `subcircuit`), then built-in first, then by name in code-point order. No cap (bounded by the catalogues).
+- **With `name`.** That one entry; `unknown_model` naming `name` when the kind has no such entry or the entry is internal.
+- **`usedBy`.** Covers every open document and counts references through subcircuit models ([§03_11](#SP_AGA_03_11) Dependencies).
+
+Errors: `invalid_value`; `unknown_model`.
 
 ## 03. Validation Rules  {#SP_AGA_03}
 
@@ -662,7 +795,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
   - A value is either a number or a string that parses fully as a number with an optional SI prefix and an optional unit suffix matching `unit`. Matching is case-sensitive, except that `Ohm` and `Ω` are both accepted for resistance.
   - The same string may be wrapped in one pair of double quotes (`"\"10 ms\""`, as some agent hosts double-encode number-or-string arguments); the quotes are dropped. This rule covers every number-or-string argument (properties, run `span`/`recordFrom`/`settle`, time steps).
   - Anything else is `invalid_value`. The parser's "0 on failure" result is never taken as a value.
-- **Model names.** A `model` value must name a session catalogue entry or a model defined by a model line of the same text content; otherwise `invalid_value` naming the key, `hint` listing the available names, and the name is never registered. `openFile` loads such a file and reports `value_adjusted` (warning) per element instead, the element keeping its fallback model (an `openFile` + `saveFile` round trip therefore writes the fallback model's name); user file loads are unchanged.
+- **Model names.** A `model` (diode family, transistor) or `model_name` (`CustomLogic`, `Subcircuit`) value in `add`, `set` and `importCircuit` content must name a listed entry of the matching kind ([§01_13](#SP_AGA_01_13); for `ZenerDiode` one with `breakdown_voltage` > 0), a model defined by an earlier `defineModel` of the same batch, an entry of the AgentCircuit or JSON `models` of the same content, or a model defined by a model line of the same text content; otherwise `invalid_value` naming the key, `hint` listing the available names, and the name is never registered (no session copy, no fallback entry). `openFile` loads such a file as the editor does and reports `value_adjusted` (warning) per element instead: a diode or transistor keeps its fallback model (its temporary catalogue entry removed), a `CustomLogic` keeps the session model of that name that the editor's load creates — from a text line an empty model (inputs `A`, `B`, outputs `C`, `D`, no rules; before behaviour change 26 of [§06_01](#SP_AGA_06_01) such a line threw and was skipped), from JSON a copy of its previous model — as in a user load, a `Subcircuit` keeps the editor's fallback; an `openFile` + `saveFile` round trip therefore writes what the element kept. User file loads are unchanged.
 - **`bool` and `text` values.** `bool` takes `true`/`false` only. `text` takes strings of at most 1000 chars.
 - **Ranges.** The Agent API declares no validity ranges of its own. A value the element itself clamps or adjusts is applied as adjusted and reported with `value_adjusted` (warning) carrying the effective value; slider seeds are never used as limits.
 
@@ -684,7 +817,7 @@ Errors: `file_unavailable` (no desktop runtime); `file_not_allowed` ([§03_09](#
   | Geometry re-applied differently (bounds, `p1`/`p2`) | `import_geometry_adjusted` | warning |
   | JSON element key not a valid or unique ElementId (a new ID is generated) | `ids_regenerated` | warning |
 
-- **Model catalogues.** A text import records the session model catalogue entries (diode, transistor, custom logic, composite models) it creates or replaces; a rejected import restores them, so no other document sees a model change.
+- **Model catalogues.** Text model lines and JSON `models` entries record restorers for the session catalogue entries (diode, transistor, custom logic, composite models) they create (agent `importCircuit`) or create or replace (`openFile`, user loads with a report), and the logic entries that a text `CustomLogic` line naming an unknown model creates; a rejected import runs them in reverse, so no other document sees a model change.
 - **Failure during application.** A failure while applying restores the pre-call snapshot, and the result is `ok = false` with `internal_error`.
 - **No side effects on rejection.** `ok = false` never leaves a transaction opened by that call and never leaves an undo entry added by that call.
 
@@ -699,9 +832,10 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 | dangling_post | error; warning when the post belongs to a one-post element | A post position (wire ends included) that coincides with no other element's post position. Wire closure merges both ends of a wire into one node, so the rule is geometric, not per net. The issue reports that post. Posts with an open mark are exempt |
 | post_on_wire_body | error | A post that lies strictly inside a wire segment (on the segment, not at an end) and is not in that wire's net |
 | overlapping_elements | warning | Two elements of the same type with identical defining points (either order); or two wires that are collinear and overlap by more than a point |
-| no_ground | warning | The document has no ground element. `implicitGround` reports whether the simulator assumed one |
+| no_ground | warning | No ground element, and either the simulator assumes ground at a voltage source (`implicitGround`: no ground, no rail, a voltage source) or no post is referenced to ground by its own element (`hasGroundConnection`: rails, logic inputs, gates, chip outputs, op-amp outputs, one-post sources). A circuit referenced only through rails, logic inputs, gates or chips needs no ground element and raises nothing. `implicitGround` reports whether the simulator assumed one |
 | isolated_group | error | Nodes the simulator found unconnected to ground (it would tie them through 100 MΩ). One issue per group, listing its posts. A group whose posts all carry open marks is exempt |
 | bad_connection | warning | A post the analysis lists as touching another element's body |
+| symbol_overlap | warning | Wires and symbols meet only at posts. Computed from geometry only (posts and defining points, never the draw-time bounding box), in pixels (16 px = 1 cell). Every element except wires, graphic and post-less elements has a *symbol* region and *lines* (leads, drawn like wires), by its geometry kind: `two_point` — line post0→post1, symbol = band of half-width 6 px around the middle 40 px of the segment, never within 8 px of a post; `single` — line start→end (the stem), symbol = disc of radius 8 px around end (text not modelled); `derived` — symbol = axis-aligned rectangle spanning the posts (in a dimension where the posts span less than 16 px, i.e. lie in one row or column, also the defining points); a dimension wider than 16 px shrinks by 8 px per side, one of at most 16 px (a pot's wiper or a switch's control post one cell off the body) becomes a band of ±6 px around the element's axis (the defining points' midpoint, clamped to the posts' span) and is sampled only on that centre line; a start post alone on its side more than 40 px before the other posts (a long transistor base or FET gate) is a lead line and the rectangle starts 40 px before the nearest other post. Reported, one issue per unordered element pair (`elements` = both IDs sorted), by the first of: (1) a post of A strictly inside B's symbol or closer than 2 px to the inside of one of B's lines, not one of B's posts; (2) a wire sample (every 4 px, none within 4 px of a wire end) strictly inside B's symbol; (3) a sample of A's lines (as for wires), of a single's end or of an 8 px lattice of a derived rectangle strictly inside B's symbol. Samples within 2 px of one of B's posts are exempt. `at` is the centre of B's symbol (two_point: the middle, single: end, derived: the rectangle's centre), so the key stays the same while A moves and still overlaps. Wire–wire and lead crossings raise nothing |
 | single_label | info | A label text used by exactly one labelled node |
 | reserved_label | warning | A label text equal to `gnd`, starting with `$` or starting with `label:`; its net is named `label:<text>` |
 | source_or_wire_loop | error | The last analysis reported a voltage-source/wire loop, as a stop or as a recovery-mode warning ([§03_06](#SP_AGA_03_06)) |
@@ -740,6 +874,7 @@ These rules are computed on every `getConnectivity` and for the delta of every m
 
 **Operation codes**
 - All are `error` unless marked otherwise: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `invalid_value`, `value_adjusted` (warning), `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `ids_regenerated` (warning), `scope_removed` (info), `reserved_label` (warning), `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `import_wire_skipped` (warning), `import_setting_invalid` (warning), `import_geometry_adjusted` (warning), `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`.
+- Model codes ([§03_11](#SP_AGA_03_11)), all `error`: `unknown_model` (`from` or a `listModels` name that names no listed entry), `name_taken` (a definition whose name exists with a different definition, or names an internal entry).
 - Run end causes are reported as warnings with the codes `budget_exhausted`, `settle_timeout`, `stop_trigger` and `cancelled`.
 
 ### 03_07. Sizing caps and decimation  {#SP_AGA_03_07}
@@ -820,6 +955,30 @@ The protected state:
 
 - **No exceptions for domain failures.** Domain failures are results (`ok = false`), never exceptions.
 - **Unexpected exceptions.** An exception caught by the batch-rollback guard of `applyEdits`/`importCircuit` is passed to the application's global uncaught-exception handler after the snapshot is restored, so it is shown and logged as before (RULE_ERR_004). The caller receives `internal_error` carrying the exception message.
+
+### 03_11. Model rules  {#SP_AGA_03_11}
+
+> **Criticality:** critical
+
+- **Scope.** Model catalogues are session-wide, as in the editor: a defined model appears in every document's choices and in the editor's model lists. It is saved inside every circuit file that uses it (text model lines; JSON `models` section, [§03_12](#SP_AGA_03_12)) and comes back with that file. An agent-defined subcircuit model is not written to the browser storage (`subcircuit:` keys); it lives for the session and in the files that use it. Catalogues only grow during a session ([§01_13](#SP_AGA_01_13)).
+- **Create-only names.** A definition — a `defineModel` edit, an AgentCircuit or JSON `models` entry of `importCircuit`, a text model line of `importCircuit` content — whose name exists in its kind's catalogue (built-in or user, compared exactly) is accepted without any change when it is identical to the entry, and is otherwise `name_taken`; a name of an internal entry is always `name_taken`. For a `models` entry or a model line of `importCircuit` content, the `name_taken` hint reads "open the file with `openFile` to load its models as the editor does, or rename the model". No Agent API contract changes an existing entry: to change a model, an agent defines a new name and `set`s its elements' `model`/`model_name` to it. Names never alias: a model is registered under one key.
+- **Identical.** A definition is identical to an entry when the kind's text model line it produces equals the entry's model line character for character: the same name, flags and serialized values (every field the kind's `dump()` writes, so canonical numbers compare exactly). For a subcircuit `source` the line is that of the model built from the source. A subcircuit's line includes its elements' saved state (capacitor voltages, inductor currents, logic states), so after the source document has been simulated a new build from it is usually no longer identical to the entry built before (`name_taken` for the same name).
+- **Loads that re-apply model lines.** Undo/redo, reopening a closed tab, session restore, and any user text or JSON load (file open, paste, import dialog) re-apply the model lines and `models` entries they carry to the session entry of that name, overwriting it — editor behaviour, unchanged; `openFile` loads like a user load and does the same ([§03_12](#SP_AGA_03_12)). Because agent names are create-only and `defineModel` and `importCircuit` never redefine, an agent never causes such an overwrite through them: the content they leave in undo entries carries the same model lines as the session entries.
+- **Editor edits.** An agent never edits an existing entry, so an open editor model dialog is unaffected by agent calls. Agent-defined models are ordinary entries: the user can edit them in the editor's model dialogs, and such an edit affects every document that uses the model (editor behaviour).
+- **Atomicity.** `defineModel` and `models` are part of the batch or import: if any edit of the batch or any part of the import is rejected, nothing is defined (validation precedes every catalogue write); if application fails afterwards, every entry the call created is removed by running its restorers in reverse order ([§02_03](#SP_AGA_02_03), [§02_04](#SP_AGA_02_04), [§03_04](#SP_AGA_03_04)). An identical definition changed nothing and needs no restorer; no other document sees an intermediate state.
+- **Undo.** `undo` does not remove a defined model: the undo entries of the document carry the model lines of the models its circuit uses, so undo restores the elements together with the models that circuit had; a model created and no longer used stays in the session catalogue (harmless: names are create-only).
+- **References.** `model` (diode family, transistor) and `model_name` (`CustomLogic`, `Subcircuit`) must name a listed model of the matching kind ([§03_03](#SP_AGA_03_03) Model names); an unknown `model_name` is `invalid_value` and never registers a model. `choices` lists the accepted names for all four keys.
+- **Dependencies.** The models of a document are the transitive closure of the non-built-in models referenced by its elements and by the element dumps of the subcircuit models those elements use (a subcircuit model may use diode, transistor, logic and other subcircuit models). `getCircuit`, JSON `models` and the text exporter list them dependencies first; `usedBy` ([§01_13](#SP_AGA_01_13)) counts a reference through a subcircuit model as a use by the Subcircuit element.
+- **No dialogs.** No agent path opens an alert or dialog: logic rules (ModelSpec and ModelText) and subcircuit sources are validated without the editor's alert paths; the editor keeps its alerts for its own dialogs.
+
+### 03_12. Models in JSON v2 files  {#SP_AGA_03_12}
+
+- **Version and section.** The JSON exporter always writes schema version `2.2` (readers accept any `2.x`) and a top-level `models` array only when the circuit uses a non-built-in model. The array holds the circuit's models ([§03_11](#SP_AGA_03_11) Dependencies), dependencies first, each a ModelSpec or a ModelText chosen as `getCircuit` chooses ([§02_05](#SP_AGA_02_05)), without a cap. A 2.1 file, or a 2.2 file without `models`, loads as before.
+- **Full definitions.** Files carry full definitions: `from` and `source` in a file's entry make that entry invalid.
+- **Agent path.** `importCircuit` of JSON text validates the section before any change and applies the create-only rule (identical entry accepted, otherwise `name_taken`); an invalid entry is `invalid_value` and rejects the import ([§02_03](#SP_AGA_02_03)).
+- **User loads and `openFile`.** The importer defines the entries before the elements with the text importer's behaviour for model lines: an entry overwrites the session entry of that name, and when the load is rejected (`openFile`, [§03_04](#SP_AGA_03_04)) every entry it created or replaced is restored. An invalid entry is skipped with a console/log message and no alert; elements that name it take the fallback of an unknown model (`openFile` reports `value_adjusted` per such element, [§03_03](#SP_AGA_03_03)).
+- **Paste and subcircuits-only import.** A paste (`RC_RETAIN`) defines the entries as a user load does. "Import subcircuits only" (`RC_SUBCIRCUITS`) imports only the `subcircuit` entries and the entries they depend on, and no elements.
+- **Older readers.** A build without this section ignores the key: diode and transistor elements fall back to their default models, `CustomLogic` and `Subcircuit` elements load with the wrong pin sets ([§06_01](#SP_AGA_06_01)).
 
 ## 04. State Transitions  {#SP_AGA_04}
 
@@ -935,12 +1094,50 @@ A **content lifetime** begins when a document is created or its content is repla
 | saveFile | overwrite foreign | existing non-circuit `…/a.txt` | `file_not_allowed`; file untouched |
 | openFile | missing | absent path | `file_not_found` |
 | exportCircuit | json keys | — | keys equal `getCircuit` IDs |
+| defineModel | LED with a forward voltage | `{kind:"diode", name:"led-green-2v1", parameters:{forward_voltage:"2.1 V", forward_current:"20 mA"}}` then `add` LED with `model:"led-green-2v1"` in the same batch | ok; the LED drops 2.1 V ± 0.02 V at 20 mA in a run; `describeType LED` `choices` contains the name |
+| defineModel | name taken | a built-in name (`1N4148`) with other parameters, or a name defined earlier with other values | `name_taken`; nothing applied; catalogues unchanged |
+| defineModel | internal name | `{kind:"diode", name:"old-default-led", …}` | `name_taken`; `listModels` still does not list it |
+| defineModel | identical redefinition | the same ModelSpec as an earlier successful batch, in a second batch with an `add` using it | ok; `models[0].existing = true`; the entry's model line is unchanged |
+| defineModel | batch rollback | `defineModel` + an `add` with an unknown type | `unknown_type`; the model is not in `listModels` afterwards |
+| defineModel | rollback on exception | `defineModel` + `add`, with `debugFailNextMutation()` armed | `internal_error`; the model is not in `listModels`; document unchanged |
+| defineModel | bad `from` | `from:"nope"`; `from:"old-default-led"` (internal); a transistor name as `from` of a diode; `from` on a `logic` model | `unknown_model` naming `from` for the first three; `invalid_value` for the last |
+| defineModel | diode input errors | `forward_current` without `forward_voltage`; `forward_voltage` with `emission_coefficient` only; `breakdown_voltage:"-5 V"`; `emission_coefficient:"2 V"` (unit on a number key); a key `foo` | `invalid_value` naming `parameters.<key>` for each; `unknown_property` for `foo` |
+| defineModel | diode record re-import | the `parameters` of a simple-form model's ModelRecord (four core keys + `forward_voltage`/`forward_current`) under a new name | ok; the new model line equals the original's except the name (flags SIMPLE, same forward current) |
+| defineModel | transistor | `{kind:"transistor", name:"bjt-lowbeta", from:"default", parameters:{early_voltage_forward:"100 V"}}` | ok; `listModels` record shows `early_voltage_forward` 100 V and the other keys of `default` |
+| defineModel | transistor infinite | `early_voltage_forward:"inf"`, `knee_current_forward:"inf"` | ok; record shows `"inf"` for both; model line has inverse 0 |
+| defineModel | logic | inputs `[A,B]`, outputs `[Y]`, rules `["11=1","??=0"]` (AND) | ok; a CustomLogic with `model_name` set computes AND in a run |
+| defineModel | logic bad rule | rule `"1=11"` | `invalid_value` naming `rules[0]`; no alert or dialog opened; nothing registered |
+| defineModel | logic limits | 33 inputs; a pin name of 9 chars; duplicate input names; a pin name `CLK` (empty after markup); 257 rules; a rule line of 101 chars; `info` of 201 chars | `invalid_value` naming the field (`inputs`, `inputs[<i>]`, `rules`, `rules[<i>]`, `info`); nothing registered |
+| defineModel | logic pin names | inputs `[D, CLK:C]`, outputs `[Q, /Q]`, a CustomLogic using it | element pins `D`, `C`, `Q`, `Q_2`; the record keeps `CLK:C` and `/Q` |
+| defineModel | subcircuit | `source:{doc}` of a document holding an RC with labels `in`, `out` | ok; record pins `pin1`↔`in`, `pin2`↔`out`; a `Subcircuit` with that `model_name` behaves as the RC; the source's selection, circuit text and simulated time are unchanged |
+| defineModel | subcircuit source errors | `source` an unknown handle; a source during an agent run; the target document itself; a source with no labels; a label on ground; a label no element uses; unconnected internal nodes; two labels `a`, `b` on one node | `unknown_document`; `busy`; `invalid_value` naming `source` with the reason for each of the others; no alert or dialog; source document unchanged |
+| importCircuit | ModelText errors | ModelText with two lines; first token `32` with `kind:"diode"`; name token ≠ `name`; `name:"~x"`; a logic line whose rules hold `1=11` | `invalid_value` naming `modelText` (or `name`); no alert; nothing registered |
+| importCircuit | models rollback | AgentCircuit `models` [new `A`, `B` = an existing name with other values] | `name_taken`; `A` not in `listModels`; document unchanged |
+| importCircuit / getCircuit | round trip with models | a circuit with a defined diode model | `getCircuit` returns it under `models`; importing that form into a new document after the model is gone from the session (fresh app) restores it |
+| importCircuit | same-session re-import | the `getCircuit` form of a document using defined diode, logic and subcircuit models, imported into a new document of the same session | ok; every entry identical (no catalogue change); elements equal |
+| getCircuit | ModelText fallback | a document using an editor-made diode model `fwdrop=0.8` and a logic model with a 9-char pin name | both emitted as ModelText; the form re-imports in the same session (identical) |
+| getCircuit | dependency closure | a Subcircuit whose model's elements use a defined diode model | `models` lists the diode before the subcircuit; present on the `offset = 0` page only; `listModels` diode `usedBy` lists the Subcircuit's ID |
+| listModels | kinds and order | no arguments, in a fresh session where no CustomLogic was used | entries of all four kinds, ordered by kind, built-in first, then by name; no internal entry (`~lm317-dz`, `old-default-led`); logic `default` listed with `builtIn: false`, inputs `A`, `B`, outputs `C`, `D`, no rules |
+| defineModel | logic `default` | `{kind:"logic", name:"default", inputs:[A,B], outputs:[Y], rules:["11=1"]}` in a fresh session | `name_taken` (the ensured `default` entry differs) |
+| listModels | name | `kind:"diode", name:"1N4148"`; `name` without `kind`; `kind:"diode", name:"nope"` | one record, `builtIn: true`; `invalid_value` naming `name`; `unknown_model` |
+| undo | defined model kept | batch `defineModel` + `add` using it, then `undo`, then `redo` | elements gone then back; the model is listed throughout and its model line never changes |
+| set | unknown model_name | `CustomLogic` `model_name:"nope"` | `invalid_value` with the available names; no model registered |
+| openFile | unknown logic model | a text file, and a JSON file, whose CustomLogic names a model the file does not define | ok for both; `value_adjusted` for that element; text: an empty model (inputs `A`, `B`, outputs `C`, `D`) is created under that name; JSON: a copy of the element's previous model |
+| importCircuit | legacy text, CustomLogic naming an unknown model | text content with a CustomLogic line naming `nope` and no `!` line | `invalid_value` naming the element; `listModels {kind:"logic", name:"nope"}` → `unknown_model` |
+| importCircuit | legacy text with a differing model line | text content with `! default …` whose rules differ from the session's `default` | `name_taken` with the hint "open the file with `openFile` to load its models as the editor does, or rename the model"; catalogues unchanged |
+| importCircuit | unknown inner model | a subcircuit ModelText whose element dumps hold a `CustomLogic` naming `nope` | `invalid_value` naming `modelText` ("inner model nope unknown"); catalogues unchanged |
+| defineModel | diode record mismatch | record form with `forward_voltage` 1 % off the derived drop; record form with `forward_current` and `series_resistance:"1 Ohm"` | `invalid_value` naming `parameters.forward_voltage` with the simple-form hint; `invalid_value` naming `parameters.forward_current` |
+| exportCircuit / saveFile json | models section | a document using a defined model | JSON 2.2 with `models`; reopening the file defines the model |
+| user load (JSON) | invalid models entry | a JSON 2.2 file whose entry has `kind:"foo"`, or `from` | loads; a console/log message; the elements naming it fall back; no alert |
+| user paste (JSON) | models in a paste | paste of a JSON 2.2 fragment with a `models` entry the session lacks | the entry is defined; the pasted element uses it; one undo removes the elements (the entry stays) |
+| user import (JSON) | subcircuits only | "Import subcircuits only" of a JSON 2.2 file with a subcircuit model that uses a diode model, plus other entries and elements | the subcircuit and diode entries are defined; no other entry and no element is imported |
+| user load (JSON) | older reader | a JSON 2.2 file with `models` loaded by the build before PL_AGA Phase 14 | loads; `models` ignored; diode elements use their default model |
 
 ### 05_02. Invariant Checks  {#SP_AGA_05_02}
 
 | Invariant | Verification method |
 |-----------|-------------------|
-| `ok=false` ⇒ document unchanged | Compare circuit text, IDs and open marks before/after for every error case in §05_01 |
+| `ok=false` ⇒ document unchanged and session model catalogues unchanged | Compare circuit text, IDs, open marks and the model line of every catalogue entry before/after for every error case in §05_01 (the logic `default` entry, ensured by the first model-related call, exists before the first sample) |
 | IDs survive undo/redo | Create, edit, undo, redo; IDs of all elements equal at each step |
 | No duplicate IDs after restore | Import R1..R5, undo, redo, add a resistor without ID → `R6` |
 | One ID scheme | `exportCircuit(json)` keys = `getCircuit` IDs = the scripting global's IDs |
@@ -985,10 +1182,11 @@ A **content lifetime** begins when a document is created or its content is repla
 
 | Aspect | Rollback approach |
 |--------|-------------------|
-| Data/state changes | Undo entry extension fields live in memory only. No file format changes: JSON element keys were already free-form IDs, and the text format is untouched |
-| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps. (17) The user's `ontimestep` hook is not called for steps of a document other than the visible one (background runs), as the `onanalyze` hook already is. (18) Setting the time-step bar from code (text import, tab activation) no longer fires its command, so a document's maximum time step is kept exactly instead of being re-quantised to the bar's 1-2-5 table (capped at 10 µs); this also applies to user file loads (audit BL-D01). (19) `TransistorElm` reports its collector current as its current (element `current`, JS API `getCurrent`). (20) The 555 timer declares its always-conducting internal paths (Vcc–ctl–ground, out to Vcc/ground) for the ground closure, so `isolated_group` is no longer raised for its `out`/`ctl`. (21) Format bits that `dump()` sets are part of the element's flags from construction (`getDumpFlags`; JSON `_flags`, TypeInfo `defaultFlags`), so add and import agree |
+| Data/state changes | Undo entry extension fields live in memory only. JSON element keys were already free-form IDs, and the text format is untouched. The one file format change is the JSON `models` section with schema version 2.2 ([§03_12](#SP_AGA_03_12)) |
+| Behaviour changes (each revertible on its own) | (1) The JSON exporter takes keys from the runtime registry, so exported keys change from one global counter (`R1, C2, W3`) to per-prefix numbering. (2) Readings and net names use the document's own analysis instead of the session label registry. (3) Undo menu labels. (4) Background-document operations satisfying R1/R2 by the mechanism of SP_AGA_DEC_04 ([§03_08](#SP_AGA_03_08)). (5) Offscreen per-document render. (6) The free-run loop skips busy documents. (7) Grid size pinned during agent geometry. (8) The declared conditional property contract on elements. (9) The path-based file adapter. (10) Letters-only ID prefixes. (11) Untranslated message keys and the per-document solver event list. (12) The `convergence_failed` event under recovery. (13) Background close without tab switch and per-document console routing. (14) Importers report skipped/failed items to the caller with codes. (15) Model catalogue entries restored on a rejected import. (16) New documents (agent `createDocument`, user new tab) start with the blank-circuit time-step defaults instead of a zero maximum step, which the time-step bar turned into 1 ps. (17) The user's `ontimestep` hook is not called for steps of a document other than the visible one (background runs), as the `onanalyze` hook already is. (18) Setting the time-step bar from code (text import, tab activation) no longer fires its command, so a document's maximum time step is kept exactly instead of being re-quantised to the bar's 1-2-5 table (capped at 10 µs); this also applies to user file loads (audit BL-D01). (19) `TransistorElm` reports its collector current as its current (element `current`, JS API `getCurrent`). (20) The 555 timer declares its always-conducting internal paths (Vcc–ctl–ground, out to Vcc/ground) for the ground closure, so `isolated_group` is no longer raised for its `out`/`ctl`. (21) Format bits that `dump()` sets are part of the element's flags from construction (`getDumpFlags`; JSON `_flags`, TypeInfo `defaultFlags`), so add and import agree. (22) User JSON saves are written as version 2.2 and carry the `models` the circuit uses ([§03_12](#SP_AGA_03_12)). (23) User JSON loads (open, paste, subcircuits-only import) define the `models` entries they carry, as text loads do with model lines. (24) Agent paths reject an unknown `model_name` (`CustomLogic`, `Subcircuit`) instead of the editor's session copy or fallback; user loads and `openFile` keep the editor's behaviour ([§03_03](#SP_AGA_03_03)). (25) `CustomLogicModel` rule parsing returns its first error instead of alerting; the editor's dialogs alert that message as before. (26) User text loads keep a `CustomLogic` line with an unknown model (an empty model is created under that name) instead of skipping it after an exception. (27) `importCircuit` text and JSON content no longer overwrite a session model whose line differs: `name_taken` (`openFile` keeps overwriting, as a user open does) |
 | Artifacts | The Agent API module and its export through the clustered native boundary; no persistent artifacts |
 | Dependent modules | [SP_MCP](./mcp-server.sp.md) and [SP_AGS](./agent-skill.sp.md) depend on it; removing the Agent API removes the MCP tool set |
+| Model definitions ([§03_11](#SP_AGA_03_11), [§03_12](#SP_AGA_03_12)) | Removing `defineModel`/`listModels` and the AgentCircuit `models` key leaves the catalogues as the editor makes them. JSON 2.2 files keep loading in older builds: the `models` key is ignored, diode and transistor elements fall back to their default models, and `CustomLogic` and `Subcircuit` elements load with the wrong pin sets (an empty or copied logic model, the subcircuit's previous or default model) — so a 2.2 file that uses logic or subcircuit models is not usable in an older build. The JSON `models` section can be dropped by reverting the exporter and importer (items 22, 23) alone; files already written then load as in an older build |
 | External contracts | The existing scripting global keeps its documented methods; its element IDs come from the registry (same format) |
 
 ## 07. Design Decisions  {#SP_AGA_DEC}
@@ -1097,6 +1295,25 @@ A **content lifetime** begins when a document is created or its content is repla
 **Rationale:** Correct names without a silent meaning change for any file or agent reference.
 **Resolved by:** main under the developer's instruction "Назви пінів потрібно зробити як буде правильно" (2026-10-03), after measurement of every polar element.
 
+### DEC_07 — How do agents create component models?  {#SP_AGA_DEC_07}
+
+> **Status:** resolved (delegated)
+> **Date:** 2026-10-04
+
+**Question:** Agents could not make a green LED drop more than the red default (live series T2): the API accepted only existing model names. The developer asked that agents create new models of every component the app lets a user model. Where does the definition live, and what may it change?
+
+**Options considered:**
+| Option | Consequence |
+|--------|-------------|
+| A — a `defineModel` edit op (batch-atomic with the elements that use it) plus `listModels`, strictly create-only names (an identical re-definition is accepted unchanged; to change a model an agent defines a new name and `set`s its elements) | Model and usage land or fail together; `defineModel` and `importCircuit` never change an existing entry, so no other tab changes behaviour through them; `openFile` loads model lines like a user file open and may overwrite, as the editor does; one new op, one read op |
+| B — a separate `circuit_models` tool with free create/update/delete | Cross-document side effects (catalogues are session-wide and transistor/logic models are read live); no atomicity with the elements |
+| C — only through a text import with model lines | Already possible but replaces the whole circuit; no validation without dialogs |
+
+**Decision:** A, for all four model kinds (diode, transistor, logic, subcircuit); the AgentCircuit and the JSON format carry the models a circuit uses.
+**Rationale:** Same capability as the editor's model dialogs, without leaking into other documents (`defineModel` and `importCircuit` never change an existing entry; `openFile` loads model lines like a user file open and may overwrite, as the editor does), and a circuit read or saved by an agent re-imports with its models.
+**Amended:** 2026-10-04 (model review round 1) — the first version let `replace` redefine a model no other open document used; dropped because undo entries, closed tabs and session restore re-apply the model lines they carry, so a redefined entry could still be overwritten or reach other documents. Names are now strictly create-only ([§03_11](#SP_AGA_03_11)).
+**Resolved by:** main under the developer's instruction "Агенти повинні мати можливість через mcp створювати нові моделі тих компонентів, якщо це передбачено у застосунку" (2026-10-04).
+
 ## Changelog
 
 | Date | Change |
@@ -1108,6 +1325,7 @@ A **content lifetime** begins when a document is created or its content is repla
 | 2026-10-03 | §03_03: unit strings may be wrapped in one pair of double quotes (eval finding) |
 | 2026-10-03 | Defect batch: §03_05 codes `ground_path_no_resistance`, `wire_loop`, `current_source_no_path`; BJT/FET `current` and BJT `voltage`; `set` reports only writable keys; LogicInput `state` read-only; §06_01 items 19–21 |
 | 2026-10-03 | Polar pin names corrected (SP_AGA_DEC_06): sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp inputs fixed; source `voltage` sign stated |
+| 2026-10-04 | Live agent series: §03_05 `symbol_overlap` (geometry-only body model); `no_ground` only without a ground element when the simulator assumes ground at a voltage source or no element references ground internally (circuits referenced through rails, logic inputs, gates or chips need none) |
 | 2026-10-02 | Fix round: `stop_trigger` run reason (SP_AGA_DEC_05), first probe sample after the first solved step, determinism qualified for noise sources, §06_01 item 18 time-step bar no longer re-quantises the maximum step |
 | 2026-10-02 | PL_AGA Phase 9: `openFile` applies the circuit test; element lines need whole-number coordinates and flags; BOM, links, parent directories, whitespace-only and over-size overwrite rules; rejected-open issues aggregated per code; review: `file_not_found`/`file_error` per contract for links and directories, save refused when the resolved target changed after the check, staging file flushed before rename and only its own staging file removed |
 | 2026-10-02 | PL_AGA Phase 8: render area includes bounding boxes, empty-document image, printable look and scope state untouched, `scale` size cap and close-while-rendering errors; R2 check masks scope auto-range fields and uses a simulated span; R1 slice bound is 20 ms plus one indivisible unit of work (timestep, element draw, image canvas allocation); one frame between slices of concurrent operations; 40-megapixel image cap; encode failure is `render_failed` |
@@ -1126,3 +1344,6 @@ A **content lifetime** begins when a document is created or its content is repla
 | 2026-10-01 | Review round 3: load/undo/save routing to the target document's UI state, modified flag, 1/16 lattice for imports, import caps, alias rule, run exception and stop handling, importer reporting, side-effect-free circuit test, common argument-range rule, dedupe reuse, restoreCheckpoint definition |
 | 2026-10-01 | Review round 2: geometric dangling rule, circuit test for overwrites, letters-only prefixes and call-level counter raising, message keys and event list, convergence event under recovery, wire_loop as warning, undo/redo extension rule, transaction opened only on success, contract class table, close routing, 1/16-cell import, delta and result caps, reserved labels |
 | 2026-10-01 | Review round 1: per-document routing (§03_08), file adapter and rules (§03_09), error reporting (§03_10), unique pin names, recovery-mode issue mapping, conditional property keys, pinned grid size, counter raising on restore, open marks (§01_12), async render, run/user interaction, verification gaps |
+| 2026-10-04 | Agent model definitions (SP_AGA_DEC_07): §01_13 ModelSpec/ModelRecord, §02_04 `defineModel`, §02_15 `listModels`, §02_03/§02_05 `models`, §03_11 model rules, §03_12 JSON 2.2 `models`, codes `unknown_model`/`name_taken`/`model_in_use`/`model_read_only`, `choices` for `model_name` |
+| 2026-10-04 | Model definitions review round 1: create-only (no replace), identical re-definition accepted, ModelText fallback, dependency closure, pseudo-code, error cases, subcircuit source rules, codec in L2 |
+| 2026-10-04 | Model definitions review round 2: CustomLogic text line with an unknown model kept (§06_01 item 26), subcircuit inner references validated, `openFile` overwrite stated in DEC_07, `importCircuit` `name_taken` hint (§06_01 item 27), diode record-form checks, logic `default` always present, subcircuit identity includes element state, §03_04 restorer wording, paste and subcircuits-only rows |

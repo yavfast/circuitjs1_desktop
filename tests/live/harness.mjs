@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | mcp_browser | mcp_dialog | eval | all (default: all but eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -1956,6 +1956,40 @@ async function scenarioAgentConnect(s) {
   await A('activateDocument', { doc: A0 });
   await sleep(200);
 
+  // --- no_ground only without any ground reference (live series T9): logic elements, rails and
+  // gates are referenced to ground internally; a battery circuit without Ground still raises it
+  const ngCodes = async (elements) => {
+    const imp = await A('importCircuit', { doc: B, circuit: { elements } });
+    const c = await A('getConnectivity', { doc: B, includeNets: false });
+    return { ok: imp.ok && c.ok, codes: codes(c.data && c.data.issues), implicitGround: c.data && c.data.implicitGround };
+  };
+  const ngLogic = await ngCodes([
+    { id: 'IN1', type: 'LogicInput', start: { x: 0, y: 0 }, end: { x: -2, y: 0 } },
+    { id: 'I1', type: 'Inverter', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'O1', type: 'LogicOutput', start: { x: 4, y: 0 }, end: { x: 6, y: 0 } }]);
+  const ngBattery = await ngCodes([
+    { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: 0, y: 4 } }]);
+  const ngRail = await ngCodes([
+    { id: 'RL1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }]);
+  // an op-amp output references ground internally, but the battery makes the simulator assume one
+  const ngOpAmp = await ngCodes([
+    { id: 'V1', type: 'DCVoltage', start: { x: -3, y: 4 }, end: { x: -3, y: 1 } },
+    { id: 'W1', type: 'Wire', start: { x: -3, y: 1 }, end: { x: 0, y: 1 } },
+    { id: 'OA1', type: 'OpAmp', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: -1 }, end: { x: 4, y: -1 } },
+    { id: 'W2', type: 'Wire', start: { x: 4, y: -1 }, end: { x: 4, y: 0 } },
+    { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W3', type: 'Wire', start: { x: 4, y: 4 }, end: { x: -3, y: 4 } }]);
+  out.notes.noGround = { ngLogic, ngBattery, ngRail, ngOpAmp };
+  ck('noGroundLogicOnly', ngLogic.ok && !ngLogic.codes.includes('no_ground'));
+  ck('noGroundBattery', ngBattery.ok && ngBattery.codes.includes('no_ground') && ngBattery.implicitGround === true);
+  ck('noGroundRail', ngRail.ok && !ngRail.codes.includes('no_ground') && ngRail.codes.includes('dangling_post'));
+  ck('noGroundOpAmpBattery', ngOpAmp.ok && ngOpAmp.codes.includes('no_ground') && ngOpAmp.implicitGround === true);
+
   for (const d of [B, C, D, E, F, G, T, X, Y]) await A('closeDocument', { doc: d, discardChanges: true });
   ck('visibleTabUnchanged', r1.failed.length === 0);
   out.r1 = r1;
@@ -1978,6 +2012,8 @@ async function scenarioAgentConnectAll(s) {
   const doc = (await A('createDocument', { title: 'Connect all' })).data.doc;
   const bad = []; const stats = { circuits: 0, importRejected: 0, nets: 0, issues: 0, notAnalysed: 0, ms: 0 };
   const byCode = {};
+  const symbolOverlap = {};
+  const noGround = [];
   for (const name of list) {
     const ex0 = s.exceptions.length;
     const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
@@ -1999,16 +2035,298 @@ async function scenarioAgentConnectAll(s) {
       stats.nets += con.data.nets.length; stats.issues += con.data.issues.length;
       if (!con.data.analysed) stats.notAnalysed++;
       for (const i of con.data.issues) byCode[i.code] = (byCode[i.code] || 0) + 1;
+      if (con.data.issues.some((i) => i.code === 'no_ground')) noGround.push(name);
+      const ov = con.data.issues.filter((i) => i.code === 'symbol_overlap');
+      if (ov.length) symbolOverlap[name] = ov.map((i) => i.message);
     }
     if (problem) bad.push({ name, imp: imp.ok, con: con.ok, gc: gc.ok, dg: dg.ok, rd: rd.ok, conIssues: (con.issues || []).map((i) => i.code), exceptions: s.exceptions.slice(ex0).map((e) => e.slice(0, 300)) });
   }
   await A('closeDocument', { doc, discardChanges: true });
   const vis1 = await s.call('visibleTab');
   const visibleSame = JSON.stringify(vis0) === JSON.stringify(vis1);
-  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad }, null, 2));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad, symbolOverlap, noGround }, null, 2));
   report('AG.agent_connect_all', bad.length === 0 && visibleSame && s.exceptions.length === exMark,
     { ...stats, bad: bad.length, visibleSame, details: path.join(OUT_DIR, 'agent_connect_all.json') });
   function recs(r) { return (r && r.data && r.data.elements) || []; }
+}
+
+// ---------------------------------------------------------------- agent_overlap (live agent series 2026-10-04)
+// SP_AGA_03_05 symbol_overlap: a wire through a symbol (the T2 ground lying on a rail wire, a wire
+// across a resistor), overlapping symbols, a junction post on a resistor body; clean drawings
+// (leads meeting at posts, transistor and op-amp pins, a diamond bridge, hanging labels, parallel
+// resistors, leads crossed by a wire); the mutation delta; the same issues in a background and in
+// the visible document; bundled examples drawn without overlaps stay clean.
+const ovW = (id, x1, y1, x2, y2) => ({ id, type: 'Wire', start: { x: x1, y: y1 }, end: { x: x2, y: y2 } });
+const ovE = (id, type, x1, y1, x2, y2, properties) => ({ id, type, start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, ...(properties ? { properties } : {}) });
+const OVERLAP_CASES = {
+  // live series T2: Ground G1 drawn horizontally along the bottom rail wire
+  groundOnRail: [ovE('G1', 'Ground', 8, 8, 12, 8), ovW('W4', 8, 8, 16, 8), ovE('R1', 'Resistor', 16, 8, 16, 4), ovW('W5', 16, 4, 8, 4), ovW('W6', 8, 4, 8, 8)],
+  wireThroughResistor: [ovE('R1', 'Resistor', 0, 0, 4, 0), ovW('W1', 2, -2, 2, 2)],
+  resistorsCrossing: [ovE('R1', 'Resistor', 0, 0, 4, 0), ovE('R2', 'Resistor', 2, -2, 2, 2)],
+  junctionOnResistor: [ovE('R1', 'Resistor', 0, 0, 4, 0), ovW('W1', 2, 3, 2, 0)],
+  // a default pot: its wiper post one cell off the body leaves a 16 px dimension
+  wireAcrossPot: [ovE('P1', 'Potentiometer', 0, 0, 4, 0), ovW('W1', 1, -2, 1, 2)],
+};
+const OVERLAP_CLEAN = {
+  endToEndAndRightAngle: [ovW('W1', -3, 0, 0, 0), ovE('R1', 'Resistor', 0, 0, 4, 0), ovW('W2', 4, 0, 7, 0), ovE('C1', 'Capacitor', 4, 0, 4, 4)],
+  transistorPins: [ovE('Q1', 'TransistorNPN', 0, 0, 4, 0), ovW('W1', -3, 0, 0, 0), ovW('W2', 4, -1, 4, -4), ovW('W3', 4, 1, 4, 4)],
+  opAmpPins: [ovE('OA1', 'OpAmp', 0, 0, 4, 0), ovW('W1', -3, -1, 0, -1), ovW('W2', -3, 1, 0, 1), ovW('W3', 4, 0, 5, 0), ovW('W4', 5, 0, 7, 0),
+    ovW('W5', 0, -1, 0, -3), ovW('W6', 0, -3, 5, -3), ovW('W7', 5, -3, 5, 0)],
+  diamondBridge: [ovE('D1', 'Diode', 0, 4, 4, 0), ovE('D2', 'Diode', 4, 8, 8, 4), ovE('D3', 'Diode', 4, 8, 0, 4), ovE('D4', 'Diode', 8, 4, 4, 0),
+    ovW('W1', 4, 0, 4, -3), ovW('W2', 4, 8, 4, 11), ovW('W3', 0, 4, -3, 4), ovW('W4', 8, 4, 11, 4)],
+  hangingLabelAndGround: [ovW('W1', 0, 0, 4, 0), ovE('G1', 'Ground', 4, 0, 4, 1), ovE('L1', 'LabeledNode', 0, 0, -2, 0, { label: 'in' }),
+    ovW('W2', 0, 0, 0, -3), ovE('L2', 'LabeledNode', 0, -3, 0, -4, { label: 'top' })],
+  potWiring: [ovE('P1', 'Potentiometer', 0, 0, 4, 0), ovW('W1', -3, 0, 0, 0), ovW('W2', 4, 0, 7, 0), ovW('W3', 2, -1, 2, -4)],
+  parallelResistors: [ovE('R1', 'Resistor', 0, 0, 4, 0), ovE('R2', 'Resistor', 0, 2, 4, 2), ovW('W1', 0, 0, 0, 2), ovW('W2', 4, 0, 4, 2)],
+  // a wire crossing a long resistor's lead and a long label's stem: crossing leads, like crossing wires
+  leadsCrossed: [ovE('R1', 'Resistor', 0, 0, 0, 8), ovW('W1', -2, 1, 2, 1), ovE('L1', 'LabeledNode', 6, 0, 6, 8, { label: 'x' }), ovW('W2', 4, 2, 8, 2)],
+};
+const OVERLAP_CLEAN_EXAMPLES = ['fullrectf.txt', 'voltdivide.txt', 'amp-invert.txt', 'npn.txt', 'filt-lopass.txt'];
+
+async function scenarioAgentOverlap(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const overlaps = (list) => (list || []).filter((i) => i.code === 'symbol_overlap');
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const A0 = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const visibleText = await s.eval('CircuitJS1.exportCircuit()');
+  const B = (await A('createDocument', { title: 'Overlap B' })).data.doc;
+  const run = async (doc, elements) => {
+    const imp = await A('importCircuit', { doc, circuit: { elements } });
+    const con = await A('getConnectivity', { doc, includeNets: false });
+    return { imp, con, ov: overlaps(con.data && con.data.issues) };
+  };
+
+  // --- reported overlaps: one issue per pair, ids sorted, warning, a cell point and a hint
+  const wellFormed = (i, ids) => i.severity === 'warning' && same(i.elements, ids) && i.at && typeof i.at.x === 'number'
+    && typeof i.hint === 'string' && /only meet at posts/.test(i.hint) && ids.every((id) => i.message.includes(id));
+  for (const [name, elements] of Object.entries(OVERLAP_CASES)) {
+    const r = await run(B, elements);
+    out.notes[name] = r.ov.map((i) => i.message);
+    const ids = { groundOnRail: ['G1', 'W4'], wireThroughResistor: ['R1', 'W1'], resistorsCrossing: ['R1', 'R2'], junctionOnResistor: ['R1', 'W1'], wireAcrossPot: ['P1', 'W1'] }[name];
+    const hit = r.ov.filter((i) => same(i.elements, ids));
+    ck(name, r.imp.ok && r.con.ok && r.ov.length === 1 && hit.length === 1 && wellFormed(hit[0], ids)
+      && (name !== 'groundOnRail' || (/Ground/.test(hit[0].message) && same(hit[0].at, { x: 12, y: 8 })))
+      && (name !== 'wireThroughResistor' || same(hit[0].at, { x: 2, y: 0 }))
+      && (name !== 'junctionOnResistor' || /Post W1\.b/.test(hit[0].message)));
+  }
+
+  // --- clean drawings
+  for (const [name, elements] of Object.entries(OVERLAP_CLEAN)) {
+    const r = await run(B, elements);
+    if (r.ov.length) out.notes[name] = r.ov.map((i) => i.message);
+    ck('clean_' + name, r.imp.ok && r.con.ok && r.ov.length === 0);
+  }
+
+  // --- delta: moving the wire off the resistor clears the issue; moving it back adds it again
+  await run(B, OVERLAP_CASES.wireThroughResistor);
+  const mvOff = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'W1', by: { dx: 4, dy: 0 } }] });
+  const mvBack = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'W1', by: { dx: -4, dy: 0 } }] });
+  const keyOf = (l) => overlaps(l).map((i) => i.key);
+  ck('deltaCleared', mvOff.ok && keyOf(mvOff.connectivity.cleared).length === 1 && overlaps(mvOff.connectivity.added).length === 0
+    && same(overlaps(mvOff.connectivity.cleared)[0].elements, ['R1', 'W1']));
+  ck('deltaAdded', mvBack.ok && same(keyOf(mvBack.connectivity.added), keyOf(mvOff.connectivity.cleared)) && mvBack.connectivity.warningCount >= 1);
+  // moving the crossing wire along the symbol keeps the issue key (at = centre of the crossed symbol)
+  const mvAlong = await A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'W1', by: { dx: 0.5, dy: 0 } }] });
+  ck('deltaStableWhileOverlapping', mvAlong.ok && overlaps(mvAlong.connectivity.added).length === 0 && overlaps(mvAlong.connectivity.cleared).length === 0
+    && mvAlong.connectivity.warningCount === mvBack.connectivity.warningCount);
+
+  // --- background and visible document give the same issues (geometry only, no draw-time bounding box)
+  const all = [];
+  [...Object.values(OVERLAP_CASES), OVERLAP_CLEAN.diamondBridge, OVERLAP_CLEAN.transistorPins, OVERLAP_CLEAN.potWiring].forEach((elements, k) => {
+    const dx = 20 * k;
+    for (const e of elements) all.push({ ...e, id: e.id + '_' + k, start: { x: e.start.x + dx, y: e.start.y }, end: { x: e.end.x + dx, y: e.end.y } });
+  });
+  const rb = await run(B, all);
+  const rv = await run(A0, all);
+  await sleep(300); // the visible tab draws (bounding boxes) before the second read
+  const cv = await A('getConnectivity', { doc: A0, includeNets: false });
+  const keys = (c) => (c.data.issues || []).map((i) => i.key).sort();
+  out.notes.backgroundVsVisible = { background: overlaps(rb.con.data.issues).length, visible: overlaps(cv.data.issues).length };
+  ck('backgroundSameAsVisible', rb.imp.ok && rv.imp.ok && cv.ok && rb.ov.length === Object.keys(OVERLAP_CASES).length && same(keys(rb.con), keys(cv)) && same(keys(rv.con), keys(cv)));
+
+  // --- bundled examples drawn without overlaps stay clean
+  const dirty = {};
+  for (const name of OVERLAP_CLEAN_EXAMPLES) {
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+    await A('importCircuit', { doc: B, circuit: text });
+    const con = await A('getConnectivity', { doc: B, includeNets: false });
+    const ov = overlaps(con.data && con.data.issues);
+    if (!con.ok || ov.length) dirty[name] = con.ok ? ov.map((i) => i.message) : con.issues;
+  }
+  out.notes.examples = dirty;
+  ck('examplesClean', Object.keys(dirty).length === 0);
+
+  await A('closeDocument', { doc: B, discardChanges: true });
+  // restore the visible document's circuit
+  const restored = await A('importCircuit', { doc: A0, circuit: visibleText });
+  ck('visibleRestored', restored.ok && (await s.eval('CircuitJS1.exportCircuit()')) === visibleText);
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_overlap.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_overlap', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'agent_overlap.json') });
+}
+
+// ---------------------------------------------------------------- render_text (live agent series 2026-10-04)
+// One-post elements drawn with a 1-cell lead (BaseCircuitElm.leadFraction): their text lies on the
+// `end` side of the post in all four directions. Each element is rendered alone as SVG through the
+// agent `render` op; inside the drawing group SVG coordinates are editor pixels, so the post is at
+// (0, 0). Every text's estimated box centre must lie on the end side; for up/down the whole box
+// (font-size high), for right a text that is not middle-anchored and for left a start-anchored
+// text (at least 0.45 em per character wide) must not reach past the post. No stroked line
+// starting at the post has a point behind it. The lit LED shows a lit-coloured triangle on its axis
+// and two arrow heads on one side, inside the render area. Also writes visual samples (LED lit and
+// unlit, labels, AM source) to OUT_DIR/render_text/.
+const RENDER_TEXT_TYPES = ['LabeledNode', 'TestPoint', 'Output', 'StopTrigger', 'Rail', 'AMSource', 'FMSource', 'SweepGenerator', 'AudioOutput', 'LogicOutput'];
+const RENDER_TEXT_DIRS = { right: [1, 0], left: [-1, 0], down: [0, 1], up: [0, -1] };
+
+function svgTexts(svg) {
+  return [...svg.matchAll(/<text([^>]*)>([^<]*)<\/text>/g)].map((m) => {
+    const attr = (k) => { const mm = m[1].match(new RegExp(' ' + k + '="([^"]*)"')); return mm ? mm[1] : null; };
+    return { text: m[2], x: +attr('x'), y: +attr('y'), anchor: attr('text-anchor') || 'start', baseline: attr('dominant-baseline') || 'alphabetic',
+      size: parseFloat(attr('font-size') || '12'), transform: attr('transform') };
+  });
+}
+
+// @return the polylines of the SVG paths (M/L points only; arcs ignored) with their fill
+function svgPaths(svg) {
+  return [...svg.matchAll(/<path([^>]*)\/?>/g)].map((m) => {
+    const fill = (m[1].match(/ fill="([^"]*)"/) || [])[1] || 'none';
+    const d = (m[1].match(/ d="([^"]*)"/) || [])[1] || '';
+    const pts = [];
+    const re = /([ML])\s*(-?[\d.]+(?:e-?\d+)?)\s+(-?[\d.]+(?:e-?\d+)?)/g;
+    let mm;
+    while ((mm = re.exec(d))) pts.push([+mm[2], +mm[3]]);
+    return { fill, pts, closed: /Z/.test(d), arc: /A/.test(d) };
+  });
+}
+
+// @return the drawing area in editor pixels: [x0, y0, x1, y1] from the root size and the group translate
+function svgArea(svg) {
+  const size = svg.match(/<svg[^>]* width="([\d.]+)" height="([\d.]+)"/);
+  const tr = svg.match(/<g transform="scale\(([\d.]+),[\d.]+\) translate\((-?[\d.]+),(-?[\d.]+)\)"/);
+  if (!size || !tr) return null;
+  const k = +tr[1];
+  return [-tr[2], -tr[3], -tr[2] + size[1] / k, -tr[3] + size[2] / k];
+}
+
+// @return the problems of one text relative to a post at (0, 0) whose end lies in direction d
+function textSideProblems(t, d) {
+  const w = 0.45 * t.size * t.text.length;
+  const x0 = t.anchor === 'middle' ? t.x - w / 2 : t.anchor === 'end' ? t.x - w : t.x;
+  const yTop = t.baseline === 'central' || t.baseline === 'middle' ? t.y - t.size / 2 : t.y - 0.75 * t.size;
+  const cx = x0 + w / 2, cy = yTop + t.size / 2;
+  const p = [];
+  if (t.transform) p.push('transformed text');
+  if (cx * d[0] + cy * d[1] <= 0) p.push('centre not on the end side');
+  if (d[1] === 1 && yTop < -1) p.push('box reaches above the post');
+  if (d[1] === -1 && yTop + t.size > 1) p.push('box reaches below the post');
+  // a middle-anchored text is centred on a symbol at end (AM circle, AudioOutput box): only its centre counts
+  if (d[0] === 1 && t.anchor !== 'middle' && x0 < -1) p.push('box starts left of the post');
+  if (d[0] === -1 && t.anchor === 'start' && t.x + w > 1) p.push('start-anchored text reaches right of the post');
+  return p;
+}
+
+async function scenarioRenderText(s) {
+  const out = { checks: {}, notes: { bad: [], noText: [], leadsBehind: [] } };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const render = (args) => s.call('agentAsync', 'render', args, 30000);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const dir = path.join(OUT_DIR, 'render_text');
+  fs.mkdirSync(dir, { recursive: true });
+  const doc = (await A('createDocument', { title: 'Render text' })).data.doc;
+  let cases = 0, rendered = 0, leadsChecked = 0;
+  for (const type of RENDER_TEXT_TYPES) {
+    for (const [dn, d] of Object.entries(RENDER_TEXT_DIRS)) {
+      cases++;
+      const imp = await A('importCircuit', { doc, circuit: { elements: [{ id: 'E1', type, start: { x: 0, y: 0 }, end: { x: d[0], y: d[1] } }] } });
+      const r = await render({ doc, format: 'svg' });
+      const svg = r && r.data ? r.data.content : '';
+      if (!imp.ok || !svg || !/<g transform="scale\(1,1\) translate\(/.test(svg)) { out.notes.bad.push({ type, dn, imp: imp.ok, render: !!svg }); continue; }
+      rendered++;
+      const texts = svgTexts(svg);
+      if (!texts.length) out.notes.noText.push(type + ' ' + dn);
+      for (const t of texts) {
+        const p = textSideProblems(t, d);
+        if (p.length) out.notes.bad.push({ type, dn, text: t, problems: p });
+      }
+      // a lead drawn from the post must not run behind it
+      for (const pa of svgPaths(svg)) {
+        if (pa.fill !== 'none' || pa.arc || !pa.pts.length || Math.hypot(pa.pts[0][0], pa.pts[0][1]) > 0.5) continue;
+        leadsChecked++;
+        const behind = pa.pts.filter((q) => q[0] * d[0] + q[1] * d[1] < -1);
+        if (behind.length) out.notes.leadsBehind.push({ type, dn, pts: pa.pts });
+      }
+    }
+  }
+  ck('allRendered', rendered === cases);
+  ck('textOnEndSide', out.notes.bad.length === 0);
+  out.notes.leadsChecked = leadsChecked;
+  ck('noLeadBehindPost', leadsChecked >= cases && out.notes.leadsBehind.length === 0);
+  ck('labelsHaveText', !out.notes.noText.some((c) => /^(LabeledNode|TestPoint|Rail|StopTrigger) /.test(c)));
+
+  // visual samples (not asserted beyond a successful render)
+  const save = async (name, elements, run) => {
+    await A('importCircuit', { doc, circuit: { elements } });
+    if (run) await s.call('agentAsync', 'run', { doc, span: '5 ms', reset: true }, 30000);
+    let svg = null;
+    for (const format of ['png', 'svg']) {
+      const r = await render({ doc, format, scale: format === 'png' ? 2 : 1 });
+      const c = r && r.data ? r.data.content : null;
+      if (!c) continue;
+      if (format === 'png') fs.writeFileSync(path.join(dir, name + '.png'), Buffer.from(c.replace(/^data:image\/png;base64,/, ''), 'base64'));
+      else { fs.writeFileSync(path.join(dir, name + '.svg'), c); svg = c; }
+    }
+    return svg;
+  };
+  const ledLoop = (open) => [
+    { id: 'V1', type: 'DCVoltage', start: { x: 0, y: 4 }, end: { x: 0, y: 0 }, properties: { max_voltage: 5 } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: 220 } },
+    { id: 'LED1', type: 'LED', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'W1', type: 'Wire', start: { x: 4, y: 4 }, end: { x: open ? 2 : 0, y: 4 } },
+    ...(open ? [{ id: 'W2', type: 'Wire', start: { x: 1, y: 4 }, end: { x: 0, y: 4 } }] : []),
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } },
+  ];
+  const labels = Object.entries(RENDER_TEXT_DIRS).flatMap(([dn, d], k) => [
+    { id: 'L' + (k + 1), type: 'LabeledNode', start: { x: 6 * k, y: 0 }, end: { x: 6 * k + d[0], y: d[1] }, properties: { label: dn } },
+    { id: 'TP' + (k + 1), type: 'TestPoint', start: { x: 6 * k, y: 6 }, end: { x: 6 * k + d[0], y: 6 + d[1] } },
+  ]);
+  const am = [{ id: 'AM1', type: 'AMSource', start: { x: 0, y: 0 }, end: { x: 0, y: -1 } }, { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 0, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 4 }, end: { x: 0, y: 5 } }];
+  const saved = [await save('led_lit', ledLoop(false), true), await save('led_unlit', ledLoop(true), true),
+    await save('labels_1cell_4dir', labels, false), await save('am_source_1cell', am, true)];
+  ck('visualsSaved', saved.every(Boolean));
+  out.notes.visuals = dir;
+
+  // lit LED (axis x = 64, y 0..64): a lit-coloured triangle on the axis and two arrow heads on one
+  // side (IEC 60617), all inside the render area
+  const led = { tri: [], arrows: [], area: saved[0] ? svgArea(saved[0]) : null };
+  if (saved[0]) {
+    for (const pa of svgPaths(saved[0])) {
+      if (pa.fill === 'none' || pa.arc || !pa.closed || pa.pts.length !== 3) continue;
+      const cx = pa.pts.reduce((a, q) => a + q[0], 0) / 3, cy = pa.pts.reduce((a, q) => a + q[1], 0) / 3;
+      if (cy <= 0 || cy >= 64) continue;
+      if (Math.abs(cx - 64) < 2) led.tri.push({ fill: pa.fill, pts: pa.pts });
+      else if (Math.abs(cx - 64) > 6 && Math.abs(cx - 64) < 40) led.arrows.push({ side: Math.sign(cx - 64), pts: pa.pts });
+    }
+  }
+  const inArea = (q) => led.area && q[0] >= led.area[0] && q[0] <= led.area[2] && q[1] >= led.area[1] && q[1] <= led.area[3];
+  out.notes.led = led;
+  ck('ledLitSymbol', led.tri.some((t) => !/^#(000000|ffffff)$/i.test(t.fill)) && led.arrows.length === 2
+    && led.arrows[0].side === led.arrows[1].side && led.arrows.every((a) => a.pts.every(inArea)));
+
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('noPageExceptions', s.exceptions.length === exMark);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'render_text.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.render_text', failed.length === 0, { checks: Object.keys(out.checks).length, failed, cases, details: path.join(OUT_DIR, 'render_text.json') });
 }
 
 // geom_posts: element posts stay at the positions the pre-refactor build (dde7f33^) gave them.
@@ -4688,7 +5006,7 @@ async function scenarioMcpDialog(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -4732,7 +5050,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

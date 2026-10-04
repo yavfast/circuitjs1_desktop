@@ -124,7 +124,7 @@ public class FMElm extends CircuitElm {
         super.setPoints();
         // lead1 is initialized by super.setPoints() via calcLeads
         double dn = getDn();
-        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), leadFraction(circleSize, dn));
     }
 
     double getVoltageDiff() {

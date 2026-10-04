@@ -413,7 +413,7 @@ public final class Catalogue {
      * {@code single}: one post at start; {@code two_point}: two posts at start and end;
      * {@code derived}: anything else (posts computed from the two points, or no posts).
      */
-    private static String geometryOf(Point[] posts, int x1, int y1, int x2, int y2) {
+    static String geometryOf(Point[] posts, int x1, int y1, int x2, int y2) {
         if (posts.length == 1 && at(posts[0], x1, y1)) {
             return "single";
         }

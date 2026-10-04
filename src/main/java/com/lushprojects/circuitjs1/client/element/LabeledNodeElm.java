@@ -96,7 +96,7 @@ public class LabeledNodeElm extends CircuitElm {
         super.setPoints();
         // lead1 is a separate object from the post (ElmGeometry), so this keeps the post in place.
         double dn = getDn();
-        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - circleSize / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), leadFraction(circleSize, dn));
     }
 
     // get post we're connected to

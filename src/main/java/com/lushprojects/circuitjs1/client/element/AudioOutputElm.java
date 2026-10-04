@@ -117,7 +117,7 @@ public class AudioOutputElm extends CircuitElm implements HasControlWidget {
         graphics.fillRect(getX2() - textWidth / 2, getY2() - 10, pct, 20);
         graphics.setColor(selected ? selectColor() : foregroundColor());
         double dn = getDn();
-        interpPoint(point1, point2, lead1, 1 - (textWidth / 2. + 8) / dn);
+        interpPoint(point1, point2, lead1, leadFraction(textWidth / 2. + 8, dn));
         setBbox(point1, lead1, 0);
         drawCenteredText(graphics, s, getX2(), getY2(), true);
         setVoltageColor(graphics, getNodeVoltage(0));

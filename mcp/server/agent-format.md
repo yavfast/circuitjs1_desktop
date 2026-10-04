@@ -104,8 +104,9 @@ Every successful mutation returns `connectivity: {added, cleared, errorCount, wa
 | `wire_loop` | warning | a loop made only of wires (only wire currents are approximated) |
 | `current_source_no_path` | warning | a current source with no current path (open, or in series with another current source): it drives no current |
 | `overlapping_elements` | warning | two equal elements on the same points, or overlapping collinear wires |
-| `no_ground` | warning | no ground element (`implicitGround` tells whether one was assumed) |
+| `no_ground` | warning | no `Ground` element, and either the simulator assumes ground at a voltage source (`implicitGround`) or no element references ground internally; a circuit referenced only through rails, logic inputs, gates or chips needs none |
 | `bad_connection` | warning | a post touches another element's body |
+| `symbol_overlap` | warning | a wire runs through a part's symbol, two symbols overlap, or a post lies on another part's symbol or lead; wires and symbols may meet only at posts (wire and lead crossings are fine) |
 | `reserved_label` | warning | a label text `gnd`, `$…` or `label:…` |
 | `single_label` | info | a label used by exactly one node |
 

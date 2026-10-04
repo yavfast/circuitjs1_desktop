@@ -3,7 +3,7 @@
 > **Code:** SP_MCP
 > **Status:** draft
 > **Created:** 2026-10-01
-> **Updated:** 2026-10-02
+> **Updated:** 2026-10-04
 >
 > **Concept:** [C_MCP](./mcp-server.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_USR](./user-preferences.sp.md)
@@ -99,10 +99,10 @@ Every tool takes the `doc` argument of SP_AGA contracts, optional except where t
 
 | Tool | Maps to (SP_AGA) | Arguments (beyond `doc`) | readOnlyHint | destructiveHint | idempotentHint |
 |------|------------------|---------------------------|----------|-------------|------------|
-| circuit_types | listTypes / describeType | `type?` (describe when given), `filter?` | true | false | true |
+| circuit_types | listTypes / describeType / listModels | `type?` (describe when given), `filter?`, `models?: diode\|transistor\|logic\|subcircuit\|all` and `model?: name` (listModels when `models` is given, `all` = no `kind`; `model` = listModels `name` and needs one kind; SP_AGA §02_15). `type` together with `models`, `model` without `models`, and `model` with `models: all` are JSON-RPC -32602 (§02 argument rule) | true | false | true |
 | circuit_documents | listDocuments / createDocument / activateDocument / closeDocument | `action: list\|create\|activate\|close`, `title?`, `activate?`, `discardChanges?` | false | true (`close`) | false |
 | circuit_import | importCircuit | `circuit` (AgentCircuit object or text) | false | true (replaces the circuit) | false |
-| circuit_edit | applyEdits | `edits[]` | false | true (`delete`) | false |
+| circuit_edit | applyEdits | `edits[]` (incl. `defineModel` with a ModelSpec, SP_AGA §01_13; create-only, no `replace`) | false | true (`delete`) | false |
 | circuit_get | getCircuit | `detail?`, `ids?`, `offset?`, `limit?` | true | false | true |
 | circuit_connectivity | getConnectivity | `includeNets?`, `netFilter?` | true | false | true |
 | circuit_read | read | `targets[]` | true | false | true |
@@ -190,7 +190,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 ### 03_02. Argument validation  {#SP_MCP_03_02}
 
 - Arguments are validated against `inputSchema` before mapping. Type, required-field and enum violations are JSON-RPC errors -32602 with a message naming the field.
-- Unknown arguments, an argument that the chosen `action` does not take, and an action's own required arguments (`doc` for `circuit_documents` `activate`/`close`, `checkpointId` for `restore`, `path` for `open`, `settings` for `configure`) are -32602 too.
+- Unknown arguments, an argument that the chosen `action` does not take, and an action's own required arguments (`doc` for `circuit_documents` `activate`/`close`, `checkpointId` for `restore`, `path` for `open`, `settings` for `configure`) are -32602 too. Inapplicable `circuit_types` argument combinations (`type` with `models`, `model` without `models`, `model` with `models: all`) are -32602 as well.
 - Range keywords in the schemas (minimum, maximum, item counts, patterns) inform the agent and are not enforced by the server: ranges belong to the domain validation below.
 - Domain validation (lattice, IDs, property keys, value formats) is left to the Agent API and comes back as `isError` tool results.
 
@@ -254,6 +254,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 |----------|----------|-------|------------------|
 | Endpoint | Claude Code connects | `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` | `/mcp` lists the server as connected with 14 tools |
 | Endpoint | MCP Inspector | Inspector at localhost origin | Handshake, `tools/list`, `resources/list` succeed |
+| circuit_types | inapplicable combination | `{type:"Resistor", models:"diode"}`, `{model:"x"}`, `{models:"all", model:"x"}` | JSON-RPC -32602 naming the argument |
 | Origin rule | Foreign web page | `Origin: http://example.com` | 403 |
 | Origin rule | No origin | curl POST | 200 |
 | circuit_edit | domain error | unknown property | result `isError: true`, `structuredContent.issues[0].code = unknown_property` |
@@ -381,3 +382,6 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-02 | PL_MCP Phase 3: menu text with three dots, untranslated status wire names, Copy button and empty rows without a URL, port range not edited in the dialog |
 | 2026-10-02 | Default `mcpServerHost` is `127.0.0.1` (C_MCP_DEC_02 amended by the developer); private-network agent row needs the LAN setting |
 | 2026-10-02 | PL_MCP Phase 5 propagate: start-up order (script check first) and disable/failure reasons; EACCES as a busy port; loopback URLs for `localhost`/`127.x`/`::1`; HTTP 500/503 and backstop status; receive, agent and backstop timeouts; client responses 202, `notifications/cancelled` dropped; preference constraints and fallback, no URL layer; exact size hints; how to reach the minimum safe state and its e2e check |
+| 2026-10-04 | Model definitions (SP_AGA_DEC_07): `circuit_types` `models`/`model` → listModels; `circuit_edit` `defineModel`; AgentCircuit `models` in `circuit_import` and `circuit_get` |
+| 2026-10-04 | SP_AGA model review round 1: `circuit_types` argument combinations, `defineModel` create-only; implemented within PL_AGA Phase 11 (MCP server part) |
+| 2026-10-04 | Model definitions review round 2: inapplicable `circuit_types` argument combinations are -32602 like other inapplicable arguments |

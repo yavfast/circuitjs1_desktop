@@ -22,8 +22,9 @@ This skill is for building, checking, simulating and repairing analog and digita
 
 - **Coordinates are grid cells** (1 cell = 16 px, x right, y down); put every new part on whole cells (derived posts may still land on half cells: wire to the reply's `posts`).
 - **Work in a new document** (`circuit_documents` `create`) unless the user names a document to change.
-- **Every circuit gets an explicit `Ground`.**
+- **Every analog circuit gets an explicit `Ground`**, connected to its reference net. A circuit built only from logic inputs, clocks, rails, gates, flip-flops and logic outputs is referenced internally and needs none; a battery (`DCVoltage`) or other two-post source always needs one. Never leave a stray part: delete what you do not connect.
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
+- **Draw a readable schematic.** Wires and symbols meet only at posts: never lay a part, a ground or a label along a wire or over another part (`symbol_overlap`). Parts horizontal or vertical, 3–4 cells long; parallel parts 3 cells apart (4 for long values), so value texts never touch a neighbour; supply on top, `Ground` below its post (`end` 2 cells down), signal left to right; labels with a 2–3-cell lead pointing away from the parts. Layout details: [reference/geometry.md](reference/geometry.md#layout-style).
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
 - **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`); confirm with a read when a result looks wrong.
 - **Checkpoint with a comment** (`circuit_checkpoint`) right after each logical change, before long measuring: after 300 s without edits your edits are sealed as "agent edits (auto)", and a later checkpoint only returns `noChanges`.
@@ -38,12 +39,13 @@ Copy this list into your notes and tick it off:
 - [ ] 2. Pick a start: a pattern from reference/patterns.md, an example (circuitjs://examples), or a net sketch; check types with circuit_types
 - [ ] 3. Own tab: circuit_documents {"action": "create", "title": "..."}; pass its doc to every later call
 - [ ] 4. Place: circuit_import (whole circuit) or circuit_edit (incremental); read derived posts back from the reply
-- [ ] 5. Clear connectivity: the connectivity delta of the reply, circuit_connectivity for the full report; 0 errors
+- [ ] 5. Clear connectivity: the connectivity delta of the reply, circuit_connectivity for the full report; 0 errors, no symbol_overlap
 - [ ] 6. Operating point: circuit_run {"mode": "settle", "reset": true} with probes on the supply nets
 - [ ] 7. Run, probe, measure: circuit_run {"span", "reset": true, "recordFrom", "probes"}; check reason and issues first
 - [ ] 8. Iterate: circuit_edit {"edits": [{"op": "set", "id": ..., "properties": {...}}]}; re-check the connectivity delta, re-run step 7
 - [ ] 9. Checkpoint: circuit_checkpoint {"comment": "what changed and why"}
-- [ ] 10. Report the measured values; circuit_render when the user wants to see it; circuit_file save only when asked
+- [ ] 10. Look at the drawing: circuit_render, then fix overlaps, crowded values or labels, and parts pointing the wrong way
+- [ ] 11. Report the measured values; circuit_file save only when asked
 ```
 
 Notes on the steps:
@@ -53,7 +55,8 @@ Notes on the steps:
 - **Step 6.** A circuit driven by an AC source never settles (`settle_timeout`); read DC levels from `stats.mean` of a span run instead.
 - **Step 7.** Pass `reset: true` on every measuring run, so results are repeatable. Give two probes on the same element distinct `name`s. Pass times as seconds (`"span": 0.01`) or as a plain unit string (`"span": "10 ms"`), never with quotes inside the string.
 - **Step 9.** Also for a one-value change to an existing circuit: the user undoes your work by the checkpoint comment.
-- **Step 10.** Say what you measured and with which run (span, step, recordFrom), not what the formula predicts. If the target cannot be reached with the chosen topology, report the limit with the evidence instead of tuning on.
+- **Step 10.** The image shows what the connectivity report cannot: value texts crowding a neighbour, a source squeezed between parts, a ground or label pointing into the circuit. Move parts with `circuit_edit` `move` and re-check the connectivity delta. Skip the look only for a one-value change.
+- **Step 11.** Say what you measured and with which run (span, step, recordFrom), not what the formula predicts. If the target cannot be reached with the chosen topology, report the limit with the evidence instead of tuning on.
 
 ## Debug loop
 

@@ -1,0 +1,14 @@
+updated: 2026-10-04
+
+entries:
+  - id: schematic-drawing-guidelines
+    path: schematic-drawing-guidelines.md
+    description: Digest of schematic drawing rules (wire crossings, junctions, spacing, signal/power flow, symbol orientation, text/value placement, polarity) with strength, sources and grid-based automatic checkability for the layout checker and agent guidance
+    topics: [schematic, layout, junction, crossing, spacing, orientation, labels, eskd, iec-61082, iec-60617, ieee-315]
+    fetched: 2026-10-04
+    trust: public
+    sources:
+      - ГОСТ 2.701-2008 / 2.701-84, ГОСТ 2.702-2011, ГОСТ 2.751-73, ГОСТ 2.721-74
+      - IEC 61082-1 (preview/TOC), IEC 60617 database snapshot, IEC 60062 (RKM), IEC 60063 (E-series)
+      - IEEE Std 315 / ANSI Y32.2 (catalog only)
+      - Olin Lathrop (Codidact/EE.SE), Horowitz & Hill App. E, Wikipedia "Circuit diagram", SparkFun, Schemalyzer, KiCad KLC

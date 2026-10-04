@@ -83,7 +83,7 @@ Reply: `end` (24, 0); posts `dis` (20, 2), `tr` (20, 6), `th` (20, 8), `Vcc` (24
 
 - **Only coincident posts connect.** Two posts join when they are at exactly the same point; any number of posts may meet at one point.
 - **A post on a wire body does not connect.** A post lying inside a wire segment (not at its end) is reported as `post_on_wire_body` (error), usually with `dangling_post` and `bad_connection` for the same post. Split the wire at the junction into two wires that meet there, or end the wire at the post.
-- **Crossing bodies never connect.** Two wires (or a wire and a part) that cross between their posts do not join and raise no issue: a crossing is not a junction.
+- **Crossing bodies never connect.** Two wires (or a wire and a part) that cross between their posts do not join: a crossing is not a junction. Two wires crossing, or a wire crossing a part's lead, raise no issue. A wire running through a part's symbol, two symbols overlapping, or a post lying on a part's symbol or lead raise `symbol_overlap` (warning): fix the drawing, since wires and symbols may meet only at posts.
 - **Wires.** A wire's two ends are one node. A chain of wires end-to-end is one net.
 
 T-junction, wrong and right:
@@ -113,7 +113,7 @@ T-junction, wrong and right:
 - **Flow.** Signal flows left to right: inputs and sources on the left, outputs on the right.
 - **Rails.** The supply rail sits at the top (small y) and ground at the bottom (large y).
 - **Part size.** Parts are 3–4 cells long.
-- **Spacing.** Keep 2 cells between parallel branches, so labels and values do not overlap.
+- **Spacing.** Keep 3 cells between parallel parts (4 when values are long, such as `2.2mF`): a value text needs about 1.5 cells beside its symbol, so 2 cells let it touch the neighbour.
 - **Wires.** Wires run horizontally or vertically, from post to post.
 - **Ground.** A `Ground` lead points down (`end` 2 cells below `start`).
 - **Label leads.** A label's lead points away from the parts (right for outputs, left for inputs).

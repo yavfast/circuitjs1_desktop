@@ -269,6 +269,21 @@ public class BaseCircuitElm {
     }
 
     /**
+     * Fraction along point1→point2 where a lead ends that stops {@code gap} pixels before point2.
+     * An element shorter than the gap keeps its lead end one pixel past point1, never behind it:
+     * text placed along the lead direction then stays on the point2 side.
+     *
+     * @param gap pixels between the lead end and point2 (symbol or text room)
+     * @param dn  distance point1→point2 in pixels
+     */
+    public static double leadFraction(double gap, double dn) {
+        if (dn <= 0) {
+            return 0;
+        }
+        return dn > gap + 1 ? 1 - gap / dn : 1 / dn;
+    }
+
+    /**
      * Returns a point fraction f along the line between a and b and offset perpendicular by g
      *
      * @param a 1st Point

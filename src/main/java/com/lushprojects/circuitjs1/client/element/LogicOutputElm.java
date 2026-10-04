@@ -88,7 +88,7 @@ public class LogicOutputElm extends CircuitElm {
         }
 
         if (dn != 0) {
-            interpPoint(p1, geom().getPoint2(), lead1, 1 - 12 / dn);
+            interpPoint(p1, geom().getPoint2(), lead1, leadFraction(12, dn));
         } else {
             lead1.x = p1.x;
             lead1.y = p1.y;

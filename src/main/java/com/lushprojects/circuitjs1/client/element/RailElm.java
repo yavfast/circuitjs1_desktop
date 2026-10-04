@@ -67,7 +67,7 @@ public class RailElm extends VoltageElm {
         Point point2 = geom.getPoint2();
         double dn = getDn();
         double w = (waveformInstance != null && waveformInstance.hasCircle()) ? CIRCLE_SIZE : 0;
-        interpPoint(point1, point2, railLead, 1 - w / dn);
+        interpPoint(point1, point2, railLead, leadFraction(w, dn));
     }
 
     String getRailText() {

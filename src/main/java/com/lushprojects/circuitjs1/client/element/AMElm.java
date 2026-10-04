@@ -128,7 +128,7 @@ public class AMElm extends CircuitElm {
         Point point1 = geom.getPoint1();
         Point point2 = geom.getPoint2();
         double dn = getDn();
-        interpPoint(point1, point2, lead1, 1 - circleSize / dn);
+        interpPoint(point1, point2, lead1, leadFraction(circleSize, dn));
     }
 
     double getVoltageDiff() {

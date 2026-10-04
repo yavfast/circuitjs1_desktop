@@ -68,7 +68,7 @@ public class StopTriggerElm extends CircuitElm {
         super.setPoints();
         // geom() initializes leads
         double dn = getDn();
-        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - 8 / dn);
+        interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), leadFraction(8, dn));
     }
 
     public void draw(Graphics g) {

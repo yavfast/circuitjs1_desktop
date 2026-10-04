@@ -76,7 +76,7 @@ public class SweepElm extends CircuitElm {
         }
         double dn = getDn();
         if (dn != 0) {
-            interpPoint(p1, p2, lead1, 1 - circleSize / dn);
+            interpPoint(p1, p2, lead1, leadFraction(circleSize, dn));
         } else {
             lead1.x = p1.x;
             lead1.y = p1.y;
