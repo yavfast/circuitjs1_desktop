@@ -7,6 +7,7 @@ Every issue has `code`, `severity`, `message`, `hint` and, where known, the `ele
 ## Contents
 
 - Connectivity issues (every mutation and `circuit_connectivity`)
+- Text layout issues (`circuit_layout` only)
 - Solver issues (runs, `circuit_diagnostics`)
 - Run end reasons
 - Operation errors and warnings: references and values; geometry and IDs; imports; documents, history and runs; files and output; model definitions
@@ -27,6 +28,15 @@ Every issue has `code`, `severity`, `message`, `hint` and, where known, the `ele
 | `reserved_label` | warning | A label text `gnd`, starting with `$` or with `label:` | Rename the label | `circuit_connectivity` net names |
 | `current_source_no_path` | warning | A `CurrentSource` in series with another current source, or left open (e.g. on the unselected throw of a switch): the simulator puts 100 MΩ in its place, so it drives no current | Give it a resistive return path; of two current sources in series, replace one by a `Resistor` | `circuit_connectivity` |
 | `single_label` | info | A label used by only one node: normal for a probe label | Nothing, unless you meant to join two places (check the spelling) | — |
+
+## Text layout issues
+
+Only `circuit_layout` reports these; no edit reply and no `circuit_connectivity` report lists them. Call it before reporting a drawing.
+
+| Code | Severity | Typical cause | Fix | Confirm with |
+|---|---|---|---|---|
+| `text_overlap` | warning | A value, label or pin text of one part is crossed by a wire or lead of another part, lies over its symbol, or touches its text (two labels side by side, a long label over a neighbour, a wire run through a capacitor's value). `at` is the centre of the text; the message quotes it | Give the text clear space: keep wires and other parts at least one cell from the value (above a horizontal part, right of a vertical part, left of a vertical source) and from a label's text beyond its stem; move or flip the part, route the wire elsewhere, or shorten the label | `circuit_layout` (the issue is gone; its key stays the same while the other part still meets the same text) |
+| `text_not_covered` | info | Parts whose texts the check does not lay out yet (one issue per class, listing their IDs): their texts are not checked | Look at the render (`circuit_render`) for those parts' texts and fix what it shows | `circuit_render` |
 
 ## Solver issues
 

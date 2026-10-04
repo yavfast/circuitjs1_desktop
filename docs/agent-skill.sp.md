@@ -87,15 +87,15 @@ In this order, total ≤ 250 lines:
    - work in a new document unless told otherwise;
    - an explicit ground in every circuit;
    - label every net you will probe;
-   - draw a readable schematic: wires and symbols meet only at posts (`symbol_overlap`), parts axis-aligned and spaced so value texts never touch, supply on top, ground below, labels on short leads pointing away;
+   - draw a readable schematic: wires and symbols meet only at posts (`symbol_overlap`), parts axis-aligned and spaced so value texts never touch or get crossed (`text_overlap`), supply on top, ground below, labels on short leads pointing away;
    - no simulation while the connectivity report has errors;
    - defaults are generic: define a model (`defineModel`, or `models` of an import) when a part's real behaviour matters — a coloured LED, a specific diode or BJT, a logic function the catalogue lacks, a reused block — with the model listing call and the create-only rule;
    - measure, never assume;
    - checkpoint with a comment after each logical change;
    - never fix the user's unrelated issues unasked.
-3. **Workflow checklist.** A copyable checklist of the ten steps of [C_AGS_03_01](./agent-skill.concept.md#C_AGS_03_01), each naming the tool it uses; the placing step puts models first, and the look at the drawing of step 10 (`circuit_render`, then fixing what it shows) is a checklist step of its own before the report (11 steps).
+3. **Workflow checklist.** A copyable checklist of the ten steps of [C_AGS_03_01](./agent-skill.concept.md#C_AGS_03_01), each naming the tool it uses; the placing step puts models first, and the look at the drawing of step 10 is a checklist step of its own before the report (11 steps): call `circuit_layout` before reporting, together with the render look (`circuit_render`); fix every `text_overlap` and what the image shows.
 4. **Debug loop.** Read `circuit_connectivity` and `circuit_diagnostics`, look up the issue code in `reference/diagnostics.md`, fix, then re-check.
-5. **Tool map.** A table of the 14 `circuit_*` tools and 3 `bridge_*` tools, each with a one-line use. Tools are named as `circuitjs:<tool>` for host-qualified references. The `circuit_edit` row names every edit op (`defineModel` included), the `circuit_import` row the AgentCircuit keys (`models` included), the `circuit_types` row the model listing.
+5. **Tool map.** A table of the 15 `circuit_*` tools (`circuit_layout`: the text layout check, before reporting a drawing) and 3 `bridge_*` tools, each with a one-line use. Tools are named as `circuitjs:<tool>` for host-qualified references. The `circuit_edit` row names every edit op (`defineModel` included), the `circuit_import` row the AgentCircuit keys (`models` included), the `circuit_types` row the model listing.
 6. **References index.** One line per reference file saying when to read it.
 
 ### 02_02. reference/geometry.md  {#SP_AGS_02_02}
@@ -113,6 +113,7 @@ It must contain:
   - Signal flows left to right.
   - The supply rail sits at the top and ground at the bottom.
   - Parts are 3–4 cells long, with 2-cell spacing between parallel branches.
+- **Where texts sit** ([SP_AGA_03_13](./agent-api.sp.md#SP_AGA_03_13)). A value text sits beside the middle of its part: above a horizontal part, right of a vertical part, left of a vertical voltage source. A label's text sits beyond the end of its stem. A chip's pin names sit inside the chip. Keep wires and other parts at least one cell from these texts; `circuit_layout` reports a text that is crossed or touched (`text_overlap`).
 - **Worked example.** One complete AgentCircuit (an RC low-pass), with every coordinate shown.
 
 ### 02_03. reference/elements.md  {#SP_AGS_02_03}
@@ -129,12 +130,14 @@ It must contain:
 
 ### 02_04. reference/diagnostics.md  {#SP_AGS_02_04}
 
-- **One row per code.** Every issue code in [SP_AGA_03_05](./agent-api.sp.md#SP_AGA_03_05) and [SP_AGA_03_06](./agent-api.sp.md#SP_AGA_03_06) gets a row with:
+- **One row per code.** Every issue code in [SP_AGA_03_05](./agent-api.sp.md#SP_AGA_03_05), [SP_AGA_03_06](./agent-api.sp.md#SP_AGA_03_06) and [SP_AGA_03_13](./agent-api.sp.md#SP_AGA_03_13) gets a row with:
   - code;
   - severity;
   - typical cause in this simulator;
   - fix steps;
   - the tool call that confirms the fix.
+
+  The text layout codes of `circuit_layout`: `text_overlap` (move or flip the part, keep one cell clear of the text, shorten a label; confirm with `circuit_layout`), and `text_not_covered` (those elements' texts are not checked: look at the render for them).
 - **Model definitions.** A section with one row per model error an agent can meet, each with the field the message names, the typical cause (message text), the fix and the confirming call: `name_taken` (a different definition, an internal name, a subcircuit source after a run, a model line of imported content — with the `circuit_file open` hint), `unknown_model` (`from`), `invalid_value` on `name`, `parameters.<key>`, fields of another kind, `rules[<i>]`, `inputs[<i>]`/`outputs[<i>]`, `source` (each source reason, plus `unknown_document`/`busy`), `modelText` (inner model unknown, bad line, no pins) and an element's `model`/`model_name`; `unknown_property` on `parameters.<key>`; the `value_adjusted` warning of `circuit_file open`.
 - **Symptoms section.** Covers symptoms that carry no issue code:
   - flat 0 V trace;
@@ -234,7 +237,8 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | Case | Expected behavior |
 |------|-------------------|
 | App older than the compatibility line | The skill tells the agent to compare the server's `toolsVersion` (in the server instructions and instance record) with its compatibility line, and to report a mismatch instead of guessing tool names |
-| App at toolsVersion 1.0 (the skill's line is 1.1) | Partial compatibility: the skill tells the agent to work without model definitions (`defineModel`, `circuit_types` `models`), which a 1.0 app may lack, and to ask the user to update the app when the task needs a model |
+| App at toolsVersion 1.1 (the skill's line is 1.2; no `circuit_layout`) | Partial compatibility: the skill tells the agent to do the render look only (`circuit_render`), without the text layout check |
+| App at toolsVersion 1.0 (the skill's line is 1.2) | Partial compatibility: as for 1.1, and the skill tells the agent to work without model definitions (`defineModel`, `circuit_types` `models`), which a 1.0 app may lack, and to ask the user to update the app when the task needs a model |
 | Host without the bridge and without HTTP support | The skill tells the user how to connect (hosts/ files) and stops |
 
 ### 05_05. Integration Scenarios  {#SP_AGS_05_05}
@@ -267,3 +271,4 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | 2026-10-01 | Review round 1: fixture document selection, canonical type names, toolsVersion compatibility, integration scenarios |
 | 2026-10-04 | Skill content for agent model definitions (diode/transistor: SKILL.md rule "Defaults are generic", elements.md Models section, patterns.md pattern 10) pulled forward into PL_AGA Phase 11; the SP_AGS spec rows follow in PL_AGA Phase 15 |
 | 2026-10-04 | PL_AGA Phase 15: model content of the skill specified — §02_01 golden rules (10, with the readable-schematic and model rules), checklist (11 steps, render look), tool-map rows; §02_03 Models; §02_04 Model definitions; §02_05 11 patterns (custom logic, subcircuit) self-contained with `models`; §03_02 model accuracy; §05_01 `green-led-model`; §05_03 Model specs check; skill version 1.1, compatibility line toolsVersion 1.1 with a §05_04 row for a 1.0 app (no model definitions used) |
+| 2026-10-04 | PL_AGA Phase 16a: text layout check in the skill — §02_01 golden rule names `text_overlap`, checklist step 10 calls `circuit_layout` before reporting together with the render look, tool map of 15 tools; §02_02 where texts sit; §02_04 rows for the §03_13 codes (`text_not_covered`: look at the render); §05_04 row for a toolsVersion 1.1 app (render look only); skill version 1.2, compatibility line toolsVersion 1.2 |

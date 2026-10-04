@@ -290,6 +290,12 @@ public class ThreePhaseMotorElm extends CircuitElm {
     int cr = 37;
     double filteredSpeed;
 
+    /** [SP_AGA_03_13] Not covered yet (PL_AGA Phase 16b): this class still draws text outside layoutTexts. */
+    @Override
+    public boolean textLayoutCovered() {
+        return false;
+    }
+
     public void draw(Graphics g) {
 
         setBbox(geom().getPoint1(), geom().getPoint2(), cr);
@@ -345,6 +351,7 @@ public class ThreePhaseMotorElm extends CircuitElm {
 
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         g.save();
+        g.setFont(unitsFont()); // [SP_AGA_03_13] explicit font
         int dx0 = getDx();
         int dy0 = getDy();
         if (Math.abs(dy0) > Math.abs(dx0)) {

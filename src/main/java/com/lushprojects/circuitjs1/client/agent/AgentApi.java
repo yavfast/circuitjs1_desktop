@@ -119,6 +119,7 @@ public final class AgentApi {
         EditOps.register(this);
         CircuitView.register(this);
         Connectivity.register(this);
+        LayoutOps.register(this);
         Readings.register(this);
         DiagnosticsOps.register(this);
         HistoryOps.register(this);

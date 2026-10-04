@@ -485,7 +485,7 @@ async function scenEndpoint(R) {
     const r = recs[0] && recs[0].rec;
     R.record.ck('oneRecord0600', recs.length === 1 && recs[0].mode === '600' && r.pid === pid && r.instanceId.startsWith(pid + '-') && r.port === st.port && r.host === '127.0.0.1'
       && r.urls[0] === st.urls[0] && r.appVersion === appVersion() && typeof r.title === 'string' && /^\d{4}-\d\d-\d\dT.*Z$/.test(r.startedAt)
-      && same(r.protocolRevisions, ['2025-11-25', '2025-06-18']) && r.toolsVersion === '1.1' && recs[0].name === r.instanceId + '.json', recs);
+      && same(r.protocolRevisions, ['2025-11-25', '2025-06-18']) && r.toolsVersion === '1.2' && recs[0].name === r.instanceId + '.json', recs);
     // [SP_MCP_01_01] default listening address 127.0.0.1: loopback URL only, and the port does not
     // answer on the machine's LAN addresses (C_MCP_DEC_02 as amended 2026-10-02)
     const L = R.loopbackOnly;
@@ -507,7 +507,7 @@ async function scenEndpoint(R) {
     const init = (v) => ({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: v, capabilities: {}, clientInfo: { name: 'e2e', version: '1' } } });
     let x = await mcpPost(url, init('2025-11-25'));
     H.ck('init2025-11-25', x.status === 200 && x.json.result.protocolVersion === '2025-11-25' && x.json.result.serverInfo.name === 'circuitjs1' && x.json.result.serverInfo.version === appVersion()
-      && x.json.id === 1 && !x.headers['mcp-session-id'] && /grid cells/.test(x.json.result.instructions) && /circuitjs-circuits/.test(x.json.result.instructions) && /toolsVersion 1\.1/.test(x.json.result.instructions)
+      && x.json.id === 1 && !x.headers['mcp-session-id'] && /grid cells/.test(x.json.result.instructions) && /circuitjs-circuits/.test(x.json.result.instructions) && /toolsVersion 1\.2/.test(x.json.result.instructions) && /circuit_layout/.test(x.json.result.instructions)
       && x.json.result.capabilities.tools.listChanged === false && x.json.result.capabilities.resources.subscribe === false && !x.json.result.capabilities.prompts, x.json);
     x = await mcpPost(url, init('2025-06-18'));
     H.ck('init2025-06-18', x.json && x.json.result.protocolVersion === '2025-06-18', x.json);
@@ -555,7 +555,7 @@ async function scenEndpoint(R) {
     R.revision.ck('badRevision400', x.status === 400 && x.json && x.json.jsonrpc === '2.0' && x.json.error && typeof x.json.error.code === 'number', x);
     R.revision.done();
     x = await mcpPost(url, { jsonrpc: '2.0', id: 3, method: 'tools/list' }, { 'Mcp-Session-Id': 'arbitrary-123', 'MCP-Protocol-Version': '2025-11-25' });
-    R.session.ck('sessionHeaderIgnored', x.status === 200 && Array.isArray(x.json.result.tools) && x.json.result.tools.length === 14 && !x.headers['mcp-session-id'], x);
+    R.session.ck('sessionHeaderIgnored', x.status === 200 && Array.isArray(x.json.result.tools) && x.json.result.tools.length === 15 && !x.headers['mcp-session-id'], x);
     R.session.done();
     x = await mcpPost(url, { jsonrpc: '2.0', method: 'notifications/initialized' });
     R.notification.ck('notification202', x.status === 202 && x.text === '', x);
@@ -773,7 +773,7 @@ async function scenTools(R) {
     const S = R.sdk;
     S.ck('handshake', c.getServerVersion().name === 'circuitjs1' && c.transportRef.protocolVersion === '2025-11-25', { v: c.getServerVersion(), rev: c.transportRef.protocolVersion });
     const tl = await c.listTools();
-    S.ck('tools14', tl.tools.length === 14 && tl.tools.every((t) => /^circuit_/.test(t.name) && t.outputSchema && t.annotations), tl.tools.map((t) => t.name));
+    S.ck('tools15', tl.tools.length === 15 && tl.tools.every((t) => /^circuit_/.test(t.name) && t.outputSchema && t.annotations), tl.tools.map((t) => t.name));
     const rl = await c.listResources();
     S.ck('resources4', rl.resources.length === 4, rl.resources.map((x) => x.uri));
     await c.ping();
@@ -907,6 +907,39 @@ async function scenTools(R) {
     x = await tool('circuit_render', { doc: d2, format: 'png', scale: 1 });
     R.textLimit.ck('renderPngAlu', !x.r.isError && x.r.content[1] && textOf(x.r).length <= LIMIT, { chars: textOf(x.r).length });
 
+    // [SP_MCP_05_01] circuit_layout: the SP_AGA §05_01 T8 fixture (a value text crossed by a wire)
+    await tool('circuit_import', { doc: d2, circuit: { elements: [
+      { id: 'C1', type: 'Capacitor', start: { x: 0, y: 0 }, end: { x: 0, y: 4 }, properties: { capacitance: '10 nF' } },
+      { id: 'W1', type: 'Wire', start: { x: 1, y: -1 }, end: { x: 1, y: 5 } }] } });
+    x = await tool('circuit_layout', { doc: d2 });
+    const lt = tl.tools.find((t) => t.name === 'circuit_layout');
+    const lIssues = (x.r.structuredContent.data && x.r.structuredContent.data.issues) || [];
+    R.layout.ck('t8TextOverlap', !x.r.isError && lIssues.length === 1 && lIssues[0].code === 'text_overlap' && same(lIssues[0].elements, ['C1', 'W1']), x.r.structuredContent);
+    R.layout.ck('annotations', lt && lt.annotations.readOnlyHint === true && lt.annotations.idempotentHint === true && lt.annotations.destructiveHint === false, lt && lt.annotations);
+    R.layout.done();
+    // [SP_MCP_05_01] layout boxes on 2000 resistors: re-read without boxes, issues kept
+    // 40 grounded chains of 50 resistors (isolated parts would make the import slow: every
+    // dangling post and isolated group is an issue, PL_AGA backlog "importCircuit scales"), and 5
+    // short wires through value texts, so the reduced result still carries text_overlap issues
+    const rs = [];
+    for (let k = 0; k < 2000; k++) {
+      const x = (k % 50) * 4, y = Math.floor(k / 50) * 6;
+      rs.push({ id: 'R' + k, type: 'Resistor', start: { x, y }, end: { x: x + 4, y } });
+      if (k % 50 === 0) rs.push({ id: 'GA' + k, type: 'Ground', start: { x, y }, end: { x, y: y + 2 } });
+      if (k % 50 === 49) rs.push({ id: 'GB' + k, type: 'Ground', start: { x: x + 4, y }, end: { x: x + 4, y: y + 2 } });
+    }
+    for (let k = 0; k < 5; k++) rs.push({ id: 'WX' + k, type: 'Wire', start: { x: 4 * k + 2, y: -1.5 }, end: { x: 4 * k + 2, y: -0.5 } });
+    await tool('circuit_import', { doc: d2, circuit: { elements: rs } });
+    x = await tool('circuit_layout', { doc: d2, includeBoxes: true });
+    const ln = noteOf(x.r);
+    const lIss = (x.r.structuredContent.data && x.r.structuredContent.data.issues) || [];
+    const lsz = { chars: textOf(x.r).length, note: ln, calls: x.rec.map((r) => r.args.includeBoxes), issues: lIss.length };
+    R.layoutSizing.ck('textWithinLimit', !x.r.isError && textOf(x.r).length <= LIMIT, lsz);
+    R.layoutSizing.ck('reducedOnce', same(lsz.calls, [true, false]), lsz);
+    R.layoutSizing.ck('noteNamesIncludeBoxes', /includeBoxes=false instead of true/.test(ln || ''), lsz);
+    R.layoutSizing.ck('issuesComplete', lIss.length === 5 && lIss.every((i) => i.code === 'text_overlap') && x.r.structuredContent.data.boxes === undefined, lsz);
+    R.layoutSizing.done();
+
     // invariants over every tool result of this scenario
     const bad = { logic: [], isError: [], text: [] };
     for (const a of all) {
@@ -928,7 +961,7 @@ async function scenTools(R) {
     R.isError.done();
     R.textLimit.ck('everyResult', bad.text.length === 0, bad.text);
     R.textLimit.done();
-    K.ck('all14ToolsCalled', new Set(all.map((a) => a.name)).size === 14, [...new Set(all.map((a) => a.name))]);
+    K.ck('all15ToolsCalled', new Set(all.map((a) => a.name)).size === 15, [...new Set(all.map((a) => a.name))]);
     K.ck('counterCountsCalls', (await nw.status()).toolCalls >= all.length, { toolCalls: (await nw.status()).toolCalls, made: all.length });
     K.done();
   } finally { if (c) await c.close().catch(() => {}); await nw.kill(); }
@@ -1455,7 +1488,7 @@ async function scenClients(R) {
       const failedRun = Object.values(out).find((o) => !o.j);
       if (failedRun) R.inspector.skip(`Inspector CLI did not run (rc ${failedRun.p.status}${failedRun.p.timedOut ? ', timeout' : ''}): ${(failedRun.p.stderr || failedRun.p.error || '').slice(-300)}`);
       else {
-        R.inspector.ck('toolsList14', out['tools/list'].j.tools && out['tools/list'].j.tools.length === 14, out['tools/list'].j);
+        R.inspector.ck('toolsList15', out['tools/list'].j.tools && out['tools/list'].j.tools.length === 15, out['tools/list'].j);
         R.inspector.ck('resourcesList4', out['resources/list'].j.resources && out['resources/list'].j.resources.length === 4, out['resources/list'].j);
         R.inspector.ck('templates3', out['resources/templates/list'].j.resourceTemplates && out['resources/templates/list'].j.resourceTemplates.length === 3, out['resources/templates/list'].j);
         R.inspector.done();
@@ -1479,7 +1512,7 @@ async function scenClients(R) {
     const srv = (init.mcp_servers || []).find((s) => s.name === 'circuitjs');
     const tools = (init.tools || []).filter((t) => t.startsWith('mcp__circuitjs__'));
     R.claude.ck('connected', srv && srv.status === 'connected', { srv });
-    R.claude.ck('lists14Tools', tools.length === 14, tools);
+    R.claude.ck('lists15Tools', tools.length === 15, tools);
     R.claude.note('version', init.claude_code_version);
     R.claude.done();
     const result = lines.find((m) => m.type === 'result');
@@ -1665,13 +1698,13 @@ async function scenBridge(R) {
     const dtools = (await draw('tools/list', {})).tools;
     const btools = (await raw('tools/list')).tools;
     R.stdioApp.ck('appToolsThenBridgeTools', btools.length === dtools.length + 3 && same(btools.slice(0, dtools.length), dtools) && same(btools.slice(dtools.length).map((t) => t.name), ['bridge_instances', 'bridge_select', 'bridge_launch']), btools.map((t) => t.name));
-    R.stdioApp.ck('fourteenAppTools', dtools.length === 14, dtools.length);
+    R.stdioApp.ck('fifteenAppTools', dtools.length === 15, dtools.length);
     // a host that connects while the app runs gets the app's instructions, then the bridge sentence
     const b2 = await startBridge({ args: ['--registry', instDir(home)] });
     try {
       const ins = b2.client.getInstructions() || '';
       const dins = direct.getInstructions() || '';
-      R.stdioApp.ck('instructionsForwarded', dins.length > 0 && ins.startsWith(dins + '\n\n') && /toolsVersion 1\.1/.test(ins) && /circuitjs-mcp bridge/.test(ins.slice(dins.length)), clip(ins, 300));
+      R.stdioApp.ck('instructionsForwarded', dins.length > 0 && ins.startsWith(dins + '\n\n') && /toolsVersion 1\.2/.test(ins) && /circuitjs-mcp bridge/.test(ins.slice(dins.length)), clip(ins, 300));
       R.stdioApp.ck('serverInfo', (b2.client.getServerVersion() || {}).name === 'circuitjs-mcp', b2.client.getServerVersion());
     } finally { await b2.close(); }
     R.stdioApp.done();
@@ -1890,7 +1923,7 @@ const SCENARIOS = [
     crash: ['SP_MCP_05_04', 'Crash record: stale record of a dead pid deleted by the next starting instance'],
   } },
   { name: 'tools', group: 'default', run: scenTools, rows: {
-    sdk: ['SP_MCP_02_02', 'SDK client: handshake 2025-11-25, 14 tools with output schemas, 4 resources'],
+    sdk: ['SP_MCP_02_02', 'SDK client: handshake 2025-11-25, 15 tools with output schemas, 4 resources'],
     editDomain: ['SP_MCP_05_01', 'circuit_edit: domain error -> isError, issues[0].code = unknown_property'],
     editSchema: ['SP_MCP_05_01', 'circuit_edit: schema error -> JSON-RPC -32602, no Agent API call'],
     renderPng: ['SP_MCP_05_01', 'circuit_render: png -> image content part; text part carries "<image>"'],
@@ -1905,7 +1938,9 @@ const SCENARIOS = [
     noLogic: ['SP_MCP_05_02', 'Tools add no circuit logic: structuredContent = the effective Agent API result'],
     isError: ['SP_MCP_05_02', 'isError <=> ok = false over every tool result'],
     textLimit: ['SP_MCP_05_02', 'Text part <= 60 000 chars: alu74181 get/connectivity, run with 16 probes at sum maxPoints 2000'],
-    coverage: ['SP_MCP_02_02', 'All 14 tools called (import, edit, render svg, read, run, checkpoint, history, documents, sim)'],
+    layout: ['SP_MCP_05_01', 'circuit_layout: the SP_AGA T8 fixture -> one text_overlap [C1, W1]; not isError; read-only, idempotent'],
+    layoutSizing: ['SP_MCP_05_01', 'Sizing: circuit_layout includeBoxes on 2000 resistors -> text <= 60 000, note names includeBoxes: false, issues present'],
+    coverage: ['SP_MCP_02_02', 'All 15 tools called (import, edit, render svg, read, run, layout, checkpoint, history, documents, sim)'],
   } },
   { name: 'long', group: 'default', run: (R) => scenLong(R, 5000), rows: {
     long: ['SP_MCP_05_03', 'Long run while reading: circuit_get answers during a 5 s circuit_run'],
@@ -1941,7 +1976,7 @@ const SCENARIOS = [
     stdioNoApp: ['SP_MCB_05_01', 'Stdio mode, no app: handshake ok, only the 3 bridge tools, target tools -> "No CircuitJS1 instance"'],
     selectErrors: ['SP_MCB_05_01', 'bridge_select unknown / unreachable / both given (-32602); bridge_launch without an app'],
     launch: ['SP_MCB_05_01', 'bridge_launch with file: app started, target set, a new active document holds the file, list_changed'],
-    stdioApp: ['SP_MCB_05_01', 'Stdio mode with the app: its 14 tools (unchanged) followed by the 3 bridge tools'],
+    stdioApp: ['SP_MCB_05_01', 'Stdio mode with the app: its 15 tools (unchanged) followed by the 3 bridge tools'],
     bridge: ['SP_MCP_05_03', 'Bridge forwarding: any tool via the bridge = direct result'],
     transparent: ['SP_MCB_05_02', 'Invariants: forwarding transparent; tools (stdio and CLI) minus bridge_* = the target tools/list'],
     cli: ['SP_MCB_05_01', 'CLI: call valid 0 / domain error 1 / bad JSON 2, tools without app 3, instances 2 live + 1 stale, read catalogue, launch with file'],
@@ -1967,12 +2002,12 @@ const SCENARIOS = [
     long: ['SP_MCB_05_04', 'Bridge CLI (slow): circuit_run budgetMs 120000 completes within the 130 s default timeout'],
   } },
   { name: 'clients', group: 'clients', run: scenClients, rows: {
-    inspector: ['SP_MCP_05_01', 'Endpoint: MCP Inspector CLI -> tools/list 14, resources/list 4, templates 3'],
-    claude: ['SP_MCP_05_01', 'Endpoint: Claude Code connects (claude -p, temporary --mcp-config) -> connected, 14 tools'],
+    inspector: ['SP_MCP_05_01', 'Endpoint: MCP Inspector CLI -> tools/list 15, resources/list 4, templates 3'],
+    claude: ['SP_MCP_05_01', 'Endpoint: Claude Code connects (claude -p, temporary --mcp-config) -> connected, 15 tools'],
     claudeCall: ['SP_MCP_05_01', 'Endpoint: Claude Code calls circuit_types through the server'],
   } },
   { name: 'bridge_clients', group: 'clients', run: scenBridgeClients, rows: {
-    claude: ['SP_MCB_05_01', 'Bridge: Claude Code over stdio (temporary --mcp-config) -> connected, 14 app tools + 3 bridge tools'],
+    claude: ['SP_MCB_05_01', 'Bridge: Claude Code over stdio (temporary --mcp-config) -> connected, 15 app tools + 3 bridge tools'],
     claudeCall: ['SP_MCB_05_01', 'Bridge: Claude Code calls circuit_types through the bridge'],
   } },
 ];

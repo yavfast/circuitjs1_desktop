@@ -54,15 +54,19 @@ public class DataRecorderElm extends CircuitElm {
         geom().setLead1(interpPoint(geom().getPoint1(), geom().getPoint2(), 1 - 8 / dn));
     }
 
+    /** [SP_AGA_03_13] the "export" label beyond the stem; bold while highlighted */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutLabel(out, Locale.LS("export"), geom().getPoint1(), geom().getLead1(),
+                new Font("SansSerif", highlighted ? Font.BOLD : 0, 14), 0);
+    }
+
     public void draw(Graphics g) {
         g.save();
         boolean selected = (needsHighlight());
-        Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
-        g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
         setBbox(geom().getPoint1(), geom().getLead1(), 0);
-        String s = Locale.LS("export");
-        drawLabeledNode(g, s, geom().getPoint1(), geom().getLead1());
+        paintTexts(g).paint(0);
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());

@@ -1,8 +1,8 @@
 package com.lushprojects.circuitjs1.client.agent;
 
 /**
- * Stable issue codes of the Agent API: solver and operation codes of [SP_AGA_03_06] and the
- * connectivity codes of [SP_AGA_03_05]. Each code carries its default severity; a producer may
+ * Stable issue codes of the Agent API: solver and operation codes of [SP_AGA_03_06], the
+ * connectivity codes of [SP_AGA_03_05] and the text layout codes of [SP_AGA_03_13]. Each code carries its default severity; a producer may
  * give another severity where the spec says so (a solver code reached as a stop is an error).
  */
 public enum IssueCode {
@@ -27,6 +27,10 @@ public enum IssueCode {
     SINGLE_LABEL("single_label", Issue.Severity.INFO),
     CURRENT_SOURCE_NO_PATH("current_source_no_path", Issue.Severity.WARNING),
     SYMBOL_OVERLAP("symbol_overlap", Issue.Severity.WARNING),
+
+    // Text layout codes ([SP_AGA_03_13]; only checkLayout reports them)
+    TEXT_OVERLAP("text_overlap", Issue.Severity.WARNING),
+    TEXT_NOT_COVERED("text_not_covered", Issue.Severity.INFO),
 
     // Operation codes
     NOT_READY("not_ready", Issue.Severity.ERROR),

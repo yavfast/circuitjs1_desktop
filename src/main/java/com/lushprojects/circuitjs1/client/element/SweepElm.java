@@ -83,6 +83,17 @@ public class SweepElm extends CircuitElm {
         }
     }
 
+    /** [SP_AGA_03_13] the present frequency (live) beside the circle, when values are shown */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues()) {
+            int dx0 = getDx();
+            int dy0 = getDy();
+            if (dx0 == 0 || dy0 == 0)
+                layoutValue(out, getShortUnitText(frequency, "Hz"), circleSize, 0, true);
+        }
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), circleSize);
         setVoltageColor(g, getNodeVoltage(0));
@@ -113,13 +124,7 @@ public class SweepElm extends CircuitElm {
         g.stroke();
         g.setLineWidth(1.0);
 
-        if (displaySettings().showValues()) {
-            String s = getShortUnitText(frequency, "Hz");
-            int dx0 = getDx();
-            int dy0 = getDy();
-            if (dx0 == 0 || dy0 == 0)
-                drawValues(g, s, circleSize);
-        }
+        paintTexts(g).paint(0);
 
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);

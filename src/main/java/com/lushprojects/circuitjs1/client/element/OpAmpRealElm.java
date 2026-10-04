@@ -197,6 +197,15 @@ public class OpAmpRealElm extends CompositeElm {
         return true;
     }
 
+    /** [SP_AGA_03_13] the input signs in the triangle, in the sign font */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (textp == null || plusFont == null)
+            return;
+        layoutCentered(out, "-", textp[0].x, textp[0].y - 2, true, plusFont, 0);
+        layoutCentered(out, "+", textp[1].x, textp[1].y, true, plusFont, 0);
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), opheight * 2);
         setVoltageColor(g, getNodeVoltage(0));
@@ -212,9 +221,10 @@ public class OpAmpRealElm extends CompositeElm {
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         setPowerColor(g, true);
         drawThickPolygon(g, triangle);
-        g.setFont(plusFont);
-        drawCenteredText(g, "-", textp[0].x, textp[0].y - 2, true);
-        drawCenteredText(g, "+", textp[1].x, textp[1].y, true);
+        // [SP_AGA_03_13] the sign font does not leak into the next element's texts
+        g.save();
+        paintTexts(g).paint(0);
+        g.restore();
         int i;
         for (i = 0; i != 5; i++)
             curCounts[i] = updateDotCount(getCurrentIntoNode(i), curCounts[i]);

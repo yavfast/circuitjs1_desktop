@@ -813,6 +813,7 @@ Common rules: `doc` (a document handle `d1`, `d2` …) selects the document, and
 | `getCircuit` | The circuit in agent form: element records with posts in cells, paged; the first page lists the models the elements use (dependencies first) as ModelSpec or ModelText, so the result re-imports ([§02_05](./agent-api.sp.md#SP_AGA_02_05)) |
 | `listModels` | The session's models (`kind` absent: all kinds; built-in first, then by name), or one model by `kind` and `name`, with its parameters, pins and `usedBy` (the open documents and element IDs that use it) ([§02_15](./agent-api.sp.md#SP_AGA_02_15)) |
 | `getConnectivity` | Nets and connectivity issues (dangling posts, posts on wire bodies, no ground, isolated groups, source/wire loops …) ([§02_06](./agent-api.sp.md#SP_AGA_02_06)) |
+| `checkLayout` | On-demand text layout check (`includeBoxes?`): `text_overlap` for values, labels and pin names crossed by a wire or lead, over a symbol or touching another text; `text_not_covered` for elements whose texts are not laid out yet; the text boxes with `includeBoxes`. Read-only, served while busy ([§02_16](./agent-api.sp.md#SP_AGA_02_16), [§03_13](./agent-api.sp.md#SP_AGA_03_13)) |
 | `read` | Instant net, post and element readings at the current simulated time ([§02_07](./agent-api.sp.md#SP_AGA_02_07)) |
 | `render` (async) | SVG or PNG image of the whole circuit of one document, as the result ([§02_08](./agent-api.sp.md#SP_AGA_02_08)) |
 | `simControl` | Free-running run/stop/reset and time-step settings (`configure`) ([§02_09](./agent-api.sp.md#SP_AGA_02_09)) |
@@ -854,7 +855,7 @@ call("checkpoint", { comment: "RC charging circuit" });
 
 ### Diagnostics (not part of the contract)
 
-`CircuitJS1Agent` also carries `debug*` functions used by the test harnesses (`tests/live/harness.mjs`, `tests/mcp/e2e.mjs`): `debugViewState`, `debugDocState`, `debugSessionState`, `debugClosedTabs`, `debugCanvasPixels`, `debugCircuitTest`, `debugMcpStatus`, `debugSetSliceProbe`, `debugSetIdleSealMs`, `debugAgentOriginPush` and the fault injectors `debugFailNextMutation`, `debugFailNextUndoLoad`, `debugFailNextRunSlice`, `debugFailNextSvgLoad`. They are not part of the Agent API contract, may change or disappear without notice, and must not be used by scripts or agents.
+`CircuitJS1Agent` also carries `debug*` functions used by the test harnesses (`tests/live/harness.mjs`, `tests/mcp/e2e.mjs`): `debugViewState`, `debugDocState`, `debugSessionState`, `debugClosedTabs`, `debugCanvasPixels`, `debugCircuitTest`, `debugMcpStatus`, `debugSetSliceProbe`, `debugRenderSliceElements`, `debugSetHighlight`, `debugForceNotCovered`, `debugSetIdleSealMs`, `debugAgentOriginPush` and the fault injectors `debugFailNextMutation`, `debugFailNextUndoLoad`, `debugFailNextRunSlice`, `debugFailNextSvgLoad`, `debugFailNextOffscreenDraw`. They are not part of the Agent API contract, may change or disappear without notice, and must not be used by scripts or agents.
 
 ## Complete Example
 

@@ -22,7 +22,6 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
-import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
@@ -40,8 +39,10 @@ public class AntennaElm extends RailElm {
 
     double fmphase;
 
-    void drawRail(Graphics g) {
-        drawRailText(g, "Ant");
+    /** [SP_AGA_03_13] labelled with Ant instead of a waveform circle */
+    @Override
+    String railLabel() {
+        return "Ant";
     }
 
     public double getVoltage() {

@@ -64,13 +64,19 @@ public class InverterElm extends CircuitElm {
 
     Point center;
 
+    /** [SP_AGA_03_13] the IEC "1" inside the triangle, with euro gates */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().euroGates() && center != null)
+            layoutCentered(out, "1", center.x, center.y - 6, true, unitsFont(), 0);
+    }
+
     public void draw(Graphics g) {
         drawPosts(g);
         draw2Leads(g);
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         drawThickPolygon(g, gatePoly);
-        if (displaySettings().euroGates())
-            drawCenteredText(g, "1", center.x, center.y - 6, true);
+        paintTexts(g).paint(0);
         drawThickCircle(g, pcircle.x, pcircle.y, 3);
         curcount = updateDotCount(current, curcount);
         drawDots(g, geom().getLead2(), geom().getPoint2(), curcount);

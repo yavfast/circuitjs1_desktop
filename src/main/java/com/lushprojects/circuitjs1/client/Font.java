@@ -43,4 +43,29 @@ public class Font {
         fontname = styleStr + size + "px " + name;
         this.size = size;
     }
+
+    /** @return the canvas font string, for example {@code normal 12px sans-serif} */
+    public String getName() {
+        return fontname;
+    }
+
+    /** @return the font size in pixels */
+    public int getSize() {
+        return size;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Font && ((Font) o).fontname.equals(fontname);
+    }
+
+    @Override
+    public int hashCode() {
+        return fontname.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return fontname;
+    }
 }

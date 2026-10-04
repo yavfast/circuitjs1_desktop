@@ -68,6 +68,13 @@ public class InductorElm extends CircuitElm {
         calcLeads(32);
     }
 
+    /** [SP_AGA_03_13] the inductance beside the coil, when values are shown */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues())
+            layoutValue(out, getShortUnitText(inductance, "H"), 8, 0, false);
+    }
+
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
@@ -76,10 +83,7 @@ public class InductorElm extends CircuitElm {
         draw2Leads(g);
         setPowerColor(g, false);
         drawCoil(g, 8, geom().getLead1(), geom().getLead2(), v1, v2);
-        if (displaySettings().showValues()) {
-            String s = getShortUnitText(inductance, "H");
-            drawValues(g, s, hs);
-        }
+        paintTexts(g).paint(0);
         doDots(g);
         drawPosts(g);
     }

@@ -35,13 +35,10 @@ public class SquareWaveform extends Waveform {
         VoltageElm.drawThickLine(g, xc + wl, yc, xc + wl, yc + wl);
     }
 
+    /** [SP_AGA_03_13] a clock rail is labelled "CLK" instead of a waveform circle */
     @Override
-    public void drawRail(Graphics g, RailElm elm) {
-        if ((elm.flags & RailElm.FLAG_CLOCK) != 0) {
-            elm.drawRailText(g, "CLK");
-        } else {
-            super.drawRail(g, elm);
-        }
+    public String getRailLabel(RailElm elm) {
+        return (elm.flags & RailElm.FLAG_CLOCK) != 0 ? "CLK" : null;
     }
 
     @Override

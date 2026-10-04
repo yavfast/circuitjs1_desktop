@@ -24,13 +24,35 @@ import com.google.gwt.canvas.dom.client.Context2d;
 import com.google.gwt.canvas.dom.client.FillStrokeStyle;
 import com.google.gwt.dom.client.CanvasElement;
 
-public class Graphics {
+/**
+ * Wrapper of a canvas 2-D context. It skips a font, text alignment or baseline that is already in
+ * effect (tracked across save/restore); state set on the context behind its back is not seen. In
+ * particular, resizing the canvas resets the context state: make a new Graphics after a resize.
+ */
+public class Graphics implements TextMeasurer {
 
     static boolean isFullScreen = false;
 
     private final Context2d context;
     private int currentFontSize;
-    private int savedFontSize;
+    /** Canvas font string in effect (set through {@link #setFont}); null when unknown. */
+    private String currentFontName;
+    /** Alignment and baseline in effect (set through this wrapper); null when unknown. */
+    private Context2d.TextAlign measureAlign;
+    private Context2d.TextBaseline measureBaseline;
+
+    /**
+     * The text state each open {@link #save()} keeps (as the context keeps its own): a stack in
+     * plain arrays, {@code saveDepth} entries deep (no allocation per save on the draw path).
+     */
+    private int saveDepth;
+    private int[] savedSizes = new int[16];
+    private String[] savedNames = new String[16];
+    private Context2d.TextAlign[] savedAligns = new Context2d.TextAlign[16];
+    private Context2d.TextBaseline[] savedBaselines = new Context2d.TextBaseline[16];
+    /** Saves beyond {@link #MAX_SAVE_DEPTH}: their text state is unknown on restore. */
+    private int lostSaves;
+    private static final int MAX_SAVE_DEPTH = 1024;
 
     // Rendering override used for error highlighting (e.g., stopped element).
     // When active, all stroke/fill colors are forced to the provided color.
@@ -43,6 +65,20 @@ public class Graphics {
     private FillStrokeStyle lastStrokeStyleObject = null;
     private String lastStrokeStyleString = "#000";
     private String lastFillStyleString = "#000";
+
+    /**
+     * One reusable object of the drawing code kept with these graphics (the element package keeps
+     * its painting text layout here, so drawing allocates none per element); opaque to this class.
+     */
+    private Object paintCache;
+
+    public Object getPaintCache() {
+        return paintCache;
+    }
+
+    public void setPaintCache(Object o) {
+        paintCache = o;
+    }
 
     public Graphics(Context2d context) {
         this.context = context;
@@ -135,12 +171,55 @@ public class Graphics {
 
     public void restore() {
         context.restore();
-        currentFontSize = savedFontSize;
+        // [SP_AGA_03_13] nested save/restore pairs restore the text state of their own save
+        if (lostSaves > 0) {
+            lostSaves--;
+            currentFontName = null;
+            measureAlign = null;
+            measureBaseline = null;
+        } else if (saveDepth > 0) {
+            saveDepth--;
+            currentFontSize = savedSizes[saveDepth];
+            currentFontName = savedNames[saveDepth];
+            measureAlign = savedAligns[saveDepth];
+            measureBaseline = savedBaselines[saveDepth];
+        } else {
+            currentFontName = null;
+            measureAlign = null;
+            measureBaseline = null;
+        }
+    }
+
+    /** @return the number of open {@link #save()} calls (the depth {@link #restoreTo} returns to) */
+    public int getSaveDepth() {
+        return saveDepth + lostSaves;
+    }
+
+    /** Restores until only {@code depth} saves are open (after a draw that threw mid-way). */
+    public void restoreTo(int depth) {
+        while (getSaveDepth() > depth) {
+            restore();
+        }
     }
 
     public void save() {
         context.save();
-        savedFontSize = currentFontSize;
+        if (saveDepth >= MAX_SAVE_DEPTH) {
+            lostSaves++; // an unbalanced save somewhere must not grow without bound
+            return;
+        }
+        if (saveDepth == savedSizes.length) {
+            int n = saveDepth * 2;
+            savedSizes = java.util.Arrays.copyOf(savedSizes, n);
+            savedNames = java.util.Arrays.copyOf(savedNames, n);
+            savedAligns = java.util.Arrays.copyOf(savedAligns, n);
+            savedBaselines = java.util.Arrays.copyOf(savedBaselines, n);
+        }
+        savedSizes[saveDepth] = currentFontSize;
+        savedNames[saveDepth] = currentFontName;
+        savedAligns[saveDepth] = measureAlign;
+        savedBaselines[saveDepth] = measureBaseline;
+        saveDepth++;
     }
 
 
@@ -182,6 +261,14 @@ public class Graphics {
 
 
     public void drawString(String s, int x, int y) {
+        context.fillText(s, x, y);
+        if (textExtent != null) {
+            addTextExtent(context, s, x, y, textExtent);
+        }
+    }
+
+    /** {@link #drawString(String, int, int)} at a fractional anchor ([SP_AGA_03_13] placements). */
+    public void drawString(String s, double x, double y) {
         context.fillText(s, x, y);
         if (textExtent != null) {
             addTextExtent(context, s, x, y, textExtent);
@@ -233,6 +320,45 @@ public class Graphics {
     public double measureWidth(String s) {
         return context.measureText(s).getWidth();
     }
+
+    /**
+     * [SP_AGA_03_13] {@link TextMeasurer}: sets the font only when it differs from the one last
+     * set (a measuring instance keeps its font between calls).
+     */
+    @Override
+    public double measureWidth(String s, Font f) {
+        applyFont(f);
+        return context.measureText(s).getWidth();
+    }
+
+    @Override
+    public void measureInk(String s, Font f, Context2d.TextAlign align, Context2d.TextBaseline baseline, double[] out) {
+        applyFont(f);
+        if (align != measureAlign) {
+            context.setTextAlign(align);
+            measureAlign = align;
+        }
+        if (baseline != measureBaseline) {
+            context.setTextBaseline(baseline);
+            measureBaseline = baseline;
+        }
+        inkMetrics(context, s, out);
+    }
+
+    private void applyFont(Font f) {
+        if (f != null && !f.fontname.equals(currentFontName)) {
+            setFont(f);
+        }
+    }
+
+    private static native void inkMetrics(Context2d ctx, String s, double[] out) /*-{
+        var m = ctx.measureText(s);
+        out[0] = m.actualBoundingBoxLeft || 0;
+        out[1] = m.actualBoundingBoxRight === undefined ? m.width : m.actualBoundingBoxRight;
+        out[2] = m.actualBoundingBoxAscent || 0;
+        out[3] = m.actualBoundingBoxDescent || 0;
+        out[4] = m.width;
+    }-*/;
 
     public void setLineWidth(double width) {
         context.setLineWidth(width);
@@ -307,9 +433,16 @@ public class Graphics {
         context.setLineCap(lineCap);
     }
 
+    /**
+     * Sets the font; a font equal to the one in effect (set through this wrapper since the last
+     * {@link #restore()}) is not set again (parsing a canvas font string is not free).
+     */
     public void setFont(Font f) {
         if (f != null) {
-            context.setFont(f.fontname);
+            if (!f.fontname.equals(currentFontName)) {
+                context.setFont(f.fontname);
+                currentFontName = f.fontname;
+            }
             currentFontSize = f.size;
         }
     }
@@ -318,12 +451,20 @@ public class Graphics {
         return currentFontSize;
     }
 
+    /** Sets the text baseline unless it is already in effect (known since the last restore). */
     public void setTextBaseline(Context2d.TextBaseline baseline) {
-        context.setTextBaseline(baseline);
+        if (baseline != measureBaseline) {
+            context.setTextBaseline(baseline);
+            measureBaseline = baseline;
+        }
     }
 
+    /** Sets the text alignment unless it is already in effect (known since the last restore). */
     public void setTextAlign(Context2d.TextAlign align) {
-        context.setTextAlign(align);
+        if (align != measureAlign) {
+            context.setTextAlign(align);
+            measureAlign = align;
+        }
     }
 
     public void drawLock(int x, int y) {

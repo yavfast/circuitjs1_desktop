@@ -21,7 +21,8 @@ const registry = require('./registry.js');
 
 // [SP_MCP_06_01] Version of the tool and resource contract; the skill names the one it supports.
 // 1.1: agent model definitions (`defineModel`, `circuit_types` `models`/`model`, AgentCircuit and getCircuit `models`).
-const TOOLS_VERSION = '1.1';
+// 1.2: the tool `circuit_layout` (SP_AGA checkLayout: text_overlap, text_not_covered).
+const TOOLS_VERSION = '1.2';
 
 // Receive timeouts of the HTTP server (incomplete headers or body)
 const HEADERS_TIMEOUT_MS = 10000;
@@ -35,7 +36,8 @@ const INSTRUCTIONS =
   'CircuitJS1 circuit simulator (one running app window). Coordinates are grid cells ' +
   '(1 cell = 16 px, on a half-cell lattice); build a circuit with circuit_import or circuit_edit, ' +
   'then verify it in this loop: read the connectivity report, run the simulation (circuit_run), ' +
-  'measure (circuit_read or the run probes) and fix what the issues name. Tools act on the ' +
+  'measure (circuit_read or the run probes) and fix what the issues name; before reporting a ' +
+  'drawing, call circuit_layout (texts crossed or overlapping) and look at the render. Tools act on the ' +
   'active document unless `doc` names another. The agent skill for this server is ' +
   `circuitjs-circuits; toolsVersion ${TOOLS_VERSION}.`;
 

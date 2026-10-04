@@ -54,8 +54,12 @@ public abstract class Waveform {
 
     public abstract void draw(Graphics g, Point center, VoltageElm elm);
 
-    public void drawRail(Graphics g, RailElm elm) {
-        elm.drawWaveform(g, elm.geom().getPoint2());
+    /**
+     * [SP_AGA_03_13] The label a rail of this waveform shows at its end instead of the waveform
+     * circle (DC: its voltage; a clock: "CLK"), or null for the circle.
+     */
+    public String getRailLabel(RailElm elm) {
+        return null;
     }
 
     public abstract void getInfo(VoltageElm elm, String[] arr, int i);

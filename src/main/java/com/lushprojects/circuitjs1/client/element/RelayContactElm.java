@@ -97,6 +97,12 @@ public class RelayContactElm extends CircuitElm {
         return dumpValues(super.dump(), CustomLogicModel.escape(label), r_on, r_off, i_position);
     }
 
+    /** [SP_AGA_03_13] Not covered yet (PL_AGA Phase 16b): this class still draws text outside layoutTexts. */
+    @Override
+    public boolean textLayoutCovered() {
+        return false;
+    }
+
     public void draw(Graphics g) {
         int i;
         for (i = 0; i != 2; i++) {
@@ -111,6 +117,7 @@ public class RelayContactElm extends CircuitElm {
         drawThickLine(g, swpoles[0], ptSwitch);
 
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        g.setFont(unitsFont()); // [SP_AGA_03_13] explicit font
         if (getX() == getX2())
             g.drawString(label, getX() + 10, swpoles[getY() < getY2() ? 0 : 1].y - 5);
         else {

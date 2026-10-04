@@ -32,10 +32,9 @@ public class DCWaveform extends Waveform {
         return false;
     }
 
+    /** [SP_AGA_03_13] a DC rail is labelled with its voltage ("+5V") instead of a waveform circle */
     @Override
-    public void drawRail(Graphics g, RailElm elm) {
-        g.setColor(elm.needsHighlight() ? RailElm.selectColor() : RailElm.foregroundColor());
-        elm.setPowerColor(g, false);
+    public String getRailLabel(RailElm elm) {
         double v = elm.getVoltage();
         String s;
         if (Math.abs(v) < 1)
@@ -44,10 +43,7 @@ public class DCWaveform extends Waveform {
             s = RailElm.getShortUnitText(v, "V");
         if (v > 0)
             s = "+" + s;
-
-        // RailElm draws from its post to a derived lead point (railLead). Using VoltageElm lead points
-        // can collapse the lead and misplace the label.
-        elm.drawRailText(g, s);
+        return s;
     }
 
     @Override

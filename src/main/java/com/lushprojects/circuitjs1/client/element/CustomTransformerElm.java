@@ -26,6 +26,7 @@ import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitMath;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -593,6 +594,53 @@ public class CustomTransformerElm extends CircuitElm {
         return (flags & Inductor.FLAG_BACK_EULER) == 0;
     }
 
+    /** [SP_AGA_03_13] the turns of each winding outside its coil, away from the core centre */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (ptCore == null || nodeData == null || windings == null)
+            return;
+        Font f = unitsFont();
+        double coreCx = 0, coreCy = 0;
+        for (int i = 0; i != 4; i++) {
+            coreCx += ptCore[i].x;
+            coreCy += ptCore[i].y;
+        }
+        coreCx /= 4;
+        coreCy /= 4;
+        for (int i = 0; i != coilCount; i++) {
+            int n = windings[i].startNode;
+            String label = shortFormat(windings[i].turns) + "T";
+            Point a = nodeData[n].tap;
+            Point b = nodeData[n + 1].tap;
+            double mx = (a.x + b.x) / 2.0;
+            double my = (a.y + b.y) / 2.0;
+            double dxl = b.x - a.x;
+            double dyl = b.y - a.y;
+            double len = Math.sqrt(dxl * dxl + dyl * dyl);
+            if (len < 1) {
+                dxl = 1;
+                dyl = 0;
+                len = 1;
+            }
+
+            // unit perpendicular to coil segment
+            double px = -dyl / len;
+            double py = dxl / len;
+
+            // choose side that points away from the core center
+            double toCoreX = coreCx - mx;
+            double toCoreY = coreCy - my;
+            if (px * toCoreX + py * toCoreY > 0) {
+                px = -px;
+                py = -py;
+            }
+
+            int lx = (int) Math.round(mx + px * 12);
+            int ly = (int) Math.round(my + py * 12);
+            layoutCentered(out, label, lx, ly, true, f, 0);
+        }
+    }
+
     public void draw(Graphics g) {
 
         // Core center used to orient winding curvature inward.
@@ -652,40 +700,8 @@ public class CustomTransformerElm extends CircuitElm {
 
         // winding labels (turns)
         g.save();
-        g.setFont(unitsFont());
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-        for (int i = 0; i != coilCount; i++) {
-            int n = windings[i].startNode;
-            String label = shortFormat(windings[i].turns) + "T";
-            Point a = nodeData[n].tap;
-            Point b = nodeData[n + 1].tap;
-            double mx = (a.x + b.x) / 2.0;
-            double my = (a.y + b.y) / 2.0;
-            double dxl = b.x - a.x;
-            double dyl = b.y - a.y;
-            double len = Math.sqrt(dxl * dxl + dyl * dyl);
-            if (len < 1) {
-                dxl = 1;
-                dyl = 0;
-                len = 1;
-            }
-
-            // unit perpendicular to coil segment
-            double px = -dyl / len;
-            double py = dxl / len;
-
-            // choose side that points away from the core center
-            double toCoreX = coreCx - mx;
-            double toCoreY = coreCy - my;
-            if (px * toCoreX + py * toCoreY > 0) {
-                px = -px;
-                py = -py;
-            }
-
-            int lx = (int) Math.round(mx + px * 12);
-            int ly = (int) Math.round(my + py * 12);
-            drawCenteredText(g, label, lx, ly, true);
-        }
+        paintTexts(g).paint(0);
         g.restore();
 
         g.setColor(needsHighlight() ? selectColor() : elementColor());

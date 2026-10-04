@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | eval | all (default: all but eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | eval | all (default: all but text_sites, render_pixels, layout_cost and eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -357,6 +357,40 @@ function pageHelpers() {
     docState(handle) { const r = CircuitJS1Agent.debugDocState(handle); return r ? JSON.parse(r) : null; },
     closedTabs() { return JSON.parse(CircuitJS1Agent.debugClosedTabs()); },
     canvasPixels() { return CircuitJS1Agent.debugCanvasPixels(); },
+    // [PL_AGA_P16A] pixel compare of two PNGs (base64, no data: prefix). masks: image-pixel rects
+    // [x1, y1, x2, y2] left out of the comparison. Returns the size, the number of differing
+    // pixels, their bounding box and a PNG (base64) that shows the differences in red over a faded
+    // copy of the first image.
+    async pngDiff(a, b, masks) {
+      const load = async (b64) => {
+        const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+        const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+        const x = c.getContext('2d'); x.drawImage(img, 0, 0);
+        return { w: img.width, h: img.height, d: x.getImageData(0, 0, img.width, img.height).data };
+      };
+      const A = await load(a), B = await load(b);
+      if (A.w !== B.w || A.h !== B.h) return { sameSize: false, a: [A.w, A.h], b: [B.w, B.h], diff: -1 };
+      const masked = (x, y) => (masks || []).some((m) => x >= m[0] && x <= m[2] && y >= m[1] && y <= m[3]);
+      const c = document.createElement('canvas'); c.width = A.w; c.height = A.h;
+      const ctx = c.getContext('2d'); const out = ctx.createImageData(A.w, A.h);
+      let diff = 0, bx1 = Infinity, by1 = Infinity, bx2 = -1, by2 = -1;
+      for (let y = 0; y < A.h; y++) {
+        for (let x = 0; x < A.w; x++) {
+          const i = (y * A.w + x) * 4;
+          const same = A.d[i] === B.d[i] && A.d[i + 1] === B.d[i + 1] && A.d[i + 2] === B.d[i + 2] && A.d[i + 3] === B.d[i + 3];
+          if (!same && !masked(x, y)) {
+            diff++; bx1 = Math.min(bx1, x); by1 = Math.min(by1, y); bx2 = Math.max(bx2, x); by2 = Math.max(by2, y);
+            out.data[i] = 255; out.data[i + 1] = 0; out.data[i + 2] = 0; out.data[i + 3] = 255;
+          } else {
+            const g = 255 - (255 - (A.d[i] + A.d[i + 1] + A.d[i + 2]) / 3) * 0.25;
+            out.data[i] = out.data[i + 1] = out.data[i + 2] = g; out.data[i + 3] = 255;
+          }
+        }
+      }
+      let png = null;
+      if (diff > 0) { ctx.putImageData(out, 0, 0); png = c.toDataURL('image/png').replace(/^data:image\/png;base64,/, ''); }
+      return { sameSize: true, size: [A.w, A.h], diff, bbox: diff ? [bx1, by1, bx2, by2] : null, png };
+    },
   };
   window.__H = H;
   return true;
@@ -2125,6 +2159,11 @@ async function scenarioAgentConnectAll(s) {
   const bad = []; const stats = { circuits: 0, importRejected: 0, nets: 0, issues: 0, notAnalysed: 0, ms: 0 };
   const byCode = {};
   const symbolOverlap = {};
+  // [PL_AGA_P16A] checkLayout per example: text_overlap messages (the calibration input) and
+  // the classes that are not covered yet
+  const textOverlap = {};
+  const textNotCovered = {};
+  stats.layoutTexts = 0; stats.layoutMs = 0;
   const noGround = [];
   const rejected = [];
   const scopeElmMissing = [];
@@ -2139,6 +2178,32 @@ async function scenarioAgentConnectAll(s) {
     const dg = await A('getDiagnostics', { doc });
     const first = con.data && con.data.nets[0];
     const rd = first ? await A('read', { doc, targets: [{ net: first.name }] }) : { ok: true };
+    const tl0 = Date.now();
+    const lay = await A('checkLayout', { doc });
+    stats.layoutMs += Date.now() - tl0;
+    if (lay.ok) {
+      stats.layoutTexts += lay.data.texts;
+      const to = lay.data.issues.filter((i) => i.code === 'text_overlap');
+      if (to.length) textOverlap[name] = to.map((i) => ({ pair: i.elements.join('|'), at: i.at, message: i.message }));
+      // LAYOUT_RENDERS=1: the render of each flagged example (PNG, scale 2) with the issue points
+      // in image pixels, for the calibration review (OUT_DIR/layout_calibration/)
+      if (to.length && process.env.LAYOUT_RENDERS) {
+        const dir = path.join(OUT_DIR, 'layout_calibration');
+        fs.mkdirSync(dir, { recursive: true });
+        const sv = await s.call('agentAsync', 'render', { doc, format: 'svg' }, 60000);
+        const png = await s.call('agentAsync', 'render', { doc, format: 'png', scale: 2 }, 60000);
+        const area = sv.data ? svgArea(sv.data.content) : null;
+        if (png.data && area) {
+          fs.writeFileSync(path.join(dir, name.replace(/\.txt$/, '.png')), Buffer.from(png.data.content, 'base64'));
+          fs.writeFileSync(path.join(dir, name.replace(/\.txt$/, '.json')), JSON.stringify(to.map((i) => ({ ...i,
+            px: [(i.at.x * 16 - area[0]) * 2, (i.at.y * 16 - area[1]) * 2] })), null, 2));
+        }
+      }
+      for (const i of lay.data.issues.filter((x) => x.code === 'text_not_covered')) {
+        const cls = (i.message.match(/\(class (\w+)\)/) || [])[1] || '?';
+        textNotCovered[cls] = (textNotCovered[cls] || 0) + 1;
+      }
+    }
     stats.ms += Date.now() - t0;
     stats.circuits++;
     if (!imp.ok) { stats.importRejected++; rejected.push({ name, issues: (imp.issues || []).map((i) => i.code + ': ' + i.message) }); }
@@ -2151,8 +2216,8 @@ async function scenarioAgentConnectAll(s) {
       stats.scopeElmLines += scopeLines.length;
       for (const l of scopeLines) if (!got.has(l)) scopeElmMissing.push(`${name}: ${l}`);
     }
-    const results = [imp, con, gc, dg, rd];
-    const problem = results.some((r) => r.__undefined) || !con.ok || !gc.ok || !dg.ok || !rd.ok
+    const results = [imp, con, gc, dg, rd, lay];
+    const problem = results.some((r) => r.__undefined) || !con.ok || !gc.ok || !dg.ok || !rd.ok || !lay.ok
       || (imp.ok && !imp.connectivity) || s.exceptions.length !== ex0
       || (con.ok && con.data.analysed && recs(gc).some((e) => e.posts.some((p) => typeof p.net !== 'string')));
     if (con.ok) {
@@ -2168,9 +2233,16 @@ async function scenarioAgentConnectAll(s) {
   await A('closeDocument', { doc, discardChanges: true });
   const vis1 = await s.call('visibleTab');
   const visibleSame = JSON.stringify(vis0) === JSON.stringify(vis1);
-  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad, rejected, scopeElmMissing, symbolOverlap, noGround }, null, 2));
-  report('AG.agent_connect_all', bad.length === 0 && rejected.length === 0 && scopeElmMissing.length === 0 && visibleSame && s.exceptions.length === exMark,
-    { ...stats, bad: bad.length, rejected: rejected.map((r) => r.name), scopeElmMissing: scopeElmMissing.length, visibleSame, details: path.join(OUT_DIR, 'agent_connect_all.json') });
+  // [SP_AGA_05_01] example corpus: each example reporting text_overlap is in the calibration list
+  // with the same pairs (LAYOUT_CALIBRATION); no other example reports one
+  const uncalibrated = Object.keys(textOverlap).filter((n) => JSON.stringify(textOverlap[n].map((i) => i.pair).sort())
+    !== JSON.stringify((LAYOUT_CALIBRATION[n] || []).map((c) => c.pair).sort()));
+  const missingCalibrated = list.filter((n) => LAYOUT_CALIBRATION[n] && !textOverlap[n]);
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_connect_all.json'), JSON.stringify({ stats, byCode, bad, rejected, scopeElmMissing, symbolOverlap, textOverlap, uncalibrated, missingCalibrated, textNotCovered, noGround }, null, 2));
+  report('AG.agent_connect_all', bad.length === 0 && rejected.length === 0 && scopeElmMissing.length === 0 && visibleSame && s.exceptions.length === exMark
+    && uncalibrated.length === 0 && missingCalibrated.length === 0,
+    { ...stats, bad: bad.length, rejected: rejected.map((r) => r.name), scopeElmMissing: scopeElmMissing.length, visibleSame, textOverlap: Object.keys(textOverlap).length,
+      uncalibrated: uncalibrated.slice(0, 10), missingCalibrated, details: path.join(OUT_DIR, 'agent_connect_all.json') });
   function recs(r) { return (r && r.data && r.data.elements) || []; }
 }
 
@@ -6798,7 +6870,7 @@ async function scenarioMcpBrowser(s) {
   ck('server_disabled', page.server && page.server.state === 'disabled' && page.server.reason === 'no desktop runtime'
     && !page.server.port && !(page.server.urls && page.server.urls.length));
   ck('app_status_disabled', page.app.state === 'disabled' && page.app.reason === 'no desktop runtime' && page.app.port === 0 && page.app.urls.length === 0);
-  ck('toolsVersion', page.server && page.server.toolsVersion === '1.1');
+  ck('toolsVersion', page.server && page.server.toolsVersion === '1.2');
   const bad = (t) => /mcp-server|CircuitJS1Mcp/.test(t);
   const errs = s.console.filter((c) => (c.type === 'error' || c.type === 'log:error') && bad(c.text)).map((c) => c.text.slice(0, 300));
   const exc = s.exceptions.filter(bad).map((e) => e.slice(0, 300));
@@ -6995,9 +7067,870 @@ async function scenarioMcpDialog(s) {
   report('MCP.mcp_dialog', failed.length === 0, { checks: Object.keys(out.checks).length, failed, item: item.text });
 }
 
+// ---------------------------------------------------------------- render_pixels (PL_AGA Phase 16a step 0)
+// Pixel tooling of the text layout split: RENDER_BASELINE=<dir> writes a PNG render (scale 1) of
+// every example (CIRCUITS, default all) after the same run with reset (span RENDER_RUN_SPAN,
+// default 20 us) into <dir>, with manifest.json; RENDER_COMPARE=<dir> renders again and compares
+// the pixel data with those files (same machine, Chromium and session language). Examples with
+// noise sources (RandomUtils: a noise waveform) are left out, and so is any example whose two
+// baseline renders differ or whose run did not reach its span. Live text boxes of checkLayout
+// (grown by 2 px) are masked once the contract exists. RENDER_SLICE=<n> forces an offscreen slice
+// break after every n elements (debugRenderSliceElements); RENDER_NOMASK=1 compares the live
+// texts too. Differences are written to
+// OUT_DIR/render_pixels/<example>.{base,now,diff}.png.
+const RENDER_RUN_SPAN = process.env.RENDER_RUN_SPAN || '20 us';
+
+function hasNoiseSource(text) {
+  return String(text).split('\n').some((l) => {
+    const t = l.trim().split(/\s+/);
+    return (t[0] === 'v' || t[0] === 'R' || t[0] === 'n') && (t[0] === 'n' || t[6] === '6');
+  });
+}
+
+async function renderPixelsOf(s, doc, text, sliceN) {
+  const A = (op, args) => s.call('agentCall', op, args);
+  const imp = await A('importCircuit', { doc, circuit: text });
+  if (!imp.ok) return { error: 'import: ' + (imp.issues || []).map((i) => i.code).join(',') };
+  const run = await s.call('agentAsync', 'run', { doc, span: RENDER_RUN_SPAN, reset: true, budgetMs: 120000 }, 180000);
+  const reason = run && run.data ? run.data.reason : (run && run.timeout ? 'timeout' : 'failed');
+  if (sliceN !== undefined) await s.eval(`CircuitJS1Agent.debugRenderSliceElements && CircuitJS1Agent.debugRenderSliceElements(${+sliceN || 0})`);
+  const r = await s.call('agentAsync', 'render', { doc, format: 'png', scale: 1 }, 120000);
+  if (sliceN !== undefined) await s.eval('CircuitJS1Agent.debugRenderSliceElements && CircuitJS1Agent.debugRenderSliceElements(0)');
+  if (!r || !r.data) return { error: 'render: ' + JSON.stringify(r && (r.issues || r)).slice(0, 200), run: reason };
+  // live boxes (cells) of checkLayout, in image pixels through the SVG origin, grown by 2 px
+  let masks = [];
+  const lay = process.env.RENDER_NOMASK ? null : await A('checkLayout', { doc, includeBoxes: true });
+  if (lay && lay.ok && lay.data && lay.data.boxes) {
+    const live = lay.data.boxes.filter((b) => b.live);
+    if (live.length) {
+      const sv = await s.call('agentAsync', 'render', { doc, format: 'svg', scale: 1 }, 120000);
+      const area = sv && sv.data ? svgArea(sv.data.content) : null;
+      if (area) masks = live.map((b) => [b.box.x1 * 16 - area[0] - 2, b.box.y1 * 16 - area[1] - 2, b.box.x2 * 16 - area[0] + 2, b.box.y2 * 16 - area[1] + 2]);
+    }
+  }
+  return { png: r.data.content.replace(/^data:image\/png;base64,/, ''), w: r.data.width, h: r.data.height, run: reason, masks };
+}
+
+async function scenarioRenderPixels(s) {
+  const baseDir = process.env.RENDER_BASELINE, cmpDir = process.env.RENDER_COMPARE;
+  if (!baseDir && !cmpDir) { report('AG.render_pixels', false, { error: 'set RENDER_BASELINE=<dir> or RENDER_COMPARE=<dir>' }); return; }
+  const sliceN = process.env.RENDER_SLICE !== undefined ? +process.env.RENDER_SLICE : undefined;
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const doc = (await A('createDocument', { title: 'Render pixels' })).data.doc;
+  const outDir = path.join(OUT_DIR, 'render_pixels');
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+  const t0 = Date.now();
+  if (baseDir) {
+    const list = process.env.CIRCUITS && process.env.CIRCUITS !== 'all' ? process.env.CIRCUITS.split(',') : listAllCircuits();
+    fs.mkdirSync(baseDir, { recursive: true });
+    const manifest = { created: new Date().toISOString(), site: SITE_DIR, runSpan: RENDER_RUN_SPAN, examples: {}, excluded: {} };
+    for (const name of list) {
+      const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+      if (hasNoiseSource(text)) { manifest.excluded[name] = 'noise source'; continue; }
+      const r1 = await renderPixelsOf(s, doc, text, sliceN);
+      if (r1.error) { manifest.excluded[name] = r1.error; continue; }
+      if (r1.run !== 'span_reached' && r1.run !== 'solver_stop' && r1.run !== 'stop_trigger') { manifest.excluded[name] = 'run ' + r1.run; continue; }
+      const r2 = await renderPixelsOf(s, doc, text, sliceN);
+      const d = r2.error ? { diff: -1 } : await s.call('pngDiff', r1.png, r2.png, []);
+      if (d.diff !== 0) { manifest.excluded[name] = 'nondeterministic (' + d.diff + ' px between two renders)'; continue; }
+      fs.writeFileSync(path.join(baseDir, name.replace(/\.txt$/, '.png')), Buffer.from(r1.png, 'base64'));
+      manifest.examples[name] = { w: r1.w, h: r1.h, run: r1.run };
+    }
+    fs.writeFileSync(path.join(baseDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+    await A('closeDocument', { doc, discardChanges: true });
+    report('AG.render_pixels', s.exceptions.length === exMark, { mode: 'baseline', dir: baseDir, examples: Object.keys(manifest.examples).length,
+      excluded: Object.keys(manifest.excluded).length, s: Math.round((Date.now() - t0) / 1000) });
+    return;
+  }
+  const manifest = JSON.parse(fs.readFileSync(path.join(cmpDir, 'manifest.json'), 'utf8'));
+  const only = process.env.CIRCUITS && process.env.CIRCUITS !== 'all' ? new Set(process.env.CIRCUITS.split(',')) : null;
+  const diffs = {}; const errors = {}; let compared = 0, masked = 0;
+  for (const name of Object.keys(manifest.examples)) {
+    if (only && !only.has(name)) continue;
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+    const r = await renderPixelsOf(s, doc, text, sliceN);
+    if (r.error) { errors[name] = r.error; continue; }
+    const base = fs.readFileSync(path.join(cmpDir, name.replace(/\.txt$/, '.png'))).toString('base64');
+    const d = await s.call('pngDiff', base, r.png, r.masks);
+    compared++;
+    if (r.masks.length) masked++;
+    if (d.diff !== 0) {
+      const stem = path.join(outDir, name.replace(/\.txt$/, ''));
+      fs.writeFileSync(stem + '.base.png', Buffer.from(base, 'base64'));
+      fs.writeFileSync(stem + '.now.png', Buffer.from(r.png, 'base64'));
+      if (d.png) fs.writeFileSync(stem + '.diff.png', Buffer.from(d.png, 'base64'));
+      diffs[name] = d.sameSize ? { diff: d.diff, bbox: d.bbox, size: d.size } : { sizeChanged: [d.a, d.b] };
+    }
+  }
+  await A('closeDocument', { doc, discardChanges: true });
+  fs.writeFileSync(path.join(OUT_DIR, 'render_pixels.json'), JSON.stringify({ baseline: cmpDir, sliceN, diffs, errors }, null, 2));
+  report('AG.render_pixels', Object.keys(diffs).length === 0 && Object.keys(errors).length === 0 && s.exceptions.length === exMark,
+    { mode: 'compare', baseline: cmpDir, compared, masked, differing: Object.keys(diffs).length, errors: Object.keys(errors).length,
+      first: Object.keys(diffs).slice(0, 12), s: Math.round((Date.now() - t0) / 1000), details: path.join(OUT_DIR, 'render_pixels.json') });
+}
+
+// ---------------------------------------------------------------- text_sites (SP_AGA_05_02 "Drawing paints the layout")
+// Static check of the element sources (src/.../client/element, subpackages included): a text site
+// is a call of drawString(, drawValues(, drawLabeledNode(, drawCenteredText( or fillText outside
+// the layout classes (comments and method declarations do not count; the CircuitElm paint wrappers
+// are layout classes until PL_AGA Phase 16b). Fails a class with a text site whose effective
+// textLayoutCovered() (its own or the nearest ancestor's declaration; default true) is not false,
+// and a class that overrides draw() without super.draw() (or ChipElm's drawChip) while it
+// inherits a non-empty layoutTexts and reports itself covered. A class without calls of its own
+// takes its parent's coverage (Java inheritance).
+const TEXT_SITE_RE = /\b(drawString|drawValues|drawLabeledNode|drawCenteredText)\s*\(|\bfillText\b/g;
+const TEXT_LAYOUT_CLASSES = new Set(['CircuitElm', 'TextPlacement', 'TextLayout', 'PaintingTextLayout', 'MeasuringTextLayout']);
+
+// Comments and the contents of string and char literals blanked (newlines kept, so line numbers hold)
+function stripJavaComments(src) {
+  let out = '';
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i], n = src[i + 1];
+    if (c === '/' && n === '/') { while (i < src.length && src[i] !== '\n') i++; out += '\n'; continue; }
+    if (c === '/' && n === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) { if (src[i] === '\n') out += '\n'; i++; } i++; continue; }
+    if (c === '"' || c === '\'') {
+      out += c; i++;
+      while (i < src.length && src[i] !== c && src[i] !== '\n') { if (src[i] === '\\') i++; i++; }
+      out += c; continue;
+    }
+    out += c;
+  }
+  return out;
+}
+// @return the body text of the first method whose declaration matches re, or null
+function javaMethodBody(src, re) {
+  const m = re.exec(src);
+  if (!m) return null;
+  let i = src.indexOf('{', m.index + m[0].length - 1);
+  if (i < 0) return null;
+  let depth = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}' && --depth === 0) return src.slice(i + 1, j);
+  }
+  return null;
+}
+
+function textSitesCheck() {
+  const root = path.join(PROJECT, 'src/main/java/com/lushprojects/circuitjs1/client/element');
+  const files = [];
+  const walk = (d) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); if (fs.statSync(p).isDirectory()) walk(p); else if (f.endsWith('.java')) files.push(p); } };
+  walk(root);
+  const cls = {};
+  for (const file of files) {
+    const src = stripJavaComments(fs.readFileSync(file, 'utf8'));
+    const m = src.match(/\b(?:class|interface|enum)\s+(\w+)(?:\s*<[^>{]*>)?(?:\s+extends\s+(\w+))?/);
+    if (!m) continue;
+    const name = m[1];
+    const sites = [];
+    src.split('\n').forEach((line, i) => {
+      if (/^\s*(?:(?:public|protected|private|static|final|abstract)\s+)*[\w<>\[\]]+\s+(drawString|drawValues|drawLabeledNode|drawCenteredText)\s*\(/.test(line)) return; // declaration
+      if (TEXT_SITE_RE.test(line)) sites.push(i + 1);
+      TEXT_SITE_RE.lastIndex = 0;
+    });
+    const covered = javaMethodBody(src, /\bboolean\s+textLayoutCovered\s*\(\s*\)/g);
+    const layout = javaMethodBody(src, /\bvoid\s+layoutTexts\s*\(\s*TextLayout\b[^)]*\)/g);
+    const draw = javaMethodBody(src, /\bvoid\s+draw\s*\(\s*Graphics\s+\w+\s*\)/g);
+    cls[name] = { name, file: path.relative(PROJECT, file), parent: m[2] || null, sites: TEXT_LAYOUT_CLASSES.has(name) ? [] : sites,
+      coveredDecl: covered == null ? null : !/return\s+false\s*;/.test(covered),
+      layoutDecl: layout == null ? null : layout.trim().length > 0,
+      draw: draw == null ? null : { superDraw: /\bsuper\.draw\s*\(/.test(draw), drawChip: /\bdrawChip\s*\(/.test(draw) } };
+  }
+  const chain = (n) => { const r = []; let c = cls[n]; while (c) { r.push(c); c = c.parent ? cls[c.parent] : null; } return r; };
+  const effCovered = (n) => { for (const c of chain(n)) if (c.coveredDecl !== null) return c.coveredDecl; return true; };
+  const inheritedLayout = (n) => { for (const c of chain(n).slice(1)) if (c.layoutDecl !== null) return { from: c.name, texts: c.layoutDecl }; return null; };
+  const isChip = (n) => chain(n).some((c) => c.name === 'ChipElm');
+  const failures = [], notCovered = [], withSites = [];
+  for (const c of Object.values(cls)) {
+    const cov = effCovered(c.name);
+    if (!cov) notCovered.push(c.name);
+    if (c.sites.length) {
+      withSites.push(c.name);
+      if (cov) failures.push({ class: c.name, rule: 'text site in a covered class', lines: c.sites });
+    }
+    if (c.draw && !c.draw.superDraw && !(c.draw.drawChip && isChip(c.name)) && c.layoutDecl === null && cov) {
+      const inh = inheritedLayout(c.name);
+      if (inh && inh.texts) failures.push({ class: c.name, rule: 'draw() without super.draw() inherits layoutTexts of ' + inh.from });
+    }
+  }
+  return { classes: Object.keys(cls).length, withSites: withSites.sort(), notCovered: notCovered.sort(), failures };
+}
+
+async function scenarioTextSites(s) {
+  const r = textSitesCheck();
+  fs.writeFileSync(path.join(OUT_DIR, 'text_sites.json'), JSON.stringify(r, null, 2));
+  report('AG.text_sites', r.failures.length === 0, { classes: r.classes, withSites: r.withSites.length, notCovered: r.notCovered.length,
+    failures: r.failures.slice(0, 10), details: path.join(OUT_DIR, 'text_sites.json') });
+}
+
+// ---------------------------------------------------------------- agent_layout (PL_AGA Phase 16a)
+// SP_AGA_02_16 checkLayout and SP_AGA_03_13 text layout: the SP_AGA_05_01 checkLayout rows (T8,
+// key stability, clean value texts, T9, T3, text over a symbol, chip pin names, own drawing
+// exempt, live texts, values hidden, highlight does not count, background = visible, busy
+// document, caps, example corpus, the 16a fixture of text_not_covered, render "explicit fonts",
+// layout equals drawing for every catalogue type in four directions with option variants and
+// three examples), the SP_AGA_05_02 rows "checkLayout changes no state" and "Drawing paints the
+// layout" (text_sites). Pixel equality runs separately (render_pixels with RENDER_COMPARE); the
+// cost row runs in layout_cost.
+// Calibration list of the example corpus (PL_AGA Phase 16a step 10, CIRCUITS=all agent_connect_all
+// with LAYOUT_RENDERS=1, every flag looked at in the render): example → its text_overlap pairs with
+// the text and what the drawing shows: "crossed" (a wire or lead through or touching the text),
+// "over symbol" (the text runs into or touches the part's drawing), "touching text"; or
+// "body model, clear in the drawing" (SP_AGA_03_13 Obstacles: the symbol_overlap body model of a
+// chip, pot, relay or transistor reaches past the drawn outline; the drawing clears the text).
+const LAYOUT_CALIBRATION = {
+  "555monostable.txt": [{ pair: "C1|TIM1", text: "10μF", drawing: "body model, clear in the drawing" }],
+  "actbutterband.txt": [{ pair: "C3|R4", text: "63.8nF", drawing: "over symbol" }, { pair: "C5|R7", text: "63.8nF", drawing: "over symbol" }, { pair: "C7|R10", text: "82.3nF", drawing: "over symbol" }],
+  "besselbutter.txt": [{ pair: "C5|R1", text: "395.4nF", drawing: "over symbol" }, { pair: "C6|R2", text: "497.9nF", drawing: "over symbol" }],
+  "butter10lo.txt": [{ pair: "C5|R1", text: "497.9nF", drawing: "over symbol" }],
+  "butter10loaud.txt": [{ pair: "C5|R1", text: "497.9nF", drawing: "over symbol" }],
+  "capmult.txt": [{ pair: "C1|TEX3", text: "100nF", drawing: "touching text" }],
+  "cappar.txt": [{ pair: "C2|W1", text: "200μF", drawing: "crossed" }],
+  "chaos1.txt": [{ pair: "GND1|OUT1", text: "вихід", drawing: "over symbol" }],
+  "chaos2.txt": [{ pair: "R10|TEX3", text: "R1", drawing: "over symbol" }],
+  "chua.txt": [{ pair: "C3|W32", text: "100nF", drawing: "crossed" }, { pair: "R5|R6", text: "2.2k", drawing: "over symbol" }],
+  "crystalosc.txt": [{ pair: "R1|V1", text: "+5V", drawing: "over symbol" }],
+  "digsine.txt": [{ pair: "C1|R7", text: "57.6k", drawing: "crossed" }],
+  "dram.txt": [{ pair: "V1|W34", text: "+2.5V", drawing: "crossed" }],
+  "eclosc.txt": [{ pair: "TEX7|V1", text: "Коли Rp=RL, тоді QL=Qu/2", drawing: "touching text" }],
+  "filt-vcvs-lopass.txt": [{ pair: "C1|W3", text: "159nF", drawing: "crossed" }],
+  "freqdouble.txt": [{ pair: "C2|W4", text: "10μF", drawing: "crossed" }, { pair: "C2|W5", text: "10μF", drawing: "crossed" }],
+  "hfadc.txt": [{ pair: "R4|V4", text: "100k", drawing: "touching text" }],
+  "howland.txt": [{ pair: "R5|TEX5", text: "приймач", drawing: "over symbol" }],
+  "ledarray.txt": [{ pair: "R1|R2", text: "300", drawing: "over symbol" }, { pair: "R1|R8", text: "300", drawing: "over symbol" }, { pair: "R2|R3", text: "300", drawing: "over symbol" }, { pair: "R3|R6", text: "300", drawing: "over symbol" }, { pair: "R4|R5", text: "300", drawing: "over symbol" }, { pair: "R5|R6", text: "300", drawing: "over symbol" }, { pair: "R7|R8", text: "300", drawing: "over symbol" }],
+  "mux3state.txt": [{ pair: "TEX4|V1", text: "буфер з 3-ма стан.", drawing: "touching text" }],
+  "opint-current.txt": [{ pair: "C1|R8", text: "30pF", drawing: "over symbol" }, { pair: "R10|R11", text: "50k", drawing: "over symbol" }, { pair: "R8|W49", text: "4.5k", drawing: "crossed" }, { pair: "R9|W48", text: "7.5k", drawing: "crossed" }],
+  "opint-invert-amp.txt": [{ pair: "C1|R8", text: "30pF", drawing: "over symbol" }, { pair: "R10|R11", text: "50k", drawing: "over symbol" }, { pair: "R8|W49", text: "4.5k", drawing: "crossed" }, { pair: "R9|W48", text: "7.5k", drawing: "crossed" }],
+  "opint-slew.txt": [{ pair: "C1|R8", text: "30pF", drawing: "over symbol" }, { pair: "R10|R11", text: "50k", drawing: "over symbol" }, { pair: "R8|W49", text: "4.5k", drawing: "crossed" }, { pair: "R9|W48", text: "7.5k", drawing: "crossed" }],
+  "opint.txt": [{ pair: "C1|R8", text: "30pF", drawing: "over symbol" }, { pair: "R10|R11", text: "50k", drawing: "over symbol" }, { pair: "R8|W49", text: "4.5k", drawing: "crossed" }, { pair: "R9|W48", text: "7.5k", drawing: "crossed" }],
+  "ota-vcf-single.txt": [{ pair: "V6|W7", text: "+9V", drawing: "crossed" }],
+  "peak-detect.txt": [{ pair: "SW1|TEX1", text: "скидання", drawing: "over symbol" }],
+  "phaseseq.txt": [{ pair: "C1|R5", text: "100", drawing: "over symbol" }, { pair: "C10|R15", text: "100", drawing: "over symbol" }, { pair: "C11|R14", text: "100", drawing: "over symbol" }, { pair: "C12|R13", text: "100", drawing: "over symbol" }, { pair: "C2|R6", text: "100", drawing: "over symbol" }, { pair: "C3|R7", text: "100", drawing: "over symbol" }, { pair: "C4|R8", text: "100", drawing: "over symbol" }, { pair: "C5|R9", text: "100", drawing: "over symbol" }, { pair: "C6|R10", text: "100", drawing: "over symbol" }, { pair: "C7|R11", text: "100", drawing: "over symbol" }, { pair: "C8|R12", text: "100", drawing: "over symbol" }, { pair: "C9|R16", text: "100", drawing: "over symbol" }, { pair: "R4|W3", text: "100", drawing: "crossed" }],
+  "phasesplit.txt": [{ pair: "R5|R6", text: "10k", drawing: "over symbol" }],
+  "pll2a.txt": [{ pair: "C2|W6", text: "10μF", drawing: "crossed" }, { pair: "C2|W7", text: "10μF", drawing: "crossed" }],
+  "pot.txt": [{ pair: "POT1|V2", text: "5 V", drawing: "body model, clear in the drawing" }],
+  "qam-256.txt": [{ pair: "C1|W66", text: "1μF", drawing: "crossed" }, { pair: "C4|W65", text: "1μF", drawing: "crossed" }, { pair: "C5|W67", text: "1μF", drawing: "crossed" }, { pair: "C6|W72", text: "1μF", drawing: "crossed" }, { pair: "C7|W85", text: "1μF", drawing: "crossed" }, { pair: "C8|W90", text: "1μF", drawing: "crossed" }, { pair: "OUT3|W18", text: "вихід", drawing: "crossed" }, { pair: "OUT3|W34", text: "вихід", drawing: "crossed" }, { pair: "OUT3|W56", text: "вихід", drawing: "crossed" }],
+  "relayctr.txt": [{ pair: "K1|V2", text: "+6V", drawing: "body model, clear in the drawing" }, { pair: "K4|V3", text: "+6V", drawing: "body model, clear in the drawing" }, { pair: "K6|V5", text: "+6V", drawing: "body model, clear in the drawing" }, { pair: "V2|W11", text: "+6V", drawing: "crossed" }, { pair: "V3|W33", text: "+6V", drawing: "crossed" }, { pair: "V5|W51", text: "+6V", drawing: "crossed" }],
+  "rmsconverter.txt": [{ pair: "C1|W26", text: "30pF", drawing: "crossed" }, { pair: "R11|TRA3", text: "2k", drawing: "body model, clear in the drawing" }, { pair: "U3|V1", text: "+1.2V", drawing: "over symbol" }, { pair: "V1|W24", text: "+1.2V", drawing: "crossed" }, { pair: "V1|W6", text: "+1.2V", drawing: "crossed" }],
+  "samplenhold.txt": [{ pair: "C1|W6", text: "100nF", drawing: "crossed" }],
+  "spark-marx.txt": [{ pair: "C1|SPA1", text: "24nF", drawing: "over symbol" }, { pair: "C2|SPA2", text: "24nF", drawing: "over symbol" }, { pair: "C3|SPA5", text: "24nF", drawing: "over symbol" }, { pair: "C9|SPA4", text: "24nF", drawing: "over symbol" }],
+  "sram.txt": [{ pair: "V1|W41", text: "+5V", drawing: "crossed" }, { pair: "V2|W42", text: "+5V", drawing: "crossed" }],
+  "switchedcap.txt": [{ pair: "C2|W5", text: "95.1μF", drawing: "crossed" }],
+  "tllight.txt": [{ pair: "R1|V1", text: "*", drawing: "over symbol" }],
+  "tlmatch1.txt": [{ pair: "R1|V1", text: "*", drawing: "over symbol" }],
+  "tlmatch2.txt": [{ pair: "R1|V1", text: "*", drawing: "over symbol" }],
+  "tlmis1.txt": [{ pair: "R1|V1", text: "*", drawing: "over symbol" }],
+  "traffic.txt": [{ pair: "C1|TIM1", text: "10μF", drawing: "over symbol" }],
+  "trianglevco.txt": [{ pair: "R2|R3", text: "49.9k", drawing: "over symbol" }, { pair: "R2|R4", text: "49.9k", drawing: "over symbol" }, { pair: "V3|W20", text: "-5V", drawing: "crossed" }],
+  "unishiftreg.txt": [{ pair: "SW3|TEX3", text: "L", drawing: "touching text" }, { pair: "SW8|TEX8", text: "послід. вправо.", drawing: "crossed" }],
+};
+const lyE = (id, type, x1, y1, x2, y2, properties, flags) => ({ id, type, start: { x: x1, y: y1 }, end: { x: x2, y: y2 },
+  ...(properties ? { properties } : {}), ...(flags !== undefined ? { flags } : {}) });
+const LAYOUT_T8 = [lyE('C1', 'Capacitor', 0, 0, 0, 4, { capacitance: '10 nF' }), lyE('W1', 'Wire', 1, -1, 1, 5)];
+const CANVAS_FONT_RE = /^\s*(?=(?:(?:[-a-z]+\s*){0,2}(italic|oblique))?)(?=(?:(?:[-a-z]+\s*){0,2}(small-caps))?)(?=(?:(?:[-a-z]+\s*){0,2}(bold(?:er)?|lighter|[1-9]00))?)(?:(?:normal|\1|\2|\3)\s*){0,3}((?:xx?-)?(?:small|large)|medium|smaller|larger|[.\d]+(?:%|in|[cem]m|ex|p[ctx]))(?:\s*\/\s*(normal|[.\d]+(?:%|in|[cem]m|ex|p[ctx])))?\s*([-,'"\sa-z0-9]+?)\s*$/i;
+// @return {style, weight, size, family} of a canvas font string (the canvas2svg parse)
+function parseCanvasFont(f) {
+  const m = CANVAS_FONT_RE.exec(f || '');
+  return m ? { style: m[1] || 'normal', weight: m[3] || 'normal', size: m[4] || '10px', family: m[6] || 'sans-serif' } : null;
+}
+const SVG_ANCHOR = { left: 'start', center: 'middle', right: 'end' };
+const SVG_BASELINE = { alphabetic: 'alphabetic', middle: 'central', top: 'text-before-edge', bottom: 'text-after-edge' };
+const unescapeXml = (t) => t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n))
+  .replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCharCode(parseInt(n, 16))).replace(/&amp;/g, '&');
+// 2-D affine matrices [a, b, c, d, e, f] (SVG order)
+const mMul = (p, q) => [p[0] * q[0] + p[2] * q[1], p[1] * q[0] + p[3] * q[1], p[0] * q[2] + p[2] * q[3], p[1] * q[2] + p[3] * q[3],
+  p[0] * q[4] + p[2] * q[5] + p[4], p[1] * q[4] + p[3] * q[5] + p[5]];
+function parseSvgTransform(t) {
+  let m = [1, 0, 0, 1, 0, 0];
+  for (const x of String(t || '').matchAll(/(\w+)\s*\(([^)]*)\)/g)) {
+    const a = x[2].split(/[\s,]+/).filter(Boolean).map(Number);
+    let q = null;
+    if (x[1] === 'translate') q = [1, 0, 0, 1, a[0], a[1] || 0];
+    else if (x[1] === 'scale') q = [a[0], 0, 0, a.length > 1 ? a[1] : a[0], 0, 0];
+    else if (x[1] === 'matrix') q = a;
+    else if (x[1] === 'rotate') { const r = a[0] * Math.PI / 180; q = [Math.cos(r), Math.sin(r), -Math.sin(r), Math.cos(r), 0, 0]; }
+    if (q) m = mMul(m, q);
+  }
+  return m;
+}
+// SVG <text> elements with their position in circuit pixels (all group transforms applied, the
+// root scale/translate undone), anchor, baseline and parsed font
+function svgTextsCircuit(svg) {
+  const area = svgArea(svg);
+  const out = [];
+  const stack = [[1, 0, 0, 1, 0, 0]];
+  const re = /<(\/?)(g|text)\b([^>]*?)(\/?)>/g;
+  let m;
+  while ((m = re.exec(svg))) {
+    const attrs = m[3];
+    const attr = (k) => { const mm = attrs.match(new RegExp('\\s' + k + '="([^"]*)"')); return mm ? mm[1] : null; };
+    if (m[2] === 'g') {
+      if (m[1]) stack.pop();
+      else if (!m[4]) stack.push(mMul(stack[stack.length - 1], parseSvgTransform(attr('transform'))));
+      continue;
+    }
+    if (m[1] || m[4]) continue;
+    const end = svg.indexOf('</text>', re.lastIndex);
+    const text = unescapeXml(svg.slice(re.lastIndex, end));
+    const M = mMul(stack[stack.length - 1], parseSvgTransform(attr('transform')));
+    const x = +attr('x'), y = +attr('y');
+    const ix = M[0] * x + M[2] * y + M[4], iy = M[1] * x + M[3] * y + M[5];
+    const k = area ? (svg.match(/<g transform="scale\(([\d.]+),/) || [0, 1])[1] : 1;
+    out.push({ text, x: area ? ix / k + area[0] : ix, y: area ? iy / k + area[1] : iy, anchor: attr('text-anchor') || 'start', baseline: attr('dominant-baseline') || 'alphabetic',
+      font: { style: attr('font-style') || 'normal', weight: attr('font-weight') || 'normal', size: attr('font-size') || '10px', family: attr('font-family') || 'sans-serif' } });
+  }
+  return out;
+}
+// @return the problems of matching SVG texts to TextBoxes (one box per text, same string, anchor
+// within 0.5 px, align/baseline through the canvas2svg mapping, equal parsed font)
+function matchTextsToBoxes(texts, boxes) {
+  const cut = (t) => (t.length <= 32 ? t : t.slice(0, 32) + '…');
+  const left = boxes.map((b) => ({ ...b, used: false }));
+  const problems = [];
+  for (const t of texts.filter((x) => x.text.trim() !== '')) {
+    const cands = left.filter((b) => !b.used && b.text === cut(t.text));
+    const ok = cands.find((b) => {
+      const f = parseCanvasFont(b.font);
+      return Math.abs(b.anchor.x * 16 - t.x) <= 0.5 && Math.abs(b.anchor.y * 16 - t.y) <= 0.5 && SVG_ANCHOR[b.align] === t.anchor
+        && SVG_BASELINE[b.baseline] === t.baseline && f && f.style === t.font.style && f.weight === t.font.weight && f.size === t.font.size && f.family === t.font.family;
+    });
+    if (ok) ok.used = true;
+    else problems.push({ svg: t, candidates: cands.map((b) => ({ anchor: [b.anchor.x * 16, b.anchor.y * 16], align: b.align, baseline: b.baseline, font: b.font })) });
+  }
+  for (const b of left.filter((x) => !x.used)) problems.push({ boxWithoutSvgText: { text: b.text, anchor: [b.anchor.x * 16, b.anchor.y * 16], font: b.font } });
+  return problems;
+}
+
+async function scenarioAgentLayout(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const render = (args) => s.call('agentAsync', 'render', args, 60000);
+  const tov = (r) => ((r && r.data && r.data.issues) || []).filter((i) => i.code === 'text_overlap');
+  const keys = (r) => ((r && r.data && r.data.issues) || []).map((i) => i.key);
+  const anyTextIssue = (l) => (l || []).some((i) => /^text_/.test(i.code));
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  let forcedExceptions = 0;
+  const A0 = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const B = (await A('createDocument', { title: 'Layout B' })).data.doc;
+  const load = async (doc, elements) => A('importCircuit', { doc, circuit: { elements } });
+  const lay = (doc, boxes) => A('checkLayout', { doc, ...(boxes ? { includeBoxes: true } : {}) });
+
+  // --- T8: a value text crossed by a wire; only checkLayout reports it
+  const impT8 = await load(B, LAYOUT_T8);
+  const t8 = await lay(B, true);
+  const conT8 = await A('getConnectivity', { doc: B, includeNets: false });
+  const i8 = tov(t8);
+  const box8 = t8.data && t8.data.boxes.find((b) => b.element === 'C1');
+  const centre = (b) => ({ x: Math.round((b.box.x1 + b.box.x2) * 8) / 16, y: Math.round((b.box.y1 + b.box.y2) * 8) / 16 });
+  out.notes.t8 = { issues: t8.data && t8.data.issues, box: box8 };
+  ck('t8Crossed', impT8.ok && t8.ok && i8.length === 1 && same(i8[0].elements, ['C1', 'W1']) && i8[0].severity === 'warning'
+    && /10nF/.test(i8[0].message) && /crossed/.test(i8[0].message) && box8 && same(i8[0].at, centre(box8)) && i8[0].at.x > 0 && i8[0].at.y > 0 && i8[0].at.y < 4);
+  ck('t8OnlyCheckLayout', !anyTextIssue(conT8.data && conT8.data.issues) && !anyTextIssue(impT8.connectivity && impT8.connectivity.added));
+  ck('t8TextsCounted', t8.data && t8.data.texts === 1 && t8.data.truncated === false);
+
+  // --- key stability: the key follows the text, not the wire; no delta lists text issues
+  const mv = async (by) => A('applyEdits', { doc: B, edits: [{ op: 'move', id: 'W1', by }] });
+  const m1 = await mv({ dx: 3, dy: 0 }); const k1 = await lay(B);
+  const m2 = await mv({ dx: -3, dy: 0 }); const k2 = await lay(B);
+  const m3 = await mv({ dx: 0, dy: 0.5 }); const k3 = await lay(B);
+  ck('keyStable', tov(k1).length === 0 && same(keys(k2), keys(t8)) && same(keys(k3), keys(t8)) && keys(t8).length === 1);
+  ck('keyNoDelta', [m1, m2, m3].every((m) => m.ok && !anyTextIssue(m.connectivity.added) && !anyTextIssue(m.connectivity.cleared)));
+
+  // --- clean value texts
+  await load(B, [lyE('R1', 'Resistor', 0, 0, 4, 0, { resistance: '4.7k' }), lyE('W1', 'Wire', -3, 0, 0, 0), lyE('C1', 'Capacitor', 4, 0, 4, 4), lyE('W2', 'Wire', 7, -2, 7, 6)]);
+  const clean = await lay(B);
+  ck('cleanValueTexts', clean.ok && clean.data.issues.length === 0 && clean.data.texts === 2);
+
+  // --- T9: label on label; five cells apart none
+  await load(B, [lyE('L1', 'LabeledNode', 0, 0, 0, -1, { label: 'VOUT_MAIN' }), lyE('L2', 'LabeledNode', 2, 0, 2, -1, { label: 'VREF_MAIN' })]);
+  const t9 = await lay(B);
+  await load(B, [lyE('L1', 'LabeledNode', 0, 0, 0, -1, { label: 'VOUT_MAIN' }), lyE('L2', 'LabeledNode', 5, 0, 5, -1, { label: 'VREF_MAIN' })]);
+  const t9b = await lay(B);
+  ck('t9LabelOnLabel', tov(t9).length === 1 && same(tov(t9)[0].elements, ['L1', 'L2']) && /overlaps the text/.test(tov(t9)[0].message) && tov(t9b).length === 0 && t9b.data.issues.length === 0);
+
+  // --- rule 3 at the 2 px threshold: two facing labels whose ink boxes are 1–2 px apart touch
+  // (each box grown by PAD = 1 px); 2–3 px apart they do not. L2's anchor moves in whole pixels
+  // (1/16 cell); the ink gap comes from the exact anchors and the canvas ink metrics of the font.
+  const facing = (dpx) => [lyE('L1', 'LabeledNode', 0, 0, 1, 0, { label: 'AAA' }), lyE('L2', 'LabeledNode', 10 + dpx / 16, 0, 9 + dpx / 16, 0, { label: 'AAA' })];
+  const inkGap = async (r) => {
+    const b1 = r.data.boxes.find((b) => b.element === 'L1'), b2 = r.data.boxes.find((b) => b.element === 'L2');
+    const ink = await s.eval(`(() => { const c = document.createElement('canvas').getContext('2d'); c.font = ${JSON.stringify(b1.font)};
+      const m = c.measureText('AAA'); return [m.actualBoundingBoxLeft, m.actualBoundingBoxRight]; })()`);
+    return (b2.anchor.x * 16 - ink[0]) - (b1.anchor.x * 16 + ink[1]);
+  };
+  await load(B, facing(0));
+  const gap0 = await inkGap(await lay(B, true));
+  const atGap = async (target) => {
+    await load(B, facing(Math.round(target - gap0)));
+    const r = await lay(B, true);
+    return { r, gap: await inkGap(r) };
+  };
+  // Anchors move in whole pixels, so the measured gaps land near (not at) the targets — about 1.99 px and
+  // 2.99 px with the default font; the check asserts the side of the 2 px threshold, recorded in notes.rule3Gap.
+  const g15 = await atGap(1.5), g25 = await atGap(2.5);
+  out.notes.rule3Gap = { gap0, g15: g15.gap, g25: g25.gap, issues15: keys(g15.r), issues25: keys(g25.r) };
+  ck('textsUnder2pxTouch', g15.gap > 1 && g15.gap < 2 && g25.gap >= 2 && tov(g15.r).length === 1 && /overlaps the text/.test(tov(g15.r)[0].message)
+    && tov(g25.r).length === 0);
+
+  // --- T3: label text across a lead; text over a symbol
+  await load(B, [lyE('L1', 'LabeledNode', 0, 0, 1, 0, { label: 'input' }), lyE('R1', 'Resistor', 2, -6, 2, 2)]);
+  const t3 = await lay(B);
+  const c3 = await A('getConnectivity', { doc: B, includeNets: false });
+  ck('t3LabelAcrossLead', tov(t3).length === 1 && same(tov(t3)[0].elements, ['L1', 'R1']) && /crossed by R1/.test(tov(t3)[0].message)
+    && !(c3.data.issues || []).some((i) => i.code === 'symbol_overlap' && same(i.elements, ['L1', 'R1'])));
+  await load(B, [lyE('L1', 'LabeledNode', 0, 0, 1, 0, { label: 'input' }), lyE('G1', 'Ground', 2, -1, 2, 0)]);
+  const sy = await lay(B);
+  ck('textOverSymbol', tov(sy).length === 1 && same(tov(sy)[0].elements, ['G1', 'L1']) && /lies over the symbol of G1/.test(tov(sy)[0].message));
+
+  // --- chip pin names: inside the body, no issue; a wire across the body is symbol_overlap only
+  await load(B, [lyE('U1', 'DFlipFlop', 0, 0, 4, 0)]);
+  const gc = await A('getCircuit', { doc: B });
+  const u1 = gc.data.elements.find((e) => e.id === 'U1');
+  const ps = u1.posts.map((p) => p.at);
+  const bx = [Math.min(...ps.map((p) => p.x)), Math.min(...ps.map((p) => p.y)), Math.max(...ps.map((p) => p.x)), Math.max(...ps.map((p) => p.y))];
+  const wires = ps.map((p, k) => {
+    const d = p.x === bx[0] ? [-2, 0] : p.x === bx[2] ? [2, 0] : p.y === bx[1] ? [0, -2] : [0, 2];
+    return lyE('W' + (k + 1), 'Wire', p.x, p.y, p.x + d[0], p.y + d[1]);
+  });
+  const chipEls = [lyE('U1', 'DFlipFlop', 0, 0, 4, 0), ...wires];
+  await load(B, chipEls);
+  const chip = await lay(B, true);
+  const chipSvg = await render({ doc: B, format: 'svg' });
+  const chipTexts = chipSvg.data ? svgTextsCircuit(chipSvg.data.content).filter((t) => t.text.trim()) : [];
+  const pinBoxes = (chip.data ? chip.data.boxes : []).filter((b) => b.element === 'U1');
+  // the chip outline: U1's bounding box as the render's draw set it (pin names do not widen it)
+  const u1bb = ((await s.call('docState', B)).elements.find((e) => e.id === 'U1') || {}).bbox;
+  const body = u1bb ? [u1bb[0] / 16, u1bb[1] / 16, (u1bb[0] + u1bb[2]) / 16, (u1bb[1] + u1bb[3]) / 16] : null;
+  out.notes.chip = { posts: ps, outline: body, boxes: pinBoxes.map((b) => [b.text, b.box]), svgTexts: chipTexts.length };
+  ck('chipPinNames', chip.ok && chip.data.issues.length === 0 && pinBoxes.length >= 3 && pinBoxes.length === chipTexts.length && body
+    && pinBoxes.every((b) => b.box.x1 >= body[0] && b.box.x2 <= body[2] && b.box.y1 >= body[1] && b.box.y2 <= body[3]));
+  await load(B, [...chipEls, lyE('WX', 'Wire', (bx[0] + bx[2]) / 2, bx[1] - 1, (bx[0] + bx[2]) / 2, bx[3] + 1)]);
+  const chipX = await lay(B);
+  const chipXc = await A('getConnectivity', { doc: B, includeNets: false });
+  ck('chipWireAcrossBody', tov(chipX).every((i) => !same(i.elements, ['U1', 'WX'])) && (chipXc.data.issues || []).some((i) => i.code === 'symbol_overlap' && same(i.elements, ['U1', 'WX'])));
+
+  // --- own drawing exempt: a vertical capacitor value, labels on 1-cell stems in four directions, op-amp signs
+  const ownEls = [lyE('C1', 'Capacitor', 0, 0, 0, 2, { capacitance: '4.7 uF' }),
+    lyE('L1', 'LabeledNode', 10, 0, 11, 0, { label: 'right' }), lyE('L2', 'LabeledNode', 20, 0, 19, 0, { label: 'left' }),
+    lyE('L3', 'LabeledNode', 30, 0, 30, 1, { label: 'down' }), lyE('L4', 'LabeledNode', 40, 0, 40, -1, { label: 'up' }), lyE('OA1', 'OpAmp', 50, 0, 54, 0)];
+  await load(B, ownEls);
+  const own = await lay(B);
+  ck('ownDrawingExempt', own.ok && own.data.issues.length === 0 && own.data.texts === 7);
+
+  // --- live texts: readings are listed live, never counted, never reported
+  const liveEls = [lyE('O1', 'Output', 0, 0, 0, -1, { show_voltage: true }), lyE('W1', 'Wire', -1, -2, 1, -2),
+    lyE('P1', 'Probe', 10, 0, 10, 4), lyE('W2', 'Wire', 10, 2, 12, 2),
+    lyE('AM1', 'Ammeter', 20, 0, 20, 4), lyE('W3', 'Wire', 20, 2, 22, 2),
+    lyE('W4', 'Wire', 30, 0, 34, 0, { show_current: true }), lyE('W5', 'Wire', 32, -2, 32, 0),
+    lyE('V1', 'DCVoltage', 40, 4, 40, 0), lyE('R1', 'Resistor', 40, 0, 44, 0), lyE('G1', 'Ground', 40, 4, 40, 5), lyE('W6', 'Wire', 44, 0, 44, 4), lyE('W7', 'Wire', 44, 4, 40, 4)];
+  await load(B, liveEls);
+  const lv1 = await lay(B, true);
+  const lvRun = await s.call('agentAsync', 'run', { doc: B, span: '5 ms', reset: true }, 60000);
+  const lv2 = await lay(B, true);
+  const liveOf = (r) => (r.data ? r.data.boxes : []).filter((b) => b.live).map((b) => b.element).sort();
+  out.notes.live = { before: lv1.data && lv1.data.issues.map((i) => i.code + ' ' + (i.elements || []).join(',')), live: liveOf(lv1), texts: lv1.data && lv1.data.texts, run: lvRun.data && lvRun.data.reason };
+  const notCov = (r) => ((r && r.data && r.data.issues) || []).filter((i) => i.code === 'text_not_covered');
+  ck('liveTexts', lv1.ok && lvRun.ok && tov(lv1).length === 0 && tov(lv2).length === 0 && same(keys(lv1), keys(lv2))
+    && ['O1', 'P1', 'W4'].every((id) => liveOf(lv1).includes(id)) && lv1.data.texts === lv2.data.texts
+    && lv1.data.boxes.filter((b) => !b.live).length === lv1.data.texts
+    && notCov(lv1).length === 1 && same(notCov(lv1)[0].elements, ['AM1']));
+
+  // --- values hidden (options flag 16): no issue, the SVG has no 10nF
+  const hiddenText = '$ 16 0.000005 10.20027730826997 50 5 50 5e-11\nc 0 0 0 64 0 1e-8 0 0.001\nw 16 -16 16 80 0\n';
+  const hid = await A('importCircuit', { doc: B, circuit: hiddenText });
+  const hidL = await lay(B);
+  const hidSvg = await render({ doc: B, format: 'svg' });
+  ck('valuesHidden', hid.ok && hidL.ok && hidL.data.issues.length === 0 && hidSvg.data && !/10nF/.test(hidSvg.data.content));
+
+  // --- highlight does not count (hover: pin letters drawn; select: bold Output/DataRecorder labels)
+  const hlEls = [...LAYOUT_T8, lyE('Q1', 'TransistorNPN', 10, 0, 14, 0), lyE('WQ', 'Wire', 9.5, -2, 9.5, 2),
+    lyE('O1', 'Output', 20, 0, 20, -1), lyE('DR1', 'DataRecorder', 30, 0, 30, -1)];
+  await load(B, hlEls);
+  const h0 = await lay(B, true);
+  await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'Q1', 'hover')`);
+  const h1 = await lay(B, true);
+  const hSvg = await render({ doc: B, format: 'svg' });
+  await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'Q1', null)`);
+  await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'O1', 'select'); CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'DR1', 'select')`);
+  const h2 = await lay(B, true);
+  await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'O1', null); CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'DR1', null)`);
+  const hTexts = hSvg.data ? svgTextsCircuit(hSvg.data.content).map((t) => t.text) : [];
+  out.notes.highlight = { svgTexts: hTexts };
+  ck('highlightDoesNotCount', h0.ok && same(keys(h0), keys(h1)) && same(keys(h0), keys(h2)) && same(h0.data.boxes, h1.data.boxes) && same(h0.data.boxes, h2.data.boxes)
+    && !h0.data.boxes.some((b) => b.element === 'Q1') && ['B', 'C', 'E'].every((l) => hTexts.includes(l)));
+
+  // --- text_not_covered (Phase 16a fixture): a PolarCapacitor with a wire through its value text
+  await load(B, [lyE('C1', 'PolarCapacitor', 0, 0, 0, 4, { capacitance: '10 uF' }), lyE('W1', 'Wire', 1, -1, 1, 5)]);
+  const nc = await lay(B);
+  const ncI = notCov(nc);
+  ck('textNotCovered', nc.ok && ncI.length === 1 && ncI[0].severity === 'info' && same(ncI[0].elements, ['C1']) && !ncI[0].at && /PolarCapacitor/.test(ncI[0].message)
+    && tov(nc).length === 0 && ncI[0].key === 'text_not_covered|C1||');
+  // debugForceNotCovered: a covered class reported as not covered (the 16b fixture)
+  await load(B, [lyE('R1', 'Resistor', 0, 0, 0, 4), lyE('W1', 'Wire', 1, -1, 1, 5)]);
+  const fc0 = await lay(B);
+  await s.eval(`CircuitJS1Agent.debugForceNotCovered('Resistor')`);
+  const fc1 = await lay(B);
+  await s.eval(`CircuitJS1Agent.debugForceNotCovered(null)`);
+  ck('forceNotCovered', tov(fc0).length === 1 && tov(fc1).length === 0 && notCov(fc1).length === 1 && same(notCov(fc1)[0].elements, ['R1']));
+
+  // --- background = visible: the fixtures above in a background and in the visible document
+  const fixtures = [LAYOUT_T8, [lyE('L1', 'LabeledNode', 0, 0, 0, -1, { label: 'VOUT_MAIN' }), lyE('L2', 'LabeledNode', 2, 0, 2, -1, { label: 'VREF_MAIN' })],
+    [lyE('L1', 'LabeledNode', 0, 0, 1, 0, { label: 'input' }), lyE('R1', 'Resistor', 2, -6, 2, 2)], chipEls, ownEls, liveEls.filter((e) => !/^(V1|R1|G1|W6|W7)$/.test(e.id))];
+  const allFx = [];
+  fixtures.forEach((els, k) => { for (const e of els) allFx.push({ ...e, id: e.id + '_' + k, start: { x: e.start.x, y: e.start.y + 20 * k }, end: { x: e.end.x, y: e.end.y + 20 * k } }); });
+  const bgImp = await load(B, allFx);
+  const visImp = await load(A0, allFx);
+  await sleep(500); // the visible tab draws (bounding boxes, transform) before the reads
+  const bgL = await lay(B, true);
+  const visL = await lay(A0, true);
+  const strip = (r) => ({ keys: keys(r), boxes: r.data.boxes.filter((b) => !b.live) });
+  ck('backgroundEqualsVisible', bgImp.ok && visImp.ok && bgL.ok && visL.ok && same(strip(bgL), strip(visL)) && tov(bgL).length >= 3);
+  out.notes.bgVis = { bgIssues: keys(bgL), visIssues: keys(visL) };
+
+  // --- checkLayout changes no state (SP_AGA_05_02): the visible document running with Show
+  // Current and an in-circuit scope, and a background document; one synchronous page turn
+  await s.eval(`CircuitJS1.importCircuit(${JSON.stringify(await s.eval(`__H.fetchText('/circuitjs1/circuits/lrc.txt')`))}, false)`);
+  const scopeAdd = await A('applyEdits', { doc: A0, edits: [{ op: 'addScope', element: (await A('getCircuit', { doc: A0 })).data.elements[0].id }] });
+  await s.eval('CircuitJS1.setSimRunning && CircuitJS1.setSimRunning(true)');
+  await sleep(400);
+  const noState = await s.eval(`(() => {
+    const snap = (doc) => {
+      const st = JSON.parse(CircuitJS1Agent.debugDocState(doc));
+      return JSON.stringify({ text: JSON.parse(CircuitJS1Agent.call('exportCircuit', JSON.stringify({ doc, format: 'text' }))).data.content,
+        elements: st.elements, scopeGraphs: st.scopeGraphs, undo: st.undo, redo: st.redo, modified: st.modified, ui: st.ui,
+        session: CircuitJS1Agent.debugSessionState(), view: CircuitJS1Agent.debugViewState(), open: JSON.parse(CircuitJS1Agent.call('listDocuments', '{}')).data.documents });
+    };
+    const res = {};
+    for (const doc of [${JSON.stringify(A0)}, ${JSON.stringify(B)}]) {
+      const a = snap(doc);
+      const r = JSON.parse(CircuitJS1Agent.call('checkLayout', JSON.stringify({ doc, includeBoxes: true })));
+      const b = snap(doc);
+      res[doc] = { ok: r.ok, same: a === b, len: a.length };
+    }
+    return res;
+  })()`);
+  await s.eval('CircuitJS1.setSimRunning && CircuitJS1.setSimRunning(false)');
+  out.notes.noState = noState;
+  ck('checkLayoutChangesNoState', scopeAdd.ok && Object.values(noState).every((r) => r.ok && r.same));
+
+  // --- busy document: served during a run; the same result as after it, except the live boxes
+  // (one page turn: the run has not completed, a mutation is refused with busy, checkLayout is served)
+  await load(B, allFx);
+  s.call('agentStart', 'lyBusy', 'run', { doc: B, span: '20 ms', reset: true });
+  await sleep(30);
+  const turn = await s.eval(`(() => {
+    const doc = ${JSON.stringify(B)};
+    const ed = JSON.parse(CircuitJS1Agent.call('applyEdits', JSON.stringify({ doc, edits: [{ op: 'describe', id: 'C1_0', description: 'x' }] })));
+    const lay = JSON.parse(CircuitJS1Agent.call('checkLayout', JSON.stringify({ doc, includeBoxes: true })));
+    const run = (window.__agentRuns || {}).lyBusy;
+    return { editCode: ed.ok ? 'applied' : ed.issues[0].code, lay, runDone: !!(run && run.calls) };
+  })()`);
+  const busy = turn.lay;
+  const st = await waitFor(async () => { const x = await s.call('agentStarted', 'lyBusy'); return x && x.calls ? x : null; }, 60000, 'busy run');
+  const after = await lay(B, true);
+  ck('busyServed', turn.editCode === 'busy' && !turn.runDone && busy.ok && st.result && st.result.ok && same(strip(busy), strip(after)));
+  out.notes.busy = { editCode: turn.editCode, runDoneAtRead: turn.runDone, busyOk: busy.ok, runReason: st.result && st.result.data && st.result.data.reason };
+
+  // --- caps: 120 crossings → 100 issues, truncated; 2100 resistors with boxes → 2000 boxes, truncated
+  const crossings = [];
+  for (let k = 0; k < 120; k++) { const x = (k % 20) * 8, y = Math.floor(k / 20) * 8; crossings.push(lyE('R' + k, 'Resistor', x, y, x, y + 4), lyE('W' + k, 'Wire', x + 1, y - 1, x + 1, y + 5)); }
+  await load(B, crossings);
+  const cap1 = await lay(B);
+  const many = [];
+  // grounded chains of 50 (isolated resistors would make the import very slow: each dangling post
+  // and isolated group is an issue, PL_AGA backlog "importCircuit scales")
+  for (let k = 0; k < 2100; k++) {
+    const x = (k % 50) * 4, y = Math.floor(k / 50) * 6;
+    many.push(lyE('R' + k, 'Resistor', x, y, x + 4, y));
+    if (k % 50 === 0) many.push(lyE('GA' + k, 'Ground', x, y, x, y + 2));
+    if (k % 50 === 49) many.push(lyE('GB' + k, 'Ground', x + 4, y, x + 4, y + 2));
+  }
+  await load(B, many);
+  const cap2 = await lay(B, true);
+  ck('caps', cap1.ok && cap1.data.issues.length === 100 && cap1.data.truncated === true && cap2.ok && cap2.data.boxes.length === 2000 && cap2.data.truncated === true);
+
+  // --- render "explicit fonts": the same elements listed after and before an op-amp give the
+  // same SVG fonts (= their placements'), equal PNGs, equal PNG with a slice break after every element
+  const fontEls = [lyE('L1', 'LabeledNode', 0, 0, 0, -1, { label: 'lbl' }), lyE('G1', 'AndGate', 4, 0, 8, 0), lyE('I1', 'Inverter', 12, 0, 16, 0),
+    lyE('S1', 'Switch', 20, 0, 24, 0, { label: 'SW' }), lyE('Q1', 'TransistorNPN', 28, 0, 32, 0)];
+  const opa = lyE('OA1', 'OpAmp', 36, 0, 40, 0);
+  // close the menu bar as a user click elsewhere does (an open menu bar would take the next menu click)
+  const closeMenus = async () => {
+    await s.key('Escape');
+    await s.eval(`document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); true`);
+    await sleep(200);
+  };
+  const euro = await s.call('clickMenuPath', [menuTexts('Options'), menuTexts('IEC Gates')]);
+  await closeMenus();
+  const fontCase = async (els) => {
+    await load(B, els);
+    await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'Q1', 'hover')`);
+    const sv = await render({ doc: B, format: 'svg' });
+    const png = await render({ doc: B, format: 'png' });
+    await s.eval('CircuitJS1Agent.debugRenderSliceElements(1)');
+    const png1 = await render({ doc: B, format: 'png' });
+    await s.eval('CircuitJS1Agent.debugRenderSliceElements(0)');
+    const lb = await lay(B, true);
+    await s.eval(`CircuitJS1Agent.debugSetHighlight(${JSON.stringify(B)}, 'Q1', null)`);
+    const texts = sv.data ? svgTextsCircuit(sv.data.content).filter((t) => t.text.trim()) : [];
+    const strip64 = (r) => (r && r.data ? r.data.content.replace(/^data:image\/png;base64,/, '') : '');
+    return { texts, boxes: lb.data ? lb.data.boxes : [], png: strip64(png), png1: strip64(png1) };
+  };
+  const after1 = await fontCase([opa, ...fontEls]);
+  const before1 = await fontCase([...fontEls, opa]);
+  // switch IEC gates off again; the option is stored, so later scenarios would draw IEC gates
+  // (a menu click can miss while a menu is still open: check and retry)
+  const euroOn = async () => (await s.eval(`localStorage.getItem('euroGates')`)) === 'true';
+  const euroClicks = [];
+  for (let k = 0; k < 6 && (await euroOn()); k++) {
+    // a checked item reads "\u2714IEC Gates" (CheckboxMenuItem)
+    const n = await s.call('clickMenuPath', [menuTexts('Options'), menuTexts('IEC Gates').map((t) => '\u2714' + t)]);
+    euroClicks.push(n);
+    if (n === 2) await closeMenus();
+  }
+  out.notes.euroRestore = { clicks: euroClicks, stored: await s.eval(`localStorage.getItem('euroGates')`) };
+  ck('iecGatesRestored', !(await euroOn()));
+  const fontOf = (t) => [t.font.style, t.font.weight, t.font.size, t.font.family].join(' ');
+  const units = 'normal normal 12px sans-serif';
+  const pinLetters = (c) => c.texts.filter((t) => /^[BCE]$/.test(t.text));
+  const d1 = await s.call('pngDiff', after1.png, before1.png, []);
+  const d2 = await s.call('pngDiff', after1.png, after1.png1, []);
+  const d3 = await s.call('pngDiff', before1.png, before1.png1, []);
+  out.notes.fonts = { euroToggled: euro, after: after1.texts.map((t) => t.text + ':' + fontOf(t)), before: before1.texts.map((t) => t.text + ':' + fontOf(t)), pngOrder: d1.diff, pngSlices: [d2.diff, d3.diff] };
+  const nonPin = (c) => c.texts.filter((t) => !/^[BCE]$/.test(t.text));
+  const tf = (c) => c.texts.map((t) => t.text + ':' + fontOf(t)).sort();
+  ck('explicitFonts', euro === 2 && after1.texts.length >= 8 && same(tf(after1), tf(before1))
+    && matchTextsToBoxes(nonPin(after1), after1.boxes).length === 0 && matchTextsToBoxes(nonPin(before1), before1.boxes).length === 0
+    && ['lbl', 'SW', '&', '1'].every((x) => after1.texts.some((t) => t.text === x && fontOf(t) === units) && before1.texts.some((t) => t.text === x && fontOf(t) === units))
+    && pinLetters(after1).length === 3 && pinLetters(after1).every((t) => fontOf(t) === units) && pinLetters(before1).every((t) => fontOf(t) === units)
+    && d1.diff === 0 && d2.diff === 0 && d3.diff === 0);
+
+  // --- an element draw that throws leaves nothing behind (the session's measuring context is
+  // restored in a finally): the next render of the same circuit equals the one before
+  await load(B, ownEls);
+  const pngOf = async () => { const r = await render({ doc: B, format: 'png' }); return r && r.data ? r.data.content.replace(/^data:image\/png;base64,/, '') : null; };
+  const pA = await pngOf();
+  const exBefore = s.exceptions.length;
+  await s.eval('CircuitJS1Agent.debugFailNextOffscreenDraw()');
+  const failedRender = await render({ doc: B, format: 'png' });
+  await sleep(200);
+  forcedExceptions += s.exceptions.length - exBefore;
+  const pB = await pngOf();
+  const dAB = pA && pB ? await s.call('pngDiff', pA, pB, []) : { diff: -1 };
+  out.notes.drawFailure = { failed: failedRender && failedRender.issues && failedRender.issues[0] && failedRender.issues[0].code, diff: dAB.diff, size: dAB.size || [dAB.a, dAB.b] };
+  ck('throwingDrawLeavesNoState', failedRender && failedRender.ok === false && failedRender.issues[0].code === 'internal_error' && dAB.diff === 0);
+
+  // --- layout equals drawing, every catalogue type, four directions, option variants, examples
+  const types = (await A('listTypes', {})).data.types.map((t) => t.type);
+  const everyType = { compared: 0, texts: 0, problems: {}, notCoveredWithTexts: [], partlyCovered: [], importFailed: [], uncoveredSilent: [] };
+  const rot = (d, k) => { let [x, y] = [d.dx, d.dy]; for (let i = 0; i < k; i++) [x, y] = [-y, x]; return [x, y]; };
+  const compareDoc = async (label, run) => {
+    if (run) await s.call('agentAsync', 'run', { doc: B, span: '1 us', reset: true }, 30000);
+    const sv = await render({ doc: B, format: 'svg' });
+    const lb = await lay(B, true);
+    const texts = sv.data ? svgTextsCircuit(sv.data.content).filter((t) => t.text.trim()) : [];
+    const nc = notCov(lb);
+    everyType.compared++;
+    everyType.texts += texts.length;
+    const boxes = lb.data ? lb.data.boxes : [];
+    if (nc.length && !boxes.length) { if (texts.length) everyType.notCoveredWithTexts.push(label); return; }
+    // with not-covered elements in the document (counter.txt), an SVG text that no box claims may be
+    // theirs: only the texts with a same-string box and every box are compared then
+    let p = matchTextsToBoxes(texts, boxes);
+    if (nc.length) {
+      everyType.partlyCovered.push(label);
+      p = p.filter((x) => x.boxWithoutSvgText || x.candidates.length);
+    }
+    if (p.length) everyType.problems[label] = p.slice(0, 4);
+  };
+  for (const type of types) {
+    const ti = (await A('describeType', { type })).data;
+    for (let k = 0; k < 4; k++) {
+      const [dx, dy] = rot(ti.defaultSize, k);
+      const imp = await load(B, [lyE('X1', type, 10, 10, 10 + dx, 10 + dy)]);
+      if (!imp.ok) { everyType.importFailed.push(type + '/' + k + ': ' + (imp.issues || []).map((i) => i.code).join(',')); continue; }
+      await compareDoc(type + '/' + k, false);
+    }
+  }
+  const variants = {
+    mosfetShowVt: [lyE('M1', 'NMOS', 0, 0, 4, 0, null, 32 | 2)],
+    potShowValues: [lyE('P1', 'Potentiometer', 0, 0, 4, 0, null, 1), lyE('R1', 'Resistor', 0, 0, 0, 4), lyE('R2', 'Resistor', 4, 0, 4, 4), lyE('V1', 'DCVoltage', 0, 4, 4, 4)],
+    switchLabel: [lyE('S1', 'Switch', 0, 0, 4, 0, { label: 'SW1' }), lyE('S2', 'Switch', 10, 0, 10, 4, { label: 'SW2' })],
+    textTwoLinesBar: [lyE('T1', 'Text', 0, 0, 4, 0, { text: 'first\\nsecond', draw_bar: true })],
+    outputShowVoltage: [lyE('O1', 'Output', 0, 0, 0, -1, { show_voltage: true })],
+    wireShowCurrent: [lyE('W1', 'Wire', 0, 0, 4, 0, { show_current: true })],
+  };
+  for (const [name, els] of Object.entries(variants)) {
+    for (let k = 0; k < 4; k++) {
+      const rotEls = els.map((e) => { const [x1, y1] = rot({ dx: e.start.x, dy: e.start.y }, k); const [x2, y2] = rot({ dx: e.end.x, dy: e.end.y }, k);
+        return { ...e, start: { x: x1 + 20, y: y1 + 20 }, end: { x: x2 + 20, y: y2 + 20 } }; });
+      const imp = await load(B, rotEls);
+      if (!imp.ok) { everyType.importFailed.push(name + '/' + k + ': ' + (imp.issues || []).map((i) => i.code).join(',')); continue; }
+      await compareDoc(name + '/' + k, name === 'potShowValues');
+    }
+  }
+  for (const ex of ['555int.txt', 'counter.txt', 'alu74181.txt']) {
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(ex)})`);
+    await A('importCircuit', { doc: B, circuit: text });
+    await compareDoc(ex, false);
+  }
+  out.notes.everyType = everyType;
+  // the only rejected geometries: a Transformer with its end straight below or above its start (zero_length)
+  ck('layoutEqualsDrawing', everyType.compared > 500 && Object.keys(everyType.problems).length === 0
+    && same(everyType.importFailed, ['Transformer/1: zero_length', 'Transformer/3: zero_length']));
+
+  // --- example corpus: the clean examples of agent_overlap report no text_overlap unless calibrated
+  const dirty = {};
+  for (const name of OVERLAP_CLEAN_EXAMPLES) {
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+    await A('importCircuit', { doc: B, circuit: text });
+    const r = await lay(B);
+    const found = tov(r).map((i) => i.elements.join('|')).sort();
+    const cal = (LAYOUT_CALIBRATION[name] || []).map((c) => c.pair).sort();
+    if (!r.ok || !same(found, cal)) dirty[name] = { found, calibrated: cal };
+  }
+  out.notes.examples = dirty;
+  ck('examplesAsCalibrated', Object.keys(dirty).length === 0);
+
+  // --- static text sites (SP_AGA_05_02 "Drawing paints the layout")
+  const ts = textSitesCheck();
+  out.notes.textSites = { withSites: ts.withSites, failures: ts.failures };
+  ck('textSitesStatic', ts.failures.length === 0);
+
+  await A('importCircuit', { doc: A0, circuit: await s.eval(`__H.fetchText('/circuitjs1/circuits/lrc.txt')`) });
+  await A('closeDocument', { doc: B, discardChanges: true });
+  // the forced draw failure reaches the global handler on purpose (RULE_ERR_004)
+  ck('noPageExceptions', s.exceptions.length === exMark + forcedExceptions);
+  if (s.exceptions.length !== exMark) out.exceptions = s.exceptions.slice(exMark).map((e) => e.slice(0, 600));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_layout.json'), JSON.stringify(out, null, 2));
+  const failed = Object.keys(out.checks).filter((n) => !out.checks[n]);
+  report('AG.agent_layout', failed.length === 0, { checks: Object.keys(out.checks).length, failed, compared: everyType.compared, details: path.join(OUT_DIR, 'agent_layout.json') });
+}
+
+// ---------------------------------------------------------------- layout_cost (SP_AGA_05_01 checkLayout cost)
+// The measurement mix (Resistor, Capacitor, LabeledNode, TransistorNPN, OpAmp) of COST_SIZES
+// elements (default 100,2500), median of COST_RUNS (5) runs of importCircuit, applyEdits (one
+// `set`) and getConnectivity on the visible document, and of checkLayout on the visible and on a
+// background document when the contract exists. Written to OUT_DIR/layout_cost.json.
+function costMix(n, typeList, pitch) {
+  const types = typeList || ['Resistor', 'Capacitor', 'LabeledNode', 'TransistorNPN', 'OpAmp'];
+  const cols = Math.ceil(Math.sqrt(n));
+  const els = [];
+  for (let i = 0; i < n; i++) {
+    const type = types[i % types.length];
+    const x = (i % cols) * (pitch || 8), y = Math.floor(i / cols) * (pitch || 8);
+    const e = { id: 'E' + (i + 1), type, start: { x, y }, end: type === 'LabeledNode' ? { x, y: y - 1 } : { x: x + 4, y } };
+    if (type === 'LabeledNode') e.properties = { label: 'N' + (i + 1) };
+    els.push(e);
+  }
+  return { elements: els };
+}
+
+async function scenarioLayoutCost(s) {
+  const sizes = (process.env.COST_SIZES || '100,2500').split(',').map(Number);
+  const runs = +(process.env.COST_RUNS || 5);
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.eval(`window.__timed = (op, args) => { const t = performance.now(); const r = JSON.parse(CircuitJS1Agent.call(op, JSON.stringify(args))); return { ms: performance.now() - t, ok: r.ok, r }; }`);
+  const T = async (op, args) => s.eval(`(() => { const x = window.__timed(${JSON.stringify(op)}, ${JSON.stringify(args)}); return { ms: x.ms, ok: x.ok, issues: x.ok ? null : x.r.issues }; })()`);
+  const docs = (await A('listDocuments', {})).data.documents;
+  const vis = docs.find((d) => d.active).doc;
+  const bg = (await A('createDocument', { title: 'Cost' })).data.doc;
+  const hasLayout = (await A('checkLayout', { doc: vis })).ok === true;
+  const med = (a) => { const b = [...a].sort((x, y) => x - y); return Math.round(b[Math.floor(b.length / 2)] * 100) / 100; };
+  const out = { runs, hasLayout, sizes: {}, render: {} };
+  const parts = (process.env.COST_PARTS || 'ops,render').split(',');
+  for (const n of parts.includes('ops') ? sizes : []) {
+    const mix = costMix(n);
+    await s.eval(`window.__mix = ${JSON.stringify(mix)}`);
+    const t = { importCircuit: [], applyEdits: [], getConnectivity: [], checkLayoutVisible: [], checkLayoutBackground: [] };
+    let failed = null;
+    for (let k = 0; k < runs; k++) {
+      const imp = await s.eval(`(() => { const x = window.__timed('importCircuit', { doc: ${JSON.stringify(vis)}, circuit: window.__mix }); return { ms: x.ms, ok: x.ok }; })()`);
+      if (!imp.ok) failed = 'import';
+      t.importCircuit.push(imp.ms);
+      const ed = await T('applyEdits', { doc: vis, edits: [{ op: 'set', id: 'E1', properties: { resistance: k % 2 ? '1k' : '2k' } }] });
+      if (!ed.ok) failed = 'applyEdits ' + JSON.stringify(ed.issues);
+      t.applyEdits.push(ed.ms);
+      t.getConnectivity.push((await T('getConnectivity', { doc: vis })).ms);
+      if (hasLayout) t.checkLayoutVisible.push((await T('checkLayout', { doc: vis })).ms);
+    }
+    if (hasLayout) {
+      await s.eval(`(() => window.__timed('importCircuit', { doc: ${JSON.stringify(bg)}, circuit: window.__mix }))()`);
+      for (let k = 0; k < runs; k++) t.checkLayoutBackground.push((await T('checkLayout', { doc: bg })).ms);
+    }
+    out.sizes[n] = { failed, median: Object.fromEntries(Object.entries(t).filter(([, v]) => v.length).map(([k, v]) => [k, med(v)])), all: t };
+    await A('importCircuit', { doc: vis, circuit: { elements: [] } });
+  }
+  // Render time (PL_AGA Phase 16a, lead): the draw time of a PNG (RENDER_FORMAT=svg: SVG) render (scale 1) of a background
+  // document — the sum of its render slices (measure and draw passes, the encode start), median of
+  // COST_RUNS — for RENDER_MIXES (mix = the measurement mix, or one type) of RENDER_SIZE elements.
+  // RENDER_BEFORE=<layout_cost.json of the step-0 build> fails a median more than 5 % above it.
+  if (parts.includes('render')) {
+    const rn = +(process.env.RENDER_SIZE || 2500);
+    for (const m of (process.env.RENDER_MIXES || 'mix,Resistor,Wire,OpAmp').split(',')) {
+      // a 6-cell pitch keeps the 2500-element image below the 40-megapixel render limit
+      await s.eval(`window.__mix = ${JSON.stringify(costMix(rn, m === 'mix' ? null : [m], 6))}`);
+      await s.eval(`(() => window.__timed('importCircuit', { doc: ${JSON.stringify(bg)}, circuit: window.__mix }).ok)()`);
+      const once = async () => {
+        await s.call('startSliceProbe');
+        const r = await s.call('agentAsync', 'render', { doc: bg, format: process.env.RENDER_FORMAT || 'png', scale: 1 }, 600000);
+        const list = await s.call('stopSliceProbe');
+        if (!(r && r.ok)) throw new Error('render failed: ' + JSON.stringify(r && (r.issues || r)).slice(0, 300));
+        return list.filter((x) => x.op === 'render').reduce((a, x) => a + x.ms, 0);
+      };
+      await once(); // warm-up (first draw of each class)
+      const ms = [];
+      for (let k = 0; k < runs; k++) ms.push(await once());
+      out.render[m] = { size: rn, median: med(ms), all: ms.map((x) => Math.round(x * 10) / 10) };
+    }
+  }
+  await A('closeDocument', { doc: bg, discardChanges: true });
+  fs.writeFileSync(path.join(OUT_DIR, 'layout_cost.json'), JSON.stringify(out, null, 2));
+  const summary = Object.fromEntries(Object.entries(out.sizes).map(([n, v]) => [n, v.median]));
+  summary.render = Object.fromEntries(Object.entries(out.render).map(([m, v]) => [m, v.median]));
+  // [SP_AGA_05_01] checkLayout budget (draft-compiled build): visible ≤ 8 ms at 100 and ≤ 120 ms at
+  // 2500 elements; background the same plus the scoped bind (≤ 3 ms). COST_BEFORE=<layout_cost.json of
+  // the pre-16a build> also checks importCircuit, applyEdits and getConnectivity within 10 %.
+  const BUDGET = { 100: 8, 2500: 120 };
+  const over = [];
+  for (const [n, v] of Object.entries(out.sizes)) {
+    if (!hasLayout || !BUDGET[n]) continue;
+    if (v.median.checkLayoutVisible > BUDGET[n]) over.push(`${n} visible ${v.median.checkLayoutVisible} > ${BUDGET[n]} ms`);
+    if (v.median.checkLayoutBackground > BUDGET[n] + 3) over.push(`${n} background ${v.median.checkLayoutBackground} > ${BUDGET[n] + 3} ms`);
+  }
+  if (process.env.COST_BEFORE) {
+    const before = JSON.parse(fs.readFileSync(process.env.COST_BEFORE, 'utf8'));
+    for (const [n, v] of Object.entries(out.sizes)) {
+      const b = before.sizes && before.sizes[n];
+      if (!b) continue;
+      for (const op of ['importCircuit', 'applyEdits', 'getConnectivity']) {
+        if (v.median[op] > b.median[op] * 1.1) over.push(`${n} ${op} ${v.median[op]} > 110 % of ${b.median[op]} ms`);
+      }
+    }
+  }
+  if (process.env.RENDER_BEFORE) {
+    const before = JSON.parse(fs.readFileSync(process.env.RENDER_BEFORE, 'utf8'));
+    for (const [m, v] of Object.entries(out.render)) {
+      const b = before.render && before.render[m];
+      if (b && v.median > b.median * 1.05) over.push(`render ${m} ${v.median} > 105 % of ${b.median} ms`);
+    }
+  }
+  out.over = over;
+  fs.writeFileSync(path.join(OUT_DIR, 'layout_cost.json'), JSON.stringify(out, null, 2));
+  report('AG.layout_cost', s.exceptions.length === exMark && Object.values(out.sizes).every((v) => !v.failed) && over.length === 0, { hasLayout, ...summary, over });
+}
+
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -7041,7 +7974,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.Point;
+import com.lushprojects.circuitjs1.client.TextMeasurer;
 import com.lushprojects.circuitjs1.client.element.waveform.*;
 
 public class RailElm extends VoltageElm {
@@ -74,40 +75,75 @@ public class RailElm extends VoltageElm {
         return null;
     }
 
-    public void draw(Graphics g) {
+    /**
+     * The end of the rail's lead: before the text of {@link #getRailText} (half its width in the
+     * units font), before the waveform circle, or the end point.
+     */
+    private void railLeadOf(TextMeasurer m, Point out) {
         ElmGeometry geom = geom();
-        Point point1 = geom.getPoint1();
-        Point point2 = geom.getPoint2();
         String rt = getRailText();
         double w;
         if (rt != null) {
-            w = g.measureWidth(rt) / 2;
+            // [SP_AGA_03_13] measured in the font the rail label is drawn in
+            w = m.measureWidth(rt, unitsFont()) / 2;
         } else {
             w = (waveformInstance != null && waveformInstance.hasCircle()) ? CIRCLE_SIZE : 0;
         }
         double dn = getDn();
         if (w > dn * .8)
             w = dn * .8;
-        interpPoint(point1, point2, railLead, 1 - w / dn);
+        interpPoint(geom.getPoint1(), geom.getPoint2(), out, 1 - w / dn);
+    }
+
+    /**
+     * [SP_AGA_03_13] The label shown at the end of the rail instead of a waveform circle (a DC
+     * rail's voltage, "CLK", a file name), or null.
+     */
+    String railLabel() {
+        return waveformInstance == null ? null : waveformInstance.getRailLabel(this);
+    }
+
+    /**
+     * [SP_AGA_03_13] the rail label beyond the lead in the units font, or else the frequency
+     * beside the waveform circle (when values are shown)
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        String label = railLabel();
+        if (label != null) {
+            Point lead = new Point();
+            railLeadOf(out.measurer(), lead);
+            layoutLabel(out, label, geom().getPoint1(), lead, unitsFont(), 0);
+        } else {
+            layoutWaveformValue(out, 0);
+        }
+    }
+
+    public void draw(Graphics g) {
+        ElmGeometry geom = geom();
+        Point point1 = geom.getPoint1();
+        Point point2 = geom.getPoint2();
+        PaintingTextLayout t = paintTexts(g);
+        railLeadOf(t.measurer(), railLead);
         setBbox(point1, point2, CIRCLE_SIZE);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, railLead);
-        drawRail(g);
+        drawRail(g, t);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
         if (circuitEditor().dragElm != this)
             drawDots(g, point1, railLead, curcount);
     }
 
-    void drawRail(Graphics g) {
-        waveformInstance.drawRail(g, this);
-    }
-
-    public void drawRailText(Graphics g, String s) {
-        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-        setPowerColor(g, false);
-        ElmGeometry geom = geom();
-        drawLabeledNode(g, s, geom.getPoint1(), railLead);
+    /** Draws the label (group 0), or the waveform circle with its frequency (group 0). */
+    void drawRail(Graphics g, PaintingTextLayout t) {
+        if (railLabel() != null) {
+            g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+            setPowerColor(g, false);
+            t.paint(0);
+        } else {
+            drawWaveform(g, geom().getPoint2(), t, 0);
+        }
     }
 
     double getVoltageDiff() {

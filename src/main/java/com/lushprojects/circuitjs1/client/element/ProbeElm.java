@@ -123,11 +123,84 @@ public class ProbeElm extends CircuitElm {
     long periodStart, periodLength, pulseStart;// time between consecutive max values
 
     Point center;
-    private Point plusPoint;
 
     public void setPoints() {
         super.setPoints();
         center = interpPoint(geom().getPoint1(), geom().getPoint2(), .5);
+    }
+
+    /** The reading shown with "Show Voltage", by meter kind. */
+    private String readingText() {
+        String s = "";
+        switch (meter) {
+            case TP_VOL:
+                s = getUnitTextWithScale(getVoltageDiff(), "V", scale);
+                break;
+            case TP_RMS:
+                s = getUnitTextWithScale(rmsV, "V(rms)", scale);
+                break;
+            case TP_MAX:
+                s = getUnitTextWithScale(lastMaxV, "Vpk", scale);
+                break;
+            case TP_MIN:
+                s = getUnitTextWithScale(lastMinV, "Vmin", scale);
+                break;
+            case TP_P2P:
+                s = getUnitTextWithScale(lastMaxV - lastMinV, "Vp2p", scale);
+                break;
+            case TP_BIN:
+                s = binaryLevel + "";
+                break;
+            case TP_FRQ:
+                s = getUnitText(frequency, "Hz");
+                break;
+            case TP_PER:
+                // s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " +
+                // sim.getIterCount();
+                break;
+            case TP_PWI:
+                s = getUnitText(pulseWidth, "S");
+                break;
+            case TP_DUT:
+                s = showFormat(dutyCycle);
+                break;
+        }
+        return s;
+    }
+
+    /**
+     * [SP_AGA_03_13] group 0: "X"/"Y" in the middle while it is a plot axis, and the reading
+     * (live) beside it with "Show Voltage"; group 1: the "+" mark beside the red lead (its place
+     * depends on the drawn lead length, which grows while highlighted); group 2: "V" in the
+     * circle.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        Font f = new Font("SansSerif", Font.BOLD, 14);
+        if (center != null) {
+            if (this == circuitEditor().plotXElm)
+                layoutCentered(out, "X", center.x, center.y, true, f, 0);
+            if (this == circuitEditor().plotYElm)
+                layoutCentered(out, "Y", center.x, center.y, true, f, 0);
+        }
+        if (mustShowVoltage())
+            layoutValue(out, readingText(), drawAsCircle() ? circleSize + 3 : 4, 0, true);
+        double len = (highlighted || mustShowVoltage()) ? 16 : (getDn() - 32);
+        if (drawAsCircle())
+            len = circleSize * 2;
+        Font units = unitsFont();
+        Point plusPoint = new Point();
+        double dn = getDn();
+        int dsign = getDsign();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), plusPoint, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
+        if (geom().getY2() > geom().getY1())
+            plusPoint.y += 4;
+        if (geom().getY1() > geom().getY2())
+            plusPoint.y += 3;
+        int w = (int) out.measureWidth("+", units);
+        out.add(new TextPlacement("+", units, plusPoint.x - w / 2, plusPoint.y).group(1));
+        if (drawAsCircle() && center != null)
+            layoutCentered(out, "V", center.x, center.y, true, units, 2);
     }
 
     public void draw(Graphics g) {
@@ -147,66 +220,14 @@ public class ProbeElm extends CircuitElm {
         if (selected)
             g.setColor(selectColor());
         drawThickLine(g, geom().getLead2(), geom().getPoint2());
-        Font f = new Font("SansSerif", Font.BOLD, 14);
-        g.setFont(f);
-        if (this == circuitEditor().plotXElm)
-            drawCenteredText(g, "X", center.x, center.y, true);
-        if (this == circuitEditor().plotYElm)
-            drawCenteredText(g, "Y", center.x, center.y, true);
-        if (mustShowVoltage()) {
-            String s = "";
-            switch (meter) {
-                case TP_VOL:
-                    s = getUnitTextWithScale(getVoltageDiff(), "V", scale);
-                    break;
-                case TP_RMS:
-                    s = getUnitTextWithScale(rmsV, "V(rms)", scale);
-                    break;
-                case TP_MAX:
-                    s = getUnitTextWithScale(lastMaxV, "Vpk", scale);
-                    break;
-                case TP_MIN:
-                    s = getUnitTextWithScale(lastMinV, "Vmin", scale);
-                    break;
-                case TP_P2P:
-                    s = getUnitTextWithScale(lastMaxV - lastMinV, "Vp2p", scale);
-                    break;
-                case TP_BIN:
-                    s = binaryLevel + "";
-                    break;
-                case TP_FRQ:
-                    s = getUnitText(frequency, "Hz");
-                    break;
-                case TP_PER:
-                    // s = "percent:"+period + " " + sim.timeStep + " " + sim.simTime + " " +
-                    // sim.getIterCount();
-                    break;
-                case TP_PWI:
-                    s = getUnitText(pulseWidth, "S");
-                    break;
-                case TP_DUT:
-                    s = showFormat(dutyCycle);
-                    break;
-            }
-            drawValues(g, s, drawAsCircle() ? circleSize + 3 : 4);
-        }
+        PaintingTextLayout t = paintTexts(g);
+        t.paint(0);
         g.setColor(foregroundColor());
-        g.setFont(unitsFont());
-        if (plusPoint == null)
-            plusPoint = new Point();
-        double dn = getDn();
-        int dsign = getDsign();
-        interpPoint(geom().getPoint1(), geom().getPoint2(), plusPoint, (dn / 2 - len / 2 - 4) / dn, -10 * dsign);
-        if (geom().getY2() > geom().getY1())
-            plusPoint.y += 4;
-        if (geom().getY1() > geom().getY2())
-            plusPoint.y += 3;
-        int w = (int) g.measureWidth("+");
-        g.drawString("+", plusPoint.x - w / 2, plusPoint.y);
+        t.paint(1);
         if (drawAsCircle()) {
             g.setColor(elementColor());
             drawThickCircle(g, center.x, center.y, circleSize);
-            drawCenteredText(g, "V", center.x, center.y, true);
+            t.paint(2);
         }
         drawPosts(g);
         g.restore();

@@ -51,6 +51,12 @@ public class DecimalDisplayElm extends ChipElm {
         return "decimal display";
     }
 
+    /** [SP_AGA_03_13] Not covered yet (PL_AGA Phase 16b): this class still draws text outside layoutTexts. */
+    @Override
+    public boolean textLayoutCovered() {
+        return false;
+    }
+
     public void draw(Graphics g) {
         drawChip(g);
         int xl = getX() + cspc + flippedSizeX * cspc;

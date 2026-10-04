@@ -20,7 +20,10 @@ fs.mkdirSync(path.join(project, '.claude', 'skills'), { recursive: true });
 fs.cpSync(SKILL, path.join(project, '.claude', 'skills', 'circuitjs-circuits'), { recursive: true, filter: (s) => !path.relative(SKILL, s).split(path.sep).includes('evals') });
 const mcpConfig = path.join(dir, 'mcp.json');
 fs.writeFileSync(mcpConfig, JSON.stringify({ mcpServers: { circuitjs: { type: 'http', url: process.env.CJS_URL || 'http://127.0.0.1:7311/mcp' } } }));
-const TOOLS = ['circuit_types', 'circuit_documents', 'circuit_import', 'circuit_edit', 'circuit_get', 'circuit_connectivity', 'circuit_read', 'circuit_render', 'circuit_sim', 'circuit_run', 'circuit_diagnostics', 'circuit_checkpoint', 'circuit_history'];
+// Tools come from the running server (every circuit_* tool except circuit_file), so new tools are allowed
+const { execFileSync } = await import('node:child_process');
+const TOOLS = JSON.parse(execFileSync(process.execPath, [path.join(REPO, 'mcp/bridge/bin/circuitjs-mcp.js'), 'tools'], { encoding: 'utf8' }))
+  .map((t) => t.name).filter((n) => n.startsWith('circuit_') && n !== 'circuit_file');
 const BUILTIN = ['Read', 'Skill', 'ListMcpResourcesTool', 'ReadMcpResourceTool'];
 const prompt = fs.readFileSync(promptFile, 'utf8');
 fs.writeFileSync(path.join(dir, 'prompt.txt'), prompt);

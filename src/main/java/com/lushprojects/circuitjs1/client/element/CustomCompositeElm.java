@@ -90,6 +90,19 @@ public class CustomCompositeElm extends CompositeElm {
         return modelStr;
     }
 
+    /** [SP_AGA_03_13] The subcircuit draws through its chip: the chip's layout is its layout. */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (chip != null)
+            chip.layoutTexts(out, highlighted);
+    }
+
+    /** [SP_AGA_03_13] Covered exactly when the chip it draws through is covered. */
+    @Override
+    public boolean textLayoutCovered() {
+        return chip == null || chip.textLayoutCovered();
+    }
+
     public void draw(Graphics g) {
         int i;
         for (i = 0; i != postCount; i++) {

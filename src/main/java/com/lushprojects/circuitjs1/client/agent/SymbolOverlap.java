@@ -6,6 +6,7 @@ import com.lushprojects.circuitjs1.client.element.GraphicElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -70,15 +71,15 @@ final class SymbolOverlap {
     static final int BUCKET = 64;
     static final int MAX_BUCKETS = 1 << 18;
 
-    private static final int TWO_POINT = 0;
-    private static final int SINGLE = 1;
-    private static final int DERIVED = 2;
+    static final int TWO_POINT = 0;
+    static final int SINGLE = 1;
+    static final int DERIVED = 2;
 
     private SymbolOverlap() {
     }
 
-    /** The symbol and lines of one non-wire element. */
-    private static final class Body {
+    /** The symbol and lines of one non-wire element (also the obstacles of {@link TextOverlap}). */
+    static final class Body {
         final CircuitElm elm;
         final int kind;
         final Point[] posts;
@@ -419,8 +420,89 @@ final class SymbolOverlap {
      * IDs sorted, ordered by pair.
      */
     static void check(List<CircuitElm> elms, List<Issue> issues) {
-        List<Body> bodies = new ArrayList<>();
-        List<CircuitElm> wires = new ArrayList<>();
+        issues.addAll(findHits(elms, new ArrayList<Body>(), new ArrayList<CircuitElm>()).values());
+    }
+
+    /**
+     * [SP_AGA_03_13] The body model of a document (the obstacles of the text layout check) and
+     * the element pairs {@code symbol_overlap} reports (exempt from {@code text_overlap}).
+     */
+    static final class Model {
+        final List<Body> bodies = new ArrayList<>();
+        final List<CircuitElm> wires = new ArrayList<>();
+        /** {@link #pairKey} → whether {@link #check} reports the pair (computed on demand). */
+        private final Map<String, Boolean> reported = new HashMap<>();
+
+        /**
+         * @return true when {@link #check} reports {@code symbol_overlap} for the pair: the rules of
+         *     {@link #findHits} applied to these two elements only (the spatial hash there only
+         *     narrows the candidates, so the answer is the same)
+         */
+        boolean reports(CircuitElm a, CircuitElm b) {
+            String key = pairKey(a, b);
+            Boolean r = reported.get(key);
+            if (r == null) {
+                Body ba = a instanceof WireElm ? null : bodyOf(a), bb = b instanceof WireElm ? null : bodyOf(b);
+                r = pairOverlaps(a, ba, b, bb) || pairOverlaps(b, bb, a, ba);
+                reported.put(key, r);
+            }
+            return r;
+        }
+    }
+
+    /** @return the body model of {@code elms}; the pairs {@link #check} reports come from {@link Model#reports} */
+    static Model model(List<CircuitElm> elms) {
+        Model m = new Model();
+        for (CircuitElm elm : elms) {
+            if (elm instanceof WireElm) {
+                m.wires.add(elm);
+                continue;
+            }
+            Body b = bodyOf(elm);
+            if (b != null) {
+                m.bodies.add(b);
+            }
+        }
+        return m;
+    }
+
+    /**
+     * The rules of {@link #findHits} that let element {@code a} (its posts, its wire or its drawing)
+     * meet the symbol or lines of {@code b}: rule 1 (a post of a), rule 2 (a as a wire), rule 3 (a's
+     * body samples). {@code ba}/{@code bb}: their bodies, or null (wire, graphic, no posts).
+     */
+    private static boolean pairOverlaps(CircuitElm a, Body ba, CircuitElm b, Body bb) {
+        if (bb == null || a == b) {
+            return false;
+        }
+        for (int j = 0; j < a.getPostCount(); j++) {
+            Point p = a.getPost(j);
+            if (p != null && !bb.isOwnPost(p) && (bb.inSymbol(p.x, p.y) || bb.onLine(p.x, p.y))) {
+                return true;
+            }
+        }
+        List<double[]> samples = new ArrayList<>();
+        if (a instanceof WireElm) {
+            Point p = a.getPost(0), z = a.getPost(1);
+            if (p != null && z != null) {
+                sampleLine(p.x, p.y, z.x, z.y, samples);
+            }
+        } else if (ba != null) {
+            samples = ba.samples();
+        }
+        for (double[] s : samples) {
+            if (bb.inSymbol(s[0], s[1]) && !bb.nearOwnPost(s[0], s[1], OWN_POST_TOLERANCE)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The rules of {@link #check}: fills {@code bodies} and {@code wires} and returns the issue of
+     * each overlapping pair by {@link #pairKey}, ordered by pair.
+     */
+    private static Map<String, Issue> findHits(List<CircuitElm> elms, List<Body> bodies, List<CircuitElm> wires) {
         for (CircuitElm elm : elms) {
             if (elm instanceof WireElm) {
                 wires.add(elm);
@@ -432,7 +514,7 @@ final class SymbolOverlap {
             }
         }
         if (bodies.isEmpty()) {
-            return;
+            return new TreeMap<>();
         }
         Grid grid = new Grid(bodies);
         // one issue per pair: the first rule that finds the pair names it
@@ -514,7 +596,7 @@ final class SymbolOverlap {
                 }
             }
         }
-        issues.addAll(hits.values());
+        return hits;
     }
 
     /**
@@ -529,7 +611,7 @@ final class SymbolOverlap {
                 .elements(ids).at(CellGeometry.toCells((int) Math.round(b.centreX)), CellGeometry.toCells((int) Math.round(b.centreY)));
     }
 
-    private static String pairKey(CircuitElm a, CircuitElm b) {
+    static String pairKey(CircuitElm a, CircuitElm b) {
         String ia = a.getElementId(), ib = b.getElementId();
         return ia.compareTo(ib) <= 0 ? ia + "|" + ib : ib + "|" + ia;
     }

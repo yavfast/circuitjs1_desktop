@@ -71,15 +71,28 @@ public class StopTriggerElm extends CircuitElm {
         interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), leadFraction(8, dn));
     }
 
+    /**
+     * [SP_AGA_03_13] the "trigger" label beyond the stem, bold while highlighted or fired. Fonts
+     * from simulated state are laid out unfired: only the painting passes the fired state.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutTrigger(out, highlighted, false);
+    }
+
+    private void layoutTrigger(TextLayout out, boolean highlighted, boolean fired) {
+        layoutLabel(out, Locale.LS("trigger"), geom().getPoint1(), geom().getLead1(),
+                new Font("SansSerif", highlighted || fired ? Font.BOLD : 0, 14), 0);
+    }
+
     public void draw(Graphics g) {
         g.save();
         boolean selected = needsHighlight() || stopped;
-        Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
-        g.setFont(f);
         g.setColor(selected ? selectColor() : foregroundColor());
         setBbox(geom().getPoint1(), geom().getLead1(), 0);
-        String s = Locale.LS("trigger");
-        drawLabeledNode(g, s, geom().getPoint1(), geom().getLead1());
+        PaintingTextLayout t = newPaintingLayout(g);
+        layoutTrigger(t, isLayoutHighlighted(), stopped);
+        t.paint(0);
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());

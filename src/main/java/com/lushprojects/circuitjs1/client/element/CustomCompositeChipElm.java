@@ -67,6 +67,12 @@ public class CustomCompositeChipElm extends ChipElm {
         label = text;
     }
 
+    /** [SP_AGA_03_13] Not covered yet (PL_AGA Phase 16b): this class still draws text outside layoutTexts. */
+    @Override
+    public boolean textLayoutCovered() {
+        return false;
+    }
+
     void drawLabel(Graphics g, int x, int y) {
         if (label == null)
             return;

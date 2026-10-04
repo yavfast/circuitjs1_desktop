@@ -165,6 +165,12 @@ public class AmmeterElm extends CircuitElm {
     Polygon arrowPoly;
     private Point plusPoint;
 
+    /** [SP_AGA_03_13] Not covered yet (PL_AGA Phase 16b): this class still draws text outside layoutTexts. */
+    @Override
+    public boolean textLayoutCovered() {
+        return false;
+    }
+
     public void draw(Graphics graphics) {
         super.draw(graphics);//BC required for highlighting
         ElmGeometry geom = geom();
@@ -178,7 +184,7 @@ public class AmmeterElm extends CircuitElm {
         } else {
             graphics.setColor(needsHighlight() ? selectColor() : elementColor());
             drawThickCircle(graphics, center.x, center.y, circleSize);
-            drawCenteredText(graphics, "A", center.x, center.y, true);
+            drawCenteredText(graphics, "A", center.x, center.y, true, unitsFont()); // [SP_AGA_03_13] explicit font
 
             calcLeads(circleSize * 2);
             Point lead1 = geom().getLead1();

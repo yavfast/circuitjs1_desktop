@@ -95,12 +95,8 @@ public class LogicOutputElm extends CircuitElm {
         }
     }
 
-    public void draw(Graphics g) {
-        g.save();
-        Font f = new Font("SansSerif", Font.BOLD, 20);
-        g.setFont(f);
-        // g.setColor(needsHighlight() ? selectColor : lightGrayColor);
-        g.setColor(elementColor());
+    /** The level the input voltage shows: L/H, 0/1 or a ternary digit. */
+    private String levelText() {
         double inputVoltage = getNodeVoltage(0);
         String s = (inputVoltage < threshold) ? "L" : "H";
         if (isTernary()) {
@@ -113,9 +109,24 @@ public class LogicOutputElm extends CircuitElm {
                 s = "0";
         } else if (isNumeric())
             s = (inputVoltage < threshold) ? "0" : "1";
-        value = s;
+        return s;
+    }
+
+    /** [SP_AGA_03_13] the level, centred at the end point; live (a simulated logic level) */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutCentered(out, levelText(), geom().getX2(), geom().getY2(), true, new Font("SansSerif", Font.BOLD, 20), 0)
+                .live(true);
+    }
+
+    public void draw(Graphics g) {
+        g.save();
+        // g.setColor(needsHighlight() ? selectColor : lightGrayColor);
+        g.setColor(elementColor());
+        double inputVoltage = getNodeVoltage(0);
+        value = levelText();
         setBbox(geom().getPoint1(), geom().getLead1(), 0);
-        drawCenteredText(g, s, geom().getX2(), geom().getY2(), true);
+        paintTexts(g).paint(0);
         setVoltageColor(g, inputVoltage);
         drawThickLine(g, geom().getPoint1(), geom().getLead1());
         drawPosts(g);

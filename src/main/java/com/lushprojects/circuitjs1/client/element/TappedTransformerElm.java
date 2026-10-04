@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -351,24 +352,13 @@ public class TappedTransformerElm extends CircuitElm {
         setPoints();
     }
 
-    public void draw(Graphics g) {
+    /** [SP_AGA_03_13] the winding turns outside the primary and both secondary halves, away from the core */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (ptCoil == null || ptCore == null)
+            return;
+        Font f = unitsFont();
         int i;
-        for (i = 0; i != 5; i++) {
-            setVoltageColor(g, getNodeVoltage(i));
-            drawThickLine(g, ptEnds[i], ptCoil[i]);
-        }
-        for (i = 0; i != 4; i++) {
-            if (i == 1)
-                continue;
-            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 1)));
-            drawCoil(g, i > 1 ? -6 * flip : 6 * flip,
-                    ptCoil[i], ptCoil[i + 1], getNodeVoltage(i), getNodeVoltage(i + 1));
-        }
-
-        // winding labels (turns)
-        g.save();
-        g.setFont(unitsFont());
-        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         double coreCx = 0, coreCy = 0;
         for (i = 0; i != 4; i++) {
             coreCx += ptCore[i].x;
@@ -412,8 +402,28 @@ public class TappedTransformerElm extends CircuitElm {
 
             int lx = (int) Math.round(mx + px * 12);
             int ly = (int) Math.round(my + py * 12);
-            drawCenteredText(g, label, lx, ly, true);
+            layoutCentered(out, label, lx, ly, true, f, 0);
         }
+    }
+
+    public void draw(Graphics g) {
+        int i;
+        for (i = 0; i != 5; i++) {
+            setVoltageColor(g, getNodeVoltage(i));
+            drawThickLine(g, ptEnds[i], ptCoil[i]);
+        }
+        for (i = 0; i != 4; i++) {
+            if (i == 1)
+                continue;
+            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 1)));
+            drawCoil(g, i > 1 ? -6 * flip : 6 * flip,
+                    ptCoil[i], ptCoil[i + 1], getNodeVoltage(i), getNodeVoltage(i + 1));
+        }
+
+        // winding labels (turns)
+        g.save();
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        paintTexts(g).paint(0);
         g.restore();
 
         g.setColor(needsHighlight() ? selectColor() : elementColor());

@@ -81,6 +81,21 @@ public class CurrentElm extends CircuitElm {
         arrow = calcArrow(center, ptemp, 4, 4);
     }
 
+    /**
+     * [SP_AGA_03_13] the source current beside the circle, when values are shown and the last
+     * analysis found a current path ({@code current} is the stamped value, 0 when broken)
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues() && current != 0) {
+            String s = getShortUnitText(current, "A");
+            int dx = getDx();
+            int dy = getDy();
+            if (dx == 0 || dy == 0)
+                layoutValue(out, s, 12, 0, false);
+        }
+    }
+
     public void draw(Graphics g) {
         int cr = 12;
         draw2Leads(g);
@@ -93,13 +108,7 @@ public class CurrentElm extends CircuitElm {
         g.fillPolygon(arrow);
         setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         doDots(g);
-        if (displaySettings().showValues() && current != 0) {
-            String s = getShortUnitText(current, "A");
-            int dx = getDx();
-            int dy = getDy();
-            if (dx == 0 || dy == 0)
-                drawValues(g, s, cr);
-        }
+        paintTexts(g).paint(0);
         drawPosts(g);
     }
 

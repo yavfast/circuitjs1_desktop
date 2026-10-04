@@ -5,7 +5,10 @@
 //   content[1]         image/png for circuit_render png
 //   isError            exactly when ok = false
 // The text part stays within TEXT_LIMIT characters. The per-tool reductions (re-executing a
-// read-only tool with smaller arguments) live in tools.js; this module measures, builds the
+// read-only tool with smaller arguments: circuit_get concise and limit, circuit_connectivity
+// includeNets false, circuit_layout includeBoxes false - the note says the boxes were left out
+// and the issues are complete up to their own cap of 100 - and circuit_diagnostics log limit)
+// live in tools.js; this module measures, builds the
 // result_too_large rejection and, as the last resort for a result that cannot be re-requested,
 // trims whole array items of the text part only (never cutting mid-structure).
 

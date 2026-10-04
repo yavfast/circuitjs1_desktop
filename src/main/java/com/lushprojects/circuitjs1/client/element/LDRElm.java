@@ -93,6 +93,15 @@ public class LDRElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHa
 
     Polygon arrowPoly;
 
+    /** [SP_AGA_03_13] the resistance at the present light level, when values are shown */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues()) {
+            String s = getShortUnitText(calcResistance(LuxFromSliderPos()), "");
+            layoutValue(out, s + "\u03A9", 6, 0, false);
+        }
+    }
+
     public void draw(Graphics g) { // used Resistor draw
         // int segments = 16;
         int i;
@@ -149,9 +158,8 @@ public class LDRElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHa
         if (displaySettings().showValues()) {
             lux = LuxFromSliderPos();
             resistance = calcResistance(lux);
-            String s = getShortUnitText(resistance, "");
-            drawValues(g, s + "\u03A9", hs);
         }
+        paintTexts(g).paint(0);
         doDots(g);
         drawPosts(g);
     }

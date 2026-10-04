@@ -58,6 +58,24 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         this.unitsFont = unitsFont;
     }
 
+    /** [SP_AGA_03_13] Session measuring context: a 1 x 1 canvas used only for text measurement. */
+    private Graphics textMeasurer;
+
+    /**
+     * [SP_AGA_03_13] The session-scoped text measurer: a {@link Graphics} over a 1 x 1 canvas of
+     * its own, which keeps its font between measurements (set only when it changes). Layouts that
+     * draw nothing (checkLayout) and the painting layouts' position arithmetic measure with it.
+     */
+    public TextMeasurer getTextMeasurer() {
+        if (textMeasurer == null) {
+            Canvas c = Canvas.createIfSupported();
+            c.setCoordinateSpaceWidth(1);
+            c.setCoordinateSpaceHeight(1);
+            textMeasurer = new Graphics(c.getContext2d());
+        }
+        return textMeasurer;
+    }
+
     int hintType = -1, hintItem1, hintItem2;
 
     // Public getters/setters for hint fields (used by export/import)
@@ -323,9 +341,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             if (isStopErrorElm) {
                 graphics.pushForcedColor(Color.red);
             }
-            ce.draw(graphics);
-            if (isStopErrorElm) {
-                graphics.popForcedColor();
+            try {
+                ce.draw(graphics);
+            } finally {
+                if (isStopErrorElm) {
+                    graphics.popForcedColor();
+                }
             }
         }
         perfmon.stopContext();
@@ -773,6 +794,28 @@ public class CircuitRenderer extends BaseCirSimDelegate {
     public static final int OFFSCREEN_MARGIN = 16;
     /** Restarts of an offscreen image after its document's element list changed; then it completes. */
     private static final int OFFSCREEN_MAX_RESTARTS = 5;
+    /**
+     * Harness diagnostic (PL_AGA Phase 16a, not a contract): when above 0, an offscreen draw step
+     * ends after this many element draws, whatever its deadline (a forced slice break).
+     */
+    private static int forcedSliceElements;
+
+    /** Harness diagnostic (PL_AGA Phase 16a): the next offscreen element draw throws. */
+    private static boolean failNextOffscreenDraw;
+
+    /**
+     * Harness diagnostic: the next offscreen element draw throws after leaving a save, a
+     * transform and the stop-error forced colour on the graphics (as a failing element draw
+     * would), to check that the next image is drawn as if nothing had failed.
+     */
+    public static void armOffscreenDrawFailure() {
+        failNextOffscreenDraw = true;
+    }
+
+    /** Harness diagnostic: forces an offscreen-render slice break after every n elements (0 = off). */
+    public static void setForcedSliceElements(int n) {
+        forcedSliceElements = Math.max(0, n);
+    }
     /** Largest offscreen image area in pixels ([SP_AGA_02_08]: 40 megapixels). */
     public static final long OFFSCREEN_MAX_AREA = 40000000L;
     /** Pixels of background filled per band (a large raster image is filled over several steps). */
@@ -1032,8 +1075,12 @@ public class CircuitRenderer extends BaseCirSimDelegate {
             boolean savedPrintable = cs.isPrintable();
             boolean savedPrintableItem = mm.printableCheckItem.getState();
             double savedCurrentMult = currentMult;
-            Context2d ctx = measure ? measureContext : context;
             Graphics g = measure ? measureGraphics : graphics;
+            // the measuring context is session-wide: an element draw that throws must not leave its
+            // transform (or an element's own unbalanced save) on it for the next image
+            int saveDepth = g.getSaveDepth();
+            // the stop-error element draws in a forced colour; a draw that throws must not keep it
+            boolean forced = false;
             Scope.beginOffscreenDraw();
             try {
                 // [SP_AGA_02_08] printable colours, as the user's Print (drawCircuitInContext):
@@ -1055,12 +1102,17 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                 transform[5] = ty * s;
 
                 CircuitSimulator simulator = simulator();
-                ctx.save();
+                g.save();
                 g.scale(s, s);
                 g.translate(tx, ty);
                 g.setFont(getUnitsFont());
                 g.setLineCap(Context2d.LineCap.ROUND);
+                int drawn = 0;
                 do {
+                    if (forcedSliceElements > 0 && drawn >= forcedSliceElements) {
+                        break;
+                    }
+                    drawn++;
                     int i = measure ? measured : next;
                     if (i >= elms.size()) {
                         break;
@@ -1075,12 +1127,20 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                         g.setColor(Color.gray);
                     }
                     boolean isStopErrorElm = simulator.stopMessage != null && simulator.stopElm == ce;
-                    if (isStopErrorElm) {
+                    if (isStopErrorElm || failNextOffscreenDraw) {
                         g.pushForcedColor(Color.red);
+                        forced = true;
+                    }
+                    if (failNextOffscreenDraw) {
+                        failNextOffscreenDraw = false;
+                        g.save();
+                        g.translate(1000, 1000);
+                        throw new IllegalStateException("forced offscreen draw failure (harness diagnostic)");
                     }
                     ce.draw(g);
-                    if (isStopErrorElm) {
+                    if (forced) {
                         g.popForcedColor();
+                        forced = false;
                     }
                 } while (Duration.currentTimeMillis() < deadline);
                 if (!measure && next >= elms.size()) {
@@ -1093,21 +1153,25 @@ public class CircuitRenderer extends BaseCirSimDelegate {
                         g.fillOval(cn.x - 3, cn.y - 3, 7, 7);
                     }
                 }
-                ctx.restore();
+                g.restore();
 
                 if (!measure && next >= elms.size()) {
                     if (panel != null) {
-                        ctx.save();
+                        g.save();
                         g.scale(scale, scale);
                         g.translate(-panel.x, circuitHeight / scale - panel.y);
                         for (Scope scope : scopes) {
                             scope.draw(g);
                         }
-                        ctx.restore();
+                        g.restore();
                     }
                     tailDrawn = true;
                 }
             } finally {
+                if (forced) {
+                    g.popForcedColor();
+                }
+                g.restoreTo(saveDepth);
                 Scope.endOffscreenDraw();
                 System.arraycopy(savedTransform, 0, transform, 0, 6);
                 mm.dotsCheckItem.setState(savedDots);

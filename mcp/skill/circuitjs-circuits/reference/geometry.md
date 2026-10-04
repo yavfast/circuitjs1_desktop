@@ -7,7 +7,7 @@
 - Grid-sized parts
 - Connection rule
 - Labels and net names
-- Layout style
+- Layout style (where texts sit)
 - Worked example: RC low-pass with every coordinate
 
 ## Units and axes
@@ -117,6 +117,14 @@ T-junction, wrong and right:
 - **Wires.** Wires run horizontally or vertically, from post to post.
 - **Ground.** A `Ground` lead points down (`end` 2 cells below `start`).
 - **Label leads.** A label's lead points away from the parts (right for outputs, left for inputs).
+
+### Where texts sit
+
+`circuit_layout` checks these texts against wires, leads, symbols and other texts (`text_overlap`):
+- **Values.** Beside the middle of the part: above a horizontal part, right of a vertical part, left of a vertical voltage source. Keep wires and other parts at least one cell from that side.
+- **Labels.** The text sits beyond the end of the label's stem: centred above an upward stem, below a downward one, after a stem pointing right, before one pointing left. Two labels side by side need their texts apart (about one cell per 2 characters); a long label needs room in its direction.
+- **Chips.** Pin names sit inside the chip, next to their pins; a wire across the chip body is `symbol_overlap`, not a text issue.
+- **Meter readings** (voltmeter, ammeter, output voltage, a wire's current) change while running and are not checked.
 
 ## Worked example: RC low-pass with every coordinate
 

@@ -1,5 +1,5 @@
 'use strict';
-// [SP_MCP_02_02] The tool catalogue: 14 `circuit_*` tools grouped over the SP_AGA contracts
+// [SP_MCP_02_02] The tool catalogue: 15 `circuit_*` tools grouped over the SP_AGA contracts
 // (SP_MCP_DEC_01). Each tool validates its arguments (SP_MCP_03_02), maps them to one Agent API
 // contract with the SP_AGA argument names unchanged, and shapes the OperationResult
 // (SP_MCP_01_04, SP_MCP_03_04). Tools add no circuit logic: the structuredContent of a result is
@@ -345,6 +345,40 @@ const TOOLS = [
     annotations: hints(true, false, true, 'Render an image'),
     map(args) {
       return { op: 'render', args: pick(args, ['format', 'scale', 'includeScopes']) };
+    },
+  },
+  {
+    name: 'circuit_layout',
+    title: 'Text layout check',
+    description:
+      'Check the drawing of the texts (SP_AGA checkLayout): values, labels, chip pin names and captions ' +
+      'crossed by a wire or lead, lying over a symbol, or touching another text, measured from the ' +
+      "elements' own text layout (nothing is drawn, nothing changes). Issues: text_overlap (warning, one per " +
+      'element pair, `at` = the centre of the text in grid cells, with a fix hint) and text_not_covered ' +
+      '(info: elements whose texts are not checked yet - look at the render for them). Readings shown by ' +
+      'meters are not checked. Call it before reporting a drawing, together with the render look. ' +
+      'includeBoxes adds the text boxes {element, text, box, anchor, align, baseline, font, live}; a result ' +
+      'over the size limit is re-read with includeBoxes: false (issues stay complete). Acts on the active ' +
+      'document unless `doc` is given. Example: {"includeBoxes": false}.',
+    inputSchema: inputSchema({
+      includeBoxes: { type: 'boolean' },
+    }),
+    outputSchema: S.operationResult({
+      issues: { type: 'array', items: S.ISSUE },
+      texts: S.INT,
+      truncated: S.BOOL,
+      boxes: Object.assign({}, S.ARRAY_OF_OBJECTS, { description: 'With includeBoxes: {element, text, box, anchor, align, baseline, font, live}.' }),
+    }, '{issues, texts, truncated, boxes?}'),
+    annotations: hints(true, false, true, 'Text layout check'),
+    map(args) {
+      return { op: 'checkLayout', args: pick(args, ['includeBoxes']) };
+    },
+    // [SP_MCP_03_04] includeBoxes: false (issues only)
+    async reduce(result, call, ctx) {
+      if (call.args.includeBoxes !== true) return null;
+      const effective = Object.assign({}, call.args, { includeBoxes: false });
+      const r = await ctx.agent(call.op, effective);
+      return { result: r, note: reductionNote(call.args, effective, 'the text boxes were left out; issues are complete up to their own cap of 100') };
     },
   },
   {

@@ -62,6 +62,15 @@ public class OTAElm extends CompositeElm {
         return false;
     }
 
+    /** [SP_AGA_03_13] the input signs in the triangle, in the sign font */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (textp == null || plusFont == null)
+            return;
+        layoutCentered(out, "+", textp[0].x, textp[0].y - 2, true, plusFont, 0);
+        layoutCentered(out, "-", textp[1].x, textp[1].y, true, plusFont, 0);
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), 3 * opheight / 2);
         setVoltageColor(g, getNodeVoltage(0));
@@ -81,9 +90,10 @@ public class OTAElm extends CompositeElm {
         drawThickLine(g, bar2[0], bar2[1]);
         drawThickCircle(g, circCent[0].x, circCent[0].y, circDiam / 2);
         drawThickCircle(g, circCent[1].x, circCent[1].y, circDiam / 2);
-        g.setFont(plusFont);
-        drawCenteredText(g, "+", textp[0].x, textp[0].y - 2, true);
-        drawCenteredText(g, "-", textp[1].x, textp[1].y, true);
+        // [SP_AGA_03_13] the sign font does not leak into the next element's texts
+        g.save();
+        paintTexts(g).paint(0);
+        g.restore();
         // setVoltageColor(g, getNodeVoltage(2));
         // drawThickLine(g, lead2, point2);
         curCount0 = updateDotCount(-getCurrentIntoNode(0), curCount0);

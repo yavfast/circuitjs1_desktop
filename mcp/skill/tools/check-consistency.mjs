@@ -21,7 +21,7 @@
 //   form       SP_AGS_03_01: SKILL.md <= 250 lines, references <= 400, a contents table first in
 //              references over 100 lines, references linked only from SKILL.md (one level), whole
 //              cells in example circuits, half-cell lattice in every element spec
-//   codes      every SP_AGA issue code (agent-api.sp.md §03_04-§03_06) and server code
+//   codes      every SP_AGA issue code (agent-api.sp.md §03_04-§03_06, §03_13) and server code
 //              (mcp-server.sp.md §03_03) has a diagnostics.md row; every row names a known code
 //   names      every backticked snake_case word of the skill is an issue code, a property key, a model
 //              parameter key (agent-api.sp.md §01_13 value table), a tool,
@@ -52,7 +52,7 @@ const BRIDGE_TOOLS = ['bridge_instances', 'bridge_select', 'bridge_launch']; // 
 const NOT_CODES = new Set(['error', 'warning', 'info', 'elements', 'from']); // backticked words of §03_06 that are not codes (`from`: a ModelSpec field)
 const OTHER_WORDS = new Set(['connected_to']); // JSON v2 file keys the skill names (not served by the tools)
 // Minimum number of codes each spec section must yield, so a format drift cannot pass vacuously
-const MIN_CODES = { 'SP_AGA_03_04': 5, 'SP_AGA_03_05': 9, 'SP_AGA_03_06': 30, 'SP_MCP_03_03': 1 };
+const MIN_CODES = { 'SP_AGA_03_04': 5, 'SP_AGA_03_05': 9, 'SP_AGA_03_06': 30, 'SP_AGA_03_13': 2, 'SP_MCP_03_03': 1 };
 
 // ------------------------------------------------------------------ options
 function parseArgs(argv) {
@@ -229,6 +229,8 @@ const bySection = {
   'SP_AGA_03_04': [...section(aga, '### 03_04.', '### 03_05.').matchAll(/\| `([a-z_]+)` \|/g)].map((m) => m[1]),
   'SP_AGA_03_05': [...section(aga, '### 03_05.', '### 03_06.').matchAll(/^\| ([a-z_]+) \|/gm)].map((m) => m[1]),
   'SP_AGA_03_06': [...section(aga, '### 03_06.', '### 03_07.').matchAll(/`([a-z_]+)`/g)].map((m) => m[1]).filter((c) => !NOT_CODES.has(c)),
+  // [SP_AGA_03_13] the text layout codes of checkLayout (code table rows, as in §03_05)
+  'SP_AGA_03_13': [...section(aga, '### 03_13.', '## 04.').matchAll(/^\| ([a-z_]+) \|/gm)].map((m) => m[1]),
   'SP_MCP_03_03': [...section(mcpSpec, '### 03_03.', '### 03_04.').matchAll(/issue `([a-z_]+)`/g)].map((m) => m[1]),
 };
 // [SP_AGA_01_13] model parameter keys (value table): words of the skill's model sections

@@ -68,6 +68,16 @@ public class ResistorElm extends CircuitElm {
         }
     }
 
+    /**
+     * [SP_AGA_03_13] the resistance beside the body, when values are shown (8 px off the axis; 4 px
+     * on a resistor shorter than 30 px)
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues())
+            layoutValue(out, getShortUnitText(resistance, ""), (getDn() < 30 ? 2 : 6) + 2, 0, false);
+    }
+
     public void draw(Graphics g) {
         int i;
         // int hs = sim.euroResistorCheckItem.getState() ? 6 : 8;
@@ -109,10 +119,7 @@ public class ResistorElm extends CircuitElm {
             g.strokeRect(0, -hs, len, 2.0 * hs);
         }
         g.restore();
-        if (displaySettings().showValues()) {
-            String s = getShortUnitText(resistance, "");
-            drawValues(g, s, hs + 2);
-        }
+        paintTexts(g).paint(0);
         doDots(g);
         drawPosts(g);
     }

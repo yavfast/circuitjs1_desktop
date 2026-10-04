@@ -26,6 +26,20 @@ public class OhmMeterElm extends CurrentElm {
         calcLeads(26);
     }
 
+    /** [SP_AGA_03_13] the ohm sign in the circle (group 0) and the reading (live, group 1) */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (center != null)
+            layoutCentered(out, Locale.ohmString, center.x, center.y, true, unitsFont(), 0);
+        if (displaySettings().showValues() && current != 0) {
+            String s = getShortUnitText(getVoltageDiff() / current, Locale.ohmString);
+            int dx = getDx();
+            int dy = getDy();
+            if (dx == 0 || dy == 0)
+                layoutValue(out, s, 12, 1, true);
+        }
+    }
+
     public void draw(Graphics g) {
         int cr = 12;
         draw2Leads(g);
@@ -33,17 +47,12 @@ public class OhmMeterElm extends CurrentElm {
         setPowerColor(g, false);
 
         drawThickCircle(g, center.x, center.y, cr);
-        drawCenteredText(g, Locale.ohmString, center.x, center.y, true);
+        PaintingTextLayout t = paintTexts(g);
+        t.paint(0);
 
         setBbox(geom().getPoint1(), geom().getPoint2(), cr);
         doDots(g);
-        if (displaySettings().showValues() && current != 0) {
-            String s = getShortUnitText(getVoltageDiff() / current, Locale.ohmString);
-            int dx = getDx();
-            int dy = getDy();
-            if (dx == 0 || dy == 0)
-                drawValues(g, s, cr);
-        }
+        t.paint(1);
         drawPosts(g);
     }
 

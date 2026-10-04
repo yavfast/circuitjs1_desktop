@@ -149,6 +149,12 @@ public class LabeledNodeElm extends CircuitElm {
         return le.node;
     }
 
+    /** [SP_AGA_03_13] the label beyond the end of the stem, in the units font */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutLabel(out, text, geom().getPoint1(), geom().getLead1(), unitsFont(), 0);
+    }
+
     public void draw(Graphics g) {
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, geom().getPoint1(), geom().getLead1());
@@ -158,7 +164,7 @@ public class LabeledNodeElm extends CircuitElm {
         Point ps2 = new Point();
         interpPoint(geom().getPoint1(), geom().getPoint2(), ps2, 1 + 11. / dn);
         setBbox(geom().getPoint1(), ps2, circleSize);
-        drawLabeledNode(g, text, geom().getPoint1(), geom().getLead1());
+        paintTexts(g).paint(0);
 
         curcount = updateDotCount(current, curcount);
         drawDots(g, geom().getPoint1(), geom().getLead1(), curcount);

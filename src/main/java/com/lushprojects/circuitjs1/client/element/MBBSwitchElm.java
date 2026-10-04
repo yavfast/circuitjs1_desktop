@@ -87,6 +87,14 @@ public class MBBSwitchElm extends SwitchElm {
         posCount = 4;
     }
 
+    /**
+     * [SP_AGA_03_13] This drawing has no label: draw() does not call {@link SwitchElm#draw}, so
+     * the switch's label placement is not inherited.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+    }
+
     public void draw(Graphics g) {
 
         setBbox(geom().getPoint1(), geom().getPoint2(), openhs);

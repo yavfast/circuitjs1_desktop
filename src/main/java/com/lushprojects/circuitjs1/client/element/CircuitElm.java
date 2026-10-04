@@ -994,39 +994,92 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         return false;
     }
 
-    void drawCenteredText(Graphics g, String s, int x, int y, boolean cx) {
-        int w = (int) g.measureWidth(s);
-        int h2 = g.getFontSize() / 2;
-        if (cx) {
-            adjustBbox(x - w / 2, y - h2, x + w / 2, y + h2);
-        } else {
-            adjustBbox(x, y - h2, x + w, y + h2);
-        }
+    // ---------------------------------------------------------------- [SP_AGA_03_13] text layout
 
-        g.save();
-        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
-        if (cx) {
-            g.setTextAlign(Context2d.TextAlign.CENTER);
-        }
-        g.drawString(s, x, y);
-        g.restore();
+    /**
+     * [SP_AGA_03_13] Places every string the element draws: one {@link TextPlacement} per string
+     * (font, anchor in circuit pixels, alignment, baseline, over-bar, live, transient, group).
+     * {@code draw()} paints these placements through a {@link PaintingTextLayout}
+     * ({@link #paintTexts}); {@code checkLayout} measures them through a
+     * {@link MeasuringTextLayout}. Pure: it reads only the element's properties and geometry, the
+     * document options, the session language and {@code highlighted}, and writes no field.
+     * Default: no text.
+     *
+     * @param highlighted the element is highlighted ({@link #isLayoutHighlighted}); placements
+     *                    made only when it is true are transient. {@code checkLayout} passes false.
+     */
+    public void layoutTexts(TextLayout out, boolean highlighted) {
     }
 
-    // draw component values (number of resistor ohms, etc). hs = offset
-    void drawValues(Graphics g, String s, double hs) {
+    /**
+     * [SP_AGA_03_13] Coverage: false for a class that still draws a text outside
+     * {@link #layoutTexts} (it reports {@code text_not_covered}; the live harness check
+     * {@code text_sites} enforces the declaration); true for a class whose texts all go through
+     * its layout, and for a class without text.
+     */
+    public boolean textLayoutCovered() {
+        return true;
+    }
+
+    /**
+     * [SP_AGA_03_13] The {@code highlighted} input of the painting layout: the element needs the
+     * highlight (selected, hovered, its scope hovered, the plot's Y element) or is being dragged.
+     */
+    protected boolean isLayoutHighlighted() {
+        return needsHighlight() || (circuitDocument != null && circuitEditor().dragElm == this);
+    }
+
+    /** [SP_AGA_03_13] An empty painting layout over {@code g} (for a layout call of its own). */
+    protected PaintingTextLayout newPaintingLayout(Graphics g) {
+        return PaintingTextLayout.of(this, g);
+    }
+
+    /** [SP_AGA_03_13] The element's placements, ready to be painted group by group from draw(). */
+    protected PaintingTextLayout paintTexts(Graphics g) {
+        PaintingTextLayout t = PaintingTextLayout.of(this, g);
+        layoutTexts(t, isLayoutHighlighted());
+        return t;
+    }
+
+    /**
+     * [SP_AGA_03_13] Places a centred (cx) or left-aligned text at (x, y) on the middle baseline;
+     * painting widens the bounding box by its advance width and font size (as drawCenteredText
+     * did).
+     */
+    TextPlacement layoutCentered(TextLayout out, String s, int x, int y, boolean cx, Font f, int group) {
+        int w = (int) out.measureWidth(s, f);
+        int h2 = f.getSize() / 2;
+        TextPlacement p = new TextPlacement(s, f, x, y).baseline(TextPlacement.Baseline.MIDDLE)
+                .align(cx ? TextPlacement.Align.CENTER : TextPlacement.Align.LEFT).group(group);
+        if (cx) {
+            p.widenBbox(x - w / 2, y - h2, x + w / 2, y + h2);
+        } else {
+            p.widenBbox(x, y - h2, x + w, y + h2);
+        }
+        out.add(p);
+        return p;
+    }
+
+    /**
+     * [SP_AGA_03_13] Places a component value (resistor ohms, etc.) beside the middle of the
+     * element, {@code hs} pixels off its axis, in the units font and the foreground colour:
+     * above a horizontal part, right of a vertical part, left of a vertical voltage source or a
+     * part drawn from lower left to upper right. Rails and sweeps anchor it at their end point.
+     *
+     * @return the placement, or null for an empty string
+     */
+    TextPlacement layoutValue(TextLayout out, String s, double hs, int group, boolean live) {
         if (s == null || s.isEmpty()) {
-            return;
+            return null;
         }
         ElmGeometry geom = geom();
         int x1 = geom.getX1();
         int y1 = geom.getY1();
         int x2 = geom.getX2();
         int y2 = geom.getY2();
-        g.setFont(unitsFont());
-        // FontMetrics fm = g.getFontMetrics();
-        int w = (int) g.measureWidth(s);
-        g.setColor(colorSettings().getForegroundColor());
-        int ya = g.getFontSize() / 2;
+        Font f = unitsFont();
+        int w = (int) out.measureWidth(s, f);
+        int ya = f.getSize() / 2;
         int xc, yc;
         if (this instanceof RailElm || this instanceof SweepElm) {
             xc = x2;
@@ -1037,27 +1090,35 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
         }
         int dpx = (int) (getDpx1() * hs);
         int dpy = (int) (getDpy1() * hs);
+        TextPlacement p;
         if (dpx == 0) {
-            g.drawString(s, xc - w / 2, yc - abs(dpy) - 2);
+            p = new TextPlacement(s, f, xc - w / 2, yc - abs(dpy) - 2);
         } else {
             int xx = xc + abs(dpx) + 2;
             if (this instanceof VoltageElm || (x1 < x2 && y1 > y2)) {
                 xx = xc - (w + abs(dpx) + 2);
             }
-            g.drawString(s, xx, yc + dpy + ya);
+            p = new TextPlacement(s, f, xx, yc + dpy + ya);
         }
+        p.color(foregroundColor()).group(group).live(live);
+        out.add(p);
+        return p;
     }
 
-    public void drawLabeledNode(Graphics g, String str, Point pt1, Point pt2) {
+    /**
+     * [SP_AGA_03_13] Places the text of a labelled node beyond the end of its stem pt1→pt2:
+     * centred below or above a vertical stem, after or before a horizontal one, on the middle
+     * baseline. A leading {@code /} draws an over-bar instead. Painting widens the bounding box by
+     * the text (as drawLabeledNode did).
+     */
+    TextPlacement layoutLabel(TextLayout out, String str, Point pt1, Point pt2, Font f, int group) {
         boolean lineOver = false;
         if (str.startsWith("/")) {
             lineOver = true;
             str = str.substring(1);
         }
-        int w = (int) g.measureWidth(str);
-        int h = (int) g.getFontSize();
-        g.save();
-        g.setTextBaseline(Context2d.TextBaseline.MIDDLE);
+        int w = (int) out.measureWidth(str, f);
+        int h = f.getSize();
         int x = pt2.x, y = pt2.y;
         if (pt1.y != pt2.y) {
             x -= w / 2;
@@ -1069,13 +1130,37 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
                 x -= 4 + w;
             }
         }
-        g.drawString(str, x, y);
-        adjustBbox(x, y - h / 2, x + w, y + h / 2);
-        g.restore();
+        TextPlacement p = new TextPlacement(str, f, x, y).baseline(TextPlacement.Baseline.MIDDLE).group(group)
+                .widenBbox(x, y - h / 2, x + w, y + h / 2);
         if (lineOver) {
             int ya = y - h / 2 - 1;
-            g.drawLine(x, ya, x + w, ya);
+            p.overBar(x, x + w, ya);
         }
+        out.add(p);
+        return p;
+    }
+
+    // Paint wrappers of the shared helpers ([SP_AGA_03_13] layout classes until PL_AGA Phase 16b)
+
+    /** Paints a centred (cx) or left-aligned text in font {@code f} ({@link #layoutCentered}). */
+    void drawCenteredText(Graphics g, String s, int x, int y, boolean cx, Font f) {
+        PaintingTextLayout t = PaintingTextLayout.of(this, g);
+        layoutCentered(t, s, x, y, cx, f, 0);
+        t.paintAll();
+    }
+
+    /** Paints a component value ({@link #layoutValue}). hs = offset */
+    void drawValues(Graphics g, String s, double hs) {
+        PaintingTextLayout t = PaintingTextLayout.of(this, g);
+        layoutValue(t, s, hs, 0, false);
+        t.paintAll();
+    }
+
+    /** Paints the text of a labelled node in font {@code f} ({@link #layoutLabel}). */
+    public void drawLabeledNode(Graphics g, String str, Point pt1, Point pt2, Font f) {
+        PaintingTextLayout t = PaintingTextLayout.of(this, g);
+        layoutLabel(t, str, pt1, pt2, f, 0);
+        t.paintAll();
     }
 
     void drawCoil(Graphics g, int hs, Point p1, Point p2,

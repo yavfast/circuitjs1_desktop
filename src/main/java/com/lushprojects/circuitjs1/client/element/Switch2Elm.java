@@ -52,7 +52,9 @@ public class Switch2Elm extends SwitchElm {
         link = parseInt(st.nextToken());
         throwCount = 2;
         try {
-            throwCount = parseInt(st.nextToken());
+            // a token that is no number (mr-crossbar.txt has "false") keeps the default; parseInt
+            // returns its default instead of throwing, and fewer than 2 throws draws nothing valid
+            throwCount = Math.max(2, parseInt(st.nextToken(), 2));
         } catch (Exception e) {
         }
         noDiagonal = true;
@@ -89,6 +91,14 @@ public class Switch2Elm extends SwitchElm {
         }
         swpoles[i] = geom().getLead2(); // for center off
         posCount = hasCenterOff() ? 3 : throwCount;
+    }
+
+    /**
+     * [SP_AGA_03_13] This drawing has no label: draw() does not call {@link SwitchElm#draw}, so
+     * the switch's label placement is not inherited.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
     }
 
     public void draw(Graphics g) {

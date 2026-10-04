@@ -25,6 +25,7 @@ import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 
 import com.lushprojects.circuitjs1.client.Diode;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -187,6 +188,29 @@ public class MosfetElm extends CircuitElm {
 
     final int hs = 16;
 
+    /**
+     * [SP_AGA_03_13] group 0: the threshold voltage right of the end point ("Show Vt"); group 1:
+     * the pin letters G, S, D (and B), transient: placed only while highlighted
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        Font f = unitsFont();
+        if ((flags & FLAG_SHOWVT) != 0)
+            layoutCentered(out, "" + (vt * pnp), geom().getX2() + 2, geom().getY2(), false, f, 0);
+        if (highlighted) {
+            int dx = getDx();
+            int dy = getDy();
+            // make fiddly adjustments to pin label locations depending on orientation
+            int dsx = sign(dx);
+            int dsyn = dy == 0 ? 0 : 1;
+            out.add(new TextPlacement("G", f, gate[1].x - (dx < 0 ? -2 : 12), gate[1].y + ((dy > 0) ? -5 : 12)).group(1).transientText(true));
+            out.add(new TextPlacement(pnp == -1 ? "D" : "S", f, src[0].x - 3 + 9 * (dsx - dsyn * pnp), src[0].y + 4).group(1).transientText(true));
+            out.add(new TextPlacement(pnp == -1 ? "S" : "D", f, drn[0].x - 3 + 9 * (dsx - dsyn * pnp), drn[0].y + 4).group(1).transientText(true));
+            if (hasBodyTerminal())
+                out.add(new TextPlacement("B", f, body[0].x - 3 + 9 * (dsx - dsyn * pnp), body[0].y + 4).group(1).transientText(true));
+        }
+    }
+
     public void draw(Graphics g) {
         // pick up global flags changes
         if ((flags & FLAGS_GLOBAL) != globalFlags)
@@ -250,11 +274,10 @@ public class MosfetElm extends CircuitElm {
         if (drawDigital() && pnp == -1)
             drawThickCircle(g, pcircle.x, pcircle.y, pcircler);
 
+        PaintingTextLayout t = paintTexts(g);
         if ((flags & FLAG_SHOWVT) != 0) {
-            String s = "" + (vt * pnp);
             g.setColor(foregroundColor());
-            g.setFont(unitsFont());
-            drawCenteredText(g, s, geom().getX2() + 2, geom().getY2(), false);
+            t.paint(0);
         }
         curcount = updateDotCount(-ids, curcount);
         drawDots(g, src[0], src[1], curcount);
@@ -270,21 +293,8 @@ public class MosfetElm extends CircuitElm {
 
         // label pins when highlighted
         if (needsHighlight() || circuitEditor().dragElm == this) {
-            int dx = getDx();
-            int dy = getDy();
-
             g.setColor(foregroundColor());
-            g.setFont(unitsFont());
-
-            // make fiddly adjustments to pin label locations depending on orientation
-            int dsx = sign(dx);
-            int dsyn = dy == 0 ? 0 : 1;
-
-            g.drawString("G", gate[1].x - (dx < 0 ? -2 : 12), gate[1].y + ((dy > 0) ? -5 : 12));
-            g.drawString(pnp == -1 ? "D" : "S", src[0].x - 3 + 9 * (dsx - dsyn * pnp), src[0].y + 4);
-            g.drawString(pnp == -1 ? "S" : "D", drn[0].x - 3 + 9 * (dsx - dsyn * pnp), drn[0].y + 4);
-            if (hasBodyTerminal())
-                g.drawString("B", body[0].x - 3 + 9 * (dsx - dsyn * pnp), body[0].y + 4);
+            t.paint(1);
         }
 
         drawPosts(g);

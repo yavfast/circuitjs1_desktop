@@ -14,6 +14,8 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.McpServerStatus;
+import com.lushprojects.circuitjs1.client.Rectangle;
+import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
 
 /**
@@ -49,6 +51,16 @@ import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
  * server ({@code window.CircuitJS1Mcp} of {@code scripts/mcp-server.js}) and route its status
  * into {@link McpServerStatus}; {@code debugMcpStatus()} returns that status as JSON (harness
  * diagnostic).
+ * <p>
+ * PL_AGA Phase 16a adds {@code debugRenderSliceElements(n)} (an offscreen-render slice break
+ * after every n elements, 0 = off, for the explicit-font pixel check of SP_AGA_05_01),
+ * {@code debugForceNotCovered(type)} (elements of a JSON type give {@code text_not_covered};
+ * null clears), {@code debugSetHighlight(handle, id, "hover" | "select" | null)} (the element
+ * hovered or selected in its document, or cleared, then a repaint), and {@code debugDocState}
+ * gains the element bounding boxes, current-dot positions and selected/hover flags
+ * ({@code elements}) and a digest of the scope graphs ({@code scopeGraphs});
+ * {@code debugFailNextOffscreenDraw()} makes the next offscreen element draw throw after leaving a
+ * save and a transform on the graphics.
  */
 public final class AgentJsBridge {
 
@@ -121,6 +133,22 @@ public final class AgentJsBridge {
             // PL_AGA Phase 9 diagnostic: the circuit-content test of SP_AGA_03_09 on a string
             debugCircuitTest: $entry(function(text) {
                 return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugCircuitTest(Ljava/lang/String;)(text == null ? null : String(text));
+            }),
+            // PL_AGA Phase 16a diagnostic: a forced offscreen-render slice break after every n elements
+            debugRenderSliceElements: $entry(function(n) {
+                @com.lushprojects.circuitjs1.client.CircuitRenderer::setForcedSliceElements(I)(n | 0);
+            }),
+            debugFailNextOffscreenDraw: $entry(function() {
+                @com.lushprojects.circuitjs1.client.CircuitRenderer::armOffscreenDrawFailure()();
+            }),
+            // PL_AGA Phase 16a diagnostics of checkLayout: a JSON type reported as not covered
+            // (null clears), and an element hovered/selected in its document (null clears)
+            debugForceNotCovered: $entry(function(type) {
+                @com.lushprojects.circuitjs1.client.agent.TextOverlap::forceNotCovered(Ljava/lang/String;)(type == null ? null : String(type));
+            }),
+            debugSetHighlight: $entry(function(handle, id, mode) {
+                return @com.lushprojects.circuitjs1.client.agent.AgentJsBridge::debugSetHighlight(Lcom/lushprojects/circuitjs1/client/CirSim;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)(sim,
+                    handle == null ? null : String(handle), id == null ? null : String(id), mode == null ? null : String(mode));
             }),
             // PL_MCP Phase 1 diagnostic: the MCP server status kept by the app (McpServerStatus)
             debugMcpStatus: $entry(function() {
@@ -318,7 +346,54 @@ public final class AgentJsBridge {
         }
         o.put("logCount", new JSONNumber(logs.size()));
         o.put("logs", logs);
+        // [SP_AGA_05_02] draw-time element state: bounding box and current-dot position
+        JSONArray elements = new JSONArray();
+        for (CircuitElm elm : doc.simulator.elmList) {
+            JSONObject e = new JSONObject();
+            e.put("id", new JSONString(elm.getElementId()));
+            Rectangle r = elm.getBoundingBox();
+            if (r != null) {
+                JSONArray bb = new JSONArray();
+                bb.set(0, new JSONNumber(r.x));
+                bb.set(1, new JSONNumber(r.y));
+                bb.set(2, new JSONNumber(r.width));
+                bb.set(3, new JSONNumber(r.height));
+                e.put("bbox", bb);
+            }
+            e.put("curcount", new JSONNumber(elm.curcount));
+            e.put("selected", JSONBoolean.getInstance(elm.isSelected()));
+            e.put("hover", JSONBoolean.getInstance(doc.circuitEditor.getMouseElmRef() == elm));
+            elements.set(elements.size(), e);
+        }
+        o.put("elements", elements);
+        o.put("scopeGraphs", new JSONString(doc.scopeManager.debugGraphState()));
         return o.toString();
+    }
+
+    /**
+     * Harness diagnostic (PL_AGA Phase 16a): sets the element {@code id} of a document hovered
+     * ({@code "hover"}: the editor's hover highlight) or selected ({@code "select"}); null clears
+     * both; then repaints. Returns false for an unknown handle or element.
+     */
+    private static boolean debugSetHighlight(CirSim sim, String handle, String id, String mode) {
+        CircuitDocument doc = handle == null ? sim.getActiveDocument() : DocumentHandles.find(sim, handle);
+        if (doc == null || id == null) {
+            return false;
+        }
+        CircuitElm elm = CircuitView.byId(doc).get(id);
+        if (elm == null) {
+            return false;
+        }
+        if ("hover".equals(mode)) {
+            elm.setMouseElm(true);
+        } else if ("select".equals(mode)) {
+            elm.setSelected(true);
+        } else {
+            elm.setSelected(false);
+            elm.setMouseElm(false);
+        }
+        sim.repaint();
+        return true;
     }
 
     /**

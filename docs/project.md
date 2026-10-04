@@ -109,7 +109,7 @@ Tip (terminal): If you want the NW.js app launcher to return immediately, run it
 
 ### MCP server (AI agents)
 
-Every running desktop instance starts an [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server inside the app: a Streamable HTTP endpoint at `http://<host>:<port>/mcp` with 14 `circuit_*` tools and a few resources, projected onto the Agent API (`window.CircuitJS1Agent`, [JS_API.md](./JS_API.md#circuitjs1agent-agent-api), [agent-api.sp.md](./agent-api.sp.md)). Specification: [mcp-server.sp.md](./mcp-server.sp.md); concept and decisions: [mcp-server.concept.md](./mcp-server.concept.md).
+Every running desktop instance starts an [MCP](https://modelcontextprotocol.io) (Model Context Protocol) server inside the app: a Streamable HTTP endpoint at `http://<host>:<port>/mcp` with 15 `circuit_*` tools and a few resources, projected onto the Agent API (`window.CircuitJS1Agent`, [JS_API.md](./JS_API.md#circuitjs1agent-agent-api), [agent-api.sp.md](./agent-api.sp.md)). Specification: [mcp-server.sp.md](./mcp-server.sp.md); concept and decisions: [mcp-server.concept.md](./mcp-server.concept.md).
 
 - **Connect Claude Code:** `claude mcp add --transport http circuitjs http://127.0.0.1:7311/mcp` (use the URL the app shows).
 - **Where the URL is shown:** Options → "MCP Server..." — status, instance ID, URLs (the local one; the LAN ones too once the server is opened to the network), tool calls in this run, and the connect command with a Copy button. The start-up log line also names the URL.

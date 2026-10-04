@@ -47,8 +47,12 @@ public class DPDTSwitchElm extends SwitchElm {
     public DPDTSwitchElm(CircuitDocument circuitDocument, int xa, int ya, int xb, int yb, int f,
             StringTokenizer st) {
         super(circuitDocument, xa, ya, xb, yb, f, st);
+        poleCount = 2;
         try {
-            poleCount = parseInt(st.nextToken());
+            // a missing token keeps the default; one that is no number, or a count below 1, too
+            // (parseInt returns its default instead of throwing; 0 poles draws nothing valid)
+            int n = parseInt(st.nextToken(), 2);
+            poleCount = n >= 1 ? n : 2;
         } catch (Exception e) {
         }
         noDiagonal = true;
@@ -104,6 +108,14 @@ public class DPDTSwitchElm extends SwitchElm {
             else
                 interpPoint(l1, l2, throwLeads[i * 4 + 3], 1, offset - openhs);
         }
+    }
+
+    /**
+     * [SP_AGA_03_13] This drawing has no label: draw() does not call {@link SwitchElm#draw}, so
+     * the switch's label placement is not inherited.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
     }
 
     public void draw(Graphics g) {

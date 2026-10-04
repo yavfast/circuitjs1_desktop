@@ -70,6 +70,14 @@ public class JfetElm extends MosfetElm {
     private Point[] j_src, j_drn, raPoints;
     private Point tmpArrowPoint;
 
+    /**
+     * [SP_AGA_03_13] A JFET draws no text: draw() does not call {@link MosfetElm#draw}, so the
+     * MOSFET's threshold text and pin letters are not inherited.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         setVoltageColor(g, getNodeVoltage(1));

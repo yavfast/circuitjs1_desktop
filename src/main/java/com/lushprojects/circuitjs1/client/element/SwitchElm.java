@@ -21,7 +21,6 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
-import com.google.gwt.canvas.dom.client.Context2d;
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
@@ -120,6 +119,27 @@ public class SwitchElm extends CircuitElm {
 
     final int openhs = 16;
 
+    /**
+     * [SP_AGA_03_13] the label in the units font: right of a vertical switch, centred below
+     * (drawn left to right) or above a horizontal one
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (label == null)
+            return;
+        int x = getX();
+        int y = getY();
+        int x2 = getX2();
+        int y2 = getY2();
+        int dx = getDx();
+        int dy = getDy();
+        if (Math.abs(dy) > Math.abs(dx))
+            out.add(new TextPlacement(label, unitsFont(), x + 10, (y < y2 ? geom().getLead1() : geom().getLead2()).y - 5));
+        else
+            out.add(new TextPlacement(label, unitsFont(), (x + x2) / 2, (x2 > x) ? y + 15 : y - 15)
+                    .align(TextPlacement.Align.CENTER));
+    }
+
     public void draw(Graphics g) {
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();
@@ -149,16 +169,7 @@ public class SwitchElm extends CircuitElm {
 
         if (label != null) {
             g.setColor(needsHighlight() ? selectColor() : foregroundColor());
-            int dx = getDx();
-            int dy = getDy();
-            if (Math.abs(dy) > Math.abs(dx))
-                g.drawString(label, x + 10, (y < y2 ? lead1 : lead2).y - 5);
-            else {
-                g.save();
-                g.setTextAlign(Context2d.TextAlign.CENTER);
-                g.drawString(label, (x + x2) / 2, (x2 > x) ? y + 15 : y - 15);
-                g.restore();
-            }
+            paintTexts(g).paint(0);
         }
 
         if (useIECSymbol()) {

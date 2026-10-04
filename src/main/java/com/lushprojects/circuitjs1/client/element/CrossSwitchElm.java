@@ -100,6 +100,14 @@ public class CrossSwitchElm extends SwitchElm {
         interpPoint(point1, point2, crossPoints[5], 1 + dp * 3, -openhs * 4);
     }
 
+    /**
+     * [SP_AGA_03_13] This drawing has no label: draw() does not call {@link SwitchElm#draw}, so
+     * the switch's label placement is not inherited.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+    }
+
     public void draw(Graphics g) {
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();

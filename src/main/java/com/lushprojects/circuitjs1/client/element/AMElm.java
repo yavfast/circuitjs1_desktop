@@ -90,6 +90,12 @@ public class AMElm extends CircuitElm {
 
     final int circleSize = 17;
 
+    /** [SP_AGA_03_13] the source's name, centred on its circle */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutCentered(out, "AM", getX2(), getY2(), true, new Font("SansSerif", 0, 12), 0);
+    }
+
     public void draw(Graphics g) {
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();
@@ -98,12 +104,9 @@ public class AMElm extends CircuitElm {
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, point1, lead1);
 
-        Font f = new Font("SansSerif", 0, 12);
-        g.setFont(f);
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        String s = "AM";
-        drawCenteredText(g, s, getX2(), getY2(), true);
+        paintTexts(g).paint(0);
         drawWaveform(g, point2);
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);

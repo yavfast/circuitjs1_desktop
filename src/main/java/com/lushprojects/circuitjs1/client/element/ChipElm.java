@@ -115,20 +115,66 @@ public abstract class ChipElm extends CircuitElm {
         drawChip(g);
     }
 
-    void drawChip(Graphics g) {
+    /**
+     * [SP_AGA_03_13] the pin names inside the chip, one group per pin (painted where each pin is
+     * drawn): in the chip font, shrunk until the name fits the space beside its pin; names on
+     * the west and east sides sit close to the edge; an over-bar marks an inverted pin
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (pins == null)
+            return;
         int i;
-        g.save();
-        Font f = new Font("normal", 0, 10 * csize);
-//	    FontMetrics fm = g.getFontMetrics();
+        int n = Math.min(getPostCount(), pins.length);
         boolean hasVertical = false;
         // check if there are any vertical pins.  if not, we can make the labels wider
-        for (i = 0; i != getPostCount(); i++)
-            if (pins[i].side == SIDE_N || pins[i].side == SIDE_S) {
+        for (i = 0; i != n; i++)
+            if (pins[i] != null && (pins[i].side == SIDE_N || pins[i].side == SIDE_S)) {
                 hasVertical = true;
                 break;
             }
+        for (i = 0; i != n; i++) {
+            Pin p = pins[i];
+            if (p == null || p.text == null || p.textloc == null)
+                continue;
+            int fsz = 10 * csize;
+            Font f = new Font("normal", 0, fsz);
+            double availSpace = cspc * 2 - 8;
+            // allow a little more space if the chip is wide and there are no vertical pins
+            // (we could still do this if vertical pins are present but then we would have to do
+            // more work to avoid overlaps)
+            if (!hasVertical && sizeX > 2)
+                availSpace = cspc * 2.5 + cspc * (sizeX - 3);
+            int sw = (int) out.measureWidth(p.text, f);
+            // scale font down if it's too big
+            while (sw > availSpace && fsz > 1) {
+                fsz -= 1;
+                f = new Font("normal", 0, fsz);
+                sw = (int) out.measureWidth(p.text, f);
+            }
+            int asc = fsz;
+            int tx;
+            // put text closer to edge if it's on left or right.
+            if (p.side == flippedXSide(SIDE_W))
+                tx = p.textloc.x - (cspc - 5);
+            else if (p.side == flippedXSide(SIDE_E))
+                tx = p.textloc.x + (cspc - 5) - sw;
+            else
+                tx = p.textloc.x - sw / 2;
+            TextPlacement t = new TextPlacement(p.text, f, tx, p.textloc.y + asc / 3).group(i);
+            if (p.lineOver) {
+                int ya = p.textloc.y - asc + asc / 3;
+                t.overBar(tx, tx + sw, ya);
+            }
+            out.add(t);
+        }
+    }
+
+    void drawChip(Graphics g) {
+        int i;
+        g.save();
+        PaintingTextLayout t = paintTexts(g);
         for (i = 0; i != getPostCount(); i++) {
-            g.setFont(f);
             Pin p = pins[i];
             setVoltageColor(g, getNodeVoltage(i));
             Point a = p.post;
@@ -147,38 +193,7 @@ public abstract class ChipElm extends CircuitElm {
                 g.drawPolyline(p.clockPointsX, p.clockPointsY, 3);
             }
             g.setColor(p.selected ? selectColor() : foregroundColor());
-            int fsz = 10 * csize;
-            double availSpace = cspc * 2 - 8;
-            // allow a little more space if the chip is wide and there are no vertical pins
-            // (we could still do this if vertical pins are present but then we would have to do
-            // more work to avoid overlaps)
-            if (!hasVertical && sizeX > 2)
-                availSpace = cspc * 2.5 + cspc * (sizeX - 3);
-            while (true) {
-                int sw = (int) g.measureWidth(p.text);
-                // scale font down if it's too big
-                if (sw > availSpace) {
-                    fsz -= 1;
-                    Font f2 = new Font("normal", 0, fsz);
-                    g.setFont(f2);
-                    continue;
-                }
-                int asc = (int) g.getFontSize();
-                int tx;
-                // put text closer to edge if it's on left or right.
-                if (p.side == flippedXSide(SIDE_W))
-                    tx = p.textloc.x - (cspc - 5);
-                else if (p.side == flippedXSide(SIDE_E))
-                    tx = p.textloc.x + (cspc - 5) - sw;
-                else
-                    tx = p.textloc.x - sw / 2;
-                g.drawString(p.text, tx, p.textloc.y + asc / 3);
-                if (p.lineOver) {
-                    int ya = p.textloc.y - asc + asc / 3;
-                    g.drawLine(tx, ya, tx + sw, ya);
-                }
-                break;
-            }
+            t.paint(i);
         }
 
         drawLabel(g, labelX, labelY);

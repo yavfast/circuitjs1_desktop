@@ -116,6 +116,17 @@ public class ThermistorNTCElm extends CircuitElm implements HasBuiltInSlider, Mo
         ps4 = new Point();
     }
 
+    /** [SP_AGA_03_13] the temperature and resistance at the slider position, when values are shown */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues()) {
+            double tempr = temprFromSliderPos();
+            String s = getShortUnitText(calcResistance(tempr), "");
+            String t = Character.toString((char) 176);
+            layoutValue(out, tempr + t + "C=" + s + "\u03A9", 6, 0, false);
+        }
+    }
+
     public void draw(Graphics g) { // used Resistor draw
         // int segments = 16;
         int i;
@@ -163,11 +174,8 @@ public class ThermistorNTCElm extends CircuitElm implements HasBuiltInSlider, Mo
         if (displaySettings().showValues()) {
             temperature = temprFromSliderPos();
             resistance = calcResistance(temperature);
-            String s = getShortUnitText(resistance, "");
-            String t = Character.toString((char) 176);
-            // drawValues(g, "-t:"+s, hs);
-            drawValues(g, temperature + t + "C=" + s + "\u03A9", hs);
         }
+        paintTexts(g).paint(0);
         doDots(g);
         drawPosts(g);
     }

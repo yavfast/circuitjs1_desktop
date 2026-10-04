@@ -171,6 +171,16 @@ public abstract class GateElm extends CircuitElm {
         drawThickPolygon(g, gatePoly);
     }
 
+    /** [SP_AGA_03_13] the IEC gate text above the middle, with euro gates */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (useEuroGates()) {
+            Point center = new Point();
+            interpPoint(geom().getPoint1(), geom().getPoint2(), center, .5);
+            layoutCentered(out, getGateText(), center.x, center.y - 6 * gsize, true, unitsFont(), 0);
+        }
+    }
+
     public void draw(Graphics g) {
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();
@@ -186,9 +196,7 @@ public abstract class GateElm extends CircuitElm {
         g.setColor(needsHighlight() ? selectColor() : elementColor());
         if (useEuroGates()) {
             drawThickPolygon(g, gatePoly);
-            if (centerTemp == null) centerTemp = new Point();
-            interpPoint(point1, point2, centerTemp, .5);
-            drawCenteredText(g, getGateText(), centerTemp.x, centerTemp.y - 6 * gsize, true);
+            paintTexts(g).paint(0);
         } else
             drawGatePolygon(g);
         g.setLineWidth(2);
@@ -209,7 +217,6 @@ public abstract class GateElm extends CircuitElm {
     }
 
     Polygon gatePoly, schmittPoly;
-    private Point centerTemp;
     Point pcircle, linePoints[], icircles[];
 
     public int getPostCount() {

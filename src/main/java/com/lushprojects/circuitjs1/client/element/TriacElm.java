@@ -30,6 +30,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 // MT1 and MT2 are nodes 1 and 0 (instead of 0 and 1) so that MT1 will be at the bottom when drawn bottom-to-top
 
 import com.lushprojects.circuitjs1.client.Diode;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -165,6 +166,22 @@ public class TriacElm extends CircuitElm {
 
     }
 
+    /**
+     * [SP_AGA_03_13] the pin letters of a vertical Triac drawn downwards, transient: only while
+     * highlighted
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (highlighted && geom().getPoint1().x == geom().getPoint2().x
+                && geom().getPoint2().y > geom().getPoint1().y) {
+            Font f = unitsFont();
+            int ds = sign(getDx());
+            out.add(new TextPlacement("MT1", f, geom().getLead2().x + ((ds < 0) ? 5 : -30), geom().getLead2().y + 12).transientText(true));
+            out.add(new TextPlacement("MT2", f, geom().getLead1().x + 5, geom().getLead1().y - 4).transientText(true)); // x+6 if ds=1, -12 if -1
+            out.add(new TextPlacement("G", f, gate[0].x, gate[0].y + 12).transientText(true));
+        }
+    }
+
     public void draw(Graphics g) {
         double v1 = getNodeVoltage(0);
         double v2 = getNodeVoltage(1);
@@ -201,10 +218,7 @@ public class TriacElm extends CircuitElm {
         if ((needsHighlight() || circuitEditor().dragElm == this) && geom().getPoint1().x == geom().getPoint2().x
                 && geom().getPoint2().y > geom().getPoint1().y) {
             g.setColor(foregroundColor());
-            int ds = sign(_dx);
-            g.drawString("MT1", geom().getLead2().x + ((ds < 0) ? 5 : -30), geom().getLead2().y + 12);
-            g.drawString("MT2", geom().getLead1().x + 5, geom().getLead1().y - 4); // x+6 if ds=1, -12 if -1
-            g.drawString("G", gate[0].x, gate[0].y + 12);
+            paintTexts(g).paint(0);
         }
 
         drawPosts(g);

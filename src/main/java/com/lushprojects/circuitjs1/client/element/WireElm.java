@@ -44,11 +44,9 @@ public class WireElm extends CircuitElm {
     static final int FLAG_SHOWCURRENT = 1;
     static final int FLAG_SHOWVOLTAGE = 2;
 
-    public void draw(Graphics g) {
-        setVoltageColor(g, getNodeVoltage(0));
-        drawThickLine(g, geom().getPoint1(), geom().getPoint2());
-        doDots(g);
-        setBbox(geom().getPoint1(), geom().getPoint2(), 3);
+    /** [SP_AGA_03_13] the wire's current and/or voltage (live), when its flags show them */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
         String s = "";
         if (mustShowCurrent()) {
             s = getShortUnitText(Math.abs(getCurrent()), "A");
@@ -56,7 +54,16 @@ public class WireElm extends CircuitElm {
         if (mustShowVoltage()) {
             s = (!s.isEmpty() ? s + " " : "") + getShortUnitText(getNodeVoltage(0), "V");
         }
-        drawValues(g, s, 4);
+        layoutValue(out, s, 4, 0, true);
+    }
+
+    public void draw(Graphics g) {
+        setVoltageColor(g, getNodeVoltage(0));
+        drawThickLine(g, geom().getPoint1(), geom().getPoint2());
+        doDots(g);
+        setBbox(geom().getPoint1(), geom().getPoint2(), 3);
+        if (mustShowCurrent() || mustShowVoltage())
+            paintTexts(g).paint(0);
         drawPosts(g);
     }
 

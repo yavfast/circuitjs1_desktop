@@ -24,6 +24,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.google.gwt.event.dom.client.MouseWheelEvent;
 import com.google.gwt.event.dom.client.MouseWheelHandler;
 import com.lushprojects.circuitjs1.client.Checkbox;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -239,64 +240,49 @@ public class PotElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHa
         }
         drawPosts(g);
 
+        paintTexts(g).paint(0);
+    }
+
+    /**
+     * [SP_AGA_03_13] With values shown and the element's show-values flag: the two resistances
+     * (as last stamped) on either side of the wiper arrow, in the units font and foreground colour.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
         if (displaySettings().showValues() && resistance1 > 0 && (flags & FLAG_SHOW_VALUES) != 0) {
+            Point lead1 = geom().getLead1();
+            Point lead2 = geom().getLead2();
             // check for vertical pot with 3rd terminal on left
-            boolean reverseY = (post3.x < geom().getLead1().x && geom().getLead1().x == geom().getLead2().x);
+            boolean reverseY = (post3.x < lead1.x && lead1.x == lead2.x);
             // check for horizontal pot with 3rd terminal on top
-            boolean reverseX = (post3.y < geom().getLead1().y && geom().getLead1().x != geom().getLead2().x);
+            boolean reverseX = (post3.y < lead1.y && lead1.x != lead2.x);
             // check if we need to swap texts (if leads are reversed, e.g. drawn right to
             // left)
-            boolean rev = (geom().getLead1().x == geom().getLead2().x && geom().getLead1().y < geom().getLead2().y)
-                    || (geom().getLead1().y == geom().getLead2().y && geom().getLead1().x > geom().getLead2().x);
+            boolean rev = (lead1.x == lead2.x && lead1.y < lead2.y)
+                    || (lead1.y == lead2.y && lead1.x > lead2.x);
 
             // draw units
             String s1 = getShortUnitText(rev ? resistance2 : resistance1, "");
             String s2 = getShortUnitText(rev ? resistance1 : resistance2, "");
-            g.setFont(unitsFont());
-            g.setColor(foregroundColor());
-            int ya = (int) g.getFontSize() / 2;
-            int w;
-            w = (int) g.measureWidth(s1);
+            Font f = unitsFont();
+            int ya = f.getSize() / 2;
+            int w = (int) out.measureWidth(s1, f);
 
             // vertical?
-            if (geom().getLead1().x == geom().getLead2().x)
-                g.drawString(s1, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w,
-                        Math.max(arrow1.y, arrow2.y) + 5 + ya);
+            if (lead1.x == lead2.x)
+                out.add(new TextPlacement(s1, f, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w,
+                        Math.max(arrow1.y, arrow2.y) + 5 + ya).color(foregroundColor()));
             else
-                g.drawString(s1, Math.min(arrow1.x, arrow2.x) - 2 - w,
-                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
+                out.add(new TextPlacement(s1, f, Math.min(arrow1.x, arrow2.x) - 2 - w,
+                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4).color(foregroundColor()));
 
-            w = (int) g.measureWidth(s2);
-            if (geom().getLead1().x == geom().getLead2().x)
-                g.drawString(s2, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w, Math.min(arrow1.y, arrow2.y) - 3);
+            w = (int) out.measureWidth(s2, f);
+            if (lead1.x == lead2.x)
+                out.add(new TextPlacement(s2, f, !reverseY ? arrowPoint.x + 2 : arrowPoint.x - 2 - w,
+                        Math.min(arrow1.y, arrow2.y) - 3).color(foregroundColor()));
             else
-                g.drawString(s2, Math.max(arrow1.x, arrow2.x) + 2,
-                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4);
-        }
-    }
-
-    // draw component values (number of resistor ohms, etc). hs = offset
-    void drawValues(Graphics g, String s, Point pt, int hs) {
-        if (s == null)
-            return;
-        g.setFont(unitsFont());
-        // FontMetrics fm = g.getFontMetrics();
-        int w = (int) g.measureWidth(s);
-        g.setColor(foregroundColor());
-        int ya = (int) g.getFontSize() / 2;
-        int xc = pt.x;
-        int yc = pt.y;
-        int dpx = hs;
-        int dpy = 0;
-        if (geom().getLead1().x != geom().getLead2().x) {
-            dpx = 0;
-            dpy = -hs;
-        }
-        if (dpx == 0)
-            g.drawString(s, xc - w / 2, yc - abs(dpy) - 2);
-        else {
-            int xx = xc + abs(dpx) + 2;
-            g.drawString(s, xx, yc + dpy + ya);
+                out.add(new TextPlacement(s2, f, Math.max(arrow1.x, arrow2.x) + 2,
+                        !reverseX ? arrowPoint.y + 4 + ya : arrowPoint.y - 4).color(foregroundColor()));
         }
     }
 

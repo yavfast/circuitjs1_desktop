@@ -141,7 +141,7 @@ The end-to-end rows are part of `tests/mcp/e2e.mjs` ([tests/mcp/README.md](../..
 
 The Claude Desktop row needs a desktop with Claude Desktop installed. Steps:
 1. Install the bridge (above) and add the Claude Desktop entry with `--launch` and `CIRCUITJS_APP`; restart Claude Desktop.
-2. In a new chat, check that the `circuitjs` connector lists the app's 14 `circuit_*` tools and the 3 `bridge_*` tools (the app starts when Claude Desktop connects, if it was not running).
+2. In a new chat, check that the `circuitjs` connector lists the app's 15 `circuit_*` tools and the 3 `bridge_*` tools (the app starts when Claude Desktop connects, if it was not running).
 3. Ask for `circuit_types` with type `Resistor`, then for `bridge_instances`.
 4. Pass: both answer; with the app closed beforehand and `--launch` left out, only the 3 bridge tools are listed and a circuit tool returns "No CircuitJS1 instance".
 

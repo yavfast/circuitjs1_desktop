@@ -61,6 +61,7 @@ const ANNOTATIONS = {
   circuit_connectivity: [true, false, true],
   circuit_read: [true, false, true],
   circuit_render: [true, false, true],
+  circuit_layout: [true, false, true],
   circuit_sim: [false, true, false],
   circuit_run: [false, true, false],
   circuit_diagnostics: [true, false, true],
@@ -69,7 +70,7 @@ const ANNOTATIONS = {
   circuit_file: [false, true, false],
 };
 
-test('14 tools with the SP_MCP_02_02 names and annotations', () => {
+test('15 tools with the SP_MCP_02_02 names and annotations', () => {
   const list = createTools(fakeAgent(() => ok({}))).list();
   assert.deepEqual(list.map((t) => t.name), Object.keys(ANNOTATIONS));
   for (const t of list) {
@@ -134,6 +135,8 @@ const MAPPING = [
   ['circuit_connectivity', { includeNets: false, netFilter: ['out'] }, 'getConnectivity', { includeNets: false, netFilter: ['out'] }],
   ['circuit_read', { targets: [{ net: 'out' }] }, 'read', { targets: [{ net: 'out' }] }],
   ['circuit_render', { format: 'svg', scale: 2, includeScopes: true }, 'render', { format: 'svg', scale: 2, includeScopes: true }],
+  ['circuit_layout', { includeBoxes: true, doc: 'd2' }, 'checkLayout', { doc: 'd2', includeBoxes: true }],
+  ['circuit_layout', {}, 'checkLayout', {}],
   ['circuit_sim', { action: 'reset' }, 'simControl', { action: 'reset' }],
   ['circuit_sim', { action: 'configure', settings: { maxTimeStep: '1 us' } }, 'simControl', { action: 'configure', settings: { maxTimeStep: '1 us' } }],
   ['circuit_run', { span: '5 ms', reset: true, probes: [{ net: 'a' }], maxPoints: 50, budgetMs: 200, recordFrom: 0.001 }, 'run',
@@ -161,7 +164,7 @@ test('every tool maps to its SP_AGA contract with the SP_AGA argument names', as
     assert.deepEqual(r.structuredContent, ok({}));
     seen.add(tool);
   }
-  assert.equal(seen.size, 14);
+  assert.equal(seen.size, 15);
 });
 
 // ------------------------------------------------------------------ validation (SP_MCP_03_02)
@@ -170,6 +173,8 @@ test('schema violations are -32602 naming the field', async () => {
   const tools = createTools(fakeAgent(() => ok({})));
   await rejects(tools.call('circuit_edit', { edits: { op: 'add' } }), -32602, /edits must be array/);
   await rejects(tools.call('circuit_edit', {}), -32602, /edits is required/);
+  await rejects(tools.call('circuit_layout', { includeBoxes: 'yes' }), -32602, /includeBoxes must be boolean/);
+  await rejects(tools.call('circuit_layout', { boxes: true }), -32602, /boxes/);
   await rejects(tools.call('circuit_edit', { edits: [{ op: 'ad' }] }), -32602, /edits\[0\]\.op must be one of add, move/);
   await rejects(tools.call('circuit_edit', { edits: [{ op: 'add', element: { type: 'Resistor' } }] }), -32602, /edits\[0\]\.element\.start is required/);
   await rejects(tools.call('circuit_edit', { edits: [{ op: 'set', id: 'R1', properties: { r: null } }] }), -32602, /edits\[0\]\.properties\.r must be number or string or boolean/);
@@ -292,6 +297,25 @@ test('circuit_connectivity oversized: includeNets false', async () => {
   assert.deepEqual(agent.calls.map((c) => c.args.includeNets), [undefined, false]);
   assert.match(r.content[0].text, /^\[result reduced .*includeNets=false instead of \(default\)/);
   assert.deepEqual(r.structuredContent.data.nets, []);
+});
+
+test('circuit_layout oversized: includeBoxes false, issues complete', async () => {
+  const issue = { code: 'text_overlap', severity: 'warning', message: 'm', elements: ['C1', 'W1'], at: { x: 1, y: 2 }, hint: 'h', key: 'text_overlap|C1,W1||1,2' };
+  const box = { element: 'R1', text: '1k', box: { x1: 0, y1: 0, x2: 1, y2: 1 }, anchor: { x: 0, y: 1 }, align: 'left', baseline: 'alphabetic', font: 'normal 12px sans-serif', live: false };
+  const agent = fakeAgent((op, args) => ok(Object.assign({ issues: [issue], texts: 2000, truncated: false },
+    args.includeBoxes ? { boxes: Array.from({ length: 2000 }, () => box) } : {})));
+  const r = await createTools(agent).call('circuit_layout', { includeBoxes: true });
+  assert.deepEqual(agent.calls.map((c) => c.args.includeBoxes), [true, false]);
+  const note = r.content[0].text.split('\n')[0];
+  assert.match(note, /^\[result reduced .*includeBoxes=false instead of true.*boxes were left out/);
+  assert.ok(r.content[0].text.length <= LIMIT);
+  assert.equal(r.isError, false);
+  assert.deepEqual(r.structuredContent.data.issues, [issue]);
+  assert.equal(r.structuredContent.data.boxes, undefined);
+  // a small result is not re-read
+  const small = fakeAgent(() => ok({ issues: [], texts: 1, truncated: false, boxes: [box] }));
+  await createTools(small).call('circuit_layout', { includeBoxes: true });
+  assert.equal(small.calls.length, 1);
 });
 
 test('circuit_diagnostics oversized: log limit halved', async () => {
@@ -450,7 +474,7 @@ test('document circuit resource: full detail, all pages, importable shape', asyn
 
 test('agent-format text names the current SP_AGA rules', () => {
   for (const s of ['grid cells', '0.5', '1/16', 'stop_trigger', 'First sample', 'Determinism', '40 megapixels', '16384',
-    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.1',
+    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.2', 'text_overlap', 'text_not_covered', 'includeBoxes',
     'defineModel', 'name_taken', 'unknown_model', 'modelText', 'Create-only', 'forward_voltage', '"inf"', '"models": "diode"']) {
     assert.ok(AGENT_FORMAT.includes(s), s);
   }
@@ -473,7 +497,7 @@ test('tools/list, tools/call and resources through the SDK server', async () => 
   const init = await send(1, 'initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'u', version: '1' } });
   assert.equal(init.result.protocolVersion, '2025-11-25');
   const list = await send(2, 'tools/list', {});
-  assert.equal(list.result.tools.length, 14);
+  assert.equal(list.result.tools.length, 15);
   const call = await send(3, 'tools/call', { name: 'circuit_types', arguments: {} });
   assert.equal(call.result.isError, false);
   assert.deepEqual(call.result.structuredContent, ok({ types: [] }));
@@ -495,7 +519,8 @@ test('tools/list, tools/call and resources through the SDK server', async () => 
 test('the bundle contains the tool table and the agent-format text', { skip: !fs.existsSync(path.join(ROOT, 'war/scripts/mcp-server.js')) }, () => {
   const text = fs.readFileSync(path.join(ROOT, 'war/scripts/mcp-server.js'), 'utf8');
   assert.ok(text.includes('circuit_connectivity'));
-  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.1)'));
+  assert.ok(text.includes('circuit_layout'));
+  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.2)'));
   assert.ok(!/require\(\s*["'](node:)?crypto["']\s*\)/.test(text));
 });
 

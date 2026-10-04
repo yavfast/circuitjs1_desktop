@@ -1,4 +1,4 @@
-# CircuitJS1 agent format (toolsVersion 1.1)
+# CircuitJS1 agent format (toolsVersion 1.2)
 
 How an agent describes, edits, checks and measures circuits through the `circuit_*` tools of the CircuitJS1 MCP server. Every tool returns an OperationResult (below). The Agent API underneath is the same in every document; the tools add no circuit logic.
 
@@ -183,6 +183,17 @@ Instant values at the current simulated time, without stepping: `targets` of 1..
 - Printable colours on a white background (whatever the user's Printable option), no current dots; drawing never changes a scope's graph. `includeScopes: true` adds the scope panels.
 - An SVG text over the tool-result limit is `result_too_large`: use `png` or a lower `scale`. If the vector exporter cannot load, `render_failed`: retry with `png`.
 
+### Text layout (`circuit_layout`)
+
+`circuit_layout` checks the drawing of the texts: values, labels, chip pin names and captions. It measures the texts the elements place (the same placements the render paints), draws nothing and changes nothing; no edit result and no `circuit_connectivity` report lists its issues. Call it before reporting a drawing, together with the render look. Output `{issues, texts, truncated, boxes?}`: at most 100 issues (warnings first, then by key), `texts` = the number of texts checked.
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `text_overlap` | warning | a text of one element is crossed by a wire or lead of another, lies over its symbol, or touches its text (one per element pair; `at` = the centre of the text). Give the text clear space: a value text sits beside the middle of its symbol (above a horizontal part, right of a vertical part, left of a vertical source); keep wires and other parts at least one cell from it, move or flip the part, or shorten the label |
+| `text_not_covered` | info | elements whose texts are not checked yet (one issue per class, up to 20 IDs): look at the render for them |
+
+A part's own texts never conflict with its own drawing (a label's stem, a chip's pin names inside its body, a value next to its leads), and a pair that `symbol_overlap` already reports is not reported again. Meter readings, logic output levels, an output's voltage and a wire's current or voltage are live texts: listed (`live: true`), never checked. Transistor pin letters appear only while the part is selected or hovered and are never checked. `includeBoxes: true` adds the text boxes `{element, text, box: {x1, y1, x2, y2} (grid cells), anchor, align, baseline, font, live}` (at most 2000; `truncated` when a list was cut).
+
 ## 10. History and checkpoints
 
 - All successful agent mutations since the last checkpoint form one open **transaction**: one undo entry for the user. `transaction: {open, pendingEdits}` is on every mutating result.
@@ -206,6 +217,7 @@ OperationResult: `{ok, data?, issues, truncatedIssues, connectivity?, transactio
 Tool results stay within 60 000 characters of text:
 - `circuit_get` over the limit is re-read with `detail: "concise"`, then with a halved `limit`; continue at `data.nextOffset`.
 - `circuit_connectivity` over the limit is re-read with `includeNets: false`; read nets with `netFilter`.
+- `circuit_layout` with `includeBoxes: true` over the limit is re-read with `includeBoxes: false`: the boxes are left out, the issues are complete up to their cap of 100.
 - `circuit_diagnostics` halves the log `limit`; continue from `log.cursor`.
 - A reduced result's text starts with a note naming the reduced arguments; `structuredContent` is the result of that reduced call.
 - An SVG render or an export over the limit is `result_too_large` (`isError`).
@@ -216,7 +228,7 @@ Tool results stay within 60 000 characters of text:
 
 Operation errors: `not_ready`, `unknown_document`, `unknown_type`, `unknown_element`, `unknown_post`, `unknown_net`, `unknown_property`, `unknown_checkpoint`, `unknown_model` (a `from` or `circuit_types` `model` that names no listed model), `name_taken` (a model name that exists with a different definition, or an internal one), `invalid_value`, `off_lattice`, `zero_length`, `not_axis_aligned`, `id_invalid`, `id_taken`, `busy`, `scope_limit`, `import_schema_invalid`, `import_element_skipped`, `nothing_to_undo`, `nothing_to_redo`, `unsaved_changes`, `render_failed`, `file_unavailable`, `file_not_allowed`, `file_not_found`, `file_error`, `no_path`, `internal_error`, `result_too_large` (server).
 
-Warnings and info: `value_adjusted`, `ids_regenerated`, `import_wire_skipped`, `import_setting_invalid`, `import_geometry_adjusted`, `scope_limit` (import), `reserved_label`, `scope_removed` (info); run ends `budget_exhausted`, `settle_timeout`, `stop_trigger`, `cancelled`.
+Warnings and info: `value_adjusted`, `ids_regenerated`, `import_wire_skipped`, `import_setting_invalid`, `import_geometry_adjusted`, `scope_limit` (import), `reserved_label`, `scope_removed` (info); run ends `budget_exhausted`, `settle_timeout`, `stop_trigger`, `cancelled`; text layout (`circuit_layout` only) `text_overlap` (warning) and `text_not_covered` (info).
 
 Solver codes (in run issues, `circuit_diagnostics` events and stops): `singular_matrix`, `source_or_wire_loop`, `ground_path_no_resistance`, `matrix_error`, `analysis_failed` and `convergence_failed` are errors (results not physically meaningful); `wire_loop` is a warning (only wire currents are approximated); `solver_stop` (other stops, error) and `solver_warning` (other warnings). The simulator recovers from non-convergence and keeps going, so these arrive while a run continues; the culprit element is in `elements`.
 
@@ -227,4 +239,4 @@ Solver codes (in run issues, `circuit_diagnostics` events and stops): `singular_
 3. Read the connectivity delta; fix every error; `circuit_connectivity` for the full report.
 4. `circuit_run` with `reset: true`, a `span`, probes on labelled nets and a `budgetMs`.
 5. Check `reason` and the issues, then the probe stats; fix and repeat.
-6. `circuit_checkpoint` after each working step; `circuit_render` to show the result; `circuit_file save` to keep it.
+6. `circuit_checkpoint` after each working step; before reporting, `circuit_layout` (fix every `text_overlap`) and `circuit_render` to look at the result; `circuit_file save` to keep it.

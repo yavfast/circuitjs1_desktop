@@ -8,6 +8,29 @@ public class ScopeManager extends BaseCirSimDelegate {
     // Package-private but with public getters for IO operations
     int scopeCount;
     Scope[] scopes;
+
+    /**
+     * Harness diagnostic (PL_AGA Phase 16a, SP_AGA_05_02 "checkLayout changes no state"): per
+     * scope and plot, the point count, the sample pointer and a checksum of the min/max samples.
+     */
+    public String debugGraphState() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < scopeCount; i++) {
+            Scope sc = scopes[i];
+            sb.append(i).append('[');
+            if (sc != null && sc.plots != null) {
+                for (ScopePlot p : sc.plots) {
+                    double sum = 0;
+                    for (int k = 0; p.minValues != null && k < p.minValues.length; k++) {
+                        sum += p.minValues[k] + p.maxValues[k];
+                    }
+                    sb.append(p.scopePointCount).append(':').append(p.ptr).append(':').append(sum).append(';');
+                }
+            }
+            sb.append(']');
+        }
+        return sb.toString();
+    }
     int[] scopeColCount;
 
     int scopeSelected = -1;

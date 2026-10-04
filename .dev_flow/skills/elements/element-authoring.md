@@ -3,7 +3,7 @@ skill: element-authoring
 domain: elements
 topics: [circuit-elm, chip-elm, composite-elm, dump, json, factory, recipe]
 source: onboard
-updated: 2026-10-03
+updated: 2026-10-04
 ---
 
 # Authoring a New Circuit Element
@@ -153,6 +153,25 @@ constructors:
    that `setPoints()` sets for `draw()`. A `dde7f33` regression drew the
    CustomTransformer core diagonally and the coils of flipped horizontal
    transformers facing outwards; `xfmr_draw` in `tests/live` guards it.
+11. **Texts are placed only in `layoutTexts`, each with an explicit font**
+   (SP_AGA_03_13, PL_AGA Phase 16a). An element that draws text overrides
+   `layoutTexts(TextLayout out, boolean highlighted)`: one `TextPlacement`
+   per string (font required, anchor in circuit pixels, alignment, baseline,
+   over-bar, `live` for a simulated reading, `transientText` for what only a
+   highlighted element shows, `group` = its point in the draw order), built
+   with `layoutValue` / `layoutLabel` / `layoutCentered` or directly; `draw()`
+   paints them with `paintTexts(g).paint(group)` and has no `drawString` of
+   its own. Layout is pure: read properties, geometry, options, language and
+   `highlighted` only — the accepted exceptions (SP_AGA_03_13 Pure layout) are
+   stamped analysis values the drawing shows (a current source's `current`, a
+   pot's `resistance1`/`resistance2`) and the editor's plot axes (Output/Probe
+   `X`/`Y`); compute points as locals, never in fields; widths come
+   from `out.measureWidth(s, font)`. A text that inherits the graphics font
+   depends on the previous element and on offscreen slice breaks (the
+   step-0 defect). A class that still has a text site returns
+   `textLayoutCovered()` false (`text_not_covered`); a `draw()` override
+   without `super.draw()` overrides `layoutTexts` too. `text_sites` and
+   `agent_layout` (every type, against the SVG) in `tests/live` guard it.
 
 ## References
 

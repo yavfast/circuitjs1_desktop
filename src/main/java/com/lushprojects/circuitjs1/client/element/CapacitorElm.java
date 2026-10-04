@@ -123,6 +123,13 @@ public class CapacitorElm extends CircuitElm {
         interpPoint2(point1, point2, plate2[0], plate2[1], 1 - f, 12);
     }
 
+    /** [SP_AGA_03_13] the capacitance beside the plates, when values are shown */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (displaySettings().showValues())
+            layoutValue(out, getShortUnitText(capacitance, "F"), 12, 0, false);
+    }
+
     public void draw(Graphics g) {
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();
@@ -158,10 +165,7 @@ public class CapacitorElm extends CircuitElm {
 
         drawPosts(g);
 
-        if (displaySettings().showValues()) {
-            String s = getShortUnitText(capacitance, "F");
-            drawValues(g, s, hs);
-        }
+        paintTexts(g).paint(0);
     }
 
     public void stamp() {

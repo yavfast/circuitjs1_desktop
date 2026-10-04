@@ -26,7 +26,6 @@ import com.google.gwt.dom.client.Element;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
 import com.google.gwt.user.client.ui.FileUpload;
-import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.element.waveform.Waveform;
@@ -96,8 +95,10 @@ public class AudioInputElm extends RailElm {
         timeOffset = startPosition;
     }
 
-    void drawRail(Graphics g) {
-        drawRailText(g, fileName == null ? Locale.LS("No file") : fileName);
+    /** [SP_AGA_03_13] labelled with its file name instead of a waveform circle */
+    @Override
+    String railLabel() {
+        return fileName == null ? Locale.LS("No file") : fileName;
     }
 
     String getRailText() {

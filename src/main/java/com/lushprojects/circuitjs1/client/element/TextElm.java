@@ -104,38 +104,37 @@ public class TextElm extends GraphicElm {
         setEndpoints(xx, yy, xx + 16, yy);
     }
 
+    /**
+     * [SP_AGA_03_13] one placement per line (translated), left-aligned from the start point down,
+     * with an over-bar when "Draw Bar On Top" is set
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        Font f = new Font("SansSerif", 0, size);
+        int h = f.getSize();
+        int x = getX();
+        int cury = getY();
+        for (int i = 0; i != lines.size(); i++) {
+            String s = Locale.LS(lines.elementAt(i));
+            int sw = (int) out.measureWidth(s, f);
+            TextPlacement p = new TextPlacement(s, f, x, cury).widenBbox(x, cury - h, x + sw, cury + 3);
+            if ((flags & FLAG_BAR) != 0) {
+                int by = cury - h;
+                p.overBar(x, x + sw - 1, by);
+            }
+            out.add(p);
+            cury += h + 3;
+        }
+    }
+
     public void draw(Graphics g) {
         // Graphics2D g2 = (Graphics2D)g;
         // g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
         // RenderingHints.VALUE_ANTIALIAS_ON);
         g.save();
         g.setColor(needsHighlight() ? selectColor() : elementColor());
-        Font f = new Font("SansSerif", 0, size);
-        g.setFont(f);
-        // FontMetrics fm = g.getFontMetrics();
-        int i;
-        int maxw = -1;
-        for (i = 0; i != lines.size(); i++) {
-            // int w = fm.stringWidth((String) (lines.elementAt(i)));
-            int w = (int) g.measureWidth(lines.elementAt(i));
-            if (w > maxw)
-                maxw = w;
-        }
-        int cury = getY();
         setBbox(getX(), getY(), getX(), getY());
-        for (i = 0; i != lines.size(); i++) {
-            String s = (String) (lines.elementAt(i));
-            s = Locale.LS(s);
-            int sw = (int) g.measureWidth(s);
-            g.drawString(s, getX(), cury);
-            if ((flags & FLAG_BAR) != 0) {
-                int by = cury - g.getFontSize();
-                g.drawLine(getX(), by, getX() + sw - 1, by);
-            }
-            adjustBbox(getX(), cury - g.getFontSize(),
-                    getX() + sw, cury + 3);
-            cury += g.getFontSize() + 3;
-        }
+        paintTexts(g).paint(0);
         geom().setX2(geom().getBoundingBox().x + geom().getBoundingBox().width);
         geom().setY2(geom().getBoundingBox().y + geom().getBoundingBox().height);
         g.restore();

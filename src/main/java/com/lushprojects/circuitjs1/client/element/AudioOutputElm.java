@@ -100,16 +100,25 @@ public class AudioOutputElm extends CircuitElm implements HasControlWidget {
         super.setPoints();
     }
 
+    private String audioLabel() {
+        return labelNum > 1 ? "Audio " + labelNum : "Audio Out";
+    }
+
+    /** [SP_AGA_03_13] the caption, centred at the end point; bold while highlighted */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutCentered(out, audioLabel(), getX2(), getY2(), true, new Font("SansSerif", highlighted ? Font.BOLD : 0, 14), 0);
+    }
+
     public void draw(Graphics graphics) {
         graphics.save();
         ElmGeometry geom = geom();
         Point point1 = geom.getPoint1();
         Point point2 = geom.getPoint2();
         boolean selected = (needsHighlight());
-        Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
-        String s = "Audio Out";
-        if (labelNum > 1)
-            s = "Audio " + labelNum;
+        // the lead ends before the label in the font layoutTexts gives it (bold while highlighted)
+        Font f = new Font("SansSerif", isLayoutHighlighted() ? Font.BOLD : 0, 14);
+        String s = audioLabel();
         graphics.setFont(f);
         int textWidth = (int) graphics.measureWidth(s);
         graphics.setColor(Color.darkGray);
@@ -119,7 +128,7 @@ public class AudioOutputElm extends CircuitElm implements HasControlWidget {
         double dn = getDn();
         interpPoint(point1, point2, lead1, leadFraction(textWidth / 2. + 8, dn));
         setBbox(point1, lead1, 0);
-        drawCenteredText(graphics, s, getX2(), getY2(), true);
+        paintTexts(graphics).paint(0);
         setVoltageColor(graphics, getNodeVoltage(0));
         if (selected)
             graphics.setColor(selectColor());

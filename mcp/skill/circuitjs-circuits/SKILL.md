@@ -9,9 +9,10 @@ description: Builds, edits, simulates, measures and debugs circuits in the Circu
 
 This skill is for building, checking, simulating and repairing analog and digital circuits in a running CircuitJS1 Desktop app, through the `circuit_*` tools of its MCP server. You place parts on a grid, clear the connectivity report, run the transient simulator with probes, and report measured values. It does not cover PCB layout or frequency-domain (AC, Bode, noise) analysis: the simulator has transient analysis only, so you measure a frequency response by running the circuit at each frequency.
 
-**Compatibility.** This skill works with **toolsVersion 1.1**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.1 before the first call:
-- same MAJOR (1) and MINOR ≥ 1: go ahead (a newer MINOR only adds tools, issue codes or properties);
-- 1.0: do not use model definitions (`defineModel`, `circuit_types` `models`: the app may lack them); ask the user to update the app for a task that needs a model;
+**Compatibility.** This skill works with **toolsVersion 1.2**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.2 before the first call:
+- same MAJOR (1) and MINOR ≥ 2: go ahead (a newer MINOR only adds tools, issue codes or properties);
+- 1.1: there is no `circuit_layout`; at step 10 do the render look only;
+- 1.0: as for 1.1, and do not use model definitions (`defineModel`, `circuit_types` `models`: the app may lack them); ask the user to update the app for a task that needs a model;
 - a different MAJOR: tell the user that the app and this skill do not match, name both versions, and do not guess tool names or arguments.
 
 **No tools?** With the bridge and no app running, only the `bridge_*` tools are listed: if `bridge_launch` is available, call it first. If no `circuit_*` tool appears after that (or there is no bridge), or every call answers `No CircuitJS1 instance`, stop. Tell the user how to connect, and do not try to imitate the tools:
@@ -25,7 +26,7 @@ This skill is for building, checking, simulating and repairing analog and digita
 - **Work in a new document** (`circuit_documents` `create`) unless the user names a document to change.
 - **Every analog circuit gets an explicit `Ground`**, connected to its reference net. A circuit built only from logic inputs, clocks, rails, gates, flip-flops and logic outputs is referenced internally and needs none; a battery (`DCVoltage`) or other two-post source always needs one. Never leave a stray part: delete what you do not connect.
 - **Label every net you will probe** with a `LabeledNode`; its text becomes the net name.
-- **Draw a readable schematic.** Wires and symbols meet only at posts: never lay a part, a ground or a label along a wire or over another part (`symbol_overlap`). Parts horizontal or vertical, 3–4 cells long; parallel parts 3 cells apart (4 for long values), so value texts never touch a neighbour; supply on top, `Ground` below its post (`end` 2 cells down), signal left to right; labels with a 2–3-cell lead pointing away from the parts. Layout details: [reference/geometry.md](reference/geometry.md#layout-style).
+- **Draw a readable schematic.** Wires and symbols meet only at posts: never lay a part, a ground or a label along a wire or over another part (`symbol_overlap`); never let a wire, part or other text cross a value, label or pin text (`text_overlap`). Parts horizontal or vertical, 3–4 cells long; parallel parts 3 cells apart (4 for long values), so value texts never touch a neighbour; supply on top, `Ground` below its post (`end` 2 cells down), signal left to right; labels with a 2–3-cell lead pointing away from the parts. Layout details: [reference/geometry.md](reference/geometry.md#layout-style).
 - **Never simulate while the connectivity report has errors.** Floating nodes read 0 V instead of failing.
 - **Defaults are generic: define a model when a part's real behaviour matters** (a coloured LED's forward voltage, a power Schottky, a specific BJT, a logic function the catalogue lacks: a `CustomLogic` truth table; a block you reuse: a `Subcircuit` built from another document). Use `circuit_edit` `defineModel` in the same batch that sets the elements' `model` / `model_name` (or the `models` list of `circuit_import`); list existing models with `circuit_types {"models": "all"}`. Model names are create-only: to change one, define a new name. Keys, forms, typical values, files: [reference/elements.md](reference/elements.md#models).
 - **Measure, never assume.** Values and signs come from `circuit_run` / `circuit_read`, not from memory. Pin names state polarity (a source's `plus`, a current source's `out`, a FET's `source` and `drain`: wire by name, not by post order); confirm with a read when a result looks wrong.
@@ -46,18 +47,18 @@ Copy this list into your notes and tick it off:
 - [ ] 7. Run, probe, measure: circuit_run {"span", "reset": true, "recordFrom", "probes"}; check reason and issues first
 - [ ] 8. Iterate: circuit_edit {"edits": [{"op": "set", "id": ..., "properties": {...}}]}; re-check the connectivity delta, re-run step 7
 - [ ] 9. Checkpoint: circuit_checkpoint {"comment": "what changed and why"}
-- [ ] 10. Look at the drawing: circuit_render, then fix overlaps, crowded values or labels, and parts pointing the wrong way
+- [ ] 10. Look at the drawing: circuit_layout (fix every text_overlap) and circuit_render, then fix overlaps, crowded values or labels, and parts pointing the wrong way
 - [ ] 11. Report the measured values; circuit_file save only when asked
 ```
 
 Notes on the steps:
-- **Step 2.** `circuit_types {"type": "<name>"}` gives pins in post order, the geometry kind, property keys, units and defaults. Do not guess keys: a wrong key is rejected and the hint lists the valid ones.
+- **Step 2.** `circuit_types {"type": "<name>"}` gives pins in post order, the geometry kind, property keys, units and defaults. Do not guess keys: a wrong key is rejected and the hint lists the valid ones. Use standard part values (E24 resistors, E12 capacitors and inductors; [reference/elements.md](reference/elements.md)), also when you retune.
   Most-used names (there is no plain VoltageSource type and no `voltage` key): `VoltageSourceDC` and `Rail` (`max_voltage`), `VoltageSourceAC` (`max_voltage` is the amplitude, `frequency`), `Resistor` (`resistance`), `Capacitor` (`capacitance`), `Inductor` (`inductance`), `Diode`, `LED`, `Ground`, `Wire`, `LabeledNode` (`label`).
 - **Step 4.** One `circuit_import` call replaces the whole circuit of that document. Edits are atomic per batch: one bad edit rejects the batch, nothing changes.
 - **Step 6.** A circuit driven by an AC source never settles (`settle_timeout`); read DC levels from `stats.mean` of a span run instead.
 - **Step 7.** Pass `reset: true` on every measuring run, so results are repeatable. Give two probes on the same element distinct `name`s. Pass times as seconds (`"span": 0.01`) or as a plain unit string (`"span": "10 ms"`), never with quotes inside the string.
 - **Step 9.** Also for a one-value change to an existing circuit: the user undoes your work by the checkpoint comment.
-- **Step 10.** The image shows what the connectivity report cannot: value texts crowding a neighbour, a source squeezed between parts, a ground or label pointing into the circuit. Move parts with `circuit_edit` `move` and re-check the connectivity delta. Skip the look only for a one-value change.
+- **Step 10.** Call `circuit_layout` before reporting: it lists every value, label or pin text that a wire or lead crosses, that lies over a symbol or that touches another text (`text_overlap`, with `at` = the text's centre), and the elements whose texts it does not check yet (`text_not_covered`: look at those in the image). The image shows the rest: a source squeezed between parts, a ground or label pointing into the circuit. Move parts with `circuit_edit` `move`, re-check the connectivity delta, and call `circuit_layout` again until it lists no `text_overlap`. Skip both only for a one-value change.
 - **Step 11.** Say what you measured and with which run (span, step, recordFrom), not what the formula predicts. If the target cannot be reached with the chosen topology, report the limit with the evidence instead of tuning on.
 
 ## Debug loop
@@ -86,6 +87,7 @@ Hosts qualify tool names with the server name they were configured with; this sk
 | `circuitjs:circuit_connectivity` | Full connectivity report: nets and issues with hints (`netFilter`, `includeNets`) |
 | `circuitjs:circuit_read` | Instant readings of nets, posts or element quantities at the current time, without stepping |
 | `circuitjs:circuit_render` | PNG (default) or SVG image of the whole circuit, offscreen |
+| `circuitjs:circuit_layout` | Text layout check before reporting a drawing: texts crossed, over a symbol or touching (`text_overlap`); `includeBoxes` lists the text boxes |
 | `circuitjs:circuit_sim` | Free-running `run`/`stop` for the user to watch, `reset`, `configure` the time step |
 | `circuitjs:circuit_run` | Advance simulated time with probes; returns stats and decimated series |
 | `circuitjs:circuit_diagnostics` | Solver state and events since the last analysis; the session log with `log` |

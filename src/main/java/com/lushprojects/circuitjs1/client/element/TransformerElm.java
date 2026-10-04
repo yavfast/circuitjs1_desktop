@@ -23,6 +23,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Checkbox;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -286,26 +287,13 @@ public class TransformerElm extends CircuitElm {
         return (flags & Inductor.FLAG_BACK_EULER) == 0;
     }
 
-    public void draw(Graphics g) {
+    /** [SP_AGA_03_13] the winding turns ("1T", "nT") outside each coil, away from the core */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (ptCoil == null || ptCore == null)
+            return;
+        Font f = unitsFont();
         int i;
-        // the coils bulge relative to the axis setPoints() laid them out on (see axisDsign)
-        int dsign = axisDsign;
-        for (i = 0; i != 4; i++) {
-            setVoltageColor(g, getNodeVoltage(i));
-            drawThickLine(g, ptEnds[i], ptCoil[i]);
-        }
-        for (i = 0; i != 2; i++) {
-            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 2)));
-            int csign = dsign * (i == 1 ? -6 * polarity : 6) * flip;
-            if (hasFlag(FLAG_VERTICAL))
-                csign *= -1;
-            drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], getNodeVoltage(i), getNodeVoltage(i + 2));
-        }
-
-        // winding labels (turns)
-        g.save();
-        g.setFont(unitsFont());
-        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         double coreCx = 0, coreCy = 0;
         for (i = 0; i != 4; i++) {
             coreCx += ptCore[i].x;
@@ -342,8 +330,30 @@ public class TransformerElm extends CircuitElm {
 
             int lx = (int) Math.round(mx + px * 12);
             int ly = (int) Math.round(my + py * 12);
-            drawCenteredText(g, turnsLabels[i], lx, ly, true);
+            layoutCentered(out, turnsLabels[i], lx, ly, true, f, 0);
         }
+    }
+
+    public void draw(Graphics g) {
+        int i;
+        // the coils bulge relative to the axis setPoints() laid them out on (see axisDsign)
+        int dsign = axisDsign;
+        for (i = 0; i != 4; i++) {
+            setVoltageColor(g, getNodeVoltage(i));
+            drawThickLine(g, ptEnds[i], ptCoil[i]);
+        }
+        for (i = 0; i != 2; i++) {
+            setPowerColor(g, current[i] * (getNodeVoltage(i) - getNodeVoltage(i + 2)));
+            int csign = dsign * (i == 1 ? -6 * polarity : 6) * flip;
+            if (hasFlag(FLAG_VERTICAL))
+                csign *= -1;
+            drawCoil(g, csign, ptCoil[i], ptCoil[i + 2], getNodeVoltage(i), getNodeVoltage(i + 2));
+        }
+
+        // winding labels (turns)
+        g.save();
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+        paintTexts(g).paint(0);
         g.restore();
 
         g.setColor(needsHighlight() ? selectColor() : elementColor());

@@ -36,7 +36,7 @@ claude mcp add circuitjs -e CIRCUITJS_APP=/absolute/path/to/CircuitSimulator -- 
 
 Through the bridge you also get `bridge_instances`, `bridge_select` and `bridge_launch`.
 
-**Check.** `claude mcp list` shows `circuitjs` as connected; inside a session, `/mcp` lists its 14 `circuit_*` tools (17 with the bridge). The server name `circuitjs` is the prefix of the tool names (`mcp__circuitjs__circuit_types`).
+**Check.** `claude mcp list` shows `circuitjs` as connected; inside a session, `/mcp` lists its 15 `circuit_*` tools (18 with the bridge). The server name `circuitjs` is the prefix of the tool names (`mcp__circuitjs__circuit_types`).
 
 ## 2. Install the skill
 
@@ -49,7 +49,7 @@ mkdir -p ~/.claude/skills
 cp -r mcp/skill/circuitjs-circuits ~/.claude/skills/
 ```
 
-Start a new Claude Code session; the skill triggers on requests to design, simulate, tune or fix a circuit in CircuitJS1. The skill works with toolsVersion 1.1 (see `SKILL.md`).
+Start a new Claude Code session; the skill triggers on requests to design, simulate, tune or fix a circuit in CircuitJS1. The skill works with toolsVersion 1.2 (see `SKILL.md`).
 
 ## 3. Uninstall
 

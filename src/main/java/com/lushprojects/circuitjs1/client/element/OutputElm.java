@@ -67,18 +67,35 @@ public class OutputElm extends CircuitElm {
         // lead1 handled by geom
     }
 
-    public void draw(Graphics g) {
-        g.save();
-        boolean selected = needsHighlight();
-        Font f = new Font("SansSerif", selected ? Font.BOLD : 0, 14);
-        g.setFont(f);
-        g.setColor(selected ? selectColor() : foregroundColor());
+    /** The caption: the voltage (Show Voltage), "out", or X/Y while it is a plot axis. */
+    private String outputText() {
         String s = showVoltage() ? getUnitTextWithScale(getNodeVoltage(0), "V", scale, isFixed()) : Locale.LS("out");
-        // FontMetrics fm = g.getFontMetrics();
         if (this == circuitEditor().plotXElm)
             s = "X";
         if (this == circuitEditor().plotYElm)
             s = "Y";
+        return s;
+    }
+
+    /**
+     * [SP_AGA_03_13] the caption, centred at the end point; bold while highlighted; live when it
+     * shows the voltage
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        String s = outputText();
+        layoutCentered(out, s, geom().getX2(), geom().getY2(), true, new Font("SansSerif", highlighted ? Font.BOLD : 0, 14), 0)
+                .live(showVoltage() && !"X".equals(s) && !"Y".equals(s));
+    }
+
+    public void draw(Graphics g) {
+        g.save();
+        boolean selected = needsHighlight();
+        // the lead ends before the label in the font layoutTexts gives it (bold while highlighted)
+        Font f = new Font("SansSerif", isLayoutHighlighted() ? Font.BOLD : 0, 14);
+        g.setFont(f);
+        g.setColor(selected ? selectColor() : foregroundColor());
+        String s = outputText();
         double dn = getDn();
 
         Point p1 = geom().getPoint1();
@@ -96,7 +113,7 @@ public class OutputElm extends CircuitElm {
             lead1.y = p1.y;
         }
         setBbox(p1, lead1, 0);
-        drawCenteredText(g, s, geom().getX2(), geom().getY2(), true);
+        paintTexts(g).paint(0);
         setVoltageColor(g, getNodeVoltage(0));
         if (selected)
             g.setColor(selectColor());

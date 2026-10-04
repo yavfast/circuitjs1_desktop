@@ -22,6 +22,7 @@ package com.lushprojects.circuitjs1.client.element;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
 import com.lushprojects.circuitjs1.client.Choice;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
@@ -33,7 +34,6 @@ import java.util.Map;
 public class VoltageElm extends CircuitElm {
     public int waveform;
     public Waveform waveformInstance;
-    private Point plusPoint;
 
     static final double defaultPulseDuty = 1 / PI_2;
 
@@ -147,6 +147,7 @@ public class VoltageElm extends CircuitElm {
         Point lead2 = geom.getLead2();
         setBbox(getX(), getY(), getX2(), getY2());
         draw2Leads(g);
+        PaintingTextLayout t = paintTexts(g);
         if (waveformInstance.isDC()) {
             setVoltageColor(g, getNodeVoltage(0));
             setPowerColor(g, false);
@@ -158,29 +159,13 @@ public class VoltageElm extends CircuitElm {
             setBbox(point1, point2, hs);
             interpPoint2(lead1, lead2, ps1, ps2, 1, hs);
             drawThickLine(g, ps1, ps2);
-            if (displaySettings().showValues()) {
-                String s = getVoltageText(getVoltage());
-                drawValues(g, s, hs);
-            }
+            t.paint(0);
         } else {
             setBbox(point1, point2, CIRCLE_SIZE);
             interpPoint(lead1, lead2, ps1, .5);
-            drawWaveform(g, ps1);
-            String inds;
-            if (waveformInstance.bias > 0 || (waveformInstance.bias == 0 && waveformInstance.isPulse())) {
-                inds = "+";
-            } else {
-                inds = "*";
-            }
+            drawWaveform(g, ps1, t, 1);
             g.setColor(foregroundColor());
-            g.setFont(unitsFont());
-            if (plusPoint == null) plusPoint = new Point();
-            double dn = getDn();
-            int dsign = getDsign();
-            interpPoint(point1, point2, plusPoint, (dn / 2 + CIRCLE_SIZE + 4) / dn, 10 * dsign);
-            plusPoint.y += 4;
-            int w = (int) g.measureWidth(inds);
-            g.drawString(inds, plusPoint.x - w / 2, plusPoint.y);
+            t.paint(2);
         }
         updateDotCount();
         if (circuitEditor().dragElm != this) {
@@ -194,7 +179,50 @@ public class VoltageElm extends CircuitElm {
         drawPosts(g);
     }
 
-    public void drawWaveform(Graphics g, Point center) {
+    /**
+     * [SP_AGA_03_13] DC: the voltage beside the plates (group 0, when values are shown). Other
+     * waveforms: the frequency beside the circle (group 1, when values are shown) and the polarity
+     * mark "+" (or "*" without a positive offset) beside the circle (group 2), painted between the
+     * waveform and the dots.
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (waveformInstance.isDC()) {
+            if (displaySettings().showValues())
+                layoutValue(out, getVoltageText(getVoltage()), 16, 0, false);
+            return;
+        }
+        layoutWaveformValue(out, 1);
+        String inds;
+        if (waveformInstance.bias > 0 || (waveformInstance.bias == 0 && waveformInstance.isPulse())) {
+            inds = "+";
+        } else {
+            inds = "*";
+        }
+        Font f = unitsFont();
+        Point plusPoint = new Point();
+        double dn = getDn();
+        int dsign = getDsign();
+        interpPoint(geom().getPoint1(), geom().getPoint2(), plusPoint, (dn / 2 + CIRCLE_SIZE + 4) / dn, 10 * dsign);
+        plusPoint.y += 4;
+        int w = (int) out.measureWidth(inds, f);
+        out.add(new TextPlacement(inds, f, plusPoint.x - w / 2, plusPoint.y).group(2));
+    }
+
+    /** [SP_AGA_03_13] the frequency beside the waveform circle, when values are shown */
+    void layoutWaveformValue(TextLayout out, int group) {
+        if (displaySettings().showValues() && waveformInstance.showFrequency()) {
+            String s = getShortUnitText(waveformInstance.frequency, "Hz");
+            int _dx = getDx();
+            int _dy = getDy();
+            if (_dx == 0 || _dy == 0) {
+                layoutValue(out, s, CIRCLE_SIZE, group, false);
+            }
+        }
+    }
+
+    /** Draws the waveform circle and symbol at {@code center}, then paints the text group {@code group}. */
+    public void drawWaveform(Graphics g, Point center, PaintingTextLayout t, int group) {
         g.setColor(needsHighlight() ? selectColor() : neutralColor());
         setPowerColor(g, false);
         int xc = center.x;
@@ -204,14 +232,7 @@ public class VoltageElm extends CircuitElm {
         }
         adjustBbox(xc - CIRCLE_SIZE, yc - CIRCLE_SIZE, xc + CIRCLE_SIZE, yc + CIRCLE_SIZE);
         waveformInstance.draw(g, center, this);
-        if (displaySettings().showValues() && waveformInstance.showFrequency()) {
-            String s = getShortUnitText(waveformInstance.frequency, "Hz");
-            int _dx = getDx();
-            int _dy = getDy();
-            if (_dx == 0 || _dy == 0) {
-                drawValues(g, s, CIRCLE_SIZE);
-            }
-        }
+        t.paint(group);
     }
 
     public int getVoltageSourceCount() {

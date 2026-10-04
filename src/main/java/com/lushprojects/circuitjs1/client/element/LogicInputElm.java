@@ -85,16 +85,20 @@ public class LogicInputElm extends SwitchElm {
         interpPoint(geom().getPoint1(), geom().getPoint2(), geom().getLead1(), 1 - 12 / dn);
     }
 
-    public void draw(Graphics g) {
-        g.save();
-        Font f = new Font("SansSerif", Font.BOLD, 20);
-        g.setFont(f);
-        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
+    /** [SP_AGA_03_13] the level (L/H or the number), centred at the end point */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
         String s = position == 0 ? "L" : "H";
         if (isNumeric())
             s = "" + position;
+        layoutCentered(out, s, getX2(), getY2(), true, new Font("SansSerif", Font.BOLD, 20), 0);
+    }
+
+    public void draw(Graphics g) {
+        g.save();
+        g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setBbox(geom().getPoint1(), geom().getLead1(), 0);
-        drawCenteredText(g, s, getX2(), getY2(), true);
+        paintTexts(g).paint(0);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, geom().getPoint1(), geom().getLead1());
         updateDotCount();

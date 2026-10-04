@@ -29,6 +29,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 // 2, 1 = 50 ohm resistor
 
 import com.lushprojects.circuitjs1.client.Diode;
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -161,6 +162,22 @@ public class SCRElm extends CircuitElm {
         gate[1].y = circuitEditor().snapGrid(gate[1].y);
     }
 
+    /**
+     * [SP_AGA_03_13] the pin letters of a vertical SCR drawn downwards, transient: only while
+     * highlighted
+     */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (highlighted && geom().getPoint1().x == geom().getPoint2().x
+                && geom().getPoint2().y > geom().getPoint1().y) {
+            Font f = unitsFont();
+            int ds = sign(getDx());
+            out.add(new TextPlacement("C", f, geom().getLead2().x + ((ds < 0) ? 5 : -15), geom().getLead2().y + 12).transientText(true));
+            out.add(new TextPlacement("A", f, geom().getLead1().x + 5, geom().getLead1().y - 4).transientText(true)); // x+6 if ds=1, -12 if -1
+            out.add(new TextPlacement("G", f, gate[0].x, gate[0].y + 12).transientText(true));
+        }
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), hs);
         adjustBbox(gate[0], gate[1]);
@@ -198,10 +215,7 @@ public class SCRElm extends CircuitElm {
         if ((needsHighlight() || circuitEditor().dragElm == this) && geom().getPoint1().x == geom().getPoint2().x
                 && geom().getPoint2().y > geom().getPoint1().y) {
             g.setColor(foregroundColor());
-            int ds = sign(_dx);
-            g.drawString("C", geom().getLead2().x + ((ds < 0) ? 5 : -15), geom().getLead2().y + 12);
-            g.drawString("A", geom().getLead1().x + 5, geom().getLead1().y - 4); // x+6 if ds=1, -12 if -1
-            g.drawString("G", gate[0].x, gate[0].y + 12);
+            paintTexts(g).paint(0);
         }
 
         drawPosts(g);

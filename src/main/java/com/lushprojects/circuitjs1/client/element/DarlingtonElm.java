@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client.element;
 
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 
+import com.lushprojects.circuitjs1.client.Font;
 import com.lushprojects.circuitjs1.client.Graphics;
 import com.lushprojects.circuitjs1.client.Point;
 import com.lushprojects.circuitjs1.client.Polygon;
@@ -51,6 +52,18 @@ public class DarlingtonElm extends CompositeElm {
         return dumpValues(super.dump(), pnp);
     }
 
+    /** [SP_AGA_03_13] the pin letters B, C, E of a horizontal Darlington, transient: only while highlighted */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        if (highlighted && getDy() == 0) {
+            Font f = unitsFont();
+            int ds = sign(getDx());
+            out.add(new TextPlacement("B", f, base.x - 10 * ds, base.y - 5).transientText(true));
+            out.add(new TextPlacement("C", f, coll[0].x - 3 + 9 * ds, coll[0].y + 4).transientText(true));
+            out.add(new TextPlacement("E", f, emit[0].x - 3 + 9 * ds, emit[0].y + 4).transientText(true));
+        }
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), 16);
         setPowerColor(g, true);
@@ -87,15 +100,7 @@ public class DarlingtonElm extends CompositeElm {
         int _dx = getDx();
         if ((needsHighlight() || circuitEditor().dragElm == this) && _dy == 0) {
             g.setColor(foregroundColor());
-            // IES
-            // g.setFont(unitsFont);
-            int ds = sign(_dx);
-            g.drawString("B", base.x - 10 * ds, base.y - 5);
-            g.drawString("C", coll[0].x - 3 + 9 * ds, coll[0].y + 4); // x+6 if
-            // ds=1,
-            // -12 if
-            // -1
-            g.drawString("E", emit[0].x - 3 + 9 * ds, emit[0].y + 4);
+            paintTexts(g).paint(0);
         }
         drawPosts(g);
     }

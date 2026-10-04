@@ -92,17 +92,20 @@ public class FMElm extends CircuitElm {
 
     final int circleSize = 17;
 
+    /** [SP_AGA_03_13] the source's name, centred on its circle */
+    @Override
+    public void layoutTexts(TextLayout out, boolean highlighted) {
+        layoutCentered(out, "FM", getX2(), getY2(), true, new Font("SansSerif", 0, 12), 0);
+    }
+
     public void draw(Graphics g) {
         setBbox(geom().getPoint1(), geom().getPoint2(), circleSize);
         setVoltageColor(g, getNodeVoltage(0));
         drawThickLine(g, geom().getPoint1(), geom().getLead1());
 
-        Font f = new Font("SansSerif", 0, 12);
-        g.setFont(f);
         g.setColor(needsHighlight() ? selectColor() : foregroundColor());
         setPowerColor(g, false);
-        String s = "FM";
-        drawCenteredText(g, s, getX2(), getY2(), true);
+        paintTexts(g).paint(0);
         drawWaveform(g, geom().getPoint2());
         drawPosts(g);
         curcount = updateDotCount(-current, curcount);
