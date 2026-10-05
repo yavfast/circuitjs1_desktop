@@ -18,7 +18,8 @@ Layering (from `layers.md`):
 
 | Layer | Packages | Role |
 |---|---|---|
-| L0 | `client/util/`, plus `client/` root geometry/rendering primitives (`Point`, `Rectangle`, `Polygon`, `Graphics`, `Color`, `StringTokenizer`, `Checkbox`, `Choice`) | Stateless utilities and DTOs. |
+| L0 | `client/util/`, plus `client/` root geometry/rendering primitives (`Point`, `Rectangle`, `Polygon`, `Graphics`, `Color`, `StringTokenizer`, `Checkbox`, `Choice`) and the import-free dense kernel `CircuitMath` | Stateless utilities and DTOs. |
+| L0 (leaf) | `client/solver/` ([C_SLV](../../docs/linear-solver.concept.md), PL_SLV P2) | Linear system solver: system store, row reduction, dense and sparse LU. Imports only `java.*` and `client/CircuitMath` (itself import-free); no GWT, no `CircuitSimulator`, no document types — so the engine (L3) uses it and JUnit runs it on the plain JVM. Holds per-stamp state, so it is not a `util/` helper (RULE_STRUCT_007). |
 | L1 | `client/` root widgets, menu items, `ui-tabs/` | UI primitives and tab/menu classes. |
 | L2 (SCC-A) | `client/element/`, `client/dialog/`, `client/element/waveform/`, shared `*Model` classes at client root, `client/io/`+`io/text/`+`io/json/` | Domain core: elements, their edit dialogs, and their persistence formats. |
 | L3 | `client/CirSim`, `client/BaseCirSim`, `client/CircuitDocument`, managers (`*Manager`), `circuitjs1` entry point | App shell. |

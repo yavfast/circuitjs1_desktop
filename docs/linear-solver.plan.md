@@ -54,7 +54,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 ## Progress
 
 - [x] [Phase 1 — Baseline and test infrastructure](#PL_SLV_P1)
-- [ ] [Phase 2 — Sparse kernel](#PL_SLV_P2)
+- [x] [Phase 2 — Sparse kernel](#PL_SLV_P2)
 - [ ] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
 - [ ] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
 - [ ] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
@@ -81,7 +81,7 @@ Notes:
 - `scripts/dev_n_build.js` passes `skipTests` to its maven runs; it keeps doing so (packaging does not need the tests).
 - Done 2026-10-05: the fixture merges three record runs of master e531346 (327 examples). Seven examples differ between runs of one build — oscillating gates and op-amps draw from the unseeded `RandomUtils` (TD_20261005_220500_run-rng-determinism) — and are excluded; compare mode re-runs a differing example up to twice.
 
-### Phase 2 — Sparse kernel (`client/solver/`) [TODO]  {#PL_SLV_P2}
+### Phase 2 — Sparse kernel (`client/solver/`) [DONE]  {#PL_SLV_P2}
 
 **Depends on:** Phase 1 (JUnit)
 **Implements:** [SP_SLV_01_07](./linear-solver.sp.md#SP_SLV_01_07), [SP_SLV_01_08](./linear-solver.sp.md#SP_SLV_01_08), [SP_SLV_01_09](./linear-solver.sp.md#SP_SLV_01_09) (report fields of the kernel), [SP_SLV_02_07](./linear-solver.sp.md#SP_SLV_02_07) (steps S, R, F), [SP_SLV_02_08](./linear-solver.sp.md#SP_SLV_02_08) (sparse solve)

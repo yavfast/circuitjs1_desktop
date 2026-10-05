@@ -129,7 +129,7 @@ rules:
     category: architecture
     severity: must
     file: architecture.md
-    summary: New code respects the L0 util -> L1 widgets/tabs -> L2 domain-core SCC -> L3 app-shell layer ordering.
+    summary: New code respects the L0 util -> L1 widgets/tabs -> L2 domain-core SCC -> L3 app-shell layer ordering; client/solver/ is an L0 leaf (java.* + CircuitMath only).
   - id: RULE_ARCH_002
     title: Known layer inversions are frozen
     category: architecture
