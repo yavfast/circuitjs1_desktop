@@ -1,4 +1,4 @@
-updated: 2026-10-04
+updated: 2026-10-05
 
 entries:
   - id: schematic-drawing-guidelines
@@ -20,3 +20,11 @@ entries:
     trust: project
     sources:
       - session scratchpad of the 2026-10-04 E_AGT verify session (written by main)
+  - id: sparse-spike
+    path: sparse-spike/README.md
+    description: Benchmark kit of the sparse-solver spike — CDP driver that instruments lu_factor/lu_solve/stampCircuit/simplifyMatrix in target/site, synthetic circuit generators, dense LU port, sparse LU prototype (Gilbert–Peierls, min degree, transversal, refactor), captured post-simplify matrices, results, example-corpus matrix sizes; baseline for the sparse-solver implementation
+    topics: [solver, sparse, lu, benchmark, profile, performance, webgpu, wasm]
+    fetched: 2026-10-05
+    trust: project
+    sources:
+      - written by the Q1 researcher of docs/sparse-solver.spike.md (2026-10-05); q2q3_notes.md condenses public web sources listed in the spike

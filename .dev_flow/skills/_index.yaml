@@ -1,12 +1,12 @@
-updated: 2026-10-02
+updated: 2026-10-05
 
 domains:
   - path: gwt/
     description: GWT framework constraints and JSNI bridge patterns specific to circuitjs1
     topics: [gwt, jsni, browser-api, compile-time, widget-wrapper, nw-js, packaging]
   - path: simulator/
-    description: MNA numerical simulation, Newton-Raphson, time-step control, convergence recovery
-    topics: [mna, stamping, newton-raphson, convergence, time-step, panic, companion-model]
+    description: MNA numerical simulation, Newton-Raphson, time-step control, convergence recovery, solver performance (dense vs sparse LU, accelerators)
+    topics: [mna, stamping, newton-raphson, convergence, time-step, panic, companion-model, solver-performance, sparse, lu]
   - path: elements/
     description: Authoring new circuit elements - base contract, flag bits, dump types
     topics: [element, circuit-elm, dump-type, flags, override, editable, edit-info]

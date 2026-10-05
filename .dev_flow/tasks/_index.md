@@ -18,6 +18,9 @@ headers if they drift.
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
 | [E_AGT](task_E_AGT.md) | implement (PL_AGA 11–15) + verify (live series) | in-progress | main | 2026-10-04 |
+| [spike-solver-defects](task_20261005_153627_spike-solver-defects.md) | fix | done | main | 2026-10-05 |
+| [C_SLV](task_C_SLV.md) | plan | in-progress | main | 2026-10-05 |
+| [sparse-solver-research](task_20261005_150450_sparse-solver-research.md) | research | done | main | 2026-10-05 |
 
 ## Recently Completed
 

@@ -141,6 +141,8 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    visible frame (idle ≤ 2.3 per doubling: ≈ 67 µs per element after the
    post-owner map, 1420 ms at 1000 elements before it).
 
+9. **Matrix size and solver speed** — measured costs, the unpaired `mapRow`/`mapCol` after simplify, and the Newton-varying stamp pattern (`AnalogSwitchElm`, VCCS/CCCS) are in `solver-performance.md`; read it before changing `lu_factor`, `stampCircuit` or `simplifyMatrix`.
+
 ## References
 
 - `.dev_flow/onboard/analysis/layer3__simulator-core.md` §4, §8.1

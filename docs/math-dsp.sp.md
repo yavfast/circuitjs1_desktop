@@ -7,7 +7,7 @@
 >
 > **Concept:** [C_MDS](./math-dsp.concept.md)
 > **Depends on specs:** — (Layer 0)
-> **Used by specs:** simulator-core, Scope, element-base, io-text (populated at higher layers)
+> **Used by specs:** [SP_SLV](./linear-solver.sp.md), simulator-core, Scope, element-base, io-text (populated at higher layers)
 > **Plan:** [math-dsp.plan.md](./math-dsp.plan.md)
 >
 > Numerical primitives (`CircuitMath`, `FFT`, `RandomUtils`), parsing helper

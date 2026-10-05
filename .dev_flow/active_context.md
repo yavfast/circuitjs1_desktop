@@ -11,11 +11,14 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 | Task | Phase | Started | Contributors | Next |
 |------|-------|---------|--------------|------|
 | [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | implement (PL_AGA Phases 11–15: agent model definitions) + verify (live agent series) | 2026-10-01 | main | review + commit Phase 14 → Phase 15 → re-run series T8–T10; manual checks still owed |
+| [task_C_SLV](tasks/task_C_SLV.md) — sparse linear system solver ([C_SLV](../docs/linear-solver.concept.md)) | plan (done; design sign-off pending) | 2026-10-05 | main | design sign-off → `/dev-flow implement` PL_SLV P1 on `feat/sparse-solver` |
 
 ## Recently Completed
 
 | Task | Phase | Completed | Contributors | Result |
 |------|-------|-----------|--------------|--------|
+| [task_20261005_153627_spike-solver-defects](tasks/task_20261005_153627_spike-solver-defects.md) — solver defects from the sparse-solver spike | fix | 2026-10-05 | main | reset run stamps once; singular retry escalates; singular message maps reduced columns; live `solver_defects` |
+| [task_20261005_150450_sparse-solver-research](tasks/task_20261005_150450_sparse-solver-research.md) — sparse solver; WebGPU / server acceleration | research | 2026-10-05 | main | spike [sparse-solver.spike.md](../docs/sparse-solver.spike.md) concluded; skill simulator/solver-performance; cache sparse-spike; next: C_SIM concept interview |
 | [task_20261002_100004_circuit-lang-research](tasks/task_20261002_100004_circuit-lang-research.md) — language for circuit description, simulation and measurement | research | 2026-10-02 | main | spike [circuit-script-language.spike.md](../docs/circuit-script-language.spike.md) concluded; skills automation/circuit-experiment-language, agent-run-behaviour; next: concept interview |
 | [task_20261001_142742_mcp-research](tasks/task_20261001_142742_mcp-research.md) — app as MCP server + agent client/skill | research | 2026-10-01 | main | spike [mcp-agent-bridge.spike.md](../docs/mcp-agent-bridge.spike.md) concluded; skills automation/ |
 | [task_20261001_131500_backlog-fixes-3](tasks/task_20261001_131500_backlog-fixes-3.md) — backlog batch 3 (BL-C07/C08/C09) | fix | 2026-10-01 | main | fix/backlog-20260930, merged to master |
@@ -28,7 +31,11 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 ## Deferred (todos)
 
-_No `todos/` register. Open work lives in the backlog of [audit/whole_20260930_173830.plan.md](audit/whole_20260930_173830.plan.md): ITEM-15 (CSP, active) · BL-A01…A16 · BL-B01…B06 · BL-C01…C11 · BL-D01…D03 (2026-10-02, circuit-language spike) · June BL-RD/BL-AR/BL-01…04 · proposed decisions PL_AUDIT_20260930_173830_DEC_01 (release build profile) and DEC_03 (element↔dialog cycle)._
+Register [todos/_index.md](todos/_index.md): 2 candidates · 0 queued · 0 contested — TD_20261005_145712_forced-run ("Run for…" a set span to skip transients), TD_20261005_155200_cappar-retry-limit (verify first).
+
+- ⚑ Closed-plan flag: TD_20261005_145712_sparse-solver (sparse LU for large circuits) was filed in the backlog of the **completed** plan [PL_SIM](../docs/simulator-engine.plan.md#backlog). Both items return after task_E_AGT closes.
+
+Other open work lives in the backlog of [audit/whole_20260930_173830.plan.md](audit/whole_20260930_173830.plan.md): ITEM-15 (CSP, active) · BL-A01…A16 · BL-B01…B06 · BL-C01…C11 · BL-D01…D03 (2026-10-02, circuit-language spike) · June BL-RD/BL-AR/BL-01…04 · proposed decisions PL_AUDIT_20260930_173830_DEC_01 (release build profile) and DEC_03 (element↔dialog cycle).
 
 ## Notes
 

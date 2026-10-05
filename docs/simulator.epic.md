@@ -20,6 +20,7 @@ controller that orchestrates simulation ticks against the UI.
 - [C_APC](app-controller.concept.md) — `CirSim` UI shell: top-level controller wiring simulator, editor, document, menus, scopes, dialogs
 - [C_DOC](document-model.concept.md) — per-tab `CircuitDocument` state container and multi-tab document lifecycle
 - [C_NET](netlist-graph.concept.md) — solver-facing node table and node–element link graph rebuilt each re-analyze pass
+- [C_SLV](linear-solver.concept.md) — MNA system store, row reduction and the dense/sparse solve paths behind C_SIM (draft, 2026-10-05)
 
 ## Cross-cutting Invariants
 

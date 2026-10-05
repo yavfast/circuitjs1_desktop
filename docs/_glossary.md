@@ -58,6 +58,24 @@ _Avoid_: discovery file, port file
 The stdio program that connects stdio-only agent hosts and shell scripts to an app instance's endpoint ([C_MCB](./mcp-bridge.concept.md)).
 _Avoid_: MCP client (the agent host is the protocol client), proxy server
 
+### Simulator solver
+
+**Solve path**
+The way one analysis solves the MNA system: the dense path (full-table elimination, the solver of the original simulator) or the sparse path (storage and elimination over non-zeros) ([C_SLV](./linear-solver.concept.md)).
+_Avoid_: solver backend, engine (the engine is all of C_SIM)
+
+**Solver mode**
+The user's or API's choice of solve path: `Auto` (by reduced size), `Dense` or `Sparse`; a session default with an unsaved per-document override.
+_Avoid_: solver type, matrix mode
+
+**Pattern**
+The set of matrix positions any stamp has touched in the current analysis; the sparse path's symbolic analysis is built on it.
+_Avoid_: sparsity structure (in agent-facing text), topology (that is the circuit's connectivity)
+
+**Refactorization**
+A factorization that reuses the pattern, ordering and pivot sequence of the last full one and recomputes only the values; falls back to a full factorization when pivot growth is too large.
+_Avoid_: re-LU, fast factor
+
 ## Flagged ambiguities
 
 - **Node vs net** — the simulator's "node" is a solver row; agent-facing text says "net" for the electrical set of posts and "post" for a connection point. Existing simulator concepts keep "node".

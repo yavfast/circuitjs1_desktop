@@ -72,6 +72,7 @@
 | ID | Title | Status | Summary | Files |
 |---|---|---|---|---|
 | C_SIM | Simulator Engine | active | MNA matrix builder, Newton–Raphson non-linear iteration, and time-stepping core | [concept](simulator-engine.concept.md) · [spec](simulator-engine.sp.md) · [plan](simulator-engine.plan.md) |
+| C_SLV | Linear System Solver | draft | MNA system store, row reduction, dense/sparse solve paths (sparse LU with transversal, ordering, growth-checked refactor), solver mode (session + per-document API override) | [concept](linear-solver.concept.md) · [spec](linear-solver.sp.md) · [plan](linear-solver.plan.md) |
 | C_APC | App Controller | active | `CirSim` — GWT UI shell and top-level controller wiring all subsystems together | [concept](app-controller.concept.md) · [spec](app-controller.sp.md) · [plan](app-controller.plan.md) |
 | C_DOC | Document Model | active | Per-tab circuit state container and multi-tab document lifecycle | [concept](document-model.concept.md) · [spec](document-model.sp.md) · [plan](document-model.plan.md) |
 | C_NET | Netlist Graph | active | Solver-facing node/link graph built from element pins each re-analyze pass | [concept](netlist-graph.concept.md) · [spec](netlist-graph.sp.md) · [plan](netlist-graph.plan.md) |
@@ -117,7 +118,7 @@
 |---|---|---|
 | [E_DOMAIN_CORE](domain-core.epic.md) | Circuit elements + edit UI + serialization | C_ELB + C_WFM + C_SHM + 14 element-category concepts + C_EIC + C_IEU + C_DIN + C_DSP + C_IOF |
 | [E_EDITOR](editor.epic.md) | Canvas editing + commands + menus + clipboard | C_EDI + C_UND + C_MEN + C_CLP |
-| [E_SIMULATOR](simulator.epic.md) | Numerical simulation engine + document model | C_SIM + C_APC + C_DOC + C_NET |
+| [E_SIMULATOR](simulator.epic.md) | Numerical simulation engine + document model | C_SIM + C_SLV + C_APC + C_DOC + C_NET |
 | [E_VISUALIZATION](visualization.epic.md) | Scope, sliders, display settings | C_SCP + C_ADJ + C_USR |
 | [E_AGT](agent-automation.epic.md) | AI agents drive the app over MCP | C_AGA + C_MCP + C_MCB + C_AGS |
 
@@ -125,6 +126,7 @@
 
 - [mcp-agent-bridge.spike.md](mcp-agent-bridge.spike.md) — concluded 2026-10-01: app as MCP server (in-app Streamable HTTP + stdio bridge), JS API gaps, agent tools & skill; feeds epic E_AGT (the interview chose agent-written grid-cell coordinates over the spike's netlist-first recommendation)
 - [circuit-script-language.spike.md](circuit-script-language.spike.md) — concluded 2026-10-02: a language for describing circuits, running simulations and measuring at circuit points; verdict feasible in layers — an experiment layer (SPICE-style measures, spec checks, sweeps/Monte Carlo) over the Agent API, hosted outside the app; target concept not yet created; relates to epic E_AGT
+- [sparse-solver.spike.md](sparse-solver.spike.md) — concluded 2026-10-05: sparse solver for large circuits; verdict: in-engine CPU sparse LU (Gilbert–Peierls + ordering + transversal + refactor, dense path below m ≈ 64) is the lever (100–1000× per factorization at m ≥ 500); WebGPU (absent in NW.js 0.64.1, no f64) and server offload rejected; WASM-KLU conditional; feeds a C_SIM update (PL_SIM backlog TD_20261005_145712_sparse-solver)
 
 ## Pre-existing hand-written docs (cross-reference)
 

@@ -7,7 +7,7 @@
 >
 > **Concept:** [C_SIM](./simulator-engine.concept.md)
 > **Depends on specs:** [SP_ELB](./element-base.sp.md), [SP_UTL](./util-locale-log.sp.md), [SP_MDS](./math-dsp.sp.md), [SP_SHM](./shared-models.sp.md)
-> **Used by specs:** —
+> **Used by specs:** [SP_SLV](./linear-solver.sp.md)
 > **Plan:** [simulator-engine.plan.md](./simulator-engine.plan.md)
 >
 > Backing analysis: `.dev_flow/onboard/analysis/layer3__simulator-core.md`.

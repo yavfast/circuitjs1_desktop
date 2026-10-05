@@ -7,7 +7,7 @@
 >
 > **Concept:** [C_MCP](./mcp-server.concept.md)
 > **Depends on:** [SP_AGA](./agent-api.sp.md), [SP_USR](./user-preferences.sp.md)
-> **Used by:** [SP_MCB](./mcp-bridge.sp.md), [SP_AGS](./agent-skill.sp.md)
+> **Used by:** [SP_MCB](./mcp-bridge.sp.md), [SP_AGS](./agent-skill.sp.md), [SP_SLV](./linear-solver.sp.md)
 > **Plan:** [mcp-server.plan.md](./mcp-server.plan.md)
 >
 > This specification defines the in-app MCP endpoint: its HTTP behaviour, preferences, instance records, the tool and resource catalogue mapped onto [SP_AGA](./agent-api.sp.md) contracts, result shaping, and the user-visible server info. Read it to implement the server, to add a tool, or to write the bridge against it. The protocol layer is resolved as the SDK 1.x core with a custom HTTP transport ([C_MCP_DEC_03](./mcp-server.concept.md#C_MCP_DEC_03)); this spec fixes the behaviour that layer must satisfy.

@@ -3,12 +3,12 @@
 > **Code:** C_SIM
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-05
 > **Author:** onboard
 >
-> **Depends on:** [C_ELB](./element-base.concept.md), [C_UTL](./util-locale-log.concept.md), [C_MDS](./math-dsp.concept.md), [C_SHM](./shared-models.concept.md)
-> **Used by:** —
-> **Spike:** —
+> **Depends on:** [C_SLV](./linear-solver.concept.md), [C_ELB](./element-base.concept.md), [C_UTL](./util-locale-log.concept.md), [C_MDS](./math-dsp.concept.md), [C_SHM](./shared-models.concept.md)
+> **Used by:** [C_SLV](./linear-solver.concept.md)
+> **Spike:** [sparse-solver.spike.md](./sparse-solver.spike.md)
 > **Specification:** [SP_SIM](./simulator-engine.sp.md)
 > **Plan:** [simulator-engine.plan.md](./simulator-engine.plan.md)
 >
@@ -117,6 +117,12 @@ of rows with a single non-constant term (ROW_CONST + dropRow), rebuilds
 A/B at reduced size, snapshots into `origMatrix`/`origRightSide`. Linear
 circuits factor once via `CircuitMath.lu_factor`.
 
+The storage of A/B, the row reduction's storage, the choice between the
+dense and sparse solve paths, factorization and the solve are defined by
+[C_SLV](./linear-solver.concept.md) (draft); this concept keeps the
+stamping rules, the reduction rules, the Newton loop and the singular-matrix
+escalation.
+
 **Newton–Raphson loop** (`runCircuit`, L1442–1754). Per Newton sub-iter:
 copy origRightSide→B; if nonlinear copy origMatrix→A; call `ce.doStep()`
 on every element (each may set `converged = false`); if `converged &&
@@ -213,3 +219,4 @@ Outbound contract: `SimulationContextAware.setSimulationContext(doc)`.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-05 | Storage, path choice, factorization and solve delegated to the new [C_SLV](./linear-solver.concept.md) (sparse solver, from the [sparse-solver spike](./sparse-solver.spike.md)). |

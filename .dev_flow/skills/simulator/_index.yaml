@@ -1,4 +1,4 @@
-updated: 2026-10-02
+updated: 2026-10-05
 domain: simulator
 skills:
   - file: mna-stamping.md
@@ -10,9 +10,14 @@ skills:
     skill: newton-raphson-loop
     topics: [newton-raphson, convergence, panic-level, gmin, recovery]
     source: onboard
-    updated: 2026-04-18
+    updated: 2026-10-05
   - file: time-step-control.md
     skill: time-step-control
     topics: [time-step, adaptive, frame-budget, min-time-step, reset, quantization, slider]
     source: onboard
     updated: 2026-10-02
+  - file: solver-performance.md
+    skill: solver-performance
+    topics: [solver, performance, lu, sparse, profiling, large-circuit, webgpu, wasm, benchmark]
+    source: research
+    updated: 2026-10-05

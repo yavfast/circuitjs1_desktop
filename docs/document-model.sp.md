@@ -7,7 +7,7 @@
 >
 > **Concept:** [C_DOC](./document-model.concept.md)
 > **Depends on specs:** [SP_SIM](./simulator-engine.sp.md), [SP_ELB](./element-base.sp.md), [SP_IOF](./io-framework.sp.md), [SP_NET](./netlist-graph.sp.md)
-> **Used by specs:** —
+> **Used by specs:** [SP_SLV](./linear-solver.sp.md)
 > **Plan:** [document-model.plan.md](./document-model.plan.md)
 >
 > Backing analysis: `.dev_flow/onboard/analysis/layer3__circuit-state.md`.
