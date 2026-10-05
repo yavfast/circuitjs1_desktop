@@ -55,7 +55,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 
 - [x] [Phase 1 — Baseline and test infrastructure](#PL_SLV_P1)
 - [x] [Phase 2 — Sparse kernel](#PL_SLV_P2)
-- [ ] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
+- [x] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
 - [ ] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
 - [ ] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
 - [ ] [Phase 6 — Performance, full verification, propagation](#PL_SLV_P6)
@@ -108,7 +108,7 @@ Pseudocode sketch (full factorization, step k):
     p := paired row of c if |x[paired]| >= 1e-3 * candMax else argmax
     U[:, k] := x on pivotal rows ∪ {p}; L[:, k] := x on cand \ {p} divided by x[p]
 
-### Phase 3 — System store and reduction, dense path only (`client/solver/LinearSystem.java`, `client/CircuitSimulator.java`) [TODO]  {#PL_SLV_P3}
+### Phase 3 — System store and reduction, dense path only (`client/solver/LinearSystem.java`, `client/CircuitSimulator.java`) [DONE]  {#PL_SLV_P3}
 
 **Depends on:** Phase 1 (baseline), Phase 2 (`CscPattern`)
 **Implements:**
@@ -135,6 +135,7 @@ What to create / change:
 Notes:
 - The dense `m ≤ 12` pre-factor copy (SP_SLV §01_06) lands here with `dumpSystem`.
 - `sanitizeStampValue` stays in `CircuitSimulator` (it writes `converged`).
+- Done 2026-10-05: `solver_corpus` 327/327 identical; ReduceTest 500 sequences bit-identical; regression set passes (`json_roundtrip` fails identically on master — pre-existing). Timing against a master build, two paired runs: frame idle equal, steps/s at 1000 elements about 3 % lower; `importCircuit` 2–6 % slower with no solver code in its CPU profile (build/GC noise). The RULE_TEST_002 devmode check is owed to P6 (headless stand-ins: corpus runs, `agent_freerun`). Stamps after a stop or into a dropped row are ignored (they threw a JS TypeError before); `stepLoop` returns when an in-loop re-stamp left no system.
 
 ### Phase 4 — Sparse path, solver mode, Agent API (`client/solver/`, `CircuitSimulator`, `CircuitDocument`, `agent/`) [TODO]  {#PL_SLV_P4}
 

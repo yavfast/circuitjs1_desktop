@@ -12,6 +12,9 @@ import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
+import com.lushprojects.circuitjs1.client.solver.LinearSystem;
+import com.lushprojects.circuitjs1.client.solver.RowInfo;
+import com.lushprojects.circuitjs1.client.solver.SingularityReport;
 import com.lushprojects.circuitjs1.client.util.BoxGrid;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -58,19 +61,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     private CircuitElm[] voltageSources;
 
-    private double[][] circuitMatrix;
-    private double[][] origMatrix;
-    private double[] circuitRightSide;
+    /** [SP_SLV_02_10] the MNA system: store, reduction, solve paths (replaces the dense tables). */
+    private final LinearSystem linearSystem = new LinearSystem();
     private double[] lastNodeVoltages;
     private double[] nodeVoltages;
-    private double[] origRightSide;
-    private RowInfo[] circuitRowInfo;
-    private int[] circuitPermute;
     private boolean circuitNonLinear;
     private int voltageSourceCount;
-    private int circuitMatrixSize;
-    private int circuitMatrixFullSize;
-    private boolean circuitNeedsMap;
 
     public CircuitSimulator(BaseCirSim cirSim, CircuitDocument circuitDocument) {
         super(cirSim, circuitDocument);
@@ -220,7 +216,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         stopElm = ce;
         recordEvent(message, stopMessage, true, ce);
 
-        circuitMatrix = null; // causes an exception
+        linearSystem.drop();
 
         getActiveDocument().stop(message, ce);
     }
@@ -251,21 +247,13 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         nodesAnalysedFor = -1;
 
         // Drop any existing matrix/voltage state so nothing "leaks" across resets.
-        circuitMatrix = null;
-        origMatrix = null;
-        circuitRightSide = null;
-        origRightSide = null;
+        linearSystem.drop();
         nodeVoltages = null;
         lastNodeVoltages = null;
         solvedAnalysis = -1;
-        circuitRowInfo = null;
-        circuitPermute = null;
 
         circuitNonLinear = false;
         voltageSourceCount = 0;
-        circuitMatrixSize = 0;
-        circuitMatrixFullSize = 0;
-        circuitNeedsMap = false;
     }
 
     int locateElm(CircuitElm elm) {
@@ -972,21 +960,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             throw new IllegalStateException("debugFailNextStamp: forced failure of the matrix stamp");
         }
         int matrixSize = nodeList.size() - 1 + voltageSourceCount;
-        circuitMatrix = new double[matrixSize][matrixSize];
-        circuitRightSide = new double[matrixSize];
+        // [SP_SLV_02_01] a new system for this stamp
+        linearSystem.beginStamp(matrixSize, analysisCount);
         nodeVoltages = new double[nodeList.size() - 1];
         if (lastNodeVoltages == null || lastNodeVoltages.length != nodeVoltages.length) {
             lastNodeVoltages = new double[nodeList.size() - 1];
         }
-        origMatrix = new double[matrixSize][matrixSize];
-        origRightSide = new double[matrixSize];
-        circuitMatrixSize = circuitMatrixFullSize = matrixSize;
-        circuitRowInfo = new RowInfo[matrixSize];
-        for (int i = 0; i < matrixSize; i++) {
-            circuitRowInfo[i] = new RowInfo();
-        }
-        circuitPermute = new int[matrixSize];
-        circuitNeedsMap = false;
 
         connectUnconnectedNodes();
 
@@ -1011,19 +990,19 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
         }
 
-        if (!simplifyMatrix(matrixSize)) {
+        if (!reduceSystem()) {
             return;
         }
 
         // check if we called stop()
-        if (circuitMatrix == null) {
+        if (!linearSystem.hasSystem()) {
             return;
         }
 
         // if a matrix is linear, we can do the lu_factor here instead of
         // needing to do it every frame
         if (!circuitNonLinear) {
-            if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
+            if (linearSystem.factor() != null) {
                 // In educational mode, try enabling stabilizers rather than stopping.
                 if (nonConvergenceRecoveryEnabled && !singularStabilizersActive) {
                     singularStabilizersActive = true;
@@ -1064,147 +1043,20 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         needsStamp = false;
     }
 
-    // simplify the matrix; this speeds things up quite a bit, especially for
-    // digital circuits.
-    // or at least it did before we added wire removal
-    boolean simplifyMatrix(int matrixSize) {
-        RowInfo[] circuitRowInfo = this.circuitRowInfo;
-        double[][] circuitMatrix = this.circuitMatrix;
-        double[] circuitRightSide = this.circuitRightSide;
-
-        int i, j;
-        // Iterate through each row of the matrix to find opportunities for
-        // simplification.
-        for (i = 0; i < matrixSize; i++) {
-            int pivotColumnIndex = -1; // Index of the first non-zero, non-constant element in the row.
-            double pivotValue = 0; // Value of the first non-zero, non-constant element.
-            RowInfo rowInfo = circuitRowInfo[i];
-            // Skip rows that are already simplified, marked for dropping, or have changing
-            // right-hand sides.
-            if (rowInfo.lsChanges || rowInfo.dropRow || rowInfo.rsChanges) {
-                continue;
+    // [SP_SLV_02_04] simplify the matrix (row reduction in the solver); this speeds things up
+    // quite a bit, especially for digital circuits. Then [SP_SLV_02_05] the solve path.
+    private boolean reduceSystem() {
+        if (!linearSystem.reduce()) {
+            // This should not happen in a valid circuit. It might indicate a singular matrix.
+            if (nonConvergenceRecoveryEnabled) {
+                warn("Matrix error", null);
+                singularStabilizersActive = true;
+                return false;
             }
-            double rightSideAdjustment = 0; // Accumulator for adjustments to the right-hand side of the equation.
-
-            // Scan the row to see if it can be simplified.
-            // A row can be simplified if it contains exactly one non-zero element
-            // corresponding to a non-constant variable.
-            for (j = 0; j < matrixSize; j++) {
-                double elementValue = circuitMatrix[i][j];
-                // If the element corresponds to a known constant, adjust the right-hand side.
-                if (circuitRowInfo[j].type == RowInfo.ROW_CONST) {
-                    rightSideAdjustment -= circuitRowInfo[j].value * elementValue;
-                    continue;
-                }
-                if (elementValue == 0) {
-                    continue;
-                }
-                // If this is the first non-zero element found, record its position and value.
-                if (pivotColumnIndex == -1) {
-                    pivotColumnIndex = j;
-                    pivotValue = elementValue;
-                    continue;
-                }
-                // If more than one non-zero element is found, this row cannot be simplified at
-                // this time.
-                break;
-            }
-
-            // If the loop completed, it means we found a row that can be simplified (j ==
-            // matrixSize).
-            if (j == matrixSize) {
-                if (pivotColumnIndex == -1) {
-                    // This should not happen in a valid circuit. It might indicate a singular
-                    // matrix.
-                    if (nonConvergenceRecoveryEnabled) {
-                        warn("Matrix error", null);
-                        singularStabilizersActive = true;
-                        return false;
-                    }
-                    stop("Matrix error", null);
-                    return false;
-                }
-                RowInfo pivotRowInfo = circuitRowInfo[pivotColumnIndex];
-                // We've found a row with a single unknown. We can solve for this unknown.
-                if (pivotRowInfo.type != RowInfo.ROW_NORMAL) {
-                    // This case should ideally not be reached if logic is correct.
-                    console("type already " + pivotRowInfo.type + " for " + pivotColumnIndex + "!");
-                    continue;
-                }
-                // Mark the variable as a constant and calculate its value.
-                pivotRowInfo.type = RowInfo.ROW_CONST;
-                pivotRowInfo.value = (circuitRightSide[i] + rightSideAdjustment) / pivotValue;
-                circuitRowInfo[i].dropRow = true; // Mark the current row to be removed from the matrix.
-
-                // Now that we have a new constant, we need to re-check previous rows.
-                // Find the first row that referenced the element we just turned into a
-                // constant.
-                for (j = 0; j != i; j++) {
-                    if (circuitMatrix[j][pivotColumnIndex] != 0) {
-                        break;
-                    }
-                }
-                // Restart the main loop from just before that row to apply the new
-                // simplification.
-                i = j - 1;
-            }
+            stop("Matrix error", null);
+            return false;
         }
-
-        // Create the new, smaller matrix by removing the simplified rows and columns.
-        int newSizeCounter = 0; // Counter for the size of the new matrix.
-        for (i = 0; i < matrixSize; i++) {
-            RowInfo rowInfo = circuitRowInfo[i];
-            if (rowInfo.type == RowInfo.ROW_NORMAL) {
-                rowInfo.mapCol = newSizeCounter++; // Map old column index to new column index.
-            } else {
-                rowInfo.mapCol = -1; // Mark constant columns.
-            }
-        }
-
-        int newMatrixSize = newSizeCounter;
-        if (newMatrixSize == matrixSize) {
-            // No simplification was possible, no need to rebuild the matrix.
-            // Still need to snapshot the base matrix/right side for nonlinear sub-iterations.
-            System.arraycopy(this.circuitRightSide, 0, this.origRightSide, 0, matrixSize);
-            for (i = 0; i < matrixSize; i++) {
-                System.arraycopy(this.circuitMatrix[i], 0, this.origMatrix[i], 0, matrixSize);
-            }
-            return true;
-        }
-
-        double[][] newCircuitMatrix = new double[newMatrixSize][newMatrixSize];
-        double[] newRightSide = new double[newMatrixSize];
-        int newRowIndex = 0; // Row index for the new matrix.
-        for (i = 0; i < matrixSize; i++) {
-            RowInfo currentRowInfo = circuitRowInfo[i];
-            if (currentRowInfo.dropRow) {
-                currentRowInfo.mapRow = -1;
-                continue;
-            }
-            newRightSide[newRowIndex] = circuitRightSide[i];
-            currentRowInfo.mapRow = newRowIndex;
-            for (j = 0; j != matrixSize; j++) {
-                RowInfo columnRowInfo = circuitRowInfo[j];
-                if (columnRowInfo.type == RowInfo.ROW_CONST) {
-                    // Adjust the right-hand side with the value of the constant.
-                    newRightSide[newRowIndex] -= columnRowInfo.value * circuitMatrix[i][j];
-                } else {
-                    // Copy the matrix element to its new position.
-                    newCircuitMatrix[newRowIndex][columnRowInfo.mapCol] += circuitMatrix[i][j];
-                }
-            }
-            newRowIndex++;
-        }
-
-        // Replace the old matrix and right-side vector with the new simplified ones.
-        this.circuitMatrix = newCircuitMatrix;
-        this.circuitRightSide = newRightSide;
-        matrixSize = this.circuitMatrixSize = newMatrixSize;
-        System.arraycopy(this.circuitRightSide, 0, this.origRightSide, 0, matrixSize);
-        for (i = 0; i < matrixSize; i++) {
-            System.arraycopy(this.circuitMatrix[i], 0, this.origMatrix[i], 0, matrixSize);
-        }
-        circuitNeedsMap = true;
+        linearSystem.selectPath();
         return true;
     }
 
@@ -1406,19 +1258,13 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public void stampMatrix(int i, int j, double x) {
         x = sanitizeStampValue(x);
         if (i > 0 && j > 0) {
-            if (circuitNeedsMap) {
-                i = circuitRowInfo[i - 1].mapRow;
-                RowInfo ri = circuitRowInfo[j - 1];
-                if (ri.type == RowInfo.ROW_CONST) {
-                    circuitRightSide[i] -= sanitizeStampValue(x * ri.value);
-                    return;
-                }
-                j = ri.mapCol;
-            } else {
-                i--;
-                j--;
+            // [SP_SLV_02_02] after reduction a constant column moves to the right side
+            RowInfo ri = linearSystem.constColumn(j - 1);
+            if (ri != null) {
+                linearSystem.subtractRhs(i - 1, sanitizeStampValue(x * ri.value));
+                return;
             }
-            circuitMatrix[i][j] += x;
+            linearSystem.addEntry(i - 1, j - 1, x);
         }
     }
 
@@ -1427,26 +1273,21 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     public void stampRightSide(int i, double x) {
         x = sanitizeStampValue(x);
         if (i > 0) {
-            if (circuitNeedsMap) {
-                i = circuitRowInfo[i - 1].mapRow;
-            } else {
-                i--;
-            }
-            circuitRightSide[i] += x;
+            linearSystem.addRhs(i - 1, x);
         }
     }
 
     // indicate that the value on the right side of row i changes in doStep()
     public void stampRightSide(int i) {
         if (i > 0) {
-            circuitRowInfo[i - 1].rsChanges = true;
+            linearSystem.markRightSideChanges(i - 1);
         }
     }
 
     // indicate that the values on the left side of row i change in doStep()
     public void stampNonLinear(int i) {
         if (i > 0) {
-            circuitRowInfo[i - 1].lsChanges = true;
+            linearSystem.markNonLinear(i - 1);
         }
     }
 
@@ -1534,8 +1375,10 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
     // set node voltages given right side found by solving matrix
     void applySolvedRightSide(double[] rs) {
-        for (int j = 0; j != circuitMatrixFullSize; j++) {
-            RowInfo ri = circuitRowInfo[j];
+        RowInfo[] rowInfo = linearSystem.rowInfo();
+        int fullSize = linearSystem.fullSize();
+        for (int j = 0; j != fullSize; j++) {
+            RowInfo ri = rowInfo[j];
             double res;
             if (ri.type == RowInfo.ROW_CONST) {
                 res = ri.value;
@@ -1877,21 +1720,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return circuitInfo().developerMode;
     }
 
+    // [SP_SLV_02_03] the reduced system's assembled values, row by row
     void dumpCircuitMatrix() {
-        StringBuilder xBuilder = new StringBuilder();
-        for (int j = 0; j < circuitMatrixSize; j++) {
-            for (int i = 0; i < circuitMatrixSize; i++) {
-                xBuilder.append(circuitMatrix[j][i]).append(",");
+        int size = linearSystem.size();
+        for (int j = 0; j < size; j++) {
+            StringBuilder xBuilder = new StringBuilder();
+            for (int i = 0; i < size; i++) {
+                xBuilder.append(linearSystem.assembledValue(j, i)).append(",");
             }
-            xBuilder.append("\n");
             console(xBuilder.toString());
         }
         console("done");
     }
 
     void runCircuit(boolean didAnalyze) {
-        if (circuitMatrix == null || elmList.isEmpty()) {
-            circuitMatrix = null;
+        if (!linearSystem.hasSystem() || elmList.isEmpty()) {
+            linearSystem.drop();
             return;
         }
 
@@ -1992,8 +1836,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
      *                             frame does when no scope views a wire
      */
     public void runSteps(StepObserver observer, boolean wireCurrentsEachStep) {
-        if (circuitMatrix == null || elmList.isEmpty()) {
-            circuitMatrix = null;
+        if (!linearSystem.hasSystem() || elmList.isEmpty()) {
+            linearSystem.drop();
             return;
         }
         boolean delay = !wireCurrentsEachStep && scopeManager().canDelayWireProcessing();
@@ -2026,6 +1870,11 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 stampCircuit();
                 goodIterations = 0;
             }
+            // an in-loop re-stamp (time step, recovery) that ended without a system (a warned
+            // matrix error) leaves nothing to step
+            if (!linearSystem.hasSystem()) {
+                return false;
+            }
 
             CircuitElm[] elmArr = this.elmArr;
             for (CircuitElm circuitElm : elmArr) {
@@ -2048,27 +1897,15 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
             CircuitElm firstNonConvergedElm = null;
 
-            int circuitMatrixSize = this.circuitMatrixSize;
-            double[][] circuitMatrix = this.circuitMatrix;
-            double[] circuitRightSide = this.circuitRightSide;
-            int[] circuitPermute = this.circuitPermute;
-            double[][] origMatrix = this.origMatrix;
-            double[] origRightSide = this.origRightSide;
+            final LinearSystem system = linearSystem;
 
             for (subIter = 0; subIter < subIterCount; subIter++) {
                 converged = true;
                 subIterations = subIter;
                 firstNonConvergedElm = null;
 
-                if (circuitMatrixSize >= 0) {
-                    System.arraycopy(origRightSide, 0, circuitRightSide, 0, circuitMatrixSize);
-                }
-
-                if (circuitNonLinear) {
-                    for (int i = 0; i < circuitMatrixSize; i++) {
-                        System.arraycopy(origMatrix[i], 0, circuitMatrix[i], 0, circuitMatrixSize);
-                    }
-                }
+                // [SP_SLV_01_05] the constant part (rhs always; matrix for a nonlinear circuit)
+                system.restoreSnapshot(circuitNonLinear);
 
                 for (CircuitElm circuitElm : elmArr) {
                     circuitElm.doStep();
@@ -2091,7 +1928,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     if (converged && subIter > 0) {
                         break;
                     }
-                    if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
+                    SingularityReport singular = system.factor();
+                    if (singular != null) {
                         matrixFailureThisIteration = true;
                         // If LU factorization fails, enable persistent stabilizers and re-stamp.
                         // This handles idealized/legacy configurations that are structurally singular.
@@ -2103,19 +1941,14 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                         }
 
                         // Stabilizers active and still singular: escalate (SP_SIM_02 SINGULAR). Do not
-                        // stamp and re-factor here: lu_factor has overwritten circuitMatrix in place
-                        // (partly factored, rows swapped), and stampCircuit already adds the stabilizers
-                        // while singularStabilizersActive (the recovery below re-stamps).
-                        int failCol = CircuitMath.getLastLuFailColumn();
-                        int failRow = CircuitMath.getLastLuFailRow();
-                        double failPivot = CircuitMath.getLastLuFailPivotAbs();
-
-                        // Log a human-friendly hint about which variable is causing the singularity.
-                        // Columns/rows map to node voltages first, then voltage-source currents.
-                        console("Singular matrix: pivot failed with stabilizers at col=" + failCol +
-                                " row=" + failRow + " abs=" + failPivot + " var=" + describeMatrixVariable(failCol));
-                        if (circuitMatrixSize > 0 && circuitMatrixSize <= 12) {
-                            console("lu_factor failed (stabilized): matrixSize=" + circuitMatrixSize +
+                        // stamp and re-factor here: stampCircuit already adds the stabilizers while
+                        // singularStabilizersActive (the recovery below re-stamps).
+                        // [SP_SLV_01_09] the report names the unknown of the failed reduced column.
+                        int matrixSize = system.size();
+                        console("Singular matrix: pivot failed with stabilizers at col=" + singular.column +
+                                " row=" + singular.row + " abs=" + singular.pivotAbs + " var=" + describeMatrixVariable(singular));
+                        if (matrixSize > 0 && matrixSize <= 12) {
+                            console("lu_factor failed (stabilized): matrixSize=" + matrixSize +
                                     ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
                             dumpCircuitMatrix();
                         }
@@ -2136,9 +1969,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                     }
                 }
 
-                CircuitMath.lu_solve(circuitMatrix, circuitMatrixSize, circuitPermute, circuitRightSide);
-
-                applySolvedRightSide(circuitRightSide);
+                applySolvedRightSide(system.solve());
 
                 if (!circuitNonLinear) {
                     break;
@@ -2331,38 +2162,34 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         }
     }
 
-    private String describeMatrixVariable(int matrixCol) {
-        if (matrixCol < 0) {
+    // [SP_SLV_01_09] the unknown of a singularity report's reduced column, as text (also kept in
+    // the report's variable)
+    private String describeMatrixVariable(SingularityReport report) {
+        if (report.column < 0) {
             return "(unknown)";
         }
-        if (circuitNeedsMap) {
-            // [SP_SLV_01_09] a column of the reduced matrix: find its unknown through mapCol
-            int unknown = -1;
-            for (int j = 0; j < circuitMatrixFullSize; j++) {
-                RowInfo ri = circuitRowInfo[j];
-                if (ri.type == RowInfo.ROW_NORMAL && ri.mapCol == matrixCol) {
-                    unknown = j;
-                    break;
-                }
-            }
-            if (unknown < 0) {
-                return "(out-of-range col=" + matrixCol + ")";
-            }
-            matrixCol = unknown;
+        if (report.unknown < 0) {
+            return "(out-of-range col=" + report.column + ")";
         }
+        report.variable = unknownText(report.unknown);
+        return report.variable;
+    }
+
+    // node voltages first, then voltage-source currents
+    private String unknownText(int unknown) {
         int nodeVarCount = nodeList.size() - 1;
-        if (matrixCol < nodeVarCount) {
-            int nodeIndex = matrixCol + 1;
+        if (unknown < nodeVarCount) {
+            int nodeIndex = unknown + 1;
             return "nodeVoltage(node=" + nodeIndex + ")";
         }
-        int vsIndex = matrixCol - nodeVarCount;
+        int vsIndex = unknown - nodeVarCount;
         if (vsIndex >= 0 && vsIndex < voltageSourceCount) {
             CircuitElm src = voltageSources[vsIndex];
             String name = (src != null) ? src.getClass().getSimpleName() : "null";
             String id = (src != null) ? src.getElementId() : "";
             return "voltageSourceCurrent(vs=" + vsIndex + ", elm=" + name + ", id=" + id + ")";
         }
-        return "(out-of-range col=" + matrixCol + ")";
+        return "(out-of-range col=" + unknown + ")";
     }
 
     String dumpSelectedItems() {
