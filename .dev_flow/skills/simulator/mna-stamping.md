@@ -26,6 +26,12 @@ where it is, and the quirks.
   linearized nonlinear part (diodes, transistors) or updates B for
   companion-model dynamic elements (inductors, capacitors).
 
+**Storage (since PL_SLV).** The primitives write into the document's
+`solver/LinearSystem` (a slot store during assembly; after the row
+reduction, the dense table or the sparse pattern — a stamp outside the
+sparse pattern grows it before the next factorization). `RowInfo` lives in
+`client/solver/`. See `solver-performance.md`.
+
 **Stamping primitives (`CircuitSimulator.java`).** All pass through
 `sanitizeStampValue` (L1043) which clamps to ±1e12, coerces NaN to 0,
 and sets `converged = false` on out-of-range — a silent robustness
@@ -45,11 +51,11 @@ net that can mask element bugs.
 | `stampVCCS` / `stampVCVS` / `stampCCCS` | 1171 / 1111 / 1185 | Controlled sources |
 | `stampCurrentSource(n1, n2, i)` | 1178 | B-only |
 
-**Row simplification.** `simplifyMatrix` (L755) collapses rows that
-resolve to a single unknown, storing the solution as `RowInfo.ROW_CONST`
-and back-referencing via `mapRow`/`mapCol`. Crucial perf for digital /
-wire-heavy circuits. `origMatrix`/`origRightSide` snapshot the
-*post*-simplify state for Newton restart.
+**Row simplification.** `LinearSystem.reduce` (formerly `simplifyMatrix`)
+collapses rows that resolve to a single unknown, storing the solution as
+`RowInfo.ROW_CONST` and back-referencing via `mapRow`/`mapCol`. Crucial perf
+for digital / wire-heavy circuits. The snapshot of the reduced system is
+restored before each Newton iteration (rhs always, matrix when nonlinear).
 
 **Node assignment runs first** (`preStampCircuit`): wire closure
 (L190) → ground pick (L356) → `makeNodeList` (L417) → VS slot allocation
@@ -98,11 +104,11 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    to call `stampRightSide(i)` / `stampNonLinear(i)` when it actually
    updates B or A in `doStep`, the simplifier drops those rows and the
    element stops working after the first frame.
-7. **The stamp is cubic; the node analysis is not** (PL_AGA backlog
-   "importCircuit scales", fixed 2026-10-05). `stampCircuit` allocates two
-   dense `m × m` matrices, `simplifyMatrix` scans rows, and a linear
-   circuit is LU-factored at once — O(m³) in the node count (2000
-   unconnected resistors: ~200 s). `preStampCircuit` (wire closure, node
+7. **The stamp was cubic** (PL_AGA backlog "importCircuit scales", fixed
+   2026-10-05; PL_SLV made the stamp sparse above 64 reduced unknowns). Before
+   PL_SLV `stampCircuit` allocated two dense `m × m` matrices and LU-factored
+   a linear circuit at once — O(m³) in the node count (2000 unconnected
+   resistors: ~200 s). `preStampCircuit` (wire closure, node
    allocation, `findUnconnectedNodes`, validation) is near-linear and is all
    that connectivity, PostRecord nets and an agent mutation need: use
    `CircuitDocument.ensureNodesAnalysed()` there and `ensureAnalysed()` only
@@ -132,7 +138,9 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    `unconnectedNodes` order; `nodesWithGroundConnection` lists each element
    once — its users only test emptiness and membership), the wire closure
    re-pointed merged entries by scanning the whole node map (now the smaller
-   key group), `makePostDrawList` tested each lone post against every
+   key group), `calcWireInfo` scanned every link of a wire's node for every
+   wire — 2000 Ground elements on the ground node took 1.7 s (since PL_SLV P6
+   a per-node index of the links by post point, link order kept), `makePostDrawList` tested each lone post against every
    bounding box and `CircuitRenderer.drawElements` scanned every element per
    drawn post each frame. Index with `util/BoxGrid` (candidates in index
    order, then the original exact test) or a map, so results and their
@@ -141,7 +149,7 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    visible frame (idle ≤ 2.3 per doubling: ≈ 67 µs per element after the
    post-owner map, 1420 ms at 1000 elements before it).
 
-9. **Matrix size and solver speed** — measured costs, the unpaired `mapRow`/`mapCol` after simplify, and the Newton-varying stamp pattern (`AnalogSwitchElm`, VCCS/CCCS) are in `solver-performance.md`; read it before changing `lu_factor`, `stampCircuit` or `simplifyMatrix`.
+9. **Matrix size and solver speed** — measured costs, the unpaired `mapRow`/`mapCol` after simplify, and the Newton-varying stamp pattern (`AnalogSwitchElm`, VCCS/CCCS) are in `solver-performance.md`; read it before changing `client/solver/` (`LinearSystem.reduce`/`factor`, `SparseLu`), `lu_factor` or `stampCircuit`.
 
 ## References
 

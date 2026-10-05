@@ -72,7 +72,7 @@
 | ID | Title | Status | Summary | Files |
 |---|---|---|---|---|
 | C_SIM | Simulator Engine | active | MNA matrix builder, Newton–Raphson non-linear iteration, and time-stepping core | [concept](simulator-engine.concept.md) · [spec](simulator-engine.sp.md) · [plan](simulator-engine.plan.md) |
-| C_SLV | Linear System Solver | draft | MNA system store, row reduction, dense/sparse solve paths (sparse LU with transversal, ordering, growth-checked refactor), solver mode (session + per-document API override) | [concept](linear-solver.concept.md) · [spec](linear-solver.sp.md) · [plan](linear-solver.plan.md) |
+| C_SLV | Linear System Solver | active | MNA system store, row reduction, dense/sparse solve paths (sparse LU with transversal, ordering, growth-checked refactor), solver mode (session + per-document API override) | [concept](linear-solver.concept.md) · [spec](linear-solver.sp.md) · [plan](linear-solver.plan.md) |
 | C_APC | App Controller | active | `CirSim` — GWT UI shell and top-level controller wiring all subsystems together | [concept](app-controller.concept.md) · [spec](app-controller.sp.md) · [plan](app-controller.plan.md) |
 | C_DOC | Document Model | active | Per-tab circuit state container and multi-tab document lifecycle | [concept](document-model.concept.md) · [spec](document-model.sp.md) · [plan](document-model.plan.md) |
 | C_NET | Netlist Graph | active | Solver-facing node/link graph built from element pins each re-analyze pass | [concept](netlist-graph.concept.md) · [spec](netlist-graph.sp.md) · [plan](netlist-graph.plan.md) |

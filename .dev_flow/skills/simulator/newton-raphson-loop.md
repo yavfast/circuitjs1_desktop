@@ -36,13 +36,14 @@ Diode tolerance example (`Diode.java:160`): `abs(vnew - vold) > 0.01 V`
 centralized.
 
 **Per-iteration body (L1546+).**
-1. Clone `origRightSide → circuitRightSide`.
-2. If nonlinear, clone `origMatrix → circuitMatrix` (linear circuits
-   reuse the LU factorization, single solve per frame).
-3. Every element's `doStep()` stamps its current linearization.
-4. Check convergence. If converged, exit.
-5. `CircuitMath.lu_factor(A, n, permute)` for nonlinear.
-6. `lu_solve` → `applySolvedRightSide` → sets `nodeVoltages[]` +
+1. `linearSystem.restoreSnapshot(nonLinear)`: the right side always,
+   the matrix only when nonlinear (linear circuits reuse their
+   factorization, single solve per frame).
+2. Every element's `doStep()` stamps its current linearization.
+3. Check convergence. If converged, exit.
+4. `linearSystem.factor()` for nonlinear (dense `lu_factor` or sparse
+   `SparseLu`; a failure is a `SingularityReport`).
+5. `linearSystem.solve()` → `applySolvedRightSide` → sets `nodeVoltages[]` +
    each VS element's current.
 7. NaN in any component → `converged = false` (forces another iter).
 
@@ -106,7 +107,7 @@ failure.
    See `simulator-core` analysis §10.2 — use `resetAction` for full
    user-visible reset, `resetSolverState` for solver-only invalidation.
 
-6. **`lu_factor` overwrites `circuitMatrix` in place** (Crout, rows swapped by reference). After a call — failed or not — the matrix is no longer the stamp: never `stampMatrix`/stamp stabilizers into it and factor again. To retry, rebuild the stamp (`stampCircuit`, or copy `origMatrix` back and re-run `doStep`). A stabilized retry on the overwritten matrix existed until 2026-10-05 (fix task_20261005_153627_spike-solver-defects; live `solver_defects`). With `singularStabilizersActive`, `stampCircuit` already adds the stabilizers.
+6. **The dense `lu_factor` overwrites its table in place** (Crout, rows swapped by reference). After a call — failed or not — the dense table is no longer the stamp: never stamp stabilizers into it and factor again. To retry, rebuild the stamp (`stampCircuit`, or `restoreSnapshot` and re-run `doStep`). The sparse path keeps its factors apart from the values. A stabilized retry on the overwritten matrix existed until 2026-10-05 (fix task_20261005_153627_spike-solver-defects; live `solver_defects`). With `singularStabilizersActive`, `stampCircuit` already adds the stabilizers.
 
 ## References
 

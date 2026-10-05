@@ -421,14 +421,54 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     // each one containing a list of neighbors and which end to use (since one end
     // may be ready before
     // the other)
+    /**
+     * The links of one node grouped by the point of their post, each group in link order, and
+     * its labeled-node links in link order: {@link #calcWireInfo} looks a wire's neighbours up
+     * here instead of scanning every link of the node per wire (a node with thousands of Ground
+     * elements made that quadratic, PL_SLV P6).
+     */
+    private static final class NodeLinks {
+        final HashMap<Point, ArrayList<CircuitNodeLink>> byPoint = new HashMap<>();
+        final ArrayList<CircuitNodeLink> labeled = new ArrayList<>();
+
+        NodeLinks(CircuitNode cn) {
+            for (CircuitNodeLink cnl : cn.links) {
+                Point pt = cnl.elm.getPost(cnl.num);
+                Point key = new Point(pt.x, pt.y);
+                ArrayList<CircuitNodeLink> l = byPoint.get(key);
+                if (l == null) {
+                    l = new ArrayList<>();
+                    byPoint.put(key, l);
+                }
+                l.add(cnl);
+                if (cnl.elm instanceof LabeledNodeElm) {
+                    labeled.add(cnl);
+                }
+            }
+        }
+
+        ArrayList<CircuitNodeLink> at(int x, int y) {
+            ArrayList<CircuitNodeLink> l = byPoint.get(new Point(x, y));
+            return l != null ? l : EMPTY_LINKS;
+        }
+    }
+
+    private static final ArrayList<CircuitNodeLink> EMPTY_LINKS = new ArrayList<>();
+
     boolean calcWireInfo() {
         int moved = 0;
+        // the neighbour lookups of each node, built on first use (same neighbours, same order)
+        HashMap<CircuitNode, NodeLinks> linkIndex = new HashMap<>();
 
         for (int i = 0; i != wireInfoList.size(); i++) {
             WireInfo wi = wireInfoList.get(i);
             CircuitElm wire = wi.wire;
             CircuitNode cn1 = nodeList.get(wire.getNode(0)); // both ends of wire have same node #
-            int j;
+            NodeLinks index = linkIndex.get(cn1);
+            if (index == null) {
+                index = new NodeLinks(cn1);
+                linkIndex.put(cn1, index);
+            }
 
             Vector<CircuitElm> neighbors0 = new Vector<>();
             Vector<CircuitElm> neighbors1 = new Vector<>();
@@ -437,42 +477,50 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             // labeled nodes are treated as having 2 terminals, see below
             boolean isReady0 = true, isReady1 = !(wire instanceof GroundElm);
 
-            // go through elements sharing a node with this wire (may be connected
-            // indirectly
-            // by other wires, but at least it's faster than going through all elements)
-            for (j = 0; j != cn1.links.size(); j++) {
-                CircuitNodeLink cnl = cn1.links.get(j);
+            // go through elements sharing a post point with this wire (they share its node,
+            // possibly through other wires); a wire that has no wire info yet can't be used:
+            // that side isn't ready (a circular dependency otherwise)
+            int wx = wire.getX();
+            int wy = wire.getY();
+            for (CircuitNodeLink cnl : index.at(wx, wy)) {
                 CircuitElm ce = cnl.elm;
                 if (ce == wire) {
                     continue;
                 }
-                Point pt = ce.getPost(cnl.num);
-
-                // is this a wire that doesn't have wire info yet? If so we can't use it yet.
-                // That would create a circular dependency. So that side isn't ready.
-                boolean notReady = (ce.isRemovableWire() && !ce.hasWireInfo);
-
-                // which post does this element connect to, if any?
-                if (pt.x == wire.getX() && pt.y == wire.getY()) {
-                    neighbors0.add(ce);
-                    if (notReady) {
-                        isReady0 = false;
-                    }
-                } else if (wire.getPostCount() > 1) {
-                    Point p2 = wire.getConnectedPost();
-                    if (pt.x == p2.x && pt.y == p2.y) {
+                neighbors0.add(ce);
+                if (ce.isRemovableWire() && !ce.hasWireInfo) {
+                    isReady0 = false;
+                }
+            }
+            if (wire.getPostCount() > 1) {
+                Point p2 = wire.getConnectedPost();
+                // a link at the first post's point belongs to that side only
+                if (p2.x != wx || p2.y != wy) {
+                    for (CircuitNodeLink cnl : index.at(p2.x, p2.y)) {
+                        CircuitElm ce = cnl.elm;
+                        if (ce == wire) {
+                            continue;
+                        }
                         neighbors1.add(ce);
-                        if (notReady) {
+                        if (ce.isRemovableWire() && !ce.hasWireInfo) {
                             isReady1 = false;
                         }
                     }
-                } else if (ce instanceof LabeledNodeElm && wire instanceof LabeledNodeElm &&
-                        ((LabeledNodeElm) ce).text.equals(((LabeledNodeElm) wire).text)) {
-                    // ce and wire are both labeled nodes with matching labels. treat them as
-                    // neighbors
-                    neighbors1.add(ce);
-                    if (notReady) {
-                        isReady1 = false;
+                }
+            } else if (wire instanceof LabeledNodeElm) {
+                // labeled nodes with matching labels elsewhere on the node: treat them as neighbors
+                String text = ((LabeledNodeElm) wire).text;
+                for (CircuitNodeLink cnl : index.labeled) {
+                    CircuitElm ce = cnl.elm;
+                    if (ce == wire) {
+                        continue;
+                    }
+                    Point pt = ce.getPost(cnl.num);
+                    if ((pt.x != wx || pt.y != wy) && ((LabeledNodeElm) ce).text.equals(text)) {
+                        neighbors1.add(ce);
+                        if (ce.isRemovableWire() && !ce.hasWireInfo) {
+                            isReady1 = false;
+                        }
                     }
                 }
             }

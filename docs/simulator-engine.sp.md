@@ -45,14 +45,9 @@ Topology:
 Matrix:
 | Field | Type | Description |
 |-------|------|-------------|
-| circuitMatrix / origMatrix | double[][] | active A / pre-Newton snapshot |
-| circuitRightSide / origRightSide | double[] | B / snapshot |
+| linearSystem | solver.LinearSystem | the MNA system ([SP_SLV](./linear-solver.sp.md)): store, RowInfo per unknown, reduced system and snapshot, dense or sparse path; replaces the former `circuitMatrix`/`origMatrix`/`circuitRightSide`/`origRightSide`/`circuitRowInfo`/`circuitPermute`/`circuitMatrixSize`/`circuitNeedsMap` |
 | nodeVoltages / lastNodeVoltages | double[] | current / fallback |
-| circuitRowInfo | RowInfo[] | per-row metadata |
-| circuitPermute | int[] | LU pivot vector |
-| circuitMatrixSize / FullSize | int | post / pre simplify |
 | circuitNonLinear | bool | any element nonlinear |
-| circuitNeedsMap | bool | simplification collapsed rows |
 
 Convergence:
 | Field | Type | Default | Description |
@@ -72,8 +67,8 @@ Stop state: `stopMessage: String`, `stopElm: CircuitElm`,
 
 Invariants:
 - `nodeList.get(0)` is always ground.
-- `circuitMatrix` is square of size `circuitMatrixSize`.
-- After `resetSolverState()` all solver arrays are null and `needsStamp=true`.
+- The reduced system has `m ≤ n` unknowns; "a circuit is stamped" means `linearSystem.hasSystem()`.
+- After `resetSolverState()` the solver holds no system (`linearSystem.drop()`) and `needsStamp=true`.
 - `sanitizeStampValue` clamps to `±1e12`, maps NaN→0, sets `converged=false` on out-of-range.
 
 ### 01_02. Diode state  {#SP_SIM_01_02}
@@ -123,8 +118,8 @@ retried `preStampCircuit(false)` without `stampCircuit`, marks the allocation fo
 next `preStampAndStampCircuit`, and calls every element's `applyStampedValues()` (the
 fields a stamp shows in the drawing: current source current, potentiometer
 resistances). `CircuitDocument.ensureNodesAnalysed()` uses it for the agent's
-connectivity, records and mutations; the stamp (dense matrix, O(m³) LU for a linear
-circuit) is left to the next run, reading or frame. `findUnconnectedNodes` is one
+connectivity, records and mutations; the stamp (the MNA system and, for a linear
+circuit, its factorization) is left to the next run, reading or frame. `findUnconnectedNodes` is one
 breadth-first pass over the element connection graph (seeds in ascending node order,
 same groups as the former fixpoint passes).
 
@@ -132,17 +127,18 @@ same groups as the former fixpoint passes).
 calcWireInfo → nonlinear detect / VS slot alloc → findUnconnectedNodes
 → validateCircuit → callAnalyzeHook.
 
-`stampCircuit` order: allocate A/B/RowInfo → connectUnconnectedNodes
-(1e8 Ω to GND) → stampSingularMatrixStabilizers if enabled →
-stampNonConvergenceStabilizers if panic>0 → ce.stamp() loop (try/catch →
-stop) → simplifyMatrix → if linear: lu_factor once.
+`stampCircuit` order: `linearSystem.beginStamp(n, analysisCount)` →
+connectUnconnectedNodes (1e8 Ω to GND) → stampSingularMatrixStabilizers if
+enabled → stampNonConvergenceStabilizers if panic>0 → ce.stamp() loop
+(try/catch → stop) → reduce ([SP_SLV_02_04]) → selectPath with the
+document's mode ([SP_SLV_02_05]) → if linear: factor once.
 
 Errors:
 | Code | Condition | Guidance |
 |------|-----------|----------|
 | WIRE_LOOP | circular wire chain | warn (recovery) or stop |
-| MATRIX_ERROR | `simplifyMatrix` pivot-not-found | stop or enable stabilizers |
-| SINGULAR | `lu_factor` fail | enable stabilizers → restamp; escalate panic 3 on persistent fail |
+| MATRIX_ERROR | reduction pivot-not-found ([SP_SLV_02_04]) | stop or enable stabilizers |
+| SINGULAR | factor returns a SingularityReport ([SP_SLV_01_09]; dense or sparse path) | enable stabilizers → restamp; escalate panic 3 on persistent fail |
 
 ### 02_03. runCircuit(didAnalyze)  {#SP_SIM_02_03}
 
@@ -160,12 +156,11 @@ Processing (abbreviated):
         FOR subIter in 0..subIterCount:
             subIterations = subIter
             converged = true
-            B = origRightSide.copy()
-            if nonlinear: A = origMatrix.copy()
+            restoreSnapshot(nonlinear)   // B always, A when nonlinear
             ce.doStep() for all   // may set converged=false
             if converged and subIter > 0: break
-            if nonlinear: lu_factor(A) else skip
-            lu_solve(A, permute, B); applySolvedRightSide(B)
+            if nonlinear: factor() else skip
+            applySolvedRightSide(solve())
             if linear: break
         if subIter == subIterCount:       // Newton failed
             if adjustTimeStep and timeStep/2 > minTimeStep:
@@ -202,10 +197,10 @@ All primitives route through `sanitizeStampValue(x)`:
 
 ### 02_05. Reset  {#SP_SIM_02_05}
 
-`resetSolverState()`: null `circuitMatrix`, `origMatrix`, B arrays,
-`lastNodeVoltages`, `circuitRowInfo`, `voltageSources`, etc.; clear
-`circuitNonLinear`, `voltageSourceCount`, `circuitMatrixSize/FullSize`,
-`circuitNeedsMap`, `singularStabilizersActive`; set `needsStamp=true`.
+`resetSolverState()`: `linearSystem.drop()` (store, reduced system, factors,
+carried state, counters), null `nodeVoltages`, `lastNodeVoltages`,
+`voltageSources`, etc.; clear `circuitNonLinear`, `voltageSourceCount`,
+`singularStabilizersActive`; set `needsStamp=true`.
 
 `clearStopState()`: null `stopMessage`, `stopElm`, `warningMessage`, `warningElm`.
 
@@ -272,7 +267,7 @@ decrements by 1 after 30 calm frames.
 | Invariant | Verification |
 |-----------|-------------|
 | node 0 ground | assert first entry in nodeList |
-| matrix square | circuitMatrix[i].length == circuitMatrix.length |
+| reduced system | `linearSystem.size() ≤ linearSystem.fullSize()`; dense tables are m × m (SP_SLV §05_02 covers the solver's own invariants) |
 | clamp sets converged=false | stamp NaN → converged must be false |
 | reset→needsStamp | after resetSolverState: needsStamp must be true |
 
@@ -299,3 +294,4 @@ decrements by 1 after 30 calm frames.
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
 | 2026-10-05 | §02_02: `analyseNodes` (node allocation without the stamp), linear `findUnconnectedNodes` (PL_AGA backlog "importCircuit scales"). |
+| 2026-10-05 | PL_SLV delivered: §01_01 Matrix fields replaced by `linearSystem` (SP_SLV), §02_02 stamp order and errors, §02_03 Newton pseudocode, §02_05 reset and §05_02 invariant name the solver operations. |

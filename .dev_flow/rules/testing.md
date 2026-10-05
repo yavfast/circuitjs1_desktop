@@ -121,11 +121,25 @@ Recent commits (`08f2799`, `a488ebb`) were editor-regression fixes for exactly t
 
 ---
 
+## Rule: SolverBitIdentityForEngineChanges
+
+**Category:** testing
+**Severity:** should
+**Applies to:** changes to `client/solver/**`, `CircuitMath`, the stamping primitives, `stampCircuit`, the Newton loop (`stepLoop`) or the node analysis feeding them in `CircuitSimulator`
+
+### Description
+After `npm run buildgwt`, run `node tests/live/harness.mjs solver_corpus` (compare with `tests/live/fixtures/solver_corpus.json`): every example on the dense path (m ≤ 64 in Auto) must stay bit-identical. Run `npm run test:unit` (JUnit of the solver kernel). For a change of the sparse path also run `solver_paths`; for a behaviour-neutral change of the analysis passes run `agent_equiv` before and after (`EQUIV_BEFORE`). A deliberate numerical change re-records the fixture (`SOLVER_CORPUS=record`, three runs merged) in the same commit, with the reason.
+
+### Rationale
+PL_SLV (2026-10-05) replaced the engine's matrix storage behind the stamping primitives; bit identity over the 327-example corpus was the gate that proved the dense path unchanged. A different summation order or pivot sequence changes round-off, and chaotic or latching circuits show it — an element-count or a tolerance comparison does not.
+
+---
+
 ## Future: AutomatedTests
 
-When a JUnit harness is introduced, this file will expand. Candidate entry points already friendly to unit testing:
+A JUnit 5 harness exists since PL_SLV (`npm run test:unit` = `mvn -q test`; `src/test/java`, plain JVM, GWT-free code only; the solver kernel in `client/solver/` is covered). Further candidates already friendly to unit testing (the rest of BL-A11):
 - `util/Locale`, `util/StorageHelper` — pure functions.
-- `CircuitMath.lu_factor` / `lu_solve` — matrix math, no GWT dependencies.
+- `CircuitMath.lu_factor` / `lu_solve` — matrix math, no GWT dependencies (used as the oracle of the solver tests).
 - `Diode.limitStep`, `Diode.calculateCurrent` — pure numerical helpers.
 - `CustomLogicModel.parseRules` — parser with observable output (`rulesLeft`/`rulesRight`).
 - `io/text/` and `io/json/` round-trip harnesses driven from Java `String` fixtures.

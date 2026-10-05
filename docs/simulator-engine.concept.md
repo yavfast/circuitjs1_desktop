@@ -59,8 +59,8 @@ The split across files isolates engine from UI:
 ### 2.1. Key Entities  {#C_SIM_02_01}
 
 - **CircuitSimulator** — owns `elmList`, `nodeList`, `voltageSources[]`,
-  `circuitMatrix`, `origMatrix`, `circuitRightSide`, `origRightSide`,
-  `nodeVoltages`, `lastNodeVoltages`, `circuitRowInfo[]`, `circuitPermute[]`,
+  the document's `LinearSystem` (MNA store, row reduction, solve paths —
+  [C_SLV](./linear-solver.concept.md)), `nodeVoltages`, `lastNodeVoltages`,
   time state (`t`, `timeStep`, `maxTimeStep`, `minTimeStep`,
   `timeStepAccum`, `timeStepCount`, `adjustTimeStep`), convergence state
   (`converged`, `subIterations`, `nonConvergencePanicLevel`,
@@ -88,10 +88,10 @@ The split across files isolates engine from UI:
     ├─ if needsStamp: preStampAndStampCircuit()
     │   ├─ preStampCircuit(): wire-closure → ground pick → makeNodeList
     │   │   → calcWireInfo → VS slot alloc → unconnected repair → validate
-    │   └─ stampCircuit(): alloc matrix → stabilizers → ce.stamp() loop
-    │       → simplifyMatrix → (if linear) lu_factor
+    │   └─ stampCircuit(): beginStamp → stabilizers → ce.stamp() loop
+    │       → reduce → selectPath → (if linear) factor
     └─ frame-loop:
-        ├─ Newton: copy orig→A/B; ce.doStep(); lu_factor/solve; apply
+        ├─ Newton: restore snapshot; ce.doStep(); factor/solve; apply
         ├─ on failure: halve timestep OR escalate panic (0→1→2→3)
         └─ advance t; scope sample; callTimeStepHook()
 ```
@@ -103,8 +103,8 @@ The split across files isolates engine from UI:
 **MNA matrix assembly.** Primitives on `CircuitSimulator`, all funnelled
 through `sanitizeStampValue`:
 
-- `stampMatrix(i,j,x)` — A[i][j] += x (with mapRow/mapCol remap when
-  `circuitNeedsMap`; fold into B if column is ROW_CONST).
+- `stampMatrix(i,j,x)` — A[i][j] += x into the solver's store (after the
+  reduction through mapRow/mapCol; fold into B if column is ROW_CONST).
 - `stampRightSide(i,x)` / `stampRightSide(i)` — B[i] += x / mark rsChanges.
 - `stampNonLinear(i)` — mark row lsChanges (re-stamp each Newton iter).
 - `stampResistor(n1,n2,r)`, `stampConductance(n1,n2,g)` — four-corner ±g.
@@ -112,21 +112,22 @@ through `sanitizeStampValue`:
 - `stampVCVS`, `stampVCCS` / `stampVCCurrentSource`, `stampCCCS`, `stampCCVS`.
 - `stampCurrentSource(n1,n2,i)` — B-only.
 
-After element stamping, `simplifyMatrix` performs Gaussian pre-elimination
-of rows with a single non-constant term (ROW_CONST + dropRow), rebuilds
-A/B at reduced size, snapshots into `origMatrix`/`origRightSide`. Linear
-circuits factor once via `CircuitMath.lu_factor`.
+After element stamping, the row reduction (formerly `simplifyMatrix`)
+performs Gaussian pre-elimination of rows with a single non-constant term
+(ROW_CONST + dropRow), builds the reduced system and its snapshot. Linear
+circuits factor once per stamp.
 
 The storage of A/B, the row reduction's storage, the choice between the
 dense and sparse solve paths, factorization and the solve are defined by
-[C_SLV](./linear-solver.concept.md) (draft); this concept keeps the
-stamping rules, the reduction rules, the Newton loop and the singular-matrix
-escalation.
+[C_SLV](./linear-solver.concept.md) and implemented in `client/solver/`
+(`LinearSystem`; the dense path is the former `CircuitMath.lu_factor` /
+`lu_solve` computation, bit for bit); this concept keeps the stamping rules,
+the reduction rules, the Newton loop and the singular-matrix escalation.
 
 **Newton–Raphson loop** (`runCircuit`, L1442–1754). Per Newton sub-iter:
-copy origRightSide→B; if nonlinear copy origMatrix→A; call `ce.doStep()`
+restore the snapshot (B always, A when nonlinear); call `ce.doStep()`
 on every element (each may set `converged = false`); if `converged &&
-subIter>0` break; otherwise `lu_factor` (nonlinear) and `lu_solve`;
+subIter>0` break; otherwise factor (nonlinear) and solve;
 `applySolvedRightSide` fans solution into `nodeVoltages[]` and VS
 currents. Linear circuits exit after one solve.
 
@@ -190,8 +191,10 @@ in after `subIter > gminStartIter`), linearises Shockley
 
 - [C_ELB](./element-base.concept.md) — every element's
   `stamp / startIteration / doStep / stepFinished` lifecycle.
+- [C_SLV](./linear-solver.concept.md) — the MNA system store, row reduction,
+  dense/sparse factorization and solve, singularity reports.
 - [C_UTL](./util-locale-log.concept.md) — `CircuitMath.lu_factor`/`lu_solve`
-  + pivot-failure telemetry.
+  (the dense kernel, through C_SLV) + pivot-failure telemetry.
 - [C_MDS](./math-dsp.concept.md),
   [C_SHM](./shared-models.concept.md) — `DiodeModel` feeds `Diode.setup`;
   `TransistorModel`, `CustomLogicModel` use `SimulationContextAware`.
@@ -220,3 +223,4 @@ Outbound contract: `SimulationContextAware.setSimulationContext(doc)`.
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
 | 2026-10-05 | Storage, path choice, factorization and solve delegated to the new [C_SLV](./linear-solver.concept.md) (sparse solver, from the [sparse-solver spike](./sparse-solver.spike.md)). |
+| 2026-10-05 | PL_SLV delivered: entities, flow and the Newton loop name the solver's operations (beginStamp, reduce, selectPath, factor, solve, snapshot restore). |

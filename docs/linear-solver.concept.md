@@ -1,7 +1,7 @@
 # Linear System Solver  {#C_SLV}
 
 > **Code:** C_SLV
-> **Status:** draft
+> **Status:** active
 > **Created:** 2026-10-05
 > **Updated:** 2026-10-05
 > **Author:** main
@@ -298,6 +298,7 @@ Consumers: agents and the live tests, which compare the two paths on one circuit
 
 | Date | Change |
 |------|--------|
+| 2026-10-05 | Status active: delivered by PL_SLV (dense path bit-identical over the example corpus; sparse path, solver mode, Agent/MCP surface, Other Options row). |
 | 2026-10-05 | Initial version from the sparse-solver spike; DEC_01–DEC_05 resolved in interview. |
 | 2026-10-05 | Review round 1: store sparse on both paths; per-stamp lifecycle with pattern and symbolic analysis carried within an engine analysis; per-column pivot check for refactorization; sparse singular test at least as strict (structural singularity); a mode change re-stamps only. |
 | 2026-10-05 | Spec pass: the per-document override is set through the Agent API only (no scripting-interface method, SP_SLV_DEC_02); a mode change requests a re-stamp. |

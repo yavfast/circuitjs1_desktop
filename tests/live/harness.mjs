@@ -6637,7 +6637,9 @@ async function scenarioSolverDefects(s) {
 // reduced size m once Diagnostics has the solver block. A differing example is run up to twice
 // more (latches settle at random after gate oscillation); one exact match counts as identical. A difference fails for m ≤
 // SOLVER_DENSE_MAX (64, the dense path in AUTO), for an unknown m, and for every example with
-// SOLVER_CORPUS_STRICT=1 (the runtime rollback check with the session default Dense).
+// SOLVER_CORPUS_STRICT=1. SOLVER_CORPUS_SESSION=<auto|dense|sparse> sets the session default for
+// the run (restored to auto after it): SOLVER_CORPUS_SESSION=dense SOLVER_CORPUS_STRICT=1 is the
+// runtime rollback check of SP_SLV_06_01.
 const SOLVER_CORPUS_FIXTURE = path.join(HERE, 'fixtures', 'solver_corpus.json');
 const SOLVER_DENSE_MAX = 64;
 
@@ -6687,10 +6689,23 @@ async function scenarioSolverCorpus(s) {
   await resetApp(s);
   const exMark = s.exceptions.length;
   const t0 = Date.now();
+  const session = process.env.SOLVER_CORPUS_SESSION;
+  if (session && !['auto', 'dense', 'sparse'].includes(session)) { report('SLV.solver_corpus', false, { error: 'SOLVER_CORPUS_SESSION must be auto, dense or sparse' }); return; }
+  if (session) {
+    const inst = await s.eval(`(${solverPathsInstall.toString()})()`);
+    const set = inst === 'ok' ? await s.eval(`window.__slvSetSession(${JSON.stringify(session)})`) : inst;
+    if (set !== 'ok') { report('SLV.solver_corpus', false, { error: 'session ' + session + ': ' + set }); return; }
+  }
+  try {
+    await solverCorpusBody();
+  } finally {
+    if (session) await s.eval(`window.__slvSetSession('auto'); localStorage.removeItem('solverMode')`);
+  }
+  async function solverCorpusBody() {
   const doc = (await A('createDocument', { title: 'Solver corpus' })).data.doc;
   if (record) {
     const outFile = path.join(OUT_DIR, 'solver_corpus.json');
-    const rec = { created: new Date().toISOString(), site: SITE_DIR, steps, examples: {}, excluded: {} };
+    const rec = { created: new Date().toISOString(), site: SITE_DIR, steps, session: session || 'auto', examples: {}, excluded: {} };
     for (const name of list) {
       const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
       if (hasNoiseSource(text)) { rec.excluded[name] = 'noise source'; continue; }
@@ -6704,7 +6719,7 @@ async function scenarioSolverCorpus(s) {
     }
     fs.writeFileSync(outFile, JSON.stringify(rec, null, 1) + '\n');
     await A('closeDocument', { doc, discardChanges: true });
-    report('SLV.solver_corpus', s.exceptions.length === exMark, { mode: 'record', file: outFile, examples: Object.keys(rec.examples).length,
+    report('SLV.solver_corpus', s.exceptions.length === exMark, { mode: 'record', session, file: outFile, examples: Object.keys(rec.examples).length,
       excluded: Object.keys(rec.excluded).length, s: Math.round((Date.now() - t0) / 1000) });
     return;
   }
@@ -6738,10 +6753,11 @@ async function scenarioSolverCorpus(s) {
     else failing.push(name);
   }
   await A('closeDocument', { doc, discardChanges: true });
-  fs.writeFileSync(path.join(OUT_DIR, 'solver_corpus_compare.json'), JSON.stringify({ fixture: process.env.SOLVER_CORPUS_FIXTURE || SOLVER_CORPUS_FIXTURE, strict, per, errors }, null, 1));
-  report('SLV.solver_corpus', failing.length === 0 && s.exceptions.length === exMark, { mode: 'compare', strict, compared: list.length, identical,
+  fs.writeFileSync(path.join(OUT_DIR, 'solver_corpus_compare.json'), JSON.stringify({ fixture: process.env.SOLVER_CORPUS_FIXTURE || SOLVER_CORPUS_FIXTURE, strict, session, per, errors }, null, 1));
+  report('SLV.solver_corpus', failing.length === 0 && s.exceptions.length === exMark, { mode: 'compare', strict, session, compared: list.length, identical,
     differsAllowed: allowed, failing: failing.slice(0, 15), failingCount: failing.length, errors: Object.keys(errors).length,
-    s: Math.round((Date.now() - t0) / 1000), details: path.join(OUT_DIR, 'solver_corpus_compare.json') });
+    s: Math.round((Date.now() - t0) / 1000), ms: Date.now() - t0, details: path.join(OUT_DIR, 'solver_corpus_compare.json') });
+  }
 }
 
 // ---------------------------------------------------------------- solver_paths (PL_SLV P4, SP_SLV_05)

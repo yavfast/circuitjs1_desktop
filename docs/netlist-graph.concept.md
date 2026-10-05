@@ -60,10 +60,10 @@ inlines field access for speed.
 - **WireInfo** (package-private) — `wire: CircuitElm`,
   `neighbors: List<CircuitElm>`, `post: int` (0 or 1). Built once per
   analysis; supports post-solve wire-current reconstruction.
-- **RowInfo** (package-private) — matrix row metadata:
+- **RowInfo** (`client/solver/`, public since PL_SLV) — matrix row metadata:
   `type: int` (`ROW_NORMAL=0` / `ROW_CONST=1`), `mapCol`, `mapRow`,
-  `value`, `rsChanges`, `lsChanges`, `dropRow`. One per row in
-  `circuitRowInfo[]`.
+  `value`, `rsChanges`, `lsChanges`, `dropRow`. One per unknown in
+  `LinearSystem.rowInfo()` ([C_SLV](./linear-solver.concept.md)).
 - **FindPathInfo** — DFS workspace + static validator.
   Instance: `visited: boolean[]`, `dest: int`, `firstElm: CircuitElm`,
   `type: int` (INDUCT=1, VOLTAGE=2, SHORT=3, CAP_V=4).
@@ -87,10 +87,10 @@ CircuitSimulator.preStampCircuit(subcircuit):
 
 CircuitSimulator.stampCircuit():
   matrixSize = nodeList.size() - 1 + voltageSourceCount
-  circuitRowInfo = new RowInfo[matrixSize]  (all ROW_NORMAL)
+  linearSystem.beginStamp(matrixSize, …)  (RowInfo per unknown, all ROW_NORMAL)
   connectUnconnectedNodes     (1e8 Ω to GND)
   ce.stamp() for all
-  simplifyMatrix              → set ROW_CONST + dropRow; populate mapRow/mapCol
+  linearSystem.reduce()       → set ROW_CONST + dropRow; populate mapRow/mapCol
 
 Per frame:
   Newton doStep uses rsChanges/lsChanges on RowInfo to skip invariant rows

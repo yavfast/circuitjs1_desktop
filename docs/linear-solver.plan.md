@@ -1,7 +1,7 @@
 # Implementation Plan: Linear System Solver  {#PL_SLV}
 
 > **Code:** PL_SLV
-> **Status:** in-progress
+> **Status:** completed
 > **Created:** 2026-10-05
 > **Updated:** 2026-10-05
 >
@@ -58,7 +58,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 - [x] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
 - [x] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
 - [x] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
-- [ ] [Phase 6 — Performance, full verification, propagation](#PL_SLV_P6)
+- [x] [Phase 6 — Performance, full verification, propagation](#PL_SLV_P6)
 
 ## Phases
 
@@ -190,7 +190,7 @@ What to change:
 
 Done 2026-10-05: live `solver_options` 11/11 (dialog, preference, rollback to Dense, restart, override not shown, frame re-stamp without analysis), `solver_paths` 42/42 incl. the session rows, `mcp_browser`, `mcp_dialog`; `npm run test:mcp-unit` 27/27 with the `circuit_sim solver` mapping and rejections. `toolsVersion` 1.3 (an addition): server, agent-format, skill compatibility line (1.2 apps: no `solver`), SP_AGS §05_04, evals version. The dialog requested a full analysis on every choice change; the Solver row is marked `EditInfo.noAnalyze` (stamp-only, SP_SLV §02_14). Unobserved: `npm run test:mcp` (NW.js e2e, RULE_TEST_007) — port 7311 is held by the developer's running CircuitSimulator; the e2e checks `solverOverride`, `solverDiagnostics`, `solverModeOnlyWithSolver`, `solverCleared` are written and await that run.
 
-### Phase 6 — Performance, full verification, propagation [TODO]  {#PL_SLV_P6}
+### Phase 6 — Performance, full verification, propagation [DONE]  {#PL_SLV_P6}
 
 **Depends on:** Phases 1–5
 **Implements:** [SP_SLV_05_05](./linear-solver.sp.md#SP_SLV_05_05); [SP_SLV_06_01](./linear-solver.sp.md#SP_SLV_06_01) (the runtime rollback is verified); document status changes
@@ -207,6 +207,23 @@ What to change:
 | concept/spec | docs/simulator-engine.{concept,sp}.md, docs/linear-solver.{concept,sp}.md, docs/_index.md | Statuses and the delegated mechanisms |
 | skills | simulator/solver-performance.md, simulator/mna-stamping.md | Delivered facts and new pitfalls |
 | constants | `DENSE_MAX_SIZE` | Confirm or adjust from the measured crossover; any change updates SP_SLV §03_01 first |
+| node analysis | `CircuitSimulator.calcWireInfo` | Added 2026-10-05 from the P6 measurement: the RC-ladder analysis target (≤ 0.5 s) was missed by the node analysis, not the solver (the stamp took 0.03 s on the delivered build; `calcWireInfo` 1.7 s scanning every ground-node link per Ground element). A per-node index of the links by post point, link order kept (same neighbours, same order; `agent_equiv` over all examples unchanged) |
+
+Done 2026-10-05 (results in `.dev_flow/cache/sparse-spike/out/results_delivered_{1,2,3}.json`, medians of 3, background document):
+
+| Case | Before (spike) | Target (AUTO) | Delivered |
+|---|---|---|---|
+| 45² resistor grid: analysis | 21.7 s | ≤ 1 s | 0.21 s |
+| RC ladder m ≈ 2002: analysis / step | 21 s / 28 ms | ≤ 0.5 s / ≤ 15 ms | 0.22 s / 5.7 ms |
+| Diode ladder m ≈ 1002: step | 5.9 s | ≤ 50 ms | 6.6 ms |
+| Diode grid m = 197: step | 3.6 s | ≤ 0.5 s | 4.3 ms |
+| Examples m ≤ 64 | — | ≤ 5 % slower | corpus wall time +3.2 % (22.0 → 22.7 s, 3 paired runs); `frame_cost` idle frames equal; free-running chains of 1000/2000 elements 87/15 → 167/166 steps/s |
+
+- Without the `calcWireInfo` index the RC-ladder analysis took 3.1 s (node analysis, not the solver); with it 0.22 s; `agent_equiv` over all 342 examples unchanged.
+- Runtime rollback (SP_SLV_06_01): session default Dense, `solver_corpus` strict 327/327 identical to the P1 fixture.
+- Full `npm run test:live`: 34 pass; `text_fidelity`, `json_roundtrip`, `synthetic_all_types` fail as on master (pre-existing); one `synthetic_all_types` text-leg difference of `MosfetN` (drawing bounds) appeared once in the full-suite order and not in two standalone runs on either build. `solver_corpus`, `solver_paths` (42), `solver_options` (11), `npm run test:unit` (36), `npm run test:mcp-unit` (27) pass.
+- `DENSE_MAX_SIZE` stays 64: sparse is faster from m ≈ 30, but the threshold keeps every example except three (m = 65–87) on the bit-identical dense path; no measurement argues for a change.
+- Owed to the developer: `npm run test:mcp` (port 7311 held by the running CircuitSimulator), and the RULE_TEST_002 NW.js devmode check (analog `lrc.txt`, digital `counter.txt`, subcircuit `alu74181.txt`, a 1000-node generated circuit, the Other Options Solver row).
 
 ## Backlog
 

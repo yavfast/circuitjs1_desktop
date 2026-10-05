@@ -330,3 +330,9 @@ rules:
     severity: should
     file: testing.md
     summary: After npm run buildgwt, run npm run test:mcp (tests/mcp/e2e.mjs, real NW.js under Xvfb) for changes to mcp/server/**, the MCP start-up/status/dialog code, PathFileAdapter or agent/FileOps; the slow and clients groups when timeouts or host behaviour change.
+  - id: RULE_TEST_008
+    title: Solver bit identity for engine changes
+    category: testing
+    severity: should
+    file: testing.md
+    summary: After npm run buildgwt, run the live solver_corpus compare (dense path bit-identical over the example fixture) and npm run test:unit for changes to client/solver/**, CircuitMath, the stamping primitives, stampCircuit, stepLoop or the node analysis; solver_paths for the sparse path; agent_equiv before/after for behaviour-neutral analysis changes. [PL_SLV]

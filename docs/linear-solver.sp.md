@@ -1,7 +1,7 @@
 # Linear System Solver — Specification  {#SP_SLV}
 
 > **Code:** SP_SLV
-> **Status:** draft
+> **Status:** active
 > **Created:** 2026-10-05
 > **Updated:** 2026-10-05
 >
@@ -525,6 +525,7 @@ Runtime rollback without code change: Other Options → Solver → Dense restore
 
 | Date | Change |
 |------|--------|
+| 2026-10-05 | Status active: delivered by PL_SLV P1–P6; §05_05 targets measured on the delivered build (see the plan's P6 notes). |
 | 2026-10-05 | Initial version; SP_SLV_DEC_01 resolved in interview. |
 | 2026-10-05 | Implementation (PL_SLV P5): §02_13 `toolsVersion` 1.3; §02_14 the Solver row changes without a dialog-requested analysis (`EditInfo.noAnalyze`), OK keeps the dialog's re-analysis. |
 | 2026-10-05 | Implementation (PL_SLV P4 review): §01_11 versions come from a never-repeating counter; matching maps keep the extra positions when the symbolic pattern changed. |

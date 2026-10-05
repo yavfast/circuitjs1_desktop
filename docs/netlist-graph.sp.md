@@ -161,7 +161,7 @@ Processing:
 
 - `makeNodeList` is the only writer of `CircuitNode.links`.
 - `nodeMap` is cleared after `calcWireInfo`.
-- `circuitRowInfo.length == circuitMatrixFullSize`.
+- `linearSystem.rowInfo().length == linearSystem.fullSize()` (one RowInfo per unknown, [SP_SLV_01_03](./linear-solver.sp.md#SP_SLV_01_03)).
 - `validateElement` may call `sim.stop` (strict) or `sim.warn` +
   enable stabilizers (recovery) — never throws.
 
@@ -173,7 +173,7 @@ Per analyze pass:
     [nodeMap merged] --makeNodeList--> [nodeList built]
     [nodeList built] --calcWireInfo--> [wires resolved]
     [wires resolved] --validateCircuit--> [ready-to-stamp]
-    [ready-to-stamp] --stampCircuit + simplifyMatrix--> [RowInfo finalized]
+    [ready-to-stamp] --stampCircuit + LinearSystem.reduce--> [RowInfo finalized]
 
 ## 05. Verification Criteria  {#SP_NET_05}
 

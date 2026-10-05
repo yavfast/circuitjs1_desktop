@@ -66,9 +66,9 @@ L139-163):
 1. `circuitInfo.dcAnalysisFlag = true` via `needsAnalysis()`.
 2. Clear document error.
 3. `simulator.clearStopState()` (stop/warn messages).
-4. `simulator.resetSolverState()` (nulls circuit matrix, origMatrix,
-   B, `lastNodeVoltages`, `circuitNonLinear`, `voltageSourceCount`,
-   `circuitMatrixSize/FullSize`, `circuitNeedsMap`,
+4. `simulator.resetSolverState()` (`linearSystem.drop()` — store,
+   reduced system, factors, carried state —, `nodeVoltages`,
+   `lastNodeVoltages`, `circuitNonLinear`, `voltageSourceCount`,
    `singularStabilizersActive`; sets `needsStamp = true`).
 5. Zero `t`, `timeStepAccum`, `timeStepCount`.
 6. Reset every element (`ce.reset()`).
