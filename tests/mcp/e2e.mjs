@@ -918,9 +918,9 @@ async function scenTools(R) {
     R.layout.ck('annotations', lt && lt.annotations.readOnlyHint === true && lt.annotations.idempotentHint === true && lt.annotations.destructiveHint === false, lt && lt.annotations);
     R.layout.done();
     // [SP_MCP_05_01] layout boxes on 2000 resistors: re-read without boxes, issues kept
-    // 40 grounded chains of 50 resistors (isolated parts would make the import slow: every
-    // dangling post and isolated group is an issue, PL_AGA backlog "importCircuit scales"), and 5
-    // short wires through value texts, so the reduced result still carries text_overlap issues
+    // 40 grounded chains of 50 resistors (no connectivity issues, so the layout issues stay
+    // the only ones), and 5 short wires through value texts, so the reduced result still
+    // carries text_overlap issues
     const rs = [];
     for (let k = 0; k < 2000; k++) {
       const x = (k % 50) * 4, y = Math.floor(k / 50) * 6;

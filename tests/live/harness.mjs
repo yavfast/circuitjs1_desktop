@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | eval | all (default: all but text_sites, render_pixels, layout_cost and eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | import_cost | agent_equiv | eval | all (default: all but text_sites, render_pixels, layout_cost, import_cost, agent_equiv and eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -3899,6 +3899,11 @@ async function scenarioAgentBackground(s) {
   const exMark = s.exceptions.length;
   const alertMark = s.dialogs.length;
   await s.eval(`CircuitJS1.setSimRunning(false); true`);
+  // Regression (found after agent_freerun, 2026-10-05): an agent transaction open on the visible
+  // document, then the user's content replacement (CircuitJS1.importCircuit) seals it; the Undo
+  // item must name the sealed entry at once, not when a later background operation refreshes
+  // the session menu (which changed the visible label during R1).
+  await A('applyEdits', { edits: [{ op: 'add', element: { id: 'RBGSEAL', type: 'Resistor', start: { x: 300, y: 300 }, end: { x: 304, y: 300 } } }] });
   // ---------------------------------------------------------------- R1 (active tab free-running)
   await s.call('importText', R1_REF_FIXTURE);
   await sleep(300);
@@ -3910,6 +3915,7 @@ async function scenarioAgentBackground(s) {
   ck('refFixture', base.vis.count === 10 && base.session.checks.smallGrid === true && base.vis.sliders.sliders === 3 && base.vis.view.hint === '1 4 3' && base.running === true);
   await sleep(500);
   ck('baselineStable', same(await s.call('r1Sample'), base));
+  ck('undoLabelSealedAtUserImport', /agent edits \(auto\)/.test(JSON.stringify(base.session.menu)));
   const samples = [];
   const sample = async (label) => { samples.push({ label, sample: await s.call('r1Sample') }); };
   const observed = await s.call('startSlidersObserver');
@@ -6405,6 +6411,87 @@ async function scenarioVerifyDefects(s) {
   out.notes.userLoads = { text: userText, json: userJsonCount };
   ck('userLoadsUnchanged', userText === 1 && userJsonCount === 1 && /user_json_model/.test(userExport));
   await s.call('importText', saved);
+
+  // Import-scaling fix round (2026-10-05). SP_AGA §06_01 item 31: relay coils and SPICE-style
+  // controlled sources receive the element list before their stamp again — the three examples
+  // stepped into an exception in stamp() before.
+  const saved2 = await s.call('exportText');
+  out.notes.parentList = {};
+  for (const name of ['latchingrelay.txt', 'relays.txt', 'ujtosc.txt']) {
+    const t = await s.call('fetchText', '/circuitjs1/circuits/' + name);
+    const r = await s.eval(`(() => { CircuitJS1.importCircuit(${JSON.stringify(t)}, false); CircuitJS1.setSimRunning(false);
+      for (let k = 0; k < 50; k++) CircuitJS1.stepSimulation(); const i = CircuitJS1.getSimInfo(); return { stop: i.stopMessage || null, time: i.time }; })()`);
+    out.notes.parentList[name] = r;
+    ck('stepsWithoutStop_' + name.replace('.txt', ''), !r.stop && r.time > 0);
+  }
+  await s.call('importText', saved2);
+  const d2 = (await A('createDocument', { title: 'Deferred stamp' })).data.doc;
+  // §06_01 item 32: an agent mutation leaves the matrix stamp for later; what the stamp shows
+  // in the drawing (a current source's value) is set by the node analysis (applyStampedValues)
+  await A('importCircuit', { doc: d2, circuit: { elements: [
+    { id: 'R1', type: 'Resistor', start: { x: 8, y: 0 }, end: { x: 8, y: 4 } },
+    { id: 'W1', type: 'Wire', start: { x: 0, y: 0 }, end: { x: 8, y: 0 } },
+    { id: 'W2', type: 'Wire', start: { x: 0, y: 4 }, end: { x: 8, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 8, y: 4 }, end: { x: 8, y: 5 } }] } });
+  const addI = await A('applyEdits', { doc: d2, edits: [{ op: 'add', element: { id: 'I1', type: 'CurrentSource', start: { x: 0, y: 4 }, end: { x: 0, y: 0 } } }] });
+  const layI = await A('checkLayout', { doc: d2, includeBoxes: true });
+  const iTexts = ((layI.data && layI.data.boxes) || []).filter((b) => (b.elements || [b.element]).includes('I1') || /mA/.test(b.text)).map((b) => b.text);
+  const svgI = await AA('render', { doc: d2, format: 'svg' });
+  out.notes.stampedValues = { add: addI.ok, layoutTexts: iTexts, svgHasMa: !!(svgI.data && /10 ?mA/.test(svgI.data.content)) };
+  ck('stampedValueLayout', addI.ok && iTexts.some((t) => /10 ?mA/.test(t)));
+  ck('stampedValueRender', svgI.ok && /10 ?mA/.test(svgI.data.content));
+  // a stamp that throws (a SPICE-style CCCS without the voltage sources it controls from) is
+  // still reported by simControl run and drawn by render (both stamp what a mutation left)
+  await A('importCircuit', { doc: d2, circuit: { elements: [{ id: 'F1', type: 'CCCS', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, flags: 2 }] } });
+  const runF = await A('simControl', { doc: d2, action: 'run' });
+  const svgF = await AA('render', { doc: d2, format: 'svg' });
+  await A('simControl', { doc: d2, action: 'stop' });
+  out.notes.deferredStampStop = { running: runF.data && runF.data.running, issues: codes(runF.issues), svgRed: !!(svgF.data && /#ff0000/i.test(svgF.data.content)) };
+  ck('deferredStampStopOnRun', runF.ok && runF.data.running === false && codes(runF.issues).includes('solver_stop'));
+  ck('deferredStampStopOnRender', svgF.ok && /#ff0000/i.test(svgF.data.content));
+  await A('closeDocument', { doc: d2, discardChanges: true });
+  // Review round P2: a read-only subcircuit build from a document whose stamp analyseNodes left
+  // for later keeps that allocation: the visible document's onanalyze hook does not fire again
+  // at the next getConnectivity (one page task, so no frame runs between)
+  const d3 = (await A('createDocument', { title: 'P2 target' })).data.doc;
+  const savedVis = await s.call('exportText');
+  const p2 = await s.eval(`(() => {
+    const call = (op, a) => JSON.parse(CircuitJS1Agent.call(op, JSON.stringify(a)));
+    CircuitJS1.setSimRunning(false);
+    const V = call('listDocuments', {}).data.documents.find((d) => d.active).doc;
+    let n = 0; CircuitJS1.onanalyze = function () { n++; };
+    const imp = call('importCircuit', { doc: V, circuit: { elements: [
+      { id: 'LIN', type: 'LabeledNode', start: { x: 0, y: 0 }, end: { x: 0, y: -1 }, properties: { label: 'in' } },
+      { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+      { id: 'LOUT', type: 'LabeledNode', start: { x: 4, y: 0 }, end: { x: 4, y: -1 }, properties: { label: 'out' } },
+      { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+      { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } }] } });
+    const n1 = n;
+    const def = call('applyEdits', { doc: ${JSON.stringify(d3)}, edits: [{ op: 'defineModel', model: { kind: 'subcircuit', name: 'vd-p2-sub', source: { doc: V } } }] });
+    const conn = call('getConnectivity', { doc: V });
+    const n2 = n;
+    CircuitJS1.onanalyze = null;
+    return { imp: imp.ok, def: def.ok, defIssues: def.issues, conn: conn.ok, n1, n2 };
+  })()`);
+  out.notes.p2CompositeKeepsAllocation = p2;
+  // the import itself analyses before and after the change (n1 = 2); nothing may follow
+  ck('compositeBuildKeepsAllocation', p2.imp && p2.def && p2.conn && p2.n1 >= 1 && p2.n2 === p2.n1);
+  await A('closeDocument', { doc: d3, discardChanges: true });
+  // Review round P3: a stamp exception in a free-running frame (outside the per-element guard,
+  // forced by debugFailNextStamp) marks the analysis failed, so getConnectivity reports
+  // analysis_failed without a getDiagnostics or read call first
+  await A('importCircuit', { circuit: { elements: [
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'G1', type: 'Ground', start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+    { id: 'G2', type: 'Ground', start: { x: 4, y: 0 }, end: { x: 4, y: 1 } }] } });
+  await s.eval(`CircuitJS1Agent.debugFailNextStamp(); CircuitJS1.setSimRunning(true); true`);
+  await sleep(500);
+  await s.eval(`CircuitJS1.setSimRunning(false); true`);
+  const p3 = await A('getConnectivity', {});
+  out.notes.p3FrameStampFailure = { ok: p3.ok, analysed: p3.data && p3.data.analysed, issues: codes(p3.data && p3.data.issues) };
+  ck('frameStampFailureIsAnalysisFailed', p3.ok && p3.data.analysed === false && codes(p3.data.issues).includes('analysis_failed'));
+  await s.call('importText', savedVis);
+  // the forced failure went to the global handler (shown and logged); it is not a page exception
   ck('noExceptions', s.exceptions.length === exMark);
   const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
   fs.writeFileSync(path.join(OUT_DIR, 'verify_defects.json'), JSON.stringify(out, null, 2));
@@ -7928,6 +8015,249 @@ async function scenarioLayoutCost(s) {
   report('AG.layout_cost', s.exceptions.length === exMark && Object.values(out.sizes).every((v) => !v.failed) && over.length === 0, { hasLayout, ...summary, over });
 }
 
+// ---------------------------------------------------------------- import_cost (importCircuit scaling)
+// Backlog "importCircuit scales" (PL_AGA): an N sweep (IMPORT_SIZES, default 250,500,1000,2000) of
+// the fixtures IMPORT_FIXTURES (default unconnected,chains,mix,wires): `unconnected` = N resistors
+// that touch nothing (two dangling posts and an isolated group each), `chains` = grounded chains
+// of 50 resistors, `mix` = the layout_cost measurement mix, `wires` = grounded rows of 25
+// resistors joined by 25 collinear wires. Median of IMPORT_RUNS (3) runs on the visible
+// document of: agent importCircuit, applyEdits (one `set`), getConnectivity, importCircuit into a
+// background document, and the user path — CircuitJS1.importCircuit of the same circuit as text
+// (`userImport`: the synchronous call; `userFrames`: until two animation frames later, which
+// includes the frame's analysis and stamp). Fails when a time grows faster than 1.5 x the size
+// ratio between consecutive sizes (time(2N)/time(N) > 3; only above 50 ms) or exceeds a budget:
+// importCircuit ≤ 5 s at 2000 unconnected, ≤ 3 s at 2500 mix; applyEdits ≤ 1 s up to 2500.
+// IMPORT_PROFILE=<fixture>:<n>[,...] records a CPU profile of one importCircuit and one applyEdits
+// of that size (OUT_DIR/import_cost/*.cpuprofile, open in Chrome DevTools) and lists the top
+// functions by self and total time in import_cost.json. Not in the default run (timing).
+function importFixture(kind, n) {
+  if (kind === 'mix') return costMix(n);
+  if (kind === 'unconnected') return costMix(n, ['Resistor']);
+  if (kind === 'chains') {
+    // like the MCP e2e layout-sizing fixture: rows of 50 resistors, a Ground at both row ends
+    const els = [];
+    for (let k = 0; k < n; k++) {
+      const x = (k % 50) * 4, y = Math.floor(k / 50) * 6;
+      els.push({ id: 'E' + (k + 1), type: 'Resistor', start: { x, y }, end: { x: x + 4, y } });
+      if (k % 50 === 0) els.push({ id: 'GA' + k, type: 'Ground', start: { x, y }, end: { x, y: y + 2 } });
+      if (k % 50 === 49 || k === n - 1) els.push({ id: 'GB' + k, type: 'Ground', start: { x: x + 4, y }, end: { x: x + 4, y: y + 2 } });
+    }
+    return { elements: els };
+  }
+  if (kind === 'wires') {
+    // rows of 25 resistors joined by 25 collinear wires (n elements, half of them wires), a Ground
+    // at both row ends: the wire closure, wire-current order and the wire rules at scale
+    const els = [];
+    for (let k = 0; k < n; k++) {
+      const row = Math.floor(k / 50), col = k % 50, y = row * 6, x = Math.floor(col / 2) * 6 + (col % 2 ? 4 : 0);
+      els.push(col % 2 ? { id: 'W' + (k + 1), type: 'Wire', start: { x, y }, end: { x: x + 2, y } }
+        : { id: k === 0 ? 'E1' : 'R' + (k + 1), type: 'Resistor', start: { x, y }, end: { x: x + 4, y } });
+      if (col === 0) els.push({ id: 'GA' + k, type: 'Ground', start: { x, y }, end: { x, y: y + 2 } });
+      if (col === 49 || k === n - 1) els.push({ id: 'GB' + k, type: 'Ground', start: { x: x + (col % 2 ? 2 : 4), y }, end: { x: x + (col % 2 ? 2 : 4), y: y + 2 } });
+    }
+    return { elements: els };
+  }
+  throw new Error('unknown IMPORT_FIXTURES entry ' + kind);
+}
+
+// Top functions of a CDP CPU profile: self time and total (inclusive, once per sample stack) in ms.
+function profileTop(profile, limit) {
+  const byId = new Map(profile.nodes.map((nd) => [nd.id, nd]));
+  const parent = new Map();
+  for (const nd of profile.nodes) for (const c of nd.children || []) parent.set(c, nd.id);
+  const name = (nd) => `${nd.callFrame.functionName || '(anonymous)'} ${(nd.callFrame.url || '').split('/').pop()}:${nd.callFrame.lineNumber + 1}`;
+  const self = new Map(), total = new Map();
+  const dts = profile.timeDeltas || [];
+  for (let i = 0; i < profile.samples.length; i++) {
+    const dt = (dts[i + 1] !== undefined ? dts[i + 1] : 0) / 1000;
+    let nd = byId.get(profile.samples[i]);
+    self.set(name(nd), (self.get(name(nd)) || 0) + dt);
+    const seen = new Set();
+    for (let id = nd.id; id !== undefined; id = parent.get(id)) {
+      const k = name(byId.get(id));
+      if (!seen.has(k)) { seen.add(k); total.set(k, (total.get(k) || 0) + dt); }
+    }
+  }
+  const top = (m) => [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([k, v]) => [k, Math.round(v)]);
+  return { self: top(self), total: top(total) };
+}
+
+async function scenarioImportCost(s) {
+  const sizes = (process.env.IMPORT_SIZES || '250,500,1000,2000').split(',').map(Number);
+  const fixtures = (process.env.IMPORT_FIXTURES || 'unconnected,chains,mix,wires').split(',');
+  const runs = +(process.env.IMPORT_RUNS || 3);
+  const profiles = (process.env.IMPORT_PROFILE || '').split(',').filter(Boolean);
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  await s.eval(`window.__timed = (op, args) => { const t = performance.now(); const r = JSON.parse(CircuitJS1Agent.call(op, JSON.stringify(args))); return { ms: performance.now() - t, ok: r.ok, r }; }`);
+  const T = async (op, args) => s.eval(`(() => { const x = window.__timed(${JSON.stringify(op)}, ${JSON.stringify(args)}); return { ms: x.ms, ok: x.ok, issues: x.ok ? null : x.r.issues }; })()`);
+  // the user path: the synchronous CircuitJS1.importCircuit and the time until two frames later
+  const userImport = async () => s.eval(`new Promise((res) => { const t = performance.now(); CircuitJS1.importCircuit(window.__text, false);
+    const sync = performance.now() - t; requestAnimationFrame(() => requestAnimationFrame(() => res({ sync, frames: performance.now() - t, n: CircuitJS1.getElementCount() }))); })`);
+  const docs = (await A('listDocuments', {})).data.documents;
+  const vis = docs.find((d) => d.active).doc;
+  const bg = (await A('createDocument', { title: 'ImportCost' })).data.doc;
+  const med = (a) => { const b = [...a].sort((x, y) => x - y); return Math.round(b[Math.floor(b.length / 2)] * 10) / 10; };
+  const profDir = path.join(OUT_DIR, 'import_cost');
+  if (profiles.length) fs.mkdirSync(profDir, { recursive: true });
+  const out = { runs, running: (await s.call('simInfo') || {}).running, fixtures: {}, profiles: {} };
+  const ops = ['importCircuit', 'applyEdits', 'getConnectivity', 'importBackground', 'userImport', 'userFrames'];
+  for (const kind of fixtures) {
+    out.fixtures[kind] = {};
+    for (const n of sizes) {
+      const fx = importFixture(kind, n);
+      await s.eval(`window.__mix = ${JSON.stringify(fx)}`);
+      const t = Object.fromEntries(ops.map((o) => [o, []]));
+      let failed = null, issues = null;
+      for (let k = 0; k < runs; k++) {
+        const imp = await s.eval(`(() => { const x = window.__timed('importCircuit', { doc: ${JSON.stringify(vis)}, circuit: window.__mix });
+          return { ms: x.ms, ok: x.ok, errors: x.ok ? x.r.connectivity.errorCount : null, warnings: x.ok ? x.r.connectivity.warningCount : null, issues: x.ok ? null : x.r.issues }; })()`);
+        if (!imp.ok) failed = 'import ' + JSON.stringify(imp.issues).slice(0, 300);
+        issues = { errors: imp.errors, warnings: imp.warnings };
+        t.importCircuit.push(imp.ms);
+        const ed = await T('applyEdits', { doc: vis, edits: [{ op: 'set', id: 'E1', properties: { resistance: k % 2 ? '1k' : '2k' } }] });
+        if (!ed.ok) failed = 'applyEdits ' + JSON.stringify(ed.issues).slice(0, 300);
+        t.applyEdits.push(ed.ms);
+        t.getConnectivity.push((await T('getConnectivity', { doc: vis })).ms);
+        const bi = await s.eval(`(() => { const x = window.__timed('importCircuit', { doc: ${JSON.stringify(bg)}, circuit: window.__mix }); return { ms: x.ms, ok: x.ok }; })()`);
+        if (!bi.ok) failed = 'background import';
+        t.importBackground.push(bi.ms);
+        if (k === 0) await s.eval(`window.__text = CircuitJS1.exportCircuit()`);
+        const u = await userImport();
+        if (u.n !== fx.elements.length) failed = `user import ${u.n} elements of ${fx.elements.length}`;
+        t.userImport.push(u.sync);
+        t.userFrames.push(u.frames);
+      }
+      for (const spec of profiles) {
+        if (spec !== `${kind}:${n}`) continue;
+        await s.cdp.send('Profiler.enable');
+        await s.cdp.send('Profiler.setSamplingInterval', { interval: 500 });
+        const prof = {};
+        for (const [op, expr] of [['importCircuit', `window.__timed('importCircuit', { doc: ${JSON.stringify(vis)}, circuit: window.__mix }).ms`],
+          ['applyEdits', `window.__timed('applyEdits', { doc: ${JSON.stringify(vis)}, edits: [{ op: 'set', id: 'E1', properties: { resistance: '3k' } }] }).ms`],
+          ['userImport', `(() => { const t = performance.now(); CircuitJS1.importCircuit(window.__text, false); return performance.now() - t; })()`]]) {
+          await s.cdp.send('Profiler.start');
+          const ms = await s.eval(expr);
+          const { profile } = await s.cdp.send('Profiler.stop');
+          fs.writeFileSync(path.join(profDir, `${kind}_${n}_${op}.cpuprofile`), JSON.stringify(profile));
+          prof[op] = { ms: Math.round(ms), ...profileTop(profile, 25) };
+        }
+        await s.cdp.send('Profiler.disable');
+        out.profiles[spec] = prof;
+      }
+      out.fixtures[kind][n] = { elements: fx.elements.length, failed, issues, median: Object.fromEntries(ops.map((o) => [o, med(t[o])])), all: t };
+      log(`import_cost ${kind} ${n}: ${JSON.stringify(out.fixtures[kind][n].median)}`);
+      fs.writeFileSync(path.join(OUT_DIR, 'import_cost.json'), JSON.stringify(out, null, 2));
+    }
+  }
+  await A('importCircuit', { doc: vis, circuit: { elements: [] } });
+  await A('closeDocument', { doc: bg, discardChanges: true });
+  // growth: time(n2)/time(n1) ≤ 1.5 · n2/n1 between consecutive sizes (above a 50 ms floor), and the budgets
+  const over = [];
+  const growth = {};
+  for (const [kind, bySize] of Object.entries(out.fixtures)) {
+    const ns = Object.keys(bySize).map(Number).sort((a, b) => a - b);
+    for (const op of ops) {
+      const ratios = [];
+      for (let i = 1; i < ns.length; i++) {
+        const a = bySize[ns[i - 1]].median[op], b = bySize[ns[i]].median[op];
+        const r = Math.round((b / Math.max(a, 1e-3)) * 100) / 100;
+        ratios.push(r);
+        if (b > 50 && b > a * 1.5 * (ns[i] / ns[i - 1])) over.push(`${kind} ${op} ${ns[i - 1]}→${ns[i]}: ${a} → ${b} ms (x${r})`);
+      }
+      growth[`${kind}.${op}`] = ratios;
+    }
+    for (const n of ns) {
+      const m = bySize[n].median;
+      if (kind === 'unconnected' && n === 2000 && m.importCircuit > 5000) over.push(`unconnected 2000 importCircuit ${m.importCircuit} > 5000 ms`);
+      if (kind === 'mix' && n === 2500 && m.importCircuit > 3000) over.push(`mix 2500 importCircuit ${m.importCircuit} > 3000 ms`);
+      if (n <= 2500 && m.applyEdits > 1000) over.push(`${kind} ${n} applyEdits ${m.applyEdits} > 1000 ms`);
+    }
+  }
+  out.growth = growth;
+  out.over = over;
+  fs.writeFileSync(path.join(OUT_DIR, 'import_cost.json'), JSON.stringify(out, null, 2));
+  const summary = Object.fromEntries(Object.entries(out.fixtures).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([n, x]) => [n, x.failed || x.median]))]));
+  report('AG.import_cost', s.exceptions.length === exMark && Object.values(out.fixtures).every((v) => Object.values(v).every((x) => !x.failed)) && over.length === 0, { ...summary, over });
+}
+
+// ---------------------------------------------------------------- agent_equiv (behaviour equivalence of two builds)
+// Not in the default run. For a change that must not change behaviour (PL_AGA backlog "importCircuit
+// scales"): over the examples (CIRCUITS, default all) records a hash per result of agent importCircuit,
+// getConnectivity, getCircuit(full), checkLayout(boxes), render (SVG, canvas2svg's random gradient ids
+// numbered), a move and a delete edit with their deltas, getDiagnostics, read, the user path
+// (CircuitJS1.importCircuit: text export, IDs, connectivity) and 40 stepSimulation steps with the net
+// voltages; writes agent_equiv.json. EQUIV_BEFORE=<agent_equiv.json of the other build> fails on any
+// differing result except render and steps, which also differ between two runs of one build for a
+// few examples (listed in `noisy`); EQUIV_FULL=1 stores the results instead of hashes (one example).
+async function equivProbe(names, full) {
+  const H = window.__H;
+  const A = (op, a) => H.agentCall(op, a);
+  const hash = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + s.length; };
+  const strip = (r) => JSON.stringify(r, (k, v) => (k === 'cursor' || k === 'seq' || k === 'transaction' || k === 'ms' || k === 'elapsedMs' || k === 'wallMs' ? undefined : v));
+  const out = {};
+  const bg = A('createDocument', { title: 'Equiv' }).data.doc;
+  for (const name of names) {
+    const rec = {};
+    try {
+      const text = await H.fetchText('/circuitjs1/circuits/' + name);
+      const imp = A('importCircuit', { doc: bg, circuit: text });
+      rec.import = strip(imp);
+      rec.conn = strip(A('getConnectivity', { doc: bg }));
+      rec.circuit = strip(A('getCircuit', { doc: bg, detail: 'full', limit: 500 }));
+      rec.layout = strip(A('checkLayout', { doc: bg, includeBoxes: true }));
+      const sv = await H.agentAsync('render', { doc: bg, format: 'svg' }, 60000);
+      // canvas2svg gives gradients random ids: number them by first appearance
+      let svgText = strip(sv);
+      const svgIds = [...new Set([...svgText.matchAll(/id=\\"([A-Za-z0-9]+)\\"/g)].map((m) => m[1]))];
+      svgIds.forEach((id, i) => { svgText = svgText.split(id).join('ID' + i); });
+      rec.render = svgText;
+      const ids = imp.ok && imp.data.ids ? imp.data.ids : [];
+      rec.edit = ids.length ? strip(A('applyEdits', { doc: bg, edits: [{ op: 'move', id: ids[0], by: { dx: 1, dy: 0 } }] })) : null;
+      rec.edit2 = ids.length > 1 ? strip(A('applyEdits', { doc: bg, edits: [{ op: 'delete', id: ids[ids.length - 1] }] })) : null;
+      rec.connAfterEdit = strip(A('getConnectivity', { doc: bg }));
+      rec.layoutAfterEdit = strip(A('checkLayout', { doc: bg, includeBoxes: true }));
+      rec.diag = strip(A('getDiagnostics', { doc: bg }).data && { ...A('getDiagnostics', { doc: bg }).data, log: undefined });
+      rec.readStopped = strip(A('read', { doc: bg, targets: (A('getConnectivity', { doc: bg }).data || { nets: [] }).nets.slice(0, 15).map((n) => ({ net: n.name })) }));
+      // user path in the visible document
+      CircuitJS1.importCircuit(text, false);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      rec.user = JSON.stringify({ text: CircuitJS1.exportCircuit(), ids: CircuitJS1.getElementIds(), conn: JSON.parse(CircuitJS1Agent.call('getConnectivity', '{}')) });
+      // the solver, deterministically: 40 single steps of the visible document, then the nets
+      CircuitJS1.setSimRunning(false);
+      for (let k = 0; k < 40; k++) CircuitJS1.stepSimulation();
+      const vnets = (JSON.parse(CircuitJS1Agent.call('getConnectivity', '{}')).data || { nets: [] }).nets.slice(0, 20).map((n) => ({ net: n.name }));
+      rec.steps = JSON.stringify({ info: CircuitJS1.getSimInfo(), read: vnets.length ? JSON.parse(CircuitJS1Agent.call('read', JSON.stringify({ targets: vnets }))) : null });
+    } catch (e) { rec.error = String(e && e.stack || e).slice(0, 500); }
+    out[name] = full ? rec : Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, v == null ? v : (k === 'error' ? v : hash(v))]));
+  }
+  A('closeDocument', { doc: bg, discardChanges: true });
+  return JSON.stringify(out);
+}
+
+async function scenarioAgentEquiv(s) {
+  const list = process.env.CIRCUITS && process.env.CIRCUITS !== 'all' ? process.env.CIRCUITS.split(',') : listAllCircuits();
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const out = JSON.parse(await s.eval(`(${equivProbe.toString()})(${JSON.stringify(list)}, ${!!process.env.EQUIV_FULL})`));
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_equiv.json'), JSON.stringify(out, null, 2));
+  const summary = { circuits: Object.keys(out).length, errors: Object.keys(out).filter((k) => out[k].error) };
+  if (process.env.EQUIV_BEFORE) {
+    const before = JSON.parse(fs.readFileSync(process.env.EQUIV_BEFORE, 'utf8'));
+    const diffs = {}, noisy = {};
+    for (const k of Object.keys(out)) {
+      for (const sec of new Set([...Object.keys(out[k]), ...Object.keys(before[k] || {})])) {
+        if (JSON.stringify(out[k][sec]) === JSON.stringify((before[k] || {})[sec])) continue;
+        const t = sec === 'render' || sec === 'steps' ? noisy : diffs;
+        (t[sec] = t[sec] || []).push(k);
+      }
+    }
+    Object.assign(summary, { diffs, noisy });
+  }
+  report('AG.agent_equiv', s.exceptions.length === exMark && summary.errors.length === 0 && !(summary.diffs && Object.keys(summary.diffs).length), summary);
+}
+
 async function main() {
   const wanted = process.argv.slice(2);
   const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'mcp_browser', 'mcp_dialog'];
@@ -7974,7 +8304,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -855,7 +855,7 @@ call("checkpoint", { comment: "RC charging circuit" });
 
 ### Diagnostics (not part of the contract)
 
-`CircuitJS1Agent` also carries `debug*` functions used by the test harnesses (`tests/live/harness.mjs`, `tests/mcp/e2e.mjs`): `debugViewState`, `debugDocState`, `debugSessionState`, `debugClosedTabs`, `debugCanvasPixels`, `debugCircuitTest`, `debugMcpStatus`, `debugSetSliceProbe`, `debugRenderSliceElements`, `debugSetHighlight`, `debugForceNotCovered`, `debugSetIdleSealMs`, `debugAgentOriginPush` and the fault injectors `debugFailNextMutation`, `debugFailNextUndoLoad`, `debugFailNextRunSlice`, `debugFailNextSvgLoad`, `debugFailNextOffscreenDraw`. They are not part of the Agent API contract, may change or disappear without notice, and must not be used by scripts or agents.
+`CircuitJS1Agent` also carries `debug*` functions used by the test harnesses (`tests/live/harness.mjs`, `tests/mcp/e2e.mjs`): `debugViewState`, `debugDocState`, `debugSessionState`, `debugClosedTabs`, `debugCanvasPixels`, `debugCircuitTest`, `debugMcpStatus`, `debugSetSliceProbe`, `debugRenderSliceElements`, `debugSetHighlight`, `debugForceNotCovered`, `debugSetIdleSealMs`, `debugAgentOriginPush` and the fault injectors `debugFailNextMutation`, `debugFailNextUndoLoad`, `debugFailNextRunSlice`, `debugFailNextSvgLoad`, `debugFailNextOffscreenDraw`, `debugFailNextStamp`. They are not part of the Agent API contract, may change or disappear without notice, and must not be used by scripts or agents.
 
 ## Complete Example
 

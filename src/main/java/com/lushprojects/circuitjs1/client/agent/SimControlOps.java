@@ -68,6 +68,11 @@ final class SimControlOps {
                 r = OperationResult.success(state(doc));
             } else {
                 boolean run = "run".equals(act);
+                if (run) {
+                    // a stamp left by the last node analysis runs now, so its stop is reported
+                    // (and blocks the run) as when the analysis stamped at once
+                    doc.stampIfDeferred();
+                }
                 if (visible) {
                     sim.setSimRunning(run);
                 } else if (!run || doc.simulator.getStopMessage() == null) {

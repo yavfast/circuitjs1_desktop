@@ -136,6 +136,12 @@ public class CurrentElm extends CircuitElm {
         }
     }
 
+    @Override
+    public void applyStampedValues() {
+        // what stamp() sets: 0 for a source without a current path (stamped as 100 MOhm)
+        current = broken ? 0 : currentValue;
+    }
+
     public EditInfo getEditInfo(int n) {
         if (n == 0)
             return new EditInfo("Current (A)", currentValue, 0, .1, "A");

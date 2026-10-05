@@ -104,6 +104,9 @@ final class RenderOps {
         try {
             finished = DocumentScope.call(sim, doc, () -> {
                 if (image == null) {
+                    // the stamp left by the last node analysis: its stop state and stamped values
+                    // are drawn as when the analysis stamped at once
+                    doc.stampIfDeferred();
                     image = sim.renderer.startOffscreen(isSvg(), scale, includeScopes, MAX_SIDE);
                 }
                 return image.step(deadline);

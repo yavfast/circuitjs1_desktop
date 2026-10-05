@@ -3,7 +3,7 @@
 > **Code:** SP_EEM
 > **Status:** draft
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-05
 >
 > **Concept:** [C_EEM](./elements-electromechanical.concept.md)
 > **Depends on specs:** [SP_ELB](./element-base.sp.md), [SP_UTL](./util-locale-log.sp.md), [SP_GEO](./geometry.sp.md), [SP_RND](./rendering-primitives.sp.md), [SP_EPS](./elements-passives.sp.md)
@@ -183,10 +183,11 @@ See C_EEM_03_01; LATCHING toggles `switchPosition ^= 1` on state 1→2.
 | Two coils same label | — | last-write-wins per iteration (no warning) |
 | TimeDelayRelay negative onDelay | — | fires immediately (no guard) |
 | RelayElm switchingTime=0 | — | falls back to old model formula |
-| RelayCoilElm.setParentList(Vector) | base expects ArrayList | shadows; verify elmList flow (Issue #1) |
+| RelayCoilElm.setParentList | base takes ArrayList | overrides it since 2026-10-05 (the Vector overload was never called: `stamp()` threw, `latchingrelay.txt`) |
 
 ## Changelog
 
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initial version |
+| 2026-10-05 | RelayCoilElm `setParentList` overrides the base again (SP_AGA §06_01 item 31). |

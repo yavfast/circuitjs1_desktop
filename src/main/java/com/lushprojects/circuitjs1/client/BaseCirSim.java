@@ -252,12 +252,25 @@ public class BaseCirSim {
         menuManager.flipXYItem.setEnabled(canFlipXY);
     }
 
-    /** Refreshes the Undo/Redo items (enabled state and labels) from the bound document. */
+    /**
+     * Refreshes the Undo/Redo items (enabled state and labels) from the visible tab's document.
+     * [SP_AGA_03_08] R1: while {@code DocumentScope} has a background document bound, the
+     * session menu keeps showing the visible document's history (an agent edit, checkpoint or
+     * undo of the background document refreshes it from there, not from the bound one).
+     */
     public void enableUndoRedo() {
-        UndoManager undoManager = getActiveDocument().undoManager;
+        if (menuManager == null || menuManager.undoItem == null || menuManager.redoItem == null) {
+            return;
+        }
+        UndoManager undoManager = menuDocument().undoManager;
         menuManager.redoItem.setEnabled(undoManager.hasRedoStack());
         menuManager.undoItem.setEnabled(undoManager.hasUndoStack());
         menuManager.updateUndoRedoLabels(undoManager.getUndoComment(), undoManager.getRedoComment());
+    }
+
+    /** @return the document whose state the session menus show: the bound one here */
+    protected CircuitDocument menuDocument() {
+        return getActiveDocument();
     }
 
     void enablePaste() {

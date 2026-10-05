@@ -17,6 +17,7 @@ import com.lushprojects.circuitjs1.client.element.OhmMeterElm;
 import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
+import com.lushprojects.circuitjs1.client.util.BoxGrid;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +42,8 @@ import java.util.TreeSet;
  * <li>{@link #delta} — the ConnectivityDelta of a mutation, by issue key, with the 50-entry caps.</li>
  * </ul>
  * Every entry expects the target document bound ({@code DocumentScope}); {@link #analyse} makes
- * its analysis current first ({@link CircuitDocument#ensureAnalysed()}).
+ * its node analysis current first ({@link CircuitDocument#ensureNodesAnalysed()}: the
+ * connectivity needs no matrix stamp).
  */
 final class Connectivity {
 
@@ -115,6 +117,35 @@ final class Connectivity {
 
     /** @return the post-to-node grouping and names of the document's current analysis */
     static Nets nets(CircuitDocument doc) {
+        return nets(doc, postRefs(doc.simulator.elmList), true);
+    }
+
+    /**
+     * @return the PostRefs of every element's posts, by element position (null for an element
+     *         without posts): computed once per analysis for {@link #nets} and {@link #rules}
+     */
+    private static String[][] postRefs(List<CircuitElm> elms) {
+        String[][] refs = new String[elms.size()][];
+        for (int i = 0; i < refs.length; i++) {
+            CircuitElm elm = elms.get(i);
+            int pc = elm.getPostCount();
+            if (pc <= 0) {
+                continue;
+            }
+            String[] pins = PinNames.of(elm);
+            refs[i] = new String[pc];
+            for (int j = 0; j < pc; j++) {
+                refs[i][j] = postRef(elm, pins, j);
+            }
+        }
+        return refs;
+    }
+
+    /**
+     * @param group false: only {@link Nets#analysed} is computed (no Net objects or names), for
+     *              the issues of a ConnectivityDelta, which never read the nets
+     */
+    private static Nets nets(CircuitDocument doc, String[][] refs, boolean group) {
         Nets nets = new Nets();
         if (doc.isAnalysisFailed()) {
             // the stamp of the current analysis threw: node indices are stale
@@ -123,12 +154,23 @@ final class Connectivity {
         }
         CircuitSimulator sim = doc.simulator;
         int nodeCount = sim.nodeList.size();
-        for (CircuitElm elm : sim.elmList) {
+        if (!group) {
+            for (CircuitElm elm : sim.elmList) {
+                for (int j = 0; j < elm.getPostCount(); j++) {
+                    int node = elm.getNode(j);
+                    if (node < 0 || node >= nodeCount) {
+                        nets.analysed = false;
+                    }
+                }
+            }
+            return nets;
+        }
+        for (int i = 0; i < sim.elmList.size(); i++) {
+            CircuitElm elm = sim.elmList.get(i);
             int pc = elm.getPostCount();
             if (pc <= 0) {
                 continue;
             }
-            String[] pins = PinNames.of(elm);
             boolean wire = elm instanceof WireElm;
             for (int j = 0; j < pc; j++) {
                 int node = elm.getNode(j);
@@ -145,12 +187,12 @@ final class Connectivity {
                     if (j == 0) {
                         net.wires++;
                     }
-                    String ref = postRef(elm, pins, j);
+                    String ref = refs[i][j];
                     if (net.firstWireRef == null || ref.compareTo(net.firstWireRef) < 0) {
                         net.firstWireRef = ref;
                     }
                 } else {
-                    net.posts.add(postRef(elm, pins, j));
+                    net.posts.add(refs[i][j]);
                 }
                 if (elm instanceof LabeledNodeElm && j == 0) {
                     net.labels.add(((LabeledNodeElm) elm).text);
@@ -284,8 +326,21 @@ final class Connectivity {
      * must be bound.
      */
     static Report analyse(CircuitDocument doc) {
-        boolean ran = doc.ensureAnalysed();
-        Nets nets = nets(doc);
+        return analyse(doc, true);
+    }
+
+    /**
+     * The issues of {@link #analyse} without the nets (its {@link Report#nets} only tell
+     * {@code analysed}): what {@link #delta} compares, twice per agent mutation.
+     */
+    static Report analyseIssues(CircuitDocument doc) {
+        return analyse(doc, false);
+    }
+
+    private static Report analyse(CircuitDocument doc, boolean withNets) {
+        boolean ran = doc.ensureNodesAnalysed();
+        String[][] refs = postRefs(doc.simulator.elmList);
+        Nets nets = nets(doc, refs, withNets);
         List<Issue> issues = new ArrayList<>();
         if (!ran || !nets.analysed) {
             nets.analysed = false;
@@ -296,7 +351,7 @@ final class Connectivity {
             issues.add(Issue.of(IssueCode.ANALYSIS_FAILED, "The circuit could not be analysed: " + why + ".",
                     "Fix the reported problem (getDiagnostics shows the solver state), then read the connectivity again."));
         }
-        boolean implicitGround = rules(doc, nets, issues);
+        boolean implicitGround = rules(doc, nets, refs, issues);
         return new Report(nets, sortBySeverity(issues), implicitGround);
     }
 
@@ -305,7 +360,7 @@ final class Connectivity {
      *
      * @return whether the simulator assumed ground at a voltage-source post
      */
-    private static boolean rules(CircuitDocument doc, Nets nets, List<Issue> issues) {
+    private static boolean rules(CircuitDocument doc, Nets nets, String[][] postRefs, List<Issue> issues) {
         CircuitSimulator sim = doc.simulator;
         List<CircuitElm> elms = sim.elmList;
         Map<Point, List<PostAt>> byPoint = new LinkedHashMap<>();
@@ -316,7 +371,8 @@ final class Connectivity {
         boolean gotVoltage = false;
         boolean gotGroundReference = false;
         boolean anyPost = false;
-        for (CircuitElm elm : elms) {
+        for (int i = 0; i < elms.size(); i++) {
+            CircuitElm elm = elms.get(i);
             if (elm instanceof GroundElm) {
                 gotGround = true;
             } else if (elm instanceof RailElm) {
@@ -329,7 +385,6 @@ final class Connectivity {
                 wires.add(elm);
             }
             int pc = elm.getPostCount();
-            String[] pins = pc > 0 ? PinNames.of(elm) : null;
             for (int j = 0; j < pc; j++) {
                 Point p = elm.getPost(j);
                 if (p == null) {
@@ -338,7 +393,7 @@ final class Connectivity {
                 anyPost = true;
                 // rails, logic inputs, gates, chips and op-amp outputs are referenced to ground internally
                 gotGroundReference |= elm.hasGroundConnection(j);
-                PostAt pa = new PostAt(elm, j, postRef(elm, pins, j), p, nets.analysed ? elm.getNode(j) : -1);
+                PostAt pa = new PostAt(elm, j, postRefs[i][j], p, nets.analysed ? elm.getNode(j) : -1);
                 all.add(pa);
                 List<PostAt> list = byPoint.get(p);
                 if (list == null) {
@@ -373,7 +428,10 @@ final class Connectivity {
             }
         }
 
-        // post_on_wire_body: strictly inside a wire segment, not in that wire's net
+        // post_on_wire_body: strictly inside a wire segment, not in that wire's net. The posts
+        // in the wire's box come from a grid of all posts, in post order (a scan of every post
+        // per wire was quadratic).
+        BoxGrid postGrid = wires.isEmpty() ? null : postGrid(all);
         for (CircuitElm w : wires) {
             Point a = w.getPost(0);
             Point b = w.getPost(1);
@@ -383,7 +441,8 @@ final class Connectivity {
             int minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
             int minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
             int wireNode = nets.analysed ? w.getNode(0) : -2;
-            for (PostAt pa : all) {
+            for (int candidate : postGrid.in(minX, minY, maxX, maxY)) {
+                PostAt pa = all.get(candidate);
                 Point p = pa.at;
                 if (pa.elm == w || p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
                     continue;
@@ -424,14 +483,10 @@ final class Connectivity {
                     + l.get(0).getJsonTypeName() + " lie on the same points.", "Delete the duplicate or move it.")
                     .elements(ids).at(cell(l.get(0).getX()), cell(l.get(0).getY())));
         }
-        for (int i = 0; i < wires.size(); i++) {
-            for (int j = i + 1; j < wires.size(); j++) {
-                if (wiresOverlap(wires.get(i), wires.get(j))) {
-                    String ia = wires.get(i).getElementId(), ib = wires.get(j).getElementId();
-                    issues.add(Issue.of(IssueCode.OVERLAPPING_ELEMENTS, "Wires " + ia + " and " + ib + " overlap.",
-                            "Delete one of them or shorten it so the wires only meet at their ends.").elements(ia, ib));
-                }
-            }
+        for (int[] pair : overlappingWirePairs(wires)) {
+            String ia = wires.get(pair[0]).getElementId(), ib = wires.get(pair[1]).getElementId();
+            issues.add(Issue.of(IssueCode.OVERLAPPING_ELEMENTS, "Wires " + ia + " and " + ib + " overlap.",
+                    "Delete one of them or shorten it so the wires only meet at their ends.").elements(ia, ib));
         }
 
         // no_ground: no Ground element, and either the simulator assumes ground at a voltage source
@@ -468,8 +523,8 @@ final class Connectivity {
             }
             for (List<PostAt> l : groups.values()) {
                 boolean allOpen = true;
-                Set<String> refs = new TreeSet<>();
-                Set<String> ids = new TreeSet<>();
+                List<String> refs = new ArrayList<>(l.size());
+                List<String> ids = new ArrayList<>(l.size());
                 for (PostAt pa : l) {
                     allOpen &= doc.hasOpenMark(pa.ref);
                     refs.add(pa.ref);
@@ -478,6 +533,9 @@ final class Connectivity {
                 if (allOpen) {
                     continue;
                 }
+                // sorted and unique, as a TreeSet (cheaper for the many small groups)
+                refs = sortedUnique(refs);
+                ids = sortedUnique(ids);
                 issues.add(Issue.of(IssueCode.ISOLATED_GROUP, refs.size() + " post(s) have no path to ground ("
                         + first(refs, 6) + "); the simulator ties them to ground through 100 MOhm.",
                         "Connect the group to the rest of the circuit or to ground, or mark its posts open if it is unused.")
@@ -580,6 +638,77 @@ final class Connectivity {
             }
         }
         return implicitGround;
+    }
+
+    /** @return a grid of the post positions, indexed like {@code all} */
+    private static BoxGrid postGrid(List<PostAt> all) {
+        int n = all.size();
+        int[] xs = new int[n], ys = new int[n];
+        for (int i = 0; i < n; i++) {
+            xs[i] = all.get(i).at.x;
+            ys[i] = all.get(i).at.y;
+        }
+        return new BoxGrid(n, xs, ys, xs, ys);
+    }
+
+    /**
+     * @return the index pairs (i &lt; j) of {@code wires} for which {@link #wiresOverlap} holds,
+     *         ordered by i, then j (the order of a scan of every pair). Only wires on one
+     *         infinite line whose extents along it touch are tested: the wires are grouped by
+     *         line and swept by their start along it, so the cost follows the wire count and
+     *         the overlapping pairs instead of the square of the wire count.
+     */
+    private static List<int[]> overlappingWirePairs(List<CircuitElm> wires) {
+        Map<String, List<long[]>> byLine = new HashMap<>();
+        for (int i = 0; i < wires.size(); i++) {
+            Point a = wires.get(i).getPost(0), b = wires.get(i).getPost(1);
+            if (a == null || b == null || a.equals(b)) {
+                continue;
+            }
+            long dx = b.x - (long) a.x, dy = b.y - (long) a.y;
+            long g = gcd(Math.abs(dx), Math.abs(dy));
+            long ux = dx / g, uy = dy / g;
+            if (ux < 0 || (ux == 0 && uy < 0)) {
+                ux = -ux;
+                uy = -uy;
+            }
+            // the line: direction (ux, uy) and offset uy*x - ux*y; the extent: ux*x + uy*y
+            String key = ux + "," + uy + "," + (uy * a.x - ux * a.y);
+            long sa = ux * a.x + uy * a.y, sb = ux * b.x + uy * b.y;
+            List<long[]> line = byLine.get(key);
+            if (line == null) {
+                line = new ArrayList<>();
+                byLine.put(key, line);
+            }
+            line.add(new long[] { Math.min(sa, sb), Math.max(sa, sb), i });
+        }
+        List<int[]> pairs = new ArrayList<>();
+        for (List<long[]> line : byLine.values()) {
+            if (line.size() < 2) {
+                continue;
+            }
+            Collections.sort(line, (p, q) -> p[0] != q[0] ? Long.compare(p[0], q[0]) : Long.compare(p[2], q[2]));
+            for (int p = 0; p < line.size(); p++) {
+                long[] w = line.get(p);
+                for (int q = p + 1; q < line.size() && line.get(q)[0] <= w[1]; q++) {
+                    int i = (int) Math.min(w[2], line.get(q)[2]), j = (int) Math.max(w[2], line.get(q)[2]);
+                    if (wiresOverlap(wires.get(i), wires.get(j))) {
+                        pairs.add(new int[] { i, j });
+                    }
+                }
+            }
+        }
+        Collections.sort(pairs, (p, q) -> p[0] != q[0] ? Integer.compare(p[0], q[0]) : Integer.compare(p[1], q[1]));
+        return pairs;
+    }
+
+    private static long gcd(long a, long b) {
+        while (b != 0) {
+            long t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
     }
 
     /** @return true when {@code p} lies on segment a-b, not at an end */
@@ -744,6 +873,10 @@ final class Connectivity {
     }
 
     private static String fmt(double v) {
+        // the digits of Long.toString for a whole value; an int needs no emulated long or rint
+        if (Math.abs(v) < Integer.MAX_VALUE && v == (int) v) {
+            return Integer.toString((int) v);
+        }
         return v == Math.rint(v) ? Long.toString((long) v) : Double.toString(v);
     }
 
@@ -755,7 +888,19 @@ final class Connectivity {
         return ids;
     }
 
-    private static String first(Set<String> values, int n) {
+    /** @return {@code values} sorted by {@link String#compareTo}, repeats removed (the order of a TreeSet) */
+    private static List<String> sortedUnique(List<String> values) {
+        Collections.sort(values);
+        List<String> out = new ArrayList<>(values.size());
+        for (String v : values) {
+            if (out.isEmpty() || !out.get(out.size() - 1).equals(v)) {
+                out.add(v);
+            }
+        }
+        return out;
+    }
+
+    private static String first(List<String> values, int n) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
         for (String v : values) {

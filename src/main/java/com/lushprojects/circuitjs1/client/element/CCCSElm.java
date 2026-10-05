@@ -26,7 +26,7 @@ import com.lushprojects.circuitjs1.client.ExprState;
 import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 
-import java.util.Vector;
+import java.util.ArrayList;
 
 public class CCCSElm extends VCCSElm {
     static int FLAG_SPICE = 2;
@@ -218,7 +218,10 @@ public class CCCSElm extends VCCSElm {
             super.setEditValue(n, ei);
     }
 
-    public void setParentList(Vector<CircuitElm> elmList) {
+    // overrides CircuitElm.setParentList (the Vector overload left by the element-list refactor
+    // was never called, so a SPICE-style source never found its input voltage sources)
+    @Override
+    public void setParentList(ArrayList<CircuitElm> elmList) {
         int i, j;
         if (!isSpiceStyle())
             return;

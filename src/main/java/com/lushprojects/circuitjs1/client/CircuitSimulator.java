@@ -12,6 +12,7 @@ import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
+import com.lushprojects.circuitjs1.client.util.BoxGrid;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 import java.util.ArrayList;
@@ -247,6 +248,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         // Force full re-stamp on next run.
         needsStamp = true;
+        nodesAnalysedFor = -1;
 
         // Drop any existing matrix/voltage state so nothing "leaks" across resets.
         circuitMatrix = null;
@@ -339,6 +341,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
 
         nodeMap.clear();
         wireInfoList.clear();
+        // every entry created here lists its keys (closureKeys) until the closure is done
+        ArrayList<NodeMapEntry> entries = new ArrayList<>();
 
         for (int i = 0; i < elmList.size(); i++) {
             CircuitElm ce = elmList.get(i);
@@ -356,38 +360,59 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 // no connected post (true for labeled node the first time it's encountered, or
                 // ground)
                 if (cn == null) {
-                    cn = new NodeMapEntry();
-                    nodeMap.put(p0, cn);
+                    cn = newClosureEntry(entries);
+                    putClosureKey(p0, cn);
                 }
                 continue;
             }
             NodeMapEntry cn2 = nodeMap.get(p1);
             if (cn != null && cn2 != null) {
-                // merge nodes; go through map and change all keys pointing to cn2 to point to
-                // cn
-                for (Map.Entry<Point, NodeMapEntry> entry : nodeMap.entrySet()) {
-                    if (entry.getValue() == cn2) {
-                        entry.setValue(cn);
+                // merge nodes: every key pointing to one entry now points to the other. Which
+                // entry survives does not matter (all closure entries are unallocated, node -1),
+                // so the smaller group is re-pointed instead of scanning the whole map.
+                if (cn != cn2) {
+                    NodeMapEntry keep = cn.closureKeys.size() >= cn2.closureKeys.size() ? cn : cn2;
+                    NodeMapEntry gone = keep == cn ? cn2 : cn;
+                    for (Point key : gone.closureKeys) {
+                        nodeMap.put(key, keep);
+                        keep.closureKeys.add(key);
                     }
+                    gone.closureKeys.clear();
                 }
                 continue;
             }
             if (cn != null) {
-                nodeMap.put(p1, cn);
+                putClosureKey(p1, cn);
                 continue;
             }
             if (cn2 != null) {
-                nodeMap.put(p0, cn2);
+                putClosureKey(p0, cn2);
                 continue;
             }
             // new entry
-            cn = new NodeMapEntry();
-            nodeMap.put(p0, cn);
-            nodeMap.put(p1, cn);
+            cn = newClosureEntry(entries);
+            putClosureKey(p0, cn);
+            putClosureKey(p1, cn);
+        }
+        for (NodeMapEntry e : entries) {
+            e.closureKeys = null;
         }
 
         // console("got " + (groupCount-mergeCount) + " groups with " + nodeMap.size() +
         // " nodes " + mergeCount);
+    }
+
+    private static NodeMapEntry newClosureEntry(ArrayList<NodeMapEntry> entries) {
+        NodeMapEntry e = new NodeMapEntry();
+        e.closureKeys = new ArrayList<>();
+        entries.add(e);
+        return e;
+    }
+
+    /** Maps {@code key} (not yet in the map) to the closure entry {@code e}. */
+    private void putClosureKey(Point key, NodeMapEntry e) {
+        nodeMap.put(key, e);
+        e.closureKeys.add(key);
     }
 
     // generate info we need to calculate wire currents. Most other elements
@@ -646,82 +671,111 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return java.util.Collections.unmodifiableList(badConnectionList);
     }
 
+    /**
+     * Determines the nodes that are not connected indirectly to ground (all nodes must be, or
+     * the matrix is singular): the closure from node 0 and every post with a ground connection
+     * over the element connections ({@code getConnection(j, k)}: node j reaches node k; wires
+     * are skipped, their posts share one node). Every node outside the closure that is not
+     * internal becomes, in ascending order, the seed of an unconnected group
+     * ({@link #unconnectedNodes}, tied to ground through 100 MOhm later), and the nodes it
+     * reaches join that group ({@link #getUnconnectedGroup}).
+     * <p>
+     * One breadth-first pass over the connection graph: the result equals the original
+     * fixpoint iteration (a full pass over every element until nothing changes, then one seed
+     * and the passes again), which was quadratic in the number of unconnected groups.
+     * {@link #nodesWithGroundConnection} lists every element with a ground connection once,
+     * in element order (the passes appended it once per pass; its users only test membership
+     * and emptiness).
+     */
     void findUnconnectedNodes() {
-        int i, j;
-
-        // determine nodes that are not connected indirectly to ground.
-        // all nodes must be connected to ground somehow, or else we
-        // will get a matrix error.
-        boolean[] closure = new boolean[nodeList.size()];
-        boolean changed = true;
+        int nodeCount = nodeList.size();
+        boolean[] closure = new boolean[nodeCount];
         unconnectedNodes.clear();
         nodesWithGroundConnection.clear();
-        unconnectedGroupOf = new int[nodeList.size()];
+        unconnectedGroupOf = new int[nodeCount];
         java.util.Arrays.fill(unconnectedGroupOf, -1);
-        closure[0] = true;
-        while (changed) {
-            changed = false;
-            for (CircuitElm ce : elmList) {
-                if (ce instanceof WireElm) {
-                    continue;
-                }
-                // loop through all ce's nodes to see if they are connected
-                // to other nodes not in closure
-                boolean hasGround = false;
-                for (j = 0; j < ce.getConnectionNodeCount(); j++) {
-                    boolean hg = ce.hasGroundConnection(j);
-                    if (hg) {
-                        hasGround = true;
-                    }
-                    if (!closure[ce.getConnectionNode(j)]) {
-                        if (hg) {
-                            closure[ce.getConnectionNode(j)] = changed = true;
-                            markUnconnectedGroup(ce.getConnectionNode(j));
-                        }
-                        continue;
-                    }
-                    int k;
-                    for (k = 0; k != ce.getConnectionNodeCount(); k++) {
-                        if (j == k) {
-                            continue;
-                        }
-                        int kn = ce.getConnectionNode(k);
-                        if (ce.getConnection(j, k) && !closure[kn]) {
-                            closure[kn] = true;
-                            changed = true;
-                            markUnconnectedGroup(kn);
-                        }
-                    }
-                }
-                if (hasGround) {
-                    nodesWithGroundConnection.add(ce);
-                }
-            }
-            if (changed) {
+
+        // the connection graph as adjacency lists (CSR): edge j -> k of every element
+        int[] degree = new int[nodeCount + 1];
+        int edgeCount = 0;
+        for (CircuitElm ce : elmList) {
+            if (ce instanceof WireElm) {
                 continue;
             }
-
-            // connect one of the unconnected nodes to ground with a big resistor, then try
-            // again
-            for (i = 0; i != nodeList.size(); i++) {
-                if (!closure[i] && !getCircuitNode(i).internal) {
-                    unconnectedNodes.add(i);
-                    markUnconnectedGroup(i);
-                    console("node " + i + " unconnected");
-                    // stampResistor(0, i, 1e8); // do this later in connectUnconnectedNodes()
-                    closure[i] = true;
-                    changed = true;
-                    break;
+            int cnc = ce.getConnectionNodeCount();
+            for (int j = 0; j < cnc; j++) {
+                for (int k = 0; k != cnc; k++) {
+                    if (j != k && ce.getConnection(j, k)) {
+                        degree[ce.getConnectionNode(j)]++;
+                        edgeCount++;
+                    }
                 }
             }
         }
-    }
-
-    // Nodes added to the closure after the first seed belong to the group of the latest seed:
-    // everything reaching ground was added before any seed (the closure is a fixpoint).
-    private void markUnconnectedGroup(int node) {
-        if (!unconnectedNodes.isEmpty() && node >= 0 && node < unconnectedGroupOf.length) {
-            unconnectedGroupOf[node] = unconnectedNodes.size() - 1;
+        int[] start = new int[nodeCount + 1];
+        for (int n = 0; n < nodeCount; n++) {
+            start[n + 1] = start[n] + degree[n];
+        }
+        int[] fill = new int[nodeCount];
+        int[] target = new int[edgeCount];
+        int[] queue = new int[nodeCount];
+        int head = 0, tail = 0;
+        closure[0] = true;
+        queue[tail++] = 0;
+        for (CircuitElm ce : elmList) {
+            if (ce instanceof WireElm) {
+                continue;
+            }
+            int cnc = ce.getConnectionNodeCount();
+            boolean hasGround = false;
+            for (int j = 0; j < cnc; j++) {
+                int nj = ce.getConnectionNode(j);
+                if (ce.hasGroundConnection(j)) {
+                    hasGround = true;
+                    if (!closure[nj]) {
+                        closure[nj] = true;
+                        queue[tail++] = nj;
+                    }
+                }
+                for (int k = 0; k != cnc; k++) {
+                    if (j != k && ce.getConnection(j, k)) {
+                        target[start[nj] + fill[nj]++] = ce.getConnectionNode(k);
+                    }
+                }
+            }
+            if (hasGround) {
+                nodesWithGroundConnection.add(ce);
+            }
+        }
+        // the ground closure (no group), then one group per seed in ascending node order
+        int group = -1;
+        for (int seed = 0; ; ) {
+            while (head < tail) {
+                int n = queue[head++];
+                for (int e = start[n]; e < start[n + 1]; e++) {
+                    int kn = target[e];
+                    if (!closure[kn]) {
+                        closure[kn] = true;
+                        if (group >= 0) {
+                            unconnectedGroupOf[kn] = group;
+                        }
+                        queue[tail++] = kn;
+                    }
+                }
+            }
+            while (seed < nodeCount && (closure[seed] || getCircuitNode(seed).internal)) {
+                seed++;
+            }
+            if (seed == nodeCount) {
+                break;
+            }
+            unconnectedNodes.add(seed);
+            group = unconnectedNodes.size() - 1;
+            unconnectedGroupOf[seed] = group;
+            console("node " + seed + " unconnected");
+            // stampResistor(0, i, 1e8); // do this later in connectUnconnectedNodes()
+            closure[seed] = true;
+            queue[tail++] = seed;
         }
     }
 
@@ -748,6 +802,7 @@ public class CircuitSimulator extends BaseCirSimDelegate {
      *             analysis hook
      */
     boolean preStampCircuit(boolean subcircuit, boolean full) {
+        nodesAnalysedFor = -1;
         nodeList.clear();
 
         calculateWireClosure();
@@ -812,8 +867,64 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         return true;
     }
 
+    /**
+     * The analysis count whose node allocation {@link #analyseNodes()} made current and that no
+     * stamp has used yet, or -1. Cleared by every {@link #preStampCircuit(boolean, boolean)}
+     * call (a subcircuit build reallocates), by {@link #preStampAndStampCircuit()} (which
+     * consumes it) and by {@link #resetSolverState()}; a new analysis changes the count.
+     */
+    private int nodesAnalysedFor = -1;
+
+    /**
+     * The node allocation and element validation of the current analysis without the stamp
+     * ([SP_AGA_02_06]): what the connectivity, the element records and an agent mutation need.
+     * The stamp (dense matrix, simplification and, for a linear circuit, the LU factorization,
+     * which grows with the cube of the node count) is left to the next
+     * {@link #preStampAndStampCircuit()}, which then stamps without allocating the nodes again,
+     * so the order of effects (validation, time step, analysis hook, stamp) is the one of a
+     * single {@link #preStampAndStampCircuit()} call.
+     *
+     * @return false when the allocation stopped or hit the retry limit (as
+     *         {@link #preStampAndStampCircuit()})
+     */
+    boolean analyseNodes() {
+        if (nodesAnalysedFor == analysisCount) {
+            return true;
+        }
+        if (!preStampWithRetries()) {
+            return false;
+        }
+        nodesAnalysedFor = analysisCount;
+        // the drawn results of the stamp (current source, potentiometer), as the stamp sets them
+        for (CircuitElm ce : elmList) {
+            ce.applyStampedValues();
+        }
+        return true;
+    }
+
+    /**
+     * @return true when {@link #analyseNodes()} allocated the nodes of the current analysis and
+     *         the stamp it left for later has not run yet (before PL_AGA backlog "importCircuit
+     *         scales" that stamp ran right away)
+     */
+    boolean isStampDeferred() {
+        return nodesAnalysedFor == analysisCount && needsStamp;
+    }
+
     // do pre-stamping and then stamp circuit
     boolean preStampAndStampCircuit() {
+        // the allocation analyseNodes() did for this analysis is used once, as if done here
+        boolean allocated = nodesAnalysedFor == analysisCount && stopMessage == null;
+        nodesAnalysedFor = -1;
+        if (!allocated && !preStampWithRetries()) {
+            return false;
+        }
+
+        stampCircuit();
+        return stopMessage == null && !needsStamp;
+    }
+
+    private boolean preStampWithRetries() {
         int i;
 
         // preStampCircuit returns false if there's an error. It can return false if we
@@ -837,16 +948,29 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             }
             return false;
         }
-
-        stampCircuit();
-        return stopMessage == null && !needsStamp;
+        return true;
     }
 
     // stamp the matrix, meaning populate the matrix as required to simulate the
     // circuit (for all linear elements, at least).
     // this gets called after something changes in the circuit, and also when
     // auto-adjusting timestep
+    /** Armed by the harness diagnostic {@code CircuitJS1Agent.debugFailNextStamp()}; consumed once. */
+    private static boolean failNextStamp;
+
+    /**
+     * Harness diagnostic: the next {@link #stampCircuit()} throws before stamping (outside the
+     * per-element guard), as a matrix-level failure would.
+     */
+    public static void armFailNextStamp() {
+        failNextStamp = true;
+    }
+
     void stampCircuit() {
+        if (failNextStamp) {
+            failNextStamp = false;
+            throw new IllegalStateException("debugFailNextStamp: forced failure of the matrix stamp");
+        }
         int matrixSize = nodeList.size() - 1 + voltageSourceCount;
         circuitMatrix = new double[matrixSize][matrixSize];
         circuitRightSide = new double[matrixSize];
@@ -1102,6 +1226,9 @@ public class CircuitSimulator extends BaseCirSimDelegate {
         postDrawList.clear();
         postVoltageMap.clear();
         badConnectionList.clear();
+        // the bounding boxes of the elements, indexed: a lone post is tested only against the
+        // elements whose box may hold it (a scan of every element per lone post was quadratic)
+        BoxGrid boxes = null;
         for (Map.Entry<Point, Integer> entry : postCountMap.entrySet()) {
             if (entry.getValue() != 2) {
                 postDrawList.add(entry.getKey());
@@ -1113,8 +1240,12 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             if (entry.getValue() == 1) {
                 boolean bad = false;
                 Point cn = entry.getKey();
-                for (int j = 0; j < elmList.size() && !bad; j++) {
-                    CircuitElm ce = elmList.get(j);
+                if (boxes == null) {
+                    boxes = elementBoxes();
+                }
+                int[] candidates = boxes.at(cn.x, cn.y);
+                for (int c = 0; c < candidates.length && !bad; c++) {
+                    CircuitElm ce = elmList.get(candidates[c]);
                     if (ce instanceof GraphicElm) {
                         continue;
                     }
@@ -1139,6 +1270,22 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                 }
             }
         }
+    }
+
+    /** @return the bounding boxes of {@link #elmList}, indexed by element position */
+    private BoxGrid elementBoxes() {
+        int n = elmList.size();
+        int[] x0 = new int[n], y0 = new int[n], x1 = new int[n], y1 = new int[n];
+        for (int i = 0; i < n; i++) {
+            Rectangle r = elmList.get(i).getBoundingBox();
+            // Rectangle.contains: x <= px < x + width (an overflowing end holds every larger
+            // px); a zero or negative size holds no point (an empty box, never a candidate)
+            x0[i] = r.x;
+            y0[i] = r.y;
+            x1[i] = r.width <= 0 || r.height <= 0 ? r.x - 1 : (int) Math.min((long) r.x + r.width - 1, Integer.MAX_VALUE);
+            y1[i] = r.width <= 0 || r.height <= 0 ? r.y - 1 : (int) Math.min((long) r.y + r.height - 1, Integer.MAX_VALUE);
+        }
+        return new BoxGrid(n, x0, y0, x1, y1);
     }
 
     String stopMessage;
@@ -1516,6 +1663,8 @@ public class CircuitSimulator extends BaseCirSimDelegate {
      */
     public CompositeBuild buildCompositeReadOnly() {
         boolean stamped = !needsStamp;
+        // an allocation analyseNodes() made for a later stamp is kept the same way as a stamp
+        boolean allocated = nodesAnalysedFor == analysisCount;
         boolean pending = circuitInfo().dcAnalysisFlag;
         int nodeCount = nodeList.size();
         int vsCount = voltageSourceCount;
@@ -1537,9 +1686,14 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             // the normal node allocation again (deterministic: the same numbers as before the build);
             // like the build, without element validation, time-step reset or analysis hook
             boolean ok = preStampCircuit(false, false);
-            if (ok && stamped && !pending && nodeList.size() == nodeCount && voltageSourceCount == vsCount) {
+            boolean same = ok && !pending && nodeList.size() == nodeCount && voltageSourceCount == vsCount;
+            if (same && stamped) {
                 // the stamped matrices still describe this allocation
                 needsStamp = false;
+            }
+            if (same && allocated) {
+                // the validated allocation stays usable: no second validation or analysis hook
+                nodesAnalysedFor = analysisCount;
             }
             solverEvents.clear();
             solverEvents.addAll(savedEvents);

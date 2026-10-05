@@ -3,7 +3,7 @@
 > **Code:** SP_SIM
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-05
 >
 > **Concept:** [C_SIM](./simulator-engine.concept.md)
 > **Depends on specs:** [SP_ELB](./element-base.sp.md), [SP_UTL](./util-locale-log.sp.md), [SP_MDS](./math-dsp.sp.md), [SP_SHM](./shared-models.sp.md)
@@ -114,8 +114,19 @@ Processing:
 Purpose: build matrix skeleton + populate linear stamps + LU-factor.
 
 Processing:
-    retry up to 10 times: preStampCircuit(false)
+    IF the node allocation of this analysis was made by analyseNodes() and not used yet: skip it
+    ELSE retry up to 10 times: preStampCircuit(false)
     stampCircuit()
+
+`analyseNodes()` (2026-10-05, PL_AGA backlog "importCircuit scales") runs the same
+retried `preStampCircuit(false)` without `stampCircuit`, marks the allocation for the
+next `preStampAndStampCircuit`, and calls every element's `applyStampedValues()` (the
+fields a stamp shows in the drawing: current source current, potentiometer
+resistances). `CircuitDocument.ensureNodesAnalysed()` uses it for the agent's
+connectivity, records and mutations; the stamp (dense matrix, O(m³) LU for a linear
+circuit) is left to the next run, reading or frame. `findUnconnectedNodes` is one
+breadth-first pass over the element connection graph (seeds in ascending node order,
+same groups as the former fixpoint passes).
 
 `preStampCircuit` order: wire closure → ground pick → makeNodeList →
 calcWireInfo → nonlinear detect / VS slot alloc → findUnconnectedNodes
@@ -287,3 +298,4 @@ decrements by 1 after 30 calm frames.
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-05 | §02_02: `analyseNodes` (node allocation without the stamp), linear `findUnconnectedNodes` (PL_AGA backlog "importCircuit scales"). |

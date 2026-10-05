@@ -315,6 +315,13 @@ public class PotElm extends CircuitElm implements HasBuiltInSlider, MouseWheelHa
         simulator().stampResistor(getNode(2), getNode(1), resistance2);
     }
 
+    @Override
+    public void applyStampedValues() {
+        // what stamp() sets
+        resistance1 = maxResistance * position;
+        resistance2 = maxResistance * (1 - position);
+    }
+
     public void getInfo(String arr[]) {
         arr[0] = "potentiometer";
         arr[1] = "Vd = " + getVoltageDText(getVoltageDiff());

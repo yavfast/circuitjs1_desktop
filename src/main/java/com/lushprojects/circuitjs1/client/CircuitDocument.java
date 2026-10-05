@@ -568,6 +568,7 @@ public class CircuitDocument {
                                 return;
                             }
                         } catch (Exception e) {
+                            noteAnalysisFailed();
                             logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
                             CircuitDocument.this.stop("Exception in stampCircuit(): " + e.getMessage(), null);
                         }
@@ -849,10 +850,69 @@ public class CircuitDocument {
         }
     }
 
+    /**
+     * [SP_AGA_02_06] Makes this document's node analysis current, also while it is stopped: as
+     * {@link #ensureAnalysed()}, but without the stamp — runs a pending analysis and the pending
+     * node allocation and element validation (so node indices, the isolated groups and the
+     * analysis events describe the present circuit) and leaves the matrix stamp to the next
+     * {@link #ensureAnalysed()} or free-running frame, which then does not allocate again. For
+     * the connectivity, the element records and agent mutations: the stamp builds a dense
+     * matrix and factors it, which grows with the cube of the node count (PL_AGA backlog
+     * "importCircuit scales"). Readings, diagnostics and runs use {@link #ensureAnalysed()}.
+     *
+     * @return false when the current analysis threw (as {@link #ensureAnalysed()})
+     */
+    public boolean ensureNodesAnalysed() {
+        if (circuitInfo.dcAnalysisFlag) {
+            analyzeNow();
+        }
+        if (isAnalysisFailed()) {
+            return false;
+        }
+        if (!simulator.needsStamp || simulator.stopMessage != null || simulator.elmList.isEmpty()) {
+            return true;
+        }
+        try {
+            simulator.analyseNodes();
+            return true;
+        } catch (Exception e) {
+            // same handling as ensureAnalysed (the allocation is the first part of its stamp)
+            failedAnalysis = simulator.getAnalysisCount();
+            logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
+            stop("Exception in stampCircuit(): " + e.getMessage(), null);
+            return false;
+        }
+    }
+
+    /**
+     * Runs the stamp that {@link #ensureNodesAnalysed()} left for later, if it is still pending
+     * (as {@link #ensureAnalysed()}); does nothing otherwise — a document no agent call analysed
+     * keeps its state. For the contracts that show the stamp's results without stepping (the
+     * stop state and stamped values of a render, the stop check of {@code simControl run}), so
+     * they report what they reported when the node analysis stamped at once.
+     *
+     * @return as {@link #ensureAnalysed()}; true when nothing was pending
+     */
+    public boolean stampIfDeferred() {
+        if (circuitInfo.dcAnalysisFlag || !simulator.isStampDeferred()) {
+            return !isAnalysisFailed();
+        }
+        return ensureAnalysed();
+    }
+
     /** {@code CircuitSimulator.getAnalysisCount()} of the analysis whose stamp threw, or -1. */
     private int failedAnalysis = -1;
 
-    /** @return true when {@link #ensureAnalysed()} failed for the current analysis */
+    /**
+     * Remembers that the stamp of the current analysis threw outside {@link #ensureAnalysed()}
+     * (a free-running frame, a scripted step): since mutations leave the stamp to those, the
+     * failure must reach {@link #isAnalysisFailed()} from there too.
+     */
+    void noteAnalysisFailed() {
+        failedAnalysis = simulator.getAnalysisCount();
+    }
+
+    /** @return true when {@link #ensureAnalysed()} or {@link #ensureNodesAnalysed()} failed for the current analysis */
     public boolean isAnalysisFailed() {
         return failedAnalysis == simulator.getAnalysisCount();
     }

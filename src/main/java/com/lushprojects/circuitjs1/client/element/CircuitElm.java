@@ -601,6 +601,24 @@ public abstract class CircuitElm extends BaseCircuitElm implements Editable {
     public void stamp() {
     }
 
+    /**
+     * [SP_AGA_03_13] Sets the fields that {@link #stamp()} writes besides the matrix and that the
+     * drawing or a reading shows (a current source's current, a potentiometer's resistances),
+     * as the stamp would set them, without stamping. Called after a node analysis that leaves
+     * the stamp to a later run or reading ({@code CircuitSimulator.analyseNodes}), so the
+     * drawing and the layout show what they showed when that analysis stamped at once. The
+     * element validation of the analysis has run. Default: nothing (the stamp writes no such
+     * field).
+     * <p>
+     * Not covered: a relay coil's stamp also sets the positions of its contacts
+     * ({@code RelayCoilElm.setSwitchPositions}, through the element list that only the stamp
+     * receives). Setting them here would change the topology the later stamp sees for contacts
+     * listed before the coil, so a contact keeps its loaded position until the stamp; the two
+     * differ only when a coil's state and its contacts' saved positions disagree.
+     */
+    public void applyStampedValues() {
+    }
+
     // stamp matrix values for non-linear elements
     public void doStep() {
     }

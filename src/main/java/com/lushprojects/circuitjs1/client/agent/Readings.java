@@ -225,6 +225,8 @@ final class Readings {
         }
         final CircuitDocument doc = call.doc;
         return DocumentScope.call(call.sim, doc, () -> {
+            // readings come from a stamped analysis (a current source's value is set by its stamp)
+            doc.ensureAnalysed();
             Connectivity.Report report = Connectivity.analyse(doc);
             List<Issue> issues = new ArrayList<>();
             List<ProbeTarget> resolved = resolveAll(targets, "targets", report.nets, CircuitView.byId(doc), issues);

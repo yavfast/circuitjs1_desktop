@@ -32,7 +32,10 @@ import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
  * push nor seal), {@code debugFailNextUndoLoad()} (the next undo/redo load throws after loading,
  * to check that the stacks and the document are restored) and {@code debugFailNextRunSlice()} (the
  * next slice of an agent run throws inside its document scope, to check that the run ends with
- * {@code internal_error}, reaches the global handler and still calls back — PL_AGA Phase 7).
+ * {@code internal_error}, reaches the global handler and still calls back — PL_AGA Phase 7),
+ * {@code debugFailNextStamp()} (the next matrix stamp of any document throws outside the
+ * per-element guard, to check that a stamp failure in a frame marks the analysis failed —
+ * import-scaling fix round).
  * PL_AGA Phase 8 adds {@code debugSetSliceProbe(fn)} ({@code fn(op, doc, phase)} before and after
  * every run/render slice, to sample the R1 state and time the slices), {@code debugSessionState()}
  * (the session UI that R1 protects), {@code debugCanvasPixels()} (renders the visible tab now and
@@ -110,6 +113,9 @@ public final class AgentJsBridge {
             }),
             debugFailNextUndoLoad: $entry(function() {
                 @com.lushprojects.circuitjs1.client.UndoManager::armFailNextLoad()();
+            }),
+            debugFailNextStamp: $entry(function() {
+                @com.lushprojects.circuitjs1.client.CircuitSimulator::armFailNextStamp()();
             }),
             debugFailNextRunSlice: $entry(function() {
                 @com.lushprojects.circuitjs1.client.agent.RunController::armForcedFailure()();

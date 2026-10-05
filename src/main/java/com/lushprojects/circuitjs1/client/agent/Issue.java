@@ -45,6 +45,8 @@ public final class Issue {
     private final List<String> posts = new ArrayList<>();
     private boolean hasAt;
     private double atX, atY;
+    /** {@link #key()}, computed once (the builders below clear it). */
+    private String key;
 
     private Issue(IssueCode code, Severity severity, String message, String hint) {
         this.code = code;
@@ -66,12 +68,14 @@ public final class Issue {
     /** Adds involved element IDs; returns this issue. */
     public Issue elements(String... ids) {
         Collections.addAll(elements, ids);
+        key = null;
         return this;
     }
 
     /** Adds involved posts (PostRef strings); returns this issue. */
     public Issue posts(String... refs) {
         Collections.addAll(posts, refs);
+        key = null;
         return this;
     }
 
@@ -80,6 +84,7 @@ public final class Issue {
         hasAt = true;
         atX = x;
         atY = y;
+        key = null;
         return this;
     }
 
@@ -105,16 +110,25 @@ public final class Issue {
      *         {@code code|E1,E2|E1.a,E2.b|x,y} (empty segments stay empty)
      */
     public String key() {
-        List<String> e = new ArrayList<>(elements);
-        Collections.sort(e);
-        List<String> p = new ArrayList<>(posts);
-        Collections.sort(p);
-        StringBuilder sb = new StringBuilder(code.code());
-        sb.append('|').append(join(e)).append('|').append(join(p)).append('|');
-        if (hasAt) {
-            sb.append(formatNumber(atX)).append(',').append(formatNumber(atY));
+        if (key == null) {
+            StringBuilder sb = new StringBuilder(code.code());
+            sb.append('|').append(join(sorted(elements))).append('|').append(join(sorted(posts))).append('|');
+            if (hasAt) {
+                sb.append(formatNumber(atX)).append(',').append(formatNumber(atY));
+            }
+            key = sb.toString();
         }
-        return sb.toString();
+        return key;
+    }
+
+    /** @return {@code values} sorted (a copy when it has more than one entry) */
+    private static List<String> sorted(List<String> values) {
+        if (values.size() < 2) {
+            return values;
+        }
+        List<String> copy = new ArrayList<>(values);
+        Collections.sort(copy);
+        return copy;
     }
 
     JSONObject toJson() {
@@ -159,7 +173,11 @@ public final class Issue {
     }
 
     // Cell coordinates are multiples of 1/16, so whole values print without a fraction.
-    private static String formatNumber(double v) {
+    static String formatNumber(double v) {
+        // the digits of Long.toString for a whole value; an int needs no emulated long or rint
+        if (Math.abs(v) < Integer.MAX_VALUE && v == (int) v) {
+            return Integer.toString((int) v);
+        }
         if (v == Math.rint(v) && Math.abs(v) < 1e15) {
             return Long.toString((long) v);
         }

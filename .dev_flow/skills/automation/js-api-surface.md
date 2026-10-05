@@ -3,7 +3,7 @@ skill: js-api-surface
 domain: automation
 topics: [js-api, circuitjs1-global, circuitjs1agent, jsni-bridge, element-id, scope-data, stop-message, undo, documents, debug-diagnostics]
 source: research
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # `CircuitJS1` JS API — real behaviour vs. the docs
@@ -43,6 +43,7 @@ updated: 2026-10-02
 - **Hooks are single-slot** (`onupdate`, `ontimestep`, `onsvgrendered`) — competing bridges overwrite each other. `onanalyze` and `ontimestep` fire only for the visible tab's document: they are skipped while an agent operation has a background document bound (PL_AGA Phases 5 and 7).
 - **Delete via API** skips the scope cleanup, `setUnsavedChanges` and `mouseElm/menuElm` clearing that `CircuitEditor.doDelete` performs; no `CircuitJS1` element mutation calls `pushUndo` (the Agent API records its edits in agent transactions instead).
 - **Scripted run control ends agent runs.** `CircuitJS1.setSimRunning` (bound to `CirSim.scriptSetSimRunning`), `resetSimulation` and `stepSimulation` call `cancelAgentRun()` on the active document first; `clearCircuit` seals an open agent transaction and resets the ID counters (SP_AGA_04_01/04_02).
+- **Agent-call cost at scale (backlog "importCircuit scales", fixed 2026-10-05).** An agent mutation analyses twice (connectivity before and after for the ConnectivityDelta), so everything per mutation must be near-linear: no matrix stamp (`ensureNodesAnalysed`, see simulator/mna-stamping Pitfall 7), the delta compares issue-only reports (`Connectivity.analyseIssues`: no Net objects) and `applyEdits` reuses its records' report for the delta (`Mutation.Context.analyseFinal`, last in the body). Issue keys are cached on the `Issue` (builders clear them). GWT costs that look free: a thrown exception per value (`UnitParser.parse` tried `Double.parseDouble` on every `"4.7 kOhm"` — now skipped when the text has a space), emulated `long` (`Long.toString((long) v)`, use `int` when it fits), `Math.rint`, a `TreeSet` per small group, one `DateTimeFormat.format` per log line (cached per millisecond). Measured 2026-10-05 (headless, medians): 2500-element layout_cost mix importCircuit 22.2 s → 1.37 s, applyEdits 17.8 s → 0.83 s; 2000 unconnected resistors importCircuit 216 s → 0.99 s. A `stamp()` that writes a drawn field needs the same value in `applyStampedValues()` (else `checkLayout`/`render` after an agent edit differ — 9 examples did before it existed). `read`, `getDiagnostics` and `run` still stamp once per analysis — O(m³) for a large linear circuit (the solver itself).
 
 ## References
 

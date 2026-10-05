@@ -155,7 +155,8 @@ final class FileOps {
                 // as the user load (LoadFile.doLoad): history reset and seeded with the loaded state
                 doc.undoManager.resetAndSeedFromCurrentCircuit();
                 sim.needAnalyze();
-                doc.ensureAnalysed();
+                // nodes only, as importCircuit: the stamp waits for a run or reading
+                doc.ensureNodesAnalysed();
                 setFileState(sim, doc, path);
             });
         } catch (Throwable t) {

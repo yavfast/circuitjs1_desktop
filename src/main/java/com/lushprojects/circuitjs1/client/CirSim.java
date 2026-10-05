@@ -1455,6 +1455,7 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
                     return;
                 }
             } catch (Exception e) {
+                doc.noteAnalysisFailed();
                 doc.logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
                 stop("Exception in stampCircuit(): " + e.getMessage(), null);
                 return;
@@ -1736,6 +1737,12 @@ public class CirSim extends BaseCirSim implements NativePreviewHandler {
 
     CircuitDocument getVisibleWhileBound() {
         return visibleWhileBound;
+    }
+
+    /** The visible tab's document, also while a background document is bound. */
+    @Override
+    protected CircuitDocument menuDocument() {
+        return visibleWhileBound != null ? visibleWhileBound : getActiveDocument();
     }
 
     void setVisibleWhileBound(CircuitDocument doc) {

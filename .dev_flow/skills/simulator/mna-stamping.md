@@ -3,7 +3,7 @@ skill: mna-stamping
 domain: simulator
 topics: [mna, stamping, circuit-simulator, row-info, simplify-matrix, sanitize]
 source: onboard
-updated: 2026-04-18
+updated: 2026-10-05
 ---
 
 # MNA Stamping
@@ -98,6 +98,46 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    to call `stampRightSide(i)` / `stampNonLinear(i)` when it actually
    updates B or A in `doStep`, the simplifier drops those rows and the
    element stops working after the first frame.
+7. **The stamp is cubic; the node analysis is not** (PL_AGA backlog
+   "importCircuit scales", fixed 2026-10-05). `stampCircuit` allocates two
+   dense `m × m` matrices, `simplifyMatrix` scans rows, and a linear
+   circuit is LU-factored at once — O(m³) in the node count (2000
+   unconnected resistors: ~200 s). `preStampCircuit` (wire closure, node
+   allocation, `findUnconnectedNodes`, validation) is near-linear and is all
+   that connectivity, PostRecord nets and an agent mutation need: use
+   `CircuitDocument.ensureNodesAnalysed()` there and `ensureAnalysed()` only
+   where the stamp matters (readings — `CurrentElm.stamp` sets `current` —,
+   diagnostics events of the stamp, runs). `analyseNodes()` marks the
+   allocation of the current analysis so the next `preStampAndStampCircuit`
+   stamps without allocating again (same order of effects: validation,
+   `timeStep = maxTimeStep`, analysis hook, stamp); any `preStampCircuit`
+   call, `resetSolverState` and a new analysis clear the mark. A `stamp()`
+   that writes a field the drawing or a reading shows must set the same
+   value in `applyStampedValues()` (called by `analyseNodes`): today
+   `CurrentElm.current` and `PotElm.resistance1/2` (SP_AGA §03_13 "Pure
+   layout"); without it `checkLayout`/`render` after an agent edit showed
+   no current-source value (9 examples differed). Not covered: a relay
+   coil's stamp sets its contacts' positions through the element list only
+   the stamp receives — doing it earlier would change the topology the
+   stamp sees for contacts listed before the coil. Contracts that show the
+   stamp's state without stepping call `CircuitDocument.stampIfDeferred()`
+   (`simControl run`, `render`); a stamp exception in a frame or scripted
+   step sets `noteAnalysisFailed()` (it used to happen only inside
+   `ensureAnalysed`). `buildCompositeReadOnly` keeps the allocation mark when
+   the node counts match (else the onanalyze hook fired twice).
+8. **Keep analysis passes linear.** Per-element scans inside per-node,
+   per-post or per-group loops were the import's other hotspots:
+   `findUnconnectedNodes` re-ran a full element pass per unconnected group
+   (now one BFS over a CSR connection graph, same seeds, groups and
+   `unconnectedNodes` order; `nodesWithGroundConnection` lists each element
+   once — its users only test emptiness and membership), the wire closure
+   re-pointed merged entries by scanning the whole node map (now the smaller
+   key group), `makePostDrawList` tested each lone post against every
+   bounding box and `CircuitRenderer.drawElements` scanned every element per
+   drawn post each frame. Index with `util/BoxGrid` (candidates in index
+   order, then the original exact test) or a map, so results and their
+   order stay those of the scan. Opt-in `import_cost` live scenario checks
+   the growth (time(2N)/time(N) ≤ 3).
 
 ## References
 

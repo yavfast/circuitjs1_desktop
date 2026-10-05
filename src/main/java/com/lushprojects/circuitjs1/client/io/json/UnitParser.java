@@ -76,11 +76,14 @@ public class UnitParser {
 
         String str = input.trim();
         
-        // Try to parse as plain number first
-        try {
-            return Double.parseDouble(str);
-        } catch (NumberFormatException e) {
-            // Continue with unit parsing
+        // Try to parse as plain number first. A trimmed text with a space inside is never a plain
+        // number (parseDouble would throw): skip the throw, which is costly per value (import).
+        if (str.indexOf(' ') < 0) {
+            try {
+                return Double.parseDouble(str);
+            } catch (NumberFormatException e) {
+                // Continue with unit parsing
+            }
         }
 
         // Split into number and unit parts

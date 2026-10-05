@@ -688,8 +688,12 @@ final class EditOps {
         }
         data.put("created", ids);
         JSONArray records = new JSONArray();
-        // Mutation.finish analysed the document; after a failed analysis no PostRecord gets a net
-        Connectivity.Nets nets = doc.isAnalysisFailed() ? null : Connectivity.nets(doc);
+        // Mutation.finish analysed the document; after a failed analysis no PostRecord gets a net.
+        // The report is the one of the ConnectivityDelta (one analysis, nothing changes after it).
+        Connectivity.Nets nets = touched.isEmpty() ? null : ctx.analyseFinal().nets;
+        if (doc.isAnalysisFailed()) {
+            nets = null;
+        }
         int truncated = 0;
         for (String id : touched) {
             CircuitElm elm = byId.get(id);

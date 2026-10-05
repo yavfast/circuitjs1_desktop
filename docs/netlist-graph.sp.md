@@ -3,7 +3,7 @@
 > **Code:** SP_NET
 > **Status:** active
 > **Created:** 2026-04-19
-> **Updated:** 2026-04-19
+> **Updated:** 2026-10-05
 >
 > **Concept:** [C_NET](./netlist-graph.concept.md)
 > **Depends on specs:** [SP_ELB](./element-base.sp.md), [SP_GEO](./geometry.sp.md)
@@ -99,8 +99,9 @@ Processing:
         ELSIF a==null: nodeMap.put(post0, b)
         ELSIF b==null: nodeMap.put(post1, a)
         ELSIF a != b:
-            // merge: redirect every key pointing at b to point at a
-            FOR each (k,v) in nodeMap: IF v==b: nodeMap.put(k, a)
+            // merge: redirect every key of the smaller entry to the other one (each entry
+            // lists its keys while the closure runs; no scan of the whole map)
+            FOR each k in keys(smaller of a, b): nodeMap.put(k, larger)
 
 ### 02_02. Node allocation  {#SP_NET_02_02}
 
@@ -216,3 +217,4 @@ Per analyze pass:
 | Date | Change |
 |------|--------|
 | 2026-04-19 | Initialized from existing codebase via onboard procedure. |
+| 2026-10-05 | §02_01: a merge re-points the smaller key group (was a scan of the whole node map per merge; PL_AGA backlog "importCircuit scales"). |

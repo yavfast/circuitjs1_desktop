@@ -41,11 +41,24 @@ final class Mutation {
         final CircuitDocument doc;
         final DocumentSnapshot snapshot;
         private final List<Runnable> rollbackHooks = new ArrayList<>();
+        /** The report of {@link #analyseFinal()}, or null. */
+        private Connectivity.Report finalReport;
 
         Context(CirSim sim, CircuitDocument doc, DocumentSnapshot snapshot) {
             this.sim = sim;
             this.doc = doc;
             this.snapshot = snapshot;
+        }
+
+        /**
+         * The ConnectivityReport (with nets) of the document as the body leaves it, for the
+         * body's own result (PostRecord nets); the ConnectivityDelta reuses it instead of
+         * analysing again. Call it last, after {@link Mutation#finish}: the body must not change
+         * the document afterwards.
+         */
+        Connectivity.Report analyseFinal() {
+            finalReport = Connectivity.analyse(doc);
+            return finalReport;
         }
 
         /** Registers an action run before the snapshot is restored (newest first). */
@@ -101,13 +114,14 @@ final class Mutation {
         // a user gesture in progress gets its own entries before and after the agent's change
         return DocumentScope.call(sim, doc, () -> doc.undoManager.splitGesture(() -> {
             // [SP_AGA_01_06] the delta compares the issue sets before and after the operation
-            Connectivity.Report before = Connectivity.analyse(doc);
+            Connectivity.Report before = Connectivity.analyseIssues(doc);
             Context ctx = new Context(sim, doc, DocumentSnapshot.capture(doc));
             doc.setAgentOrigin(true);
             try {
                 OperationResult result = CellGeometry.withPinnedGrid(doc, () -> body.apply(ctx));
                 if (result.isOk()) {
-                    result.setConnectivity(Connectivity.delta(before, Connectivity.analyse(doc)));
+                    Connectivity.Report after = ctx.finalReport != null ? ctx.finalReport : Connectivity.analyseIssues(doc);
+                    result.setConnectivity(Connectivity.delta(before, after));
                     // [SP_AGA_04_01] only a successful mutation opens or continues the transaction
                     // ([SP_AGA_03_04] "No side effects on rejection")
                     AgentTransaction.onMutation(sim, doc, ctx.snapshot.entry);
@@ -142,12 +156,15 @@ final class Mutation {
      * Post-processing of a successful mutation: analyse the document now (also while it
      * free-runs, and including the node allocation, so records and the connectivity delta name
      * the nets of the changed circuit) and set its modified flag ([SP_AGA_02] "Modified flag").
+     * The matrix stamp is left to the next run, reading or frame
+     * ({@link CircuitDocument#ensureNodesAnalysed()}: its cost grows with the cube of the node
+     * count).
      */
     static void finish(Context ctx) {
         // needAnalyze analyses at once when stopped (and repaints); a running document would
-        // only flag it for its next frame — ensureAnalysed runs it here, then allocates nodes.
+        // only flag it for its next frame — ensureNodesAnalysed runs it here, then allocates nodes.
         ctx.sim.needAnalyze();
-        ctx.doc.ensureAnalysed();
+        ctx.doc.ensureNodesAnalysed();
         ctx.sim.setUnsavedChanges(true);
     }
 }

@@ -77,7 +77,11 @@ public final class ImportLifecycle {
         if (!document.isRestoringElementIds() && !document.isAgentOrigin()) {
             // [SP_AGA_04_02] a user content replacement ends an agent run of the document first
             document.cancelAgentRun();
-            document.undoManager.sealTransaction();
+            if (document.undoManager.sealTransaction()) {
+                // the Undo item names the sealed entry at once (it read the open transaction as
+                // plain "Undo"; a later refresh would change the visible label unprompted)
+                cirSim.enableUndoRedo();
+            }
         }
 
         // Clear any previous simulation stop/error so the newly loaded circuit can run.

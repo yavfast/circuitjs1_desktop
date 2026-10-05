@@ -31,7 +31,7 @@ import com.lushprojects.circuitjs1.client.StringTokenizer;
 import com.lushprojects.circuitjs1.client.dialog.EditInfo;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
-import java.util.Vector;
+import java.util.ArrayList;
 
 public class RelayCoilElm extends CircuitElm {
     double inductance;
@@ -331,16 +331,19 @@ public class RelayCoilElm extends CircuitElm {
             setSwitchPositions();
     }
 
-    Vector<CircuitElm> elmList;
+    ArrayList<CircuitElm> elmList;
 
-    public void setParentList(Vector<CircuitElm> list) {
+    // overrides CircuitElm.setParentList (the Vector overload left by the element-list refactor
+    // was never called: elmList stayed null and stamp() threw, e.g. latchingrelay.txt)
+    @Override
+    public void setParentList(ArrayList<CircuitElm> list) {
         elmList = list;
     }
 
     void setSwitchPositions() {
         int i;
         for (i = 0; i != elmList.size(); i++) {
-            Object o = elmList.elementAt(i);
+            Object o = elmList.get(i);
             if (o instanceof RelayContactElm) {
                 RelayContactElm s2 = (RelayContactElm) o;
                 if (s2.label.equals(label))

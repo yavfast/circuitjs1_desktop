@@ -87,7 +87,7 @@ final class CircuitView {
         return DocumentScope.call(call.sim, doc, () -> {
             // PostRecord.net comes from the document's own analysed nodes
             // no net names from stale node indices when the analysis failed
-            Connectivity.Nets nets = doc.ensureAnalysed() ? Connectivity.nets(doc) : null;
+            Connectivity.Nets nets = doc.ensureNodesAnalysed() ? Connectivity.nets(doc) : null;
             JSONArray list = new JSONArray();
             for (int i = 0; i < page.size(); i++) {
                 list.set(i, record(page.get(i), doc, cat, full, nets));

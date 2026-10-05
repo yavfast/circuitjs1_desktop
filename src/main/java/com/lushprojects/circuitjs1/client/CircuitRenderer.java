@@ -13,6 +13,7 @@ import com.lushprojects.circuitjs1.client.util.PerfMonitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 
 public class CircuitRenderer extends BaseCirSimDelegate {
@@ -352,19 +353,31 @@ public class CircuitRenderer extends BaseCirSimDelegate {
         perfmon.stopContext();
 
         CircuitEditor circuitEditor = circuitEditor();
-        if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN) {
-            for (Point pt : simulator.postDrawList) {
-                // Find voltage at this point from any element connected to it
-                double voltage = 0;
-                for (CircuitElm ce : simulator.elmList) {
-                    int posts = ce.getPostCount();
-                    for (int j = 0; j < posts; j++) {
-                        if (ce.getPost(j).equals(pt)) {
-                            voltage = ce.getPostVoltage(j);
-                            break;
-                        }
+        if (circuitEditor.mouseMode != MouseMode.DRAG_ROW && circuitEditor.mouseMode != MouseMode.DRAG_COLUMN
+                && !simulator.postDrawList.isEmpty()) {
+            // Voltage of each drawn post: the last element (in list order) with a post there, its
+            // first such post. One map over all posts instead of a scan of every element per
+            // drawn post (quadratic per frame).
+            List<CircuitElm> elms = simulator.elmList;
+            HashMap<Point, int[]> postOwner = new HashMap<>();
+            for (int i = 0; i < elms.size(); i++) {
+                CircuitElm ce = elms.get(i);
+                int posts = ce.getPostCount();
+                for (int j = 0; j < posts; j++) {
+                    Point p = ce.getPost(j);
+                    int[] owner = postOwner.get(p);
+                    if (owner == null) {
+                        postOwner.put(p, new int[] { i, j });
+                    } else if (owner[0] != i) {
+                        owner[0] = i;
+                        owner[1] = j;
                     }
                 }
+            }
+            for (Point pt : simulator.postDrawList) {
+                // Find voltage at this point from any element connected to it
+                int[] owner = postOwner.get(pt);
+                double voltage = owner == null ? 0 : elms.get(owner[0]).getPostVoltage(owner[1]);
                 graphics.setColor(ColorSettings.get().getVoltageColor(voltage));
                 graphics.fillOval(pt.x - 3, pt.y - 3, 7, 7);
             }

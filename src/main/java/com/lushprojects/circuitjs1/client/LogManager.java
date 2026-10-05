@@ -1,5 +1,6 @@
 package com.lushprojects.circuitjs1.client;
 
+import com.google.gwt.core.client.Duration;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.i18n.client.DateTimeFormat;
 
@@ -25,6 +26,9 @@ public class LogManager extends BaseCirSimDelegate {
     private String logDirectory = "/tmp/circuit/logs/";
     private DateTimeFormat fileNameFormat;
     private DateTimeFormat logEntryFormat;
+    /** The last formatted entry timestamp and its millisecond. */
+    private String lastStamp;
+    private double lastStampMillis;
     private boolean fileLoggingEnabled = true;
 
     // Asynchronous logging fields
@@ -338,7 +342,13 @@ public class LogManager extends BaseCirSimDelegate {
 
     public void addLogEntry(String message) {
         // Create timestamped log entry
-        String timestamp = logEntryFormat.format(new Date());
+        // one format per millisecond: bursts of entries (an analysis logs every unconnected node)
+        double now = Duration.currentTimeMillis();
+        if (now != lastStampMillis || lastStamp == null) {
+            lastStamp = logEntryFormat.format(new Date((long) now));
+            lastStampMillis = now;
+        }
+        String timestamp = lastStamp;
         String logEntry = "[" + timestamp + "] " + message;
 
         // Add to memory collection; keep only the newest entries in memory (the file log,
