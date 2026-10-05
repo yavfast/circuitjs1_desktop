@@ -1,5 +1,7 @@
 package com.lushprojects.circuitjs1.client.io;
 
+import com.lushprojects.circuitjs1.client.util.EchoText;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -113,7 +115,7 @@ public final class ImportReport {
      * @param key   JSON element key, or null
      */
     public void addUnresolvedModel(String where, String modelName, int line, String key) {
-        String message = where + ": model '" + modelName + "' is neither in the session model catalogue nor defined by the content";
+        String message = where + ": model '" + EchoText.clip(modelName) + "' is neither in the session model catalogue nor defined by the content";
         if (strictModels) {
             items.add(new Item(INVALID_VALUE, Severity.ERROR, message, line, key));
         } else {

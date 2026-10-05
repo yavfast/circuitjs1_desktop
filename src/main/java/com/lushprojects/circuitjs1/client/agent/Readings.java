@@ -11,6 +11,7 @@ import com.lushprojects.circuitjs1.client.CircuitNode;
 import com.lushprojects.circuitjs1.client.CircuitNodeLink;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -163,7 +164,7 @@ final class Readings {
             String pin = OpenMarks.resolvePin(post, pins);
             if (pin == null) {
                 issues.add(Issue.of(IssueCode.UNKNOWN_POST, "Argument '" + where + ".post' names no post of " + id + ": '"
-                        + post + "'.", "Pins of " + id + ": " + String.join(", ", pins) + ".").elements(id));
+                        + EchoText.clip(post) + "'.", "Pins of " + id + ": " + String.join(", ", pins) + ".").elements(id));
                 return null;
             }
             int index = 0;
@@ -206,7 +207,7 @@ final class Readings {
         for (int i = 0; i < specs.size(); i++) {
             ProbeTarget t = resolve(specs.get(i), where + "[" + i + "]", nets, byId, issues);
             if (t != null && !names.add(t.name)) {
-                issues.add(invalid(where + "[" + i + "].name", "repeats the name '" + t.name + "'",
+                issues.add(invalid(where + "[" + i + "].name", "repeats the name '" + EchoText.clip(t.name) + "'",
                         "Give each target a unique name."));
             }
             out.add(t);
@@ -242,7 +243,7 @@ final class Readings {
                 if (Double.isNaN(v) || Double.isInfinite(v)) {
                     // JSON has no NaN/Infinity; the value is reported as null with a warning
                     o.put("value", JSONNull.getInstance());
-                    warnings.add(Issue.of(IssueCode.SOLVER_WARNING, "Reading '" + t.name + "' is not a finite number.",
+                    warnings.add(Issue.of(IssueCode.SOLVER_WARNING, "Reading '" + EchoText.clip(t.name) + "' is not a finite number.",
                             "Check getDiagnostics for solver problems."));
                 } else {
                     o.put("value", new JSONNumber(v));

@@ -137,7 +137,9 @@ before `stamp()`. Extra matrix row is at index `nodeList.size() + vs`.
    drawn post each frame. Index with `util/BoxGrid` (candidates in index
    order, then the original exact test) or a map, so results and their
    order stay those of the scan. Opt-in `import_cost` live scenario checks
-   the growth (time(2N)/time(N) ≤ 3).
+   the growth (time(2N)/time(N) ≤ 3); opt-in `frame_cost` checks the
+   visible frame (idle ≤ 2.3 per doubling: ≈ 67 µs per element after the
+   post-owner map, 1420 ms at 1000 elements before it).
 
 ## References
 

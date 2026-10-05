@@ -13,6 +13,7 @@ import com.lushprojects.circuitjs1.client.TransistorModel;
 import com.lushprojects.circuitjs1.client.element.BaseCircuitElm;
 import com.lushprojects.circuitjs1.client.element.ChipElm;
 import com.lushprojects.circuitjs1.client.element.CompositeModelScan;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 import com.lushprojects.circuitjs1.client.util.UnitValues;
 
 import java.util.ArrayList;
@@ -541,7 +542,7 @@ public final class ModelSpecCodec {
                 : new String[] { "kind", "name", "source", "showLabel" };
         for (String key : o.keySet()) {
             if (!contains(allowed, key)) {
-                problems.add(invalid(where + "." + key, "is not a field of a " + kind + " ModelSpec",
+                problems.add(invalid(where + "." + clip(key), "is not a field of a " + kind + " ModelSpec",
                         "Fields: " + String.join(", ", allowed) + "."));
             }
         }
@@ -579,7 +580,7 @@ public final class ModelSpecCodec {
         }
         for (String key : so.keySet()) {
             if (!"doc".equals(key)) {
-                problems.add(invalid(sw + "." + key, "is not a field of a subcircuit source", "A source is {doc}."));
+                problems.add(invalid(sw + "." + clip(key), "is not a field of a subcircuit source", "A source is {doc}."));
             }
         }
         JSONValue dv = so.get("doc");
@@ -695,7 +696,7 @@ public final class ModelSpecCodec {
             } else if ("forward_current".equals(key)) {
                 fc = value(params, key, pw, "A", true, ">", false, ctx, problems);
             } else {
-                problems.add(new Problem(UNKNOWN_PROPERTY, pw + "." + key, "Parameter '" + pw + "." + key
+                problems.add(new Problem(UNKNOWN_PROPERTY, pw + "." + clip(key), "Parameter '" + pw + "." + clip(key)
                         + "' is not a diode model parameter.", "Diode parameters: saturation_current, series_resistance, "
                         + "emission_coefficient, breakdown_voltage, forward_voltage, forward_current."));
             }
@@ -858,7 +859,7 @@ public final class ModelSpecCodec {
                     if (v != null) tm.invRollOffR = inverse(v);
                     break;
                 default:
-                    problems.add(new Problem(UNKNOWN_PROPERTY, pw + "." + key, "Parameter '" + pw + "." + key
+                    problems.add(new Problem(UNKNOWN_PROPERTY, pw + "." + clip(key), "Parameter '" + pw + "." + clip(key)
                             + "' is not a transistor model parameter.", "Transistor parameters: " + String.join(", ", TRANSISTOR_KEYS) + "."));
             }
         }
@@ -984,7 +985,7 @@ public final class ModelSpecCodec {
     private static Definition decodeText(JSONObject o, String kind, String name, String where, List<Problem> problems) {
         for (String key : o.keySet()) {
             if (!"kind".equals(key) && !"name".equals(key) && !"modelText".equals(key)) {
-                problems.add(invalid(where + "." + key, "is not a field of a ModelText", "A ModelText is {kind, name, modelText}."));
+                problems.add(invalid(where + "." + clip(key), "is not a field of a ModelText", "A ModelText is {kind, name, modelText}."));
             }
         }
         if (name.isEmpty() || name.startsWith("~")) {
@@ -1341,8 +1342,8 @@ public final class ModelSpecCodec {
         return -1;
     }
 
-    /** Bounded echo of client values in messages. */
+    /** Bounded echo of client values in messages ({@link EchoText}). */
     static String clip(String s) {
-        return s == null ? "null" : s.length() > 60 ? s.substring(0, 60) + "…" : s;
+        return EchoText.clip(s);
     }
 }

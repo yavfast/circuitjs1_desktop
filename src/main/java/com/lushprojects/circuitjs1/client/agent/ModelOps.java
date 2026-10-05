@@ -21,6 +21,7 @@ import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.ModelDependencies;
 import com.lushprojects.circuitjs1.client.io.ModelDependencies.Ref;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -218,7 +219,7 @@ final class ModelOps {
         String takenHint = importHint ? IMPORT_NAME_TAKEN_HINT
                 : "Names are create-only: define the model under a new name and set the elements' model to it.";
         if (entry != null && ModelSpecCodec.isInternal(entry)) {
-            issues.add(Issue.of(IssueCode.NAME_TAKEN, "The " + d.kind + " model name '" + Catalogue.clipName(d.name)
+            issues.add(Issue.of(IssueCode.NAME_TAKEN, "The " + d.kind + " model name '" + EchoText.clip(d.name)
                     + "' is reserved by an internal model (" + where + ").", takenHint));
             return null;
         }
@@ -227,7 +228,7 @@ final class ModelOps {
             if (d.line != null && d.line.equals(existingLine)) {
                 return new Planned(d, true);
             }
-            issues.add(Issue.of(IssueCode.NAME_TAKEN, "The " + d.kind + " model '" + Catalogue.clipName(d.name) + "' "
+            issues.add(Issue.of(IssueCode.NAME_TAKEN, "The " + d.kind + " model '" + EchoText.clip(d.name) + "' "
                     + (earlier != null ? "is defined earlier in this call" : "exists in the session")
                     + " with a different definition (" + where + ").", takenHint));
             return null;
@@ -314,7 +315,7 @@ final class ModelOps {
             CustomCompositeElm.trialLoad(scope.target, m);
         } catch (Throwable t) {
             // [SP_AGA_01_13] any exception while building is invalid_value, never internal_error
-            reason = "the model does not load (" + (t.getMessage() != null ? Catalogue.clipName(t.getMessage()) : t.getClass().getName()) + ")";
+            reason = "the model does not load (" + (t.getMessage() != null ? EchoText.clip(t.getMessage()) : t.getClass().getName()) + ")";
         } finally {
             MosfetElm.setGlobalFlags(mosfetFlags);
             DiodeModel.endFallbackRecording();
@@ -407,7 +408,7 @@ final class ModelOps {
             Object entry = ModelSpecCodec.entry(kind, name);
             if (entry == null || ModelSpecCodec.isInternal(entry)) {
                 return OperationResult.failure(Issue.of(IssueCode.UNKNOWN_MODEL, "Argument 'name' names no listed " + kind
-                        + " model: '" + Catalogue.clipName(name) + "'.", "Call listModels with kind " + kind + " to see its models."));
+                        + " model: '" + EchoText.clip(name) + "'.", "Call listModels with kind " + kind + " to see its models."));
             }
             list.set(0, record(kind, entry, usage, false));
         } else {

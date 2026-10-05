@@ -14,6 +14,7 @@ import com.lushprojects.circuitjs1.client.io.CircuitContentTest;
 import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -277,7 +278,7 @@ final class FileOps {
                 return new Checked(null, null);
             case NOT_REGULAR:
                 return refuse(OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                        "The path " + st.path + " exists and is not a regular file.",
+                        "The path " + path(st.path) + " exists and is not a regular file.",
                         "Save to a .txt or .json circuit file.")));
             case OK:
                 break;
@@ -294,7 +295,7 @@ final class FileOps {
         }
         if (st.size > MAX_BYTES) {
             return refuse(OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                    "The existing file " + st.path + " is larger than 10 MB and is not overwritten.",
+                    "The existing file " + path(st.path) + " is larger than 10 MB and is not overwritten.",
                     "Save to a new file.")));
         }
         PathFileAdapter.Result existing = PathFileAdapter.read(path, MAX_BYTES);
@@ -304,7 +305,7 @@ final class FileOps {
         }
         if (!st.realPath.equals(existing.realPath)) {
             return refuse(OperationResult.failure(Issue.of(IssueCode.FILE_ERROR,
-                    "The file " + st.path + " was re-linked while it was checked.", "Retry the save.")));
+                    "The file " + path(st.path) + " was re-linked while it was checked.", "Retry the save.")));
         }
         if (existing.text.trim().isEmpty()) {
             return ok;
@@ -334,11 +335,11 @@ final class FileOps {
     /** [SP_AGA_03_09] "Allowed files": an absolute path ending in .txt or .json. */
     private static Issue checkPath(String path, String what) {
         if (path == null || path.isEmpty() || !PathFileAdapter.isAbsolute(path)) {
-            return Issue.of(IssueCode.FILE_NOT_ALLOWED, "The " + what + " '" + path + "' is not an absolute path.",
+            return Issue.of(IssueCode.FILE_NOT_ALLOWED, "The " + what + " '" + path(path) + "' is not an absolute path.",
                     "Pass an absolute path ending in .txt or .json.");
         }
         if (!hasCircuitExtension(path)) {
-            return Issue.of(IssueCode.FILE_NOT_ALLOWED, "The " + what + " '" + path + "' does not end in .txt or .json.",
+            return Issue.of(IssueCode.FILE_NOT_ALLOWED, "The " + what + " '" + path(path) + "' does not end in .txt or .json.",
                     "Only circuit files (.txt, .json) can be opened or saved.");
         }
         return null;
@@ -348,10 +349,15 @@ final class FileOps {
     private static OperationResult checkRealPath(PathFileAdapter.Result file) {
         if (file.realPath != null && !hasCircuitExtension(file.realPath)) {
             return OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                    "The path " + file.path + " is a link to " + file.realPath + ", which does not end in .txt or .json.",
+                    "The path " + path(file.path) + " is a link to " + path(file.realPath) + ", which does not end in .txt or .json.",
                     "Only circuit files (.txt, .json) can be opened or saved."));
         }
         return null;
+    }
+
+    /** A path or file-system reason quoted in a message: bounded ([SP_AGA_01_07] bounded echo). */
+    private static String path(String text) {
+        return EchoText.clip(text, EchoText.MAX_PATH);
     }
 
     private static boolean hasCircuitExtension(String path) {
@@ -368,14 +374,14 @@ final class FileOps {
                 return unavailable();
             case NOT_FOUND:
                 return OperationResult.failure(Issue.of(IssueCode.FILE_NOT_FOUND,
-                        "No file exists at " + (file.path != null ? file.path : path) + ".",
+                        "No file exists at " + path(file.path != null ? file.path : path) + ".",
                         "Check the path; it must be absolute."));
             case NOT_REGULAR:
                 return OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                        "The path " + file.path + " is not a regular file.", "Pass a .txt or .json circuit file."));
+                        "The path " + path(file.path) + " is not a regular file.", "Pass a .txt or .json circuit file."));
             case TOO_LARGE:
                 return OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                        "The file " + file.path + " is larger than 10 MB.", "Circuit files are at most 10 MB."));
+                        "The file " + path(file.path) + " is larger than 10 MB.", "Circuit files are at most 10 MB."));
             default:
                 return OperationResult.failure(fileError("Cannot read the file", file));
         }
@@ -387,13 +393,13 @@ final class FileOps {
         }
         if (written.status == PathFileAdapter.Status.NOT_REGULAR) {
             return OperationResult.failure(Issue.of(IssueCode.FILE_NOT_ALLOWED,
-                    "The path " + written.path + " is not a regular file.", "Save to a .txt or .json circuit file."));
+                    "The path " + path(written.path) + " is not a regular file.", "Save to a .txt or .json circuit file."));
         }
         return OperationResult.failure(fileError("Cannot write the file", written));
     }
 
     private static Issue fileError(String what, PathFileAdapter.Result r) {
-        return Issue.of(IssueCode.FILE_ERROR, what + ": " + (r.reason != null ? r.reason : "unknown reason") + ".",
+        return Issue.of(IssueCode.FILE_ERROR, what + ": " + (r.reason != null ? path(r.reason) : "unknown reason") + ".",
                 "Check the path and the file permissions.");
     }
 

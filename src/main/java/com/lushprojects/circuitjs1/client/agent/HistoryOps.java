@@ -10,6 +10,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.UndoManager;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -186,7 +187,7 @@ final class HistoryOps {
                     }
                 }
                 return OperationResult.failure(Issue.of(IssueCode.UNKNOWN_CHECKPOINT,
-                        "Checkpoint '" + id + "' is not in the undo history of " + DocumentHandles.of(doc) + ".",
+                        "Checkpoint '" + EchoText.clip(id) + "' is not in the undo history of " + DocumentHandles.of(doc) + ".",
                         known.isEmpty() ? "The undo history holds no checkpoint; call getHistory."
                                 : "Use one of: " + String.join(", ", known) + "."));
             }

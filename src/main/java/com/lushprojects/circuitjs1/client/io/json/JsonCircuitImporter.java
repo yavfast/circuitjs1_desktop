@@ -31,6 +31,7 @@ import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
 import com.lushprojects.circuitjs1.client.io.ModelDependencies;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -211,7 +212,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             // A JSONException from parseStrict is a malformed circuit; anything later is a failed load
             boolean parse = e instanceof JSONException;
             reportItem(parse ? ImportReport.SCHEMA_INVALID : ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
-                    parse ? "the JSON circuit is not valid JSON" : "the JSON import failed: " + e, null);
+                    parse ? "the JSON circuit is not valid JSON" : "the JSON import failed: " + EchoText.clip(String.valueOf(e), 300), null);
         }
     }
 
@@ -289,7 +290,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                     count++;
                 }
             } catch (RuntimeException e) {
-                modelEntryProblem(where.get(i), "entry failed to load: " + e,
+                modelEntryProblem(where.get(i), "entry failed to load: " + EchoText.clip(String.valueOf(e), 300),
                         "Write the entry as getCircuit or exportCircuit writes it.");
             }
         }
@@ -304,7 +305,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             if (entry != null) {
                 if (ModelSpecCodec.isInternal(entry) || !d.line.equals(ModelSpecCodec.lineOf(entry))) {
                     report.addForKey(ImportReport.NAME_TAKEN, ImportReport.Severity.ERROR, where + ": the " + d.kind
-                            + " model '" + d.name + "' exists in the session with a different definition", null);
+                            + " model '" + EchoText.clip(d.name) + "' exists in the session with a different definition", null);
                     return false;
                 }
                 return true; // identical: nothing to write
@@ -317,7 +318,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                 // [SP_AGA_01_13] "Inner references" (static part) and "Pins"
                 String reason = ModelSpecCodec.innerProblem(d.composite(), SESSION_NAMES);
                 if (reason != null) {
-                    modelEntryProblem(where, "subcircuit model '" + d.name + "': " + reason,
+                    modelEntryProblem(where, "subcircuit model '" + EchoText.clip(d.name) + "': " + reason,
                             "Define the models its elements use first (earlier models entries, dependencies first).");
                     return false;
                 }
@@ -334,7 +335,7 @@ public class JsonCircuitImporter implements CircuitImporter {
         // a logic model whose rules do not parse loads the rules before the bad line; a user load
         // alerts the parser's message as a text '!' line does, an agent path reports it
         if (ruleError != null && !ImportLifecycle.alertRuleErrorOnUserLoad(document, report, ruleError)) {
-            modelEntryProblem(where, "the rules of logic model '" + d.name + "' do not parse (" + ruleError + ")",
+            modelEntryProblem(where, "the rules of logic model '" + EchoText.clip(d.name) + "' do not parse (" + ruleError + ")",
                     "Fix the rule line: left=right, one left character per input up to one per pin, one right character per output.");
         }
         return true;
@@ -539,7 +540,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             if (elementValue == null || elementValue.isObject() == null) {
                 CirSim.console("JSON import: element '" + elementId + "' is not an object");
                 reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
-                        "element " + elementId + " is not an object", elementId);
+                        "element " + EchoText.clip(elementId) + " is not an object", elementId);
                 skipped++;
                 continue;
             }
@@ -551,7 +552,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             if (typeValue == null || typeValue.isString() == null) {
                 CirSim.console("JSON import: element " + elementId + " has no type");
                 reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
-                        "element " + elementId + " has no type", elementId);
+                        "element " + EchoText.clip(elementId) + " has no type", elementId);
                 skipped++;
                 continue;
             }
@@ -563,7 +564,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             if (elm == null) {
                 CirSim.console("JSON import: failed to create element " + elementId + " of type " + jsonType);
                 reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
-                        "element " + elementId + " of type " + jsonType + " could not be created", elementId);
+                        "element " + EchoText.clip(elementId) + " of type " + EchoText.clip(jsonType) + " could not be created", elementId);
                 skipped++;
                 continue;
             }
@@ -571,7 +572,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             // [SP_AGA_03_03] "Model names": JSON carries no model definitions; the element fell
             // back (a copy of its previous model registered under the name)
             if (report != null && elm.getUnresolvedModelName() != null) {
-                report.addUnresolvedModel("element " + elementId, elm.getUnresolvedModelName(), 0, elementId);
+                report.addUnresolvedModel("element " + EchoText.clip(elementId), elm.getUnresolvedModelName(), 0, elementId);
                 // agent loads register nothing: the next element with that name is reported too
                 elm.dropUnresolvedModel();
             }
@@ -584,7 +585,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             if (elm.getPostCount() == 1 && !hasEndpointPin && elementJson.get("bounds") != null
                     && elementJson.get("bounds").isObject() != null) {
                 reportItem(ImportReport.GEOMETRY_ADJUSTED, ImportReport.Severity.WARNING,
-                        "element " + elementId + ": its end point is derived from bounds (no _endpoint pin)", elementId);
+                        "element " + EchoText.clip(elementId) + ": its end point is derived from bounds (no _endpoint pin)", elementId);
             }
 
             // [SP_AGA_03_02] Content replacement keeps the JSON keys as element IDs; an invalid or
@@ -621,7 +622,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                         if (x1 != elm.getX() || y1 != elm.getY() || x2 != elm.getX2() || y2 != elm.getY2()) {
                             // p1/p2 override the geometry the pins gave
                             reportItem(ImportReport.GEOMETRY_ADJUSTED, ImportReport.Severity.WARNING,
-                                    "element " + elementId + ": p1/p2 replace the endpoints given by its pins", elementId);
+                                    "element " + EchoText.clip(elementId) + ": p1/p2 replace the endpoints given by its pins", elementId);
                         }
                         elm.setEndpoints(x1, y1, x2, y2);
                         // finalizeJsonImport() already ran in the factory; endpoints update must refresh geometry.
@@ -669,7 +670,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                 CirSim.console("JSON import: skipping element '" + elementId
                         + "' due to error: " + elementError);
                 reportItem(ImportReport.ELEMENT_SKIPPED, ImportReport.Severity.ERROR,
-                        "element " + elementId + " failed to load: " + elementError, elementId);
+                        "element " + EchoText.clip(elementId) + " failed to load: " + EchoText.clip(String.valueOf(elementError), 300), elementId);
                 skipped++;
             }
         }
@@ -707,7 +708,7 @@ public class JsonCircuitImporter implements CircuitImporter {
             } catch (RuntimeException ex) {
                 CirSim.console("JSON import: the scope settings of element " + key + " could not be applied: " + ex);
                 reportItem(ImportReport.VALUE_ADJUSTED, ImportReport.Severity.WARNING,
-                        "element " + key + ": its scope settings could not be applied (" + ex + ")", key);
+                        "element " + EchoText.clip(key) + ": its scope settings could not be applied (" + EchoText.clip(String.valueOf(ex), 300) + ")", key);
             }
         }
     }
@@ -778,7 +779,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                 if (targetElement == null) {
                     CirSim.console("JSON auto-wire: target element not found: " + targetElementId);
                     reportItem(ImportReport.WIRE_SKIPPED, ImportReport.Severity.WARNING,
-                            "auto-wire " + elementId + "." + pinName + " -> " + connectedTo + " skipped: no such element", elementId);
+                            "auto-wire " + EchoText.clip(elementId) + "." + EchoText.clip(pinName) + " -> " + EchoText.clip(connectedTo) + " skipped: no such element", elementId);
                     continue;
                 }
 
@@ -815,7 +816,7 @@ public class JsonCircuitImporter implements CircuitImporter {
                     if (targetPinValue == null || targetPinValue.isObject() == null) {
                         CirSim.console("JSON auto-wire: target pin not found: " + connectedTo);
                         reportItem(ImportReport.WIRE_SKIPPED, ImportReport.Severity.WARNING,
-                                "auto-wire " + elementId + "." + pinName + " -> " + connectedTo + " skipped: no such pin", elementId);
+                                "auto-wire " + EchoText.clip(elementId) + "." + EchoText.clip(pinName) + " -> " + EchoText.clip(connectedTo) + " skipped: no such pin", elementId);
                         continue;
                     }
                     JSONObject targetPin = targetPinValue.isObject();

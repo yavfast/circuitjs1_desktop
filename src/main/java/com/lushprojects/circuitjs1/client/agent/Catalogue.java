@@ -337,7 +337,7 @@ public final class Catalogue {
         Collections.sort(names);
         final Map<String, Integer> dist = new HashMap<>();
         // the query is client text: bound it so the edit distances stay cheap (MCP is LAN-exposed)
-        String q = name == null ? "" : clipName(name).toLowerCase();
+        String q = name == null ? "" : (name.length() > MAX_COMPARED_NAME ? name.substring(0, MAX_COMPARED_NAME) : name).toLowerCase();
         for (String n : names) {
             dist.put(n, editDistance(q, n.toLowerCase()));
         }
@@ -349,13 +349,8 @@ public final class Catalogue {
         return sorted.subList(0, Math.min(max, sorted.size()));
     }
 
-    /** Longest client-supplied name echoed in an issue message or compared by edit distance. */
-    static final int MAX_ECHOED_NAME = 64;
-
-    /** @return {@code name} cut to {@link #MAX_ECHOED_NAME} characters (with an ellipsis when cut) */
-    static String clipName(String name) {
-        return name.length() > MAX_ECHOED_NAME ? name.substring(0, MAX_ECHOED_NAME) + "…" : name;
-    }
+    /** Longest client-supplied name compared by edit distance (messages clip through {@code EchoText}). */
+    static final int MAX_COMPARED_NAME = 64;
 
     // ---------------------------------------------------------------- measurement
 

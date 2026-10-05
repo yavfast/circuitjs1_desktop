@@ -16,6 +16,7 @@ import com.lushprojects.circuitjs1.client.io.CircuitFormat;
 import com.lushprojects.circuitjs1.client.io.CircuitFormatRegistry;
 import com.lushprojects.circuitjs1.client.io.ModelDependencies;
 import com.lushprojects.circuitjs1.client.io.json.JsonCircuitExporter;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -219,7 +220,7 @@ final class CircuitView {
     }
 
     static Issue unknownElement(String id, String where) {
-        return Issue.of(IssueCode.UNKNOWN_ELEMENT, "Argument '" + where + "' names no element of the document: '" + id + "'.",
+        return Issue.of(IssueCode.UNKNOWN_ELEMENT, "Argument '" + where + "' names no element of the document: '" + EchoText.clip(id) + "'.",
                 "getCircuit lists the element IDs.").elements(ElementIdRegistry.isValidId(id) ? id : "#?");
     }
 

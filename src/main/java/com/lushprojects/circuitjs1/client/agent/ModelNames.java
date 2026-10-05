@@ -3,6 +3,7 @@ package com.lushprojects.circuitjs1.client.agent;
 import com.lushprojects.circuitjs1.client.CustomLogicModel;
 import com.lushprojects.circuitjs1.client.DiodeModel;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -105,7 +106,16 @@ final class ModelNames {
     /** @return the hint of an unknown model name: the available names */
     static String hint(String catalogue) {
         List<String> names = list(catalogue);
-        return "Available " + label(catalogue) + " models: " + String.join(", ", names)
+        // bounded like the echo of client values ([SP_AGA_01_07]): agent-defined models add names
+        List<String> shown = new ArrayList<>();
+        for (int i = 0; i < names.size() && i < MAX_HINT_NAMES; i++) {
+            shown.add(EchoText.clip(names.get(i)));
+        }
+        return "Available " + label(catalogue) + " models: " + String.join(", ", shown)
+                + (names.size() > shown.size() ? ", … (" + names.size() + " in all; listModels lists them)" : "")
                 + " (describeType lists them as the key's choices; define a new one with defineModel or the circuit's models).";
     }
+
+    /** Most model names a hint lists (the built-in ones come first). */
+    static final int MAX_HINT_NAMES = 40;
 }

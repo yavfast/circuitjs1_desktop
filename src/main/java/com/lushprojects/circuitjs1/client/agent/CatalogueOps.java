@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client.agent;
 
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONObject;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.List;
 
@@ -45,7 +46,7 @@ final class CatalogueOps {
         Catalogue.TypeInfo info = cat.find(type);
         if (info == null) {
             return OperationResult.failure(Issue.of(IssueCode.UNKNOWN_TYPE,
-                    "Argument 'type' names no catalogue type or alias: '" + Catalogue.clipName(type) + "'.",
+                    "Argument 'type' names no catalogue type or alias: '" + EchoText.clip(type) + "'.",
                     "Closest names: " + String.join(", ", cat.closestNames(type, Catalogue.HINT_NAMES))
                             + ". listTypes shows every type."));
         }

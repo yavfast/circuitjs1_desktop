@@ -12,6 +12,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.ElementIdRegistry;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -238,8 +239,8 @@ final class ImportOps {
                     Object effective = after.get(p.getKey());
                     if (!PropertyValues.same(p.getValue(), effective, info == null ? null : info.unit)) {
                         issues.add(Issue.of(IssueCode.VALUE_ADJUSTED, elm.getElementId() + "." + p.getKey() + " is "
-                                + PropertyValues.display(effective) + " instead of the requested "
-                                + PropertyValues.display(p.getValue()) + ".",
+                                + EchoText.clip(PropertyValues.display(effective)) + " instead of the requested "
+                                + EchoText.clip(PropertyValues.display(p.getValue())) + ".",
                                 "The element clamps or derives this value; use the effective value.")
                                 .elements(elm.getElementId()));
                     }
@@ -304,16 +305,16 @@ final class ImportOps {
                 for (String pin : pins.keySet()) {
                     JSONObject p = pins.get(pin).isObject();
                     JSONObject pos = p == null || p.get("position") == null ? null : p.get("position").isObject();
-                    checkPixel(pos, "elements." + key + ".pins." + pin + ".position", issues, subject, "x", "y");
+                    checkPixel(pos, "elements." + EchoText.clip(key) + ".pins." + EchoText.clip(pin) + ".position", issues, subject, "x", "y");
                 }
             }
             for (String pk : new String[] { "p1", "p2" }) {
                 JSONObject p = e.get(pk) == null ? null : e.get(pk).isObject();
-                checkPixel(p, "elements." + key + "." + pk, issues, subject, "x", "y");
+                checkPixel(p, "elements." + EchoText.clip(key) + "." + pk, issues, subject, "x", "y");
             }
             // bounds feed the geometry of single-post elements without _endpoint (factory)
             JSONObject b = e.get("bounds") == null ? null : e.get("bounds").isObject();
-            checkPixel(b, "elements." + key + ".bounds", issues, subject, "left", "top", "right", "bottom");
+            checkPixel(b, "elements." + EchoText.clip(key) + ".bounds", issues, subject, "left", "top", "right", "bottom");
             if (cat != null) {
                 checkModelNames(e, key, cat, issues, subject);
             }
@@ -335,9 +336,9 @@ final class ImportOps {
         for (Catalogue.PropertyInfo p : info.properties) {
             JSONString v = p.modelCatalogue == null || props.get(p.key) == null ? null : props.get(p.key).isString();
             if (v != null && !v.stringValue().isEmpty() && !ModelNames.exists(p.modelCatalogue, v.stringValue())) {
-                issues.add(CellGeometry.withSubject(Issue.of(IssueCode.INVALID_VALUE, "Property 'elements." + key
+                issues.add(CellGeometry.withSubject(Issue.of(IssueCode.INVALID_VALUE, "Property 'elements." + EchoText.clip(key)
                         + ".properties." + p.key + "' names no " + ModelNames.label(p.modelCatalogue)
-                        + " model of the session: '" + Catalogue.clipName(v.stringValue()) + "'.",
+                        + " model of the session: '" + EchoText.clip(v.stringValue()) + "'.",
                         ModelNames.hint(p.modelCatalogue)), subject));
             }
         }

@@ -41,6 +41,7 @@ import com.lushprojects.circuitjs1.client.io.CircuitImporter;
 import com.lushprojects.circuitjs1.client.io.ImportLifecycle;
 import com.lushprojects.circuitjs1.client.io.ImportReport;
 import com.lushprojects.circuitjs1.client.io.ModelSpecCodec;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 /**
  * Imports circuit from the original CircuitJS1 text format.
@@ -293,7 +294,7 @@ public class TextCircuitImporter implements CircuitImporter {
             return true;
         }
         reportItem(ImportReport.NAME_TAKEN, ImportReport.Severity.ERROR, "line " + lineNumber + ": the " + kind
-                + " model '" + name + "' exists in the session with a different definition");
+                + " model '" + EchoText.clip(name) + "' exists in the session with a different definition");
         return true;
     }
 
@@ -333,7 +334,7 @@ public class TextCircuitImporter implements CircuitImporter {
         if (problem == null) {
             return false;
         }
-        report.addModelLineProblem("line " + lineNumber + ": subcircuit model '" + name + "': " + problem,
+        report.addModelLineProblem("line " + lineNumber + ": subcircuit model '" + EchoText.clip(name) + "': " + problem,
                 model.extList.isEmpty() ? "Give the subcircuit at least one external pin (a labelled node)."
                         : "Define the models its elements use first (model lines before it, dependencies first).", lineNumber);
         return true;
@@ -360,7 +361,7 @@ public class TextCircuitImporter implements CircuitImporter {
         String name = st.hasMoreTokens() ? CustomLogicModel.unescape(st.nextToken()) : "";
         CustomLogicModel model = CustomLogicModel.findEntry(name);
         int ruleLine = model == null ? -1 : model.getRuleErrorLine();
-        String message = "line " + lineNumber + ": the rules of logic model '" + name + "' do not parse"
+        String message = "line " + lineNumber + ": the rules of logic model '" + EchoText.clip(name) + "' do not parse"
                 + (ruleLine >= 0 ? " at rule line " + (ruleLine + 1) : "") + " (" + error + ")";
         CirSim.console("Text import: " + message);
         if (report != null) {

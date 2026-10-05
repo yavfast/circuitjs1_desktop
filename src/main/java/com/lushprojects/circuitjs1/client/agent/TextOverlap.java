@@ -6,6 +6,7 @@ import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.MeasuringTextLayout;
 import com.lushprojects.circuitjs1.client.element.TextElm;
 import com.lushprojects.circuitjs1.client.element.TextPlacement;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -488,14 +489,17 @@ final class TextOverlap {
 
     // ---------------------------------------------------------------- reporting
 
-    /** @return the string cut at {@link #TEXT_CUT} characters with an ellipsis */
+    /**
+     * @return the string cut at {@link #TEXT_CUT} characters with an ellipsis: the TextBox
+     *         {@code text} of checkLayout ([SP_AGA_02_16]); messages quote through {@link EchoText}
+     */
     static String cut(String s) {
         return s.length() <= TEXT_CUT ? s : s.substring(0, TEXT_CUT) + "…";
     }
 
     private static Issue overlapIssue(int rule, MeasuringTextLayout.Measured m, Obstacle o) {
         String a = m.owner.getElementId(), b = o.elm.getElementId();
-        String what = "Text \"" + cut(m.placement.text) + "\" of " + a;
+        String what = "Text \"" + EchoText.clip(m.placement.text, TEXT_CUT) + "\" of " + a;
         String message;
         switch (rule) {
             case 1:
@@ -505,7 +509,7 @@ final class TextOverlap {
                 message = what + " is crossed by " + b + ".";
                 break;
             default:
-                message = what + " overlaps the text \"" + cut(o.text.placement.text) + "\" of " + b + ".";
+                message = what + " overlaps the text \"" + EchoText.clip(o.text.placement.text, TEXT_CUT) + "\" of " + b + ".";
                 break;
         }
         String[] ids = a.compareTo(b) <= 0 ? new String[] { a, b } : new String[] { b, a };

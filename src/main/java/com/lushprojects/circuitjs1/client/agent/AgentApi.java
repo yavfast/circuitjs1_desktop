@@ -3,6 +3,7 @@ package com.lushprojects.circuitjs1.client.agent;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -206,7 +207,7 @@ public final class AgentApi {
         Contract contract = op == null ? null : contracts.get(op);
         if (contract == null) {
             return OperationResult.failure(Issue.of(IssueCode.INVALID_VALUE,
-                    "Argument 'op' names no known operation: '" + op + "'.",
+                    "Argument 'op' names no known operation: '" + EchoText.clip(op) + "'.",
                     "Use one of: " + String.join(", ", contracts.keySet()) + "."));
         }
         if (contract.asyncHandler != null) {

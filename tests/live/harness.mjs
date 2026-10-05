@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | import_cost | agent_equiv | eval | all (default: all but text_sites, render_pixels, layout_cost, import_cost, agent_equiv and eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | agent_echo | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | import_cost | frame_cost | agent_equiv | eval | all (default: all but text_sites, render_pixels, layout_cost, import_cost, frame_cost, agent_equiv and eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -8182,6 +8182,260 @@ async function scenarioImportCost(s) {
   report('AG.import_cost', s.exceptions.length === exMark && Object.values(out.fixtures).every((v) => Object.values(v).every((x) => !x.failed)) && over.length === 0, { ...summary, over });
 }
 
+// ---------------------------------------------------------------- agent_echo (bounded echo of client values)
+// PL_AGA backlog "Bounded echo of client values in Agent API issue messages" (SP_AGA §01_07): a
+// 1 MB string fed into argument kinds that issue messages quote — operation name, document
+// handle, type name, property key and model-name value of `set`, element IDs (edit, scope, add),
+// a post, a net and reading names, a checkpoint ID, a model name (defineModel, listModels), a model
+// parameter key, a rule line, file paths (openFile over the in-page fake file system), a JSON
+// element key and a label text (agent `set` at its 1000-character limit, and 1 MB through a text
+// import). Every issue message (result issues,
+// connectivity delta, getConnectivity issues) is at most ECHO_MAX_MESSAGE (400) characters, the
+// quoting sites show the clipped value with its length ("… (1048576 chars)"; a 900-character model
+// name for the model-name check, a 1 MB value is rejected by its length), the whole answer stays
+// below 64 kB and each call answers within 2 s.
+async function echoProbe() {
+  const big = 'Q'.repeat(1 << 20);
+  const call = (op, args) => { const t = performance.now(); const text = CircuitJS1Agent.call(op, typeof args === 'string' ? args : JSON.stringify(args)); return { ms: performance.now() - t, size: text.length, r: JSON.parse(text) }; };
+  const out = {};
+  const doc = call('createDocument', { title: 'Echo' }).r.data.doc;
+  call('importCircuit', { doc, circuit: { elements: [
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } },
+    { id: 'D1', type: 'Diode', start: { x: 0, y: 4 }, end: { x: 4, y: 4 } },
+    { id: 'L1', type: 'LabeledNode', start: { x: 8, y: 0 }, end: { x: 8, y: -1 }, properties: { label: 'LBLMARK' } }] } });
+  const text = call('exportCircuit', { doc, format: 'text' }).r.data.content;
+  // more than 40 session diode models: the unknown-model hint lists 40, then a count
+  const defs = Array.from({ length: 45 }, (_, i) => ({ op: 'defineModel', model: { kind: 'diode', name: 'echo-d' + i, parameters: {} } }));
+  out.defined = call('applyEdits', { doc, edits: defs }).r.ok;
+  // JSON importer sites through openFile (in-page fake file system): a ModelText name in an entry
+  // problem (rules that do not parse), the element key of an unresolved model, and entry variants
+  // that may throw while loading ("entry failed to load")
+  const json = JSON.parse(call('exportCircuit', { doc, format: 'json' }).r.data.content);
+  const longName = 'N' + big.slice(0, 200000);
+  const files = window.__fakeFiles || {};
+  files['/tmp/echo_rule.json'] = JSON.stringify(Object.assign({}, json, { models: [{ kind: 'logic', name: longName, modelText: '! ' + longName + ' 0 A,B Y ' + longName + ' 1\\q11\\n' }] }));
+  const d1 = Object.keys(json.elements).find((k) => json.elements[k].type === 'Diode');
+  const els = Object.assign({}, json.elements);
+  els[big] = Object.assign({}, els[d1], { properties: Object.assign({}, els[d1].properties, { model: 'echo-no-such-model' }) });
+  delete els[d1];
+  files['/tmp/echo_key.json'] = JSON.stringify(Object.assign({}, json, { elements: els }));
+  files['/tmp/echo_entry.json'] = JSON.stringify(Object.assign({}, json, { models: [{ kind: 'subcircuit', name: longName, modelText: '. ' + longName + ' 0 ' + big.slice(0, 1000) }] }));
+  const at64 = 'B'.repeat(64), at65 = 'B'.repeat(65), pair = 'a'.repeat(63) + '\u{1F600}' + 'a'.repeat(10);
+  const cases = {
+    op: [big, {}, true],
+    doc: ['getCircuit', { doc: big }, true],
+    typeName: ['describeType', { type: big }, true],
+    setKey: ['applyEdits', { doc, edits: [{ op: 'set', id: 'R1', properties: { [big]: 1 } }] }, true],
+    setValue: ['applyEdits', { doc, edits: [{ op: 'set', id: 'R1', properties: { resistance: big } }] }, false],
+    setModel: ['applyEdits', { doc, edits: [{ op: 'set', id: 'D1', properties: { model: big } }] }, false],
+    setModelName: ['applyEdits', { doc, edits: [{ op: 'set', id: 'D1', properties: { model: 'M'.repeat(900) } }] }, true],
+    editId: ['applyEdits', { doc, edits: [{ op: 'delete', id: big }] }, true],
+    editOp: ['applyEdits', { doc, edits: [{ op: big, id: 'R1' }] }, true],
+    addId: ['applyEdits', { doc, edits: [{ op: 'add', element: { id: big, type: 'Resistor', start: { x: 20, y: 0 } } }] }, true],
+    scopeElement: ['importCircuit', { doc, circuit: { elements: [{ id: 'R9', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }], scopes: [{ element: big }] } }, true],
+    markPost: ['applyEdits', { doc, edits: [{ op: 'markOpen', posts: ['R1.' + big] }] }, true],
+    readNet: ['read', { doc, targets: [{ net: big }] }, true],
+    readPost: ['read', { doc, targets: [{ post: 'R1.' + big }] }, true],
+    readNames: ['read', { doc, targets: [{ element: 'R1', name: big }, { element: 'R1', name: big }] }, true],
+    checkpoint: ['restoreCheckpoint', { doc, checkpointId: big }, true],
+    modelName: ['applyEdits', { doc, edits: [{ op: 'defineModel', model: { kind: 'diode', name: big, parameters: {} } }] }, true],
+    modelParam: ['applyEdits', { doc, edits: [{ op: 'defineModel', model: { kind: 'diode', name: 'echo-d', parameters: { [big]: 1 } } }] }, true],
+    listModel: ['listModels', { kind: 'diode', name: big }, true],
+    ruleLine: ['applyEdits', { doc, edits: [{ op: 'defineModel', model: { kind: 'logic', name: 'echo-l', inputs: ['A'], outputs: ['B'], rules: [big] } }] }, false],
+    pathRelative: ['openFile', { path: big + '.txt' }, true],
+    pathExtension: ['openFile', { path: '/tmp/' + big }, true],
+    jsonKey: ['importCircuit', { doc, circuit: JSON.stringify({ schema: { format: 'circuitjs', version: '2.0' }, elements: { [big]: { type: 'NoSuchType' } } }) }, true],
+    labelSet: ['applyEdits', { doc, edits: [{ op: 'set', id: 'L1', properties: { label: 'W'.repeat(1000) } }] }, false],
+    labelText: ['importCircuit', { doc, circuit: text.replace('LBLMARK', big) }, false],
+    modelHint: ['applyEdits', { doc, edits: [{ op: 'set', id: 'D1', properties: { model: 'echo-unknown' } }] }, false],
+    fileRuleName: ['openFile', { path: '/tmp/echo_rule.json' }, true],
+    fileElementKey: ['openFile', { path: '/tmp/echo_key.json' }, true],
+    fileEntry: ['openFile', { path: '/tmp/echo_entry.json' }, true],
+    at64: ['describeType', { type: at64 }, false],
+    at65: ['describeType', { type: at65 }, true],
+    surrogate: ['describeType', { type: pair }, true],
+  };
+  for (const [name, [op, args, echo]] of Object.entries(cases)) {
+    const x = call(op, args);
+    let issues = [...(x.r.issues || []), ...((x.r.connectivity && x.r.connectivity.added) || [])];
+    let size = x.size, ms = x.ms;
+    if (name === 'labelSet' || name === 'labelText') {
+      // the single_label issue of the label text, from getConnectivity
+      const c = call('getConnectivity', { doc, includeNets: false });
+      issues = issues.concat(c.r.data ? c.r.data.issues : c.r.issues);
+      size = Math.max(size, c.size); ms = Math.max(ms, c.ms);
+    }
+    if (op === 'openFile' && x.r.ok && x.r.data && x.r.data.doc) call('closeDocument', { doc: x.r.data.doc, discardChanges: true });
+    const msgs = issues.map((i) => i.message);
+    out[name] = { ok: x.r.ok, ms: Math.round(ms), size, maxMessage: Math.max(0, ...msgs.map((m) => m.length)), codes: issues.map((i) => i.code),
+      clipped: msgs.some((m) => /… \(\d+ chars\)/.test(m)), echo, first: (msgs.find((m) => m.length > 0) || '').slice(0, 200),
+      singleLabel: issues.some((i) => i.code === 'single_label'), hints: name === 'modelHint' ? issues.map((i) => i.hint) : undefined,
+      exact64: name === 'at64' ? msgs.some((m) => m.includes("'" + at64 + "'")) : undefined,
+      loneSurrogate: msgs.some((m) => /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/.test(m)),
+      cut63: name === 'surrogate' ? msgs.some((m) => m.includes("'" + 'a'.repeat(63) + '… (75 chars)')) : undefined, hugeHint: issues.some((i) => (i.hint || '').length > 4000), hugeKey: issues.some((i) => i.key.length > 400) };
+  }
+  call('closeDocument', { doc, discardChanges: true });
+  return JSON.stringify(out);
+}
+
+async function scenarioAgentEcho(s) {
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const maxMessage = +(process.env.ECHO_MAX_MESSAGE || 400);
+  // file paths are checked by openFile only where file access exists: the in-page fake file system
+  await s.eval(fakeFsScript({}));
+  let res;
+  try {
+    res = JSON.parse(await s.eval(`(${echoProbe.toString()})()`));
+  } finally {
+    await s.eval(FAKE_FS_RESTORE);
+  }
+  const failed = [];
+  const defined = res.defined;
+  delete res.defined;
+  for (const [name, v] of Object.entries(res)) {
+    if (!v.codes.length) failed.push(`${name}: no issue`);
+    if (v.maxMessage > maxMessage) failed.push(`${name}: message ${v.maxMessage} > ${maxMessage}`);
+    if (v.echo && !v.clipped) failed.push(`${name}: no clipped echo`);
+    if (v.size > 65536) failed.push(`${name}: answer ${v.size} chars`);
+    if (v.ms > 2000) failed.push(`${name}: ${v.ms} ms`);
+    if (v.hugeHint || v.hugeKey) failed.push(`${name}: hint or key unbounded`);
+    if ((name === 'labelSet' || name === 'labelText') && !v.singleLabel) failed.push(`${name}: no single_label`);
+    if (v.loneSurrogate) failed.push(`${name}: a message splits a surrogate pair`);
+  }
+  if (!defined) failed.push('45 diode models not defined');
+  const hint = (res.modelHint && res.modelHint.hints || []).join(' ');
+  const listed = /models: (.*?), … \((\d+) in all; listModels lists them\)/.exec(hint);
+  if (!listed || listed[1].split(', ').length !== 40 || +listed[2] <= 40) failed.push('modelHint: not 40 names and a count');
+  if (!(res.at64 && res.at64.exact64 && !res.at64.clipped)) failed.push('at64: a 64-character value is not quoted as given');
+  if (!(res.surrogate && res.surrogate.cut63)) failed.push('surrogate: not cut before the pair');
+  fs.writeFileSync(path.join(OUT_DIR, 'agent_echo.json'), JSON.stringify(res, null, 2));
+  report('AG.agent_echo', s.exceptions.length === exMark && failed.length === 0,
+    { cases: Object.keys(res).length, maxMessage: Math.max(...Object.values(res).map((v) => v.maxMessage)), maxMs: Math.max(...Object.values(res).map((v) => v.ms)), failed });
+}
+
+// ---------------------------------------------------------------- frame_cost (visible-tab frame draw)
+// PL_AGA backlog "The visible tab's frame draw grows super-linearly": an N sweep (FRAME_SIZES,
+// default 250,500,1000,2000,4000) of the layout_cost measurement mix (FRAME_FIXTURE: `mix`, or one
+// type name) imported by the agent into the visible document. Idle: median of FRAME_RUNS (5)
+// synchronous renders of the stopped visible tab — CircuitJS1Agent.debugCanvasPixels() minus a
+// PNG encoding of a copy of the same image. Free-running (FRAME_RUN_SIZES, default 1000,2000; 0 = none)
+// of FRAME_RUN_FIXTURE (default `chains` of import_cost — the mix's dense nonlinear matrix needs
+// about 50 s per solver step at 1000 elements): FRAME_RUN_MS (3000) of the running tab after a
+// warm-up (FRAME_WARM_MS, 2000; it also covers the first frame's stamp): frames
+// (CircuitJS1.onupdate), median frame interval, simulated time per wall second and steps per wall
+// second (simulated time / time step). Fails when the idle frame grows faster than
+// time(2N)/time(N) > 2.3 between consecutive sizes (above 20 ms) or exceeds 200 ms at 1000
+// elements. FRAME_PROFILE=<n>:idle|run[,...] records a CPU profile of 10 idle renders or of the
+// free-running window (OUT_DIR/frame_cost/*.cpuprofile) with the top functions in frame_cost.json.
+// FRAME_BEFORE=<frame_cost.json of another build> fails a free-running steps/s median more than
+// 15 % below it, or an idle frame whose PNG (hash) differs from it. Not in the default run (timing).
+async function scenarioFrameCost(s) {
+  const sizes = (process.env.FRAME_SIZES || '250,500,1000,2000,4000').split(',').map(Number);
+  const runSizes = (process.env.FRAME_RUN_SIZES || '1000,2000').split(',').map(Number).filter((n) => n > 0);
+  const runs = +(process.env.FRAME_RUNS || 5);
+  const runMs = +(process.env.FRAME_RUN_MS || 3000), warmMs = +(process.env.FRAME_WARM_MS || 2000);
+  const fixture = process.env.FRAME_FIXTURE || 'mix';
+  const runFixture = process.env.FRAME_RUN_FIXTURE || 'chains';
+  const profiles = (process.env.FRAME_PROFILE || '').split(',').filter(Boolean);
+  const A = (op, args) => s.call('agentCall', op, args);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const vis = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  const med = (a) => { const b = [...a].sort((x, y) => x - y); return Math.round(b[Math.floor(b.length / 2)] * 10) / 10; };
+  const profDir = path.join(OUT_DIR, 'frame_cost');
+  if (profiles.length) fs.mkdirSync(profDir, { recursive: true });
+  const out = { fixture, runFixture, runs, sizes: {}, profiles: {} };
+  // the encode time: a fresh PNG encoding of a copy of the same image (the canvas caches its last encoding)
+  const idleOnce = `(() => { const c = [...document.querySelectorAll('canvas')].sort((a, b) => b.width * b.height - a.width * a.height)[0];
+    let t = performance.now(); CircuitJS1Agent.debugCanvasPixels(); const all = performance.now() - t;
+    const cp = document.createElement('canvas'); cp.width = c.width; cp.height = c.height; cp.getContext('2d').drawImage(c, 0, 0);
+    t = performance.now(); cp.toDataURL('image/png'); return { all, encode: performance.now() - t }; })()`;
+  const profile = async (name, fn) => {
+    await s.cdp.send('Profiler.enable');
+    await s.cdp.send('Profiler.setSamplingInterval', { interval: 500 });
+    await s.cdp.send('Profiler.start');
+    await fn();
+    const { profile: p } = await s.cdp.send('Profiler.stop');
+    await s.cdp.send('Profiler.disable');
+    fs.writeFileSync(path.join(profDir, `${name}.cpuprofile`), JSON.stringify(p));
+    out.profiles[name] = profileTop(p, 30);
+  };
+  const all = [...new Set([...sizes, ...runSizes])].sort((a, b) => a - b);
+  for (const n of all) {
+    await s.eval(`CircuitJS1.setSimRunning(false); true`);
+    // free-running uses FRAME_RUN_FIXTURE (default `chains`, an import_cost fixture): the mix's dense
+    // nonlinear matrix takes about 50 s per solver step at 1000 elements (the O(m³) solver, not the draw)
+    const idleSize = sizes.includes(n);
+    const fx = idleSize ? (fixture === 'mix' ? costMix(n) : costMix(n, [fixture])) : importFixture(runFixture, n);
+    await s.eval(`window.__mix = ${JSON.stringify(fx)}`);
+    const imp = await s.eval(`JSON.parse(CircuitJS1Agent.call('importCircuit', JSON.stringify({ doc: ${JSON.stringify(vis)}, circuit: window.__mix }))).ok`);
+    const rec = { elements: fx.elements.length, failed: imp ? null : 'import' };
+    if (sizes.includes(n)) {
+      await s.eval(idleOnce); await s.eval(idleOnce); // warm-up (first draw of each class)
+      const t = { frame: [], all: [], encode: [] };
+      for (let k = 0; k < runs; k++) {
+        const r = await s.eval(idleOnce);
+        t.all.push(r.all); t.encode.push(r.encode); t.frame.push(Math.max(0, r.all - r.encode));
+      }
+      // a hash of the idle frame's PNG: FRAME_BEFORE checks the visible frame is pixel-equal
+      const png = await s.eval(`(() => { const u = CircuitJS1Agent.debugCanvasPixels(); let h = 0x811c9dc5;
+        for (let i = 0; i < u.length; i++) { h ^= u.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16) + ':' + u.length; })()`);
+      rec.idle = { frame: med(t.frame), all: med(t.all), encode: med(t.encode), perElementUs: Math.round(med(t.frame) * 1000 / n), png };
+      if (profiles.includes(`${n}:idle`)) await profile(`idle_${n}`, () => s.eval(`(() => { for (let k = 0; k < 10; k++) CircuitJS1Agent.debugCanvasPixels(); return true; })()`));
+    }
+    if (runSizes.includes(n)) {
+      if (idleSize) {
+        await s.eval(`window.__mix = ${JSON.stringify(importFixture(runFixture, n))}`);
+        if (!(await s.eval(`JSON.parse(CircuitJS1Agent.call('importCircuit', JSON.stringify({ doc: ${JSON.stringify(vis)}, circuit: window.__mix }))).ok`))) rec.failed = 'run import';
+      }
+      await s.eval(`(() => { window.__frames = []; CircuitJS1.onupdate = () => window.__frames.push(performance.now()); CircuitJS1.setSimRunning(true); return true; })()`);
+      await sleep(warmMs);
+      const window_ = async () => {
+        const a = await s.eval(`(() => { window.__frames = []; return { t: CircuitJS1.getTime(), w: performance.now() }; })()`);
+        await sleep(runMs);
+        const b = await s.eval(`(() => { const i = CircuitJS1.getSimInfo(); return { t: CircuitJS1.getTime(), w: performance.now(), f: window.__frames.slice(), dt: i.timeStep, running: i.running, stop: i.stopMessage }; })()`);
+        const sec = (b.w - a.w) / 1000, f = b.f;
+        const iv = f.slice(1).map((x, i) => x - f[i]);
+        return { frames: f.length, fps: Math.round(f.length / sec * 10) / 10, frameIntervalMs: iv.length ? med(iv) : null,
+          simTimePerSec: (b.t - a.t) / sec, stepsPerSec: Math.round((b.t - a.t) / b.dt / sec), running: b.running, stop: b.stop || null };
+      };
+      if (profiles.includes(`${n}:run`)) {
+        let r; await profile(`run_${n}`, async () => { r = await window_(); }); rec.run = r;
+      } else rec.run = await window_();
+      await s.eval(`(() => { CircuitJS1.setSimRunning(false); CircuitJS1.onupdate = null; return true; })()`);
+    }
+    out.sizes[n] = rec;
+    log(`frame_cost ${n}: ${JSON.stringify({ idle: rec.idle, run: rec.run })}`);
+    fs.writeFileSync(path.join(OUT_DIR, 'frame_cost.json'), JSON.stringify(out, null, 2));
+  }
+  await A('importCircuit', { doc: vis, circuit: { elements: [] } });
+  const over = [], growth = [];
+  for (let i = 1; i < sizes.length; i++) {
+    const a = out.sizes[sizes[i - 1]].idle.frame, b = out.sizes[sizes[i]].idle.frame;
+    const r = Math.round((b / Math.max(a, 1e-3)) * 100) / 100;
+    growth.push(r);
+    if (b > 20 && r > 2.3 * (sizes[i] / sizes[i - 1]) / 2) over.push(`idle ${sizes[i - 1]}→${sizes[i]}: ${a} → ${b} ms (x${r})`);
+  }
+  if (out.sizes[1000] && out.sizes[1000].idle && out.sizes[1000].idle.frame > 200) over.push(`idle 1000 ${out.sizes[1000].idle.frame} > 200 ms`);
+  if (process.env.FRAME_BEFORE) {
+    const before = JSON.parse(fs.readFileSync(process.env.FRAME_BEFORE, 'utf8'));
+    for (const n of runSizes) {
+      const b = before.sizes && before.sizes[n] && before.sizes[n].run, v = out.sizes[n].run;
+      if (b && v && v.stepsPerSec < b.stepsPerSec * 0.85) over.push(`run ${n} steps/s ${v.stepsPerSec} < 85 % of ${b.stepsPerSec}`);
+    }
+    for (const n of sizes) {
+      const b = before.sizes && before.sizes[n] && before.sizes[n].idle, v = out.sizes[n].idle;
+      if (b && b.png && v && v.png !== b.png) over.push(`idle ${n} frame pixels differ from FRAME_BEFORE`);
+    }
+  }
+  out.growth = growth;
+  out.over = over;
+  fs.writeFileSync(path.join(OUT_DIR, 'frame_cost.json'), JSON.stringify(out, null, 2));
+  const summary = Object.fromEntries(Object.entries(out.sizes).map(([n, v]) => [n, v.failed || { idle: v.idle && v.idle.frame, fps: v.run && v.run.fps, stepsPerSec: v.run && v.run.stepsPerSec }]));
+  report('AG.frame_cost', s.exceptions.length === exMark && Object.values(out.sizes).every((v) => !v.failed) && over.length === 0, { ...summary, growth, over });
+}
+
 // ---------------------------------------------------------------- agent_equiv (behaviour equivalence of two builds)
 // Not in the default run. For a change that must not change behaviour (PL_AGA backlog "importCircuit
 // scales"): over the examples (CIRCUITS, default all) records a hash per result of agent importCircuit,
@@ -8260,7 +8514,7 @@ async function scenarioAgentEquiv(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'agent_echo', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -8304,7 +8558,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

@@ -13,6 +13,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -627,7 +628,7 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         }
         for (ProbeRecorder r : recorders) {
             if (r.nonFiniteCount() > 0) {
-                result.addIssue(Issue.of(IssueCode.SOLVER_WARNING, "Probe '" + r.target.name + "' read " + r.nonFiniteCount()
+                result.addIssue(Issue.of(IssueCode.SOLVER_WARNING, "Probe '" + EchoText.clip(r.target.name) + "' read " + r.nonFiniteCount()
                         + " non-finite values; they are left out of its stats and series.", "Check getDiagnostics for solver problems."));
             }
         }

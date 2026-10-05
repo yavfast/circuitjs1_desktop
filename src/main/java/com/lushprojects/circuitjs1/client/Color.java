@@ -40,6 +40,9 @@ public class Color {
 
     // only for special cases, like no color, or maybe named colors
     private String colorText = null;
+    // the "#rrggbb" text of r, g, b, built on first use (a color is immutable; the frame draw
+    // asks for it per element and per stroke)
+    private String hexValue;
 
     public Color(String colorText) {
         this.colorText = colorText;
@@ -84,10 +87,13 @@ public class Color {
             return colorText;
         }
 
-        return "#"
-                + pad(Integer.toHexString(r))
-                + pad(Integer.toHexString(g))
-                + pad(Integer.toHexString(b));
+        if (hexValue == null) {
+            hexValue = "#"
+                    + pad(Integer.toHexString(r))
+                    + pad(Integer.toHexString(g))
+                    + pad(Integer.toHexString(b));
+        }
+        return hexValue;
     }
 
     private String pad(String in) {

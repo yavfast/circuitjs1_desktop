@@ -8,6 +8,7 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -267,7 +268,7 @@ public class CircuitDocument {
         }
         for (int i = 0; i < replaced.size(); i++) {
             String old = replacedIds.get(i);
-            warnings.add("element key '" + old + "' is " + (ElementIdRegistry.isValidId(old) ? "repeated" : "not a valid ID")
+            warnings.add("element key '" + EchoText.clip(old) + "' is " + (ElementIdRegistry.isValidId(old) ? "repeated" : "not a valid ID")
                     + "; replaced by " + replaced.get(i).getElementId());
         }
         return warnings;

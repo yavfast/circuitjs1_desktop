@@ -18,6 +18,7 @@ import com.lushprojects.circuitjs1.client.element.RailElm;
 import com.lushprojects.circuitjs1.client.element.VoltageElm;
 import com.lushprojects.circuitjs1.client.element.WireElm;
 import com.lushprojects.circuitjs1.client.util.BoxGrid;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -575,13 +576,13 @@ final class Connectivity {
         }
         for (Map.Entry<String, List<CircuitElm>> e : labels.entrySet()) {
             if (e.getValue().size() == 1) {
-                issues.add(Issue.of(IssueCode.SINGLE_LABEL, "Label '" + e.getKey() + "' is used by only one labelled node.",
+                issues.add(Issue.of(IssueCode.SINGLE_LABEL, "Label '" + EchoText.clip(e.getKey()) + "' is used by only one labelled node.",
                         "Add a second labelled node with the same text to connect the two places, or remove it.")
                         .elements(e.getValue().get(0).getElementId()));
             }
             if (isReservedLabel(e.getKey())) {
-                issues.add(Issue.of(IssueCode.RESERVED_LABEL, "Label text '" + e.getKey() + "' is reserved; its net is named 'label:"
-                        + e.getKey() + "'.", "Rename the label; use a Ground element for ground.")
+                issues.add(Issue.of(IssueCode.RESERVED_LABEL, "Label text '" + EchoText.clip(e.getKey()) + "' is reserved; its net is named 'label:"
+                        + EchoText.clip(e.getKey()) + "'.", "Rename the label; use a Ground element for ground.")
                         .elements(idsOf(e.getValue())));
             }
         }
@@ -854,9 +855,9 @@ final class Connectivity {
     static Issue unknownNet(String name, String where, Nets nets) {
         StringBuilder some = new StringBuilder();
         for (int i = 0; i < nets.list.size() && i < 8; i++) {
-            some.append(i > 0 ? ", " : "").append(nets.list.get(i).name);
+            some.append(i > 0 ? ", " : "").append(EchoText.clip(nets.list.get(i).name));
         }
-        return Issue.of(IssueCode.UNKNOWN_NET, "Argument '" + where + "' names no net of the document: '" + name + "'.",
+        return Issue.of(IssueCode.UNKNOWN_NET, "Argument '" + where + "' names no net of the document: '" + EchoText.clip(name) + "'.",
                 nets.list.isEmpty() ? "The document has no analysed nets; getConnectivity explains why."
                         : "Net names are gnd, label texts, label:<text> or $<k>; for example " + some
                                 + ". getConnectivity lists them all.");

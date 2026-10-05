@@ -5,6 +5,7 @@ import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 import com.lushprojects.circuitjs1.client.util.UnitValues;
 
 import java.util.LinkedHashMap;
@@ -63,7 +64,7 @@ final class PropertyValues {
                 Double d = parseNumber(v, info.unit);
                 if (d == null) {
                     problem[0] = "must be a number" + (info.unit != null ? " or a unit string such as \"4.7 k"
-                            + info.unit + "\"" : "") + " (got " + v + ")";
+                            + info.unit + "\"" : "") + " (got " + EchoText.clip(v.toString()) + ")";
                     return null;
                 }
                 return toElementValue(info, d);

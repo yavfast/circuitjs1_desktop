@@ -4,6 +4,7 @@ import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONNumber;
 import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,11 +49,26 @@ public final class Issue {
     /** {@link #key()}, computed once (the builders below clear it). */
     private String key;
 
+    /**
+     * Longest message: a backstop behind the bounded echo of each quoting site ({@link EchoText}),
+     * e.g. for an exception text. Hints are not cut (they list catalogue names).
+     */
+    static final int MAX_MESSAGE = 1000;
+
     private Issue(IssueCode code, Severity severity, String message, String hint) {
         this.code = code;
         this.severity = severity;
-        this.message = message;
+        this.message = boundMessage(message);
         this.hint = hint;
+    }
+
+    /** @return {@code message}, or its start plus {@code … (N chars)} within {@link #MAX_MESSAGE} in all */
+    static String boundMessage(String message) {
+        if (message == null || message.length() <= MAX_MESSAGE) {
+            return message;
+        }
+        String suffix = "… (" + message.length() + " chars)";
+        return EchoText.clip(message, MAX_MESSAGE - suffix.length());
     }
 
     /** Creates an issue with the code's default severity. */

@@ -13,6 +13,7 @@ import com.lushprojects.circuitjs1.client.element.HasBuiltInSlider;
 import com.lushprojects.circuitjs1.client.element.HasControlWidget;
 import com.lushprojects.circuitjs1.client.element.ScopeElm;
 import com.lushprojects.circuitjs1.client.io.json.CircuitElementFactory;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -263,7 +264,7 @@ final class EditOps {
                 break;
             }
             default:
-                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".op' is not one of the allowed values: '" + Catalogue.clipName(op) + "'.",
+                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + ".op' is not one of the allowed values: '" + EchoText.clip(op) + "'.",
                         "Use one of: " + OPS + "."));
                 return null;
         }
@@ -499,12 +500,12 @@ final class EditOps {
             Item it = elmId == null ? null : m.items.get(elmId);
             if (it == null) {
                 issues.add(Issue.of(IssueCode.UNKNOWN_POST, "Argument '" + where + ".posts[" + k + "]' names no post of the document: "
-                        + (s == null ? posts.get(k) : "'" + ref + "'") + ".", "Use <ElementId>.<PinName> or <ElementId>.#<index>; getCircuit lists the posts."));
+                        + (s == null ? EchoText.clip(String.valueOf(posts.get(k))) : "'" + EchoText.clip(ref) + "'") + ".", "Use <ElementId>.<PinName> or <ElementId>.#<index>; getCircuit lists the posts."));
                 continue;
             }
             String pin = OpenMarks.resolvePin(ref, it.pins);
             if (pin == null) {
-                issues.add(Issue.of(IssueCode.UNKNOWN_POST, "Element " + elmId + " has no post '" + ref.substring(elmId.length() + 1)
+                issues.add(Issue.of(IssueCode.UNKNOWN_POST, "Element " + elmId + " has no post '" + EchoText.clip(ref.substring(elmId.length() + 1))
                         + "' (" + where + ".posts[" + k + "]).", "Its pins are: " + String.join(", ", it.pins) + ".")
                         .elements(elmId));
                 continue;
@@ -662,7 +663,7 @@ final class EditOps {
                     String pin = elm == null ? null : OpenMarks.resolvePin(ref, PinNames.of(elm));
                     if (pin == null) {
                         // the post set changed earlier in the batch (a configuration set)
-                        throw new Mutation.Rejected(Issue.of(IssueCode.UNKNOWN_POST, "Post '" + ref + "' does not exist after the earlier edits (edits["
+                        throw new Mutation.Rejected(Issue.of(IssueCode.UNKNOWN_POST, "Post '" + EchoText.clip(ref) + "' does not exist after the earlier edits (edits["
                                 + e.index + "]).", "Mark the posts the element has after the change.").elements(elmId));
                     }
                     doc.setOpenMark(elmId + "." + pin, mk.open);
@@ -809,7 +810,7 @@ final class EditOps {
             Object effective = after.get(p.getKey());
             String unit = unitOf(type, p.getKey());
             if (!PropertyValues.same(p.getValue(), effective, unit)) {
-                warnings.add(adjusted(id, p.getKey(), effective, "the requested " + PropertyValues.display(p.getValue())));
+                warnings.add(adjusted(id, p.getKey(), effective, "the requested " + EchoText.clip(PropertyValues.display(p.getValue()))));
             }
         }
         if (before == null) {
@@ -821,7 +822,7 @@ final class EditOps {
             }
             Object effective = after.get(b.getKey());
             if (!PropertyValues.same(b.getValue(), effective, unitOf(type, b.getKey()))) {
-                warnings.add(adjusted(id, b.getKey(), effective, "the previous " + PropertyValues.display(b.getValue())));
+                warnings.add(adjusted(id, b.getKey(), effective, "the previous " + EchoText.clip(PropertyValues.display(b.getValue()))));
             }
         }
     }
@@ -843,7 +844,7 @@ final class EditOps {
 
     private static Issue adjusted(String id, String key, Object effective, String instead) {
         return Issue.of(IssueCode.VALUE_ADJUSTED, id + "." + key + " is " + (effective == null ? "no longer exported"
-                : PropertyValues.display(effective)) + " instead of " + instead + ".",
+                : EchoText.clip(PropertyValues.display(effective))) + " instead of " + instead + ".",
                 "The element clamps or derives this value; use the effective value or change related properties.")
                 .elements(id);
     }

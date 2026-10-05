@@ -8,6 +8,7 @@ import com.google.gwt.json.client.JSONValue;
 import com.lushprojects.circuitjs1.client.ElementIdRegistry;
 import com.lushprojects.circuitjs1.client.Scope;
 import com.lushprojects.circuitjs1.client.io.json.JsonCircuitFormat;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -80,7 +81,7 @@ final class AgentCircuitConverter {
             JSONString s = idv.isString();
             if (s == null || !ElementIdRegistry.isValidId(s.stringValue())) {
                 issues.add(Issue.of(IssueCode.ID_INVALID, "Argument '" + where + ".id' is not a valid ElementId: "
-                        + idv + ".", "Use 1-32 characters: a letter, then letters, digits or '_' (e.g. R_load).")
+                        + EchoText.clip(idv.toString()) + ".", "Use 1-32 characters: a letter, then letters, digits or '_' (e.g. R_load).")
                         .elements(spec.subject));
             } else {
                 spec.id = s.stringValue();
@@ -97,7 +98,7 @@ final class AgentCircuitConverter {
         spec.type = cat.find(ts.stringValue());
         if (spec.type == null) {
             issues.add(Issue.of(IssueCode.UNKNOWN_TYPE, "Argument '" + where + ".type' names no catalogue type or alias: '"
-                    + Catalogue.clipName(ts.stringValue()) + "'.", "Closest names: " + String.join(", ",
+                    + EchoText.clip(ts.stringValue()) + "'.", "Closest names: " + String.join(", ",
                             cat.closestNames(ts.stringValue(), Catalogue.HINT_NAMES)) + ".").elements(spec.subject));
             return null;
         }
@@ -163,14 +164,14 @@ final class AgentCircuitConverter {
                 info = extra.get(key);
             }
             if (info == null) {
-                issues.add(Issue.of(IssueCode.UNKNOWN_PROPERTY, "Property '" + key + "' is not a property of "
+                issues.add(Issue.of(IssueCode.UNKNOWN_PROPERTY, "Property '" + EchoText.clip(key) + "' is not a property of "
                         + (type == null ? "this element" : type.type) + " (" + where + ").",
                         "Valid keys: " + (type == null ? "(none)" : type.propertyKeys()) + ".").elements(subject));
                 continue;
             }
             if (info.readOnly) {
                 if (!acceptReadOnly) {
-                    issues.add(Issue.of(IssueCode.INVALID_VALUE, "Property '" + key + "' of " + type.type
+                    issues.add(Issue.of(IssueCode.INVALID_VALUE, "Property '" + EchoText.clip(key) + "' of " + type.type
                             + " is read-only (" + where + ").",
                             "It follows the element's geometry or another property; set the controlling key instead (writable keys: "
                                     + type.writableKeys() + ").").elements(subject));
@@ -180,16 +181,16 @@ final class AgentCircuitConverter {
             String[] problem = new String[1];
             Object value = PropertyValues.parse(info, props.get(key), problem);
             if (value == null) {
-                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + key + "' " + problem[0] + ".",
+                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + EchoText.clip(key) + "' " + problem[0] + ".",
                         info.unit != null ? "Use a number or a string such as \"4.7k" + info.unit + "\"."
                                 : "Use a " + info.kind + " value (describeType lists the kinds).").elements(subject));
                 continue;
             }
             if (info.modelCatalogue != null && !ModelNames.exists(info.modelCatalogue, String.valueOf(value))) {
                 // [SP_AGA_03_03] "Model names": rejected before the element's fallback registers it
-                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + key + "' names no "
+                issues.add(Issue.of(IssueCode.INVALID_VALUE, "Argument '" + where + "." + EchoText.clip(key) + "' names no "
                         + ModelNames.label(info.modelCatalogue) + " model of the session: '"
-                        + Catalogue.clipName(String.valueOf(value)) + "'.", ModelNames.hint(info.modelCatalogue))
+                        + EchoText.clip(String.valueOf(value)) + "'.", ModelNames.hint(info.modelCatalogue))
                         .elements(subject));
                 continue;
             }
@@ -408,7 +409,7 @@ final class AgentCircuitConverter {
             }
             if (!ids.contains(el.stringValue())) {
                 issues.add(Issue.of(IssueCode.UNKNOWN_ELEMENT, "Argument '" + where + ".element' names no element of the circuit: '"
-                        + el.stringValue() + "'.", "Use an ID from circuit.elements.").elements(el.stringValue()));
+                        + EchoText.clip(el.stringValue()) + "'.", "Use an ID from circuit.elements.").elements(ElementIdRegistry.isValidId(el.stringValue()) ? el.stringValue() : "#?"));
                 continue;
             }
             int value = -1;

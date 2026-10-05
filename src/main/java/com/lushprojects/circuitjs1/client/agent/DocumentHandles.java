@@ -2,6 +2,7 @@ package com.lushprojects.circuitjs1.client.agent;
 
 import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
+import com.lushprojects.circuitjs1.client.util.EchoText;
 
 import java.util.List;
 
@@ -51,7 +52,7 @@ public final class DocumentHandles {
     /** @return the unknown_document issue for a handle, with the open handles as hint */
     static Issue unknown(CirSim sim, String handle) {
         return Issue.of(IssueCode.UNKNOWN_DOCUMENT,
-                "No open document has the handle '" + handle + "'.",
+                "No open document has the handle '" + EchoText.clip(handle) + "'.",
                 "Use one of the open documents: " + listOpen(sim) + ".");
     }
 }
