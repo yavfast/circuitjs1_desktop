@@ -9,6 +9,7 @@
     "build": "node scripts/dev_n_build.js --buildall",
     "full": "node scripts/dev_n_build.js --fullrebuild",
     "test:live": "node tests/live/harness.mjs",
+    "test:unit": "mvn -q test",
     "build:mcp": "node mcp/server/build.js",
     "test:mcp-unit": "node --test mcp/server/test/",
     "test:mcp": "node tests/mcp/e2e.mjs"

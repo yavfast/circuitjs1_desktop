@@ -1,7 +1,7 @@
 # Implementation Plan: Linear System Solver  {#PL_SLV}
 
 > **Code:** PL_SLV
-> **Status:** draft
+> **Status:** in-progress
 > **Created:** 2026-10-05
 > **Updated:** 2026-10-05
 >
@@ -53,7 +53,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 
 ## Progress
 
-- [ ] [Phase 1 — Baseline and test infrastructure](#PL_SLV_P1)
+- [x] [Phase 1 — Baseline and test infrastructure](#PL_SLV_P1)
 - [ ] [Phase 2 — Sparse kernel](#PL_SLV_P2)
 - [ ] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
 - [ ] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
@@ -62,7 +62,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 
 ## Phases
 
-### Phase 1 — Baseline and test infrastructure (`tests/live/harness.mjs`, `pom.xml`, `package.json`) [TODO]  {#PL_SLV_P1}
+### Phase 1 — Baseline and test infrastructure (`tests/live/harness.mjs`, `pom.xml`, `package.json`) [DONE]  {#PL_SLV_P1}
 
 **Depends on:** none (runs on the pre-change build)
 **Implements:** the measurement basis of [SP_SLV_05_02](./linear-solver.sp.md#SP_SLV_05_02) ("Dense path below the threshold is today's solver")
@@ -79,6 +79,7 @@ What to create:
 Notes:
 - The baseline must be recorded before P3 touches `CircuitSimulator`; the fixture file is committed with this phase.
 - `scripts/dev_n_build.js` passes `skipTests` to its maven runs; it keeps doing so (packaging does not need the tests).
+- Done 2026-10-05: the fixture merges three record runs of master e531346 (327 examples). Seven examples differ between runs of one build — oscillating gates and op-amps draw from the unseeded `RandomUtils` (TD_20261005_220500_run-rng-determinism) — and are excluded; compare mode re-runs a differing example up to twice.
 
 ### Phase 2 — Sparse kernel (`client/solver/`) [TODO]  {#PL_SLV_P2}
 

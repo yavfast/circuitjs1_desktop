@@ -6620,6 +6620,124 @@ async function scenarioSolverDefects(s) {
   report('AG.solver_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
 }
 
+// ---------------------------------------------------------------- solver_corpus (PL_SLV P1, SP_SLV_05_02)
+// Not in the default run. Bit identity of the solver over the example corpus (CIRCUITS, default
+// all; noise-source examples left out): on a background document every example is imported and run
+// with reset for SOLVER_CORPUS_STEPS (default 200) × its maximum time step, then every net voltage
+// is read. SOLVER_CORPUS=record runs each example twice and writes OUT_DIR/solver_corpus.json
+// (examples whose two runs differ are excluded as nondeterministic); the default mode compares
+// with tests/live/fixtures/solver_corpus.json exactly (numbers through their shortest round-trip
+// text) and reports per example identical / differs (max abs and relative difference) and the
+// reduced size m once Diagnostics has the solver block. A differing example is run up to twice
+// more (latches settle at random after gate oscillation); one exact match counts as identical. A difference fails for m ≤
+// SOLVER_DENSE_MAX (64, the dense path in AUTO), for an unknown m, and for every example with
+// SOLVER_CORPUS_STRICT=1 (the runtime rollback check with the session default Dense).
+const SOLVER_CORPUS_FIXTURE = path.join(HERE, 'fixtures', 'solver_corpus.json');
+const SOLVER_DENSE_MAX = 64;
+
+async function solverCorpusProbe(doc, text, steps) {
+  const H = window.__H;
+  const A = (op, a) => H.agentCall(op, a);
+  const imp = A('importCircuit', { doc, circuit: text });
+  if (!imp.ok) return { error: 'import: ' + (imp.issues || []).map((i) => i.code).join(',') };
+  const st = A('simControl', { doc, action: 'stop' });
+  const maxStep = st.data && st.data.timeStep ? st.data.timeStep.max : null;
+  if (!(maxStep > 0)) return { error: 'no maxTimeStep' };
+  const run = await H.agentAsync('run', { doc, span: steps * maxStep, reset: true, budgetMs: 120000 }, 180000);
+  const reason = run && run.data ? run.data.reason : (run && run.timeout ? 'timeout' : 'failed: ' + (run && run.issues ? run.issues.map((i) => i.code).join(',') : 'no result'));
+  const nets = ((A('getConnectivity', { doc }).data || { nets: [] }).nets || []).map((n) => n.name);
+  const v = {};
+  for (let i = 0; i < nets.length; i += 100) {
+    const r = A('read', { doc, targets: nets.slice(i, i + 100).map((n) => ({ net: n })) });
+    if (!r.ok) return { error: 'read: ' + (r.issues || []).map((x) => x.code).join(','), run: reason };
+    for (const x of r.data.values) v[x.name] = x.value;
+  }
+  const d = A('getDiagnostics', { doc });
+  const sv = d.data && d.data.solver;
+  return { run: reason, t: run && run.data ? run.data.tEnd : null, maxStep, nets: v, m: sv ? sv.size : null, path: sv ? sv.path : null };
+}
+
+async function scenarioSolverCorpus(s) {
+  const record = process.env.SOLVER_CORPUS === 'record';
+  const strict = !!process.env.SOLVER_CORPUS_STRICT;
+  const fixture = record ? null : JSON.parse(fs.readFileSync(process.env.SOLVER_CORPUS_FIXTURE || SOLVER_CORPUS_FIXTURE, 'utf8'));
+  // compare mode runs the fixture's span
+  const steps = fixture ? fixture.steps : +(process.env.SOLVER_CORPUS_STEPS || 200);
+  const A = (op, args) => s.call('agentCall', op, args);
+  const probe = (doc, text) => s.eval(`(${solverCorpusProbe.toString()})(${JSON.stringify(doc)}, ${JSON.stringify(text)}, ${steps})`);
+  const only = process.env.CIRCUITS && process.env.CIRCUITS !== 'all' ? process.env.CIRCUITS.split(',') : null;
+  const list = record ? (only || listAllCircuits()) : Object.keys(fixture.examples).filter((n) => !only || only.includes(n));
+  const unknownNames = !record && only ? only.filter((n) => !fixture.examples[n]) : [];
+  if (!list.length || unknownNames.length) {
+    // an empty comparison must never pass
+    report('SLV.solver_corpus', false, { error: !list.length ? 'nothing to compare' : 'not in the fixture', unknownNames });
+    return;
+  }
+  // per number with Object.is: -0, NaN and ±Infinity are told apart (JSON text would not)
+  const sameVals = (a, b) => {
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every((k) => Object.prototype.hasOwnProperty.call(b, k) && Object.is(a[k], b[k]));
+  };
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const t0 = Date.now();
+  const doc = (await A('createDocument', { title: 'Solver corpus' })).data.doc;
+  if (record) {
+    const outFile = path.join(OUT_DIR, 'solver_corpus.json');
+    const rec = { created: new Date().toISOString(), site: SITE_DIR, steps, examples: {}, excluded: {} };
+    for (const name of list) {
+      const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+      if (hasNoiseSource(text)) { rec.excluded[name] = 'noise source'; continue; }
+      const r1 = await probe(doc, text);
+      if (r1.error) { rec.excluded[name] = r1.error; continue; }
+      // a run cut by its wall-clock budget ends at a time that depends on the machine
+      if (r1.run === 'budget_exhausted') { rec.excluded[name] = 'budget_exhausted'; continue; }
+      const r2 = await probe(doc, text);
+      if (r2.error || r1.run !== r2.run || r1.t !== r2.t || !sameVals(r1.nets, r2.nets)) { rec.excluded[name] = 'nondeterministic'; continue; }
+      rec.examples[name] = { run: r1.run, t: r1.t, maxStep: r1.maxStep, nets: r1.nets };
+    }
+    fs.writeFileSync(outFile, JSON.stringify(rec, null, 1) + '\n');
+    await A('closeDocument', { doc, discardChanges: true });
+    report('SLV.solver_corpus', s.exceptions.length === exMark, { mode: 'record', file: outFile, examples: Object.keys(rec.examples).length,
+      excluded: Object.keys(rec.excluded).length, s: Math.round((Date.now() - t0) / 1000) });
+    return;
+  }
+  const per = {}; const errors = {}; const failing = []; let identical = 0, allowed = 0;
+  for (const name of list) {
+    const base = fixture.examples[name];
+    const text = await s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+    let r = await probe(doc, text);
+    if (r.error) { errors[name] = r.error; failing.push(name); continue; }
+    // gates that oscillate and op-amps draw from an unseeded generator (RandomUtils), so a latch
+    // may settle either way: a differing example is run again, and one exact match counts
+    let reruns = 0;
+    while (reruns < 2 && !(r.run === base.run && r.t === base.t && sameVals(r.nets, base.nets))) {
+      const again = await probe(doc, text);
+      reruns++;
+      if (!again.error) r = again;
+    }
+    let maxAbs = 0, maxRel = 0, missing = 0;
+    for (const k of new Set([...Object.keys(base.nets), ...Object.keys(r.nets)])) {
+      const a = base.nets[k], b = r.nets[k];
+      if (typeof a !== 'number' || typeof b !== 'number') { if (a !== b) missing++; continue; }
+      const d = Math.abs(a - b);
+      if (d > maxAbs) maxAbs = d;
+      const rel = d / Math.max(1e-12, Math.abs(a));
+      if (rel > maxRel) maxRel = rel;
+    }
+    const same = r.run === base.run && r.t === base.t && sameVals(r.nets, base.nets);
+    per[name] = { result: same ? 'identical' : 'differs', m: r.m, path: r.path, ...(reruns ? { reruns } : {}), ...(same ? {} : { maxAbs, maxRel, missing, run: [base.run, r.run], t: [base.t, r.t] }) };
+    if (same) identical++;
+    else if (!strict && r.m != null && r.m > SOLVER_DENSE_MAX) allowed++;
+    else failing.push(name);
+  }
+  await A('closeDocument', { doc, discardChanges: true });
+  fs.writeFileSync(path.join(OUT_DIR, 'solver_corpus_compare.json'), JSON.stringify({ fixture: process.env.SOLVER_CORPUS_FIXTURE || SOLVER_CORPUS_FIXTURE, strict, per, errors }, null, 1));
+  report('SLV.solver_corpus', failing.length === 0 && s.exceptions.length === exMark, { mode: 'compare', strict, compared: list.length, identical,
+    differsAllowed: allowed, failing: failing.slice(0, 15), failingCount: failing.length, errors: Object.keys(errors).length,
+    s: Math.round((Date.now() - t0) / 1000), details: path.join(OUT_DIR, 'solver_corpus_compare.json') });
+}
+
 // 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
 const TIMER_SQUARE_HZ = 239.521;
 const TIMER_SQUARE_DUTY = 0.507567;
@@ -8680,7 +8798,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, solver_corpus: scenarioSolverCorpus, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

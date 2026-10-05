@@ -19,6 +19,7 @@ A todo is *deferred*, not committed work. Execution happens later via `/dev-flow
 |----|-------------|-------|-------|---------|--------|
 | [TD_20261005_145712_forced-run](#td_20261005_145712_forced-run--run-for-a-set-time) | User command: run the simulation as fast as possible for a set span (e.g. 100 ms) to skip start-up transients | Standard | concept addendum → spec → implement | after `task_E_AGT` closes, or on developer request | candidate |
 | [TD_20261005_155200_cappar-retry-limit](#td_20261005_155200_cappar-retry-limit--cappartxt-warns-at-analysis) | **Verify first:** example `cappar.txt` warns "Failed to analyze circuit (retry limit)" and needs > 1.5 s wall clock for 1 ms | Trivial–Standard | fix | next validation / FindPathInfo change, or the next example-corpus sweep | candidate |
+| [TD_20261005_220500_run-rng-determinism](#td_20261005_220500_run-rng-determinism--latches-settle-at-random-in-reset-runs) | Reset runs of latch examples (edgedff, jkff, cc2imp, delta-pwm, …) differ between runs: oscillating gates/op-amps draw from the unseeded `RandomUtils`; SP_AGA states runs deterministic "noise sources excepted" | Standard | spec decision → fix | the next change to `RandomUtils`/`GateElm`/`OpAmpElm`, or a sweep/Monte Carlo concept | candidate |
 
 Related, filed elsewhere: **TD_20261005_145712_sparse-solver** (sparse LU for large circuits) sits in the [PL_SIM backlog](../../docs/simulator-engine.plan.md#backlog), because the simulator plan owns the solver.
 
@@ -46,6 +47,17 @@ Related, filed elsewhere: **TD_20261005_145712_sparse-solver** (sparse LU for la
 - **Scope / suggested phase:** Trivial–Standard — `fix` (verify first: open `cappar.txt` in devmode, read the log).
 - **Context snapshot:** sweep script `/tmp` only (not kept); reproduce with `CircuitJS1Agent.callAsync('run', '{"span":"1 ms","reset":true,"budgetMs":1500}', console.log)` after loading the example.
 - **Return trigger:** the next change to validation / FindPathInfo, or the next example-corpus sweep.
+
+### TD_20261005_220500_run-rng-determinism — Latches settle at random in reset runs
+
+> **Status:** candidate — **Created:** 2026-10-05 — found by the `solver_corpus` baseline of task_C_SLV (agent-initiated)
+
+- **Observation:** on one build, two `run {reset: true, span: 200 × maxTimeStep}` of the same import gave different net voltages for `cc2imp.txt`, `cc2impn.txt`, `delta-pwm.txt`, `edgedff.txt` (a latch output 0 V vs 5 V), `jkff.txt`, `peak-detect.txt`, `ujtosc.txt` — not every time. `GateElm.doStep` (~L271) keeps or flips an oscillating output by `RandomUtils.getRand(10)`, and `OpAmpElm` draws from the same unseeded static `java.util.Random`. The skill `automation/agent-run-behaviour.md` says "no effect on results was observed", and SP_AGA §02_10 / C_AGA_03_04 promise determinism "from reset; noise sources excepted".
+- **Relevant docs:** [SP_AGA §02_10](../../docs/agent-api.sp.md), [C_AGA](../../docs/agent-api.concept.md), skill `automation/agent-run-behaviour.md`.
+- **Feasibility (at capture):** feasible — e.g. a per-document seeded generator reset by `resetAction`, or document the exception in SP_AGA and the skill. Needs a decision (which elements, seed scope).
+- **Scope / suggested phase:** Standard — a spec decision, then `fix`; `solver_corpus` (PL_SLV) then needs no re-runs for latches.
+- **Context snapshot:** the `solver_corpus` fixture excludes these examples as `nondeterministic`; compare mode re-runs a differing example up to twice.
+- **Return trigger:** the next change to `RandomUtils`, `GateElm` or `OpAmpElm`, or a concept that needs repeatable sweeps/Monte Carlo over logic circuits.
 
 ---
 
