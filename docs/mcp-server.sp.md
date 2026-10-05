@@ -108,7 +108,7 @@ Every tool takes the `doc` argument of SP_AGA contracts, optional except where t
 | circuit_read | read | `targets[]` | true | false | true |
 | circuit_render | render | `format?`, `scale?`, `includeScopes?` | true | false | true |
 | circuit_layout | checkLayout | `includeBoxes?` (SP_AGA §02_16: `text_overlap`, `text_not_covered`; call it before reporting a drawing) | true | false | true |
-| circuit_sim | simControl | `action`, `settings?` | false | true (`reset`) | false |
+| circuit_sim | simControl | `action`, `settings?`, `mode?` (`solver`: auto / dense / sparse / session, [SP_SLV_02_13](./linear-solver.sp.md#SP_SLV_02_13)) | false | true (`reset`) | false |
 | circuit_run | run | `mode?`, `span?`, `settle?`, `budgetMs?`, `probes?`, `recordFrom?`, `maxPoints?`, `reset?` | false | true (`reset`) | false |
 | circuit_diagnostics | getDiagnostics | `log?` | true | false | true |
 | circuit_checkpoint | checkpoint | `comment` | false | false | false |
@@ -316,7 +316,7 @@ The package manifest's Chromium arguments gain `--disable-background-timer-throt
 | Data/state changes | Four preference keys; instance files under `~/.circuitjs1/instances/` (safe to delete) |
 | Artifacts | The server script bundled into the package, the menu item and the info dialog |
 | Dependent modules | [SP_MCB](./mcp-bridge.sp.md) and [SP_AGS](./agent-skill.sp.md) need the endpoint; the Agent API does not depend on the server |
-| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`; `1.1` since the agent model definitions of [PL_AGA](./agent-api.plan.md) Phases 11–14 — `defineModel`, `circuit_types` `models`/`model`, AgentCircuit and `circuit_get` `models`; `1.2` since PL_AGA Phase 16a — the tool `circuit_layout`): a breaking change bumps MAJOR, an addition bumps MINOR. Removing or renaming a released tool (for example `circuit_layout`) is breaking and bumps MAJOR. The skill states the `toolsVersion` it supports |
+| External contracts | Tool names, arguments and result shapes are the agent-facing contract, versioned by `toolsVersion` (initially `1.0`; `1.1` since the agent model definitions of [PL_AGA](./agent-api.plan.md) Phases 11–14 — `defineModel`, `circuit_types` `models`/`model`, AgentCircuit and `circuit_get` `models`; `1.2` since PL_AGA Phase 16a — the tool `circuit_layout`; `1.3` since PL_SLV Phase 5 — `circuit_sim` action `solver` with `mode`, the `solver` block of `circuit_sim` and `circuit_diagnostics`): a breaking change bumps MAJOR, an addition bumps MINOR. Removing or renaming a released tool (for example `circuit_layout`) is breaking and bumps MAJOR. The skill states the `toolsVersion` it supports |
 
 Minimum safe state: `mcpServerEnabled = false` disables the endpoint without code changes. To set it, open Options → "MCP Server...", untick "Enabled", Save and restart the app: nothing listens and no instance record is written. Verified by `tests/mcp/e2e.mjs` scenario `settings`, row `disable` (checks `statusDisabled`, `noRecord`, `noPortBound`, `menuOff`).
 
@@ -393,3 +393,4 @@ Minimum safe state: `mcpServerEnabled = false` disables the endpoint without cod
 | 2026-10-04 | Phase 11 review: the document circuit resource carries `models` / `modelsTruncated` |
 | 2026-10-04 | `toolsVersion` 1.1 (§06_01: an addition bumps MINOR): the agent model definitions of PL_AGA Phases 11–14; the skill compatibility line, agent-format header and the version checks of the tests follow (PL_AGA Phase 15) |
 | 2026-10-04 | Tool `circuit_layout` → SP_AGA `checkLayout` (developer decision SP_AGA_DEC_10, PL_AGA Phase 16a): §02_02 row, §02_01 server instructions name it in the verify loop, §03_04 reduction `includeBoxes: false` (2000 boxes ≈ 150–180k chars), §05_01 15 tools and two rows, DEC_01 amended (15th tool), §06_01 `toolsVersion` 1.2 and removing a released tool is MAJOR |
+| 2026-10-05 | `toolsVersion` 1.3 (PL_SLV Phase 5, SP_SLV_02_13): `circuit_sim` action `solver` with `mode`, output `solver`; `circuit_diagnostics` output `solver`; skill, agent-format header and test version checks follow |

@@ -236,6 +236,7 @@ CheckpointRecord (history view): `{checkpointId?, comment?, auto: bool, kind: "a
 | simTime | number | Simulated time (s) |
 | running | bool | Free-running state |
 | timeStep | {current, max, min: number, auto: bool} | Time-step settings |
+| solver | SolverInfo | The solver of the document ([SP_SLV_01_10](./linear-solver.sp.md#SP_SLV_01_10)): `mode`, `override?`, `effectiveMode`, `path?`, `fullSize`, `size`, `nonZeros`, `factorNonZeros`, `symbolicCount`, `fullFactorCount`, `refactorCount`; always present |
 | log | {entries: {seq: int, text: string}[], cursor: int, gap: bool}? | Present when requested ([§02_11](#SP_AGA_02_11)) |
 
 ### 01_12. Open marks  {#SP_AGA_01_12}
@@ -352,7 +353,7 @@ Contract classes:
 | importCircuit, applyEdits, openFile into a handle | yes | yes | no (`busy`) |
 | openFile into `new` | no (creates a document) | no (user-load semantics) | yes (another document) |
 | simControl `configure` | yes | yes (time-step settings are part of the circuit text) | no |
-| simControl `run`/`stop`/`reset`, run | no | no | no |
+| simControl `run`/`stop`/`reset`/`solver`, run | no | no | no |
 | checkpoint, undo, redo, restoreCheckpoint | no (they seal or restore) | no | no |
 | saveFile | no | no (seals) | yes |
 | closeDocument | no | no | only with `discardChanges` (cancels the run) |
@@ -576,16 +577,17 @@ Errors: `render_failed` (the vector exporter could not load; `hint`: retry with 
 
 Purpose: free-running control and time-step settings.
 
-Input: `doc?`, `action: "run" | "stop" | "reset" | "configure"`, `settings: {maxTimeStep: number|string?, minTimeStep: number|string?, autoTimeStep: bool?}?` (for `configure`).
+Input: `doc?`, `action: "run" | "stop" | "reset" | "configure" | "solver"`, `settings: {maxTimeStep: number|string?, minTimeStep: number|string?, autoTimeStep: bool?}?` (for `configure`), `mode: "auto" | "dense" | "sparse" | "session"` (for `solver`).
 
-Output: `data: {running: bool, simTime: number, timeStep: {current, max, min, auto}}`.
+Output: `data: {running: bool, simTime: number, timeStep: {current, max, min, auto}}`; `solver` adds `solver: SolverInfo` ([§01_11](#SP_AGA_01_11)), the state after the change.
 
 Action rules:
 - **`run`.** Free-running advances only the active document, which is the existing tab rule. `run` on a background document sets its running flag, which takes effect when it becomes active.
 - **`reset`.** Sets simulated time to 0, clears element state and the scope views' histories, and clears the stop state.
 - **`configure`.** Changes the persistent settings, the values analysis keeps. It never writes the transient current step; the analysis that follows restarts the current step at the new maximum, as after a user change.
+- **`solver`.** Sets the document's solver-mode override ([SP_SLV_02_11](./linear-solver.sp.md#SP_SLV_02_11)); `session` clears it. Not mutating (no transaction, history or modified flag) and never saved. The call does not stamp: a change of the effective mode re-stamps the system (stamp only) at its next frame, run or stamping reading.
 
-Errors: `invalid_value` (non-positive or unparseable step; `min > max`; `configure` naming no setting); `busy` (during a run).
+Errors: `invalid_value` (non-positive or unparseable step; `min > max`; `configure` naming no setting; `mode` absent or not one of the four values with `solver`; `mode` with another action; `settings` with `solver`); `busy` (during a run).
 
 ### 02_10. run  {#SP_AGA_02_10}
 
@@ -1610,3 +1612,4 @@ Also resolved (delegated, proposals accepted): live-reading texts are marked liv
 | 2026-10-05 | PL_AGA backlog "importCircuit scales" (fix task): §06_01 items 31 (relay/CCCS/CCVS element list, audit BL-D02), 32 (node analysis without the stamp for mutations and connectivity; stamped drawing values set by the node analysis; `simControl run` and `render` stamp what it left) and 33 (session Undo/Redo labels from the visible document; refreshed when a user import seals) |
 | 2026-10-05 | PL_AGA backlog "Bounded echo" (fix task): §01_07 `message` bounds quoted client values (64 characters + `… (N chars)`, paths 256, message ≤ 1000); §06_01 item 34 (also: model-name hints list at most 40 names) |
 | 2026-10-05 | Spike solver-defects fix task: §02_10 `issues` of a run with `reset` start after the reset (the run no longer stamps before the reset, which factored a linear circuit twice) |
+| 2026-10-05 | PL_SLV Phase 5 (SP_SLV_02_11, 02_12): §02_09 action `solver` with `mode`, its output block and errors; §01_11 Diagnostics field `solver`; contract-class table row gains `solver` |

@@ -1,4 +1,4 @@
-# CircuitJS1 agent format (toolsVersion 1.2)
+# CircuitJS1 agent format (toolsVersion 1.3)
 
 How an agent describes, edits, checks and measures circuits through the `circuit_*` tools of the CircuitJS1 MCP server. Every tool returns an OperationResult (below). The Agent API underneath is the same in every document; the tools add no circuit logic.
 
@@ -172,9 +172,11 @@ Instant values at the current simulated time, without stepping: `targets` of 1..
 
 `run` / `stop` set free-running (only the visible tab advances); `reset` sets time 0 and initial state; `configure` sets `{maxTimeStep, minTimeStep, autoTimeStep}`. Free-running is for the user to watch; measure with `circuit_run`.
 
+`solver` with `mode` chooses this document's solve path: `auto` (dense up to 64 reduced unknowns, sparse above), `dense`, `sparse`, or `session` (clear it: the user's setting applies). It is not saved and does not stamp; the next run uses it. Results add `solver` (as in `circuit_diagnostics`). Compare paths on large circuits; leave it at `session` otherwise.
+
 ### `circuit_diagnostics`
 
-`{stopped, stop?, warning?, events, recovering, lastImport, simTime, running, timeStep}`; `log: {since, limit}` adds `{entries: [{seq, text}], cursor, gap}` of the session log.
+`{stopped, stop?, warning?, events, recovering, lastImport, simTime, running, timeStep, solver}`; `solver`: `{mode, override?, effectiveMode, path?, fullSize, size, nonZeros, factorNonZeros, symbolicCount, fullFactorCount, refactorCount}` (`size` = unknowns after the row reduction; counters since the last analysis); `log: {since, limit}` adds `{entries: [{seq, text}], cursor, gap}` of the session log.
 
 ## 9. Rendering (`circuit_render`)
 

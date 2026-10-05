@@ -39,6 +39,8 @@ public class EditInfo {
     public TextArea textArea;
     public Widget widget;
     public boolean newDialog;
+    /** A choice or checkbox whose change applies without a circuit analysis (e.g. the solver mode, SP_SLV_02_09). */
+    public boolean noAnalyze;
     public boolean dimensionless;
     public boolean noSliders;
     public double minVal, maxVal;

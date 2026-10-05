@@ -1377,3 +1377,6 @@
 "Listening address must be an IPv4 or IPv6 address, or localhost."="Адреса прослуховування має бути адресою IPv4 чи IPv6 або localhost."
 "Saved. The settings apply at the next start of the app."="Збережено. Налаштування діятимуть після наступного запуску програми."
 "Nothing to save: the settings are unchanged."="Нічого зберігати: налаштування не змінено."
+"Solver"="Розв'язувач"
+"Dense"="Щільний"
+"Sparse"="Розріджений"

@@ -485,7 +485,7 @@ async function scenEndpoint(R) {
     const r = recs[0] && recs[0].rec;
     R.record.ck('oneRecord0600', recs.length === 1 && recs[0].mode === '600' && r.pid === pid && r.instanceId.startsWith(pid + '-') && r.port === st.port && r.host === '127.0.0.1'
       && r.urls[0] === st.urls[0] && r.appVersion === appVersion() && typeof r.title === 'string' && /^\d{4}-\d\d-\d\dT.*Z$/.test(r.startedAt)
-      && same(r.protocolRevisions, ['2025-11-25', '2025-06-18']) && r.toolsVersion === '1.2' && recs[0].name === r.instanceId + '.json', recs);
+      && same(r.protocolRevisions, ['2025-11-25', '2025-06-18']) && r.toolsVersion === '1.3' && recs[0].name === r.instanceId + '.json', recs);
     // [SP_MCP_01_01] default listening address 127.0.0.1: loopback URL only, and the port does not
     // answer on the machine's LAN addresses (C_MCP_DEC_02 as amended 2026-10-02)
     const L = R.loopbackOnly;
@@ -507,7 +507,7 @@ async function scenEndpoint(R) {
     const init = (v) => ({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: v, capabilities: {}, clientInfo: { name: 'e2e', version: '1' } } });
     let x = await mcpPost(url, init('2025-11-25'));
     H.ck('init2025-11-25', x.status === 200 && x.json.result.protocolVersion === '2025-11-25' && x.json.result.serverInfo.name === 'circuitjs1' && x.json.result.serverInfo.version === appVersion()
-      && x.json.id === 1 && !x.headers['mcp-session-id'] && /grid cells/.test(x.json.result.instructions) && /circuitjs-circuits/.test(x.json.result.instructions) && /toolsVersion 1\.2/.test(x.json.result.instructions) && /circuit_layout/.test(x.json.result.instructions)
+      && x.json.id === 1 && !x.headers['mcp-session-id'] && /grid cells/.test(x.json.result.instructions) && /circuitjs-circuits/.test(x.json.result.instructions) && /toolsVersion 1\.3/.test(x.json.result.instructions) && /circuit_layout/.test(x.json.result.instructions)
       && x.json.result.capabilities.tools.listChanged === false && x.json.result.capabilities.resources.subscribe === false && !x.json.result.capabilities.prompts, x.json);
     x = await mcpPost(url, init('2025-06-18'));
     H.ck('init2025-06-18', x.json && x.json.result.protocolVersion === '2025-06-18', x.json);
@@ -850,6 +850,17 @@ async function scenTools(R) {
     x = await tool('circuit_run', { span: '5 ms', reset: true, probes: [{ net: 'out' }] });
     K.ck('run', x.r && !x.r.isError && x.r.structuredContent.data.reason === 'span_reached', x.r && textOf(x.r).slice(0, 300));
     await tool('circuit_diagnostics', { log: { limit: 5 } });
+    // [SP_SLV_05_03] MCP: the per-document solver override reaches simControl and shows in Diagnostics
+    x = await tool('circuit_sim', { action: 'solver', mode: 'sparse' });
+    K.ck('solverOverride', x.r && !x.r.isError && x.r.structuredContent.data.solver.override === 'sparse'
+      && x.rec.some((q) => q.op === 'simControl' && q.args.action === 'solver' && q.args.mode === 'sparse'), x.r && x.r.structuredContent);
+    x = await tool('circuit_diagnostics', {});
+    const sd = x.r && x.r.structuredContent.data.solver;
+    K.ck('solverDiagnostics', sd && sd.override === 'sparse' && sd.effectiveMode === 'sparse' && sd.path === 'sparse', sd);
+    x = await tool('circuit_sim', { action: 'run', mode: 'dense' });
+    K.ck('solverModeOnlyWithSolver', !!x.err || (x.r && x.r.isError), x.err || (x.r && x.r.structuredContent));
+    x = await tool('circuit_sim', { action: 'solver', mode: 'session' });
+    K.ck('solverCleared', x.r && !x.r.isError && !('override' in x.r.structuredContent.data.solver), x.r && x.r.structuredContent);
     x = await tool('circuit_checkpoint', { comment: 'rc built' });
     K.ck('checkpoint', x.r.structuredContent.data.checkpointId === 'cp1', x.r.structuredContent);
     await tool('circuit_history', { action: 'list' });
@@ -1704,7 +1715,7 @@ async function scenBridge(R) {
     try {
       const ins = b2.client.getInstructions() || '';
       const dins = direct.getInstructions() || '';
-      R.stdioApp.ck('instructionsForwarded', dins.length > 0 && ins.startsWith(dins + '\n\n') && /toolsVersion 1\.2/.test(ins) && /circuitjs-mcp bridge/.test(ins.slice(dins.length)), clip(ins, 300));
+      R.stdioApp.ck('instructionsForwarded', dins.length > 0 && ins.startsWith(dins + '\n\n') && /toolsVersion 1\.3/.test(ins) && /circuitjs-mcp bridge/.test(ins.slice(dins.length)), clip(ins, 300));
       R.stdioApp.ck('serverInfo', (b2.client.getServerVersion() || {}).name === 'circuitjs-mcp', b2.client.getServerVersion());
     } finally { await b2.close(); }
     R.stdioApp.done();

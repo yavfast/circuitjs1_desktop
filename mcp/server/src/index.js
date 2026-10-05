@@ -22,7 +22,8 @@ const registry = require('./registry.js');
 // [SP_MCP_06_01] Version of the tool and resource contract; the skill names the one it supports.
 // 1.1: agent model definitions (`defineModel`, `circuit_types` `models`/`model`, AgentCircuit and getCircuit `models`).
 // 1.2: the tool `circuit_layout` (SP_AGA checkLayout: text_overlap, text_not_covered).
-const TOOLS_VERSION = '1.2';
+// 1.3: `circuit_sim` action `solver` with `mode`, the `solver` block of circuit_sim and circuit_diagnostics (SP_SLV_02_13).
+const TOOLS_VERSION = '1.3';
 
 // Receive timeouts of the HTTP server (incomplete headers or body)
 const HEADERS_TIMEOUT_MS = 10000;

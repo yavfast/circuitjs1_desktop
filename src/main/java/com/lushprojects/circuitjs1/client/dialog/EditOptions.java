@@ -27,9 +27,14 @@ import com.lushprojects.circuitjs1.client.Color;
 import com.lushprojects.circuitjs1.client.ColorSettings;
 import com.lushprojects.circuitjs1.client.DisplaySettings;
 import com.lushprojects.circuitjs1.client.OptionsManager;
+import com.lushprojects.circuitjs1.client.solver.SolverMode;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
 public class EditOptions implements Editable {
+    /** Solver row entries, in {@link SolverMode} order. */
+    private static final SolverMode[] SOLVER_MODES = SolverMode.values();
+    private static final String[] SOLVER_MODE_LABELS = { "Auto", "Dense", "Sparse" };
+
     CirSim sim;
 
     public EditOptions(CirSim s) {
@@ -107,11 +112,24 @@ public class EditOptions implements Editable {
         if (n == 11)
             return new EditInfo("Mouse Wheel Sensitivity", sim.getActiveDocument().circuitEditor.wheelSensitivity);
         if (n == 12) {
+            // [SP_SLV_02_14] the solver-mode session default (a document override is not shown);
+            // before the time-step rows, whose last one is present only with auto time step
+            EditInfo ei = new EditInfo("Solver", 0, -1, -1);
+            ei.choice = new Choice();
+            for (SolverMode m : SOLVER_MODES) {
+                ei.choice.add(Locale.LS(SOLVER_MODE_LABELS[m.ordinal()]));
+            }
+            ei.choice.select(sim.getSolverModeDefault().ordinal());
+            // a mode change re-stamps the documents (stamp only), never a full analysis
+            ei.noAnalyze = true;
+            return ei;
+        }
+        if (n == 13) {
             EditInfo ei = new EditInfo("", 0, -1, -1);
             ei.checkbox = new Checkbox("Auto-Adjust Timestep", sim.getActiveDocument().simulator.adjustTimeStep);
             return ei;
         }
-        if (n == 13 && sim.getActiveDocument().simulator.adjustTimeStep)
+        if (n == 14 && sim.getActiveDocument().simulator.adjustTimeStep)
             return new EditInfo("Minimum time step size (s)", sim.getActiveDocument().simulator.minTimeStep, 0, 0);
 
         return null;
@@ -209,10 +227,17 @@ public class EditOptions implements Editable {
             OptionsManager.setOptionInStorage("wheelSensitivity", Double.toString(sim.getActiveDocument().circuitEditor.wheelSensitivity));
         }
         if (n == 12) {
+            // [SP_SLV_02_09] applies at once (documents re-stamp) and persists the preference
+            int i = ei.choice.getSelectedIndex();
+            if (i >= 0 && i < SOLVER_MODES.length) {
+                sim.setSolverModeDefault(SOLVER_MODES[i]);
+            }
+        }
+        if (n == 13) {
             sim.getActiveDocument().simulator.adjustTimeStep = ei.checkbox.getState();
             ei.newDialog = true;
         }
-        if (n == 13 && ei.value > 0)
+        if (n == 14 && ei.value > 0)
             sim.getActiveDocument().simulator.minTimeStep = ei.value;
     }
 

@@ -106,6 +106,7 @@ A step input for rise-time tests: a `VoltageSourceSquare` with `max_voltage` = `
 - **Stop trigger.** A `StopTrigger` element that fires ends the run after that step (`reason: "stop_trigger"`): useful to stop at an event, e.g. a voltage crossing a threshold.
 - **Exclusive runs.** One run at a time per document (`busy` otherwise). A user edit of that document cancels the run (`cancelled`, partial data).
 - **Free-running.** `circuit_sim run` is for the user to watch; only the visible tab advances. Measure with `circuit_run`.
+- **Large circuits.** Above 64 unknowns (after the row reduction) the solver switches to its sparse path by itself; `circuit_diagnostics` shows `solver.size` and `solver.path`. To compare paths on one document, `circuit_sim {"action": "solver", "mode": "dense"}` (or `"sparse"`), run with `reset: true`, then `{"mode": "session"}` to give the choice back to the user's setting. The override is never saved. A forced dense path on thousands of unknowns is slow and memory-hungry (m² values).
 
 ## Limits of the simulator
 

@@ -139,6 +139,7 @@ const MAPPING = [
   ['circuit_layout', {}, 'checkLayout', {}],
   ['circuit_sim', { action: 'reset' }, 'simControl', { action: 'reset' }],
   ['circuit_sim', { action: 'configure', settings: { maxTimeStep: '1 us' } }, 'simControl', { action: 'configure', settings: { maxTimeStep: '1 us' } }],
+  ['circuit_sim', { action: 'solver', mode: 'sparse', doc: 'd2' }, 'simControl', { doc: 'd2', action: 'solver', mode: 'sparse' }],
   ['circuit_run', { span: '5 ms', reset: true, probes: [{ net: 'a' }], maxPoints: 50, budgetMs: 200, recordFrom: 0.001 }, 'run',
     { span: '5 ms', reset: true, probes: [{ net: 'a' }], maxPoints: 50, budgetMs: 200, recordFrom: 0.001 }],
   ['circuit_run', { mode: 'settle', settle: { tolerance: 0.001 } }, 'run', { mode: 'settle', settle: { tolerance: 0.001 } }],
@@ -187,6 +188,11 @@ test('schema violations are -32602 naming the field', async () => {
   await rejects(tools.call('circuit_history', { action: 'restore' }), -32602, /checkpointId is required/);
   await rejects(tools.call('circuit_file', { action: 'open' }), -32602, /path is required/);
   await rejects(tools.call('circuit_sim', { action: 'configure' }), -32602, /settings is required/);
+  // [SP_SLV_02_13] mode belongs to action solver and is required there
+  await rejects(tools.call('circuit_sim', { action: 'solver' }), -32602, /mode is required/);
+  await rejects(tools.call('circuit_sim', { action: 'run', mode: 'dense' }), -32602, /mode does not apply to action "run" \(used by: solver\)/);
+  await rejects(tools.call('circuit_sim', { action: 'solver', mode: 'fast' }), -32602, /mode must be one of auto, dense, sparse, session/);
+  await rejects(tools.call('circuit_sim', { action: 'solver', mode: 'dense', settings: { maxTimeStep: 1e-6 } }), -32602, /settings does not apply to action "solver"/);
   await rejects(tools.call('circuit_types', { type: 'R', filter: 'x' }), -32602, /filter does not apply/);
   // [SP_MCP_02_02] inapplicable circuit_types combinations name the argument
   await rejects(tools.call('circuit_types', { type: 'Resistor', models: 'diode' }), -32602, /circuit_types: type does not apply when `models` is given/);
@@ -474,7 +480,7 @@ test('document circuit resource: full detail, all pages, importable shape', asyn
 
 test('agent-format text names the current SP_AGA rules', () => {
   for (const s of ['grid cells', '0.5', '1/16', 'stop_trigger', 'First sample', 'Determinism', '40 megapixels', '16384',
-    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.2', 'text_overlap', 'text_not_covered', 'includeBoxes',
+    'file_not_allowed', '10 MB', 'result_too_large', 'markOpen', 'value_adjusted', 'post_on_wire_body', 'ground_path_no_resistance', 'current_source_no_path', 'symbol_overlap', 'toolsVersion 1.3', 'text_overlap', 'text_not_covered', 'includeBoxes',
     'defineModel', 'name_taken', 'unknown_model', 'modelText', 'Create-only', 'forward_voltage', '"inf"', '"models": "diode"']) {
     assert.ok(AGENT_FORMAT.includes(s), s);
   }
@@ -520,7 +526,7 @@ test('the bundle contains the tool table and the agent-format text', { skip: !fs
   const text = fs.readFileSync(path.join(ROOT, 'war/scripts/mcp-server.js'), 'utf8');
   assert.ok(text.includes('circuit_connectivity'));
   assert.ok(text.includes('circuit_layout'));
-  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.2)'));
+  assert.ok(text.includes('CircuitJS1 agent format (toolsVersion 1.3)'));
   assert.ok(!/require\(\s*["'](node:)?crypto["']\s*\)/.test(text));
 });
 

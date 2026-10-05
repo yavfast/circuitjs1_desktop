@@ -237,8 +237,9 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | Case | Expected behavior |
 |------|-------------------|
 | App older than the compatibility line | The skill tells the agent to compare the server's `toolsVersion` (in the server instructions and instance record) with its compatibility line, and to report a mismatch instead of guessing tool names |
-| App at toolsVersion 1.1 (the skill's line is 1.2; no `circuit_layout`) | Partial compatibility: the skill tells the agent to do the render look only (`circuit_render`), without the text layout check |
-| App at toolsVersion 1.0 (the skill's line is 1.2) | Partial compatibility: as for 1.1, and the skill tells the agent to work without model definitions (`defineModel`, `circuit_types` `models`), which a 1.0 app may lack, and to ask the user to update the app when the task needs a model |
+| App at toolsVersion 1.2 (the skill's line is 1.3; no `circuit_sim` `solver`) | Partial compatibility: the skill tells the agent not to compare solve paths (no `solver` action or block) |
+| App at toolsVersion 1.1 (the skill's line is 1.3; no `circuit_layout`) | Partial compatibility: as for 1.2, and the skill tells the agent to do the render look only (`circuit_render`), without the text layout check |
+| App at toolsVersion 1.0 (the skill's line is 1.3) | Partial compatibility: as for 1.1, and the skill tells the agent to work without model definitions (`defineModel`, `circuit_types` `models`), which a 1.0 app may lack, and to ask the user to update the app when the task needs a model |
 | Host without the bridge and without HTTP support | The skill tells the user how to connect (hosts/ files) and stops |
 
 ### 05_05. Integration Scenarios  {#SP_AGS_05_05}
@@ -272,3 +273,4 @@ The skill carries a version `MAJOR.MINOR` in `evals/evals.json` and a compatibil
 | 2026-10-04 | Skill content for agent model definitions (diode/transistor: SKILL.md rule "Defaults are generic", elements.md Models section, patterns.md pattern 10) pulled forward into PL_AGA Phase 11; the SP_AGS spec rows follow in PL_AGA Phase 15 |
 | 2026-10-04 | PL_AGA Phase 15: model content of the skill specified — §02_01 golden rules (10, with the readable-schematic and model rules), checklist (11 steps, render look), tool-map rows; §02_03 Models; §02_04 Model definitions; §02_05 11 patterns (custom logic, subcircuit) self-contained with `models`; §03_02 model accuracy; §05_01 `green-led-model`; §05_03 Model specs check; skill version 1.1, compatibility line toolsVersion 1.1 with a §05_04 row for a 1.0 app (no model definitions used) |
 | 2026-10-04 | PL_AGA Phase 16a: text layout check in the skill — §02_01 golden rule names `text_overlap`, checklist step 10 calls `circuit_layout` before reporting together with the render look, tool map of 15 tools; §02_02 where texts sit; §02_04 rows for the §03_13 codes (`text_not_covered`: look at the render); §05_04 row for a toolsVersion 1.1 app (render look only); skill version 1.2, compatibility line toolsVersion 1.2 |
+| 2026-10-05 | PL_SLV Phase 5: toolsVersion 1.3 (`circuit_sim` action `solver`, the `solver` block); skill version 1.3, compatibility line toolsVersion 1.3 with a §05_04 row for a 1.2 app; the simulation reference notes large circuits and the solve paths |

@@ -9,9 +9,10 @@ description: Builds, edits, simulates, measures and debugs circuits in the Circu
 
 This skill is for building, checking, simulating and repairing analog and digital circuits in a running CircuitJS1 Desktop app, through the `circuit_*` tools of its MCP server. You place parts on a grid, clear the connectivity report, run the transient simulator with probes, and report measured values. It does not cover PCB layout or frequency-domain (AC, Bode, noise) analysis: the simulator has transient analysis only, so you measure a frequency response by running the circuit at each frequency.
 
-**Compatibility.** This skill works with **toolsVersion 1.2**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.2 before the first call:
-- same MAJOR (1) and MINOR ≥ 2: go ahead (a newer MINOR only adds tools, issue codes or properties);
-- 1.1: there is no `circuit_layout`; at step 10 do the render look only;
+**Compatibility.** This skill works with **toolsVersion 1.3**. The server instructions contain `toolsVersion X.Y`; through the bridge, `bridge_instances` (or `circuitjs-mcp instances`) shows it per instance. Compare it with 1.3 before the first call:
+- same MAJOR (1) and MINOR ≥ 3: go ahead (a newer MINOR only adds tools, issue codes or properties);
+- 1.2: there is no `circuit_sim` action `solver` and no `solver` block; do not compare solve paths;
+- 1.1: as for 1.2, and there is no `circuit_layout`; at step 10 do the render look only;
 - 1.0: as for 1.1, and do not use model definitions (`defineModel`, `circuit_types` `models`: the app may lack them); ask the user to update the app for a task that needs a model;
 - a different MAJOR: tell the user that the app and this skill do not match, name both versions, and do not guess tool names or arguments.
 
@@ -88,7 +89,7 @@ Hosts qualify tool names with the server name they were configured with; this sk
 | `circuitjs:circuit_read` | Instant readings of nets, posts or element quantities at the current time, without stepping |
 | `circuitjs:circuit_render` | PNG (default) or SVG image of the whole circuit, offscreen |
 | `circuitjs:circuit_layout` | Text layout check before reporting a drawing: texts crossed, over a symbol or touching (`text_overlap`); `includeBoxes` lists the text boxes |
-| `circuitjs:circuit_sim` | Free-running `run`/`stop` for the user to watch, `reset`, `configure` the time step |
+| `circuitjs:circuit_sim` | Free-running `run`/`stop` for the user to watch, `reset`, `configure` the time step, `solver` (this document's solve path: auto / dense / sparse / session; not saved) |
 | `circuitjs:circuit_run` | Advance simulated time with probes; returns stats and decimated series |
 | `circuitjs:circuit_diagnostics` | Solver state and events since the last analysis; the session log with `log` |
 | `circuitjs:circuit_checkpoint` | Seal your edits since the last checkpoint as one named undo entry |

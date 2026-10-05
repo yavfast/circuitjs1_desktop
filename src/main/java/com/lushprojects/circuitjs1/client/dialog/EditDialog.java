@@ -330,7 +330,8 @@ public class EditDialog extends Dialog {
                 elm.setEditValue(i, ei);
                 if (ei.newDialog)
                     changed = true;
-                cframe.needAnalyze();
+                if (!ei.noAnalyze)
+                    cframe.needAnalyze();
             }
         }
         if (changed) {

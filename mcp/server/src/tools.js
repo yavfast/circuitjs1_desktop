@@ -389,11 +389,13 @@ const TOOLS = [
       'visible tab advances; a background document\'s flag takes effect when it is shown); reset: ' +
       'simulated time 0, initial element state, scope histories and the stop state cleared; configure: ' +
       'settings {maxTimeStep, minTimeStep, autoTimeStep}, steps in seconds or unit strings ("1 us"). ' +
-      'Returns {running, simTime, timeStep}. For measurements use circuit_run, which steps the circuit ' +
-      'itself. Acts on the active document unless `doc` is given. Example: {"action": "configure", ' +
-      '"settings": {"maxTimeStep": "1 us"}}.',
+      'solver: choose the solve path of this document (auto by size, dense, sparse; session = the user\'s ' +
+      'setting); not saved. Returns {running, simTime, timeStep} (solver adds the solver block). For ' +
+      'measurements use circuit_run, which steps the circuit itself. Acts on the active document unless ' +
+      '`doc` is given. Example: {"action": "configure", "settings": {"maxTimeStep": "1 us"}}.',
     inputSchema: inputSchema({
-      action: { type: 'string', enum: ['run', 'stop', 'reset', 'configure'] },
+      action: { type: 'string', enum: ['run', 'stop', 'reset', 'configure', 'solver'] },
+      mode: { type: 'string', enum: ['auto', 'dense', 'sparse', 'session'], description: 'solver: the mode; session clears the override.' },
       settings: {
         type: 'object',
         description: 'configure: at least one setting.',
@@ -405,7 +407,7 @@ const TOOLS = [
         additionalProperties: false,
       },
     }, ['action']),
-    outputSchema: S.operationResult({ running: S.BOOL, simTime: S.NUMBER, timeStep: S.TIME_STEP }, '{running, simTime, timeStep}'),
+    outputSchema: S.operationResult({ running: S.BOOL, simTime: S.NUMBER, timeStep: S.TIME_STEP, solver: S.SOLVER }, '{running, simTime, timeStep, solver?}'),
     annotations: hints(false, true, false, 'Simulation control'),
     map(args, name) {
       const r = route(name, args, {
@@ -413,6 +415,7 @@ const TOOLS = [
         stop: { op: 'simControl', keys: [] },
         reset: { op: 'simControl', keys: [] },
         configure: { op: 'simControl', keys: ['settings'], required: ['settings'] },
+        solver: { op: 'simControl', keys: ['mode'], required: ['mode'] },
       });
       r.args.action = args.action; // simControl takes the action itself
       return r;
@@ -467,7 +470,7 @@ const TOOLS = [
     description:
       'Solver state and the session log: stopped, stop (the stop issue with its culprit element), ' +
       'warning, events (solver warnings and stops since the last analysis), recovering, lastImport ' +
-      'issues, simTime, running and timeStep. log: {since, limit} adds the log entries with seq > since ' +
+      'issues, simTime, running, timeStep and solver (mode, path, sizes). log: {since, limit} adds the log entries with seq > since ' +
       '(limit default 50, max 500); pass the returned cursor as since next time. Use it when a run ends ' +
       'with solver_stop or values look wrong. Acts on the active document unless `doc` is given. ' +
       'Example: {"log": {"since": 0, "limit": 20}}.',
@@ -481,7 +484,7 @@ const TOOLS = [
     outputSchema: S.operationResult({
       stopped: S.BOOL, stop: S.ISSUE, warning: S.ISSUE, events: { type: 'array', items: S.ISSUE },
       recovering: S.BOOL, lastImport: { type: 'array', items: S.ISSUE }, simTime: S.NUMBER,
-      running: S.BOOL, timeStep: S.TIME_STEP,
+      running: S.BOOL, timeStep: S.TIME_STEP, solver: S.SOLVER,
       log: { type: 'object', properties: { entries: S.ARRAY_OF_OBJECTS, cursor: S.INT, gap: S.BOOL } },
     }, 'Diagnostics'),
     annotations: hints(true, false, true, 'Solver diagnostics and log'),

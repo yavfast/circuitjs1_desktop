@@ -57,7 +57,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 - [x] [Phase 2 — Sparse kernel](#PL_SLV_P2)
 - [x] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
 - [x] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
-- [ ] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
+- [x] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
 - [ ] [Phase 6 — Performance, full verification, propagation](#PL_SLV_P6)
 
 ## Phases
@@ -171,7 +171,7 @@ What to create / change:
 
 Done 2026-10-05: `solver_paths` 42/42, `LinearSystemTest`, corpus in AUTO 326 identical + `grid2.txt` (m = 87, sparse) within 4e-15, regression set green. The session-default rows need the P5 dialog: GWT prunes `setSolverModeDefault` while it has no Java caller (`SOLVER_PATHS_NO_SESSION=1` skips them on such a build); they passed on the P4 + P5 tree. Spec corrections from the evidence: SP_SLV_05_01 agreement tolerance scales with conditioning, §01_11 versions from a never-repeating counter. Unobserved: forced dense on m = 10 000 (≈ 1.6 GB; m ≈ 1023 forced dense runs), a matrix stamp after reduction in a linear analysis (outside the element contract; no element does it); RULE_TEST_002 devmode check owed to P6.
 
-### Phase 5 — Other Options row, MCP, documentation (`dialog/EditOptions.java`, `mcp/server/src/tools.js`, docs) [TODO]  {#PL_SLV_P5}
+### Phase 5 — Other Options row, MCP, documentation (`dialog/EditOptions.java`, `mcp/server/src/tools.js`, docs) [DONE]  {#PL_SLV_P5}
 
 **Depends on:** Phase 4
 **Implements:** [SP_SLV_02_13](./linear-solver.sp.md#SP_SLV_02_13), [SP_SLV_02_14](./linear-solver.sp.md#SP_SLV_02_14); the SP_AGA edits listed in [SP_SLV_02_11](./linear-solver.sp.md#SP_SLV_02_11)
@@ -187,6 +187,8 @@ What to change:
 | locale keys | public/locale_uk.txt (others fall back to English) | RULE_STYLE_003 |
 | `circuit_sim` | mcp/server/src/tools.js | enum `solver`, argument `mode`, description sentence, output schema `solver`; `circuit_diagnostics` output schema |
 | docs | docs/agent-api.sp.md (§02_09, §01_11, contract-class table), docs/mcp-server.sp.md, docs/JS_API.md (agent table), agent skill reference for `circuit_sim` | Propagate the published contracts |
+
+Done 2026-10-05: live `solver_options` 11/11 (dialog, preference, rollback to Dense, restart, override not shown, frame re-stamp without analysis), `solver_paths` 42/42 incl. the session rows, `mcp_browser`, `mcp_dialog`; `npm run test:mcp-unit` 27/27 with the `circuit_sim solver` mapping and rejections. `toolsVersion` 1.3 (an addition): server, agent-format, skill compatibility line (1.2 apps: no `solver`), SP_AGS §05_04, evals version. The dialog requested a full analysis on every choice change; the Solver row is marked `EditInfo.noAnalyze` (stamp-only, SP_SLV §02_14). Unobserved: `npm run test:mcp` (NW.js e2e, RULE_TEST_007) — port 7311 is held by the developer's running CircuitSimulator; the e2e checks `solverOverride`, `solverDiagnostics`, `solverModeOnlyWithSolver`, `solverCleared` are written and await that run.
 
 ### Phase 6 — Performance, full verification, propagation [TODO]  {#PL_SLV_P6}
 

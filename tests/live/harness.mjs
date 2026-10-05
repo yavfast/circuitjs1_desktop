@@ -7266,6 +7266,119 @@ async function scenarioSolverPaths(s) {
   finish();
 }
 
+// ---------------------------------------------------------------- solver_options (PL_SLV P5, SP_SLV_02_14)
+// Not in the default run (it reloads the page). The Solver row of Other Options, driven through
+// the DOM: it shows the session default; choosing Sparse applies at once (the visible document
+// re-stamps on the sparse path) and stores the preference solverMode; the dialog reopens on it;
+// Dense rolls the visible circuit back to the dense path (SP_SLV_05_03); after a page reload
+// (restart) the stored preference is the session default. Leaves the preference at auto.
+async function scenarioSolverOptions(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const exMark = s.exceptions.length;
+  const labels = { auto: menuTexts('Auto'), dense: menuTexts('Dense'), sparse: menuTexts('Sparse') };
+  const reload = async () => {
+    await s.cdp.send('Page.reload', { ignoreCache: true });
+    await sleep(500);
+    await waitFor(() => s.eval(`typeof CircuitJS1 !== 'undefined' && typeof CircuitJS1.getElementCount === 'function'`), LOAD_TIMEOUT_MS, 'reload');
+    await s.eval(`(${pageHelpers.toString()})()`);
+    await waitFor(() => s.call('ready'), 20000, 'app ready after reload');
+    await sleep(1500);
+  };
+  let clean = false;
+  try {
+    await resetApp(s);
+    await s.call('closeDialogs');
+    await s.eval(`(${mcpDialogHelpers.toString()})()`);
+    // stamp and analysis counters of the solver_paths wrappers
+    const installed = await s.eval(`(${solverPathsInstall.toString()})()`);
+    ck('probeInstalled', installed === 'ok');
+    const vis = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+    await A('importCircuit', { doc: vis, circuit: await s.eval(`__H.fetchText('/circuitjs1/circuits/lrc.txt')`) });
+    const slv = async () => (await A('getDiagnostics', { doc: vis })).data.solver;
+    const open = async () => {
+      await s.eval(`__mcpDlg.menuItem(${JSON.stringify(menuTexts('Options'))}, ${JSON.stringify(menuTexts('Other Options...'))}, true)`);
+      await sleep(300);
+    };
+    // the Solver select of the open Other Options dialog: its three options are Auto, Dense, Sparse
+    const row = (choose) => s.eval(`(() => {
+      const L = ${JSON.stringify(labels)};
+      const norm = (t) => (t || '').replace(/\\s+/g, ' ').trim();
+      const sel = Array.from(document.querySelectorAll('.gwt-DialogBox select')).find((x) => x.offsetWidth > 0 && x.options.length === 3
+        && L.auto.includes(norm(x.options[0].text)) && L.dense.includes(norm(x.options[1].text)) && L.sparse.includes(norm(x.options[2].text)));
+      if (!sel) return null;
+      // a VerticalPanel puts each widget in its own table row: the label is in an earlier row
+      const tr = sel.closest('tr');
+      let lab = tr ? tr.previousElementSibling : sel.previousElementSibling;
+      while (lab && !norm(lab.textContent)) lab = lab.previousElementSibling;
+      if (${choose === undefined ? 'false' : 'true'}) { sel.selectedIndex = ${choose === undefined ? 0 : choose}; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      return { selected: sel.selectedIndex, texts: Array.from(sel.options).map((o) => norm(o.text)), label: lab ? norm(lab.textContent) : '' };
+    })()`);
+    const MODES = ['auto', 'dense', 'sparse'];
+    const s0 = await slv();
+    await open();
+    const r0 = await row();
+    out.notes.open = { r0, s0: [s0.mode, s0.path] };
+    ck('rowShowsDefault', r0 && r0.selected === MODES.indexOf(s0.mode) && s0.path === 'dense');
+    ck('rowLabel', r0 && menuTexts('Solver').includes(r0.label));
+    // choosing Sparse applies at once: the free-running visible document re-stamps at its next
+    // frame, stamp only (no analysis), and the preference is stored
+    await A('simControl', { doc: vis, action: 'run' });
+    await sleep(400);
+    await probe0();
+    await row(2);
+    await sleep(600);
+    const c1 = await s.eval('({ stamp: window.__slv.stamp, analyze: window.__slv.analyze })');
+    await A('simControl', { doc: vis, action: 'stop' });
+    const pref1 = await s.eval(`localStorage.getItem('solverMode')`);
+    const s1 = await slv();
+    out.notes.sparse = { pref1, c1, s1: [s1.mode, s1.path] };
+    ck('chooseSparse', pref1 === 'sparse' && s1.mode === 'sparse' && !('override' in s1) && s1.path === 'sparse');
+    ck('restampAtFrameOnly', c1.stamp >= 1 && c1.analyze === 0);
+    await s.call('closeDialogs');
+    await sleep(200);
+    // a document override is not shown: the row shows the session default
+    await A('simControl', { doc: vis, action: 'solver', mode: 'dense' });
+    await open();
+    const r1 = await row();
+    ck('reopensOnSessionDefault', r1 && r1.selected === 2);
+    await A('simControl', { doc: vis, action: 'solver', mode: 'session' });
+    // rollback: Dense
+    await row(1);
+    const s2 = await slv();
+    ck('rollbackDense', s2.mode === 'dense' && s2.path === 'dense' && (await s.eval(`localStorage.getItem('solverMode')`)) === 'dense');
+    await row(2);
+    await s.call('closeDialogs');
+    // restart: reload the page with the stored preference; the circuit stamps on the sparse path
+    await reload();
+    const d = (await A('listDocuments', {})).data.documents.find((x) => x.active).doc;
+    await A('importCircuit', { doc: d, circuit: await s.eval(`__H.fetchText('/circuitjs1/circuits/lrc.txt')`) });
+    const s3 = (await A('getDiagnostics', { doc: d })).data.solver;
+    out.notes.restart = s3;
+    ck('restartKeepsPreference', s3.mode === 'sparse' && s3.path === 'sparse');
+    await s.eval(`localStorage.removeItem('solverMode')`);
+    await reload();
+    clean = true;
+    const d2 = (await A('listDocuments', {})).data.documents.find((x) => x.active).doc;
+    ck('preferenceCleared', (await A('getDiagnostics', { doc: d2 })).data.solver.mode === 'auto');
+  } finally {
+    if (!clean) {
+      // never leave a stored mode for later scenarios
+      try { await s.eval(`localStorage.removeItem('solverMode')`); await reload(); } catch (e) { out.notes.cleanupError = String(e && e.message); }
+    }
+  }
+  // the locale table has the row's keys (other languages fall back to English)
+  const uk = localeTexts('uk', ['Solver', 'Auto', 'Dense', 'Sparse']);
+  ck('localeUk', Object.values(uk).every((v) => typeof v === 'string' && v.length > 0));
+  ck('noExceptions', s.exceptions.length === exMark);
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'solver_options.json'), JSON.stringify(out, null, 2));
+  report('SLV.solver_options', failed.length === 0, { checks: Object.keys(out.checks).length, failed, details: path.join(OUT_DIR, 'solver_options.json') });
+
+  async function probe0() { await s.eval('window.__slv.stamp = 0; window.__slv.analyze = 0; true'); }
+}
+
 // 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
 const TIMER_SQUARE_HZ = 239.521;
 const TIMER_SQUARE_DUTY = 0.507567;
@@ -7725,7 +7838,7 @@ async function scenarioMcpBrowser(s) {
   ck('server_disabled', page.server && page.server.state === 'disabled' && page.server.reason === 'no desktop runtime'
     && !page.server.port && !(page.server.urls && page.server.urls.length));
   ck('app_status_disabled', page.app.state === 'disabled' && page.app.reason === 'no desktop runtime' && page.app.port === 0 && page.app.urls.length === 0);
-  ck('toolsVersion', page.server && page.server.toolsVersion === '1.2');
+  ck('toolsVersion', page.server && page.server.toolsVersion === '1.3');
   const bad = (t) => /mcp-server|CircuitJS1Mcp/.test(t);
   const errs = s.console.filter((c) => (c.type === 'error' || c.type === 'log:error') && bad(c.text)).map((c) => c.text.slice(0, 300));
   const exc = s.exceptions.filter(bad).map((e) => e.slice(0, 300));
@@ -9326,7 +9439,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, solver_corpus: scenarioSolverCorpus, solver_paths: scenarioSolverPaths, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, solver_corpus: scenarioSolverCorpus, solver_paths: scenarioSolverPaths, solver_options: scenarioSolverOptions, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

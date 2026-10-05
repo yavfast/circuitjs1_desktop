@@ -275,6 +275,26 @@ const ELEMENT_RECORD = {
 
 const TIME_STEP = { type: 'object', properties: { current: { type: 'number' }, max: { type: 'number' }, min: { type: 'number' }, auto: { type: 'boolean' } } };
 
+// [SP_SLV_01_10] the solver block of simControl solver and Diagnostics
+const SOLVER_MODE = { type: 'string', enum: ['auto', 'dense', 'sparse'] };
+const SOLVER = {
+  type: 'object',
+  description: 'Solver: mode (session default), override (this document, absent when none), effectiveMode, path of the current stamp (absent before one), fullSize, size (reduced unknowns), nonZeros, factorNonZeros and counters since the last analysis.',
+  properties: {
+    mode: SOLVER_MODE,
+    override: SOLVER_MODE,
+    effectiveMode: SOLVER_MODE,
+    path: { type: 'string', enum: ['dense', 'sparse'] },
+    fullSize: { type: 'integer' },
+    size: { type: 'integer' },
+    nonZeros: { type: 'integer' },
+    factorNonZeros: { type: 'integer' },
+    symbolicCount: { type: 'integer' },
+    fullFactorCount: { type: 'integer' },
+    refactorCount: { type: 'integer' },
+  },
+};
+
 const OBJECT = { type: 'object' };
 const ARRAY_OF_OBJECTS = { type: 'array', items: OBJECT };
 const STRING = { type: 'string' };
@@ -317,6 +337,7 @@ module.exports = {
   ISSUE,
   ELEMENT_RECORD,
   TIME_STEP,
+  SOLVER,
   OBJECT,
   ARRAY_OF_OBJECTS,
   STRING,

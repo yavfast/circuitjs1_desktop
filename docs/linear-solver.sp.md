@@ -351,7 +351,8 @@ Amends [SP_MCP](./mcp-server.sp.md) and the `circuit_sim` tool:
 - `action` enum gains `solver`;
 - a new optional argument `mode` takes the enum `auto` / `dense` / `sparse` / `session`;
 - the tool description gains one sentence: "solver: choose the solve path of this document (auto by size, dense, sparse; session = the user's setting); not saved";
-- the output schemas of `circuit_sim` and `circuit_diagnostics` gain an optional `solver` object.
+- the output schemas of `circuit_sim` and `circuit_diagnostics` gain an optional `solver` object;
+- `toolsVersion` becomes 1.3 (an addition, [SP_MCP §06_01](./mcp-server.sp.md)); the agent skill's compatibility line and the agent-format header follow.
 
 The result passes through unchanged. Tool annotations stay as they are (they are per tool; `reset` already makes `circuit_sim` destructive).
 
@@ -360,7 +361,7 @@ The result passes through unchanged. Tool annotations stay as they are (they are
 Amends [C_DSP](./dialog-specialized.concept.md) / the Other Options dialog (EditInfo rows):
 - **The new row.** A row "Solver" with a choice of three entries: "Auto", "Dense", "Sparse". All labels go through the locale table (RULE_STYLE_003). The dialog's row list ends at its first absent row and the minimum-time-step row is present only with auto time step, so the new row goes before the time-step rows (the later rows and their value handlers shift by one).
 - **On open.** The choice shows the session default.
-- **On change.** A change applies [§02_09](#SP_SLV_02_09) "set session default" at once and persists the preference.
+- **On change.** A change applies [§02_09](#SP_SLV_02_09) "set session default" at once and persists the preference. The row is marked so the dialog does not request a circuit analysis for it (`EditInfo.noAnalyze`): documents re-stamp only. Closing the dialog with OK keeps the dialog's existing behaviour for every row (it applies all rows and requests an analysis of the active document).
 - **Overrides are not shown.** A document override is never displayed here; the dialog edits the session default only.
 
 ## 03. Validation Rules  {#SP_SLV_03}
@@ -525,6 +526,7 @@ Runtime rollback without code change: Other Options → Solver → Dense restore
 | Date | Change |
 |------|--------|
 | 2026-10-05 | Initial version; SP_SLV_DEC_01 resolved in interview. |
+| 2026-10-05 | Implementation (PL_SLV P5): §02_13 `toolsVersion` 1.3; §02_14 the Solver row changes without a dialog-requested analysis (`EditInfo.noAnalyze`), OK keeps the dialog's re-analysis. |
 | 2026-10-05 | Implementation (PL_SLV P4 review): §01_11 versions come from a never-repeating counter; matching maps keep the extra positions when the symbolic pattern changed. |
 | 2026-10-05 | Implementation (PL_SLV P4): the agreement tolerance scales with the conditioning — `relayand.txt` and `relaymux.txt` (ρ ≈ 4–7.5e-8, backward errors 5e-17) differ by 1.4e-9, within what their conditioning permits. |
 | 2026-10-05 | Review round 2: carried symbolic analysis reused through `patternVersion` continuity (§01_11); `reach` moved to the factorization; backward-error agreement criterion; wording. |
