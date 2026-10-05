@@ -10,6 +10,7 @@ import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.DocumentScope;
 import com.lushprojects.circuitjs1.client.LogManager;
+import com.lushprojects.circuitjs1.client.solver.SolverInfo;
 
 import java.util.List;
 
@@ -83,11 +84,37 @@ final class DiagnosticsOps {
             data.put("simTime", new JSONNumber(sim.t));
             data.put("running", JSONBoolean.getInstance(doc.isRunning()));
             data.put("timeStep", SimControlOps.timeStep(sim));
+            data.put("solver", solver(doc));
             if (wantLog) {
                 data.put("log", log(call.sim.logManager, fSince, fLimit));
             }
             return OperationResult.success(data);
         });
+    }
+
+    /**
+     * [SP_SLV_01_10] The document's {@code solver} block: modes in lower case, {@code override}
+     * and {@code path} absent when none.
+     */
+    static JSONObject solver(CircuitDocument doc) {
+        SolverInfo info = doc.solverInfo();
+        JSONObject o = new JSONObject();
+        o.put("mode", new JSONString(info.mode.wire));
+        if (info.override != null) {
+            o.put("override", new JSONString(info.override.wire));
+        }
+        o.put("effectiveMode", new JSONString(info.effectiveMode.wire));
+        if (info.path != null) {
+            o.put("path", new JSONString(info.path.wire));
+        }
+        o.put("fullSize", new JSONNumber(info.fullSize));
+        o.put("size", new JSONNumber(info.size));
+        o.put("nonZeros", new JSONNumber(info.nonZeros));
+        o.put("factorNonZeros", new JSONNumber(info.factorNonZeros));
+        o.put("symbolicCount", new JSONNumber(info.symbolicCount));
+        o.put("fullFactorCount", new JSONNumber(info.fullFactorCount));
+        o.put("refactorCount", new JSONNumber(info.refactorCount));
+        return o;
     }
 
     private static JSONObject log(LogManager lm, int since, int limit) {

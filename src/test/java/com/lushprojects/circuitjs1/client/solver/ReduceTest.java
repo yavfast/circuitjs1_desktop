@@ -218,7 +218,7 @@ class ReduceTest {
         if (!ok) {
             return -1;
         }
-        ls.selectPath();
+        ls.selectPath(SolverMode.DENSE);
         RowInfo[] info = ls.rowInfo();
         assertEquals(o.size, ls.size(), "seed " + seed + " m");
         for (int i = 0; i < n; i++) {
@@ -356,7 +356,7 @@ class ReduceTest {
         ls.addEntry(2, 2, -1);
         ls.addEntry(1, 0, 1);
         assertTrue(ls.reduce());
-        ls.selectPath();
+        ls.selectPath(SolverMode.DENSE);
         assertEquals(2, ls.size());
         assertEquals(RowInfo.ROW_CONST, ls.rowInfo()[0].type);
         assertEquals(2.0, ls.rowInfo()[0].value);
@@ -380,7 +380,7 @@ class ReduceTest {
         ls.addEntry(1, 0, 1);
         ls.addEntry(1, 1, 2);
         assertTrue(ls.reduce());
-        ls.selectPath();
+        ls.selectPath(SolverMode.DENSE);
         assertEquals(0, ls.size());
         assertEquals(null, ls.factor());
         assertEquals(0, ls.solve().length);
@@ -408,7 +408,7 @@ class ReduceTest {
         ls.addEntry(0, 0, 4);
         ls.markNonLinear(0);
         assertTrue(ls.reduce());
-        ls.selectPath();
+        ls.selectPath(SolverMode.DENSE);
         assertEquals(1, ls.size());
         ls.restoreSnapshot(true);
         ls.addRhs(0, 2);

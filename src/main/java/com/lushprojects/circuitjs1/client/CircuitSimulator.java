@@ -15,6 +15,7 @@ import com.lushprojects.circuitjs1.client.element.WireElm;
 import com.lushprojects.circuitjs1.client.solver.LinearSystem;
 import com.lushprojects.circuitjs1.client.solver.RowInfo;
 import com.lushprojects.circuitjs1.client.solver.SingularityReport;
+import com.lushprojects.circuitjs1.client.solver.SolverInfo;
 import com.lushprojects.circuitjs1.client.util.BoxGrid;
 import com.lushprojects.circuitjs1.client.util.Locale;
 
@@ -1056,8 +1057,27 @@ public class CircuitSimulator extends BaseCirSimDelegate {
             stop("Matrix error", null);
             return false;
         }
-        linearSystem.selectPath();
+        // [SP_SLV_02_09] the effective mode of the document (kept during an agent run)
+        linearSystem.selectPath(circuitDocument.solverModeForStamp());
         return true;
+    }
+
+    /** [SP_SLV_02_10] True when a stamped (reduced) system exists. */
+    boolean hasSolverSystem() {
+        return linearSystem.hasSystem();
+    }
+
+    /**
+     * [SP_SLV_02_09] A solver-mode change: stamp only (no validation, no time-step reset, no
+     * analysis hook, no new engine analysis); the new stamp takes the document's mode.
+     */
+    void restampForSolver() {
+        stampCircuit();
+    }
+
+    /** [SP_SLV_01_10] Fills the solver-side fields of {@code info}. */
+    void fillSolverInfo(SolverInfo info) {
+        linearSystem.fillInfo(info);
     }
 
     // make list of posts we need to draw. posts shared by 2 elements should be

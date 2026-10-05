@@ -6596,7 +6596,13 @@ async function scenarioSolverDefects(s) {
     { id: 'R2', type: 'Resistor', start: { x: 8, y: 0 }, end: { x: 8, y: 4 }, properties: { resistance: '1 kOhm' } },
     { id: 'G2', type: 'Ground', start: { x: 8, y: 4 }, end: { x: 8, y: 5 } }] } });
   await R({ doc, span: '10 us', reset: true });
-  const logMark = ((await A('getDiagnostics', { doc, log: { since: 0, limit: 1 } })).data.log || {}).cursor || 0;
+  // the cursor of the newest log entry (a window starting at 0 gives the oldest one)
+  let logMark = 0;
+  for (;;) {
+    const l = (await A('getDiagnostics', { doc, log: { since: logMark, limit: 500 } })).data.log;
+    if (!l || !l.entries.length) break;
+    logMark = l.cursor;
+  }
   await probe('st.failNext = 2; st.failCol = 2;');
   try {
     await R({ doc, span: '10 us', reset: true });
@@ -6736,6 +6742,528 @@ async function scenarioSolverCorpus(s) {
   report('SLV.solver_corpus', failing.length === 0 && s.exceptions.length === exMark, { mode: 'compare', strict, compared: list.length, identical,
     differsAllowed: allowed, failing: failing.slice(0, 15), failingCount: failing.length, errors: Object.keys(errors).length,
     s: Math.round((Date.now() - t0) / 1000), details: path.join(OUT_DIR, 'solver_corpus_compare.json') });
+}
+
+// ---------------------------------------------------------------- solver_paths (PL_SLV P4, SP_SLV_05)
+// Not in the default run (about 2 minutes). The solve paths and the solver mode through the Agent
+// API, on background documents; wrappers of the GWT-emitted solver functions (draftCompile names;
+// probeInstalled fails when they change) count stamps and analyses, capture the first system a run
+// factors and solves (A, b, x), and force a structural singularity (one column emptied before the
+// symbolic analysis), a numeric one (one column's values zeroed before the factorization, pattern
+// intact) and a reduction matrix error. Checks: path choice (auto small/large, forced), the
+// simControl solver rows (set, clear, invalid, busy, no history, not modified, restamp only),
+// Diagnostics block, dense/sparse agreement over the corpus fixture (backward error of both paths,
+// node voltages on well-conditioned systems), pattern growth by an analog switch, carried symbolic
+// analysis across time-step re-stamps, singularity escalation on the sparse path, the session
+// default (background document, free-running visible document, a document in an agent run), the
+// threshold boundary, m = 0 and m = 1, the override never saved, the memory of a 4900-node grid.
+const SLV_HDR = (dt) => `$ 1 ${dt} 10.2 50 5 50 5e-11`;
+function slvGrid(n) {
+  const L = [SLV_HDR(5e-6)], X = (i) => 64 + 64 * i, Y = (j) => 64 + 64 * j;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    if (i + 1 < n) L.push(`r ${X(i)} ${Y(j)} ${X(i + 1)} ${Y(j)} 0 1000`);
+    if (j + 1 < n) L.push(`r ${X(i)} ${Y(j)} ${X(i)} ${Y(j + 1)} 0 1000`);
+  }
+  L.push('v 0 128 0 64 0 0 40 5 0 0 0.5', 'w 0 64 64 64 0', 'g 0 128 0 160 0', `g ${X(n - 1)} ${Y(n - 1)} ${X(n - 1)} ${Y(n - 1) + 32} 0`);
+  return L.join('\n') + '\n';
+}
+function slvLadder(n, shunt) {
+  const L = [SLV_HDR(5e-6)], y = 64, yb = 128, X = (k) => 64 + 32 * k;
+  L.push(`v 0 ${yb} 0 ${y} 0 1 1000 5 0 0 0.5`, `w 0 ${y} ${X(0)} ${y} 0`, `g 0 ${yb} 0 ${yb + 32} 0`);
+  for (let k = 0; k < n; k++) {
+    L.push(`r ${X(k)} ${y} ${X(k + 1)} ${y} 0 100`);
+    const x = X(k + 1);
+    L.push(shunt === 'c' ? `c ${x} ${y} ${x} ${yb} 0 1e-6 0 0.001` : `d ${x} ${y} ${x} ${yb} 2 default`, `g ${x} ${yb} ${x} ${yb + 32} 0`);
+  }
+  return L.join('\n') + '\n';
+}
+// an analog switch with the pull-down flag between A and B, its control a 5 kHz square wave that
+// starts low (phase 4 rad): open, closed from about step 14, open again, closed from about step 54
+const SLV_SWITCH = [SLV_HDR(5e-6), 'v 64 256 64 128 0 0 40 5 0 0 0.5', 'r 64 128 160 128 0 1000',
+  '159 160 128 256 128 2 20 1e10 2.5', 'r 256 128 256 256 0 1000', 'g 256 256 256 288 0', 'g 64 256 64 288 0',
+  'R 208 144 208 208 0 2 5000 2.5 2.5 4 0.5'].join('\n') + '\n';
+const SLV_EMPTY_M = [SLV_HDR(5e-6), 'v 0 128 0 64 0 0 40 5 0 0 0.5', 'r 0 64 64 64 0 1000', 'g 64 64 64 96 0', 'g 0 128 0 160 0'].join('\n') + '\n';
+const SLV_ONE_M = [SLV_HDR(5e-6), 'i 0 128 0 64 0 0.001', 'w 0 64 64 64 0', 'd 64 64 64 128 2 default', 'w 0 128 64 128 0', 'g 64 128 64 160 0'].join('\n') + '\n';
+const SLV_DIODE_CLAMP = { elements: [
+  { id: 'V1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 }, properties: { max_voltage: '5 V' } },
+  { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1 kOhm' } },
+  { id: 'D1', type: 'Diode', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+  { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } }] };
+
+function solverPathsInstall() {
+  const w = [...document.querySelectorAll('iframe')].map((f) => { try { return f.contentWindow; } catch (e) { return null; } }).find((x) => x && x.clcc);
+  if (!w) return 'no GWT iframe';
+  // GWT splits its namespace (clcc, clccs, ...): look a name up in each
+  const NS = Object.keys(w).filter((k) => /^clcc[a-z]*$/.test(k)).map((k) => w[k]).filter((o) => o && typeof o === 'object');
+  const where = (prefix) => { for (const o of NS) { const k = Object.keys(o).find((x) => x.startsWith(prefix)); if (k) return [o, k]; } return null; };
+  const P = (cls, simple) => { const f = where('com_lushprojects_circuitjs1_client_' + cls + '_' + simple + '__'); return f && f[0][f[1]].prototype; };
+  const G = w.clcc;
+  const LS = P('solver_LinearSystem', 'LinearSystem'), LU = P('solver_SparseLu', 'SparseLu'), SIM = P('CircuitSimulator', 'CircuitSimulator');
+  if (!LS || !LU || !SIM) return 'prototypes not found';
+  const M = (proto, prefix) => Object.keys(proto).find((k) => k.startsWith(prefix));
+  const N = {
+    lsFactor: M(LS, 'factor__'), lsSolve: M(LS, 'solve__'), lsValue: M(LS, 'assembledValue__'), lsSize: M(LS, 'size__'), lsReduce: M(LS, 'reduce__'), lsDrop: M(LS, 'drop__'),
+    luFactor: M(LU, 'factor__'), luRefactor: M(LU, 'refactor__'), stamp: M(SIM, 'package_private$com_lushprojects_circuitjs1_client$stampCircuit__'),
+    analyze: Object.keys(SIM).find((k) => k.includes('analyzeCircuit__')), build: where('com_lushprojects_circuitjs1_client_solver_SymbolicAnalysis_build__'),
+    parseMode: where('com_lushprojects_circuitjs1_client_solver_SolverMode_parse__'), theSim: where('com_lushprojects_circuitjs1_client_CirSim_theSim'),
+  };
+  const missing = Object.keys(N).filter((k) => !N[k]);
+  if (missing.length) return 'GWT names not found: ' + missing.join(',');
+  const F = (cls, f) => 'com_lushprojects_circuitjs1_client_solver_' + cls + '_' + f;
+  const st = window.__slv = window.__slv || { stamp: 0, analyze: 0, capture: null, structFail: 0, numFail: 0, denseFail: 0, failCol: 0, reduceFail: 0 };
+  const clonePattern = (a, edit) => {
+    const c = Object.create(Object.getPrototypeOf(a)); Object.assign(c, a);
+    const cs = a[F('CscPattern', 'colStart')], ri = a[F('CscPattern', 'rowIndex')], va = a[F('CscPattern', 'values')];
+    const m = cs.length - 1, col = Math.min(st.failCol, m - 1);
+    if (edit === 'empty') {
+      const ncs = [0], nri = [], nva = [];
+      for (let j = 0; j < m; j++) { if (j !== col) for (let p = cs[j]; p < cs[j + 1]; p++) { nri.push(ri[p]); nva.push(va[p]); } ncs.push(nri.length); }
+      c[F('CscPattern', 'colStart')] = ncs; c[F('CscPattern', 'rowIndex')] = nri; c[F('CscPattern', 'values')] = nva;
+    } else {
+      const nva = va.slice(); for (let p = cs[col]; p < cs[col + 1]; p++) nva[p] = 0;
+      c[F('CscPattern', 'values')] = nva;
+    }
+    return c;
+  };
+  if (!LS.__slvProbe) {
+    LS.__slvProbe = true;
+    const f0 = LS[N.lsFactor], s0 = LS[N.lsSolve], r0 = LS[N.lsReduce], lf0 = LU[N.luFactor], lr0 = LU[N.luRefactor], st0 = SIM[N.stamp], an0 = SIM[N.analyze], b0 = N.build[0][N.build[1]];
+    LS[N.lsFactor] = function () {
+      const s = window.__slv;
+      if (s.capture && s.capture.A === undefined) {
+        const m = this[N.lsSize]();
+        if (m <= 150) { const A = new Array(m * m); for (let r = 0; r < m; r++) for (let c = 0; c < m; c++) A[r * m + c] = this[N.lsValue](r, c); s.capture.A = A; s.capture.m = m; } else s.capture.A = null;
+      }
+      return f0.call(this);
+    };
+    LS[N.lsSolve] = function () {
+      const s = window.__slv;
+      const take = s.capture && s.capture.A && s.capture.b === undefined;
+      const b = take ? Array.from(this[F('LinearSystem', 'rightSide')]).slice(0, s.capture.m) : null;
+      const x = s0.call(this);
+      if (take) { s.capture.b = b; s.capture.x = Array.from(x).slice(0, s.capture.m); }
+      return x;
+    };
+    LS[N.lsReduce] = function () {
+      const s = window.__slv;
+      if (s.reduceFail > 0) { s.reduceFail--; this[N.lsDrop](); return false; }
+      return r0.call(this);
+    };
+    LU[N.luFactor] = function (a, sym, v) {
+      const s = window.__slv;
+      if (s.numFail > 0) { s.numFail--; a = clonePattern(a, 'zero'); }
+      return lf0.call(this, a, sym, v);
+    };
+    LU[N.luRefactor] = function (a, v) { return window.__slv.numFail > 0 ? false : lr0.call(this, a, v); };
+    // the dense kernel: a forced failure reports failCol as the failed column (as solver_defects)
+    const LF = where('com_lushprojects_circuitjs1_client_CircuitMath_lu_1factor__'), LC = 'com_lushprojects_circuitjs1_client_CircuitMath_lastLuFail';
+    if (LF) {
+      const lf = LF[0][LF[1]];
+      LF[0][LF[1]] = function (a, n, ip) {
+        const s = window.__slv;
+        if (s.denseFail > 0) { s.denseFail--; const ns = where(LC + 'Column'); if (ns) { ns[0][LC + 'Column'] = s.failCol; ns[0][LC + 'Row'] = s.failCol; ns[0][LC + 'PivotAbs'] = 0; } return false; }
+        return lf(a, n, ip);
+      };
+    }
+    SIM[N.stamp] = function () { window.__slv.stamp++; window.__slv.lastSim = this; return st0.call(this); };
+    SIM[N.analyze] = function () { window.__slv.analyze++; return an0.apply(this, arguments); };
+    N.build[0][N.build[1]] = function (a, v) {
+      const s = window.__slv;
+      if (s.structFail > 0) { s.structFail--; a = clonePattern(a, 'empty'); }
+      return b0(a, v);
+    };
+  }
+  window.__slvSetSession = (mode) => {
+    const sim = N.theSim[0][N.theSim[1]];
+    let k = null; for (const key in sim) if (key.startsWith('setSolverModeDefault__')) { k = key; break; }
+    if (!k) return 'no setter';
+    sim[k](N.parseMode[0][N.parseMode[1]](mode));
+    return 'ok';
+  };
+  return 'ok';
+}
+
+// x of A x = b by dense LU with partial pivoting: min |u_kk| / max |u_kk| (0 when singular)
+function slvPivotRatio(A, m) {
+  const a = A.slice(); let mn = Infinity, mx = 0;
+  for (let k = 0; k < m; k++) {
+    let p = k; for (let i = k + 1; i < m; i++) if (Math.abs(a[i * m + k]) > Math.abs(a[p * m + k])) p = i;
+    if (p !== k) for (let j = 0; j < m; j++) { const t = a[k * m + j]; a[k * m + j] = a[p * m + j]; a[p * m + j] = t; }
+    const u = a[k * m + k], au = Math.abs(u);
+    mn = Math.min(mn, au); mx = Math.max(mx, au);
+    if (au === 0) return 0;
+    for (let i = k + 1; i < m; i++) { const f = a[i * m + k] / u; if (f !== 0) for (let j = k; j < m; j++) a[i * m + j] -= f * a[k * m + j]; }
+  }
+  return m === 0 ? 1 : mn / mx;
+}
+
+function slvBackwardError(c) {
+  const { A, b, x, m } = c;
+  let rn = 0, an = 0, xn = 0, bn = 0;
+  for (let r = 0; r < m; r++) {
+    let s = 0, rs = 0;
+    for (let k = 0; k < m; k++) { s += A[r * m + k] * x[k]; rs += Math.abs(A[r * m + k]); }
+    rn = Math.max(rn, Math.abs(s - b[r])); an = Math.max(an, rs); bn = Math.max(bn, Math.abs(b[r])); xn = Math.max(xn, Math.abs(x[r]));
+  }
+  const d = an * xn + bn;
+  return d === 0 ? 0 : rn / d;
+}
+
+async function scenarioSolverPaths(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args, ms) => s.call('agentAsync', 'run', args, ms || 120000);
+  const codes = (list) => (list || []).map((i) => i.code);
+  const slv = async (doc) => (await A('getDiagnostics', { doc })).data.solver;
+  const probe = (expr) => s.eval(`(() => { const st = window.__slv; ${expr} })()`);
+  const fetchEx = (name) => s.eval(`__H.fetchText('/circuitjs1/circuits/' + ${JSON.stringify(name)})`);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const t0 = Date.now();
+  const installed = await s.eval(`(${solverPathsInstall.toString()})()`);
+  out.notes.installed = installed;
+  const finish = () => {
+    const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+    fs.writeFileSync(path.join(OUT_DIR, 'solver_paths.json'), JSON.stringify(out, null, 2));
+    report('SLV.solver_paths', failed.length === 0, { checks: Object.keys(out.checks).length, failed, s: Math.round((Date.now() - t0) / 1000), details: path.join(OUT_DIR, 'solver_paths.json') });
+  };
+  if (!ck('probeInstalled', installed === 'ok')) { finish(); return; }
+  const doc = (await A('createDocument', { title: 'Solver paths' })).data.doc;
+  const imp = async (circuit, d) => A('importCircuit', { doc: d || doc, circuit });
+  const mode = (m, d) => A('simControl', { doc: d || doc, action: 'solver', mode: m });
+
+  // ---- block, auto small, simControl rows
+  const lrc = await fetchEx('lrc.txt');
+  await imp(lrc);
+  await R({ doc, span: '50 us', reset: true });
+  let sv = await slv(doc);
+  out.notes.autoSmall = sv;
+  ck('blockFields', sv && ['mode', 'effectiveMode', 'path', 'fullSize', 'size', 'nonZeros', 'factorNonZeros', 'symbolicCount', 'fullFactorCount', 'refactorCount'].every((k) => k in sv) && !('override' in sv));
+  ck('autoSmallDense', sv.path === 'dense' && sv.mode === 'auto' && sv.effectiveMode === 'auto' && sv.size <= 64 && sv.factorNonZeros === sv.size * sv.size);
+  const hist0 = (await A('getHistory', { doc })).data.undo.length;
+  const mod0 = (await A('listDocuments', {})).data.documents.find((d) => d.doc === doc).modified;
+  const ts0 = (await A('getDiagnostics', { doc })).data.timeStep;
+  await probe('st.stamp = 0; st.analyze = 0;');
+  const set = await mode('sparse');
+  ck('setOverride', set.ok && set.data.solver.override === 'sparse' && set.data.solver.effectiveMode === 'sparse' && set.data.solver.path === 'dense'
+    && 'running' in set.data && 'timeStep' in set.data);
+  ck('setDoesNotStamp', (await probe('return st.stamp;')) === 0);
+  ck('setNoHistory', (await A('getHistory', { doc })).data.undo.length === hist0);
+  ck('setNotModified', (await A('listDocuments', {})).data.documents.find((d) => d.doc === doc).modified === mod0);
+  // a stamping reading consumes the change: stamp only (no analysis), the time step is kept
+  const d1 = (await A('getDiagnostics', { doc })).data;
+  const c1 = await probe('return { stamp: st.stamp, analyze: st.analyze };');
+  out.notes.restamp = { c1, ts0, ts1: d1.timeStep, path: d1.solver.path };
+  ck('restampOnly', c1.stamp === 1 && c1.analyze === 0 && d1.solver.path === 'sparse' && d1.timeStep.current === ts0.current);
+  const rS = await R({ doc, span: '50 us' });
+  ck('sparseRunPath', rS.ok && (await slv(doc)).path === 'sparse');
+  const clr = await mode('session');
+  ck('clearOverride', clr.ok && !('override' in clr.data.solver) && clr.data.solver.effectiveMode === 'auto');
+  const bad1 = await mode('fast');
+  const bad2 = await A('simControl', { doc, action: 'run', mode: 'dense' });
+  const bad3 = await A('simControl', { doc, action: 'solver' });
+  const bad4 = await A('simControl', { doc, action: 'solver', mode: 'dense', settings: { maxTimeStep: 1e-6 } });
+  const names = (r) => (r.issues || []).map((i) => i.message).join(' ');
+  ck('invalidMode', !bad1.ok && codes(bad1.issues).includes('invalid_value') && /'mode'/.test(names(bad1)));
+  ck('modeWithRun', !bad2.ok && codes(bad2.issues).includes('invalid_value') && /'mode'/.test(names(bad2)));
+  ck('modeRequired', !bad3.ok && /'mode'/.test(names(bad3)));
+  ck('settingsWithSolver', !bad4.ok && /'settings'/.test(names(bad4)));
+  // busy: the call is rejected while an agent run owns the document
+  await s.eval(`window.__slvRun = null; CircuitJS1Agent.callAsync('run', ${JSON.stringify(JSON.stringify({ doc, span: '200 ms', reset: true, budgetMs: 4000 }))}, (r) => { window.__slvRun = r; })`);
+  const busy = await mode('dense');
+  ck('busy', !busy.ok && codes(busy.issues).includes('busy'));
+  await waitFor(() => s.eval('window.__slvRun !== null'), 20000, 'busy run end');
+
+  // ---- auto large and forced paths
+  const grid32 = slvGrid(32);
+  await imp(grid32);
+  await R({ doc, span: '5 us', reset: true });
+  sv = await slv(doc);
+  out.notes.autoLarge = sv;
+  ck('autoLargeSparse', sv.path === 'sparse' && sv.size > 1000 && sv.nonZeros < 6 * sv.size && sv.factorNonZeros > 0);
+  await mode('dense');
+  await R({ doc, span: '5 us', reset: true }, 240000);
+  ck('forcedDense', (await slv(doc)).path === 'dense');
+  await mode('session');
+  await imp(await fetchEx('filt-lopass.txt'));
+  await mode('sparse');
+  await R({ doc, span: '50 us', reset: true });
+  ck('forcedSparseSmall', (await slv(doc)).path === 'sparse');
+  await mode('session');
+
+  // ---- threshold boundary: an RC ladder of N sections has m = N + offset
+  await imp(slvLadder(10, 'c'));
+  await R({ doc, span: '5 us', reset: true });
+  const off = (await slv(doc)).size - 10;
+  await imp(slvLadder(64 - off, 'c'));
+  await R({ doc, span: '5 us', reset: true });
+  const s64 = await slv(doc);
+  await imp(slvLadder(65 - off, 'c'));
+  await R({ doc, span: '5 us', reset: true });
+  const s65 = await slv(doc);
+  out.notes.threshold = { off, s64: [s64.size, s64.path], s65: [s65.size, s65.path] };
+  ck('threshold', s64.size === 64 && s64.path === 'dense' && s65.size === 65 && s65.path === 'sparse');
+
+  // ---- m = 0 and m = 1 on both paths
+  // every net voltage of the document, full precision (reads of at most 100 targets)
+  const valueOf = async () => {
+    const c = (await A('getConnectivity', { doc })).data.nets.map((n) => ({ net: n.name }));
+    const v = [];
+    for (let i = 0; i < c.length; i += 100) { const r = await A('read', { doc, targets: c.slice(i, i + 100) }); if (!r.ok) return null; v.push(...r.data.values.map((x) => x.value)); }
+    return v;
+  };
+  const both = async (text) => {
+    const res = {};
+    for (const m of ['dense', 'sparse']) { await imp(text); await mode(m); await R({ doc, span: '20 us', reset: true }); res[m] = { solver: await slv(doc), v: await valueOf() }; }
+    await mode('session');
+    return res;
+  };
+  const e0 = await both(SLV_EMPTY_M);
+  const e1 = await both(SLV_ONE_M);
+  out.notes.small = { m0: [e0.dense.solver.size, e0.dense.v, e0.sparse.v], m1: [e1.dense.solver.size, e1.dense.v, e1.sparse.v] };
+  const sameArr = (a, b) => a.length === b.length && a.every((x, i) => Object.is(x, b[i]));
+  ck('emptyReduced', e0.dense.solver.size === 0 && e0.sparse.solver.size === 0 && e0.sparse.solver.path === 'sparse' && sameArr(e0.dense.v, e0.sparse.v));
+  ck('oneUnknown', e1.dense.solver.size === 1 && e1.sparse.solver.path === 'sparse' && sameArr(e1.dense.v, e1.sparse.v));
+
+  // ---- analog switch: the pattern grows when the switch first closes, not on later closings;
+  // the sparse path equals the dense one at each of the first 50 steps (full-precision reads)
+  const sw = {};
+  for (const m of ['dense', 'sparse']) {
+    await imp(SLV_SWITCH); await mode(m);
+    const steps = [];
+    for (let k = 0; k < 50; k++) {
+      const r = await R(k === 0 ? { doc, span: 5e-6, reset: true } : { doc, span: 5e-6 });
+      if (!r.ok) { steps.push(null); break; }
+      steps.push(await valueOf());
+    }
+    sw[m] = steps;
+  }
+  let swMax = 0, swPeak = 0, swSteps = 0;
+  for (let k = 0; k < 50; k++) {
+    const a = sw.dense[k], b = sw.sparse[k];
+    if (!a || !b || a.length !== b.length) break;
+    swSteps++;
+    a.forEach((x, i) => { swPeak = Math.max(swPeak, Math.abs(x)); swMax = Math.max(swMax, Math.abs(x - b[i]) / Math.max(1e-12, Math.abs(x))); });
+  }
+  // the counters (sparse): before the first closing, after it, after later closings
+  await imp(SLV_SWITCH); await mode('sparse');
+  await R({ doc, span: 10 * 5e-6, reset: true });
+  const g1 = await slv(doc);
+  await R({ doc, span: 20 * 5e-6 });
+  const g2 = await slv(doc);
+  await R({ doc, span: 200 * 5e-6 });
+  const g3 = await slv(doc);
+  await mode('session');
+  out.notes.switch = { g: [g1, g2, g3].map((g) => [g.symbolicCount, g.nonZeros, g.refactorCount]), swSteps, swMax, swPeak };
+  ck('switchGrowsOnce', g1.symbolicCount === 1 && g2.symbolicCount === 2 && g3.symbolicCount === 2 && g1.nonZeros < g2.nonZeros && g2.nonZeros === g3.nonZeros);
+  ck('switchMatchesDense', swSteps === 50 && swMax <= 1e-9 && swPeak > 1);
+
+  // ---- refactorization on a 1000-node diode ladder (sparse), 100 steps
+  await imp(slvLadder(1000, 'd')); await mode('sparse');
+  const rl = await R({ doc, span: 100 * 5e-6, reset: true });
+  const k0 = await slv(doc);
+  out.notes.refactor = { ok: rl.ok, steps: rl.ok && rl.data.steps, wallMs: rl.ok && rl.data.wallMs, k: [k0.size, k0.symbolicCount, k0.fullFactorCount, k0.refactorCount] };
+  ck('refactorUsed', rl.ok && k0.size > 900 && k0.refactorCount > 0 && k0.fullFactorCount * 10 < k0.refactorCount + k0.fullFactorCount);
+
+  // ---- carried symbolic analysis across time-step re-stamps (maps unchanged): the current step
+  // is set to 1/8 of the maximum, so the step loop doubles it three times, re-stamping each time
+  await imp(slvLadder(300, 'd'));
+  await R({ doc, span: 5 * 5e-6, reset: true });
+  const c0 = await slv(doc);
+  await probe('st.stamp = 0; const sim = st.lastSim; sim.com_lushprojects_circuitjs1_client_CircuitSimulator_timeStep = sim.com_lushprojects_circuitjs1_client_CircuitSimulator_maxTimeStep / 8;');
+  await R({ doc, span: 10 * 5e-6 });
+  const cStamps = await probe('return st.stamp;');
+  const c2 = await slv(doc);
+  out.notes.carried = { stamps: cStamps, before: [c0.symbolicCount, c0.nonZeros], after: [c2.symbolicCount, c2.nonZeros, c2.path] };
+  ck('carriedAcrossRestamps', cStamps >= 3 && c2.path === 'sparse' && c2.symbolicCount === c0.symbolicCount && c2.nonZeros === c0.nonZeros);
+  await mode('session');
+
+  // ---- singularity on the sparse path, through the engine (SP_SIM SINGULAR: stabilizers, then escalate)
+  // the cursor of the newest log entry (a window starting at 0 gives the oldest one)
+  const logCursor = async () => {
+    let c = 0;
+    for (;;) {
+      const l = (await A('getDiagnostics', { doc, log: { since: c, limit: 500 } })).data.log;
+      if (!l || !l.entries.length) return c;
+      c = l.cursor;
+    }
+  };
+  const logsSince = async (c) => {
+    const all = [];
+    for (;;) {
+      const l = (await A('getDiagnostics', { doc, log: { since: c, limit: 500 } })).data.log;
+      if (!l || !l.entries.length) return all;
+      all.push(...l.entries.map((e) => e.text));
+      c = l.cursor;
+    }
+  };
+  // the dump that follows a stabilized pivot failure: its rows of assembled values
+  const dumpAfter = (lines, at) => {
+    const rows = [];
+    for (let i = at + 2; i < lines.length && !/\]\s*done\s*$/.test(lines[i]) && rows.length < 20; i++) rows.push(lines[i].replace(/^\[[^\]]*\]\s*/, ''));
+    return rows;
+  };
+  const singular = async (kind, path) => {
+    await imp(SLV_DIODE_CLAMP); await mode(path || 'sparse');
+    await R({ doc, span: '10 us', reset: true });
+    const cur = await logCursor();
+    await probe(`st.failCol = 1; st.${kind} = 2;`);
+    let r;
+    try { r = await R({ doc, span: '10 us', reset: true }); } finally { await probe(`st.${kind} = 0;`); }
+    const ev = codes((await A('getDiagnostics', { doc })).data.events);
+    const lines = await logsSince(cur);
+    // the first stabilized failure: later ones (panic-level re-stamps) assemble other values
+    const at = lines.findIndex((t) => /pivot failed with stabilizers/.test(t));
+    const after = await R({ doc, span: '1 ms', reset: true, probes: [{ post: 'D1.#0' }] });
+    await mode('session');
+    return { events: ev, issues: codes(r.issues), line: at >= 0 ? lines[at] : null, dump: at >= 0 ? dumpAfter(lines, at) : [],
+      recovered: after.ok && after.data.reason === 'span_reached' && after.data.probes[0].stats.final };
+  };
+  const sStruct = await singular('structFail');
+  const sNum = await singular('numFail');
+  const sDense = await singular('denseFail', 'dense');
+  out.notes.singular = { structural: sStruct, numeric: sNum, dense: sDense };
+  ck('structuralSingularity', (sStruct.events.includes('singular_matrix') || sStruct.issues.includes('singular_matrix')) && sStruct.line && / row=-1 abs=0(\.0)? /.test(sStruct.line) && /var=(nodeVoltage|voltageSourceCurrent)/.test(sStruct.line));
+  ck('numericSingularity', (sNum.events.includes('singular_matrix') || sNum.issues.includes('singular_matrix')) && sNum.line && / row=\d+ abs=/.test(sNum.line) && sNum.line !== sStruct.line && /var=(nodeVoltage|voltageSourceCurrent)/.test(sNum.line));
+  ck('recoversAfterSingular', [sStruct, sNum, sDense].every((x) => x.recovered > 0.3 && x.recovered < 0.9));
+  // [SP_SLV_02_03] both paths dump the assembled values of the failing iteration: equal dumps, and
+  // the store survives the failed factorization (the sparse dump is read after it failed)
+  ck('dumpAssembledBothPaths', sDense.dump.length > 0 && JSON.stringify(sDense.dump) === JSON.stringify(sStruct.dump) && JSON.stringify(sDense.dump) === JSON.stringify(sNum.dump));
+
+  // ---- reduction matrix error: handled as today (a warning under recovery) on either path
+  await imp(lrc); await mode('sparse');
+  await probe('st.reduceFail = 1;');
+  let me;
+  try { me = await R({ doc, span: '50 us', reset: true }); } finally { await probe('st.reduceFail = 0;'); }
+  const meDiag = (await A('getDiagnostics', { doc })).data;
+  const meText = JSON.stringify(meDiag.events) + JSON.stringify(me.issues || []) + JSON.stringify(meDiag.warning || meDiag.stop || {});
+  out.notes.matrixError = { events: codes(meDiag.events), issues: codes(me.issues), reason: me.data && me.data.reason };
+  ck('matrixError', /Matrix error/.test(meText));
+  const meAfter = await R({ doc, span: '50 us', reset: true });
+  ck('matrixErrorRecovers', meAfter.ok && (await slv(doc)).path === 'sparse');
+  await mode('session');
+
+  // ---- an agent compares the paths on a large RC ladder (probe statistics are rounded to six
+  // significant digits: equal within one unit of the sixth digit; the final reads within 1e-6)
+  await imp(slvLadder(500, 'c'));
+  const lastNet = async () => { const c = (await A('getConnectivity', { doc })).data.nets; return c; };
+  const netsL = (await lastNet()).map((n) => n.name);
+  const probeNet = netsL[netsL.length - 1];
+  const cmp = {};
+  for (const m of ['dense', 'sparse']) {
+    await mode(m);
+    const r = await R({ doc, span: '1 ms', reset: true, probes: [{ net: probeNet }] }, 240000);
+    cmp[m] = r.ok ? { stats: r.data.probes[0].stats, wallMs: r.data.wallMs, v: await valueOf() } : { error: names(r) };
+  }
+  await mode('session');
+  const sixth = (a, b) => Math.abs(a - b) <= 1.01 * Math.pow(10, Math.floor(Math.log10(Math.max(Math.abs(a), Math.abs(b), 1e-300))) - 5);
+  out.notes.compare = { probeNet, dense: cmp.dense.stats && { stats: cmp.dense.stats, wallMs: cmp.dense.wallMs }, sparse: cmp.sparse.stats && { stats: cmp.sparse.stats, wallMs: cmp.sparse.wallMs } };
+  ck('comparePaths', cmp.dense.stats && cmp.sparse.stats && ['min', 'max', 'mean', 'final'].every((k) => sixth(cmp.dense.stats[k], cmp.sparse.stats[k]))
+    && cmp.dense.v.every((x, i) => Math.abs(x - cmp.sparse.v[i]) <= 1e-6 * Math.max(1e-3, Math.abs(x))) && cmp.sparse.wallMs < cmp.dense.wallMs);
+
+  // ---- the override is never saved
+  await imp(lrc); await mode('dense');
+  const exT = (await A('exportCircuit', { doc, format: 'text' })).data.content;
+  const exJ = (await A('exportCircuit', { doc, format: 'json' })).data.content;
+  const doc2 = (await A('createDocument', { title: 'Solver reload' })).data.doc;
+  await A('importCircuit', { doc: doc2, circuit: exT });
+  const re = await slv(doc2);
+  ck('overrideNotSaved', !/solver/i.test(exT) && !/solver/i.test(typeof exJ === 'string' ? exJ : JSON.stringify(exJ)) && !('override' in re));
+  await mode('session');
+
+  // ---- empty document: no path; the override is still set
+  const doc3 = (await A('createDocument', { title: 'Solver empty' })).data.doc;
+  const em = await slv(doc3);
+  const emSet = await mode('sparse', doc3);
+  ck('emptyDocument', !('path' in em) && em.size === 0 && emSet.ok && emSet.data.solver.override === 'sparse');
+
+  // ---- session default: a background document re-stamps at its next stamping reading; one in an
+  // agent run keeps its path until the run has ended; the visible document at its next frame
+  await imp(lrc, doc2);
+  await R({ doc: doc2, span: '20 us', reset: true });
+  await imp(slvLadder(20, 'c'));
+  await s.eval(`window.__slvRun = null; CircuitJS1Agent.callAsync('run', ${JSON.stringify(JSON.stringify({ doc, span: '500 ms', reset: true, budgetMs: 3000 }))}, (r) => { window.__slvRun = r; })`);
+  await sleep(100);
+  const setS = await s.eval(`window.__slvSetSession('sparse')`);
+  const during = await slv(doc);
+  await waitFor(() => s.eval('window.__slvRun !== null'), 20000, 'session run end');
+  const afterRun = await slv(doc);
+  const bg = await slv(doc2);
+  // the visible document, free-running
+  const vis = (await A('listDocuments', {})).data.documents.find((d) => d.active).doc;
+  await s.eval(`window.__slvSetSession('auto')`);
+  await A('importCircuit', { doc: vis, circuit: lrc });
+  await A('simControl', { doc: vis, action: 'run' });
+  await sleep(500);
+  const v0 = await slv(vis);
+  const tA = (await A('getDiagnostics', { doc: vis })).data.simTime;
+  await s.eval(`window.__slvSetSession('sparse')`);
+  await sleep(800);
+  const v1 = (await A('getDiagnostics', { doc: vis })).data;
+  await A('simControl', { doc: vis, action: 'stop' });
+  await s.eval(`window.__slvSetSession('auto')`);
+  out.notes.session = { setS, during: during.path, afterRun: afterRun.path, bg: [bg.mode, bg.path], vis: [v0.path, v1.solver.path, tA, v1.simTime] };
+  // the session setter has a Java caller (and survives GWT pruning) once the Other Options row
+  // exists (PL_SLV P5); SOLVER_PATHS_NO_SESSION=1 skips these checks on a P4 build
+  if (!(process.env.SOLVER_PATHS_NO_SESSION && setS === 'no setter')) {
+    ck('sessionDuringRun', setS === 'ok' && during.mode === 'sparse' && during.path === 'dense' && afterRun.path === 'sparse');
+    ck('sessionBackground', bg.mode === 'sparse' && bg.path === 'sparse');
+    ck('sessionFreeRun', v0.path === 'dense' && v1.solver.path === 'sparse' && v1.simTime > tA);
+    ck('sessionRestored', (await slv(doc2)).mode === 'auto');
+  }
+
+  // ---- dense/sparse agreement over the corpus fixture: the first system each run solves
+  const fixture = JSON.parse(fs.readFileSync(SOLVER_CORPUS_FIXTURE, 'utf8'));
+  const only = process.env.CIRCUITS && process.env.CIRCUITS !== 'all' ? process.env.CIRCUITS.split(',') : null;
+  const agree = { compared: 0, illConditioned: 0, worstBackward: 0, worstBackwardAt: null, disagree: [], badBackward: [], uncaptured: [] };
+  for (const name of Object.keys(fixture.examples).filter((n) => !only || only.includes(n))) {
+    const ex = fixture.examples[name];
+    if (!Object.keys(ex.nets).length) continue;
+    const text = await fetchEx(name);
+    const res = {};
+    for (const m of ['dense', 'sparse']) {
+      await imp(text); await mode(m);
+      await probe('st.capture = {};');
+      const r = await R({ doc, span: ex.maxStep, reset: true });
+      const cap = await probe('const c = st.capture; st.capture = null; return c;');
+      res[m] = { ok: r.ok, cap, v: r.ok ? await valueOf() : null };
+    }
+    if (!res.dense.ok || !res.sparse.ok || !res.dense.cap || !res.sparse.cap || !res.dense.cap.x || !res.sparse.cap.x) { agree.uncaptured.push(name); continue; }
+    agree.compared++;
+    for (const m of ['dense', 'sparse']) {
+      const be = slvBackwardError(res[m].cap);
+      if (be > agree.worstBackward) { agree.worstBackward = be; agree.worstBackwardAt = name + ':' + m; }
+      if (be > 1e-13) agree.badBackward.push(name + ':' + m + ':' + be);
+    }
+    const ratio = slvPivotRatio(res.dense.cap.A, res.dense.cap.m);
+    if (ratio < 1e-8) { agree.illConditioned++; continue; }
+    const vd = res.dense.v, vs = res.sparse.v;
+    let worst = 0, at = -1;
+    if (vd.length === vs.length) vd.forEach((x, i) => { const d = Math.abs(x - vs[i]) / Math.max(1, Math.abs(x)); if (!(d <= worst)) { worst = d; at = i; } });
+    // SP_SLV_05_01: the forward error the conditioning allows for a backward error near 1e-15
+    if (vd.length !== vs.length || !(worst <= Math.max(1e-9, 1e-15 / ratio))) agree.disagree.push({ name, worst, at, dense: vd[at], sparse: vs[at], m: res.dense.cap.m, ratio });
+  }
+  await mode('session');
+  out.notes.agreement = agree;
+  ck('agreementBackwardError', agree.compared > 250 && agree.badBackward.length === 0);
+  ck('agreementVoltages', agree.disagree.length === 0);
+
+  // ---- memory: a 4900-node grid analysed in AUTO holds far less than two dense 4900² tables
+  await A('closeDocument', { doc: doc2, discardChanges: true });
+  await A('closeDocument', { doc: doc3, discardChanges: true });
+  await imp(slvGrid(70));
+  await s.cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+  const h0 = (await s.cdp.send('Runtime.getHeapUsage')).usedSize;
+  const mg = await slv(doc);
+  await s.cdp.send('HeapProfiler.collectGarbage').catch(() => {});
+  const h1 = (await s.cdp.send('Runtime.getHeapUsage')).usedSize;
+  out.notes.memory = { size: mg.size, path: mg.path, mb: Math.round((h1 - h0) / 1e5) / 10 };
+  ck('memoryGrid4900', mg.path === 'sparse' && mg.size > 4800 && h1 - h0 < 100e6);
+
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('noExceptions', s.exceptions.length === exMark);
+  finish();
 }
 
 // 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
@@ -8798,7 +9326,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, solver_corpus: scenarioSolverCorpus, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, solver_corpus: scenarioSolverCorpus, solver_paths: scenarioSolverPaths, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

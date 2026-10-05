@@ -14,9 +14,16 @@ import com.lushprojects.circuitjs1.client.CircuitMath;
  *
  * <p>The dense path ([SP_SLV_01_06]) computes exactly as the engine did before this class: the
  * reduced values go to an m × m table, {@code CircuitMath.lu_factor} / {@code lu_solve} factor and
- * solve, and the Newton restore copies the snapshot tables.
+ * solve, and the Newton restore copies the snapshot tables. The sparse path keeps the reduced
+ * pattern with its values, grows the pattern for stamps outside it ([SP_SLV_02_06]), and factors
+ * with {@link SparseLu} (symbolic analysis reused while the pattern holds, refactorization while
+ * the pivots stay acceptable); the grown pattern and the symbolic analysis carry over the stamps
+ * of one engine analysis ([SP_SLV_01_11]).
  */
 public final class LinearSystem {
+
+    /** [SP_SLV_01_02] In {@code AUTO}, a reduced system of at most this many unknowns is dense. */
+    public static final int DENSE_MAX_SIZE = 64;
 
     private static final int PHASE_NONE = 0;
     private static final int PHASE_ASSEMBLING = 1;
@@ -54,6 +61,30 @@ public final class LinearSystem {
     /** The table holds factors (not assembled values) since the last restore. */
     private boolean factored;
 
+    // ---- [SP_SLV_05] path, sparse system, carried state, counters
+    private SolvePath path;
+    /** Engine analysis of the current stamp. */
+    private int stampAnalysis = -1;
+    /** Sparse path: the reduced pattern with the current values. */
+    private CscPattern sys;
+    /** Sparse path: snapshot of the values right after reduction (0 at grown positions). */
+    private double[] values0;
+    /** Sparse path: stamps outside the pattern since the last factorization. */
+    private int pendingCount;
+    private int[] pendingRow = new int[8];
+    private int[] pendingCol = new int[8];
+    private double[] pendingVal = new double[8];
+    private int patternVersion;
+    /** Source of pattern versions: a version never repeats. */
+    private int versionCounter;
+    private SymbolicAnalysis symbolic;
+    private final SparseLu lu = new SparseLu();
+    private CarriedState carried;
+    private int counterAnalysis = -1;
+    private int symbolicCount;
+    private int fullFactorCount;
+    private int refactorCount;
+
     /** Full system size n of the current stamp. */
     public int fullSize() {
         return n;
@@ -77,7 +108,15 @@ public final class LinearSystem {
         return phase == PHASE_REDUCED;
     }
 
-    /** Releases every solver structure ({@code stop}, {@code resetSolverState}). */
+    /** Path of the current stamp; null when there is no system. */
+    public SolvePath path() {
+        return phase == PHASE_REDUCED ? path : null;
+    }
+
+    /**
+     * Releases every solver structure ({@code stop}, {@code resetSolverState}), the carried state
+     * and the counters included.
+     */
     public void drop() {
         phase = PHASE_NONE;
         n = 0;
@@ -92,6 +131,21 @@ public final class LinearSystem {
         reduced = null;
         reducedRhs = null;
         releaseDense();
+        releaseSparse();
+        carried = null;
+        lu.reset();
+        counterAnalysis = -1;
+        symbolicCount = 0;
+        fullFactorCount = 0;
+        refactorCount = 0;
+    }
+
+    private void releaseSparse() {
+        path = null;
+        sys = null;
+        values0 = null;
+        pendingCount = 0;
+        symbolic = null;
     }
 
     private void releaseDense() {
@@ -115,6 +169,13 @@ public final class LinearSystem {
      */
     public void beginStamp(int n, int analysis) {
         this.n = n;
+        stampAnalysis = analysis;
+        if (analysis != counterAnalysis) {
+            counterAnalysis = analysis;
+            symbolicCount = 0;
+            fullFactorCount = 0;
+            refactorCount = 0;
+        }
         rowInfo = new RowInfo[n];
         for (int i = 0; i < n; i++) {
             rowInfo[i] = new RowInfo();
@@ -137,6 +198,7 @@ public final class LinearSystem {
         reduced = null;
         reducedRhs = null;
         releaseDense();
+        releaseSparse();
         phase = PHASE_ASSEMBLING;
     }
 
@@ -226,7 +288,31 @@ public final class LinearSystem {
         if (r2 < 0) {
             return;
         }
-        matrix[r2][rowInfo[c].mapCol] += x;
+        int c2 = rowInfo[c].mapCol;
+        if (path == SolvePath.DENSE) {
+            matrix[r2][c2] += x;
+            return;
+        }
+        int p = sys.slotOf(r2, c2);
+        if (p >= 0) {
+            sys.values[p] += x;
+        } else {
+            addPending(r2, c2, x);
+        }
+    }
+
+    // [SP_SLV_02_06] a stamp outside the pattern: kept until the next factorization merges it
+    private void addPending(int r, int c, double x) {
+        if (pendingCount == pendingRow.length) {
+            int cap = 2 * pendingCount;
+            pendingRow = copyOf(pendingRow, cap);
+            pendingCol = copyOf(pendingCol, cap);
+            pendingVal = copyOf(pendingVal, cap);
+        }
+        pendingRow[pendingCount] = r;
+        pendingCol[pendingCount] = c;
+        pendingVal[pendingCount] = x;
+        pendingCount++;
     }
 
     /** {@code B[r] += x} (full-system row). */
@@ -440,15 +526,149 @@ public final class LinearSystem {
     // =====================================================================================
     // [SP_SLV_02_05] selectPath
 
-    /** Chooses the solve path of this stamp and builds its workspace (P3: dense only). */
-    public void selectPath() {
+    /**
+     * Chooses the solve path of this stamp from the effective mode and builds its workspace: the
+     * dense tables, or the sparse system with the carried positions and symbolic analysis of
+     * this engine analysis when its reduction maps are unchanged. The path holds until the next
+     * {@link #beginStamp}.
+     */
+    public void selectPath(SolverMode mode) {
         if (phase != PHASE_REDUCED) {
             return;
         }
-        buildDense();
+        SolvePath p;
+        if (mode == SolverMode.DENSE) {
+            p = SolvePath.DENSE;
+        } else if (mode == SolverMode.SPARSE) {
+            p = SolvePath.SPARSE;
+        } else {
+            p = m <= DENSE_MAX_SIZE ? SolvePath.DENSE : SolvePath.SPARSE;
+        }
+        path = p;
+        if (p == SolvePath.DENSE) {
+            // a path change discards the carried state
+            carried = null;
+            lu.reset();
+            buildDense();
+        } else {
+            buildSparse();
+        }
+    }
+
+    private void buildSparse() {
+        final int n = this.n;
+        int[] mr = new int[n];
+        int[] mc = new int[n];
+        for (int i = 0; i < n; i++) {
+            mr[i] = rowInfo[i].mapRow;
+            mc[i] = rowInfo[i].mapCol;
+        }
+        CscPattern a = reduced;
+        CarriedState cs = carried;
+        if (cs != null && cs.forAnalysis == stampAnalysis && sameInts(cs.mapRow, mr) && sameInts(cs.mapCol, mc)) {
+            if (cs.extraCount > 0) {
+                // this stamp's slots ∪ the grown positions (value 0)
+                int nz = a.nnz();
+                int tot = nz + cs.extraCount;
+                int[] tr = new int[tot];
+                int[] tc = new int[tot];
+                double[] tv = new double[tot];
+                int k = 0;
+                for (int c = 0; c < m; c++) {
+                    for (int q = a.colStart[c]; q < a.colStart[c + 1]; q++) {
+                        tr[k] = a.rowIndex[q];
+                        tc[k] = c;
+                        tv[k] = a.values[q];
+                        k++;
+                    }
+                }
+                for (int e = 0; e < cs.extraCount; e++) {
+                    tr[k] = cs.extraRow[e];
+                    tc[k] = cs.extraCol[e];
+                    tv[k] = 0;
+                    k++;
+                }
+                a = CscPattern.fromTriplets(m, tr, tc, tv, tot);
+            }
+            if (cs.symbolicMatches(a)) {
+                patternVersion = cs.symbolic.builtFor;
+                symbolic = cs.symbolic;
+            } else {
+                patternVersion = ++versionCounter;
+                symbolic = null;
+            }
+        } else {
+            carried = new CarriedState(stampAnalysis, mr, mc);
+            patternVersion = ++versionCounter;
+            symbolic = null;
+        }
+        sys = a;
+        values0 = new double[a.nnz()];
+        System.arraycopy(a.values, 0, values0, 0, values0.length);
+        rightSide = new double[m];
+        origRightSide = new double[m];
+        System.arraycopy(reducedRhs, 0, rightSide, 0, m);
+        System.arraycopy(reducedRhs, 0, origRightSide, 0, m);
+        pendingCount = 0;
+    }
+
+    private static boolean sameInts(int[] a, int[] b) {
+        if (a.length != b.length) {
+            return false;
+        }
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] != b[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // [SP_SLV_02_06] the pending stamps join the pattern (value 0 in the snapshot); the symbolic
+    // analysis becomes stale; the new positions are carried for the rest of the engine analysis
+    private void mergePending() {
+        CscPattern a = sys;
+        int nz = a.nnz();
+        int tot = nz + pendingCount;
+        int[] tr = new int[tot];
+        int[] tc = new int[tot];
+        double[] tv = new double[tot];
+        double[] t0 = new double[tot];
+        int k = 0;
+        for (int c = 0; c < m; c++) {
+            for (int q = a.colStart[c]; q < a.colStart[c + 1]; q++) {
+                tr[k] = a.rowIndex[q];
+                tc[k] = c;
+                tv[k] = a.values[q];
+                t0[k] = values0[q];
+                k++;
+            }
+        }
+        for (int e = 0; e < pendingCount; e++) {
+            tr[k] = pendingRow[e];
+            tc[k] = pendingCol[e];
+            tv[k] = pendingVal[e];
+            t0[k] = 0;
+            k++;
+        }
+        CscPattern grown = CscPattern.fromTriplets(m, tr, tc, tv, tot);
+        values0 = CscPattern.fromTriplets(m, tr, tc, t0, tot).values;
+        boolean[] carriedNow = new boolean[grown.nnz()];
+        for (int e = 0; e < pendingCount; e++) {
+            int q = grown.slotOf(pendingRow[e], pendingCol[e]);
+            if (!carriedNow[q]) {
+                carriedNow[q] = true;
+                carried.addExtra(pendingRow[e], pendingCol[e]);
+            }
+        }
+        sys = grown;
+        pendingCount = 0;
+        patternVersion = ++versionCounter;
     }
 
     private void buildDense() {
+        releaseSparse();
+        path = SolvePath.DENSE;
         final int mm = m;
         matrix = new double[mm][mm];
         origMatrix = new double[mm][mm];
@@ -482,6 +702,14 @@ public final class LinearSystem {
             return;
         }
         System.arraycopy(origRightSide, 0, rightSide, 0, m);
+        if (path == SolvePath.SPARSE) {
+            if (nonLinear) {
+                System.arraycopy(values0, 0, sys.values, 0, values0.length);
+            }
+            // pending stamps belong to the iteration that is over (no factorization followed)
+            pendingCount = 0;
+            return;
+        }
         if (nonLinear) {
             for (int i = 0; i < m; i++) {
                 System.arraycopy(origMatrix[i], 0, matrix[i], 0, m);
@@ -503,6 +731,9 @@ public final class LinearSystem {
         if (phase != PHASE_REDUCED) {
             return new SingularityReport(-1, -1, 0, false);
         }
+        if (path == SolvePath.SPARSE) {
+            return factorSparse();
+        }
         final int mm = m;
         if (preFactor != null) {
             for (int i = 0; i < mm; i++) {
@@ -510,6 +741,10 @@ public final class LinearSystem {
             }
         }
         factored = true;
+        if (mm > 0) {
+            // [SP_SLV_05_04] an empty reduced system has no factorization work (lu_factor(0) is a no-op)
+            fullFactorCount++;
+        }
         if (CircuitMath.lu_factor(matrix, mm, permute)) {
             return null;
         }
@@ -519,12 +754,52 @@ public final class LinearSystem {
         return rep;
     }
 
+    // [SP_SLV_02_07] steps S (symbolic, when the pattern changed), R (refactorization on the
+    // stored reach and pivots) and F (full factorization)
+    private SingularityReport factorSparse() {
+        if (m == 0) {
+            // [SP_SLV_05_04] an empty reduced system: no factorization work
+            return null;
+        }
+        if (pendingCount > 0) {
+            mergePending();
+        }
+        if (symbolic == null || symbolic.builtFor != patternVersion) {
+            symbolic = SymbolicAnalysis.build(sys, patternVersion);
+            symbolicCount++;
+            carried.symbolic = symbolic;
+            carried.symbolicColStart = sys.colStart;
+            carried.symbolicRowIndex = sys.rowIndex;
+        }
+        if (symbolic.structurallySingular) {
+            SingularityReport rep = new SingularityReport(symbolic.unmatchedCol, -1, 0, true);
+            rep.unknown = unknownOfColumn(rep.column);
+            return rep;
+        }
+        if (lu.refactor(sys, patternVersion)) {
+            refactorCount++;
+            return null;
+        }
+        fullFactorCount++;
+        SingularityReport rep = lu.factor(sys, symbolic, patternVersion);
+        if (rep != null) {
+            rep.unknown = unknownOfColumn(rep.column);
+        }
+        return rep;
+    }
+
     /**
      * Solves with the last successful factorization.
      *
      * @return the solution by reduced column (valid until the next solver call)
      */
     public double[] solve() {
+        if (path == SolvePath.SPARSE) {
+            if (m > 0) {
+                lu.solve(rightSide);
+            }
+            return rightSide;
+        }
         CircuitMath.lu_solve(matrix, m, permute, rightSide);
         return rightSide;
     }
@@ -552,13 +827,36 @@ public final class LinearSystem {
      * before it (m ≤ 12), else the snapshot (a linear circuit's matrix is its snapshot).
      */
     public double assembledValue(int r, int c) {
+        if (path == SolvePath.SPARSE) {
+            int p = sys.slotOf(r, c);
+            double v = p >= 0 ? sys.values[p] : 0;
+            for (int e = 0; e < pendingCount; e++) {
+                if (pendingRow[e] == r && pendingCol[e] == c) {
+                    v += pendingVal[e];
+                }
+            }
+            return v;
+        }
         if (!factored) {
             return matrix[r][c];
         }
         return preFactor != null ? preFactor[r][c] : origMatrix[r][c];
     }
 
-    /** Dense path: the current right-hand side at reduced row {@code r} (tests). */
+    /** [SP_SLV_01_10] Fills the solver-side fields of {@code info} (the modes are the caller's). */
+    public void fillInfo(SolverInfo info) {
+        boolean has = phase == PHASE_REDUCED;
+        info.path = has ? path : null;
+        info.fullSize = has ? n : 0;
+        info.size = has ? m : 0;
+        info.nonZeros = !has ? 0 : path == SolvePath.SPARSE ? sys.nnz() : reduced.nnz();
+        info.factorNonZeros = !has ? 0 : path == SolvePath.SPARSE ? lu.factorNonZeros() : m * m;
+        info.symbolicCount = symbolicCount;
+        info.fullFactorCount = fullFactorCount;
+        info.refactorCount = refactorCount;
+    }
+
+    /** The current right-hand side at reduced row {@code r} (tests). */
     double rightSideValue(int r) {
         return rightSide[r];
     }

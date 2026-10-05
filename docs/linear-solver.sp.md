@@ -154,7 +154,7 @@ Sparse path only. What survives from one stamp to the next within one engine ana
 | extraPositions | set of (reducedRow, reducedCol) | Positions added by pattern growth ([§02_06](#SP_SLV_02_06)) |
 | symbolic | SymbolicAnalysis? | Last symbolic analysis and the pattern it was built for |
 
-Rule: at `selectPath` on the sparse path, when `forAnalysis = analysisCount` and the new reduction's maps equal `maps`, the new pattern is this stamp's slots ∪ `extraPositions` (the extra positions with value 0), and `symbolic` is reused when that union equals the pattern it was built for: the new ReducedSystem then takes `patternVersion := symbolic.builtFor`, so step S of [§02_07](#SP_SLV_02_07) finds it current. Otherwise the carried state is discarded and rebuilt, and the new ReducedSystem takes `patternVersion := previous patternVersion + 1`, so a version never repeats within an engine analysis. A new engine analysis, a path change, `stop` and `resetSolverState` discard it.
+Rule: at `selectPath` on the sparse path, when `forAnalysis = analysisCount` and the new reduction's maps equal `maps`, the new pattern is this stamp's slots ∪ `extraPositions` (the extra positions with value 0), and `symbolic` is reused when that union equals the pattern it was built for: the new ReducedSystem then takes `patternVersion := symbolic.builtFor`, so step S of [§02_07](#SP_SLV_02_07) finds it current. When the maps match but the union differs from that pattern, the extra positions stay (positions are never removed within an engine analysis, [§02_06](#SP_SLV_02_06)) and the ReducedSystem takes a new version. When the analysis or the maps differ, the carried state is discarded and rebuilt with a new version. New versions come from a counter that never repeats (it is not reset), so a version identifies one pattern. A new engine analysis, a path change, `stop` and `resetSolverState` discard the carried state.
 
 ## 02. Contracts  {#SP_SLV_02}
 
@@ -410,7 +410,7 @@ Amends [C_DSP](./dialog-specialized.concept.md) / the Other Options dialog (Edit
 | selectPath | Auto large | 32×32 resistor grid (m = 1023) | `path = sparse` |
 | selectPath | Forced | the grid with override `dense` / an RC example with override `sparse` | `dense` / `sparse` |
 | factor + solve | Linear accuracy | captured grid 45² and RC ladder 2000 (spike kit), sparse | ‖Ax − b‖ / ‖b‖ ≤ 1e-12 |
-| factor + solve | Dense vs sparse agreement | every example with ≥ 1 node, first solve after the first stamp, both forced paths | each path's backward error ‖Ax − b‖ / (‖A‖·‖x‖ + ‖b‖) ≤ 1e-13; node voltages agree within 1e-9 · max(1, \|v\|) on the examples whose dense pivot ratio min\|u_kk\| / max\|u_kk\| ≥ 1e-8 (the others are judged by backward error only) |
+| factor + solve | Dense vs sparse agreement | every example with ≥ 1 node, first solve after the first stamp, both forced paths | each path's backward error ‖Ax − b‖ / (‖A‖·‖x‖ + ‖b‖) ≤ 1e-13; node voltages agree within max(1e-9, 1e-15 / ρ) · max(1, \|v\|), ρ = the dense pivot ratio min\|u_kk\| / max\|u_kk\| (the forward error the conditioning allows for a backward error near 1e-15), on the examples with ρ ≥ 1e-8 (the others are judged by backward error only) |
 | factor | Refactorization used | diode ladder (m ≈ 1000), 100 steps | `refactorCount > 0`; `fullFactorCount` ≪ Newton iterations |
 | factor | Growth fallback | the spike's random net with large value changes (`dbg_refactor` case) | the refactorization is rejected, a full factorization runs, residual ≤ 1e-8 |
 | factor | Structural singularity | a reduced system with a structurally empty column, produced by a harness wrapper that drops one column's stamps on the sparse path (as `solver_defects` wraps the factorization today) (circuits cannot reach it: validation enables the stabilizers for parallel sources first) | SingularityReport with `pivotAbs = 0` and the column's unknown; engine applies SP_SIM SINGULAR |
@@ -525,5 +525,7 @@ Runtime rollback without code change: Other Options → Solver → Dense restore
 | Date | Change |
 |------|--------|
 | 2026-10-05 | Initial version; SP_SLV_DEC_01 resolved in interview. |
+| 2026-10-05 | Implementation (PL_SLV P4 review): §01_11 versions come from a never-repeating counter; matching maps keep the extra positions when the symbolic pattern changed. |
+| 2026-10-05 | Implementation (PL_SLV P4): the agreement tolerance scales with the conditioning — `relayand.txt` and `relaymux.txt` (ρ ≈ 4–7.5e-8, backward errors 5e-17) differ by 1.4e-9, within what their conditioning permits. |
 | 2026-10-05 | Review round 2: carried symbolic analysis reused through `patternVersion` continuity (§01_11); `reach` moved to the factorization; backward-error agreement criterion; wording. |
 | 2026-10-05 | Review round 1: per-stamp lifecycle with carried state (§01_11); re-stamp-only mode change (§02_09); structural L/U reach (§02_07); sparse singular test at least as strict (§01_09); reduction identity scope (§02_04); MCP schemas, dialog placement, SP_AGA edit list; realistic verification rows. |

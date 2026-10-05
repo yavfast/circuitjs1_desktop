@@ -8,6 +8,7 @@ import com.lushprojects.circuitjs1.client.CirSim;
 import com.lushprojects.circuitjs1.client.CircuitDocument;
 import com.lushprojects.circuitjs1.client.CircuitSimulator;
 import com.lushprojects.circuitjs1.client.DocumentScope;
+import com.lushprojects.circuitjs1.client.solver.SolverMode;
 
 /**
  * [SP_AGA_02_09] {@code simControl}: free-running control and the time-step settings of one
@@ -26,12 +27,20 @@ import com.lushprojects.circuitjs1.client.DocumentScope;
  *     analysis that follows starts the step at the new maximum. It is a mutating contract
  *     (the settings are part of the circuit text): it runs through {@link Mutation#run}, joins or
  *     opens the agent transaction, and returns {@code connectivity} and {@code transaction}.</li>
+ * <li>{@code solver} — [SP_SLV_02_11] the document's solver-mode override ({@code mode}:
+ *     {@code auto} / {@code dense} / {@code sparse}; {@code session} clears it). Not mutating: no
+ *     transaction, history or modified flag, never saved. The call does not stamp: a change of
+ *     the effective mode re-stamps the system at its next frame, run or stamping reading.</li>
  * </ul>
- * Output: {@code {running, simTime, timeStep: {current, max, min, auto}}}.
+ * Output: {@code {running, simTime, timeStep: {current, max, min, auto}}}; {@code solver} adds
+ * {@code solver} ([SP_SLV_01_10]).
  */
 final class SimControlOps {
 
-    private static final String[] ACTIONS = { "run", "stop", "reset", "configure" };
+    private static final String[] ACTIONS = { "run", "stop", "reset", "configure", "solver" };
+
+    /** [SP_SLV_02_11] values of {@code mode}; {@code session} clears the override. */
+    private static final String[] SOLVER_MODES = { "auto", "dense", "sparse", "session" };
 
     private SimControlOps() {
     }
@@ -51,6 +60,13 @@ final class SimControlOps {
             a.invalid("action", "is required", "Use one of: " + String.join(", ", ACTIONS) + ".");
         }
         if (a.failed()) {
+            return a.failure();
+        }
+        if ("solver".equals(action)) {
+            return solver(call);
+        }
+        if (a.has("mode")) {
+            a.invalid("mode", "is only used with action \"solver\"", "Drop mode, or use action \"solver\".");
             return a.failure();
         }
         if ("configure".equals(action)) {
@@ -88,6 +104,26 @@ final class SimControlOps {
             }
             return r;
         });
+    }
+
+    // [SP_SLV_02_11] the per-document solver-mode override
+    private static OperationResult solver(AgentApi.Call call) {
+        AgentArgs a = call.args;
+        if (a.has("settings")) {
+            a.invalid("settings", "is only used with action \"configure\"", "Drop settings, or use action \"configure\".");
+        }
+        String mode = a.optEnum("mode", SOLVER_MODES, null);
+        if (mode == null && !a.failed()) {
+            a.invalid("mode", "is required with action \"solver\"", "Use one of: " + String.join(", ", SOLVER_MODES) + ".");
+        }
+        if (a.failed()) {
+            return a.failure();
+        }
+        CircuitDocument doc = call.doc;
+        doc.setSolverOverride("session".equals(mode) ? null : SolverMode.parse(mode));
+        JSONObject data = state(doc);
+        data.put("solver", DiagnosticsOps.solver(doc));
+        return OperationResult.success(data);
     }
 
     private static OperationResult configure(AgentApi.Call call) {

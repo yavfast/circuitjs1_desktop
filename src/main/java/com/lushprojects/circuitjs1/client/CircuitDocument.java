@@ -8,6 +8,8 @@ import com.google.gwt.json.client.JSONObject;
 import com.google.gwt.json.client.JSONString;
 import com.google.gwt.user.client.Timer;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
+import com.lushprojects.circuitjs1.client.solver.SolverInfo;
+import com.lushprojects.circuitjs1.client.solver.SolverMode;
 import com.lushprojects.circuitjs1.client.util.EchoText;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -393,6 +395,91 @@ public class CircuitDocument {
         displayTitle = title;
     }
 
+    // [SP_SLV_01_01] document override of the solver mode: never persisted (not in circuit files,
+    // session save, closed-tab dump, undo/redo or checkpoints)
+    private SolverMode solverOverride;
+    // [SP_SLV_02_09] the effective mode changed: re-stamp (stamp only) at the next frame, run start
+    // or stamping reading
+    private boolean solverRestampPending;
+    // the mode the current system was stamped with; kept for the stamps of an agent run
+    private SolverMode stampMode;
+
+    /** [SP_SLV_01_01] The document override, null when none. */
+    public SolverMode getSolverOverride() {
+        return solverOverride;
+    }
+
+    /** [SP_SLV_01_01] The override when set, else the session default. */
+    public SolverMode effectiveSolverMode() {
+        return solverOverride != null ? solverOverride : cirSim.getSolverModeDefault();
+    }
+
+    /**
+     * [SP_SLV_02_09] Sets (or with null clears) the document override. A change of the effective
+     * mode requests a re-stamp; the call itself does not stamp.
+     */
+    public void setSolverOverride(SolverMode mode) {
+        SolverMode before = effectiveSolverMode();
+        solverOverride = mode;
+        if (effectiveSolverMode() != before) {
+            requestSolverRestamp();
+        }
+    }
+
+    /** [SP_SLV_02_09] The effective mode changed: the system re-stamps at the next consumption. */
+    void requestSolverRestamp() {
+        solverRestampPending = true;
+    }
+
+    /**
+     * [SP_SLV_02_09] The mode a stamp of this document uses. Outside an agent run it is the
+     * effective mode, and the stamp satisfies a pending re-stamp; during a run the system keeps
+     * the mode it had when the run started.
+     */
+    SolverMode solverModeForStamp() {
+        if (busyOwner == null || stampMode == null) {
+            stampMode = effectiveSolverMode();
+            if (busyOwner == null) {
+                solverRestampPending = false;
+            }
+        }
+        return stampMode;
+    }
+
+    /**
+     * [SP_SLV_02_09] Consumes a pending re-stamp (not while an agent run owns the document): the
+     * effective mode becomes the one for the next stamp, and with {@code stampNow} a stamped
+     * system whose mode changed is stamped again at once (stamp only: no validation, no time-step
+     * reset, no analysis hook). Nothing to stamp when a full stamp is pending anyway, the
+     * document is stopped or has no system.
+     */
+    public void consumeSolverRestamp(boolean stampNow) {
+        if (!solverRestampPending || busyOwner != null) {
+            return;
+        }
+        solverRestampPending = false;
+        SolverMode mode = effectiveSolverMode();
+        if (mode == stampMode) {
+            return;
+        }
+        stampMode = mode;
+        if (!stampNow || simulator.needsStamp || simulator.stopMessage != null || simulator.elmList.isEmpty()
+                || !simulator.hasSolverSystem()) {
+            return;
+        }
+        simulator.restampForSolver();
+    }
+
+    /** [SP_SLV_01_10] The observable solver state of this document. */
+    public SolverInfo solverInfo() {
+        SolverInfo info = new SolverInfo();
+        info.mode = cirSim.getSolverModeDefault();
+        info.override = solverOverride;
+        info.effectiveMode = effectiveSolverMode();
+        simulator.fillSolverInfo(info);
+        return info;
+    }
+
     /** @return true while an agent operation owns this document (see {@link #setAgentBusy}) */
     public boolean isAgentBusy() {
         return busyOwner != null;
@@ -568,6 +655,15 @@ public class CircuitDocument {
                                 notifyUpdateListeners();
                                 return;
                             }
+                        } catch (Exception e) {
+                            noteAnalysisFailed();
+                            logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
+                            CircuitDocument.this.stop("Exception in stampCircuit(): " + e.getMessage(), null);
+                        }
+                    } else {
+                        // [SP_SLV_02_09] a solver-mode change re-stamps before the frame's first timestep
+                        try {
+                            consumeSolverRestamp(true);
                         } catch (Exception e) {
                             noteAnalysisFailed();
                             logBuffer.log("Exception in stampCircuit(): " + e.getMessage());
@@ -836,10 +932,12 @@ public class CircuitDocument {
         if (isAnalysisFailed()) {
             return false;
         }
-        if (!simulator.needsStamp || simulator.stopMessage != null || simulator.elmList.isEmpty()) {
-            return true;
-        }
         try {
+            if (!simulator.needsStamp || simulator.stopMessage != null || simulator.elmList.isEmpty()) {
+                // [SP_SLV_02_09] a stamping reading re-stamps after a solver-mode change
+                consumeSolverRestamp(true);
+                return true;
+            }
             simulator.preStampAndStampCircuit();
             return true;
         } catch (Exception e) {

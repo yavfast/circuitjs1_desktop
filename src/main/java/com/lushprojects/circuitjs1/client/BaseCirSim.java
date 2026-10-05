@@ -5,6 +5,7 @@ import com.lushprojects.circuitjs1.client.agent.Catalogue;
 import com.lushprojects.circuitjs1.client.element.CircuitElm;
 import com.lushprojects.circuitjs1.client.element.LabeledNodeElm;
 import com.lushprojects.circuitjs1.client.element.TransistorElm;
+import com.lushprojects.circuitjs1.client.solver.SolverMode;
 
 import java.util.Date;
 
@@ -37,6 +38,12 @@ public class BaseCirSim {
 
     // [SP_AGA_02_01] Agent element catalogue: session-scoped (RULE_ARCH_006), built on first use.
     private Catalogue agentCatalogue;
+
+    /** [SP_SLV_01_01] Preference key of the solver-mode session default. */
+    public static final String SOLVER_MODE_OPTION = "solverMode";
+
+    // [SP_SLV_01_01] solver-mode session default (RULE_ARCH_006: session scope), read on first use
+    private SolverMode solverModeDefault;
 
     BaseCirSim() {
         CircuitDocument initialDocument = documentManager.createDocument();
@@ -105,6 +112,36 @@ public class BaseCirSim {
             }
         }
         return agentCatalogue;
+    }
+
+    /**
+     * [SP_SLV_01_01] The solver-mode session default: the stored preference {@code solverMode}
+     * (absent or unrecognized reads as {@code AUTO}).
+     */
+    public SolverMode getSolverModeDefault() {
+        if (solverModeDefault == null) {
+            solverModeDefault = SolverMode.fromStored(OptionsManager.getOptionFromStorage(SOLVER_MODE_OPTION, null));
+        }
+        return solverModeDefault;
+    }
+
+    /**
+     * [SP_SLV_02_09] Sets the solver-mode session default and persists it. Every open document
+     * without an override whose effective mode changes gets a pending re-stamp (stamp only, no
+     * re-analysis); a document in an agent run keeps its path until the run has ended.
+     */
+    public void setSolverModeDefault(SolverMode mode) {
+        SolverMode old = getSolverModeDefault();
+        OptionsManager.setOptionInStorage(SOLVER_MODE_OPTION, mode.wire);
+        if (old == mode) {
+            return;
+        }
+        solverModeDefault = mode;
+        for (CircuitDocument doc : documentManager.getDocuments()) {
+            if (doc.getSolverOverride() == null) {
+                doc.requestSolverRestamp();
+            }
+        }
     }
 
     public void setCanvasSize(int width, int height) {

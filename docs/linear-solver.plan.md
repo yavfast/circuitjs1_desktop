@@ -56,7 +56,7 @@ Large circuits must analyse and step with a cost that follows their non-zeros, s
 - [x] [Phase 1 — Baseline and test infrastructure](#PL_SLV_P1)
 - [x] [Phase 2 — Sparse kernel](#PL_SLV_P2)
 - [x] [Phase 3 — System store and reduction, dense path only](#PL_SLV_P3)
-- [ ] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
+- [x] [Phase 4 — Sparse path, solver mode, Agent API](#PL_SLV_P4)
 - [ ] [Phase 5 — Other Options row, MCP, documentation](#PL_SLV_P5)
 - [ ] [Phase 6 — Performance, full verification, propagation](#PL_SLV_P6)
 
@@ -137,7 +137,7 @@ Notes:
 - `sanitizeStampValue` stays in `CircuitSimulator` (it writes `converged`).
 - Done 2026-10-05: `solver_corpus` 327/327 identical; ReduceTest 500 sequences bit-identical; regression set passes (`json_roundtrip` fails identically on master — pre-existing). Timing against a master build, two paired runs: frame idle equal, steps/s at 1000 elements about 3 % lower; `importCircuit` 2–6 % slower with no solver code in its CPU profile (build/GC noise). The RULE_TEST_002 devmode check is owed to P6 (headless stand-ins: corpus runs, `agent_freerun`). Stamps after a stop or into a dropped row are ignored (they threw a JS TypeError before); `stepLoop` returns when an in-loop re-stamp left no system.
 
-### Phase 4 — Sparse path, solver mode, Agent API (`client/solver/`, `CircuitSimulator`, `CircuitDocument`, `agent/`) [TODO]  {#PL_SLV_P4}
+### Phase 4 — Sparse path, solver mode, Agent API (`client/solver/`, `CircuitSimulator`, `CircuitDocument`, `agent/`) [DONE]  {#PL_SLV_P4}
 
 **Depends on:** Phases 2, 3
 **Implements:**
@@ -168,6 +168,8 @@ What to create / change:
 | simControl `solver` | agent/SimControlOps.java (+ `AgentApi` contract-class table) | SP_SLV §02_11; not mutating, `busy` while running |
 | Diagnostics `solver` | agent/DiagnosticsOps.java; shared `SolverInfo` → JSON helper in `agent/` | SP_SLV §02_12 |
 | scenario `solver_paths` | tests/live/harness.mjs | As in Verify |
+
+Done 2026-10-05: `solver_paths` 42/42, `LinearSystemTest`, corpus in AUTO 326 identical + `grid2.txt` (m = 87, sparse) within 4e-15, regression set green. The session-default rows need the P5 dialog: GWT prunes `setSolverModeDefault` while it has no Java caller (`SOLVER_PATHS_NO_SESSION=1` skips them on such a build); they passed on the P4 + P5 tree. Spec corrections from the evidence: SP_SLV_05_01 agreement tolerance scales with conditioning, §01_11 versions from a never-repeating counter. Unobserved: forced dense on m = 10 000 (≈ 1.6 GB; m ≈ 1023 forced dense runs), a matrix stamp after reduction in a linear analysis (outside the element contract; no element does it); RULE_TEST_002 devmode check owed to P6.
 
 ### Phase 5 — Other Options row, MCP, documentation (`dialog/EditOptions.java`, `mcp/server/src/tools.js`, docs) [TODO]  {#PL_SLV_P5}
 

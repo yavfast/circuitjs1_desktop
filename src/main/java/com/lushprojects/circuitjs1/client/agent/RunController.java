@@ -243,6 +243,8 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             if (reset) {
                 doc.ensureNodesAnalysed();
             } else {
+                // [SP_SLV_02_09] a pending solver-mode change re-stamps here, before the run owns
+                // the document (a reset run adopts it just before it starts, below)
                 doc.ensureAnalysed();
             }
             Connectivity.Nets nets = Connectivity.nets(doc);
@@ -281,6 +283,10 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
             run.finished = true;
             done.complete(run.safeResult());
             return;
+        }
+        if (reset) {
+            // [SP_SLV_02_09] a pending solver-mode change applies to the reset stamp
+            doc.consumeSolverRestamp(false);
         }
         doc.setAgentBusy(run);
         Slices.afterVisibleFrame(call.sim, doc, run::slice);
