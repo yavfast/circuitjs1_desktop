@@ -1,4 +1,4 @@
-updated: 2026-10-01
+updated: 2026-10-02
 
 domains:
   - path: gwt/
@@ -17,5 +17,5 @@ domains:
     description: Canvas editor patterns (undo, clipboard, MouseMode state machine)
     topics: [editor, undo, clipboard, mouse-mode, command]
   - path: automation/
-    description: JS API real behaviour, hosting an MCP server in NW.js, agent tool/skill design
-    topics: [js-api, mcp, nw-js-runtime, agent-tools, agent-skill, element-id, diagnostics]
+    description: JS API real behaviour, MCP hosting in NW.js, agent tools/skill, agent runs, circuit experiment languages
+    topics: [js-api, mcp, nw-js-runtime, agent-tools, agent-skill, element-id, diagnostics, agent-run, determinism, throughput, measure, sweep, monte-carlo, circuit-language, script-host]

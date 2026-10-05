@@ -109,6 +109,18 @@ stop-state **before** solver-state) must be preserved.
    waveform generators use `t`. Under panic force-advance, `t` jumps
    while `timeStepCount` does not — waveform-driven sources stay
    phase-correct, but counters tied to integer steps lag.
+6. **Programmatic bar updates must not run the bar's command** (fixed
+   2026-10-02 in `722f9f9`, SP_AGA_06_01 item 18 / audit BL-D01). Tab
+   activation (`CircuitDocument.restoreUIState` →
+   `ControlsDialog.syncTimeStepBar`), the scope exit, Agent API
+   `configure` and the text/JSON importers move the thumb with
+   `Scrollbar.setValueWithoutCommand` (nearest 1-2-5 position, exact label).
+   Only a user moving the bar runs its command, which sets a table step
+   (≤ 10 µs) and calls `needAnalyze`. Before the fix, `Scrollbar.setValue`
+   fired the command and silently rewrote a file's or a configured step
+   (15.625 µs → 10 µs, 1 ms → 10 µs). Never call `timeStepBar.setValue`
+   from code with a non-table step. A missing, garbled, non-positive or
+   infinite `$` step now falls back to 5 µs with a console line.
 
 ## References
 

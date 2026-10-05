@@ -4,18 +4,19 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 ## Resume
 
-- `/dev-flow resume task_E_AGT` — `implement` — next: PL_AGA Phase 9 (path-based files) — branch `design/agent-mcp`, 13 commits ahead of master, not pushed — 2026-10-02 11:00
+- `/dev-flow resume task_E_AGT` — `verify` — merged to `master` and pushed at c1d0d90 (2026-10-05); next: the developer's manual NW.js devmode checks (relays/controlled sources free-run + the older owed list); optional: sparse solver, PL_AGA Phase 16b
 
 ## Active Tasks
 
 | Task | Phase | Started | Contributors | Next |
 |------|-------|---------|--------------|------|
-| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | implement (PL_AGA P9) | 2026-10-01 | main | PL_AGA Phase 9 → PL_MCP |
+| [task_E_AGT](tasks/task_E_AGT.md) — agent automation over MCP (epic [E_AGT](../docs/agent-automation.epic.md)) | implement (PL_AGA Phases 11–15: agent model definitions) + verify (live agent series) | 2026-10-01 | main | review + commit Phase 14 → Phase 15 → re-run series T8–T10; manual checks still owed |
 
 ## Recently Completed
 
 | Task | Phase | Completed | Contributors | Result |
 |------|-------|-----------|--------------|--------|
+| [task_20261002_100004_circuit-lang-research](tasks/task_20261002_100004_circuit-lang-research.md) — language for circuit description, simulation and measurement | research | 2026-10-02 | main | spike [circuit-script-language.spike.md](../docs/circuit-script-language.spike.md) concluded; skills automation/circuit-experiment-language, agent-run-behaviour; next: concept interview |
 | [task_20261001_142742_mcp-research](tasks/task_20261001_142742_mcp-research.md) — app as MCP server + agent client/skill | research | 2026-10-01 | main | spike [mcp-agent-bridge.spike.md](../docs/mcp-agent-bridge.spike.md) concluded; skills automation/ |
 | [task_20261001_131500_backlog-fixes-3](tasks/task_20261001_131500_backlog-fixes-3.md) — backlog batch 3 (BL-C07/C08/C09) | fix | 2026-10-01 | main | fix/backlog-20260930, merged to master |
 | [task_20261001_113805_backlog-fixes-2](tasks/task_20261001_113805_backlog-fixes-2.md) — backlog batch 2 (BL-C01..C04, BL-A01) | fix | 2026-10-01 | main | fix/backlog-20260930, merged to master |
@@ -27,7 +28,7 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 ## Deferred (todos)
 
-_No `todos/` register. Open work lives in the backlog of [audit/whole_20260930_173830.plan.md](audit/whole_20260930_173830.plan.md): ITEM-15 (CSP, active) · BL-A01…A16 · BL-B01…B06 · BL-C01…C06 · June BL-RD/BL-AR/BL-01…04 · proposed decisions PL_AUDIT_20260930_173830_DEC_01 (release build profile) and DEC_03 (element↔dialog cycle)._
+_No `todos/` register. Open work lives in the backlog of [audit/whole_20260930_173830.plan.md](audit/whole_20260930_173830.plan.md): ITEM-15 (CSP, active) · BL-A01…A16 · BL-B01…B06 · BL-C01…C11 · BL-D01…D03 (2026-10-02, circuit-language spike) · June BL-RD/BL-AR/BL-01…04 · proposed decisions PL_AUDIT_20260930_173830_DEC_01 (release build profile) and DEC_03 (element↔dialog cycle)._
 
 ## Notes
 

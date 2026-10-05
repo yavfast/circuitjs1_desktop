@@ -116,7 +116,11 @@ subcircuit mode, `AudioInputElm.clearCache()`,
    with `$`, letter, or digit → yes. Because `LinkedHashMap` iteration
    puts text before JSON in `detectFormat`, arbitrary text blobs with
    leading letters are classified as circuits. Benign in practice but
-   fragile.
+   fragile. **A new format whose content can start with a letter or digit
+   (e.g. a netlist) must register before `text` with a strict probe**, or
+   it is never detected; the agent import (`ImportOps.importCircuit`)
+   sniffs only `{` vs. text and needs a format id to reach a third
+   format (2026-10-02, [automation/circuit-experiment-language](../automation/circuit-experiment-language.md)).
 2. **Parse errors are logged per line, not thrown** (RULE_ERR_003). A
    single corrupt line does not abort the load — but empty `catch {}`
    is still a violation of RULE_ERR_006 (log with reason).

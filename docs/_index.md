@@ -124,6 +124,7 @@
 ## Spikes
 
 - [mcp-agent-bridge.spike.md](mcp-agent-bridge.spike.md) — concluded 2026-10-01: app as MCP server (in-app Streamable HTTP + stdio bridge), JS API gaps, agent tools & skill; feeds epic E_AGT (the interview chose agent-written grid-cell coordinates over the spike's netlist-first recommendation)
+- [circuit-script-language.spike.md](circuit-script-language.spike.md) — concluded 2026-10-02: a language for describing circuits, running simulations and measuring at circuit points; verdict feasible in layers — an experiment layer (SPICE-style measures, spec checks, sweeps/Monte Carlo) over the Agent API, hosted outside the app; target concept not yet created; relates to epic E_AGT
 
 ## Pre-existing hand-written docs (cross-reference)
 

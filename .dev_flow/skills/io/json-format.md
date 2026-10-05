@@ -125,6 +125,7 @@ with `"2."`. No semver range; future `3.x` rejects.
 9. **Import flags have one definition: `CircuitConst.RC_*`** (`CircuitImporter.RC_*` alias it). A second set with `RC_NO_CENTER`/`RC_SUBCIRCUITS` swapped made undo load an empty circuit (fixed 2026-09-30).
 10. **Values are serialized losslessly** with `CircuitElm.getJsonUnitText` (not the display `getUnitText`, whose precision follows the display setting). `_flags` is always written. Lists are JSON arrays and arrive as `java.util.List`.
 11. **Pin keys in `state` must be unique** — chips name Q and Q-bar both "Q"; keys get a `~` (line-over) prefix and a `_<index>` suffix on collision.
+12. **JSON v2 carries no model definitions** (`JsonCircuitImporter.java:110-116`). Diode (`34`), transistor (`32`) and subcircuit (`.`) model lines exist only in the text format and the session-global model maps; a JSON import with `RC_SUBCIRCUITS` imports nothing. Any front end that needs `.model`/`.subckt` (e.g. a SPICE translator) must go through the text path or a new models channel (found 2026-10-02, [automation/circuit-experiment-language](../automation/circuit-experiment-language.md)).
 
 ## References
 

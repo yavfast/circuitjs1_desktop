@@ -16,3 +16,13 @@ skills:
     topics: [documents, bind-document, session-state, sliders-dialog, hint, simulation-loop, agent-run, r1-r2]
     source: prototype
     updated: 2026-10-01
+  - file: circuit-experiment-language.md
+    skill: circuit-experiment-language
+    topics: [circuit-language, experiment, test-bench, measure, meas, trig-targ, find-when, sweep, monte-carlo, worst-case, spec-check, llm-reliability, script-host, sandbox, pyodide, quickjs, spice-subset]
+    source: research
+    updated: 2026-10-02
+  - file: agent-run-behaviour.md
+    skill: agent-run-behaviour
+    topics: [agent-run, determinism, reset, initial-state, throughput, sweep, time-step, quantization, rng, noise, stop-trigger, convergence, solver-quality]
+    source: prototype
+    updated: 2026-10-02

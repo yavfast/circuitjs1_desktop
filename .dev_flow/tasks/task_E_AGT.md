@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-04 15:30
+> **Last updated:** 2026-10-05
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -171,9 +171,11 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Developer 2026-10-05: "Спочатку оптимізуй імпорт, потім - все інше. Перетин надписів та дротів - це поки не критично, можна відкласти у todo" → Phase 16b deferred into the PL_AGA backlog
 - [x] importCircuit/applyEdits scaling fixed (no matrix stamp during mutations — node analysis only, stamp deferred to run/read/diagnostics/render/simControl run; linear BFS/grids/maps): 2500 mix import 22.2 s → 1.37 s, applyEdits 17.8 → 0.83 s, 2000 unconnected 216 → 0.99 s; defects fixed: relay/CCCS/CCVS setParentList(Vector) never overrode → stamp exceptions (latchingrelay, relays, ujtosc), visible Undo label leaking background/sealed transaction labels (R1); review PASS → delta PASS; test:mcp 71/0
 - [x] Backlog: visible frame draw (already linear after dd04675: 1000 elements 1420 → 68 ms; Color hex cache −15 %, pixel-identical; opt-in frame_cost) and bounded echo of client values (util/EchoText; agent_echo 32 cases, longest message 315 chars; ids_regenerated leak found and fixed); review PASS → follow-ups confirmed
-- [ ] **Next:** remaining open work — RULE_TEST_002 manual devmode checks (relays, controlled sources, plus the older owed list), then push/merge on the developer's word
+- [x] Merged and pushed on the developer's word (2026-10-05 "git merge & push"): `master` fast-forwarded to c1d0d90 and pushed to origin
+- [ ] **Next:** RULE_TEST_002 manual devmode checks (relays, controlled sources, plus the older owed list) — still owed after the merge; optional sparse solver; PL_AGA Phase 16b (backlog)
 
 **Activity:**
+- 2026-10-05 — developer: "git merge & push" → `master` fast-forwarded b1b8865..c1d0d90 (no merge commit), origin/master a488ebb..c1d0d90; branch `design/agent-mcp` kept locally, not pushed; manual checks not reported before the merge
 - 2026-10-04 — developer: "Підтримку попередніх версій схем у json форматі можна не реалізовувати, бо це ще у розробці" → no compatibility with earlier JSON 2.x versions (no older-reader guarantee, json_models_older dropped); existing compat code kept, not extended
 - 2026-10-04 15:30 — checkpoint: branch `design/agent-mcp` at de3ef73 (Phases 11–13 + scope fix committed, not pushed); uncommitted: PL_AGA Phase 14 (EXPORT_CJS.md, JS_API.md, agent-api.plan/sp, io-framework.sp, agent-format, SKILL.md, elements.md, ClipboardManager, ElementIdRegistry, agent/CircuitView/ImportOps/ModelOps, ScopeElm, io/ImportLifecycle/ImportReport/ModelSpecCodec, io/json/*, new io/ModelDependencies + io/json/JsonScopeCodec, TextCircuitImporter, tests/live) — its implementer was applying a last round (user JSON bad-rule alert, spec wording, fresh-session side pages) when the session was checkpointed; the parallel circuit-lang task's files stay dirty and are not ours; series tools saved to `.dev_flow/cache/agent-series/`
 - 2026-10-04 — developer: wire crossings are allowed (not a defect); research of drawing guidelines (IEEE 315, IEC 61082, ГОСТ 2.702) → `.dev_flow/cache/schematic-drawing-guidelines.md`

@@ -17,12 +17,13 @@ headers if they drift.
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
-| [E_AGT](task_E_AGT.md) | implement (PL_AGA P9) | in-progress | main | 2026-10-02 |
+| [E_AGT](task_E_AGT.md) | implement (PL_AGA 11–15) + verify (live series) | in-progress | main | 2026-10-04 |
 
 ## Recently Completed
 
 | Task | Phase | Status | Contributors | Updated |
 |---|---|---|---|---|
+| [circuit-lang-research](task_20261002_100004_circuit-lang-research.md) | research | done | main | 2026-10-02 |
 | [mcp-research](task_20261001_142742_mcp-research.md) | research | done | main | 2026-10-01 |
 | [backlog-fixes-3](task_20261001_131500_backlog-fixes-3.md) | fix | done | main | 2026-10-01 |
 | [backlog-fixes-2](task_20261001_113805_backlog-fixes-2.md) | fix | done | main | 2026-10-01 |
