@@ -7,7 +7,7 @@
 >
 > **Concept:** [C_AGA](./agent-api.concept.md)
 > **Depends on:** [SP_DOC](./document-model.sp.md), [SP_UND](./commands-undo.sp.md), [SP_SIM](./simulator-engine.sp.md), [SP_IOF](./io-framework.sp.md), [SP_EIC](./edit-info-contract.sp.md), [SP_FBR](./browser-file-bridge.sp.md) (existing mechanisms this spec changes or consumes)
-> **Used by:** [SP_MCP](./mcp-server.sp.md), [SP_AGS](./agent-skill.sp.md)
+> **Used by:** [SP_MCP](./mcp-server.sp.md), [SP_AGS](./agent-skill.sp.md), [SP_SLV](./linear-solver.sp.md)
 > **Plan:** [agent-api.plan.md](./agent-api.plan.md)
 >
 > This document defines the data structures, operations, validation rules, lifecycles and verification criteria of the Agent API. The API is the transport-free surface through which agents build, edit, inspect, run, measure, debug and checkpoint circuits in any open document. Read it to implement the API, or to map MCP tools onto it. It is split into structures (§01), operations (§02), rules including the per-document routing changes to existing mechanisms (§03), lifecycles (§04), checks (§05) and rollback (§06).
@@ -617,7 +617,7 @@ Output `data`:
 
 Result rules:
 - `ok = true` for every `reason`; argument errors give `ok = false`.
-- `issues` carries the solver events present when the run started plus those raised during it ([§03_06](#SP_AGA_03_06)), each code once.
+- `issues` carries the solver events present when the run started (for a run with `reset`: after the reset) plus those raised during it ([§03_06](#SP_AGA_03_06)), each code once.
 - `solver_stop` adds the stop issue (severity `error`).
 - `budget_exhausted`, `settle_timeout` and `cancelled` add a `warning` with the same code as the reason.
 - **Stop trigger.** A stop-trigger element that fires during a run ends it after that timestep with `reason = stop_trigger` and a `warning` issue `stop_trigger` naming the element; as in free-running, the document's running flag is cleared ([SP_AGA_DEC_05](#SP_AGA_DEC_05)).
@@ -1609,3 +1609,4 @@ Also resolved (delegated, proposals accepted): live-reading texts are marked liv
 | 2026-10-04 | PL_AGA Phase 16a implementation decisions (lead, delegated): §03_13 Obstacles — a texted `single` element's stem ends at its own text box grown by PAD; Exempt — rule 3 not between two text elements; Coverage — an element drawing through a delegate (subcircuit → chip) takes its layout and coverage; Pure layout — stamped analysis values (current source, potentiometer) and the editor's plot axes; Highlight — bold-while-highlighted fonts also during drag-create; §02_16 Cost and §05_01 cost row re-based to the draft-compiled build (≤ 8 ms at 100, ≤ 120 ms at 2500; measured 6.4 / 97 ms visible, 5.9 / 94 ms background); §05_01 corpus row excepts the marked body-model findings; §06_01 row: `Switch2Elm` throw-count defect fix; §05_02 `text_sites` runs by default inside `agent_layout` |
 | 2026-10-05 | PL_AGA backlog "importCircuit scales" (fix task): §06_01 items 31 (relay/CCCS/CCVS element list, audit BL-D02), 32 (node analysis without the stamp for mutations and connectivity; stamped drawing values set by the node analysis; `simControl run` and `render` stamp what it left) and 33 (session Undo/Redo labels from the visible document; refreshed when a user import seals) |
 | 2026-10-05 | PL_AGA backlog "Bounded echo" (fix task): §01_07 `message` bounds quoted client values (64 characters + `… (N chars)`, paths 256, message ≤ 1000); §06_01 item 34 (also: model-name hints list at most 40 names) |
+| 2026-10-05 | Spike solver-defects fix task: §02_10 `issues` of a run with `reset` start after the reset (the run no longer stamps before the reset, which factored a linear circuit twice) |

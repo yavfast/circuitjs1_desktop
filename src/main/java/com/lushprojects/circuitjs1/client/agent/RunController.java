@@ -238,7 +238,13 @@ final class RunController implements CircuitDocument.BusyOwner, CircuitSimulator
         final List<ProbeRecorder> recorders = new ArrayList<>();
         final List<Integer> nodes = new ArrayList<>();
         DocumentScope.run(call.sim, doc, () -> {
-            doc.ensureAnalysed();
+            // the probes need only the nets; a reset run resets and stamps in its first slice,
+            // so stamping here too would LU-factor a linear circuit twice (O(m³) each)
+            if (reset) {
+                doc.ensureNodesAnalysed();
+            } else {
+                doc.ensureAnalysed();
+            }
             Connectivity.Nets nets = Connectivity.nets(doc);
             if (probes != null && probes.size() > 0) {
                 List<Readings.ProbeTarget> targets = Readings.resolveAll(probes, "probes", nets, CircuitView.byId(doc), issues);

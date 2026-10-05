@@ -859,7 +859,8 @@ public class CircuitDocument {
      * {@link #ensureAnalysed()} or free-running frame, which then does not allocate again. For
      * the connectivity, the element records and agent mutations: the stamp builds a dense
      * matrix and factors it, which grows with the cube of the node count (PL_AGA backlog
-     * "importCircuit scales"). Readings, diagnostics and runs use {@link #ensureAnalysed()}.
+     * "importCircuit scales"). Readings, diagnostics and runs use {@link #ensureAnalysed()} (a run
+     * with reset resolves its probes on the node analysis and stamps once, after the reset).
      *
      * @return false when the current analysis threw (as {@link #ensureAnalysed()})
      */

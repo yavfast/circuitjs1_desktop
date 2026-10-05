@@ -6,7 +6,7 @@
 // automation API, and runs verification scenarios.
 //
 // Usage:  node tests/live/harness.mjs [scenario ...]      (after `npm run buildgwt`)
-// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | agent_models | agent_models_logic | agent_models_sub | json_models | agent_echo | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | import_cost | frame_cost | agent_equiv | eval | all (default: all but text_sites, render_pixels, layout_cost, import_cost, frame_cost, agent_equiv and eval)
+// Scenarios: undo | paste | sliders | loadstate | textfid | scope_float | roundtrip | synth | agent_docs | agent_ids | agent_catalogue | agent_edit | agent_connect | agent_connect_all | agent_overlap | agent_layout | render_text | agent_freerun | geom_posts | xfmr_draw | agent_axis | agent_history | agent_run | agent_bg | agent_files | pin_names | agent_defects | verify_defects | solver_defects | agent_models | agent_models_logic | agent_models_sub | json_models | agent_echo | mcp_browser | mcp_dialog | text_sites | render_pixels | layout_cost | import_cost | frame_cost | agent_equiv | eval | all (default: all but text_sites, render_pixels, layout_cost, import_cost, frame_cost, agent_equiv and eval)
 // See tests/live/README.md.
 // Exit code: 0 if every scenario PASSes, 1 if any FAIL, 2 on harness error.
 
@@ -6498,6 +6498,128 @@ async function scenarioVerifyDefects(s) {
   report('AG.verify_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
 }
 
+// solver_defects: the defects found by the sparse-solver spike (docs/sparse-solver.spike.md,
+// 2026-10-05), on a background document. Wraps the GWT-emitted CircuitMath.lu_factor and
+// CircuitSimulator.stampCircuit (draftCompile names) to count and to force failures.
+// (1) An agent run with reset: true stamps (and, for a linear circuit, LU-factors) once, not twice.
+// (2) A nonlinear circuit whose LU factorization fails again with the singular-matrix stabilizers
+// active reports singular_matrix (SP_SIM_02 SINGULAR: escalate) instead of re-factoring the matrix
+// lu_factor has already overwritten. (3) The singularity message names the unknown of the failed
+// reduced column through the reduction's column map (SP_SLV_01_09), not the full-system index.
+async function scenarioSolverDefects(s) {
+  const out = { checks: {}, notes: {} };
+  const ck = (name, cond) => { out.checks[name] = !!cond; return !!cond; };
+  const A = (op, args) => s.call('agentCall', op, args);
+  const R = (args) => s.call('agentAsync', 'run', args, 60000);
+  const codes = (list) => (list || []).map((i) => i.code);
+  await resetApp(s);
+  const exMark = s.exceptions.length;
+  const vis0 = await s.call('visibleTab');
+  const installed = await s.eval(`(() => {
+    const w = [...document.querySelectorAll('iframe')].map((f) => { try { return f.contentWindow; } catch (e) { return null; } }).find((x) => x && x.clcc);
+    if (!w) return 'no GWT iframe';
+    const G = w.clcc;
+    const F = 'com_lushprojects_circuitjs1_client_CircuitMath_lu_1factor___3_3DI_3IZ';
+    const key = Object.keys(G).find((k) => k.startsWith('com_lushprojects_circuitjs1_client_CircuitSimulator_CircuitSimulator__'));
+    const P = key && G[key].prototype;
+    const SC = 'package_private$com_lushprojects_circuitjs1_client$stampCircuit__V';
+    if (typeof G[F] !== 'function' || !P || typeof P[SC] !== 'function') return 'GWT names not found';
+    window.__solverProbe = { factor: 0, stamp: 0, failNext: 0, failCol: -1 };
+    if (!G[F].__probe) {
+      // the wrappers read the probe at call time, so a re-run of the scenario in the same page counts;
+      // a forced failure reports failCol as the failed (reduced) column, as a real one sets lastLuFail*
+      const f0 = G[F];
+      const C = 'com_lushprojects_circuitjs1_client_CircuitMath_lastLuFail';
+      G[F] = function (a, n, ip) {
+        const st = window.__solverProbe; st.factor++;
+        if (st.failNext > 0) { st.failNext--; G[C + 'Column'] = st.failCol; G[C + 'Row'] = st.failCol; G[C + 'PivotAbs'] = 0; return false; }
+        return f0(a, n, ip);
+      };
+      G[F].__probe = true;
+      const s0 = P[SC];
+      P[SC] = function () { window.__solverProbe.stamp++; return s0.call(this); };
+    }
+    return 'ok';
+  })()`);
+  out.notes.installed = installed;
+  if (!ck('probeInstalled', installed === 'ok')) {
+    fs.writeFileSync(path.join(OUT_DIR, 'solver_defects.json'), JSON.stringify(out, null, 2));
+    report('AG.solver_defects', false, { checks: 1, failed: ['probeInstalled'] });
+    return;
+  }
+  const probe = (expr) => s.eval(`(() => { const st = window.__solverProbe; ${expr} })()`);
+  const doc = (await A('createDocument', { title: 'Solver defects' })).data.doc;
+
+  // (1) linear divider: one stamp and one factorization for a reset run
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 }, properties: { max_voltage: '5 V' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1 kOhm' } },
+    { id: 'R2', type: 'Resistor', start: { x: 4, y: 0 }, end: { x: 4, y: 4 }, properties: { resistance: '1 kOhm' } },
+    { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } }] } });
+  await probe('st.factor = 0; st.stamp = 0; st.failNext = 0;');
+  const r1 = await R({ doc, span: '1 ms', reset: true, probes: [{ post: 'R1.#1' }] });
+  const c1 = await probe('return { factor: st.factor, stamp: st.stamp };');
+  out.notes.resetRun = { ok: r1.ok, reason: r1.data && r1.data.reason, issues: (r1.issues || []).map((i) => i.message), final: r1.ok && r1.data.probes[0].stats.final, ...c1 };
+  ck('resetRunStampsOnce', r1.ok && r1.data.reason === 'span_reached' && c1.stamp === 1 && c1.factor === 1);
+  ck('resetRunReading', r1.ok && Math.abs(r1.data.probes[0].stats.final - 2.5) < 1e-6);
+
+  // (2) diode clamp: the first failed factorization enables the stabilizers and re-stamps; the
+  // second one (stabilizers active) must be reported, not retried on the overwritten matrix
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 }, properties: { max_voltage: '5 V' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1 kOhm' } },
+    { id: 'D1', type: 'Diode', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } }] } });
+  await R({ doc, span: '10 us', reset: true });
+  await probe('st.factor = 0; st.stamp = 0; st.failNext = 2;');
+  let r2, c2;
+  try {
+    r2 = await R({ doc, span: '10 us', reset: true });
+  } finally {
+    // never leak forced failures into later scenarios on this page
+    c2 = await probe('const r = { factor: st.factor, stamp: st.stamp, left: st.failNext }; st.failNext = 0; return r;');
+  }
+  const d2 = await A('getDiagnostics', { doc });
+  const ev = codes(d2.data && d2.data.events);
+  out.notes.singularRetry = { ok: r2.ok, reason: r2.data && r2.data.reason, issues: codes(r2.issues), events: ev, ...c2 };
+  ck('singularForcedTwice', c2.left === 0);
+  ck('singularReportedNotRetried', ev.includes('singular_matrix') || codes(r2.issues).includes('singular_matrix'));
+  // (3) the singularity message names the unknown of the failed reduced column. With the
+  // stabilizers active only a row with a single unknown reduces: node X, tied to ground by R2 alone,
+  // becomes a constant, so the 4 unknowns (3 nodes, the rail's source current) reduce to 3 and
+  // reduced column 2 is the source current (the full index 2 would be a node voltage)
+  await A('importCircuit', { doc, circuit: { elements: [
+    { id: 'V1', type: 'Rail', start: { x: 0, y: 0 }, end: { x: 0, y: -2 }, properties: { max_voltage: '5 V' } },
+    { id: 'R1', type: 'Resistor', start: { x: 0, y: 0 }, end: { x: 4, y: 0 }, properties: { resistance: '1 kOhm' } },
+    { id: 'D1', type: 'Diode', start: { x: 4, y: 0 }, end: { x: 4, y: 4 } },
+    { id: 'G1', type: 'Ground', start: { x: 4, y: 4 }, end: { x: 4, y: 5 } },
+    { id: 'R2', type: 'Resistor', start: { x: 8, y: 0 }, end: { x: 8, y: 4 }, properties: { resistance: '1 kOhm' } },
+    { id: 'G2', type: 'Ground', start: { x: 8, y: 4 }, end: { x: 8, y: 5 } }] } });
+  await R({ doc, span: '10 us', reset: true });
+  const logMark = ((await A('getDiagnostics', { doc, log: { since: 0, limit: 1 } })).data.log || {}).cursor || 0;
+  await probe('st.failNext = 2; st.failCol = 2;');
+  try {
+    await R({ doc, span: '10 us', reset: true });
+  } finally {
+    await probe('st.failNext = 0; st.failCol = -1;');
+  }
+  const logs = (((await A('getDiagnostics', { doc, log: { since: logMark, limit: 500 } })).data.log || {}).entries || []).map((e) => e.text);
+  const pivotLine = logs.find((t) => /pivot failed with stabilizers at col=2/.test(t)) || null;
+  out.notes.variable = { pivotLine };
+  ck('singularVariableMapped', pivotLine && /var=voltageSourceCurrent\(vs=0/.test(pivotLine));
+  // after the forced failures the circuit recovers and solves again
+  const r3 = await R({ doc, span: '1 ms', reset: true, probes: [{ post: 'D1.#0' }] });
+  out.notes.recovered = { issues: (r3.issues || []).map((i) => i.message), ok: r3.ok, reason: r3.data && r3.data.reason, final: r3.ok && r3.data.probes[0].stats.final };
+  ck('recoversAfterReset', r3.ok && r3.data.reason === 'span_reached' && r3.data.probes[0].stats.final > 0.3 && r3.data.probes[0].stats.final < 0.9);
+
+  await A('closeDocument', { doc, discardChanges: true });
+  ck('visibleTabUnchanged', JSON.stringify(vis0) === JSON.stringify(await s.call('visibleTab')));
+  ck('noExceptions', s.exceptions.length === exMark);
+  const failed = Object.keys(out.checks).filter((k) => !out.checks[k]);
+  fs.writeFileSync(path.join(OUT_DIR, 'solver_defects.json'), JSON.stringify(out, null, 2));
+  report('AG.solver_defects', failed.length === 0, { checks: Object.keys(out.checks).length, failed });
+}
+
 // 555square.txt output frequency and duty cycle measured on the pre-fix build (HEAD 942a7ae)
 const TIMER_SQUARE_HZ = 239.521;
 const TIMER_SQUARE_DUTY = 0.507567;
@@ -8514,7 +8636,7 @@ async function scenarioAgentEquiv(s) {
 
 async function main() {
   const wanted = process.argv.slice(2);
-  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'agent_echo', 'mcp_browser', 'mcp_dialog'];
+  const scen = wanted.length && !wanted.includes('all') ? wanted : ['undo', 'paste', 'sliders', 'loadstate', 'textfid', 'scope_float', 'roundtrip', 'synth', 'agent_docs', 'agent_ids', 'agent_catalogue', 'agent_edit', 'agent_connect', 'agent_connect_all', 'agent_overlap', 'agent_layout', 'render_text', 'agent_freerun', 'geom_posts', 'xfmr_draw', 'agent_axis', 'agent_history', 'agent_run', 'agent_bg', 'agent_files', 'pin_names', 'agent_defects', 'verify_defects', 'solver_defects', 'agent_models', 'agent_models_logic', 'agent_models_sub', 'json_models', 'agent_echo', 'mcp_browser', 'mcp_dialog'];
   fs.mkdirSync(OUT_DIR, { recursive: true });
   if (!fs.existsSync(path.join(SITE_DIR, 'circuitjs.html'))) throw new Error('SITE_DIR has no circuitjs.html: ' + SITE_DIR);
   log(`SITE_DIR=${SITE_DIR}\nOUT_DIR=${OUT_DIR}\nscenarios=${scen.join(',')}`);
@@ -8558,7 +8680,7 @@ async function main() {
     log(JSON.stringify({ expr, value, error, console: s.consoleSince(mark).map((c) => c.text.slice(0, 400)), exceptions: s.exceptions.slice(exMark).map((e) => e.slice(0, 800)) }, null, 2));
     results.push({ name: 'eval', pass: !error, summary: {} });
   };
-  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
+  const table = { undo: scenarioUndo, paste: scenarioPaste, sliders: scenarioSliders, loadstate: scenarioLoadState, roundtrip: scenarioRoundtrip, synth: scenarioSynth, textfid: scenarioTextFidelity, scope_float: scenarioScopeFloat, agent_docs: scenarioAgentDocs, agent_ids: scenarioAgentIds, agent_catalogue: scenarioAgentCatalogue, agent_edit: scenarioAgentEdit, agent_connect: scenarioAgentConnect, agent_connect_all: scenarioAgentConnectAll, agent_overlap: scenarioAgentOverlap, render_text: scenarioRenderText, agent_freerun: scenarioAgentFreeRun, geom_posts: scenarioGeomPosts, xfmr_draw: scenarioXfmrDraw, agent_axis: scenarioAgentAxis, agent_history: scenarioAgentHistory, agent_run: scenarioAgentRun, agent_bg: scenarioAgentBackground, agent_files: scenarioAgentFiles, pin_names: scenarioPinNames, agent_defects: scenarioAgentDefects, verify_defects: scenarioVerifyDefects, solver_defects: scenarioSolverDefects, agent_models: scenarioAgentModels, agent_models_logic: scenarioAgentModelsLogic, agent_models_sub: scenarioAgentModelsSub, json_models: scenarioJsonModels, mcp_browser: scenarioMcpBrowser, mcp_dialog: scenarioMcpDialog, render_pixels: scenarioRenderPixels, layout_cost: scenarioLayoutCost, import_cost: scenarioImportCost, frame_cost: scenarioFrameCost, agent_echo: scenarioAgentEcho, agent_equiv: scenarioAgentEquiv, text_sites: scenarioTextSites, agent_layout: scenarioAgentLayout, eval: scenarioEval };
   for (const name of scen) {
     if (!table[name]) { log(`unknown scenario ${name}`); continue; }
     try { await table[name](s); } catch (e) { report(name, false, { harnessError: e.message }); }

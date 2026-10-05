@@ -25,4 +25,4 @@ skills:
     skill: agent-run-behaviour
     topics: [agent-run, determinism, reset, initial-state, throughput, sweep, time-step, quantization, rng, noise, stop-trigger, convergence, solver-quality]
     source: prototype
-    updated: 2026-10-02
+    updated: 2026-10-05

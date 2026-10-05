@@ -2102,51 +2102,37 @@ public class CircuitSimulator extends BaseCirSimDelegate {
                             return false;
                         }
 
-                        int failColPre = CircuitMath.getLastLuFailColumn();
-                        int failRowPre = CircuitMath.getLastLuFailRow();
-                        double failPivotPre = CircuitMath.getLastLuFailPivotAbs();
+                        // Stabilizers active and still singular: escalate (SP_SIM_02 SINGULAR). Do not
+                        // stamp and re-factor here: lu_factor has overwritten circuitMatrix in place
+                        // (partly factored, rows swapped), and stampCircuit already adds the stabilizers
+                        // while singularStabilizersActive (the recovery below re-stamps).
+                        int failCol = CircuitMath.getLastLuFailColumn();
+                        int failRow = CircuitMath.getLastLuFailRow();
+                        double failPivot = CircuitMath.getLastLuFailPivotAbs();
+
+                        // Log a human-friendly hint about which variable is causing the singularity.
+                        // Columns/rows map to node voltages first, then voltage-source currents.
+                        console("Singular matrix: pivot failed with stabilizers at col=" + failCol +
+                                " row=" + failRow + " abs=" + failPivot + " var=" + describeMatrixVariable(failCol));
                         if (circuitMatrixSize > 0 && circuitMatrixSize <= 12) {
-                            console("lu_factor failed (pre-stabilize): matrixSize=" + circuitMatrixSize +
+                            console("lu_factor failed (stabilized): matrixSize=" + circuitMatrixSize +
                                     ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
                             dumpCircuitMatrix();
                         }
-                        // Some imported/legacy circuits can end up singular due to missing parasitics.
-                        // Try a minimal stabilization by adding a tiny conductance to ground for each
-                        // external node and refactoring once.
-                        stampSingularMatrixStabilizers();
-                        if (!CircuitMath.lu_factor(circuitMatrix, circuitMatrixSize, circuitPermute)) {
-                            int failColPost = CircuitMath.getLastLuFailColumn();
-                            int failRowPost = CircuitMath.getLastLuFailRow();
-                            double failPivotPost = CircuitMath.getLastLuFailPivotAbs();
-
-                            // Log a human-friendly hint about which variable is causing the singularity.
-                            // Columns/rows map to node voltages first, then voltage-source currents.
-                            String preVar = describeMatrixVariable(failColPre);
-                            String postVar = describeMatrixVariable(failColPost);
-                            console("Singular matrix: pre-stabilize pivot failed at col=" + failColPre +
-                                    " row=" + failRowPre + " abs=" + failPivotPre + " var=" + preVar);
-                            console("Singular matrix: post-stabilize pivot failed at col=" + failColPost +
-                                    " row=" + failRowPost + " abs=" + failPivotPost + " var=" + postVar);
-                            if (circuitMatrixSize > 0 && circuitMatrixSize <= 12) {
-                                console("lu_factor failed (post-stabilize): matrixSize=" + circuitMatrixSize +
-                                        ", nodeListSize=" + nodeList.size() + ", voltageSourceCount=" + voltageSourceCount);
-                                dumpCircuitMatrix();
+                        if (nonConvergenceRecoveryEnabled) {
+                            // Treat as a hard numeric condition; apply strong damping and try again.
+                            if (nonConvergencePanicLevel < 3) {
+                                setNonConvergencePanicLevel(3);
                             }
-                            if (nonConvergenceRecoveryEnabled) {
-                                // Treat as a hard numeric condition; apply strong damping and try again.
-                                if (nonConvergencePanicLevel < 3) {
-                                    setNonConvergencePanicLevel(3);
-                                }
-                                warn("Singular matrix!", null);
-                                setNodeVoltages(lastNodeVoltages);
-                                stampCircuit();
-                                // Fall back into the standard recovery path by treating this as a failed iteration.
-                                subIter = subIterCount;
-                                break;
-                            }
-                            stop("Singular matrix!", null);
-                            return false;
+                            warn("Singular matrix!", null);
+                            setNodeVoltages(lastNodeVoltages);
+                            stampCircuit();
+                            // Fall back into the standard recovery path by treating this as a failed iteration.
+                            subIter = subIterCount;
+                            break;
                         }
+                        stop("Singular matrix!", null);
+                        return false;
                     }
                 }
 
@@ -2348,6 +2334,21 @@ public class CircuitSimulator extends BaseCirSimDelegate {
     private String describeMatrixVariable(int matrixCol) {
         if (matrixCol < 0) {
             return "(unknown)";
+        }
+        if (circuitNeedsMap) {
+            // [SP_SLV_01_09] a column of the reduced matrix: find its unknown through mapCol
+            int unknown = -1;
+            for (int j = 0; j < circuitMatrixFullSize; j++) {
+                RowInfo ri = circuitRowInfo[j];
+                if (ri.type == RowInfo.ROW_NORMAL && ri.mapCol == matrixCol) {
+                    unknown = j;
+                    break;
+                }
+            }
+            if (unknown < 0) {
+                return "(out-of-range col=" + matrixCol + ")";
+            }
+            matrixCol = unknown;
         }
         int nodeVarCount = nodeList.size() - 1;
         if (matrixCol < nodeVarCount) {

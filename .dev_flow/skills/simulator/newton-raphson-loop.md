@@ -3,7 +3,7 @@ skill: newton-raphson-loop
 domain: simulator
 topics: [newton-raphson, convergence, panic-level, gmin, recovery]
 source: onboard
-updated: 2026-04-18
+updated: 2026-10-05
 ---
 
 # Newton-Raphson Loop and Convergence Recovery
@@ -105,6 +105,8 @@ failure.
 5. **`CirSim.resetSimulation` and `BaseCirSim.resetAction` diverge.**
    See `simulator-core` analysis §10.2 — use `resetAction` for full
    user-visible reset, `resetSolverState` for solver-only invalidation.
+
+6. **`lu_factor` overwrites `circuitMatrix` in place** (Crout, rows swapped by reference). After a call — failed or not — the matrix is no longer the stamp: never `stampMatrix`/stamp stabilizers into it and factor again. To retry, rebuild the stamp (`stampCircuit`, or copy `origMatrix` back and re-run `doStep`). A stabilized retry on the overwritten matrix existed until 2026-10-05 (fix task_20261005_153627_spike-solver-defects; live `solver_defects`). With `singularStabilizersActive`, `stampCircuit` already adds the stabilizers.
 
 ## References
 

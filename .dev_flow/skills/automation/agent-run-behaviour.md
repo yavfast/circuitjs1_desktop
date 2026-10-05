@@ -3,7 +3,7 @@ skill: agent-run-behaviour
 domain: automation
 topics: [agent-run, determinism, reset, initial-state, throughput, sweep, time-step, quantization, rng, noise, stop-trigger, convergence, solver-quality]
 source: prototype
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # How Agent API runs behave: determinism, initial state, throughput, time-step traps
@@ -35,6 +35,7 @@ Read it before writing sweeps, Monte Carlo or repeatable checks over `run` ([SP_
 
   Example: a relaxation oscillator runs at 113 Hz from the file state, but after a reset its capacitor reaches only 0.149 V in 20 ms. An experiment must name its start.
 - **Changing a value for the next run point.** `applyEdits [{op: "set", id, properties: {...}}]` (atomic, re-analyses, clamps reported as `value_adjusted`), then `run {reset: true}`. That is two calls per sweep point; there is no batch operation.
+- **Large circuits: a reset run costs one stamp.** Since 2026-10-05 a `reset: true` run resolves its probes on the node analysis and stamps once, after the reset (before, it stamped twice: a 2000-node linear grid paid 2 × 21.7 s of dense LU). The stamp is still O(m³) per analysis — see `simulator/solver-performance.md`; a sweep over a large circuit pays it on every edit.
 - **Throughput.** A 20-point sweep, each point an edit plus a reset run:
 
   | Circuit | Steps/s | Per run | 20-point sweep |
