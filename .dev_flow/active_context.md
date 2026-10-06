@@ -16,7 +16,7 @@ A thin index over the task files in [`tasks/`](tasks/) — active and recently c
 
 | Task | Phase | Completed | Contributors | Result |
 |------|-------|-----------|--------------|--------|
-| [task_C_SLV](tasks/task_C_SLV.md) — sparse linear system solver | implement | 2026-10-06 | main | PL_SLV P1–P6 merged into `master` and pushed 2026-10-06; `test:mcp` and a scripted NW.js check pass |
+| [task_C_SLV](tasks/task_C_SLV.md) — sparse linear system solver | implement | 2026-10-06 | main | PL_SLV P1–P6 on `feat/sparse-solver` (fast-forward ready; merge + push left to the developer); `test:mcp` and a scripted NW.js check pass |
 | [task_20261005_153627_spike-solver-defects](tasks/task_20261005_153627_spike-solver-defects.md) — solver defects from the sparse-solver spike | fix | 2026-10-05 | main | reset run stamps once; singular retry escalates; singular message maps reduced columns; live `solver_defects` |
 | [task_20261005_150450_sparse-solver-research](tasks/task_20261005_150450_sparse-solver-research.md) — sparse solver; WebGPU / server acceleration | research | 2026-10-05 | main | spike [sparse-solver.spike.md](../docs/sparse-solver.spike.md) concluded; skill simulator/solver-performance; cache sparse-spike; next: C_SIM concept interview |
 | [task_20261002_100004_circuit-lang-research](tasks/task_20261002_100004_circuit-lang-research.md) — language for circuit description, simulation and measurement | research | 2026-10-02 | main | spike [circuit-script-language.spike.md](../docs/circuit-script-language.spike.md) concluded; skills automation/circuit-experiment-language, agent-run-behaviour; next: concept interview |
