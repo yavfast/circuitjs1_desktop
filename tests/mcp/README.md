@@ -28,6 +28,8 @@ node tests/mcp/e2e.mjs --list           # group, scenario and rows, without runn
 
 Each row prints one line, `PASS|FAIL|SKIP <ID> <title> {json}`. A FAIL lists the failed checks with their evidence. The run ends with `SUMMARY {"pass":…,"fail":…,"skip":…}`. The rows of groups that were not selected, and the manual rows, print SKIP with a reason. Exit code: 0 when no row fails (SKIP allowed), 1 when any row fails, 2 on a harness error (no build, no display, ports busy, bad argument).
 
+**Ports busy because a CircuitJS1 app is running.** The harness needs 7311..7330 and 7400 free. Instead of closing the app, run it in an own network namespace (its own loopback; the running app is untouched): `unshare -rn sh -c 'ip link set lo up && npm run test:mcp'`. Inside `unshare -r` the process is root of the namespace, so the row "saveFile: overwrite rules…" fails its `readOnlyDirEacces` check (root writes into the read-only fixture directory); every other row is meaningful. There are no LAN addresses in the namespace, so the LAN rows check nothing.
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `SITE_DIR` | `target/site` | Site root with `circuitjs.html` and `scripts/mcp-server.js` |
