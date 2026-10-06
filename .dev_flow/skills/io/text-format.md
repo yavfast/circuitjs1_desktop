@@ -3,7 +3,7 @@ skill: text-format
 domain: io
 topics: [falstad, text-format, dump-type, options-line, scope-line, hint-line]
 source: onboard
-updated: 2026-10-02
+updated: 2026-10-06
 ---
 
 # Legacy Text Format
@@ -140,7 +140,7 @@ subcircuit mode, `AudioInputElm.clearCache()`,
 8. **The options line needs its own newline.** `ActionManager.dumpOptions()` returns `$ …` without `\n`; a caller that appends element lines must add it (the copy/duplicate path glued the first element onto the options line and dropped it).
 9. **Booleans: match the reader.** `dumpValues` writes a `boolean` as `1`/`0`; a field read with `Boolean.parseBoolean` (the upstream form, `"true"`/`"false"`) must be passed as `String.valueOf(b)` and read with `CircuitElm.parseBool` (accepts both). Mismatch flips the flag on every save **and every undo** (Counter `invertreset`, Fuse/MotorProtectionSwitch `blown`, Monostable `retriggerable`, Triac `state` — fixed 2026-10-01).
 10. **"Is this text a circuit?" is not `canImport`.** The agent file rules
-    (SP_AGA_03_09) use `agent/CircuitContentTest`: every non-empty line must
+    (SP_AGA_03_09) use `io/CircuitContentTest`: every non-empty line must
     be a recognised line type (first token normalised by
     `CircuitElmCreator.dumpTypeId`, the importer's own normalisation:
     numeric token → `parseInt`, else first char code, so `34`/`"`,

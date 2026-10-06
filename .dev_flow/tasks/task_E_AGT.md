@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_E_AGT`
 > **Created:** 2026-10-01 15:20
-> **Last updated:** 2026-10-05
+> **Last updated:** 2026-10-06
 > **Status:** `in-progress`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Продовжуй до повного завершення реалізації цього функціоналу" + answer "No stops" (2026-10-01): commit each phase after review without asking, never push; 2026-10-03: "Назви пінів потрібно зробити як буде правильно. Даю всі дозволи на виконання потрібних операцій" — covers the polar pin-name fix (design delegated) and the PL_AGS Phase 4 eval runs (model usage); push still not requested
@@ -11,8 +11,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phases 11–15 (agent model definitions, SP_AGA_DEC_07), inside the epic [agent-automation.epic.md](../../docs/agent-automation.epic.md); PL_MCP/PL_MCB completed, PL_AGS Phase 4 open only for the manual Claude Desktop row |
-| **Pipeline phase** | `implement` — PL_AGA Phase 14 implemented, uncommitted, awaiting its clean-context review (Phases 11–13 committed); then Phase 15 and the live-series re-runs (verify); the developer's earlier manual checks still owed; push/merge not requested |
+| **Document** | `plan` — [agent-api.plan.md](../../docs/agent-api.plan.md) Phases 11–15 and 16a done, 16b deferred to the backlog, inside the epic [agent-automation.epic.md](../../docs/agent-automation.epic.md); PL_MCP/PL_MCB completed, PL_AGS Phase 4 open only for the manual Claude Desktop row |
+| **Pipeline phase** | `verify` — all E_AGT work merged to `master` and pushed (c1d0d90, 2026-10-05); open: the developer's owed manual devmode checks (Relevant Context, "Manual checks owed") and a fix round for what they find |
 | **Traceable ID** | E_AGT · C_AGA · C_MCP · C_MCB · C_AGS · SP_AGA · SP_MCP · SP_MCB · SP_AGS · PL_AGA · PL_MCP · PL_MCB · PL_AGS |
 
 ## Intent
@@ -82,7 +82,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - 22:10 — SP_AGA_DEC_04 trigger edited in place (non-breaking) to the reduced prototype sequence
 
 ### Subtask: implementation
-> Author: `main` — Created: 22:40 — Last updated: 2026-10-02 06:30 — Status: `in-progress`
+> Author: `main` — Created: 22:40 — Last updated: 2026-10-06 — Status: `done`
 
 **Goal:** implement PL_AGA, PL_MCP, PL_MCB, PL_AGS in plan order; one commit per plan phase (Autonomy `full`: commit after review without asking, never push).
 
@@ -124,8 +124,8 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - [x] Verify (live, developer request 2026-10-03): an agent built a JFET Armstrong step-up converter through the MCP tools only — 65.7 % at 0.1 V / 100 kΩ (3.24 V out), starts from 25 mV (step) / 44.5 mV (ramp), continuous up to ~0.15 V; tools sufficient; 2 HIGH + 2 medium + 1 low defects and 6 skill gaps → PL_AGA Backlog "Defect batch from the live JFET DC-DC verify"
 - [x] Fix round for the live-verify defects (developer: fix every found defect right away): transformer pins `p1/s1/p2/s2` (+ aliases), ratio label N2/N1 in the catalogue (dialog was right), model names validated with `choices` (agent paths; user loads unchanged), collapsed posts / replaced ends reported, offscreen render printable on white with text bounds, skill gaps closed; `verify_defects` 44 (30 fail on HEAD); reviews PASS
 - [x] Transformer drawing (developer report 2026-10-03): CustomTransformer core/coils drawn along the box diagonal since dde7f33, flipped Transformer coils facing outward — drawing-only fixes, posts unchanged; legacy TappedTransformer/Transformer optional fields (eb72ca5) and forced 64 px spacing on load (a593884) fixed — ringmod.txt loads correctly; TappedTransformer `spacing`/`tap_position` JSON properties; new `not_axis_aligned` for 69 axis-bound types; live `xfmr_draw` 81 + `agent_axis` 10; review PASS
-- [ ] Later (after the graded-series subtask): collect the developer's results of the owed manual checks (Relevant Context, "Manual checks owed"), fix every defect they report in a fix round, then push/merge `design/agent-mcp` only on the developer's word
-- [ ] Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
+- [x] (merge and push done 2026-10-05, c1d0d90; the owed manual checks moved to the graded-series subtask's **Next**) Later (after the graded-series subtask): collect the developer's results of the owed manual checks (Relevant Context, "Manual checks owed"), fix every defect they report in a fix round, then push/merge `design/agent-mcp` only on the developer's word
+- [x] (all done, see the items above) Then: PL_AGA Phase 7 runs/probes/simControl → Phase 8 background completion + render → Phase 9 path files → PL_MCP Phases 1–4 (Phase 4 closes PL_AGA Phase 9) → PL_AGA Phase 10 / PL_MCP Phase 5 docs → PL_MCB → PL_AGS
 
 **Activity:**
 - 2026-10-03 21:30 — checkpoint: branch `design/agent-mcp`, 35 commits ahead of master, not pushed; E_AGT work fully committed — the tree's uncommitted files belong to the parallel circuit-lang research (plus derived dashboard rows and the BL-D01 row closed in the audit plan)
@@ -204,7 +204,7 @@ Follows the research task [task_20261001_142742_mcp-research](task_20261001_1427
 - ~~`proposed`: polar pin names swapped~~ **resolved 2026-10-03** by the developer ("make them correct") → SP_AGA_DEC_06: sources `minus`/`plus`, current sources `in`/`out`, ohmmeter `com`/`probe`, op-amp constant `in-`/`in+`; JSON 2.1 with import aliases for 2.0 names. — main
 - `resolved (delegated)` 2026-10-02 — left as implemented when the developer lifted the Phase 6 pause without objecting (minor, Phase 6; delta reviewer: acceptable as is): when an agent `undo`/`restoreCheckpoint` auto-seals an open transaction and the following undo load then throws (`internal_error`), the seal is not rolled back — the transaction ends sealed. Recommended: leave as is (the sealed entry is a correct checkpoint of the agent's work; the failure path is exceptional). Alternative: snapshot the transaction state and restore it too. Raise with the developer at the pause. — main
 
-- `{s:pin}` 2026-10-04 (main → owner of `.dev_flow/skills/io/json-format.md` and `text-format.md`, the circuit-lang task): `text-format.md:143` should say `io/CircuitContentTest` (moved from agent/ by PL_AGA Phase 14); json-format Pitfall 12 is outdated after PL_AGA Phase 14 — proposed replacement: "JSON 2.2 carries a `models` section (SP_AGA_03_12; closure via `io/ModelDependencies`); `RC_SUBCIRCUITS` imports subcircuit entries and their dependencies. In-circuit scopes travel as the `Scope` element's `scope` property, applied after all elements exist (`JsonScopeCodec`)." Also `.dev_flow/skills/io/text-format.md` Pitfalls 12–13 were added by E_AGT commit fb55b3c (index staged around your uncommitted edits). — main
+- `{s:pin}` 2026-10-04 (main → owner of `.dev_flow/skills/io/json-format.md` and `text-format.md`, the circuit-lang task): `text-format.md:143` should say `io/CircuitContentTest` (moved from agent/ by PL_AGA Phase 14); json-format Pitfall 12 is outdated after PL_AGA Phase 14 — proposed replacement: "JSON 2.2 carries a `models` section (SP_AGA_03_12; closure via `io/ModelDependencies`); `RC_SUBCIRCUITS` imports subcircuit entries and their dependencies. In-circuit scopes travel as the `Scope` element's `scope` property, applied after all elements exist (`JsonScopeCodec`)." Also `.dev_flow/skills/io/text-format.md` Pitfalls 12–13 were added by E_AGT commit fb55b3c (index staged around your uncommitted edits). — main → **applied 2026-10-06 by `/dev-flow audit context`** (the owner task is closed): text-format Pitfall 10, json-format Pitfall 12, automation/circuit-experiment-language. — main
 
 - `{s:pin}` 2026-10-05 (main → owner of `.dev_flow/audit/whole_20260930_173830.plan.md`, the circuit-lang task): audit BL-D02 (`ujtosc.txt` stops) is resolved by the E_AGT import-scaling fix (SP_AGA §06_01 item 31: RelayCoilElm/CCCSElm/CCVSElm `setParentList(Vector)` never overrode the base) — please mark it resolved there. — main
 

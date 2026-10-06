@@ -3,7 +3,7 @@ skill: circuit-experiment-language
 domain: automation
 topics: [circuit-language, experiment, test-bench, measure, meas, trig-targ, find-when, sweep, monte-carlo, worst-case, spec-check, llm-reliability, script-host, sandbox, pyodide, quickjs, spice-subset]
 source: research
-updated: 2026-10-02
+updated: 2026-10-06
 ---
 
 # Languages for circuit experiments: prior art, LLM evidence, hosting limits here
@@ -83,7 +83,7 @@ Distilled from [docs/circuit-script-language.spike.md](../../../docs/circuit-scr
   - Diode, BJT and MOSFET model parameters are partly unsupported, so warn per dropped parameter.
   - E/G/F/H have no POLY.
   - `.include/.lib/.control/.system` read files or run commands and must be refused.
-- **JSON has no model definitions.** Diode, BJT and subcircuit models exist only in the text format (see [io/json-format](../io/json-format.md)).
+- **JSON models since 2.2.** JSON 2.2 (PL_AGA Phase 14) carries a `models` section for diode, BJT, custom logic and subcircuit models; before it they existed only in the text format (see [io/json-format](../io/json-format.md) Pitfall 12).
 - **A new circuit format** must register before `text` with a strict `canImport`, and `ImportOps.importCircuit` must be taught to pass it a format id (it sniffs only `{`). See [io/text-format](../io/text-format.md).
 
 ## References

@@ -3,7 +3,7 @@ skill: json-format
 domain: io
 topics: [json, schema-v2, circuit-element-factory, unit-parser, bounds, auto-wires]
 source: onboard
-updated: 2026-10-03
+updated: 2026-10-06
 ---
 
 # JSON v2 Format (written as 2.1)
@@ -125,7 +125,7 @@ with `"2."`. No semver range; future `3.x` rejects.
 9. **Import flags have one definition: `CircuitConst.RC_*`** (`CircuitImporter.RC_*` alias it). A second set with `RC_NO_CENTER`/`RC_SUBCIRCUITS` swapped made undo load an empty circuit (fixed 2026-09-30).
 10. **Values are serialized losslessly** with `CircuitElm.getJsonUnitText` (not the display `getUnitText`, whose precision follows the display setting). `_flags` is always written. Lists are JSON arrays and arrive as `java.util.List`.
 11. **Pin keys in `state` must be unique** — chips name Q and Q-bar both "Q"; keys get a `~` (line-over) prefix and a `_<index>` suffix on collision.
-12. **JSON v2 carries no model definitions** (`JsonCircuitImporter.java:110-116`). Diode (`34`), transistor (`32`) and subcircuit (`.`) model lines exist only in the text format and the session-global model maps; a JSON import with `RC_SUBCIRCUITS` imports nothing. Any front end that needs `.model`/`.subckt` (e.g. a SPICE translator) must go through the text path or a new models channel (found 2026-10-02, [automation/circuit-experiment-language](../automation/circuit-experiment-language.md)).
+12. **JSON 2.2 carries a `models` section** (SP_AGA_03_12; `JsonCircuitImporter` reads `root.models`, the dependency closure comes from `io/ModelDependencies`, shared with `getCircuit`/`usedBy`). With `RC_SUBCIRCUITS` the importer takes the subcircuit entries and their dependencies. In-circuit scopes travel as the `Scope` element's `scope` property and are applied after all elements exist (`io/json/JsonScopeCodec`). Before 2.2 (until PL_AGA Phase 14) JSON had no model definitions, so a front end that needs `.model`/`.subckt` no longer has to go through the text path (first found 2026-10-02, [automation/circuit-experiment-language](../automation/circuit-experiment-language.md)).
 
 ## References
 
