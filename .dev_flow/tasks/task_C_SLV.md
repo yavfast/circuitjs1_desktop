@@ -2,7 +2,7 @@
 
 > **Task ID:** `task_C_SLV`
 > **Created:** 2026-10-05 16:40
-> **Last updated:** 2026-10-06 01:30
+> **Last updated:** 2026-10-06
 > **Status:** `done`
 > **Contributors:** `main`
 > **Autonomy:** `full` — "Go, commit each phase autonomously" (design sign-off answer 2026-10-05; scope: per-phase commits on `feat/sparse-solver` after review + tests; no merge, no push)
@@ -12,7 +12,7 @@
 | Field | Value |
 |-------|-------|
 | **Document** | `concept` — [linear-solver.concept.md](../../docs/linear-solver.concept.md) |
-| **Pipeline phase** | `implement` complete (PL_SLV P1–P6 committed on `feat/sparse-solver`; not merged, not pushed) |
+| **Pipeline phase** | `implement` complete (PL_SLV P1–P6 committed; `master` fast-forwarded to a7ff642 and pushed 2026-10-06) |
 | **Traceable ID** | C_SLV (from PL_SIM backlog TD_20261005_145712_sparse-solver; spike [sparse-solver.spike.md](../../docs/sparse-solver.spike.md)) |
 
 ## Intent
@@ -77,6 +77,7 @@
 - Every phase: clean-context review PASS, advisories fixed before commit.
 - `npm run test:mcp` run 2026-10-06 in an own network namespace: 70 pass, 1 namespace artifact (`readOnlyDirEacces`), solver checks pass.
 - RULE_TEST_002 stand-in run 2026-10-06 in the real NW.js app (`nw_check.mjs`): all checks pass. Merge into `master` and push: the developer agreed ("Ок", 2026-10-06), but the session's permission rules blocked the push; left to the developer (`git checkout master && git merge --ff-only feat/sparse-solver && git push origin master`).
+- Merged and pushed on the developer's word (2026-10-06 "Merge and push feat/sparse-solver"): `master` fast-forwarded e531346..a7ff642 (no merge commit), origin/master a6bec19..a7ff642; branch `feat/sparse-solver` kept locally, not pushed.
 
 **Activity:**
 - 01:30 — P6: RC-ladder analysis missed 0.5 s in the node analysis (`calcWireInfo` 1.7 s) → indexed; all targets met; rule RULE_TEST_008 written (should)
