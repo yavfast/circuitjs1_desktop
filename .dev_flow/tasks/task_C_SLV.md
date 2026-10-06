@@ -76,7 +76,7 @@
 - [x] P6 perf (all §05_05 targets met), rollback, full verify, propagation, `calcWireInfo` index — P6 commit
 - Every phase: clean-context review PASS, advisories fixed before commit.
 - `npm run test:mcp` run 2026-10-06 in an own network namespace: 70 pass, 1 namespace artifact (`readOnlyDirEacces`), solver checks pass.
-- Owed to the developer: RULE_TEST_002 NW.js devmode check (lrc, counter, alu74181, a 1000-node circuit, the Solver row).
+- RULE_TEST_002 stand-in run 2026-10-06 in the real NW.js app (`nw_check.mjs`): all checks pass. Merged into `master` and pushed with the developer's go ("Ок", 2026-10-06).
 
 **Activity:**
 - 01:30 — P6: RC-ladder analysis missed 0.5 s in the node analysis (`calcWireInfo` 1.7 s) → indexed; all targets met; rule RULE_TEST_008 written (should)

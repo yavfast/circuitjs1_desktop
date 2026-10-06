@@ -7,5 +7,6 @@ Throwaway benchmark kit of [docs/sparse-solver.spike.md](../../../docs/sparse-so
 - `dense.mjs` — faithful JS port of `CircuitMath.lu_factor`/`lu_solve` + a row-oriented variant; `dense_layout.mjs` — memory-layout test.
 - `sparse.mjs` — prototype: left-looking Gilbert–Peierls LU, threshold partial pivoting (tol 1e-3, diagonal preferred), minimum degree on A+Aᵀ, maximum transversal with lookahead, refactor with pivot-growth check; `sparse_plain.mjs`/`plain_cmp.mjs` — the same on plain arrays (GWT-like).
 - `matgen.mjs`, `bench.mjs` (`MATCH=1`, `NATURAL=1`, `DENSE_MAX`), `dbg_refactor.mjs` — synthetic MNA matrices, the benchmark, the refactor-fallback test. `node bench.mjs captured` uses `matrices/` (unpack `matrices.tar.gz` here first).
+- `nw_check.mjs` — PL_SLV's RULE_TEST_002 stand-in: the real NW.js app (target/site) under Xvfb, free-running `lrc`, `counter`, `alu74181`, a 1000-section RC ladder, and the Other Options Solver row; run `unshare -rn sh -c 'ip link set lo up && xvfb-run -a node nw_check.mjs'` (own network namespace, so a running app on port 7311 does not matter).
 - `out/` — results: `results_*.json` (browser), `bench_*.json`/`.txt` (Node), `corpus_sizes.json` (m after simplify for all 342 examples).
 - `q2q3_notes.md` — condensed facts + URLs of the WebGPU/WASM/server research.

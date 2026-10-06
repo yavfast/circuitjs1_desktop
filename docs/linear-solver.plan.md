@@ -224,7 +224,7 @@ Done 2026-10-05 (results in `.dev_flow/cache/sparse-spike/out/results_delivered_
 - Full `npm run test:live`: 34 pass; `text_fidelity`, `json_roundtrip`, `synthetic_all_types` fail as on master (pre-existing); one `synthetic_all_types` text-leg difference of `MosfetN` (drawing bounds) appeared once in the full-suite order and not in two standalone runs on either build. `solver_corpus`, `solver_paths` (42), `solver_options` (11), `npm run test:unit` (36), `npm run test:mcp-unit` (27) pass.
 - `DENSE_MAX_SIZE` stays 64: sparse is faster from m ≈ 30, but the threshold keeps every example except three (m = 65–87) on the bit-identical dense path; no measurement argues for a change.
 - `npm run test:mcp` (2026-10-06, in an own network namespace while the developer's app held port 7311; `tests/mcp/README.md`): 70 pass, 12 skip (manual/other groups), 1 fail — `readOnlyDirEacces`, an artifact of the namespace (root ignores the read-only directory); the coverage row with the four `circuit_sim solver` checks and the `toolsVersion` 1.3 checks pass.
-- Owed to the developer: the RULE_TEST_002 NW.js devmode check (analog `lrc.txt`, digital `counter.txt`, subcircuit `alu74181.txt`, a 1000-node generated circuit, the Other Options Solver row).
+- RULE_TEST_002 (2026-10-06), scripted in the real NW.js app under Xvfb (`.dev_flow/cache/sparse-spike/nw_check.mjs`): `lrc.txt` and `counter.txt` free-run on the dense path; `alu74181.txt` (m = 81) on the sparse path, as fast as forced dense (frame-paced, ≈ 850 µs simulated per 3 s either way); a 1000-section RC ladder on the sparse path; the Solver row: Sparse re-stamps the running circuit at the next frame, Auto returns it to dense; no exceptions. A human look at the running app was not part of it.
 
 ## Backlog
 
