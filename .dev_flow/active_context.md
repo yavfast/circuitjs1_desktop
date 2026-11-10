@@ -33,7 +33,7 @@ Other open work lives in the backlog of [audit/whole_20260930_173830.plan.md](au
 ## Notes
 
 - Verification tools: `npm run buildgwt && npm run test:live` ([tests/live/README.md](../tests/live/README.md), RULE_TEST_006); `npm run test:mcp` / `test:mcp-unit` (MCP); `npm run test:unit` (JUnit, solver).
-- Tree at 2026-10-06: branch `master` = `origin/master`; local branches `design/agent-mcp` and `feat/sparse-solver` are fully merged into `master` and never pushed.
+- Tree at 2026-10-06: branch `master` = `origin/master`, the only local branch (merged `design/agent-mcp` and `feat/sparse-solver` deleted).
 
 ---
 
